@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="panel">
+    <p class="eyebrow">Этап 0</p>
+    <h1>Booker Tee запущен.</h1>
+    <p>
+      Основа приложения готова для импорта PDF-выписок, проверки строк и учета операций.
+    </p>
+    <div class="health-row" hx-get="/health" hx-trigger="load" hx-swap="innerHTML">
+      проверяем состояние
+    </div>
+  </section>
+{% endblock %}

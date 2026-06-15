@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Отчеты · {{ app_name }}{% endblock %}
+
+{% block content %}
+  <section class="panel stack">
+    <div class="toolbar">
+      <div>
+        <p class="eyebrow">{{ workspace.name }}</p>
+        <h1>Отчеты</h1>
+      </div>
+      <div class="toolbar">
+        <a class="button" href="/categories">категории</a>
+        <a class="button" href="/properties">объекты</a>
+      </div>
+    </div>
+
+    <form class="stack" method="get" action="/reports">
+      <div class="toolbar">
+        <input type="date" name="date_from" value="{{ filters.date_from or '' }}">
+        <input type="date" name="date_to" value="{{ filters.date_to or '' }}">
+        <select name="account_id">
+          <option value="">все счета</option>
+          {% for account in accounts %}
+            <option value="{{ account.id }}" {% if filters.account_id == account.id %}selected{% endif %}>{{ account.name }}</option>
+          {% endfor %}
+        </select>
+        <select name="category_id">
+          <option value="">все категории</option>
+          {% for category in categories %}
+            <option value="{{ category.id }}" {% if filters.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+          {% endfor %}
+        </select>
+        <select name="property_id">
+          <option value="">все объекты</option>
+          {% for property in properties %}
+            <option value="{{ property.id }}" {% if filters.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
+          {% endfor %}
+        </select>
+        <button class="button" type="submit">фильтр</button>
+      </div>
+    </form>
+
+    <div class="summary-grid">
+      <div class="metric metric-income">
+        <span>доходы</span>
+        <strong class="amount-income">{{ overview.summary.income }}</strong>
+      </div>
+      <div class="metric metric-expense">
+        <span>расходы</span>
+        <strong class="amount-expense">{{ overview.summary.expense }}</strong>
+      </div>
+      <div class="metric metric-profit">
+        <span>прибыль</span>
+        <strong class="amount-profit">{{ overview.summary.profit }}</strong>
+      </div>
+    </div>
+
+    <h2 class="status">Балансы счетов</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>счет</th>
+          <th>баланс</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in overview.account_balances %}
+          <tr>
+            <td><a href="/accounts/{{ row.account.id }}">{{ row.account.name }}</a></td>
+            <td class="amount {% if row.balance > 0 %}amount-income{% elif row.balance < 0 %}amount-expense{% endif %}">{{ row.balance }} {{ row.account.currency }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2 class="status">По категориям</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>категория</th>
+          <th>доходы</th>
+          <th>расходы</th>
+          <th>прибыль</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in overview.categories %}
+          <tr>
+            <td>{{ row.category_name }}</td>
+            <td class="amount amount-income">{{ row.income }}</td>
+            <td class="amount amount-expense">{{ row.expense }}</td>
+            <td class="amount amount-profit">{{ row.profit }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2 class="status">По объектам</h2>
+    {% if overview.properties %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>объект</th>
+            <th>доходы</th>
+            <th>расходы</th>
+            <th>прибыль</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in overview.properties %}
+            <tr>
+              <td>{{ row.property_name }}</td>
+              <td class="amount amount-income">{{ row.income }}</td>
+              <td class="amount amount-expense">{{ row.expense }}</td>
+              <td class="amount amount-profit">{{ row.profit }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="notice">В этом фильтре нет подтвержденных операций, связанных с объектами.</div>
+    {% endif %}
+
+    <h2 class="status">Без категории</h2>
+    {% if overview.uncategorized %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>дата</th>
+            <th>тип</th>
+            <th>сумма</th>
+            <th>описание</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in overview.uncategorized %}
+            <tr>
+              <td class="status">{{ row.operation.operation_date }}</td>
+              <td><span class="type-badge tone-{{ row.operation.type.value }}">{{ row.operation.type | ru }}</span></td>
+              <td class="amount {% if row.total > 0 %}amount-income{% elif row.total < 0 %}amount-expense{% endif %}">{{ row.total }}</td>
+              <td>{{ row.operation.description or "" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="notice">В этом фильтре нет подтвержденных операций без категории.</div>
+    {% endif %}
+  </section>
+{% endblock %}

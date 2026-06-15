@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Категории · {{ app_name }}{% endblock %}
+
+{% block content %}
+  <section class="panel stack">
+    <div class="toolbar">
+      <div>
+        <p class="eyebrow">{{ workspace.name }}</p>
+        <h1>Категории</h1>
+      </div>
+      <a class="button" href="/reports">отчеты</a>
+    </div>
+
+    <form class="toolbar" method="post" action="/categories">
+      <input name="name" placeholder="Название категории" required>
+      <select name="kind">
+        {% for kind in kinds %}
+          <option value="{{ kind.value }}">{{ kind | ru }}</option>
+        {% endfor %}
+      </select>
+      <button class="button" type="submit">добавить</button>
+    </form>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>название</th>
+          <th>тип</th>
+          <th>системная</th>
+          <th>ключ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for category in categories %}
+          <tr>
+            <td>{{ category.name }}</td>
+            <td><span class="type-badge tone-{{ category.kind.value }}">{{ category.kind | ru }}</span></td>
+            <td class="status">{{ "да" if category.is_system else "нет" }}</td>
+            <td class="status">{{ category.system_key or "" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Объекты · {{ app_name }}{% endblock %}
+
+{% block content %}
+  <section class="panel stack">
+    <div class="toolbar">
+      <div>
+        <p class="eyebrow">{{ workspace.name }}</p>
+        <h1>Объекты</h1>
+      </div>
+      <a class="button" href="/reports">отчеты</a>
+    </div>
+
+    <form class="stack" method="post" action="/properties">
+      <div class="toolbar">
+        <input name="name" placeholder="Название объекта" required>
+        <input name="short_name" placeholder="Короткое название">
+      </div>
+      <input name="address" placeholder="Адрес">
+      <button class="button" type="submit">добавить</button>
+    </form>
+
+    {% if properties %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>название</th>
+            <th>коротко</th>
+            <th>статус</th>
+            <th>адрес</th>
+            <th>действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for property in properties %}
+            {% set property_form_id = "property-form-" ~ property.id %}
+            <tr>
+              <td>
+                <form class="detached-form" id="{{ property_form_id }}" method="post" action="/properties/{{ property.id }}"></form>
+                <input name="name" value="{{ property.name }}" form="{{ property_form_id }}" required>
+              </td>
+              <td><input name="short_name" value="{{ property.short_name or "" }}" placeholder="Коротко" form="{{ property_form_id }}"></td>
+              <td class="status">{{ property.status | ru }}</td>
+              <td><input name="address" value="{{ property.address or "" }}" placeholder="Адрес" form="{{ property_form_id }}"></td>
+              <td>
+                <div class="row-actions">
+                  <button class="button button-small" type="submit" form="{{ property_form_id }}">сохранить</button>
+                  {% if property.status.value == "archived" %}
+                    <form method="post" action="/properties/{{ property.id }}/restore">
+                      <button class="button button-small" type="submit">восстановить</button>
+                    </form>
+                  {% else %}
+                    <form method="post" action="/properties/{{ property.id }}/archive">
+                      <button class="button button-small" type="submit">в архив</button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="notice">Объектов пока нет.</div>
+    {% endif %}
+  </section>
+{% endblock %}

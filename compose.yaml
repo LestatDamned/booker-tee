@@ -1,0 +1,57 @@
+name: booker-tee
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-booker_tee}
+      POSTGRES_USER: ${POSTGRES_USER:-booker_tee}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-booker_tee}
+    ports:
+      - "${BOOKER_TEE_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - booker_tee_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-booker_tee}:${POSTGRES_PASSWORD:-booker_tee}@postgres:5432/${POSTGRES_DB:-booker_tee}
+      BOOKER_TEE_APP_NAME: ${BOOKER_TEE_APP_NAME:-Booker Tee}
+      BOOKER_TEE_DEBUG: ${BOOKER_TEE_DEBUG:-true}
+      BOOKER_TEE_DEV_USER_EMAIL: ${BOOKER_TEE_DEV_USER_EMAIL:-dev@booker-tee.local}
+      BOOKER_TEE_UPLOAD_STORAGE_DIR: /app/var/uploads
+    ports:
+      - "${BOOKER_TEE_APP_PORT:-8000}:8000"
+    volumes:
+      - .:/app
+      - booker_tee_venv:/opt/booker-tee-venv
+      - booker_tee_uploads:/app/var/uploads
+    command: ["sh", "/app/docker/entrypoint.sh"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  booker_tee_postgres_data:
+  booker_tee_uploads:
+  booker_tee_venv:

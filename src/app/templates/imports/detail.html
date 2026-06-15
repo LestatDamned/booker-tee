@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}{{ document.original_filename }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+  {% set latest_attempt = document.parse_attempts[0] if document.parse_attempts else none %}
+  {% set validation = latest_attempt.validation_report_json if latest_attempt and latest_attempt.validation_report_json else none %}
+  <section class="panel stack">
+    <div class="toolbar">
+      <div>
+        <p class="eyebrow">{{ document.status | ru }}</p>
+        <h1>{{ document.original_filename }}</h1>
+      </div>
+      <div class="toolbar">
+        <a class="button" href="/imports/documents/{{ document.id }}/review">проверка</a>
+        <form method="post" action="/imports/documents/{{ document.id }}/reparse">
+          <button class="button" type="submit">перепарсить</button>
+        </form>
+        <form method="post" action="/imports/documents/{{ document.id }}/ignore">
+          <button class="button" type="submit">игнорировать</button>
+        </form>
+        <form method="post" action="/imports/documents/{{ document.id }}/delete">
+          <button class="button" type="submit">удалить</button>
+        </form>
+        <a class="button" href="/imports">назад</a>
+      </div>
+    </div>
+
+    {% if validation %}
+      <div class="summary-grid">
+        <div class="metric">
+          <span>строки</span>
+          <strong>{{ validation.extracted_count }}</strong>
+        </div>
+        <div class="metric metric-income">
+          <span>приход</span>
+          <strong class="amount-income">{{ validation.calculated_total_inflow }} {{ validation.currency or "" }}</strong>
+        </div>
+        <div class="metric metric-expense">
+          <span>расход</span>
+          <strong class="amount-expense">{{ validation.calculated_total_outflow }} {{ validation.currency or "" }}</strong>
+        </div>
+        <div class="metric">
+          <span>проверка</span>
+          <strong>{{ validation.status | ru }}</strong>
+        </div>
+      </div>
+      {% if validation.message %}
+        <div class="notice">{{ validation.message }}</div>
+      {% endif %}
+    {% else %}
+      <div class="notice">Отчет проверки для этого документа пока недоступен.</div>
+    {% endif %}
+
+    <div class="document-detail-grid">
+      <div class="document-detail-card">
+        <span>ID</span>
+        <strong title="{{ document.id }}">ID {{ document.id | short_id }}</strong>
+      </div>
+      <div class="document-detail-card">
+        <span>SHA-256</span>
+        <strong title="{{ document.sha256_hash }}">{{ document.sha256_hash | short_id(16) }}</strong>
+      </div>
+      <div class="document-detail-card document-detail-card-wide">
+        <span>Ключ хранения</span>
+        <strong class="technical-value" title="{{ document.storage_key }}">{{ document.storage_key }}</strong>
+      </div>
+      {% if document.account_id %}
+        <div class="document-detail-card document-detail-card-wide">
+          <span>Счет</span>
+          {% if document.account %}
+            <a class="account-ref" href="/accounts/{{ document.account_id }}">
+              <strong>{{ document.account.name }}</strong>
+              <span>{{ document.account.type | ru }}</span>
+              <span>{{ document.account.currency }}</span>
+              <span title="{{ document.account_id }}">ID {{ document.account_id | short_id }}</span>
+            </a>
+          {% else %}
+            <a class="account-ref" href="/accounts/{{ document.account_id }}">
+              <strong>Счет не найден</strong>
+              <span title="{{ document.account_id }}">ID {{ document.account_id | short_id }}</span>
+            </a>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    {% if document.raw_transactions %}
+      <h2 class="status">Сырые транзакции</h2>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>статус</th>
+              <th>попытка</th>
+              <th>дата</th>
+              <th>сумма</th>
+              <th>описание</th>
+              <th>проблема</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in document.raw_transactions %}
+              <tr>
+                <td class="status">{{ row.row_index }}</td>
+                <td class="status">{{ row.status | ru }}</td>
+                <td class="status" title="{{ row.parse_attempt_id }}">ID {{ row.parse_attempt_id | short_id }}</td>
+                <td class="status">{{ row.operation_date or row.operation_date_raw or "" }}</td>
+                <td class="amount {% if row.amount and row.amount > 0 %}amount-income{% elif row.amount and row.amount < 0 %}amount-expense{% endif %}">{{ row.amount or row.amount_raw or "" }} {{ row.currency or "" }}</td>
+                <td>{{ row.description_normalized or row.description_raw or "" }}</td>
+                <td>{{ row.normalization_error or "" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="notice">Для этого документа пока не созданы сырые строки транзакций.</div>
+    {% endif %}
+
+    {% if document.parse_attempts %}
+      <h2 class="status">История парсинга</h2>
+      <div class="parse-attempt-list">
+        {% for attempt in document.parse_attempts %}
+          <article class="parse-attempt-card">
+            <div class="parse-attempt-head">
+              <strong>{{ attempt.status | ru }}</strong>
+              <span title="{{ attempt.id }}">ID {{ attempt.id | short_id }}</span>
+              <span>{{ attempt.parser_name }} {{ attempt.parser_version or "" }}</span>
+            </div>
+            <div class="parse-attempt-times">
+              <span>старт {{ attempt.started_at }}</span>
+              {% if attempt.finished_at %}
+                <span>финиш {{ attempt.finished_at }}</span>
+              {% endif %}
+            </div>
+            {% set attempt_message = attempt.error_message_sanitized or (attempt.validation_report_json.message if attempt.validation_report_json else "") %}
+            {% if attempt_message %}
+              <p class="parse-attempt-message">{{ attempt_message }}</p>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% for attempt in document.parse_attempts %}
+      <article class="parse-debug stack">
+        <div class="parse-debug-header">
+          <h2 class="status">Попытка парсинга {{ attempt.status | ru }}</h2>
+          <span title="{{ attempt.id }}">ID {{ attempt.id | short_id }}</span>
+        </div>
+        {% if attempt.error_message_sanitized %}
+          <div class="notice error">{{ attempt.error_message_sanitized }}</div>
+        {% endif %}
+        {% if attempt.validation_report_json %}
+          <h2 class="status">Отчет проверки</h2>
+          <pre>{{ attempt.validation_report_json | tojson(indent=2) }}</pre>
+        {% endif %}
+
+        <div class="document-detail-grid compact">
+          <div class="document-detail-card">
+            <span>Парсер</span>
+            <strong>{{ attempt.parser_name }} {{ attempt.parser_version or "" }}</strong>
+          </div>
+          <div class="document-detail-card">
+            <span>Старт</span>
+            <strong>{{ attempt.started_at }}</strong>
+          </div>
+          <div class="document-detail-card">
+            <span>Финиш</span>
+            <strong>{{ attempt.finished_at or "нет" }}</strong>
+          </div>
+        </div>
+
+        {% if attempt.raw_tables_json %}
+          <h2 class="status">Сырые таблицы</h2>
+          <pre>{{ attempt.raw_tables_json | tojson(indent=2) }}</pre>
+        {% endif %}
+
+        {% if attempt.raw_text_by_page_json %}
+          <h2 class="status">Сырой текст</h2>
+          <pre>{{ attempt.raw_text_by_page_json | tojson(indent=2) }}</pre>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}

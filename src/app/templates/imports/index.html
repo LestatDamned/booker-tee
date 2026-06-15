@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Импорт · {{ app_name }}{% endblock %}
+
+{% block content %}
+  <section class="panel stack">
+    <div class="toolbar">
+      <div>
+        <p class="eyebrow">{{ workspace.name }}</p>
+        <h1>Импорт выписок</h1>
+      </div>
+      <a class="button" href="/imports/upload">загрузить PDF</a>
+    </div>
+
+    {% if documents %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>файл</th>
+            <th>статус</th>
+            <th>размер</th>
+            <th>создан</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for document in documents %}
+            <tr>
+              <td><a href="/imports/documents/{{ document.id }}">{{ document.original_filename }}</a></td>
+              <td><span class="status">{{ document.status | ru }}</span></td>
+              <td class="amount">{{ document.file_size_bytes or 0 }}</td>
+              <td class="status">{{ document.created_at }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="notice">Загруженных документов пока нет.</div>
+    {% endif %}
+  </section>
+{% endblock %}

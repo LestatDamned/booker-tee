@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Счета · {{ app_name }}{% endblock %}
+
+{% block content %}
+  <section class="panel stack">
+    <div class="toolbar">
+      <div>
+        <p class="eyebrow">{{ workspace.name }}</p>
+        <h1>Счета</h1>
+      </div>
+      <a class="button" href="/imports">импорт</a>
+    </div>
+
+    <form class="stack" method="post" action="/accounts">
+      <div class="toolbar">
+        <input name="name" placeholder="Название счета" required>
+        <select name="account_type" required>
+          {% for account_type in account_types %}
+            <option value="{{ account_type.value }}">{{ account_type | ru }}</option>
+          {% endfor %}
+        </select>
+        <input name="currency" value="{{ workspace.default_currency }}" placeholder="Валюта" maxlength="3" required>
+        <input class="amount" name="initial_balance" inputmode="decimal" value="0.00" placeholder="Начальный баланс">
+        <button class="button" type="submit">добавить счет</button>
+      </div>
+    </form>
+
+    {% if account_details %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>название</th>
+            <th>тип</th>
+            <th>валюта</th>
+            <th>баланс</th>
+            <th>записи</th>
+            <th>статус</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for detail in account_details %}
+            <tr>
+              <td><a href="/accounts/{{ detail.account.id }}">{{ detail.account.name }}</a></td>
+              <td class="status">{{ detail.account.type | ru }}</td>
+              <td class="status">{{ detail.account.currency }}</td>
+              <td class="amount {% if detail.balance > 0 %}amount-income{% elif detail.balance < 0 %}amount-expense{% endif %}">{{ detail.balance }} {{ detail.account.currency }}</td>
+              <td class="amount">{{ detail.entries | length }}</td>
+              <td class="status">{{ "активен" if detail.account.is_active else "архив" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="notice">Активных счетов пока нет.</div>
+    {% endif %}
+  </section>
+{% endblock %}

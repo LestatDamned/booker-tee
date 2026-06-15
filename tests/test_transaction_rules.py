@@ -1,0 +1,175 @@
+from decimal import Decimal
+from pathlib import Path
+from typing import cast
+from uuid import UUID, uuid4
+
+from app.features.categories.models import CategoryKind
+from app.features.imports.extraction.pdfplumber_extractor import PdfPlumberExtractor
+from app.features.imports.models import RawTransaction, RawTransactionStatus
+from app.features.imports.parsers.expobank import ExpobankCardStatementParser
+from app.features.ledger.models import OperationType
+from app.features.transaction_rules.models import (
+    MoneyDirection,
+    TransactionRule,
+    TransactionRuleApplicationMode,
+    TransactionRuleMatchType,
+)
+from app.features.transaction_rules.service import (
+    EXPOBANK_FIXTURE_RULE_SEEDS,
+    apply_rule_suggestion,
+    infer_rule_pattern,
+    rule_matches_raw_transaction,
+    rule_suggestion_auto_applies,
+)
+
+
+def test_contains_rule_matches_description_by_direction() -> None:
+    workspace_id = uuid4()
+    category_id = uuid4()
+    rule = transaction_rule(
+        workspace_id=workspace_id,
+        category_id=category_id,
+        pattern="krasnoe&beloe",
+    )
+    raw = make_raw_transaction(
+        workspace_id=workspace_id,
+        amount=Decimal("-743.75"),
+        description="Списание в KRASNOE&BELOE по карте",
+    )
+
+    assert rule_matches_raw_transaction(rule, raw)
+
+    raw.amount = Decimal("743.75")
+    assert not rule_matches_raw_transaction(rule, raw)
+
+
+def test_apply_rule_suggestion_prefills_raw_transaction() -> None:
+    workspace_id = uuid4()
+    category_id = uuid4()
+    rule = transaction_rule(
+        workspace_id=workspace_id,
+        category_id=category_id,
+        pattern="KRASNOE&BELOE",
+    )
+    raw = make_raw_transaction(
+        workspace_id=workspace_id,
+        amount=Decimal("-743.75"),
+        description="Списание в KRASNOE&BELOE по карте",
+    )
+
+    apply_rule_suggestion(raw, rule)
+
+    assert raw.status == RawTransactionStatus.SUGGESTED
+    assert raw.suggested_category_id == category_id
+    assert raw.suggested_operation_type == OperationType.EXPENSE
+    assert raw.suggested_by_rule_id == rule.id
+    suggestion = cast(dict[str, object], raw.raw_payload["rule_suggestion"])
+    assert isinstance(suggestion, dict)
+    assert suggestion["pattern"] == "KRASNOE&BELOE"
+    assert suggestion["application_mode"] == "suggest"
+    assert rule_suggestion_auto_applies(raw) is False
+
+
+def test_auto_apply_rule_marks_payload_mode() -> None:
+    workspace_id = uuid4()
+    rule = transaction_rule(
+        workspace_id=workspace_id,
+        category_id=uuid4(),
+        pattern="KRASNOE&BELOE",
+        application_mode=TransactionRuleApplicationMode.AUTO_APPLY,
+    )
+    raw = make_raw_transaction(
+        workspace_id=workspace_id,
+        amount=Decimal("-743.75"),
+        description="Списание в KRASNOE&BELOE по карте",
+    )
+
+    apply_rule_suggestion(raw, rule)
+
+    suggestion = cast(dict[str, object], raw.raw_payload["rule_suggestion"])
+    assert suggestion["application_mode"] == "auto_apply"
+    assert rule_suggestion_auto_applies(raw) is True
+
+
+def test_infer_rule_pattern_extracts_expobank_merchant() -> None:
+    raw = make_raw_transaction(
+        workspace_id=uuid4(),
+        amount=Decimal("-743.75"),
+        description=(
+            "Списание средств по транзакции № 1 от 27/05/2026 "
+            "в KRASNOE&BELOE по карте 220147XXXXXX5017 | АО ЭКСПОБАНК"
+        ),
+    )
+
+    assert infer_rule_pattern(raw) == "KRASNOE&BELOE"
+
+
+def test_expobank_fixture_rule_suggests_products_for_krasnoe_beloe() -> None:
+    workspace_id = uuid4()
+    products_category_id = uuid4()
+    extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/expobank_statement.pdf"))
+    drafts = ExpobankCardStatementParser().extract_raw_transactions(
+        extracted,
+        account_id=None,
+        currency="RUB",
+    )
+    krasnoe_beloe_draft = drafts[1]
+    rule_seed = next(
+        seed for seed in EXPOBANK_FIXTURE_RULE_SEEDS if seed.pattern == "KRASNOE&BELOE"
+    )
+    rule = transaction_rule(
+        workspace_id=workspace_id,
+        category_id=products_category_id,
+        pattern=rule_seed.pattern,
+    )
+    raw = make_raw_transaction(
+        workspace_id=workspace_id,
+        amount=krasnoe_beloe_draft.amount,
+        description=krasnoe_beloe_draft.description_normalized,
+    )
+
+    assert rule_seed.category_name == "Продукты"
+    assert rule_seed.category_kind == CategoryKind.EXPENSE
+    assert rule_matches_raw_transaction(rule, raw)
+
+
+def transaction_rule(
+    *,
+    workspace_id: UUID,
+    category_id: UUID,
+    pattern: str,
+    application_mode: TransactionRuleApplicationMode = TransactionRuleApplicationMode.SUGGEST,
+) -> TransactionRule:
+    return TransactionRule(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        name=f"{pattern} -> category",
+        is_active=True,
+        priority=100,
+        match_type=TransactionRuleMatchType.CONTAINS,
+        pattern=pattern,
+        application_mode=application_mode,
+        direction=MoneyDirection.OUTFLOW,
+        target_operation_type=OperationType.EXPENSE,
+        category_id=category_id,
+        affects_profit=True,
+    )
+
+
+def make_raw_transaction(
+    *,
+    workspace_id: UUID,
+    amount: Decimal | None,
+    description: str | None,
+) -> RawTransaction:
+    return RawTransaction(
+        workspace_id=workspace_id,
+        uploaded_document_id=uuid4(),
+        parse_attempt_id=uuid4(),
+        row_index=0,
+        status=RawTransactionStatus.NORMALIZED,
+        raw_payload={},
+        amount=amount,
+        currency="RUB",
+        description_normalized=description,
+    )

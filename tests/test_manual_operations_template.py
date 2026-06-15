@@ -1,0 +1,103 @@
+from datetime import date
+from decimal import Decimal
+from types import SimpleNamespace
+from typing import Any, cast
+from uuid import uuid4
+
+from app.features.categories.models import CategoryKind
+from app.features.ledger.models import OperationStatus, OperationType
+from app.features.ledger.router import manual_operation_anchor_url
+from app.templating import create_templates
+
+
+def test_manual_operations_template_renders_lifecycle_actions() -> None:
+    account_id = uuid4()
+    category_id = uuid4()
+    property_id = uuid4()
+    operation_id = uuid4()
+    account = SimpleNamespace(id=account_id, name="Карта", currency="RUB")
+    operation = SimpleNamespace(
+        id=operation_id,
+        type=OperationType.EXPENSE,
+        status=OperationStatus.CONFIRMED,
+        operation_date=date(2026, 6, 15),
+        description="Кофе",
+        category_id=category_id,
+        category=SimpleNamespace(id=category_id, name="Кафе", kind=CategoryKind.EXPENSE),
+        property_id=property_id,
+        property=SimpleNamespace(id=property_id, name="Дом"),
+        money_entries=[
+            SimpleNamespace(
+                account_id=account_id,
+                account=account,
+                amount=Decimal("-350.00"),
+            )
+        ],
+    )
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("ledger/manual.html").render(
+        app_name="Booker Tee",
+        accounts=[account],
+        categories=[operation.category],
+        manual_operations=[operation],
+        properties=[operation.property],
+        workspace=SimpleNamespace(name="Personal"),
+    )
+
+    assert f'id="operation-{operation_id}"' in html
+    assert f'class="detached-form" id="manual-operation-form-{operation_id}"' in html
+    assert f'action="/ledger/manual/{operation_id}"' in html
+    assert f'action="/ledger/manual/{operation_id}/cancel"' in html
+    assert "manual-operation-expense" in html
+    assert "Кофе" in html
+    assert "Кафе" in html
+    assert "сохранить" in html
+    assert "отменить" in html
+
+
+def test_manual_operations_template_allows_restore_and_delete_cancelled_operation() -> None:
+    account_id = uuid4()
+    operation_id = uuid4()
+    account = SimpleNamespace(id=account_id, name="Карта", currency="RUB")
+    operation = SimpleNamespace(
+        id=operation_id,
+        type=OperationType.INCOME,
+        status=OperationStatus.IGNORED,
+        operation_date=date(2026, 6, 15),
+        description="Возврат",
+        category_id=None,
+        category=None,
+        property_id=None,
+        property=None,
+        money_entries=[
+            SimpleNamespace(
+                account_id=account_id,
+                account=account,
+                amount=Decimal("100.00"),
+            )
+        ],
+    )
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("ledger/manual.html").render(
+        app_name="Booker Tee",
+        accounts=[account],
+        categories=[],
+        manual_operations=[operation],
+        properties=[],
+        workspace=SimpleNamespace(name="Personal"),
+    )
+
+    assert f'action="/ledger/manual/{operation_id}/restore"' in html
+    assert f'action="/ledger/manual/{operation_id}/delete"' in html
+    assert "восстановить" in html
+    assert "удалить" in html
+
+
+def test_manual_operation_anchor_url_points_to_operation_card() -> None:
+    operation_id = uuid4()
+
+    assert manual_operation_anchor_url(operation_id) == f"/ledger/manual#operation-{operation_id}"

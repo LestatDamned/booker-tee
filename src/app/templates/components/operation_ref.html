@@ -1,0 +1,41 @@
+{% macro operation_ref(operation, operation_id=None, title="Операция", show_description=True, compact=False) %}
+  {% set ns = namespace(from_entry=none, to_entry=none, first_entry=none) %}
+  {% for entry in operation.money_entries %}
+    {% if ns.first_entry is none %}
+      {% set ns.first_entry = entry %}
+    {% endif %}
+    {% if entry.amount < 0 and ns.from_entry is none %}
+      {% set ns.from_entry = entry %}
+    {% endif %}
+    {% if entry.amount > 0 and ns.to_entry is none %}
+      {% set ns.to_entry = entry %}
+    {% endif %}
+  {% endfor %}
+  <div class="operation-ref tone-{{ operation.type.value }}{% if compact %} operation-ref-compact{% endif %}">
+    <div class="action-title">{{ title }}</div>
+    <div class="operation-ref-title">
+      {{ operation.operation_date }} · <span class="type-badge tone-{{ operation.type.value }}">{{ operation.type | ru }}</span>
+    </div>
+    {% if operation.type.value == "transfer" %}
+      <div class="operation-route">
+        <span>из</span>
+        <strong>{{ ns.from_entry.account.name if ns.from_entry and ns.from_entry.account else "счет не найден" }}</strong>
+        <span>в</span>
+        <strong>{{ ns.to_entry.account.name if ns.to_entry and ns.to_entry.account else "счет не найден" }}</strong>
+      </div>
+    {% elif ns.first_entry %}
+      <div class="operation-route">
+        <span>{{ "на счет" if ns.first_entry.amount > 0 else "со счета" }}</span>
+        <strong>{{ ns.first_entry.account.name if ns.first_entry.account else "счет не найден" }}</strong>
+      </div>
+    {% endif %}
+    {% if show_description and operation.description %}
+      <div class="operation-ref-description">{{ operation.description }}</div>
+    {% endif %}
+    <div class="operation-ref-meta">
+      {% if operation.category %}<span class="tone-{{ operation.category.kind.value if operation.category.kind else operation.type.value }}">{{ operation.category.name }}</span>{% endif %}
+      {% if operation.property %}<span>{{ operation.property.name }}</span>{% endif %}
+      {% if operation_id %}<span title="{{ operation_id }}">ID {{ operation_id | short_id }}</span>{% endif %}
+    </div>
+  </div>
+{% endmacro %}

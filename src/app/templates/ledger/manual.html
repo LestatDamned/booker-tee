@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Ручная операция · {{ app_name }}{% endblock %}
+
+{% block content %}
+  <section class="panel stack">
+    <div class="toolbar">
+      <div>
+        <p class="eyebrow">{{ workspace.name }}</p>
+        <h1>Ручная операция</h1>
+      </div>
+      <a class="button" href="/accounts">счета</a>
+    </div>
+
+    <form class="stack" method="post" action="/ledger/manual">
+      <div class="toolbar">
+        <select name="operation_type" required>
+          <option value="income">доход</option>
+          <option value="expense">расход</option>
+          <option value="transfer">перевод</option>
+        </select>
+        <input type="date" name="operation_date" required>
+        <input class="amount" name="amount" inputmode="decimal" placeholder="Сумма" required>
+      </div>
+
+      <div class="toolbar">
+        <select name="account_id" required>
+          {% for account in accounts %}
+            <option value="{{ account.id }}">{{ account.name }} · {{ account.currency }}</option>
+          {% endfor %}
+        </select>
+        <select name="destination_account_id">
+          <option value="">счет назначения</option>
+          {% for account in accounts %}
+            <option value="{{ account.id }}">{{ account.name }} · {{ account.currency }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="toolbar">
+        <select name="category_id">
+          <option value="">без категории</option>
+          {% for category in categories %}
+            <option value="{{ category.id }}">{{ category.name }}</option>
+          {% endfor %}
+        </select>
+        <select name="property_id">
+          <option value="">без объекта</option>
+          {% for property in properties %}
+            <option value="{{ property.id }}">{{ property.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <input name="description" placeholder="Описание">
+      <button class="button" type="submit">создать</button>
+    </form>
+  </section>
+
+  <section class="panel stack">
+    <div>
+      <p class="eyebrow">{{ manual_operations | length }} ручных операций</p>
+      <h2>Ручные операции</h2>
+    </div>
+
+    {% if manual_operations %}
+      <div class="rule-list">
+        {% for operation in manual_operations %}
+          {% set form_id = "manual-operation-form-" ~ operation.id %}
+          {% set ns = namespace(primary=none, source=none, destination=none, edit_amount=none) %}
+          {% for entry in operation.money_entries %}
+            {% if ns.primary is none %}{% set ns.primary = entry %}{% endif %}
+            {% if entry.amount < 0 and ns.source is none %}{% set ns.source = entry %}{% endif %}
+            {% if entry.amount > 0 and ns.destination is none %}{% set ns.destination = entry %}{% endif %}
+          {% endfor %}
+          {% if operation.type.value == "transfer" and ns.destination %}
+            {% set ns.edit_amount = ns.destination.amount %}
+          {% elif ns.primary %}
+            {% set ns.edit_amount = -ns.primary.amount if ns.primary.amount < 0 else ns.primary.amount %}
+          {% endif %}
+          <article id="operation-{{ operation.id }}" class="rule-card manual-operation-card manual-operation-{{ operation.type.value }} {% if operation.status.value == 'ignored' %}rule-card-inactive{% endif %}">
+            <form class="detached-form" id="{{ form_id }}" method="post" action="/ledger/manual/{{ operation.id }}"></form>
+            <div class="rule-card-main">
+              <div class="rule-card-title">
+                <span class="rule-status">{{ operation.status | ru }}</span>
+                <span class="type-badge tone-{{ operation.type.value }}">{{ operation.type | ru }}</span>
+                <strong>{{ operation.description or "Без описания" }}</strong>
+                <span title="{{ operation.id }}">ID {{ operation.id | short_id }}</span>
+              </div>
+
+              <div class="entry-tags">
+                {% if operation.type.value == "transfer" %}
+                  <span>из {{ ns.source.account.name if ns.source and ns.source.account else "счет не найден" }}</span>
+                  <span>в {{ ns.destination.account.name if ns.destination and ns.destination.account else "счет не найден" }}</span>
+                {% elif ns.primary %}
+                  <span>{{ "на счет" if ns.primary.amount > 0 else "со счета" }} {{ ns.primary.account.name if ns.primary.account else "счет не найден" }}</span>
+                {% endif %}
+                {% if operation.category %}<span class="tone-{{ operation.category.kind.value if operation.category.kind else operation.type.value }}">{{ operation.category.name }}</span>{% endif %}
+                {% if operation.property %}<span>{{ operation.property.name }}</span>{% endif %}
+              </div>
+
+              <div class="rule-edit-grid">
+                <label class="field">
+                  <span>тип</span>
+                  <select name="operation_type" form="{{ form_id }}" required>
+                    <option value="income" {% if operation.type.value == "income" %}selected{% endif %}>доход</option>
+                    <option value="expense" {% if operation.type.value == "expense" %}selected{% endif %}>расход</option>
+                    <option value="transfer" {% if operation.type.value == "transfer" %}selected{% endif %}>перевод</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>дата</span>
+                  <input type="date" name="operation_date" value="{{ operation.operation_date }}" form="{{ form_id }}" required>
+                </label>
+                <label class="field">
+                  <span>сумма</span>
+                  <input class="amount" name="amount" inputmode="decimal" value="{{ ns.edit_amount or '' }}" form="{{ form_id }}" required>
+                </label>
+                <label class="field">
+                  <span>счет</span>
+                  <select name="account_id" form="{{ form_id }}" required>
+                    {% for account in accounts %}
+                      <option value="{{ account.id }}" {% if (operation.type.value == "transfer" and ns.source and ns.source.account_id == account.id) or (operation.type.value != "transfer" and ns.primary and ns.primary.account_id == account.id) %}selected{% endif %}>
+                        {{ account.name }} · {{ account.currency }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="field">
+                  <span>счет назначения</span>
+                  <select name="destination_account_id" form="{{ form_id }}">
+                    <option value="">счет назначения</option>
+                    {% for account in accounts %}
+                      <option value="{{ account.id }}" {% if ns.destination and ns.destination.account_id == account.id %}selected{% endif %}>
+                        {{ account.name }} · {{ account.currency }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="field">
+                  <span>категория</span>
+                  <select name="category_id" form="{{ form_id }}">
+                    <option value="">без категории</option>
+                    {% for category in categories %}
+                      <option value="{{ category.id }}" {% if operation.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="field">
+                  <span>объект</span>
+                  <select name="property_id" form="{{ form_id }}">
+                    <option value="">без объекта</option>
+                    {% for property in properties %}
+                      <option value="{{ property.id }}" {% if operation.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="field rule-pattern-field">
+                  <span>описание</span>
+                  <input name="description" value="{{ operation.description or '' }}" form="{{ form_id }}" placeholder="Описание">
+                </label>
+              </div>
+            </div>
+
+            <div class="rule-card-actions">
+              <button class="button button-small" type="submit" form="{{ form_id }}">сохранить</button>
+              {% if operation.status.value == "confirmed" %}
+                <form method="post" action="/ledger/manual/{{ operation.id }}/cancel">
+                  <button class="button button-small" type="submit">отменить</button>
+                </form>
+              {% elif operation.status.value == "ignored" %}
+                <form method="post" action="/ledger/manual/{{ operation.id }}/restore">
+                  <button class="button button-small" type="submit">восстановить</button>
+                </form>
+                <form method="post" action="/ledger/manual/{{ operation.id }}/delete">
+                  <button class="button button-small button-danger" type="submit">удалить</button>
+                </form>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="notice">Ручных операций пока нет.</div>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "components/operation_ref.html" import operation_ref %}
+
+{% block title %}{{ detail.account.name }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+  <section class="panel stack">
+    <div class="toolbar">
+      <div>
+        <p class="eyebrow">{{ detail.account.type | ru }} · {{ detail.account.currency }}</p>
+        <h1>{{ detail.account.name }}</h1>
+      </div>
+      <div class="toolbar">
+        {% if detail.account.is_active %}
+          <form method="post" action="/accounts/{{ detail.account.id }}/archive">
+            <button class="button" type="submit">в архив</button>
+          </form>
+        {% else %}
+          <form method="post" action="/accounts/{{ detail.account.id }}/restore">
+            <button class="button" type="submit">восстановить</button>
+          </form>
+        {% endif %}
+        <a class="button" href="/accounts">назад</a>
+      </div>
+    </div>
+
+    <form class="stack" method="post" action="/accounts/{{ detail.account.id }}">
+      <div class="toolbar">
+        <input name="name" value="{{ detail.account.name }}" placeholder="Название счета" required>
+        <select name="account_type" required>
+          {% for account_type in account_types %}
+            <option value="{{ account_type.value }}" {% if detail.account.type == account_type %}selected{% endif %}>
+              {{ account_type | ru }}
+            </option>
+          {% endfor %}
+        </select>
+        <input name="currency" value="{{ detail.account.currency }}" placeholder="Валюта" maxlength="3" required>
+        <input class="amount" name="initial_balance" inputmode="decimal" value="{{ detail.account.initial_balance }}" placeholder="Начальный баланс">
+        <button class="button" type="submit">сохранить</button>
+      </div>
+    </form>
+
+    <div class="summary-grid">
+      <div class="metric">
+        <span>баланс</span>
+        <strong>{{ detail.balance }} {{ detail.account.currency }}</strong>
+      </div>
+      <div class="metric">
+        <span>начальный</span>
+        <strong>{{ detail.account.initial_balance }} {{ detail.account.currency }}</strong>
+      </div>
+      <div class="metric">
+        <span>проводки</span>
+        <strong>{{ detail.entries | length }}</strong>
+      </div>
+    </div>
+
+    {% if detail.entries %}
+      <div class="entry-list">
+        {% for entry in detail.entries %}
+          <article class="entry-item tone-{{ entry.operation.type.value }}">
+            <div class="entry-main">
+              <div class="review-meta">
+                <span>{{ entry.operation.operation_date }}</span>
+                <span class="type-badge tone-{{ entry.operation.type.value }}">{{ entry.operation.type | ru }}</span>
+                <span class="amount {% if entry.amount > 0 %}amount-income{% elif entry.amount < 0 %}amount-expense{% endif %}">{{ entry.amount }} {{ entry.currency }}</span>
+              </div>
+              <div class="entry-description">{{ entry.operation.description or "Без описания" }}</div>
+              <div class="entry-tags">
+                {% if entry.operation.category %}<span class="tone-{{ entry.operation.category.kind.value if entry.operation.category.kind else entry.operation.type.value }}">{{ entry.operation.category.name }}</span>{% endif %}
+                {% if entry.operation.property %}<span>{{ entry.operation.property.name }}</span>{% endif %}
+              </div>
+            </div>
+            <div class="entry-operation">
+              {{ operation_ref(entry.operation, entry.operation_id, "Операция", false, true) }}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="notice">По этому счету пока нет подтвержденных проводок.</div>
+    {% endif %}
+  </section>
+{% endblock %}
