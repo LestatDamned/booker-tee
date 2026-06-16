@@ -190,7 +190,7 @@ def test_vtb_card_parser_creates_raw_transactions_from_fixture() -> None:
     assert rows[0].amount == Decimal("-2509.00")
     assert rows[0].currency == "RUB"
     assert rows[0].status == RawTransactionStatus.NORMALIZED
-    assert rows[0].account_hint_raw == "MASKED_VTB_CARD"
+    assert rows[0].account_hint_raw == "карта ****"
     assert rows[1].amount == Decimal("-199.99")
     assert rows[2].amount == Decimal("-711.00")
     assert rows[-1].amount == Decimal("-2914.00")

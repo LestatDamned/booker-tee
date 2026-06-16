@@ -370,7 +370,11 @@ def extract_card_hint(text: str) -> str | None:
     match = CARD_NUMBER_RE.search(text)
     if match is None:
         return None
-    return match.group("card")
+    return mask_card_number(match.group("card"))
+
+
+def mask_card_number(_raw: str) -> str:
+    return "карта ****"
 
 
 def extract_card_statement_currency(text: str) -> str | None:
