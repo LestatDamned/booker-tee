@@ -190,6 +190,9 @@ This phase is exploratory but must store everything cleanly.
 
 The user can upload a bank statement and inspect the raw extracted structure.
 
+### Test data source
+Use bank statement it located tests/fixtures/expobank_statement.pdf
+
 ### Main deliverables
 
 ```text

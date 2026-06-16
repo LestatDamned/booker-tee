@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from app.features.imports.extraction.pdfplumber_extractor import ExtractedPdf
 from app.features.imports.parser_types import BankStatementRawTransactionParser
 from app.features.imports.parsers.expobank import ExpobankCardStatementParser
-from app.features.imports.parsers.vtb import VtbDepositStatementParser
+from app.features.imports.parsers.sberbank import SberbankCardStatementParser
+from app.features.imports.parsers.vtb import VtbCardStatementParser, VtbDepositStatementParser
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,8 @@ class StatementParserRegistry:
 def default_statement_parser_registry() -> StatementParserRegistry:
     return StatementParserRegistry(
         parsers=(
+            SberbankCardStatementParser(),
+            VtbCardStatementParser(),
             VtbDepositStatementParser(),
             ExpobankCardStatementParser(),
         )

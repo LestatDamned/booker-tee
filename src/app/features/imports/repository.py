@@ -43,15 +43,15 @@ class ImportRepository:
                 selectinload(UploadedDocument.parse_attempts),
                 selectinload(UploadedDocument.raw_transactions),
                 selectinload(UploadedDocument.raw_transactions)
-                .selectinload(RawTransaction.linked_operation)
-                .selectinload(Operation.category),
+                    .selectinload(RawTransaction.linked_operation)
+                        .selectinload(Operation.category),
                 selectinload(UploadedDocument.raw_transactions)
-                .selectinload(RawTransaction.linked_operation)
-                .selectinload(Operation.property),
+                    .selectinload(RawTransaction.linked_operation)
+                        .selectinload(Operation.property),
                 selectinload(UploadedDocument.raw_transactions)
-                .selectinload(RawTransaction.linked_operation)
-                .selectinload(Operation.money_entries)
-                .selectinload(MoneyEntry.account),
+                    .selectinload(RawTransaction.linked_operation)
+                        .selectinload(Operation.money_entries)
+                            .selectinload(MoneyEntry.account),
             )
             .where(
                 UploadedDocument.id == document_id,

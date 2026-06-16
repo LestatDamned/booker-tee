@@ -1,7 +1,7 @@
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
 from app.features.imports.extraction.pdfplumber_extractor import ExtractedPdf
@@ -48,6 +48,28 @@ CLOSING_TOTALS_RE = re.compile(
     r"(?P<outflow>[+-]?\d[\d,.]*[.,]\d{2})\s+[A-Z]{3}"
 )
 ACCOUNT_HINT_RE = re.compile(r"(?P<account>\d{20})\s+\((?P<currency>[A-Z]{3})\)")
+VTB_CARD_MARKERS = (
+    "Номер карты",
+    "Информация о балансе карты",
+    "Операции по карте",
+)
+CARD_NUMBER_RE = re.compile(r"Номер карты\s+(?P<card>\S+)")
+CARD_OPENING_TOTALS_RE = re.compile(
+    r"Баланс на начало периода\s+(?P<opening>[+-]?\d[\d,.]*[.,]\d+)\s+"
+    r"(?P<currency>[A-Z]{3})\s+В обработке\s+"
+    r"(?P<pending>[+-]?\d[\d,.]*[.,]\d+)\s+[A-Z]{3}"
+)
+CARD_CLOSING_TOTALS_RE = re.compile(
+    r"Баланс на конец периода\s+(?P<closing>[+-]?\d[\d,.]*[.,]\d+)\s+"
+    r"(?P<currency>[A-Z]{3})\s+Расходные операции\s+"
+    r"(?P<outflow>[+-]?\d[\d,.]*[.,]\d+)\s+[A-Z]{3}"
+)
+CARD_INFLOW_TOTALS_RE = re.compile(
+    r"Поступления\s+(?P<inflow>[+-]?\d[\d,.]*[.,]\d+)\s+(?P<currency>[A-Z]{3})"
+)
+CARD_OPERATION_DATETIME_RE = re.compile(
+    r"^(?P<operation_date>\d{2}\.\d{2}\.\d{4})\s+(?P<operation_time>\d{2}:\d{2}:\d{2})$"
+)
 
 
 @dataclass(frozen=True)
@@ -122,8 +144,243 @@ class VtbDepositStatementParser:
         )
 
 
+@dataclass(frozen=True)
+class VtbCardStatementParser:
+    bank_code: str = "vtb"
+    statement_type: str = "card_statement"
+    parser_name: str = "vtb_card_statement_v1"
+    parser_version: str = "0.1"
+
+    def can_parse(self, extracted: ExtractedPdf) -> bool:
+        text = extracted_text(extracted)
+        return all(marker in text for marker in VTB_CARD_MARKERS)
+
+    def extract_raw_transactions(
+        self,
+        extracted: ExtractedPdf,
+        *,
+        account_id: UUID | None,
+        currency: str,
+    ) -> list[RawTransactionDraft]:
+        text = extracted_text(extracted)
+        account_hint = extract_card_hint(text)
+        statement_currency = extract_card_statement_currency(text) or currency
+        statement_period = extract_statement_period(text)
+        drafts: list[RawTransactionDraft] = []
+        for page_tables in extracted.tables_by_page:
+            for table_index, table in enumerate(page_tables.tables):
+                for source_row_index, row in enumerate(table):
+                    row_cells = [clean_cell(cell) for cell in row]
+                    if not is_vtb_card_transaction_row(row_cells):
+                        continue
+                    drafts.append(
+                        build_vtb_card_draft(
+                            row_cells,
+                            row_index=len(drafts),
+                            page_number=page_tables.page_number,
+                            table_index=table_index,
+                            source_row_index=source_row_index,
+                            account_id=account_id,
+                            account_hint=account_hint,
+                            currency=statement_currency,
+                            statement_period=statement_period,
+                        )
+                    )
+        return drafts
+
+    def extract_control_totals(
+        self,
+        extracted: ExtractedPdf,
+        *,
+        currency: str,
+    ) -> StatementControlTotals | None:
+        text = extracted_text(extracted)
+        opening_match = CARD_OPENING_TOTALS_RE.search(text)
+        closing_match = CARD_CLOSING_TOTALS_RE.search(text)
+        inflow_match = CARD_INFLOW_TOTALS_RE.search(text)
+        if opening_match is None and closing_match is None and inflow_match is None:
+            return None
+
+        detected_currency = (
+            (opening_match.group("currency") if opening_match else None)
+            or (closing_match.group("currency") if closing_match else None)
+            or (inflow_match.group("currency") if inflow_match else None)
+            or currency
+        )
+        return StatementControlTotals(
+            currency=normalize_currency(detected_currency, currency),
+            opening_balance=parse_vtb_card_money(opening_match.group("opening"))
+            if opening_match
+            else None,
+            closing_balance=parse_vtb_card_money(closing_match.group("closing"))
+            if closing_match
+            else None,
+            total_inflow=parse_vtb_card_money(inflow_match.group("inflow"))
+            if inflow_match
+            else None,
+            total_outflow=parse_vtb_card_money(closing_match.group("outflow"))
+            if closing_match
+            else None,
+        )
+
+
 def extracted_text(extracted: ExtractedPdf) -> str:
     return "\n".join(page_text or "" for page_text in extracted.text_by_page)
+
+
+def is_vtb_card_transaction_row(row: list[str | None]) -> bool:
+    return len(row) >= 6 and parse_vtb_card_operation_datetime(_cell(row, 0))[0] is not None
+
+
+def build_vtb_card_draft(
+    row: list[str | None],
+    *,
+    row_index: int,
+    page_number: int,
+    table_index: int,
+    source_row_index: int,
+    account_id: UUID | None,
+    account_hint: str | None,
+    currency: str,
+    statement_period: tuple[str, str] | None,
+) -> RawTransactionDraft:
+    normalization_errors: list[str] = []
+    operation_date_raw, operation_time_raw = parse_vtb_card_operation_datetime(_cell(row, 0))
+    operation_date = parse_with_error(parse_bank_date, operation_date_raw, normalization_errors)
+    posting_date_raw = _cell(row, 1)
+    posting_date = parse_with_error(parse_bank_date, posting_date_raw, normalization_errors)
+    operation_amount_raw = _cell(row, 2)
+    card_amount_raw = _cell(row, 3)
+    operation_amount, operation_currency = parse_vtb_card_amount_and_currency(
+        operation_amount_raw,
+        currency,
+        normalization_errors,
+    )
+    card_amount = parse_with_error(parse_vtb_card_money, card_amount_raw, normalization_errors)
+    row_currency = normalize_currency(operation_currency, currency)
+    amount = card_amount if card_amount is not None else operation_amount
+    description = normalize_description(_cell(row, 5))
+    source_row_id = stable_card_source_row_id(
+        row_index=source_row_index,
+        operation_date_raw=operation_date_raw,
+        operation_time_raw=operation_time_raw,
+        statement_period=statement_period,
+    )
+    dedupe_hash = build_dedupe_hash(
+        account_id=account_id,
+        operation_date=operation_date,
+        amount=amount,
+        currency=row_currency,
+        description_normalized=description,
+        source_row_id=source_row_id,
+    )
+    is_normalized = bool(operation_date and posting_date and amount is not None and description)
+
+    return RawTransactionDraft(
+        row_index=row_index,
+        status=RawTransactionStatus.NORMALIZED
+        if is_normalized
+        else RawTransactionStatus.NEEDS_REVIEW,
+        raw_payload={
+            "bank_code": "vtb",
+            "statement_type": "card_statement",
+            "source_row_id": source_row_id,
+            "page_number": page_number,
+            "table_index": table_index,
+            "source_row_index": source_row_index,
+            "operation_time": operation_time_raw,
+            "operation_amount_raw": operation_amount_raw,
+            "card_amount_raw": card_amount_raw,
+            "fee_raw": _cell(row, 4),
+            "cells": row,
+        },
+        operation_date_raw=operation_date_raw,
+        posting_date_raw=posting_date_raw,
+        description_raw=description,
+        amount_raw=card_amount_raw or operation_amount_raw,
+        currency_raw=operation_currency,
+        balance_after_raw=None,
+        account_hint_raw=account_hint,
+        account_id=account_id,
+        operation_date=operation_date,
+        posting_date=posting_date,
+        description_normalized=description,
+        amount=amount,
+        currency=row_currency,
+        balance_after=None,
+        dedupe_hash=dedupe_hash,
+        confidence_score=Decimal("0.9300") if is_normalized else Decimal("0.5000"),
+        normalization_error="; ".join(normalization_errors) if normalization_errors else None,
+    )
+
+
+def parse_vtb_card_operation_datetime(raw: str | None) -> tuple[str | None, str | None]:
+    cleaned = clean_cell(raw)
+    if cleaned is None:
+        return None, None
+    match = CARD_OPERATION_DATETIME_RE.match(cleaned)
+    if match is None:
+        return None, None
+    return match.group("operation_date"), match.group("operation_time")
+
+
+def parse_vtb_card_amount_and_currency(
+    raw: str | None,
+    default_currency: str,
+    normalization_errors: list[str],
+) -> tuple[Decimal | None, str]:
+    cleaned = clean_cell(raw)
+    if cleaned is None:
+        normalization_errors.append("No VTB card operation amount found.")
+        return None, normalize_currency(None, default_currency)
+    parts = cleaned.split()
+    currency = normalize_currency(parts[-1] if len(parts) > 1 else None, default_currency)
+    amount_raw = " ".join(parts[:-1]) if len(parts) > 1 else cleaned
+    amount = parse_with_error(parse_vtb_card_money, amount_raw, normalization_errors)
+    return amount, currency
+
+
+def parse_vtb_card_money(raw: str | None) -> Decimal | None:
+    cleaned = clean_cell(raw)
+    if cleaned is None:
+        return None
+    normalized = cleaned.replace("RUB", "").replace(" ", "").replace(",", ".")
+    if normalized in {"", "-", "+", ".", "-.", "+."}:
+        return None
+    try:
+        return Decimal(normalized).quantize(Decimal("0.01"))
+    except InvalidOperation as exc:
+        raise ValueError(f"Unsupported VTB card amount format: {cleaned}") from exc
+
+
+def stable_card_source_row_id(
+    *,
+    row_index: int,
+    operation_date_raw: str | None,
+    operation_time_raw: str | None,
+    statement_period: tuple[str, str] | None,
+) -> str:
+    period_key = "-".join(statement_period) if statement_period is not None else "unknown-period"
+    date_key = operation_date_raw or "unknown-date"
+    time_key = operation_time_raw or "unknown-time"
+    return f"vtb-card:{period_key}:{date_key}:{time_key}:{row_index}"
+
+
+def extract_card_hint(text: str) -> str | None:
+    match = CARD_NUMBER_RE.search(text)
+    if match is None:
+        return None
+    return match.group("card")
+
+
+def extract_card_statement_currency(text: str) -> str | None:
+    opening_match = CARD_OPENING_TOTALS_RE.search(text)
+    if opening_match is not None:
+        return opening_match.group("currency")
+    closing_match = CARD_CLOSING_TOTALS_RE.search(text)
+    if closing_match is not None:
+        return closing_match.group("currency")
+    return None
 
 
 def extract_operation_rows(text: str) -> list[tuple[int, str]]:
@@ -147,6 +404,12 @@ def extract_operation_rows(text: str) -> list[tuple[int, str]]:
     if current_line_index is not None and current_parts:
         rows.append((current_line_index, normalize_description(*current_parts) or ""))
     return rows
+
+
+def _cell(row: list[str | None], index: int) -> str | None:
+    if index >= len(row):
+        return None
+    return row[index]
 
 
 def build_vtb_draft(

@@ -22,7 +22,8 @@ from app.features.imports.parsers.normalization import (
     parse_bank_date,
     parse_money_amount,
 )
-from app.features.imports.parsers.vtb import VtbDepositStatementParser
+from app.features.imports.parsers.sberbank import SberbankCardStatementParser
+from app.features.imports.parsers.vtb import VtbCardStatementParser, VtbDepositStatementParser
 from app.features.imports.router import review_redirect_url, review_row_anchor
 from app.features.imports.service import (
     UploadValidationError,
@@ -119,9 +120,17 @@ def test_statement_parser_registry_detects_bank_and_statement_type() -> None:
         Path("tests/fixtures/expobank_statement.pdf")
     )
     vtb_extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/VTB_statement_june.pdf"))
+    vtb_card_extracted = PdfPlumberExtractor().extract(
+        Path("tests/fixtures/vtb_card_statement.pdf")
+    )
+    sberbank_extracted = PdfPlumberExtractor().extract(
+        Path("tests/fixtures/sberbank_statement.pdf")
+    )
 
     expobank_parser = registry.find_parser(expobank_extracted)
     vtb_parser = registry.find_parser(vtb_extracted)
+    vtb_card_parser = registry.find_parser(vtb_card_extracted)
+    sberbank_parser = registry.find_parser(sberbank_extracted)
 
     assert expobank_parser is not None
     assert expobank_parser.parser_name == "expobank_card_statement_v1"
@@ -129,6 +138,69 @@ def test_statement_parser_registry_detects_bank_and_statement_type() -> None:
     assert vtb_parser is not None
     assert vtb_parser.parser_name == "vtb_deposit_statement_v1"
     assert vtb_parser.statement_type == "deposit_statement"
+    assert vtb_card_parser is not None
+    assert vtb_card_parser.parser_name == "vtb_card_statement_v1"
+    assert vtb_card_parser.statement_type == "card_statement"
+    assert sberbank_parser is not None
+    assert sberbank_parser.parser_name == "sberbank_card_statement_v1"
+    assert sberbank_parser.statement_type == "card_statement"
+
+
+def test_sberbank_card_parser_creates_raw_transactions_from_fixture() -> None:
+    extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/sberbank_statement.pdf"))
+    parser = SberbankCardStatementParser()
+
+    rows = parser.extract_raw_transactions(extracted, account_id=None, currency="RUB")
+    control_totals = parser.extract_control_totals(extracted, currency="RUB")
+
+    assert parser.can_parse(extracted)
+    assert len(rows) == 11
+    assert rows[0].operation_date == parse_bank_date("27.04.2026")
+    assert rows[0].posting_date == parse_bank_date("27.04.2026")
+    assert rows[0].amount == Decimal("25000.00")
+    assert rows[0].balance_after == Decimal("27520.46")
+    assert rows[0].status == RawTransactionStatus.NORMALIZED
+    assert rows[1].amount == Decimal("-90000.00")
+    assert rows[2].amount == Decimal("-2629.00")
+    assert rows[-1].amount == Decimal("10000.00")
+    assert "SAMOKAT SANKT-PETERBU RUS" in (rows[2].description_normalized or "")
+    assert rows[0].raw_payload["bank_code"] == "sberbank"
+    assert rows[0].raw_payload["statement_type"] == "card_statement"
+    assert rows[0].account_hint_raw is not None
+    assert "MASKED_SBERBANK_ACCOUNT" in rows[0].account_hint_raw
+    assert control_totals is not None
+    assert control_totals.opening_balance == Decimal("59581.38")
+    assert control_totals.total_inflow == Decimal("159568.08")
+    assert control_totals.total_outflow == Decimal("191629.00")
+    assert control_totals.closing_balance == Decimal("27520.46")
+
+
+def test_vtb_card_parser_creates_raw_transactions_from_fixture() -> None:
+    extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/vtb_card_statement.pdf"))
+    parser = VtbCardStatementParser()
+
+    rows = parser.extract_raw_transactions(extracted, account_id=None, currency="RUB")
+    control_totals = parser.extract_control_totals(extracted, currency="RUB")
+
+    assert parser.can_parse(extracted)
+    assert len(rows) == 8
+    assert rows[0].operation_date == parse_bank_date("26.05.2026")
+    assert rows[0].posting_date == parse_bank_date("29.05.2026")
+    assert rows[0].amount == Decimal("-2509.00")
+    assert rows[0].currency == "RUB"
+    assert rows[0].status == RawTransactionStatus.NORMALIZED
+    assert rows[0].account_hint_raw == "MASKED_VTB_CARD"
+    assert rows[1].amount == Decimal("-199.99")
+    assert rows[2].amount == Decimal("-711.00")
+    assert rows[-1].amount == Decimal("-2914.00")
+    assert "SBER*5411*SAMOKAT" in (rows[0].description_normalized or "")
+    assert rows[0].raw_payload["bank_code"] == "vtb"
+    assert rows[0].raw_payload["statement_type"] == "card_statement"
+    assert control_totals is not None
+    assert control_totals.opening_balance == Decimal("0.00")
+    assert control_totals.total_inflow == Decimal("0.00")
+    assert control_totals.total_outflow == Decimal("15261.65")
+    assert control_totals.closing_balance == Decimal("0.00")
 
 
 def test_vtb_deposit_parser_creates_raw_transactions_from_may_period_fixture() -> None:
