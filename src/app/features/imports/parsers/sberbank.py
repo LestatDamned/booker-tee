@@ -362,10 +362,17 @@ def extract_statement_period(text: str) -> tuple[str, str] | None:
 def extract_account_hint(text: str) -> tuple[str | None, str | None]:
     account_match = ACCOUNT_INFLOWS_RE.search(text)
     card_match = CARD_OUTFLOWS_RE.search(text)
-    account = account_match.group("account").replace(" ", "") if account_match else None
+    account = mask_account_number(account_match.group("account")) if account_match else None
     card = card_match.group("card") if card_match else None
     hint = normalize_description(account, card)
     return hint, extract_statement_currency(text)
+
+
+def mask_account_number(raw: str) -> str:
+    digits = raw.replace(" ", "")
+    if len(digits) <= 4:
+        return "счет ****"
+    return f"счет ****{digits[-4:]}"
 
 
 def extract_statement_currency(text: str) -> str | None:

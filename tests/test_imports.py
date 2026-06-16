@@ -167,7 +167,8 @@ def test_sberbank_card_parser_creates_raw_transactions_from_fixture() -> None:
     assert rows[0].raw_payload["bank_code"] == "sberbank"
     assert rows[0].raw_payload["statement_type"] == "card_statement"
     assert rows[0].account_hint_raw is not None
-    assert "MASKED_SBERBANK_ACCOUNT" in rows[0].account_hint_raw
+    assert rows[0].account_hint_raw.startswith("счет ****")
+    assert rows[0].account_hint_raw.count("*") >= 4
     assert control_totals is not None
     assert control_totals.opening_balance == Decimal("59581.38")
     assert control_totals.total_inflow == Decimal("159568.08")
