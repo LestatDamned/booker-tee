@@ -10,13 +10,14 @@ from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
-from app.features.imports.service import (
+from app.features.imports.errors import (
     ImportDocumentManagementError,
     ImportReparseError,
-    ImportService,
     RawTransactionReviewError,
     UploadValidationError,
 )
+from app.features.imports.review import RawTransactionReviewCommand, RawTransactionReviewUseCase
+from app.features.imports.service import ImportService
 from app.features.ledger.service import LedgerPostingError, LedgerPostingService
 from app.features.properties.service import PropertyService
 from app.features.transaction_rules.service import TransactionRuleError, TransactionRuleService
@@ -118,10 +119,10 @@ async def document_detail(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
-    document = await ImportService(session, settings).get_document(
+    view = await ImportService(session, settings).get_document_detail_view(
         context.workspace.id, document_id
     )
-    if document is None:
+    if view is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
     return templates.TemplateResponse(
@@ -129,7 +130,7 @@ async def document_detail(
         "imports/detail.html",
         {
             "app_name": settings.app_name,
-            "document": document,
+            "view": view,
             "workspace": context.workspace,
         },
     )
@@ -255,41 +256,22 @@ async def update_raw_transaction_status(
     remember_rule: Annotated[str | None, Form()] = None,
     rule_pattern: Annotated[str | None, Form()] = None,
 ) -> Response:
+    command = RawTransactionReviewCommand(
+        document_id=document_id,
+        raw_transaction_id=raw_transaction_id,
+        action=action,
+        category_id=parse_optional_uuid(category_id),
+        property_id=parse_optional_uuid(property_id),
+        counterparty_account_id=parse_optional_uuid(counterparty_account_id),
+        matched_raw_transaction_id=parse_optional_uuid(matched_raw_transaction_id),
+        remember_rule=remember_rule is not None,
+        rule_pattern=rule_pattern,
+    )
     try:
-        if action == "confirm":
-            parsed_category_id = parse_optional_uuid(category_id)
-            parsed_property_id = parse_optional_uuid(property_id)
-            await LedgerPostingService(session).post_raw_transaction(
-                context=context,
-                document_id=document_id,
-                raw_transaction_id=raw_transaction_id,
-                category_id=parsed_category_id,
-                property_id=parsed_property_id,
-            )
-            if remember_rule and parsed_category_id is not None:
-                await TransactionRuleService(session).create_rule_from_raw_confirmation(
-                    context=context,
-                    document_id=document_id,
-                    raw_transaction_id=raw_transaction_id,
-                    category_id=parsed_category_id,
-                    property_id=parsed_property_id,
-                    pattern=rule_pattern,
-                )
-        elif action == "transfer":
-            await LedgerPostingService(session).post_raw_transaction_as_transfer(
-                context=context,
-                document_id=document_id,
-                raw_transaction_id=raw_transaction_id,
-                counterparty_account_id=parse_optional_uuid(counterparty_account_id),
-                matched_raw_transaction_id=parse_optional_uuid(matched_raw_transaction_id),
-            )
-        else:
-            await ImportService(session, settings).set_raw_transaction_review_status(
-                workspace_id=context.workspace.id,
-                document_id=document_id,
-                raw_transaction_id=raw_transaction_id,
-                action=action,
-            )
+        await RawTransactionReviewUseCase(session, settings).handle(
+            context=context,
+            command=command,
+        )
     except (ValueError, RawTransactionReviewError, LedgerPostingError, TransactionRuleError) as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

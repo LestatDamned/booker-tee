@@ -14,7 +14,7 @@ from app.features.imports.models import (
     UploadedDocument,
     UploadedDocumentStatus,
 )
-from app.features.ledger.models import MoneyEntry, Operation
+from app.features.imports.query_repository import ImportQueryRepository
 
 
 class ImportRepository:
@@ -36,37 +36,13 @@ class ImportRepository:
         workspace_id: UUID,
         document_id: UUID,
     ) -> UploadedDocument | None:
-        result = await self.session.execute(
-            select(UploadedDocument)
-            .options(
-                selectinload(UploadedDocument.account),
-                selectinload(UploadedDocument.parse_attempts),
-                selectinload(UploadedDocument.raw_transactions),
-                selectinload(UploadedDocument.raw_transactions)
-                    .selectinload(RawTransaction.linked_operation)
-                        .selectinload(Operation.category),
-                selectinload(UploadedDocument.raw_transactions)
-                    .selectinload(RawTransaction.linked_operation)
-                        .selectinload(Operation.property),
-                selectinload(UploadedDocument.raw_transactions)
-                    .selectinload(RawTransaction.linked_operation)
-                        .selectinload(Operation.money_entries)
-                            .selectinload(MoneyEntry.account),
-            )
-            .where(
-                UploadedDocument.id == document_id,
-                UploadedDocument.workspace_id == workspace_id,
-            )
+        return await ImportQueryRepository(self.session).get_document_for_workspace(
+            workspace_id,
+            document_id,
         )
-        return result.scalar_one_or_none()
 
     async def list_documents_for_workspace(self, workspace_id: UUID) -> list[UploadedDocument]:
-        result = await self.session.execute(
-            select(UploadedDocument)
-            .where(UploadedDocument.workspace_id == workspace_id)
-            .order_by(UploadedDocument.created_at.desc())
-        )
-        return list(result.scalars().all())
+        return await ImportQueryRepository(self.session).list_documents_for_workspace(workspace_id)
 
     async def create_raw_transactions(
         self,
