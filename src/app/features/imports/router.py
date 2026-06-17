@@ -21,9 +21,13 @@ from app.features.imports.errors import (
     UploadValidationError,
 )
 from app.features.imports.service import ImportService
-from app.features.ledger.service import LedgerPostingError, LedgerPostingService
+from app.features.ledger.errors import LedgerPostingError
+from app.features.ledger.service import LedgerPostingService
 from app.features.properties.service import PropertyService
-from app.features.transaction_rules.service import TransactionRuleError, TransactionRuleService
+from app.features.transaction_rules.application.rule_application import (
+    TransactionRuleApplicationUseCase,
+)
+from app.features.transaction_rules.errors import TransactionRuleError
 from app.features.workspaces.dependencies import get_current_workspace_context
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
@@ -319,7 +323,7 @@ async def apply_rules_to_document(
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> Response:
     try:
-        await TransactionRuleService(session).apply_rules_to_document(
+        await TransactionRuleApplicationUseCase(session).apply_rules_to_document(
             workspace_id=context.workspace.id,
             document_id=document_id,
         )

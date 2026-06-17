@@ -8,18 +8,20 @@ from app.features.imports.infrastructure.extraction.pdfplumber_extractor import 
 from app.features.imports.models import RawTransaction, RawTransactionStatus
 from app.features.imports.parsing.parsers.expobank import ExpobankCardStatementParser
 from app.features.ledger.models import OperationType
+from app.features.transaction_rules.application.fixture_seeding import (
+    EXPOBANK_FIXTURE_RULE_SEEDS,
+)
+from app.features.transaction_rules.domain.matching import rule_matches_raw_transaction
+from app.features.transaction_rules.domain.patterns import infer_rule_pattern
+from app.features.transaction_rules.domain.suggestions import (
+    apply_rule_suggestion,
+    rule_suggestion_auto_applies,
+)
 from app.features.transaction_rules.models import (
     MoneyDirection,
     TransactionRule,
     TransactionRuleApplicationMode,
     TransactionRuleMatchType,
-)
-from app.features.transaction_rules.service import (
-    EXPOBANK_FIXTURE_RULE_SEEDS,
-    apply_rule_suggestion,
-    infer_rule_pattern,
-    rule_matches_raw_transaction,
-    rule_suggestion_auto_applies,
 )
 
 

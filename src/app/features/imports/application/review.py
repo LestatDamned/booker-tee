@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.settings import Settings
 from app.features.imports.application.review_status import RawTransactionReviewStatusUseCase
 from app.features.ledger.service import LedgerPostingService
-from app.features.transaction_rules.service import TransactionRuleService
+from app.features.transaction_rules.application.rule_management import (
+    TransactionRuleManagementUseCase,
+)
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -28,7 +30,7 @@ class RawTransactionReviewUseCase:
         self.session = session
         self.status_review = RawTransactionReviewStatusUseCase(session)
         self.ledger = LedgerPostingService(session)
-        self.rules = TransactionRuleService(session)
+        self.rules = TransactionRuleManagementUseCase(session)
 
     async def handle(
         self,

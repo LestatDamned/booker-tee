@@ -94,6 +94,13 @@ Parser работает только с `ExtractedPdf` и возвращает `
 - `parsing/parser_types.py` - parser contracts and parser-facing value objects.
 - `parsing/parsers/` - bank and statement-type parsers.
 
+## Import style
+
+Prefer explicit imports from concrete modules over package-level re-export
+barrels. For example, import upload validation from
+`application/statement_upload.py`, deduplication rules from
+`domain/deduplication.py`, and concrete bank parsers from their parser modules.
+
 ## Package guide
 
 Keep the root of `imports/` small. New files should usually go into one of

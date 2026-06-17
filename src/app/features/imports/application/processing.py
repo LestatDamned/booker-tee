@@ -20,7 +20,9 @@ from app.features.imports.models import (
 from app.features.imports.parsing.parser_types import StatementControlTotals
 from app.features.imports.parsing.parsers.factory import StatementParserRegistry
 from app.features.imports.repository import ImportRepository
-from app.features.transaction_rules.service import TransactionRuleService
+from app.features.transaction_rules.application.rule_application import (
+    TransactionRuleApplicationUseCase,
+)
 
 
 class StatementParseProcessor:
@@ -102,7 +104,7 @@ class StatementParseProcessor:
             raw_transactions=raw_transactions,
             exclude_document_id=exclude_duplicate_document_id or document.id,
         )
-        await TransactionRuleService(self.session).apply_rules_to_raw_transactions(
+        await TransactionRuleApplicationUseCase(self.session).apply_rules_to_raw_transactions(
             workspace_id=document.workspace_id,
             raw_transactions=raw_transactions,
         )

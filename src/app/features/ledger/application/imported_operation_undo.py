@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.imports.models import UploadedDocumentStatus
 from app.features.imports.repository import ImportRepository
-from app.features.ledger.domain import restored_raw_status_after_unlink
+from app.features.ledger.domain.raw_transactions import restored_raw_status_after_unlink
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.models import Operation, OperationSource, OperationStatus
 from app.features.ledger.repository import LedgerRepository

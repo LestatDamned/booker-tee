@@ -8,10 +8,18 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import UploadFile
 
+from app.features.imports.application.document_management import document_has_linked_operations
+from app.features.imports.application.review_status import raw_transaction_status_for_review_action
+from app.features.imports.application.statement_upload import validate_pdf_upload
+from app.features.imports.domain.deduplication import (
+    mark_raw_transaction_duplicate,
+    possible_duplicate_fingerprint,
+)
 from app.features.imports.domain.validation import (
     StatementValidationStatus,
     validate_statement_totals,
 )
+from app.features.imports.errors import UploadValidationError
 from app.features.imports.infrastructure.extraction.pdfplumber_extractor import (
     ExtractedPdf,
     ExtractedPdfPageTables,
@@ -27,20 +35,10 @@ from app.features.imports.parsing.parsers.normalization import (
     parse_bank_date,
     parse_money_amount,
 )
-from app.features.imports.parsing.parsers.sberbank import SberbankCardStatementParser
-from app.features.imports.parsing.parsers.vtb import (
-    VtbCardStatementParser,
-    VtbDepositStatementParser,
-)
+from app.features.imports.parsing.parsers.sberbank_card import SberbankCardStatementParser
+from app.features.imports.parsing.parsers.vtb_card import VtbCardStatementParser
+from app.features.imports.parsing.parsers.vtb_deposit import VtbDepositStatementParser
 from app.features.imports.router import review_redirect_url, review_row_anchor
-from app.features.imports.service import (
-    UploadValidationError,
-    document_has_linked_operations,
-    mark_raw_transaction_duplicate,
-    possible_duplicate_fingerprint,
-    raw_transaction_status_for_review_action,
-    validate_pdf_upload,
-)
 
 
 @dataclass(frozen=True)

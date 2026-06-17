@@ -4,13 +4,13 @@ from typing import Any, cast
 from uuid import uuid4
 
 from app.features.ledger.models import OperationType
+from app.features.transaction_rules.domain.text import build_rule_name
 from app.features.transaction_rules.models import (
     MoneyDirection,
     TransactionRuleApplicationMode,
     TransactionRuleMatchType,
 )
 from app.features.transaction_rules.router import rule_anchor_url
-from app.features.transaction_rules.service import build_rule_name
 from app.templating import create_templates
 
 

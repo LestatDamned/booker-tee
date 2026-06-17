@@ -17,8 +17,9 @@ from app.features.ledger.application.commands import (
     CreateManualTransferCommand,
     UpdateManualOperationCommand,
 )
+from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.models import OperationType
-from app.features.ledger.service import LedgerPostingError, LedgerPostingService
+from app.features.ledger.service import LedgerPostingService
 from app.features.properties.service import PropertyService
 from app.features.workspaces.dependencies import get_current_workspace_context
 from app.features.workspaces.service import WorkspaceContext

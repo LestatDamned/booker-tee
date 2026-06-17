@@ -9,7 +9,7 @@ from app.features.ledger.application.commands import (
     UpdateManualOperationCommand,
 )
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
-from app.features.ledger.domain import (
+from app.features.ledger.domain.money import (
     TransferAmounts,
     affects_profit_for_operation_type,
     ensure_same_currency,

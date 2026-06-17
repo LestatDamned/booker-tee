@@ -6,18 +6,21 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.features.imports.models import RawTransactionStatus
-from app.features.ledger.domain import LedgerPostingPlan, TransferAmounts
-from app.features.ledger.models import OperationType
-from app.features.ledger.service import (
-    LedgerPostingError,
+from app.features.ledger.domain.money import (
+    TransferAmounts,
     affects_profit_for_operation_type,
     ensure_balanced_transfer,
-    ensure_matched_transfer_account,
-    ensure_raw_transaction_can_post_as_transfer,
     manual_income_expense_amount,
     operation_type_for_amount,
+)
+from app.features.ledger.domain.raw_transactions import (
+    LedgerPostingPlan,
+    ensure_matched_transfer_account,
+    ensure_raw_transaction_can_post_as_transfer,
     restored_raw_status_after_unlink,
 )
+from app.features.ledger.errors import LedgerPostingError
+from app.features.ledger.models import OperationType
 
 
 @dataclass(frozen=True)

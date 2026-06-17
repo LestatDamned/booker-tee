@@ -13,12 +13,21 @@ from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
 from app.features.ledger.models import OperationType
 from app.features.properties.service import PropertyService
+from app.features.transaction_rules.application.fixture_seeding import ExpobankFixtureRuleSeeder
+from app.features.transaction_rules.application.rule_management import (
+    TransactionRuleManagementUseCase,
+)
+from app.features.transaction_rules.application.rule_queries import TransactionRuleQueryUseCase
+from app.features.transaction_rules.errors import TransactionRuleError
 from app.features.transaction_rules.models import (
     MoneyDirection,
     TransactionRuleApplicationMode,
     TransactionRuleMatchType,
 )
-from app.features.transaction_rules.service import TransactionRuleError, TransactionRuleService
+from app.features.transaction_rules.router_forms import (
+    build_create_rule_command,
+    build_update_rule_command,
+)
 from app.features.workspaces.dependencies import get_current_workspace_context
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
@@ -40,7 +49,7 @@ async def rules_index(
     )
     categories = await CategoryService(session).list_or_seed_defaults(context.workspace.id)
     properties = await PropertyService(session).list_active(context.workspace.id)
-    rules = await TransactionRuleService(session).list_rules(context.workspace.id)
+    rules = await TransactionRuleQueryUseCase(session).list_rules(context.workspace.id)
     return templates.TemplateResponse(
         request,
         "transaction_rules/index.html",
@@ -75,18 +84,20 @@ async def create_rule(
     amount_max: Annotated[Decimal | None, Form()] = None,
 ) -> Response:
     try:
-        rule = await TransactionRuleService(session).create_rule(
+        rule = await TransactionRuleManagementUseCase(session).create_rule(
             context=context,
-            name=name,
-            pattern=pattern,
-            match_type=match_type,
-            category_id=parse_optional_uuid(category_id),
-            property_id=parse_optional_uuid(property_id),
-            target_operation_type=parse_optional_operation_type(target_operation_type),
-            direction=direction,
-            application_mode=application_mode,
-            amount_min=amount_min,
-            amount_max=amount_max,
+            command=build_create_rule_command(
+                name=name,
+                pattern=pattern,
+                match_type=match_type,
+                category_id=category_id,
+                property_id=property_id,
+                target_operation_type=target_operation_type,
+                direction=direction,
+                application_mode=application_mode,
+                amount_min=amount_min,
+                amount_max=amount_max,
+            ),
         )
     except (ValueError, TransactionRuleError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -98,7 +109,7 @@ async def seed_expobank_rules(
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> Response:
-    await TransactionRuleService(session).seed_expobank_fixture_rules(context)
+    await ExpobankFixtureRuleSeeder(session).seed(context)
     return RedirectResponse(url="/rules", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -119,19 +130,21 @@ async def update_rule(
     amount_max: Annotated[Decimal | None, Form()] = None,
 ) -> Response:
     try:
-        rule = await TransactionRuleService(session).update_rule(
+        rule = await TransactionRuleManagementUseCase(session).update_rule(
             context=context,
-            rule_id=rule_id,
-            name=name,
-            pattern=pattern,
-            match_type=match_type,
-            category_id=parse_optional_uuid(category_id),
-            property_id=parse_optional_uuid(property_id),
-            target_operation_type=parse_optional_operation_type(target_operation_type),
-            direction=direction,
-            application_mode=application_mode,
-            amount_min=amount_min,
-            amount_max=amount_max,
+            command=build_update_rule_command(
+                rule_id=rule_id,
+                name=name,
+                pattern=pattern,
+                match_type=match_type,
+                category_id=category_id,
+                property_id=property_id,
+                target_operation_type=target_operation_type,
+                direction=direction,
+                application_mode=application_mode,
+                amount_min=amount_min,
+                amount_max=amount_max,
+            ),
         )
     except (ValueError, TransactionRuleError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -145,7 +158,7 @@ async def toggle_rule(
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
     is_active: Annotated[bool, Form()] = False,
 ) -> Response:
-    rule = await TransactionRuleService(session).set_rule_active(
+    rule = await TransactionRuleManagementUseCase(session).set_rule_active(
         workspace_id=context.workspace.id,
         rule_id=rule_id,
         is_active=is_active,
@@ -159,23 +172,11 @@ async def delete_rule(
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> Response:
-    await TransactionRuleService(session).delete_rule(
+    await TransactionRuleManagementUseCase(session).delete_rule(
         workspace_id=context.workspace.id,
         rule_id=rule_id,
     )
     return RedirectResponse(url="/rules", status_code=status.HTTP_303_SEE_OTHER)
-
-
-def parse_optional_uuid(raw_value: str | None) -> UUID | None:
-    if not raw_value:
-        return None
-    return UUID(raw_value)
-
-
-def parse_optional_operation_type(raw_value: str | None) -> OperationType | None:
-    if not raw_value:
-        return None
-    return OperationType(raw_value)
 
 
 def rule_anchor_url(rule_id: UUID) -> str:

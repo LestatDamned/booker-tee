@@ -110,6 +110,12 @@ command dataclasses полезнее, чем внешние Pydantic response sc
 - `repository.py` - SQLAlchemy persistence and read queries.
 - `models.py` - `Operation` and `MoneyEntry` persistence models.
 
+## Import style
+
+Prefer explicit imports from concrete modules over package-level re-export
+barrels. For example, import money rules from `domain/money.py`, raw transaction
+rules from `domain/raw_transactions.py`, and errors from `errors.py`.
+
 ## Package guide
 
 Keep the root of `ledger/` small. New files should usually go into one of

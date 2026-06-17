@@ -9,13 +9,15 @@ from app.features.imports.models import RawTransaction
 from app.features.imports.repository import ImportRepository
 from app.features.ledger.application.imported_document_status import ImportedDocumentStatusUpdater
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
-from app.features.ledger.domain import (
-    LedgerPostingPlan,
+from app.features.ledger.domain.money import (
     ensure_balanced_transfer,
     ensure_distinct_accounts,
+    ensure_same_currency,
+)
+from app.features.ledger.domain.raw_transactions import (
+    LedgerPostingPlan,
     ensure_matched_transfer_account,
     ensure_raw_transaction_can_post_as_transfer,
-    ensure_same_currency,
     require_raw_amount,
 )
 from app.features.ledger.errors import LedgerPostingError
@@ -26,7 +28,7 @@ from app.features.ledger.mapping.operation_factory import (
 )
 from app.features.ledger.models import Operation
 from app.features.ledger.repository import LedgerRepository
-from app.features.transaction_rules.service import rule_suggestion_auto_applies
+from app.features.transaction_rules.domain.suggestions import rule_suggestion_auto_applies
 from app.features.workspaces.service import WorkspaceContext
 
 

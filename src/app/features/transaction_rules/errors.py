@@ -1,0 +1,2 @@
+class TransactionRuleError(ValueError):
+    pass
