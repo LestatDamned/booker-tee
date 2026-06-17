@@ -1,14 +1,46 @@
 {% extends "base.html" %}
 
+{% block title %}Рабочий стол · {{ app_name }}{% endblock %}
+
 {% block content %}
-  <section class="panel">
-    <p class="eyebrow">Этап 0</p>
-    <h1>Booker Tee запущен.</h1>
-    <p>
-      Основа приложения готова для импорта PDF-выписок, проверки строк и учета операций.
-    </p>
-    <div class="health-row" hx-get="/health" hx-trigger="load" hx-swap="innerHTML">
-      проверяем состояние
+  <section class="panel stack dashboard-hero">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">финансовый рабочий стол</p>
+        <h1>Booker Tee</h1>
+      </div>
+      <a class="button primary-action" href="/imports/upload">загрузить выписку</a>
     </div>
+    <p>
+      Импортируйте выписки, проверяйте строки, подтверждайте операции и смотрите
+      финансовый результат в одном пространстве.
+    </p>
+    <div class="quick-actions">
+      <a class="quick-action" href="/workspaces">
+        <span>1</span>
+        <strong>Выбрать пространство</strong>
+      </a>
+      <a class="quick-action" href="/accounts">
+        <span>2</span>
+        <strong>Настроить счета</strong>
+      </a>
+      <a class="quick-action" href="/imports/upload">
+        <span>3</span>
+        <strong>Загрузить выписку</strong>
+      </a>
+      <a class="quick-action" href="/reports">
+        <span>4</span>
+        <strong>Открыть отчеты</strong>
+      </a>
+    </div>
+  </section>
+
+  <section
+    class="dashboard-loader"
+    hx-get="/dashboard/summary"
+    hx-trigger="load"
+    hx-swap="outerHTML"
+  >
+    <div class="panel notice">Загружаем сводку по текущему пространству.</div>
   </section>
 {% endblock %}

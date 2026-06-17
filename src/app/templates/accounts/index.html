@@ -12,47 +12,62 @@
       <a class="button" href="/imports">импорт</a>
     </div>
 
-    <form class="stack" method="post" action="/accounts">
-      <div class="toolbar">
-        <input name="name" placeholder="Название счета" required>
+    <form class="form-panel" method="post" action="/accounts">
+      <label class="field form-field-wide">
+        <span>название</span>
+        <input name="name" placeholder="Карта, вклад, наличные" required>
+      </label>
+      <label class="field">
+        <span>тип</span>
         <select name="account_type" required>
           {% for account_type in account_types %}
             <option value="{{ account_type.value }}">{{ account_type | ru }}</option>
           {% endfor %}
         </select>
-        <input name="currency" value="{{ workspace.default_currency }}" placeholder="Валюта" maxlength="3" required>
-        <input class="amount" name="initial_balance" inputmode="decimal" value="0.00" placeholder="Начальный баланс">
-        <button class="button" type="submit">добавить счет</button>
-      </div>
+      </label>
+      <label class="field">
+        <span>валюта</span>
+        <input name="currency" value="{{ workspace.default_currency }}" placeholder="RUB" maxlength="3" required>
+      </label>
+      <label class="field">
+        <span>начальный баланс</span>
+        <input class="amount" name="initial_balance" inputmode="decimal" value="0.00" placeholder="0.00">
+      </label>
+      <button class="button form-submit" type="submit">добавить счет</button>
     </form>
 
     {% if account_details %}
-      <table class="table">
-        <thead>
-          <tr>
-            <th>название</th>
-            <th>тип</th>
-            <th>валюта</th>
-            <th>баланс</th>
-            <th>записи</th>
-            <th>статус</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for detail in account_details %}
-            <tr>
-              <td><a href="/accounts/{{ detail.account.id }}">{{ detail.account.name }}</a></td>
-              <td class="status">{{ detail.account.type | ru }}</td>
-              <td class="status">{{ detail.account.currency }}</td>
-              <td class="amount {% if detail.balance > 0 %}amount-income{% elif detail.balance < 0 %}amount-expense{% endif %}">{{ detail.balance }} {{ detail.account.currency }}</td>
-              <td class="amount">{{ detail.entries | length }}</td>
-              <td class="status">{{ "активен" if detail.account.is_active else "архив" }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="entity-card-list">
+        {% for detail in account_details %}
+          <article class="entity-card {% if not detail.account.is_active %}entity-card-inactive{% endif %}">
+            <div class="entity-card-main">
+              <div class="entity-card-title">
+                <a href="/accounts/{{ detail.account.id }}"><strong>{{ detail.account.name }}</strong></a>
+                <span class="badge badge-transfer">{{ detail.account.type | ru }}</span>
+                {% if detail.account.is_active %}
+                  <span class="badge badge-confirmed">активен</span>
+                {% else %}
+                  <span class="badge badge-archived">архив</span>
+                {% endif %}
+              </div>
+              <div class="entity-card-meta">
+                <span>{{ detail.account.currency }}</span>
+                <span class="amount {% if detail.balance > 0 %}amount-income{% elif detail.balance < 0 %}amount-expense{% endif %}">{{ detail.balance }} {{ detail.account.currency }}</span>
+                <span>{{ detail.entries | length }} записей</span>
+                <span title="{{ detail.account.id }}">ID {{ detail.account.id | short_id }}</span>
+              </div>
+            </div>
+            <div class="entity-card-actions">
+              <a class="button button-small" href="/accounts/{{ detail.account.id }}">детали</a>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
     {% else %}
-      <div class="notice">Активных счетов пока нет.</div>
+      <div class="empty-state">
+        <p>Активных счетов пока нет.</p>
+        <a class="button button-small" href="/imports/upload">загрузить выписку</a>
+      </div>
     {% endif %}
   </section>
 {% endblock %}

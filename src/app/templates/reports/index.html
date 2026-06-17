@@ -15,30 +15,43 @@
       </div>
     </div>
 
-    <form class="stack" method="get" action="/reports">
-      <div class="toolbar">
+    <form class="form-panel" method="get" action="/reports">
+      <label class="field">
+        <span>с</span>
         <input type="date" name="date_from" value="{{ filters.date_from or '' }}">
+      </label>
+      <label class="field">
+        <span>по</span>
         <input type="date" name="date_to" value="{{ filters.date_to or '' }}">
+      </label>
+      <label class="field">
+        <span>счет</span>
         <select name="account_id">
           <option value="">все счета</option>
           {% for account in accounts %}
             <option value="{{ account.id }}" {% if filters.account_id == account.id %}selected{% endif %}>{{ account.name }}</option>
           {% endfor %}
         </select>
+      </label>
+      <label class="field">
+        <span>категория</span>
         <select name="category_id">
           <option value="">все категории</option>
           {% for category in categories %}
             <option value="{{ category.id }}" {% if filters.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
           {% endfor %}
         </select>
+      </label>
+      <label class="field">
+        <span>объект</span>
         <select name="property_id">
           <option value="">все объекты</option>
           {% for property in properties %}
             <option value="{{ property.id }}" {% if filters.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
           {% endfor %}
         </select>
-        <button class="button" type="submit">фильтр</button>
-      </div>
+      </label>
+      <button class="button form-submit" type="submit">фильтр</button>
     </form>
 
     <div class="summary-grid">
@@ -137,7 +150,7 @@
           {% for row in overview.uncategorized %}
             <tr>
               <td class="status">{{ row.operation.operation_date }}</td>
-              <td><span class="type-badge tone-{{ row.operation.type.value }}">{{ row.operation.type | ru }}</span></td>
+              <td><span class="badge badge-{{ row.operation.type.value }}">{{ row.operation.type | ru }}</span></td>
               <td class="amount {% if row.total > 0 %}amount-income{% elif row.total < 0 %}amount-expense{% endif %}">{{ row.total }}</td>
               <td>{{ row.operation.description or "" }}</td>
             </tr>

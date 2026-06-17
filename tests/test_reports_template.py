@@ -60,4 +60,4 @@ def test_reports_template_marks_financial_tones() -> None:
     assert "metric-profit" in html
     assert "amount-income" in html
     assert "amount-expense" in html
-    assert "type-badge tone-expense" in html
+    assert "badge-expense" in html

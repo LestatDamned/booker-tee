@@ -12,57 +12,69 @@
       <a class="button" href="/reports">отчеты</a>
     </div>
 
-    <form class="stack" method="post" action="/properties">
-      <div class="toolbar">
-        <input name="name" placeholder="Название объекта" required>
-        <input name="short_name" placeholder="Короткое название">
+    <form class="form-panel" method="post" action="/properties">
+      <div class="field">
+        <label for="name">Название</label>
+        <input id="name" name="name" placeholder="Название объекта" required>
       </div>
-      <input name="address" placeholder="Адрес">
-      <button class="button" type="submit">добавить</button>
+      <div class="field">
+        <label for="short_name">Коротко</label>
+        <input id="short_name" name="short_name" placeholder="Короткое название">
+      </div>
+      <div class="field form-field-wide">
+        <label for="address">Адрес</label>
+        <input id="address" name="address" placeholder="Адрес">
+      </div>
+      <button class="button form-submit" type="submit">добавить</button>
     </form>
 
     {% if properties %}
-      <table class="table">
-        <thead>
-          <tr>
-            <th>название</th>
-            <th>коротко</th>
-            <th>статус</th>
-            <th>адрес</th>
-            <th>действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for property in properties %}
-            {% set property_form_id = "property-form-" ~ property.id %}
-            <tr>
-              <td>
-                <form class="detached-form" id="{{ property_form_id }}" method="post" action="/properties/{{ property.id }}"></form>
-                <input name="name" value="{{ property.name }}" form="{{ property_form_id }}" required>
-              </td>
-              <td><input name="short_name" value="{{ property.short_name or "" }}" placeholder="Коротко" form="{{ property_form_id }}"></td>
-              <td class="status">{{ property.status | ru }}</td>
-              <td><input name="address" value="{{ property.address or "" }}" placeholder="Адрес" form="{{ property_form_id }}"></td>
-              <td>
-                <div class="row-actions">
-                  <button class="button button-small" type="submit" form="{{ property_form_id }}">сохранить</button>
-                  {% if property.status.value == "archived" %}
-                    <form method="post" action="/properties/{{ property.id }}/restore">
-                      <button class="button button-small" type="submit">восстановить</button>
-                    </form>
-                  {% else %}
-                    <form method="post" action="/properties/{{ property.id }}/archive">
-                      <button class="button button-small" type="submit">в архив</button>
-                    </form>
-                  {% endif %}
+      <div class="entity-card-list">
+        {% for property in properties %}
+          {% set property_form_id = "property-form-" ~ property.id %}
+          <article class="entity-card {% if property.status.value == "archived" %}entity-card-inactive{% endif %}">
+            <div class="entity-card-main">
+              <div class="entity-card-title">
+                <strong>{{ property.name }}</strong>
+                <span class="badge badge-{{ property.status.value }}">{{ property.status | ru }}</span>
+                <span title="{{ property.id }}">ID {{ property.id | short_id }}</span>
+              </div>
+              <form class="detached-form" id="{{ property_form_id }}" method="post" action="/properties/{{ property.id }}"></form>
+              <div class="form-panel form-panel-embedded">
+                <div class="field">
+                  <label for="name-{{ property.id }}">Название</label>
+                  <input id="name-{{ property.id }}" name="name" value="{{ property.name }}" form="{{ property_form_id }}" required>
                 </div>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+                <div class="field">
+                  <label for="short-name-{{ property.id }}">Коротко</label>
+                  <input id="short-name-{{ property.id }}" name="short_name" value="{{ property.short_name or "" }}" placeholder="Коротко" form="{{ property_form_id }}">
+                </div>
+                <div class="field form-field-wide">
+                  <label for="address-{{ property.id }}">Адрес</label>
+                  <input id="address-{{ property.id }}" name="address" value="{{ property.address or "" }}" placeholder="Адрес" form="{{ property_form_id }}">
+                </div>
+              </div>
+            </div>
+            <div class="entity-card-actions">
+              <button class="button button-small" type="submit" form="{{ property_form_id }}">сохранить</button>
+              {% if property.status.value == "archived" %}
+                <form method="post" action="/properties/{{ property.id }}/restore">
+                  <button class="button button-small" type="submit">восстановить</button>
+                </form>
+              {% else %}
+                <form method="post" action="/properties/{{ property.id }}/archive">
+                  <button class="button button-small" type="submit">в архив</button>
+                </form>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
     {% else %}
-      <div class="notice">Объектов пока нет.</div>
+      <div class="empty-state">
+        <strong>Объектов пока нет</strong>
+        <span>Добавьте квартиру, проект или другой объект для раздельного учета.</span>
+      </div>
     {% endif %}
   </section>
 {% endblock %}

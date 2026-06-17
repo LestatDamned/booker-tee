@@ -49,10 +49,12 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
         workspace=SimpleNamespace(name="Personal"),
     )
 
-    assert "rule-create-grid" in html
-    assert "rule-list" in html
-    assert "rule-card" in html
-    assert "rule-edit-grid" in html
+    assert "form-panel" in html
+    assert "entity-card-list" in html
+    assert "entity-card" in html
+    assert "badge badge-suggest" in html
+    assert "badge badge-outflow" in html
+    assert "badge badge-expense" in html
     assert f'id="rule-{rule_id}"' in html
     assert f'class="detached-form" id="rule-form-{rule_id}"' in html
     assert 'type="hidden" name="name"' not in html

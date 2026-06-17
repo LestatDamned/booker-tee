@@ -62,7 +62,7 @@
             <div class="entry-main">
               <div class="review-meta">
                 <span>{{ entry.operation.operation_date }}</span>
-                <span class="type-badge tone-{{ entry.operation.type.value }}">{{ entry.operation.type | ru }}</span>
+                <span class="badge badge-{{ entry.operation.type.value }}">{{ entry.operation.type | ru }}</span>
                 <span class="amount {% if entry.amount > 0 %}amount-income{% elif entry.amount < 0 %}amount-expense{% endif %}">{{ entry.amount }} {{ entry.currency }}</span>
               </div>
               <div class="entry-description">{{ entry.operation.description or "Без описания" }}</div>

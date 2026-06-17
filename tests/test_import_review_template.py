@@ -128,7 +128,7 @@ def test_review_template_shows_transfer_route_for_linked_operation() -> None:
 
     assert "перевод:" in html
     assert "review-status-confirmed" in html
-    assert "type-badge tone-transfer" in html
+    assert "badge-transfer" in html
     assert "Вклад ВТБ" in html
     assert "Карта Экспобанк" in html
     assert "из" in html

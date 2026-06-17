@@ -14,81 +14,75 @@
       </form>
     </div>
 
-    <form class="rule-create-form" method="post" action="/rules">
-      <div class="rule-create-grid">
-        <label class="field rule-field-wide">
-          <span>название</span>
-          <input name="name" placeholder="Название правила" required>
-        </label>
-        <label class="field rule-field-wide">
-          <span>шаблон</span>
-          <input name="pattern" placeholder="например, KRASNOE&BELOE" required>
-        </label>
-        <label class="field">
-          <span>поиск</span>
-          <select name="match_type" required>
-            {% for match_type in match_types %}
-              <option value="{{ match_type.value }}">{{ "содержит" if match_type.value == "contains" else "точное совпадение" }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="field">
-          <span>режим</span>
-          <select name="application_mode" required>
-            {% for application_mode in application_modes %}
-              <option value="{{ application_mode.value }}">{{ "автоприменять" if application_mode.value == "auto_apply" else "предлагать" }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="field">
-          <span>направление</span>
-          <select name="direction" required>
-            {% for direction in directions %}
-              <option value="{{ direction.value }}">
-                {% if direction.value == "inflow" %}приход{% elif direction.value == "outflow" %}расход{% else %}любое{% endif %}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="field">
-          <span>операция</span>
-          <select name="target_operation_type">
-            <option value="">тип операции</option>
-            {% for operation_type in operation_types %}
-              <option value="{{ operation_type.value }}">
-                {% if operation_type.value == "income" %}доход{% elif operation_type.value == "expense" %}расход{% elif operation_type.value == "transfer" %}перевод{% else %}корректировка{% endif %}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="field">
-          <span>категория</span>
-          <select name="category_id">
-            <option value="">без категории</option>
-            {% for category in categories %}
-              <option value="{{ category.id }}">{{ category.name }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="field">
-          <span>объект</span>
-          <select name="property_id">
-            <option value="">без объекта</option>
-            {% for property in properties %}
-              <option value="{{ property.id }}">{{ property.name }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="field">
-          <span>мин. сумма</span>
-          <input class="amount" name="amount_min" inputmode="decimal" placeholder="0.00">
-        </label>
-        <label class="field">
-          <span>макс. сумма</span>
-          <input class="amount" name="amount_max" inputmode="decimal" placeholder="0.00">
-        </label>
-        <button class="button rule-create-submit" type="submit">создать правило</button>
-      </div>
+    <form class="form-panel" method="post" action="/rules">
+      <label class="field form-field-wide">
+        <span>название</span>
+        <input name="name" placeholder="Название правила" required>
+      </label>
+      <label class="field form-field-wide">
+        <span>шаблон</span>
+        <input name="pattern" placeholder="например, KRASNOE&BELOE" required>
+      </label>
+      <label class="field">
+        <span>поиск</span>
+        <select name="match_type" required>
+          {% for match_type in match_types %}
+            <option value="{{ match_type.value }}">{{ match_type | ru }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>режим</span>
+        <select name="application_mode" required>
+          {% for application_mode in application_modes %}
+            <option value="{{ application_mode.value }}">{{ application_mode | ru }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>направление</span>
+        <select name="direction" required>
+          {% for direction in directions %}
+            <option value="{{ direction.value }}">{{ direction | ru }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>операция</span>
+        <select name="target_operation_type">
+          <option value="">тип операции</option>
+          {% for operation_type in operation_types %}
+            <option value="{{ operation_type.value }}">{{ operation_type | ru }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>категория</span>
+        <select name="category_id">
+          <option value="">без категории</option>
+          {% for category in categories %}
+            <option value="{{ category.id }}">{{ category.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>объект</span>
+        <select name="property_id">
+          <option value="">без объекта</option>
+          {% for property in properties %}
+            <option value="{{ property.id }}">{{ property.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>мин. сумма</span>
+        <input class="amount" name="amount_min" inputmode="decimal" placeholder="0.00">
+      </label>
+      <label class="field">
+        <span>макс. сумма</span>
+        <input class="amount" name="amount_max" inputmode="decimal" placeholder="0.00">
+      </label>
+      <button class="button form-submit" type="submit">создать правило</button>
     </form>
   </section>
 
@@ -99,29 +93,44 @@
     </div>
 
     {% if rules %}
-      <div class="rule-list">
+      <div class="entity-card-list">
         {% for rule in rules %}
           {% set rule_form_id = "rule-form-" ~ rule.id %}
-          <article id="rule-{{ rule.id }}" class="rule-card {% if not rule.is_active %}rule-card-inactive{% endif %}">
+          <article id="rule-{{ rule.id }}" class="entity-card {% if not rule.is_active %}entity-card-inactive{% endif %}">
             <form class="detached-form" id="{{ rule_form_id }}" method="post" action="/rules/{{ rule.id }}"></form>
-            <div class="rule-card-main">
-              <div class="rule-card-title">
-                <span class="rule-status">{{ "активно" if rule.is_active else "выключено" }}</span>
+            <div class="entity-card-main">
+              <div class="entity-card-title">
                 <strong>
                   {{ rule.pattern }}
                   ->
                   {% if rule.category %}
                     {{ rule.category.name }}
                   {% elif rule.target_operation_type %}
-                    <span class="type-badge tone-{{ rule.target_operation_type.value }}">{{ rule.target_operation_type | ru }}</span>
+                    {{ rule.target_operation_type | ru }}
                   {% else %}
                     без категории
                   {% endif %}
                 </strong>
+                {% if rule.is_active %}
+                  <span class="badge badge-confirmed">активно</span>
+                {% else %}
+                  <span class="badge badge-muted">выключено</span>
+                {% endif %}
+              </div>
+              <div class="entity-card-meta">
+                <span>{{ rule.match_type | ru }}</span>
+                <span class="badge badge-{{ rule.application_mode.value }}">{{ rule.application_mode | ru }}</span>
+                <span class="badge badge-{{ rule.direction.value }}">{{ rule.direction | ru }}</span>
+                {% if rule.target_operation_type %}
+                  <span class="badge badge-{{ rule.target_operation_type.value }}">{{ rule.target_operation_type | ru }}</span>
+                {% endif %}
+                {% if rule.property %}
+                  <span>{{ rule.property.name }}</span>
+                {% endif %}
                 <span title="{{ rule.id }}">ID {{ rule.id | short_id }}</span>
               </div>
-              <div class="rule-edit-grid">
-                <label class="field rule-pattern-field">
+              <div class="form-panel form-panel-embedded">
+                <label class="field form-field-wide">
                   <span>шаблон</span>
                   <input name="pattern" value="{{ rule.pattern }}" form="{{ rule_form_id }}" required>
                 </label>
@@ -130,7 +139,7 @@
                   <select name="match_type" form="{{ rule_form_id }}">
                     {% for match_type in match_types %}
                       <option value="{{ match_type.value }}" {% if rule.match_type == match_type %}selected{% endif %}>
-                        {{ "содержит" if match_type.value == "contains" else "точно" }}
+                        {{ match_type | ru }}
                       </option>
                     {% endfor %}
                   </select>
@@ -140,7 +149,7 @@
                   <select name="application_mode" form="{{ rule_form_id }}">
                     {% for application_mode in application_modes %}
                       <option value="{{ application_mode.value }}" {% if rule.application_mode == application_mode %}selected{% endif %}>
-                        {{ "авто" if application_mode.value == "auto_apply" else "совет" }}
+                        {{ application_mode | ru }}
                       </option>
                     {% endfor %}
                   </select>
@@ -150,7 +159,7 @@
                   <select name="direction" form="{{ rule_form_id }}">
                     {% for direction in directions %}
                       <option value="{{ direction.value }}" {% if rule.direction == direction %}selected{% endif %}>
-                        {% if direction.value == "inflow" %}приход{% elif direction.value == "outflow" %}расход{% else %}любое{% endif %}
+                        {{ direction | ru }}
                       </option>
                     {% endfor %}
                   </select>
@@ -194,7 +203,7 @@
                 </label>
               </div>
             </div>
-            <div class="rule-card-actions">
+            <div class="entity-card-actions">
               <button class="button button-small" type="submit" form="{{ rule_form_id }}">сохранить</button>
               <form method="post" action="/rules/{{ rule.id }}/toggle">
                 <input type="hidden" name="is_active" value="{{ 'false' if rule.is_active else 'true' }}">

@@ -81,6 +81,7 @@ def test_import_detail_template_keeps_failed_parse_page_compact() -> None:
     )
 
     assert "document-detail-grid" in html
+    assert "empty-state" in html
     assert "parse-attempt-list" in html
     assert "parse-attempt-card" in html
     assert f"ID {str(document_id)[:8]}" in html

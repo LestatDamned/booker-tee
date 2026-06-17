@@ -1,0 +1,2 @@
+class WorkspaceError(ValueError):
+    pass

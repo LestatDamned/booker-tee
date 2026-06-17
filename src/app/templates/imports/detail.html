@@ -79,36 +79,30 @@
 
     {% if view.raw_transactions %}
       <h2 class="status">Сырые транзакции</h2>
-      <div class="table-scroll">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>статус</th>
-              <th>попытка</th>
-              <th>дата</th>
-              <th>сумма</th>
-              <th>описание</th>
-              <th>проблема</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in view.raw_transactions %}
-              <tr>
-                <td class="status">{{ row.row_index }}</td>
-                <td class="status">{{ row.status | ru }}</td>
-                <td class="status" title="{{ row.parse_attempt_id }}">ID {{ row.parse_attempt_id | short_id }}</td>
-                <td class="status">{{ row.display_date or "" }}</td>
-                <td class="amount {% if row.amount and row.amount > 0 %}amount-income{% elif row.amount and row.amount < 0 %}amount-expense{% endif %}">{{ row.amount or row.amount_raw or "" }} {{ row.currency or "" }}</td>
-                <td>{{ row.description }}</td>
-                <td>{{ row.normalization_error }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div class="raw-transaction-list">
+        {% for row in view.raw_transactions %}
+          <article class="raw-transaction-card">
+            <div class="review-meta">
+              <span><strong>#</strong>{{ row.row_index }}</span>
+              <span class="badge badge-{{ row.status.value }}">{{ row.status | ru }}</span>
+              <span>{{ row.display_date or "" }}</span>
+              <span class="amount {% if row.amount and row.amount > 0 %}amount-income{% elif row.amount and row.amount < 0 %}amount-expense{% endif %}">{{ row.amount or row.amount_raw or "" }} {{ row.currency or "" }}</span>
+              <span title="{{ row.parse_attempt_id }}">попытка {{ row.parse_attempt_id | short_id }}</span>
+            </div>
+            <div class="entry-description">{{ row.description }}</div>
+            {% if row.normalization_error %}
+              <div class="review-flags">
+                <span>{{ row.normalization_error }}</span>
+              </div>
+            {% endif %}
+          </article>
+        {% endfor %}
       </div>
     {% else %}
-      <div class="notice">Для этого документа пока не созданы сырые строки транзакций.</div>
+      <div class="empty-state">
+        <strong>Сырых строк пока нет</strong>
+        <span>Перепарсите документ или загрузите выписку заново.</span>
+      </div>
     {% endif %}
 
     {% if view.parse_attempts %}

@@ -9,16 +9,29 @@
     <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
   </head>
   <body>
-    <header class="shell site-header">
-      <a class="brand" href="/">{{ app_name }}</a>
-      <nav class="nav-actions">
+    <header class="site-header">
+      <div class="shell header-grid">
+        <a class="brand" href="/">{{ app_name }}</a>
+        <div class="context-strip">
+          <a class="context-item" href="/users">
+            <span>пользователь</span>
+            <strong>{{ current_user.name or current_user.email if current_user else "не выбран" }}</strong>
+          </a>
+          <a class="context-item" href="/workspaces">
+            <span>пространство</span>
+            <strong>{{ current_workspace.name if current_workspace else "не выбрано" }}</strong>
+          </a>
+        </div>
+        <a class="status-pill primary-action" href="/imports/upload">загрузить</a>
+      </div>
+      <nav class="shell nav-actions">
         <a class="nav-link" href="/accounts">счета</a>
         <a class="nav-link" href="/ledger/manual">операции</a>
         <a class="nav-link" href="/imports">импорт</a>
-        <a class="nav-link" href="/rules">правила</a>
         <a class="nav-link" href="/reports">отчеты</a>
+        <a class="nav-link" href="/categories">категории</a>
         <a class="nav-link" href="/properties">объекты</a>
-        <a class="status-pill" href="/imports/upload">загрузить</a>
+        <a class="nav-link" href="/rules">правила</a>
       </nav>
     </header>
     <main class="shell page-frame">

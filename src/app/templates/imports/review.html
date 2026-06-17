@@ -104,7 +104,7 @@
             <div class="review-main">
               <div class="review-meta">
                 <span><strong>#</strong>{{ row.row_index }}</span>
-                <span class="review-status-badge review-status-{{ row.status.value }}">{{ row.status | ru }}</span>
+                <span class="badge badge-{{ row.status.value }}">{{ row.status | ru }}</span>
                 <span>{{ row.operation_date or row.operation_date_raw or "" }}</span>
                 <span class="amount {% if row.amount and row.amount > 0 %}amount-income{% elif row.amount and row.amount < 0 %}amount-expense{% endif %}">{{ row.amount or row.amount_raw or "" }} {{ row.currency or "" }}</span>
               </div>
@@ -134,7 +134,7 @@
                       </span>
                     {% else %}
                       <span>
-                        операция: {{ row.linked_operation.operation_date }} · <span class="type-badge tone-{{ row.linked_operation.type.value }}">{{ row.linked_operation.type | ru }}</span>
+                        операция: {{ row.linked_operation.operation_date }} · <span class="badge badge-{{ row.linked_operation.type.value }}">{{ row.linked_operation.type | ru }}</span>
                         {% if route.to_entry and route.to_entry.account %} · на {{ route.to_entry.account.name }}{% endif %}
                         {% if route.from_entry and route.from_entry.account %} · с {{ route.from_entry.account.name }}{% endif %}
                       </span>
@@ -207,7 +207,7 @@
                       {{ row.operation_date or row.operation_date_raw or "" }}
                       ·
                       {% if row.suggested_operation_type %}
-                        <span class="type-badge tone-{{ row.suggested_operation_type.value }}">{{ row.suggested_operation_type | ru }}</span>
+                        <span class="badge badge-{{ row.suggested_operation_type.value }}">{{ row.suggested_operation_type | ru }}</span>
                       {% elif row.amount and row.amount < 0 %}
                         расход
                       {% elif row.amount and row.amount > 0 %}
@@ -339,7 +339,10 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="notice">Для этого документа пока не созданы сырые строки транзакций.</div>
+      <div class="empty-state">
+        <strong>Сырых строк пока нет</strong>
+        <span>Перепарсите документ или загрузите выписку заново.</span>
+      </div>
     {% endif %}
   </section>
 {% endblock %}

@@ -53,7 +53,7 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "entry-item" in html
     assert "tone-expense" in html
     assert "amount-expense" in html
-    assert "type-badge" in html
+    assert "badge-expense" in html
     assert "Parser Lab Account" in html
     assert "Продукты" in html
     assert f"ID {str(operation_id)[:8]}" in html

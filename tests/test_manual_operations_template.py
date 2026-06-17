@@ -57,9 +57,13 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
 
     assert f'id="operation-{operation_id}"' in html
     assert f'class="detached-form" id="manual-operation-form-{operation_id}"' in html
+    assert "entity-card-list" in html
+    assert "entity-card manual-operation-card manual-operation-expense" in html
+    assert "form-panel form-panel-embedded" in html
+    assert "badge badge-expense" in html
+    assert "badge badge-confirmed" in html
     assert f'action="/ledger/manual/{operation_id}"' in html
     assert f'action="/ledger/manual/{operation_id}/cancel"' in html
-    assert "manual-operation-expense" in html
     assert "Кофе" in html
     assert "Кафе" in html
     assert "сохранить" in html

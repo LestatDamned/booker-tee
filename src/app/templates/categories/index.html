@@ -12,35 +12,49 @@
       <a class="button" href="/reports">отчеты</a>
     </div>
 
-    <form class="toolbar" method="post" action="/categories">
-      <input name="name" placeholder="Название категории" required>
-      <select name="kind">
-        {% for kind in kinds %}
-          <option value="{{ kind.value }}">{{ kind | ru }}</option>
-        {% endfor %}
-      </select>
-      <button class="button" type="submit">добавить</button>
+    <form class="form-panel" method="post" action="/categories">
+      <div class="field form-field-wide">
+        <label for="name">Название</label>
+        <input id="name" name="name" placeholder="Название категории" required>
+      </div>
+      <div class="field">
+        <label for="kind">Тип</label>
+        <select id="kind" name="kind">
+          {% for kind in kinds %}
+            <option value="{{ kind.value }}">{{ kind | ru }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="button form-submit" type="submit">добавить</button>
     </form>
 
-    <table class="table">
-      <thead>
-        <tr>
-          <th>название</th>
-          <th>тип</th>
-          <th>системная</th>
-          <th>ключ</th>
-        </tr>
-      </thead>
-      <tbody>
+    {% if categories %}
+      <div class="entity-card-list">
         {% for category in categories %}
-          <tr>
-            <td>{{ category.name }}</td>
-            <td><span class="type-badge tone-{{ category.kind.value }}">{{ category.kind | ru }}</span></td>
-            <td class="status">{{ "да" if category.is_system else "нет" }}</td>
-            <td class="status">{{ category.system_key or "" }}</td>
-          </tr>
+          <article class="entity-card entity-card-readonly">
+            <div class="entity-card-main">
+              <div class="entity-card-title">
+                <strong>{{ category.name }}</strong>
+                <span class="badge badge-{{ category.kind.value }}">{{ category.kind | ru }}</span>
+                {% if category.is_system %}
+                  <span class="badge badge-muted">системная</span>
+                {% endif %}
+              </div>
+              <div class="entity-card-meta">
+                {% if category.system_key %}
+                  <span>{{ category.system_key }}</span>
+                {% endif %}
+                <span title="{{ category.id }}">ID {{ category.id | short_id }}</span>
+              </div>
+            </div>
+          </article>
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <strong>Категорий пока нет</strong>
+        <span>Добавьте первую категорию для доходов, расходов или переводов.</span>
+      </div>
+    {% endif %}
   </section>
 {% endblock %}

@@ -12,4 +12,5 @@ def test_home_page_renders_foundation_shell(client: TestClient) -> None:
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "Booker Tee запущен." in response.text
+    assert "финансовый рабочий стол" in response.text
+    assert "Загрузить выписку" in response.text
