@@ -76,8 +76,8 @@ class LedgerRepository:
                 selectinload(MoneyEntry.operation).selectinload(Operation.category),
                 selectinload(MoneyEntry.operation).selectinload(Operation.property),
                 selectinload(MoneyEntry.operation)
-                    .selectinload(Operation.money_entries)
-                        .selectinload(MoneyEntry.account),
+                .selectinload(Operation.money_entries)
+                .selectinload(MoneyEntry.account),
             )
             .join(Operation)
             .where(

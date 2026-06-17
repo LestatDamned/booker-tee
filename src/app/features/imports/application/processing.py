@@ -3,23 +3,23 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import utc_now
-from app.features.imports.deduplication import RawTransactionDeduplicator
-from app.features.imports.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.domain.deduplication import RawTransactionDeduplicator
+from app.features.imports.domain.validation import (
+    StatementValidationReport,
+    StatementValidationStatus,
+    validate_statement_totals,
+)
+from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.mapping.raw_transaction_mapper import RawTransactionMapper
 from app.features.imports.models import (
     ParseAttempt,
     ParseAttemptStatus,
     UploadedDocument,
     UploadedDocumentStatus,
 )
-from app.features.imports.parser_types import StatementControlTotals
-from app.features.imports.parsers.factory import StatementParserRegistry
-from app.features.imports.raw_transaction_mapper import RawTransactionMapper
+from app.features.imports.parsing.parser_types import StatementControlTotals
+from app.features.imports.parsing.parsers.factory import StatementParserRegistry
 from app.features.imports.repository import ImportRepository
-from app.features.imports.validation import (
-    StatementValidationReport,
-    StatementValidationStatus,
-    validate_statement_totals,
-)
 from app.features.transaction_rules.service import TransactionRuleService
 
 

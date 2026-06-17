@@ -6,12 +6,11 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.features.imports.models import RawTransactionStatus
+from app.features.ledger.domain import LedgerPostingPlan, TransferAmounts
 from app.features.ledger.models import OperationType
 from app.features.ledger.service import (
     LedgerPostingError,
     affects_profit_for_operation_type,
-    build_ledger_posting_plan,
-    build_manual_transfer_amounts,
     ensure_balanced_transfer,
     ensure_matched_transfer_account,
     ensure_raw_transaction_can_post_as_transfer,
@@ -66,7 +65,7 @@ def test_manual_transfer_amounts_create_balanced_entries() -> None:
     source_account_id = uuid4()
     destination_account_id = uuid4()
 
-    amounts = build_manual_transfer_amounts(
+    amounts = TransferAmounts.for_manual_transfer(
         source_account_id=source_account_id,
         destination_account_id=destination_account_id,
         amount=Decimal("250.5"),
@@ -74,6 +73,7 @@ def test_manual_transfer_amounts_create_balanced_entries() -> None:
 
     assert amounts.source_amount == Decimal("-250.50")
     assert amounts.destination_amount == Decimal("250.50")
+    amounts.ensure_balanced()
     ensure_balanced_transfer(amounts.source_amount, amounts.destination_amount)
 
 
@@ -81,14 +81,14 @@ def test_manual_transfer_amounts_reject_same_account_and_non_positive_amount() -
     account_id = uuid4()
 
     with pytest.raises(LedgerPostingError, match="different"):
-        build_manual_transfer_amounts(
+        TransferAmounts.for_manual_transfer(
             source_account_id=account_id,
             destination_account_id=account_id,
             amount=Decimal("100.00"),
         )
 
     with pytest.raises(LedgerPostingError, match="positive"):
-        build_manual_transfer_amounts(
+        TransferAmounts.for_manual_transfer(
             source_account_id=uuid4(),
             destination_account_id=uuid4(),
             amount=Decimal("0.00"),
@@ -102,7 +102,7 @@ def test_ensure_balanced_transfer_rejects_unbalanced_entries() -> None:
 
 def test_build_ledger_posting_plan_for_income_raw_row() -> None:
     account_id = uuid4()
-    plan = build_ledger_posting_plan(
+    plan = LedgerPostingPlan.from_raw_transaction(
         RawTransactionStub(
             status=RawTransactionStatus.NORMALIZED,
             account_id=account_id,
@@ -119,7 +119,7 @@ def test_build_ledger_posting_plan_for_income_raw_row() -> None:
 
 def test_build_ledger_posting_plan_for_expense_raw_row() -> None:
     account_id = uuid4()
-    plan = build_ledger_posting_plan(
+    plan = LedgerPostingPlan.from_raw_transaction(
         RawTransactionStub(
             status=RawTransactionStatus.MATCHED,
             account_id=account_id,
@@ -135,7 +135,7 @@ def test_build_ledger_posting_plan_for_expense_raw_row() -> None:
 def test_build_ledger_posting_plan_blocks_already_linked_row() -> None:
     account_id = uuid4()
     with pytest.raises(LedgerPostingError, match="already linked"):
-        build_ledger_posting_plan(
+        LedgerPostingPlan.from_raw_transaction(
             RawTransactionStub(
                 status=RawTransactionStatus.NORMALIZED,
                 account_id=account_id,
@@ -149,7 +149,7 @@ def test_build_ledger_posting_plan_blocks_already_linked_row() -> None:
 def test_build_ledger_posting_plan_blocks_review_status() -> None:
     account_id = uuid4()
     with pytest.raises(LedgerPostingError, match="cannot be posted"):
-        build_ledger_posting_plan(
+        LedgerPostingPlan.from_raw_transaction(
             RawTransactionStub(
                 status=RawTransactionStatus.NEEDS_REVIEW,
                 account_id=account_id,
@@ -162,7 +162,7 @@ def test_build_ledger_posting_plan_blocks_review_status() -> None:
 def test_build_ledger_posting_plan_blocks_currency_mismatch() -> None:
     account_id = uuid4()
     with pytest.raises(LedgerPostingError, match="currency"):
-        build_ledger_posting_plan(
+        LedgerPostingPlan.from_raw_transaction(
             RawTransactionStub(
                 status=RawTransactionStatus.NORMALIZED,
                 account_id=account_id,

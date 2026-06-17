@@ -4,20 +4,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
 from app.features.accounts.repository import AccountRepository
+from app.features.imports.application.parse_attempts import (
+    PARSER_EXCEPTIONS,
+    create_running_parse_attempt,
+    record_failed_parse_attempt,
+)
+from app.features.imports.application.processing import StatementParseProcessor
 from app.features.imports.errors import ImportReparseError
-from app.features.imports.extraction.pdfplumber_extractor import PdfPlumberExtractor
+from app.features.imports.infrastructure.extraction.pdfplumber_extractor import PdfPlumberExtractor
 from app.features.imports.models import (
     RawTransactionStatus,
     UploadedDocument,
     UploadedDocumentStatus,
 )
-from app.features.imports.parse_attempts import (
-    PARSER_EXCEPTIONS,
-    create_running_parse_attempt,
-    record_failed_parse_attempt,
-)
-from app.features.imports.parsers.factory import default_statement_parser_registry
-from app.features.imports.processing import StatementParseProcessor
+from app.features.imports.parsing.parsers.factory import default_statement_parser_registry
 from app.features.imports.repository import ImportRepository
 from app.features.workspaces.service import WorkspaceContext
 

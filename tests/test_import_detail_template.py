@@ -3,7 +3,7 @@ from typing import Any, cast
 from uuid import uuid4
 
 from app.features.accounts.models import AccountType
-from app.features.imports.dto import (
+from app.features.imports.mapping.dto import (
     ImportAccountRef,
     ImportDocumentDetailView,
     ImportParseAttemptView,

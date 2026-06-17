@@ -8,22 +8,30 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import UploadFile
 
-from app.features.imports.extraction.pdfplumber_extractor import (
+from app.features.imports.domain.validation import (
+    StatementValidationStatus,
+    validate_statement_totals,
+)
+from app.features.imports.infrastructure.extraction.pdfplumber_extractor import (
     ExtractedPdf,
     ExtractedPdfPageTables,
     PdfPlumberExtractor,
 )
+from app.features.imports.infrastructure.storage import UploadStorage, sanitize_filename
 from app.features.imports.models import RawTransaction, RawTransactionStatus
-from app.features.imports.parser_types import StatementControlTotals
-from app.features.imports.parsers.expobank import ExpobankCardStatementParser
-from app.features.imports.parsers.factory import default_statement_parser_registry
-from app.features.imports.parsers.normalization import (
+from app.features.imports.parsing.parser_types import StatementControlTotals
+from app.features.imports.parsing.parsers.expobank import ExpobankCardStatementParser
+from app.features.imports.parsing.parsers.factory import default_statement_parser_registry
+from app.features.imports.parsing.parsers.normalization import (
     normalize_description,
     parse_bank_date,
     parse_money_amount,
 )
-from app.features.imports.parsers.sberbank import SberbankCardStatementParser
-from app.features.imports.parsers.vtb import VtbCardStatementParser, VtbDepositStatementParser
+from app.features.imports.parsing.parsers.sberbank import SberbankCardStatementParser
+from app.features.imports.parsing.parsers.vtb import (
+    VtbCardStatementParser,
+    VtbDepositStatementParser,
+)
 from app.features.imports.router import review_redirect_url, review_row_anchor
 from app.features.imports.service import (
     UploadValidationError,
@@ -32,11 +40,6 @@ from app.features.imports.service import (
     possible_duplicate_fingerprint,
     raw_transaction_status_for_review_action,
     validate_pdf_upload,
-)
-from app.features.imports.storage import UploadStorage, sanitize_filename
-from app.features.imports.validation import (
-    StatementValidationStatus,
-    validate_statement_totals,
 )
 
 

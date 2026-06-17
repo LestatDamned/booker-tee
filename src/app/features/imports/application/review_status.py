@@ -3,12 +3,12 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.imports.application.processing import store_import_validation_result
+from app.features.imports.domain.validation import validate_statement_totals
 from app.features.imports.errors import RawTransactionReviewError
 from app.features.imports.models import ParseAttempt, RawTransactionStatus, UploadedDocument
-from app.features.imports.parser_types import StatementControlTotals
-from app.features.imports.processing import store_import_validation_result
+from app.features.imports.parsing.parser_types import StatementControlTotals
 from app.features.imports.repository import ImportRepository
-from app.features.imports.validation import validate_statement_totals
 
 
 class RawTransactionReviewStatusUseCase:

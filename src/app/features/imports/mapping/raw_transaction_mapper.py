@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from uuid import UUID
 
 from app.features.imports.models import RawTransaction
-from app.features.imports.parser_types import RawTransactionDraft
+from app.features.imports.parsing.parser_types import RawTransactionDraft
 
 
 class RawTransactionMapper:

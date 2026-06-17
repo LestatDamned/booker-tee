@@ -4,34 +4,34 @@ from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
-from app.features.imports.deduplication import (
-    mark_raw_transaction_duplicate,
-    possible_duplicate_fingerprint,
-)
-from app.features.imports.document_management import (
+from app.features.imports.application.document_management import (
     ImportDocumentManagementUseCase,
     document_has_linked_operations,
 )
-from app.features.imports.dto import ImportDocumentDetailView, ImportViewMapper
+from app.features.imports.application.review_status import (
+    RawTransactionReviewStatusUseCase,
+    raw_transaction_status_for_review_action,
+)
+from app.features.imports.application.statement_reparse import StatementReparseUseCase
+from app.features.imports.application.statement_upload import (
+    StatementUploadUseCase,
+    validate_pdf_upload,
+)
+from app.features.imports.domain.deduplication import (
+    mark_raw_transaction_duplicate,
+    possible_duplicate_fingerprint,
+)
 from app.features.imports.errors import (
     ImportDocumentManagementError,
     ImportReparseError,
     RawTransactionReviewError,
     UploadValidationError,
 )
+from app.features.imports.mapping.dto import ImportDocumentDetailView, ImportViewMapper
 from app.features.imports.models import (
     UploadedDocument,
 )
 from app.features.imports.query_repository import ImportQueryRepository
-from app.features.imports.review_status import (
-    RawTransactionReviewStatusUseCase,
-    raw_transaction_status_for_review_action,
-)
-from app.features.imports.statement_reparse import StatementReparseUseCase
-from app.features.imports.statement_upload import (
-    StatementUploadUseCase,
-    validate_pdf_upload,
-)
 from app.features.workspaces.service import WorkspaceContext
 
 __all__ = [

@@ -15,7 +15,19 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     category_id = uuid4()
     property_id = uuid4()
     operation_id = uuid4()
-    account = SimpleNamespace(id=account_id, name="Карта", currency="RUB")
+    account = SimpleNamespace(
+        id=account_id,
+        name="Карта",
+        currency="RUB",
+        type=None,
+        is_active=True,
+        initial_balance=Decimal("0.00"),
+    )
+    primary_entry = SimpleNamespace(
+        account_id=account_id,
+        account=account,
+        amount=Decimal("-350.00"),
+    )
     operation = SimpleNamespace(
         id=operation_id,
         type=OperationType.EXPENSE,
@@ -26,13 +38,10 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
         category=SimpleNamespace(id=category_id, name="Кафе", kind=CategoryKind.EXPENSE),
         property_id=property_id,
         property=SimpleNamespace(id=property_id, name="Дом"),
-        money_entries=[
-            SimpleNamespace(
-                account_id=account_id,
-                account=account,
-                amount=Decimal("-350.00"),
-            )
-        ],
+        primary_entry=primary_entry,
+        source_entry=None,
+        destination_entry=None,
+        edit_amount=Decimal("350.00"),
     )
     templates = create_templates()
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
@@ -60,7 +69,19 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
 def test_manual_operations_template_allows_restore_and_delete_cancelled_operation() -> None:
     account_id = uuid4()
     operation_id = uuid4()
-    account = SimpleNamespace(id=account_id, name="Карта", currency="RUB")
+    account = SimpleNamespace(
+        id=account_id,
+        name="Карта",
+        currency="RUB",
+        type=None,
+        is_active=True,
+        initial_balance=Decimal("0.00"),
+    )
+    primary_entry = SimpleNamespace(
+        account_id=account_id,
+        account=account,
+        amount=Decimal("100.00"),
+    )
     operation = SimpleNamespace(
         id=operation_id,
         type=OperationType.INCOME,
@@ -71,13 +92,10 @@ def test_manual_operations_template_allows_restore_and_delete_cancelled_operatio
         category=None,
         property_id=None,
         property=None,
-        money_entries=[
-            SimpleNamespace(
-                account_id=account_id,
-                account=account,
-                amount=Decimal("100.00"),
-            )
-        ],
+        primary_entry=primary_entry,
+        source_entry=None,
+        destination_entry=None,
+        edit_amount=Decimal("100.00"),
     )
     templates = create_templates()
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")

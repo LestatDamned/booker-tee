@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
-from app.features.imports.review_status import RawTransactionReviewStatusUseCase
+from app.features.imports.application.review_status import RawTransactionReviewStatusUseCase
 from app.features.ledger.service import LedgerPostingService
 from app.features.transaction_rules.service import TransactionRuleService
 from app.features.workspaces.service import WorkspaceContext

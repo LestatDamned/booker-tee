@@ -33,7 +33,8 @@ PDF upload
 ```text
 router.py
 -> use cases / service facade
--> processors and domain helpers
+-> application use cases
+-> domain rules, mapping, parsing, infrastructure
 -> repository.py / storage.py
 -> models.py
 ```
@@ -48,7 +49,8 @@ Use case описывает пользовательское действие ц
 
 Processor выполняет внутренний pipeline без знания про HTTP: преобразовать
 результат парсинга в raw transactions, отметить дубли, сохранить validation
-result.
+result. В коде такие pipeline-части живут в `application/`, потому что они
+оркестрируют сохранение и статусы, а не являются чистыми доменными правилами.
 
 Repository содержит SQLAlchemy-запросы и изменения ORM-моделей. Бизнес-решения
 лучше держать выше, если они не являются простым persistence-действием.
@@ -73,24 +75,39 @@ Parser работает только с `ExtractedPdf` и возвращает `
 
 - `router.py` - HTTP endpoints for upload, document detail, review actions.
 - `service.py` - current facade for import workflows. Target: shrink over time.
-- `review.py` - review action use case for raw transaction confirmation/status.
-- `review_status.py` - status-only raw transaction review actions.
-- `statement_upload.py` - statement upload and first parse use case.
-- `document_management.py` - document ignore/delete use case.
-- `statement_reparse.py` - statement reparse use case.
-- `processing.py` - parse success pipeline. Target: split into smaller helpers.
-- `parse_attempts.py` - shared helpers for parser attempts and parser errors.
-- `deduplication.py` - duplicate detection for imported raw transactions.
-- `raw_transaction_mapper.py` - `RawTransactionDraft` to ORM model mapping.
+- `application/review.py` - review action use case for raw transaction confirmation/status.
+- `application/review_status.py` - status-only raw transaction review actions.
+- `application/statement_upload.py` - statement upload and first parse use case.
+- `application/document_management.py` - document ignore/delete use case.
+- `application/statement_reparse.py` - statement reparse use case.
+- `application/processing.py` - parse success pipeline. Target: split into smaller helpers.
+- `application/parse_attempts.py` - shared helpers for parser attempts and parser errors.
+- `domain/deduplication.py` - duplicate detection for imported raw transactions.
+- `domain/validation.py` - pure statement total validation logic.
+- `mapping/raw_transaction_mapper.py` - `RawTransactionDraft` to ORM model mapping.
+- `mapping/dto.py` - import detail view models and mapper.
 - `errors.py` - import-specific application exceptions.
-- `validation.py` - pure statement total validation logic.
-- `dto.py` - import detail view models and mapper.
 - `repository.py` - SQLAlchemy persistence and compatibility read wrappers.
 - `query_repository.py` - read-side document queries for UI/detail workflows.
-- `storage.py` - local upload storage.
-- `parser_types.py` - parser contracts and parser-facing value objects.
-- `extraction/` - PDF extraction adapters.
-- `parsers/` - bank and statement-type parsers.
+- `infrastructure/storage.py` - local upload storage.
+- `infrastructure/extraction/` - PDF extraction adapters.
+- `parsing/parser_types.py` - parser contracts and parser-facing value objects.
+- `parsing/parsers/` - bank and statement-type parsers.
+
+## Package guide
+
+Keep the root of `imports/` small. New files should usually go into one of
+these packages:
+
+- `application/` - user workflows, parser attempts, review actions, upload and reparse orchestration.
+- `domain/` - pure import rules such as deduplication and statement total validation.
+- `mapping/` - DTO projection and draft-to-ORM mapping.
+- `infrastructure/` - filesystem/PDF extraction adapters and other I/O details.
+- `parsing/` - parser contracts, registry, normalization, and bank-specific parsers.
+
+Avoid adding more one-off files at the root unless they are public module
+entrypoints like `router.py`, `service.py`, `repository.py`, `query_repository.py`,
+or `models.py`.
 
 ## Refactoring direction
 
@@ -101,7 +118,9 @@ Work in small behavior-preserving steps:
 3. Prefer plain dataclasses, pure functions, and Protocols when they reduce
    coupling.
 4. Avoid speculative abstractions until at least two real use cases need them.
-5. Keep parser files shaped like a story:
+5. Keep package boundaries visible: application orchestrates, domain decides,
+   mapping translates, infrastructure talks to I/O, parsing reads bank data.
+6. Keep parser files shaped like a story:
 
 ```text
 markers / regexes
@@ -116,6 +135,9 @@ markers / regexes
 ## Near-term cleanup plan
 
 1. Turn `ImportService` into a small facade over explicit use cases.
+2. Keep parser contracts and bank parsers inside `parsing/`.
+3. Split `application/processing.py` only when a concrete next change makes it
+   harder to read.
 
 ## Deferred cleanup
 

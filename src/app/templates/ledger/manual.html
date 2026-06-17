@@ -67,17 +67,6 @@
       <div class="rule-list">
         {% for operation in manual_operations %}
           {% set form_id = "manual-operation-form-" ~ operation.id %}
-          {% set ns = namespace(primary=none, source=none, destination=none, edit_amount=none) %}
-          {% for entry in operation.money_entries %}
-            {% if ns.primary is none %}{% set ns.primary = entry %}{% endif %}
-            {% if entry.amount < 0 and ns.source is none %}{% set ns.source = entry %}{% endif %}
-            {% if entry.amount > 0 and ns.destination is none %}{% set ns.destination = entry %}{% endif %}
-          {% endfor %}
-          {% if operation.type.value == "transfer" and ns.destination %}
-            {% set ns.edit_amount = ns.destination.amount %}
-          {% elif ns.primary %}
-            {% set ns.edit_amount = -ns.primary.amount if ns.primary.amount < 0 else ns.primary.amount %}
-          {% endif %}
           <article id="operation-{{ operation.id }}" class="rule-card manual-operation-card manual-operation-{{ operation.type.value }} {% if operation.status.value == 'ignored' %}rule-card-inactive{% endif %}">
             <form class="detached-form" id="{{ form_id }}" method="post" action="/ledger/manual/{{ operation.id }}"></form>
             <div class="rule-card-main">
@@ -90,10 +79,10 @@
 
               <div class="entry-tags">
                 {% if operation.type.value == "transfer" %}
-                  <span>из {{ ns.source.account.name if ns.source and ns.source.account else "счет не найден" }}</span>
-                  <span>в {{ ns.destination.account.name if ns.destination and ns.destination.account else "счет не найден" }}</span>
-                {% elif ns.primary %}
-                  <span>{{ "на счет" if ns.primary.amount > 0 else "со счета" }} {{ ns.primary.account.name if ns.primary.account else "счет не найден" }}</span>
+                  <span>из {{ operation.source_entry.account.name if operation.source_entry and operation.source_entry.account else "счет не найден" }}</span>
+                  <span>в {{ operation.destination_entry.account.name if operation.destination_entry and operation.destination_entry.account else "счет не найден" }}</span>
+                {% elif operation.primary_entry %}
+                  <span>{{ "на счет" if operation.primary_entry.amount > 0 else "со счета" }} {{ operation.primary_entry.account.name if operation.primary_entry.account else "счет не найден" }}</span>
                 {% endif %}
                 {% if operation.category %}<span class="tone-{{ operation.category.kind.value if operation.category.kind else operation.type.value }}">{{ operation.category.name }}</span>{% endif %}
                 {% if operation.property %}<span>{{ operation.property.name }}</span>{% endif %}
@@ -114,13 +103,13 @@
                 </label>
                 <label class="field">
                   <span>сумма</span>
-                  <input class="amount" name="amount" inputmode="decimal" value="{{ ns.edit_amount or '' }}" form="{{ form_id }}" required>
+                  <input class="amount" name="amount" inputmode="decimal" value="{{ operation.edit_amount or '' }}" form="{{ form_id }}" required>
                 </label>
                 <label class="field">
                   <span>счет</span>
                   <select name="account_id" form="{{ form_id }}" required>
                     {% for account in accounts %}
-                      <option value="{{ account.id }}" {% if (operation.type.value == "transfer" and ns.source and ns.source.account_id == account.id) or (operation.type.value != "transfer" and ns.primary and ns.primary.account_id == account.id) %}selected{% endif %}>
+                      <option value="{{ account.id }}" {% if (operation.type.value == "transfer" and operation.source_entry and operation.source_entry.account_id == account.id) or (operation.type.value != "transfer" and operation.primary_entry and operation.primary_entry.account_id == account.id) %}selected{% endif %}>
                         {{ account.name }} · {{ account.currency }}
                       </option>
                     {% endfor %}
@@ -131,7 +120,7 @@
                   <select name="destination_account_id" form="{{ form_id }}">
                     <option value="">счет назначения</option>
                     {% for account in accounts %}
-                      <option value="{{ account.id }}" {% if ns.destination and ns.destination.account_id == account.id %}selected{% endif %}>
+                      <option value="{{ account.id }}" {% if operation.destination_entry and operation.destination_entry.account_id == account.id %}selected{% endif %}>
                         {{ account.name }} · {{ account.currency }}
                       </option>
                     {% endfor %}

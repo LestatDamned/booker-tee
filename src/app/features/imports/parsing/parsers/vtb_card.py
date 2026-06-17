@@ -3,22 +3,22 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
-from app.features.imports.extraction.pdfplumber_extractor import ExtractedPdf
-from app.features.imports.parser_types import RawTransactionDraft, StatementControlTotals
-from app.features.imports.parsers.common import (
+from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.parsing.parser_types import RawTransactionDraft, StatementControlTotals
+from app.features.imports.parsing.parsers.common import (
     build_raw_transaction_draft,
     cell,
     extracted_text,
     parse_with_error,
 )
-from app.features.imports.parsers.normalization import (
+from app.features.imports.parsing.parsers.normalization import (
     build_dedupe_hash,
     clean_cell,
     normalize_currency,
     normalize_description,
     parse_bank_date,
 )
-from app.features.imports.parsers.vtb_shared import extract_statement_period
+from app.features.imports.parsing.parsers.vtb_shared import extract_statement_period
 
 VTB_CARD_MARKERS = (
     "Номер карты",

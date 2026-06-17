@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
-from app.features.imports.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
 from app.features.imports.models import RawTransactionStatus
 
 

@@ -3,9 +3,9 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
 from app.features.imports.models import RawTransactionStatus
-from app.features.imports.parser_types import RawTransactionDraft
+from app.features.imports.parsing.parser_types import RawTransactionDraft
 
 
 def extracted_text(extracted: ExtractedPdf) -> str:

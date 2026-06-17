@@ -12,6 +12,11 @@ from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
+from app.features.ledger.application.commands import (
+    CreateManualIncomeExpenseCommand,
+    CreateManualTransferCommand,
+    UpdateManualOperationCommand,
+)
 from app.features.ledger.models import OperationType
 from app.features.ledger.service import LedgerPostingError, LedgerPostingService
 from app.features.properties.service import PropertyService
@@ -75,22 +80,26 @@ async def create_manual_operation(
             )
             operation = await service.create_manual_transfer(
                 context=context,
-                source_account_id=account_id,
-                destination_account_id=parsed_destination_account_id,
-                amount=amount,
-                operation_date=operation_date,
-                description=description,
+                command=CreateManualTransferCommand(
+                    source_account_id=account_id,
+                    destination_account_id=parsed_destination_account_id,
+                    amount=amount,
+                    operation_date=operation_date,
+                    description=description,
+                ),
             )
         else:
             operation = await service.create_manual_income_expense(
                 context=context,
-                operation_type=operation_type,
-                account_id=account_id,
-                amount=amount,
-                operation_date=operation_date,
-                description=description,
-                category_id=parse_optional_uuid(category_id),
-                property_id=parse_optional_uuid(property_id),
+                command=CreateManualIncomeExpenseCommand(
+                    operation_type=operation_type,
+                    account_id=account_id,
+                    amount=amount,
+                    operation_date=operation_date,
+                    description=description,
+                    category_id=parse_optional_uuid(category_id),
+                    property_id=parse_optional_uuid(property_id),
+                ),
             )
     except (ValueError, LedgerPostingError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -118,15 +127,17 @@ async def update_manual_operation(
     try:
         operation = await LedgerPostingService(session).update_manual_operation(
             context=context,
-            operation_id=operation_id,
-            operation_type=operation_type,
-            account_id=account_id,
-            amount=amount,
-            operation_date=operation_date,
-            description=description,
-            category_id=parse_optional_uuid(category_id),
-            property_id=parse_optional_uuid(property_id),
-            destination_account_id=parse_optional_uuid(destination_account_id),
+            command=UpdateManualOperationCommand(
+                operation_id=operation_id,
+                operation_type=operation_type,
+                account_id=account_id,
+                amount=amount,
+                operation_date=operation_date,
+                description=description,
+                category_id=parse_optional_uuid(category_id),
+                property_id=parse_optional_uuid(property_id),
+                destination_account_id=parse_optional_uuid(destination_account_id),
+            ),
         )
     except (ValueError, LedgerPostingError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
