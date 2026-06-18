@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
@@ -66,7 +66,7 @@ async def create_manual_operation(
     operation_type: Annotated[OperationType, Form()],
     account_id: Annotated[UUID, Form()],
     amount: Annotated[Decimal, Form()],
-    operation_date: Annotated[date, Form()],
+    operation_date: Annotated[str, Form()],
     description: Annotated[str | None, Form()] = None,
     category_id: Annotated[str | None, Form()] = None,
     property_id: Annotated[str | None, Form()] = None,
@@ -85,7 +85,7 @@ async def create_manual_operation(
                     source_account_id=account_id,
                     destination_account_id=parsed_destination_account_id,
                     amount=amount,
-                    operation_date=operation_date,
+                    operation_date=parse_manual_operation_date(operation_date),
                     description=description,
                 ),
             )
@@ -96,7 +96,7 @@ async def create_manual_operation(
                     operation_type=operation_type,
                     account_id=account_id,
                     amount=amount,
-                    operation_date=operation_date,
+                    operation_date=parse_manual_operation_date(operation_date),
                     description=description,
                     category_id=parse_optional_uuid(category_id),
                     property_id=parse_optional_uuid(property_id),
@@ -119,7 +119,7 @@ async def update_manual_operation(
     operation_type: Annotated[OperationType, Form()],
     account_id: Annotated[UUID, Form()],
     amount: Annotated[Decimal, Form()],
-    operation_date: Annotated[date, Form()],
+    operation_date: Annotated[str, Form()],
     description: Annotated[str | None, Form()] = None,
     category_id: Annotated[str | None, Form()] = None,
     property_id: Annotated[str | None, Form()] = None,
@@ -133,7 +133,7 @@ async def update_manual_operation(
                 operation_type=operation_type,
                 account_id=account_id,
                 amount=amount,
-                operation_date=operation_date,
+                operation_date=parse_manual_operation_date(operation_date),
                 description=description,
                 category_id=parse_optional_uuid(category_id),
                 property_id=parse_optional_uuid(property_id),
@@ -213,6 +213,16 @@ def parse_required_uuid(raw_value: str | None, message: str) -> UUID:
     if parsed is None:
         raise LedgerPostingError(message)
     return parsed
+
+
+def parse_manual_operation_date(raw_value: str) -> date:
+    cleaned = raw_value.strip()
+    for date_format in ("%d.%m.%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(cleaned, date_format).date()
+        except ValueError:
+            continue
+    raise LedgerPostingError("Date must be in DD.MM.YYYY format.")
 
 
 def manual_operation_anchor_url(operation_id: UUID) -> str:

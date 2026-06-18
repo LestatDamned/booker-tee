@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
 from app.features.accounts.repository import AccountRepository
-from app.features.imports.application.parse_attempts import (
+from app.features.imports.application.documents.parse_attempts import (
     PARSER_EXCEPTIONS,
     create_running_parse_attempt,
     record_failed_parse_attempt,

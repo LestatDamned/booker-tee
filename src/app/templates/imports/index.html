@@ -9,7 +9,7 @@
         <p class="eyebrow">{{ workspace.name }}</p>
         <h1>Импорт выписок</h1>
       </div>
-      <a class="button" href="/imports/upload">загрузить PDF</a>
+      <a class="button" href="/imports/upload">{{ icon("upload") }} загрузить PDF</a>
     </div>
 
     {% if documents %}
@@ -28,8 +28,8 @@
               </div>
             </div>
             <div class="entity-card-actions">
-              <a class="button button-small" href="/imports/documents/{{ document.id }}">детали</a>
-              <a class="button button-small" href="/imports/documents/{{ document.id }}/review">проверка</a>
+              <a class="button button-small" href="/imports/documents/{{ document.id }}">{{ icon("file-text") }} детали</a>
+              <a class="button button-small" href="/imports/documents/{{ document.id }}/review">{{ icon("clipboard-check") }} проверка</a>
             </div>
           </article>
         {% endfor %}
@@ -38,7 +38,7 @@
       <div class="empty-state">
         <strong>Выписки еще не загружены</strong>
         <span>Начните с PDF-выписки по одному из счетов.</span>
-        <a class="button button-small" href="/imports/upload">загрузить PDF</a>
+        <a class="button button-small" href="/imports/upload">{{ icon("upload") }} загрузить PDF</a>
       </div>
     {% endif %}
   </section>

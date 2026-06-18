@@ -10,8 +10,8 @@
         <h1>Отчеты</h1>
       </div>
       <div class="toolbar">
-        <a class="button" href="/categories">категории</a>
-        <a class="button" href="/properties">объекты</a>
+        <a class="button" href="/categories">{{ icon("tag") }} категории</a>
+        <a class="button" href="/properties">{{ icon("building") }} объекты</a>
       </div>
     </div>
 
@@ -51,21 +51,21 @@
           {% endfor %}
         </select>
       </label>
-      <button class="button form-submit" type="submit">фильтр</button>
+      <button class="button form-submit" type="submit">{{ icon("filter") }} фильтр</button>
     </form>
 
-    <div class="summary-grid">
+    <div class="summary-grid kpi-strip">
       <div class="metric metric-income">
         <span>доходы</span>
-        <strong class="amount-income">{{ overview.summary.income }}</strong>
+        <strong class="money-value money-income">{{ overview.summary.income }} <small>{{ workspace.default_currency }}</small></strong>
       </div>
       <div class="metric metric-expense">
         <span>расходы</span>
-        <strong class="amount-expense">{{ overview.summary.expense }}</strong>
+        <strong class="money-value money-expense">{{ overview.summary.expense }} <small>{{ workspace.default_currency }}</small></strong>
       </div>
       <div class="metric metric-profit">
         <span>прибыль</span>
-        <strong class="amount-profit">{{ overview.summary.profit }}</strong>
+        <strong class="money-value money-profit">{{ overview.summary.profit }} <small>{{ workspace.default_currency }}</small></strong>
       </div>
     </div>
 
@@ -88,7 +88,7 @@
     </table>
 
     <h2 class="status">По категориям</h2>
-    <table class="table">
+    <table class="table report-table">
       <thead>
         <tr>
           <th>категория</th>
@@ -100,10 +100,10 @@
       <tbody>
         {% for row in overview.categories %}
           <tr>
-            <td>{{ row.category_name }}</td>
-            <td class="amount amount-income">{{ row.income }}</td>
-            <td class="amount amount-expense">{{ row.expense }}</td>
-            <td class="amount amount-profit">{{ row.profit }}</td>
+            <td data-label="категория">{{ row.category_name }}</td>
+            <td class="amount amount-income" data-label="доходы">{{ row.income }}</td>
+            <td class="amount amount-expense" data-label="расходы">{{ row.expense }}</td>
+            <td class="amount amount-profit" data-label="прибыль">{{ row.profit }}</td>
           </tr>
         {% endfor %}
       </tbody>
@@ -111,7 +111,7 @@
 
     <h2 class="status">По объектам</h2>
     {% if overview.properties %}
-      <table class="table">
+      <table class="table report-table">
         <thead>
           <tr>
             <th>объект</th>
@@ -123,10 +123,10 @@
         <tbody>
           {% for row in overview.properties %}
             <tr>
-              <td>{{ row.property_name }}</td>
-              <td class="amount amount-income">{{ row.income }}</td>
-              <td class="amount amount-expense">{{ row.expense }}</td>
-              <td class="amount amount-profit">{{ row.profit }}</td>
+              <td data-label="объект">{{ row.property_name }}</td>
+              <td class="amount amount-income" data-label="доходы">{{ row.income }}</td>
+              <td class="amount amount-expense" data-label="расходы">{{ row.expense }}</td>
+              <td class="amount amount-profit" data-label="прибыль">{{ row.profit }}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -137,7 +137,7 @@
 
     <h2 class="status">Без категории</h2>
     {% if overview.uncategorized %}
-      <table class="table">
+      <table class="table report-table">
         <thead>
           <tr>
             <th>дата</th>
@@ -149,10 +149,10 @@
         <tbody>
           {% for row in overview.uncategorized %}
             <tr>
-              <td class="status">{{ row.operation.operation_date }}</td>
-              <td><span class="badge badge-{{ row.operation.type.value }}">{{ row.operation.type | ru }}</span></td>
-              <td class="amount {% if row.total > 0 %}amount-income{% elif row.total < 0 %}amount-expense{% endif %}">{{ row.total }}</td>
-              <td>{{ row.operation.description or "" }}</td>
+              <td class="status" data-label="дата">{{ row.operation.operation_date | date_ru }}</td>
+              <td data-label="тип"><span class="badge badge-{{ row.operation.type.value }}">{{ row.operation.type | ru }}</span></td>
+              <td class="amount {% if row.total > 0 %}amount-income{% elif row.total < 0 %}amount-expense{% endif %}" data-label="сумма">{{ row.total }}</td>
+              <td data-label="описание">{{ row.operation.description or "" }}</td>
             </tr>
           {% endfor %}
         </tbody>

@@ -1,0 +1,42 @@
+{
+  "text_by_page": [
+    "Example Bank\nCard statement\nCurrency: USD\nOpening balance: $1,000.00\nTotal credits: 250.25 USD\nTotal debits: 100.10 USD\nClosing balance: $1,150.15"
+  ],
+  "tables_by_page": [
+    {
+      "page_number": 1,
+      "tables": [
+        [
+          [
+            "Transaction Date",
+            "Posting Date",
+            "Description",
+            "Amount",
+            "Currency",
+            "Balance"
+          ],
+          [
+            "2026-05-12",
+            "2026-05-13",
+            "Coffee shop",
+            "-5.50",
+            "USD",
+            "994.50"
+          ],
+          [
+            "2026-05-13",
+            "2026-05-14",
+            "Salary",
+            "+250.25",
+            "USD",
+            "1244.75"
+          ]
+        ]
+      ]
+    }
+  ],
+  "metadata": {
+    "fixture_kind": "sanitized_unknown_statement",
+    "source": "manual_sanitized_extracted_pdf_shape"
+  }
+}

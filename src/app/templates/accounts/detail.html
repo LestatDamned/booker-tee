@@ -13,14 +13,14 @@
       <div class="toolbar">
         {% if detail.account.is_active %}
           <form method="post" action="/accounts/{{ detail.account.id }}/archive">
-            <button class="button" type="submit">в архив</button>
+            <button class="button" type="submit">{{ icon("archive") }} в архив</button>
           </form>
         {% else %}
           <form method="post" action="/accounts/{{ detail.account.id }}/restore">
-            <button class="button" type="submit">восстановить</button>
+            <button class="button" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
           </form>
         {% endif %}
-        <a class="button" href="/accounts">назад</a>
+        <a class="button" href="/accounts">{{ icon("arrow-left") }} назад</a>
       </div>
     </div>
 
@@ -36,7 +36,7 @@
         </select>
         <input name="currency" value="{{ detail.account.currency }}" placeholder="Валюта" maxlength="3" required>
         <input class="amount" name="initial_balance" inputmode="decimal" value="{{ detail.account.initial_balance }}" placeholder="Начальный баланс">
-        <button class="button" type="submit">сохранить</button>
+        <button class="button" type="submit">{{ icon("save") }} сохранить</button>
       </div>
     </form>
 
@@ -61,7 +61,7 @@
           <article class="entry-item tone-{{ entry.operation.type.value }}">
             <div class="entry-main">
               <div class="review-meta">
-                <span>{{ entry.operation.operation_date }}</span>
+                <span>{{ entry.operation.operation_date | date_ru }}</span>
                 <span class="badge badge-{{ entry.operation.type.value }}">{{ entry.operation.type | ru }}</span>
                 <span class="amount {% if entry.amount > 0 %}amount-income{% elif entry.amount < 0 %}amount-expense{% endif %}">{{ entry.amount }} {{ entry.currency }}</span>
               </div>

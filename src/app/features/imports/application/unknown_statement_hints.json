@@ -1,0 +1,75 @@
+{
+  "generic_control_total_labels": {
+    "opening_balance": [
+      "Opening balance",
+      "Balance brought forward",
+      "Beginning balance"
+    ],
+    "closing_balance": [
+      "Closing balance",
+      "Ending balance",
+      "Balance carried forward"
+    ],
+    "total_inflow": [
+      "Total credits",
+      "Total credit",
+      "Total deposits",
+      "Money in"
+    ],
+    "total_outflow": [
+      "Total debits",
+      "Total debit",
+      "Total withdrawals",
+      "Money out"
+    ]
+  },
+  "banks": [
+    {
+      "bank_name": "Ozon Bank",
+      "markers": [
+        "озон банк",
+        "ozon банк",
+        "ozon bank"
+      ],
+      "statement_types": [
+        {
+          "statement_type": "card_statement",
+          "markers": [
+            "оплата товаров по",
+            "карте"
+          ]
+        },
+        {
+          "statement_type": "account_movement_statement",
+          "markers": [
+            "справка о движении средств"
+          ]
+        }
+      ],
+      "control_total_labels": [
+        {
+          "opening_balance": [
+            "Входящий остаток"
+          ],
+          "closing_balance": [
+            "Исходящий остаток"
+          ],
+          "total_inflow": [
+            "Итого зачислений за период"
+          ],
+          "total_outflow": [
+            "Итого списаний за период"
+          ]
+        }
+      ]
+    },
+    {
+      "bank_name": "Alfa Bank",
+      "markers": [
+        "альфа",
+        "alfa",
+        "alpha bank"
+      ]
+    }
+  ]
+}

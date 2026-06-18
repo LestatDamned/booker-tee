@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.features.imports.models import (
+    ImportMappingTemplate,
     ParseAttempt,
     ParseAttemptStatus,
     RawTransaction,
@@ -51,6 +52,32 @@ class ImportRepository:
         self.session.add_all(raw_transactions)
         await self.session.flush()
         return raw_transactions
+
+    async def create_mapping_template(
+        self,
+        template: ImportMappingTemplate,
+    ) -> ImportMappingTemplate:
+        self.session.add(template)
+        await self.session.flush()
+        return template
+
+    async def list_mapping_templates(
+        self,
+        *,
+        workspace_id: UUID,
+        bank_name: str | None = None,
+        statement_type: str | None = None,
+    ) -> list[ImportMappingTemplate]:
+        query = select(ImportMappingTemplate).where(
+            ImportMappingTemplate.workspace_id == workspace_id
+        )
+        if bank_name:
+            query = query.where(ImportMappingTemplate.bank_name == bank_name)
+        if statement_type:
+            query = query.where(ImportMappingTemplate.statement_type == statement_type)
+        query = query.order_by(ImportMappingTemplate.updated_at.desc())
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
 
     async def find_existing_dedupe_hashes(
         self,
@@ -314,10 +341,13 @@ class ImportRepository:
         attempt: ParseAttempt,
         *,
         message: str,
+        validation_report: dict[str, object] | None = None,
     ) -> None:
-        validation_report: dict[str, object] = {"message": message}
+        report = dict(validation_report or {})
+        report.setdefault("message", message)
+        report.setdefault("parser_message", message)
         attempt.status = ParseAttemptStatus.REQUIRES_REVIEW
-        attempt.validation_report_json = validation_report
+        attempt.validation_report_json = report
         await self.session.flush()
 
 

@@ -62,6 +62,37 @@ class RawTransactionStatus(StrEnum):
     CONFIRMED = "confirmed"
 
 
+class ImportMappingTemplate(Base):
+    __tablename__ = "import_mapping_templates"
+    __table_args__ = (
+        Index(
+            "ix_import_mapping_templates_workspace_bank_type",
+            "workspace_id",
+            "bank_name",
+            "statement_type",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(255))
+    bank_name: Mapped[str | None] = mapped_column(String(255))
+    statement_type: Mapped[str | None] = mapped_column(String(255))
+    default_currency: Mapped[str] = mapped_column(String(3), default="RUB")
+    column_mapping_json: Mapped[dict[str, object]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+    workspace: Mapped[Workspace] = relationship(back_populates="import_mapping_templates")
+
+
 class UploadedDocument(Base):
     __tablename__ = "uploaded_documents"
     __table_args__ = (

@@ -1,16 +1,16 @@
 <section class="dashboard-grid">
-  <div class="summary-grid dashboard-summary">
+  <div class="summary-grid dashboard-summary kpi-strip">
     <div class="metric metric-income">
       <span>доходы за месяц</span>
-      <strong class="amount-income">{{ overview.reports.summary.income }} {{ workspace.default_currency }}</strong>
+      <strong class="money-value money-income">{{ overview.reports.summary.income }} <small>{{ workspace.default_currency }}</small></strong>
     </div>
     <div class="metric metric-expense">
       <span>расходы за месяц</span>
-      <strong class="amount-expense">{{ overview.reports.summary.expense }} {{ workspace.default_currency }}</strong>
+      <strong class="money-value money-expense">{{ overview.reports.summary.expense }} <small>{{ workspace.default_currency }}</small></strong>
     </div>
     <div class="metric metric-profit">
       <span>прибыль за месяц</span>
-      <strong class="amount-profit">{{ overview.reports.summary.profit }} {{ workspace.default_currency }}</strong>
+      <strong class="money-value money-profit">{{ overview.reports.summary.profit }} <small>{{ workspace.default_currency }}</small></strong>
     </div>
     <div class="metric">
       <span>требует проверки</span>
@@ -24,7 +24,7 @@
         <p class="eyebrow">{{ overview.month_start }} — {{ overview.month_end }}</p>
         <h2>Счета</h2>
       </div>
-      <a class="button button-small" href="/accounts">открыть</a>
+      <a class="button button-small" href="/accounts">{{ icon("wallet") }} открыть</a>
     </div>
     {% if overview.reports.account_balances %}
       <div class="entity-list">
@@ -40,7 +40,7 @@
     {% else %}
       <div class="empty-state">
         <p>Счетов пока нет.</p>
-        <a class="button button-small" href="/accounts">добавить счет</a>
+        <a class="button button-small" href="/accounts">{{ icon("plus") }} добавить счет</a>
       </div>
     {% endif %}
   </article>
@@ -51,13 +51,13 @@
         <p class="eyebrow">импорт</p>
         <h2>Последние документы</h2>
       </div>
-      <a class="button button-small" href="/imports">открыть</a>
+      <a class="button button-small" href="/imports">{{ icon("import") }} открыть</a>
     </div>
     {% if overview.recent_documents %}
       <div class="entity-list">
         {% for document in overview.recent_documents %}
           <a class="entity-row" href="/imports/documents/{{ document.id }}">
-            <span>{{ document.original_filename }}</span>
+            <span class="document-name-compact">{{ document.original_filename }}</span>
             <span class="badge badge-{{ document.status.value }}">{{ document.status | ru }}</span>
           </a>
         {% endfor %}
@@ -65,7 +65,7 @@
     {% else %}
       <div class="empty-state">
         <p>Загруженных выписок пока нет.</p>
-        <a class="button button-small" href="/imports/upload">загрузить выписку</a>
+        <a class="button button-small" href="/imports/upload">{{ icon("upload") }} загрузить выписку</a>
       </div>
     {% endif %}
   </article>

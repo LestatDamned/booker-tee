@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ app_name }}{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/app.css') }}?v=20260618-ui5">
     <script defer src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
   </head>
@@ -22,16 +22,16 @@
             <strong>{{ current_workspace.name if current_workspace else "не выбрано" }}</strong>
           </a>
         </div>
-        <a class="status-pill primary-action" href="/imports/upload">загрузить</a>
+        <a class="status-pill primary-action" href="/imports/upload">{{ icon("upload") }} загрузить</a>
       </div>
       <nav class="shell nav-actions">
-        <a class="nav-link" href="/accounts">счета</a>
-        <a class="nav-link" href="/ledger/manual">операции</a>
-        <a class="nav-link" href="/imports">импорт</a>
-        <a class="nav-link" href="/reports">отчеты</a>
-        <a class="nav-link" href="/categories">категории</a>
-        <a class="nav-link" href="/properties">объекты</a>
-        <a class="nav-link" href="/rules">правила</a>
+        <a class="nav-link" href="/accounts">{{ icon("wallet") }} счета</a>
+        <a class="nav-link" href="/ledger/manual">{{ icon("plus") }} операции</a>
+        <a class="nav-link" href="/imports">{{ icon("import") }} импорт</a>
+        <a class="nav-link" href="/reports">{{ icon("list-check") }} отчеты</a>
+        <a class="nav-link" href="/categories">{{ icon("tag") }} категории</a>
+        <a class="nav-link" href="/properties">{{ icon("building") }} объекты</a>
+        <a class="nav-link" href="/rules">{{ icon("settings") }} правила</a>
       </nav>
     </header>
     <main class="shell page-frame">

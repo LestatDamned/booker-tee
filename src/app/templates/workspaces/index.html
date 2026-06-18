@@ -9,7 +9,7 @@
         <p class="eyebrow">{{ current_user.email }}</p>
         <h1>Пространства</h1>
       </div>
-      <a class="button" href="/users">пользователи</a>
+      <a class="button" href="/users">{{ icon("user") }} пользователи</a>
     </div>
 
     <div class="summary-grid">
@@ -44,7 +44,7 @@
         <span>валюта</span>
         <input name="default_currency" value="{{ workspace.default_currency }}" maxlength="3" placeholder="RUB" required>
       </label>
-      <button class="button form-submit" type="submit">создать пространство</button>
+      <button class="button form-submit" type="submit">{{ icon("plus") }} создать пространство</button>
     </form>
 
     {% if workspaces %}
@@ -89,9 +89,9 @@
               </div>
             </div>
             <div class="entity-card-actions">
-              <button class="button button-small" type="submit" form="{{ workspace_form_id }}">сохранить</button>
+              <button class="button button-small" type="submit" form="{{ workspace_form_id }}">{{ icon("save") }} сохранить</button>
               <form method="post" action="/workspaces/{{ item.id }}/select">
-                <button class="button button-small" type="submit">выбрать</button>
+                <button class="button button-small" type="submit">{{ icon("check") }} выбрать</button>
               </form>
             </div>
           </article>

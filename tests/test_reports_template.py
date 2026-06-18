@@ -19,7 +19,7 @@ def test_reports_template_marks_financial_tones() -> None:
 
     html = templates.env.get_template("reports/index.html").render(
         app_name="Booker Tee",
-        workspace=SimpleNamespace(name="Personal"),
+        workspace=SimpleNamespace(name="Personal", default_currency="RUB"),
         filters=SimpleNamespace(
             date_from=None,
             date_to=None,
@@ -58,6 +58,12 @@ def test_reports_template_marks_financial_tones() -> None:
     assert "metric-income" in html
     assert "metric-expense" in html
     assert "metric-profit" in html
+    assert "money-value money-income" in html
+    assert "money-value money-expense" in html
+    assert "money-value money-profit" in html
+    assert "<small>RUB</small>" in html
+    assert "report-table" in html
+    assert 'data-label="прибыль"' in html
     assert "amount-income" in html
     assert "amount-expense" in html
     assert "badge-expense" in html

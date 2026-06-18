@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from app.features.categories.models import CategoryKind
 from app.features.ledger.models import OperationStatus, OperationType
-from app.features.ledger.router import manual_operation_anchor_url
+from app.features.ledger.router import manual_operation_anchor_url, parse_manual_operation_date
 from app.templating import create_templates
 
 
@@ -62,10 +62,14 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "form-panel form-panel-embedded" in html
     assert "badge badge-expense" in html
     assert "badge badge-confirmed" in html
+    assert "manual-operation-money money-value money-expense" in html
+    assert "<small>RUB</small>" in html
     assert f'action="/ledger/manual/{operation_id}"' in html
     assert f'action="/ledger/manual/{operation_id}/cancel"' in html
     assert "Кофе" in html
     assert "Кафе" in html
+    assert "15.06.2026" in html
+    assert "дд.мм.гггг" in html
     assert "сохранить" in html
     assert "отменить" in html
 
@@ -123,3 +127,8 @@ def test_manual_operation_anchor_url_points_to_operation_card() -> None:
     operation_id = uuid4()
 
     assert manual_operation_anchor_url(operation_id) == f"/ledger/manual#operation-{operation_id}"
+
+
+def test_parse_manual_operation_date_accepts_russian_and_iso_formats() -> None:
+    assert parse_manual_operation_date("15.06.2026") == date(2026, 6, 15)
+    assert parse_manual_operation_date("2026-06-15") == date(2026, 6, 15)

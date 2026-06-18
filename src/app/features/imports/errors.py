@@ -12,3 +12,7 @@ class ImportReparseError(ValueError):
 
 class ImportDocumentManagementError(ValueError):
     pass
+
+
+class UnknownStatementMappingError(ValueError):
+    pass

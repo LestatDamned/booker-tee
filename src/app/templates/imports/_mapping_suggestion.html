@@ -1,0 +1,63 @@
+<div class="mapping-suggestion">
+  <strong>Предложение маппинга · {{ (suggestion.confidence * 100) | round | int }}%</strong>
+  {% if suggestion.reasons %}
+    <ul>
+      {% for reason in suggestion.reasons %}
+        <li>
+          {% if reason.field is defined %}
+            {% if reason.field == "operation_date" %}
+              {% set field_label = "дата" %}
+            {% elif reason.field == "posting_date" %}
+              {% set field_label = "дата проводки" %}
+            {% elif reason.field == "description" %}
+              {% set field_label = "описание" %}
+            {% elif reason.field == "amount" %}
+              {% set field_label = "сумма" %}
+            {% elif reason.field == "debit_amount" %}
+              {% set field_label = "списание" %}
+            {% elif reason.field == "credit_amount" %}
+              {% set field_label = "зачисление" %}
+            {% elif reason.field == "currency" %}
+              {% set field_label = "валюта" %}
+            {% elif reason.field == "balance_after" %}
+              {% set field_label = "остаток после операции" %}
+            {% else %}
+              {% set field_label = reason.field %}
+            {% endif %}
+
+            {% if reason.evidence == "header_match" %}
+              {{ field_label }}: колонка {{ reason.column_index + 1 }} выбрана по заголовку «{{ reason.header }}».
+            {% elif reason.evidence == "date_like_values" %}
+              {{ field_label }}: колонка {{ reason.column_index + 1 }} содержит {{ reason.matched_count }}/{{ reason.sample_count }} значений, похожих на даты.
+            {% elif reason.evidence == "money_like_values" %}
+              {{ field_label }}: колонка {{ reason.column_index + 1 }} содержит {{ reason.matched_count }}/{{ reason.sample_count }} значений, похожих на суммы.
+            {% elif reason.evidence == "currency_like_values" %}
+              {{ field_label }}: колонка {{ reason.column_index + 1 }} содержит {{ reason.matched_count }}/{{ reason.sample_count }} значений, похожих на валюту.
+            {% elif reason.evidence == "description_like_values" %}
+              {{ field_label }}: колонка {{ reason.column_index + 1 }} содержит {{ reason.matched_count }}/{{ reason.sample_count }} текстовых значений.
+            {% else %}
+              {{ field_label }}: колонка {{ reason.column_index + 1 }}.
+            {% endif %}
+          {% else %}
+            {{ reason }}
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% if suggestion.warnings %}
+    <div class="review-flags">
+      {% for warning in suggestion.warnings %}
+        {% if warning.code is defined %}
+          {% if warning.code == "partial_debit_credit_columns" %}
+            <span>Найдена только одна колонка списания/зачисления. Проверьте знак суммы перед импортом.</span>
+          {% else %}
+            <span>{{ warning.code }}</span>
+          {% endif %}
+        {% else %}
+          <span>{{ warning }}</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>

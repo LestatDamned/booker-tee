@@ -14,7 +14,7 @@
   <div class="operation-ref tone-{{ operation.type.value }}{% if compact %} operation-ref-compact{% endif %}">
     <div class="action-title">{{ title }}</div>
     <div class="operation-ref-title">
-      {{ operation.operation_date }} · <span class="badge badge-{{ operation.type.value }}">{{ operation.type | ru }}</span>
+      {{ operation.operation_date | date_ru }} · <span class="badge badge-{{ operation.type.value }}">{{ operation.type | ru }}</span>
     </div>
     {% if operation.type.value == "transfer" %}
       <div class="operation-route">

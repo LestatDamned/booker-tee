@@ -9,7 +9,7 @@
         <p class="eyebrow">доступ</p>
         <h1>Пользователи</h1>
       </div>
-      <a class="button" href="/workspaces">пространства</a>
+      <a class="button" href="/workspaces">{{ icon("folder") }} пространства</a>
     </div>
 
     <form class="form-panel" method="post" action="/users">
@@ -21,7 +21,7 @@
         <span>имя</span>
         <input name="name" placeholder="Имя пользователя">
       </label>
-      <button class="button form-submit" type="submit">создать пользователя</button>
+      <button class="button form-submit" type="submit">{{ icon("plus") }} создать пользователя</button>
     </form>
 
     {% if users %}
@@ -44,7 +44,7 @@
             </div>
             <div class="entity-card-actions">
               <form method="post" action="/users/{{ user.id }}/select">
-                <button class="button button-small" type="submit">выбрать</button>
+                <button class="button button-small" type="submit">{{ icon("check") }} выбрать</button>
               </form>
             </div>
           </article>

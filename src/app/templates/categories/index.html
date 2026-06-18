@@ -9,7 +9,7 @@
         <p class="eyebrow">{{ workspace.name }}</p>
         <h1>Категории</h1>
       </div>
-      <a class="button" href="/reports">отчеты</a>
+      <a class="button" href="/reports">{{ icon("list-check") }} отчеты</a>
     </div>
 
     <form class="form-panel" method="post" action="/categories">
@@ -25,7 +25,7 @@
           {% endfor %}
         </select>
       </div>
-      <button class="button form-submit" type="submit">добавить</button>
+      <button class="button form-submit" type="submit">{{ icon("plus") }} добавить</button>
     </form>
 
     {% if categories %}

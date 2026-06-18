@@ -29,13 +29,13 @@
           <input id="statement_pdf" name="statement_pdf" type="file" accept="application/pdf,.pdf" required>
         </div>
 
-        <button class="button form-submit" type="submit">извлечь данные</button>
+        <button class="button form-submit" type="submit">{{ icon("import") }} извлечь данные</button>
       </form>
     {% else %}
       <div class="empty-state">
         <strong>Сначала нужен счет</strong>
         <span>Выписка всегда привязана к счету, чтобы проводки считались корректно.</span>
-        <a class="button button-small" href="/accounts">создать счет</a>
+        <a class="button button-small" href="/accounts">{{ icon("plus") }} создать счет</a>
       </div>
     {% endif %}
   </section>

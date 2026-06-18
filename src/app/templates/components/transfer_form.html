@@ -38,7 +38,7 @@
               x-bind:hidden="selectedAccount && selectedAccount !== '{{ candidate.account_id }}'"
               x-bind:disabled="selectedAccount && selectedAccount !== '{{ candidate.account_id }}'"
             >
-              {{ candidate.operation_date or candidate.operation_date_raw }} · {{ candidate.amount }} {{ candidate.currency or "" }} · {{ candidate.account.name if candidate.account else "счет не найден" }} · строка {{ candidate.row_index }} · {{ suggestion.day_distance }} дн. · {{ candidate.description_normalized or candidate.description_raw or "" }}
+              {{ (candidate.operation_date or candidate.operation_date_raw) | date_ru }} · {{ candidate.amount }} {{ candidate.currency or "" }} · {{ candidate.account.name if candidate.account else "счет не найден" }} · строка {{ candidate.row_index }} · {{ suggestion.day_distance }} дн. · {{ candidate.description_normalized or candidate.description_raw or "" }}
             </option>
           {% endfor %}
         </select>
@@ -47,6 +47,6 @@
     <div class="transfer-help">
       <span>Если парной строки нет, будет создан ручной перевод на выбранный счет.</span>
     </div>
-    <button class="button button-small" type="submit">Это перевод</button>
+    <button class="button button-small" type="submit">{{ icon("refresh") }} Это перевод</button>
   </form>
 {% endmacro %}

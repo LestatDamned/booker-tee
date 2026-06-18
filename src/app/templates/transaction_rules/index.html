@@ -10,7 +10,7 @@
         <h1>Правила транзакций</h1>
       </div>
       <form method="post" action="/rules/seed-expobank">
-        <button class="button" type="submit">загрузить правила Expobank</button>
+        <button class="button" type="submit">{{ icon("import") }} загрузить правила Expobank</button>
       </form>
     </div>
 
@@ -82,7 +82,7 @@
         <span>макс. сумма</span>
         <input class="amount" name="amount_max" inputmode="decimal" placeholder="0.00">
       </label>
-      <button class="button form-submit" type="submit">создать правило</button>
+      <button class="button form-submit" type="submit">{{ icon("plus") }} создать правило</button>
     </form>
   </section>
 
@@ -204,13 +204,13 @@
               </div>
             </div>
             <div class="entity-card-actions">
-              <button class="button button-small" type="submit" form="{{ rule_form_id }}">сохранить</button>
+              <button class="button button-small" type="submit" form="{{ rule_form_id }}">{{ icon("save") }} сохранить</button>
               <form method="post" action="/rules/{{ rule.id }}/toggle">
                 <input type="hidden" name="is_active" value="{{ 'false' if rule.is_active else 'true' }}">
-                <button class="button button-small" type="submit">{{ "выключить" if rule.is_active else "включить" }}</button>
+                <button class="button button-small" type="submit">{{ icon("settings") }} {{ "выключить" if rule.is_active else "включить" }}</button>
               </form>
               <form method="post" action="/rules/{{ rule.id }}/delete">
-                <button class="button button-small button-danger" type="submit">удалить</button>
+                <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
               </form>
             </div>
           </article>

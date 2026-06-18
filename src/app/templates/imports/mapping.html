@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block title %}Настройка импорта · {{ view.original_filename }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+  <section class="panel stack import-workflow">
+    <header class="import-page-header">
+      <div class="import-page-title">
+        <p class="eyebrow">{{ view.status | ru }}</p>
+        <h1>Настройка импорта</h1>
+      </div>
+      <div class="import-page-actions">
+        <a class="button" href="/imports/documents/{{ view.id }}">{{ icon("file-text") }} документ</a>
+        <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
+      </div>
+    </header>
+
+    <div class="notice">
+      Выберите таблицу и колонки, чтобы проверить, как неизвестная выписка превратится в транзакции.
+      На этом шаге данные в учет не записываются.
+    </div>
+
+    {% if mapping_templates %}
+      <div class="notice">
+        <strong>Найден шаблон:</strong>
+        {{ mapping_templates[0].name }}.
+        Поля ниже уже заполнены из последнего подходящего шаблона для этого банка и типа выписки.
+      </div>
+    {% endif %}
+
+    {% if table_options %}
+      <form id="mapping-form" class="form-panel mapping-form" method="post" action="/imports/documents/{{ view.id }}/mapping">
+        <div class="field form-field-wide">
+          <label>Таблица</label>
+          <span class="field-note">Выбор таблицы обновит предпросмотр ниже.</span>
+          <div class="table-picker">
+            {% for table in table_options %}
+              {% set table_ref = table.page_number ~ ":" ~ table.table_index %}
+              {% set selected_ref = command.page_number ~ ":" ~ command.table_index %}
+              <label class="table-picker-option {% if table_ref == selected_ref %}is-selected{% endif %}">
+                <input
+                  type="radio"
+                  name="table_ref"
+                  value="{{ table_ref }}"
+                  {% if table_ref == selected_ref %}checked{% endif %}
+                  onchange="this.form.submit()"
+                >
+                <span>{{ table.page_number }}</span>
+                {% if table.table_index %}
+                  <small>{{ table.table_index + 1 }}</small>
+                {% endif %}
+              </label>
+            {% endfor %}
+          </div>
+          <div class="table-picker-meta">
+            <span>выбрана страница {{ selected_table.page_number }} · таблица {{ selected_table.table_index + 1 }}</span>
+            <span>{{ selected_table.row_count }} строк · {{ selected_table.column_count }} колонок</span>
+            {% if compatible_table_count and compatible_table_count > 1 %}
+              <span>импорт: {{ compatible_table_count }} таблиц по этой схеме</span>
+            {% else %}
+              <span>импорт: только выбранная таблица</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="operation_date_column">Дата</label>
+          <select id="operation_date_column" name="operation_date_column">
+            {% for index in range(selected_table.column_count or 0) %}
+              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
+              <option value="{{ index }}" {% if command.operation_date_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="posting_date_column">Дата проводки</label>
+          <select id="posting_date_column" name="posting_date_column">
+            <option value="-1" {% if command.posting_date_column is none %}selected{% endif %}>не используется</option>
+            {% for index in range(selected_table.column_count or 0) %}
+              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
+              <option value="{{ index }}" {% if command.posting_date_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="description_column">Описание</label>
+          <select id="description_column" name="description_column">
+            {% for index in range(selected_table.column_count or 0) %}
+              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
+              <option value="{{ index }}" {% if command.description_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="amount_column">Сумма</label>
+          <select id="amount_column" name="amount_column">
+            <option value="-1" {% if command.amount_column is none %}selected{% endif %}>нет единой колонки</option>
+            {% for index in range(selected_table.column_count or 0) %}
+              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
+              <option value="{{ index }}" {% if command.amount_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="debit_amount_column">Списание</label>
+          <select id="debit_amount_column" name="debit_amount_column">
+            <option value="-1" {% if command.debit_amount_column is none %}selected{% endif %}>не используется</option>
+            {% for index in range(selected_table.column_count or 0) %}
+              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
+              <option value="{{ index }}" {% if command.debit_amount_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="credit_amount_column">Зачисление</label>
+          <select id="credit_amount_column" name="credit_amount_column">
+            <option value="-1" {% if command.credit_amount_column is none %}selected{% endif %}>не используется</option>
+            {% for index in range(selected_table.column_count or 0) %}
+              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
+              <option value="{{ index }}" {% if command.credit_amount_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="currency_column">Валюта</label>
+          <select id="currency_column" name="currency_column">
+            <option value="-1" {% if command.currency_column is none %}selected{% endif %}>по умолчанию</option>
+            {% for index in range(selected_table.column_count or 0) %}
+              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
+              <option value="{{ index }}" {% if command.currency_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="balance_after_column">Остаток после</label>
+          <select id="balance_after_column" name="balance_after_column">
+            <option value="-1" {% if command.balance_after_column is none %}selected{% endif %}>не используется</option>
+            {% for index in range(selected_table.column_count or 0) %}
+              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
+              <option value="{{ index }}" {% if command.balance_after_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="first_data_row">Первая строка данных</label>
+          <input id="first_data_row" name="first_data_row" type="number" min="0" value="{{ command.first_data_row }}">
+        </div>
+
+        <div class="field">
+          <label for="default_currency">Валюта по умолчанию</label>
+          <input id="default_currency" name="default_currency" value="{{ command.default_currency }}">
+        </div>
+
+        <div class="mapping-action-row">
+          <button class="button" type="submit">{{ icon("list-check") }} показать предпросмотр</button>
+          {% if preview and preview.rows %}
+            <button
+              class="button"
+              type="submit"
+              formaction="/imports/documents/{{ view.id }}/mapping/import"
+            >
+              {{ icon("import") }}
+              {% if compatible_table_count and compatible_table_count > 1 %}
+                импортировать все страницы
+              {% else %}
+                импортировать строки
+              {% endif %}
+            </button>
+          {% endif %}
+        </div>
+      </form>
+
+      {% if selected_table %}
+        <h2 class="status">Выбранная таблица: страница {{ selected_table.page_number }} · таблица {{ selected_table.table_index + 1 }}</h2>
+        {% if selected_table.mapping_suggestions %}
+          {% set suggestion = selected_table.mapping_suggestions[0] %}
+          {% include "imports/_mapping_suggestion.html" %}
+        {% endif %}
+        {% if selected_table.column_candidates %}
+          <div class="review-flags">
+            {% for candidate in selected_table.column_candidates %}
+              <span>{{ candidate.field }}: колонка {{ candidate.column_index + 1 }} · {{ candidate.header }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="table-scroll">
+          <table class="table">
+            <tbody>
+              {% for row in selected_table.rows %}
+                <tr>
+                  {% for cell in row %}
+                    <td>{{ cell }}</td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+
+      {% if preview %}
+        {% if preview.warnings %}
+          <div class="review-flags">
+            {% for warning in preview.warnings %}
+              {% if warning.code == "duplicate_column_roles" %}
+                <span>Одна колонка выбрана для нескольких ролей. Проверьте поля: {{ warning.fields | join(", ") }}.</span>
+              {% elif warning.code == "amount_and_split_columns" %}
+                <span>Выбрана единая сумма вместе со списанием/зачислением. Импорт использует единую сумму.</span>
+              {% elif warning.code == "partial_debit_credit_columns" %}
+                <span>Выбрана только одна колонка списания/зачисления. Проверьте знак суммы перед импортом.</span>
+              {% elif warning.code == "high_error_rate" %}
+                <span>В предпросмотре много строк с ошибками. Проверьте таблицу, первую строку данных и выбранные колонки.</span>
+              {% elif warning.code == "no_valid_rows" %}
+                <span>Нет валидных строк для импорта. Проверьте таблицу и выбранные колонки.</span>
+              {% elif warning.code == "balance_after_parse_errors" %}
+                <span>Часть остатков после операции не распознана. Импорт сохранит строки для проверки.</span>
+              {% else %}
+                <span>{{ warning.code }}</span>
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="summary-grid">
+          <div class="metric">
+            <span>строки</span>
+            <strong>{{ preview.rows | length }}</strong>
+          </div>
+          <div class="metric metric-income">
+            <span>готово</span>
+            <strong>{{ preview.valid_count }}</strong>
+          </div>
+          <div class="metric metric-expense">
+            <span>ошибки</span>
+            <strong>{{ preview.error_count }}</strong>
+          </div>
+        </div>
+
+        <h2 class="status">Предпросмотр транзакций</h2>
+        {% if preview.rows %}
+          <div class="form-panel form-panel-embedded">
+            <div class="field form-field-wide">
+              <label for="save_template_name">Сохранить как шаблон</label>
+              <input
+                form="mapping-form"
+                id="save_template_name"
+                name="save_template_name"
+                placeholder="например, Ozon Bank карта"
+              >
+            </div>
+            <div class="mapping-help">
+              Шаблон сохранится только при импорте строк.
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>строка</th>
+                  <th>статус</th>
+                  <th>дата</th>
+                  <th>проводка</th>
+                  <th>сумма</th>
+                  <th>валюта</th>
+                  <th>описание</th>
+                  <th>ошибка</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in preview.rows %}
+                  <tr>
+                    <td>{{ row.source_row_number }}</td>
+                    <td><span class="badge badge-{{ row.status }}">{{ row.status | ru }}</span></td>
+                    <td>{{ row.operation_date | date_ru or row.operation_date_raw }}</td>
+                    <td>{{ row.posting_date | date_ru or row.posting_date_raw }}</td>
+                    <td class="amount {% if row.amount and row.amount > 0 %}amount-income{% elif row.amount and row.amount < 0 %}amount-expense{% endif %}">{{ row.amount or row.amount_raw }}</td>
+                    <td>{{ row.currency }}</td>
+                    <td>{{ row.description or row.description_raw }}</td>
+                    <td>{{ row.error }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <strong>Строки не найдены</strong>
+            <span>Проверьте выбранную таблицу и номер первой строки данных.</span>
+          </div>
+        {% endif %}
+      {% endif %}
+    {% else %}
+      <div class="empty-state">
+        <strong>Таблицы не найдены</strong>
+        <span>Для этой выписки нет таблиц-кандидатов. Возможно, нужен OCR или отдельный парсер.</span>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

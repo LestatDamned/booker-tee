@@ -9,7 +9,7 @@
         <p class="eyebrow">{{ workspace.name }}</p>
         <h1>Счета</h1>
       </div>
-      <a class="button" href="/imports">импорт</a>
+      <a class="button" href="/imports">{{ icon("import") }} импорт</a>
     </div>
 
     <form class="form-panel" method="post" action="/accounts">
@@ -33,7 +33,7 @@
         <span>начальный баланс</span>
         <input class="amount" name="initial_balance" inputmode="decimal" value="0.00" placeholder="0.00">
       </label>
-      <button class="button form-submit" type="submit">добавить счет</button>
+      <button class="button form-submit" type="submit">{{ icon("plus") }} добавить счет</button>
     </form>
 
     {% if account_details %}
@@ -51,14 +51,18 @@
                 {% endif %}
               </div>
               <div class="entity-card-meta">
-                <span>{{ detail.account.currency }}</span>
-                <span class="amount {% if detail.balance > 0 %}amount-income{% elif detail.balance < 0 %}amount-expense{% endif %}">{{ detail.balance }} {{ detail.account.currency }}</span>
                 <span>{{ detail.entries | length }} записей</span>
                 <span title="{{ detail.account.id }}">ID {{ detail.account.id | short_id }}</span>
               </div>
             </div>
-            <div class="entity-card-actions">
-              <a class="button button-small" href="/accounts/{{ detail.account.id }}">детали</a>
+            <div class="entity-card-side">
+              <div class="account-balance">
+                <span>баланс</span>
+                <strong class="money-value {% if detail.balance > 0 %}money-income{% elif detail.balance < 0 %}money-expense{% endif %}">
+                  {{ detail.balance }} <small>{{ detail.account.currency }}</small>
+                </strong>
+              </div>
+              <a class="button button-small" href="/accounts/{{ detail.account.id }}">{{ icon("file-text") }} детали</a>
             </div>
           </article>
         {% endfor %}
@@ -66,7 +70,7 @@
     {% else %}
       <div class="empty-state">
         <p>Активных счетов пока нет.</p>
-        <a class="button button-small" href="/imports/upload">загрузить выписку</a>
+        <a class="button button-small" href="/imports/upload">{{ icon("upload") }} загрузить выписку</a>
       </div>
     {% endif %}
   </section>

@@ -65,6 +65,8 @@ class ImportDocumentDetailView:
     original_filename: str
     sha256_hash: str
     storage_key: str
+    bank_name: str | None
+    statement_type: str | None
     account: ImportAccountRef | None
     validation: dict[str, object] | None
     raw_transactions: list[ImportRawTransactionRow]
@@ -76,7 +78,12 @@ class ImportViewMapper:
     def document_detail_from_uploaded_document(
         document: UploadedDocument,
     ) -> ImportDocumentDetailView:
-        attempts = [ImportViewMapper.parse_attempt(attempt) for attempt in document.parse_attempts]
+        parse_attempts = sorted(
+            document.parse_attempts,
+            key=lambda attempt: attempt.started_at,
+            reverse=True,
+        )
+        attempts = [ImportViewMapper.parse_attempt(attempt) for attempt in parse_attempts]
         latest_attempt = attempts[0] if attempts else None
         return ImportDocumentDetailView(
             id=document.id,
@@ -84,6 +91,8 @@ class ImportViewMapper:
             original_filename=document.original_filename,
             sha256_hash=document.sha256_hash,
             storage_key=document.storage_key,
+            bank_name=document.bank_name,
+            statement_type=document.statement_type,
             account=ImportViewMapper.account_ref(document),
             validation=latest_attempt.validation_report if latest_attempt else None,
             raw_transactions=[

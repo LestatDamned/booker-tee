@@ -14,7 +14,11 @@ from app.db.base import Base, utc_now
 if TYPE_CHECKING:
     from app.features.accounts.models import Account
     from app.features.categories.models import Category
-    from app.features.imports.models import ParseAttempt, UploadedDocument
+    from app.features.imports.models import (
+        ImportMappingTemplate,
+        ParseAttempt,
+        UploadedDocument,
+    )
     from app.features.ledger.models import MoneyEntry, Operation
     from app.features.properties.models import Property
     from app.features.transaction_rules.models import TransactionRule
@@ -79,6 +83,9 @@ class Workspace(Base):
     accounts: Mapped[list[Account]] = relationship(back_populates="workspace")
     uploaded_documents: Mapped[list[UploadedDocument]] = relationship(back_populates="workspace")
     parse_attempts: Mapped[list[ParseAttempt]] = relationship(back_populates="workspace")
+    import_mapping_templates: Mapped[list[ImportMappingTemplate]] = relationship(
+        back_populates="workspace"
+    )
     operations: Mapped[list[Operation]] = relationship(back_populates="workspace")
     money_entries: Mapped[list[MoneyEntry]] = relationship(back_populates="workspace")
     categories: Mapped[list[Category]] = relationship(back_populates="workspace")

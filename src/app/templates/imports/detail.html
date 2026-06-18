@@ -4,28 +4,133 @@
 
 {% block content %}
   {% set validation = view.validation %}
-  <section class="panel stack">
-    <div class="toolbar">
-      <div>
+  <section class="panel stack import-workflow">
+    <header class="import-page-header">
+      <div class="import-page-title">
         <p class="eyebrow">{{ view.status | ru }}</p>
-        <h1>{{ view.original_filename }}</h1>
+        <h1>Документ</h1>
       </div>
-      <div class="toolbar">
-        <a class="button" href="/imports/documents/{{ view.id }}/review">проверка</a>
+      <div class="import-page-actions">
+        <a class="button" href="/imports/documents/{{ view.id }}/review">{{ icon("clipboard-check") }} проверка</a>
         <form method="post" action="/imports/documents/{{ view.id }}/reparse">
-          <button class="button" type="submit">перепарсить</button>
+          <button class="button" type="submit">{{ icon("refresh") }} перепарсить</button>
         </form>
         <form method="post" action="/imports/documents/{{ view.id }}/ignore">
-          <button class="button" type="submit">игнорировать</button>
+          <button class="button" type="submit">{{ icon("ignore") }} игнорировать</button>
         </form>
         <form method="post" action="/imports/documents/{{ view.id }}/delete">
-          <button class="button" type="submit">удалить</button>
+          <button class="button" type="submit">{{ icon("trash") }} удалить</button>
         </form>
-        <a class="button" href="/imports">назад</a>
+        <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
       </div>
-    </div>
+    </header>
+    <p class="import-document-name" title="{{ view.original_filename }}">
+      {{ view.original_filename }}
+    </p>
 
-    {% if validation %}
+    {% if validation and validation.status == "needs_mapping" %}
+      <div class="notice">
+        <strong>Нужна настройка импорта.</strong>
+        PDF прочитан, таблицы найдены, но подходящего парсера для этой выписки пока нет.
+        <a class="button button-small" href="/imports/documents/{{ view.id }}/mapping">{{ icon("settings") }} настроить колонки</a>
+      </div>
+      <div class="summary-grid">
+        <div class="metric">
+          <span>банк</span>
+          <strong>{{ validation.detected_bank_name or "не определен" }}</strong>
+        </div>
+        <div class="metric">
+          <span>тип</span>
+          <strong>{{ validation.detected_statement_type | ru }}</strong>
+        </div>
+        <div class="metric">
+          <span>PDF</span>
+          <strong>{% if validation.text_based %}текстовый{% else %}нужен OCR{% endif %}</strong>
+        </div>
+        <div class="metric">
+          <span>таблицы</span>
+          <strong>{{ validation.table_count }}</strong>
+        </div>
+      </div>
+      {% if validation.table_previews %}
+        <h2 class="status">Предпросмотр таблиц</h2>
+        <div class="raw-transaction-list">
+          {% for preview in validation.table_previews %}
+            <article class="raw-transaction-card">
+              <div class="preview-meta">
+                <span>страница {{ preview.page_number }}</span>
+                <span>таблица {{ preview.table_index + 1 }}</span>
+                {% if preview.preview_row_count is defined and preview.preview_row_count < preview.row_count %}
+                  <span>показано {{ preview.preview_row_count }} из {{ preview.row_count }} строк</span>
+                {% else %}
+                  <span>{{ preview.row_count }} строк</span>
+                {% endif %}
+                <span>{{ preview.column_count }} колонок</span>
+              </div>
+              {% if preview.is_continuation %}
+                <div class="mapping-suggestion">
+                  <strong>
+                    Продолжение таблицы · страница {{ preview.continued_from_page_number }} · таблица {{ preview.continued_from_table_index + 1 }}
+                  </strong>
+                  {% if preview.continuation_mapping_fields %}
+                    <ul>
+                      {% for mapping_field in preview.continuation_mapping_fields %}
+                        <li>
+                          {% if mapping_field.field == "operation_date" %}
+                            {% set field_label = "дата" %}
+                          {% elif mapping_field.field == "posting_date" %}
+                            {% set field_label = "дата проводки" %}
+                          {% elif mapping_field.field == "description" %}
+                            {% set field_label = "описание" %}
+                          {% elif mapping_field.field == "amount" %}
+                            {% set field_label = "сумма" %}
+                          {% elif mapping_field.field == "debit_amount" %}
+                            {% set field_label = "списание" %}
+                          {% elif mapping_field.field == "credit_amount" %}
+                            {% set field_label = "зачисление" %}
+                          {% elif mapping_field.field == "currency" %}
+                            {% set field_label = "валюта" %}
+                          {% elif mapping_field.field == "balance_after" %}
+                            {% set field_label = "остаток после операции" %}
+                          {% else %}
+                            {% set field_label = mapping_field.field %}
+                          {% endif %}
+                          {{ field_label }}: колонка {{ mapping_field.column_index + 1 }}
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% endif %}
+                </div>
+              {% elif preview.mapping_suggestions %}
+                {% set suggestion = preview.mapping_suggestions[0] %}
+                {% include "imports/_mapping_suggestion.html" %}
+              {% endif %}
+              {% if preview.column_candidates and not preview.is_continuation %}
+                <div class="review-flags">
+                  {% for candidate in preview.column_candidates %}
+                    <span>{{ candidate.field }}: колонка {{ candidate.column_index + 1 }} · {{ candidate.header }}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              <div class="table-scroll">
+                <table class="table">
+                  <tbody>
+                    {% for row in preview.rows %}
+                      <tr>
+                        {% for cell in row %}
+                          <td>{{ cell }}</td>
+                        {% endfor %}
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <div class="notice">{{ validation.message }}</div>
+    {% elif validation %}
       <div class="summary-grid">
         <div class="metric">
           <span>строки</span>

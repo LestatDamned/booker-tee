@@ -64,6 +64,7 @@ def test_review_template_prefills_suggested_rule_category() -> None:
     assert "Предложено" in html
     assert "Исправить" in html
     assert "Подтвердить" in html
+    assert "review-money money-value" in html
     assert "KRASNOE&amp;BELOE" in html
     assert f'id="raw-{row_id}"' in html
     assert "review-status-needs_review" in html
@@ -192,3 +193,62 @@ def test_review_template_shows_readable_transfer_candidate_labels() -> None:
     assert "без парной строки" in html
     assert "Карта Экспобанк" in html
     assert "Зачисление средств по платежу" in html
+
+
+def test_review_template_shows_balance_chain_problem_on_row() -> None:
+    row = SimpleNamespace(
+        id=uuid4(),
+        row_index=1,
+        status=RawTransactionStatus.NORMALIZED,
+        operation_date="2026-05-29",
+        operation_date_raw=None,
+        amount=Decimal("-30.00"),
+        amount_raw=None,
+        currency="RUB",
+        description_normalized="Кафе",
+        description_raw=None,
+        normalization_error=None,
+        suggested_by_rule_id=None,
+        suggested_category_id=None,
+        suggested_property_id=None,
+        linked_operation_id=None,
+        raw_payload={},
+    )
+    document = SimpleNamespace(
+        id=uuid4(),
+        original_filename="statement.pdf",
+        status="requires_review",
+        parse_attempts=[
+            SimpleNamespace(
+                validation_report_json={
+                    "status": "mismatch",
+                    "message": "Остатки после операций не совпадают с суммами строк.",
+                    "extracted_count": 2,
+                    "needs_review_count": 0,
+                    "currency": "RUB",
+                    "calculated_total_inflow": "100.00",
+                    "calculated_total_outflow": "30.00",
+                    "statement_total_inflow": None,
+                    "statement_total_outflow": None,
+                    "inflow_difference": None,
+                    "outflow_difference": None,
+                }
+            )
+        ],
+        raw_transactions=[row],
+    )
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("imports/review.html").render(
+        app_name="Booker Tee",
+        document=document,
+        categories=[SimpleNamespace(id=uuid4(), name="Без категории", system_key="uncategorized")],
+        properties=[],
+        accounts=[],
+        balance_chain_problems={1: ["остаток не сходится: ожидалось 1070.00, в строке 1060.00"]},
+        transfer_suggestions={},
+    )
+
+    assert "Остатки после операций не совпадают с суммами строк." in html
+    assert "остаток не сходится: ожидалось 1070.00, в строке 1060.00" in html

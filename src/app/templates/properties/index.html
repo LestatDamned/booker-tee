@@ -9,7 +9,7 @@
         <p class="eyebrow">{{ workspace.name }}</p>
         <h1>Объекты</h1>
       </div>
-      <a class="button" href="/reports">отчеты</a>
+      <a class="button" href="/reports">{{ icon("list-check") }} отчеты</a>
     </div>
 
     <form class="form-panel" method="post" action="/properties">
@@ -25,7 +25,7 @@
         <label for="address">Адрес</label>
         <input id="address" name="address" placeholder="Адрес">
       </div>
-      <button class="button form-submit" type="submit">добавить</button>
+      <button class="button form-submit" type="submit">{{ icon("plus") }} добавить</button>
     </form>
 
     {% if properties %}
@@ -56,14 +56,14 @@
               </div>
             </div>
             <div class="entity-card-actions">
-              <button class="button button-small" type="submit" form="{{ property_form_id }}">сохранить</button>
+              <button class="button button-small" type="submit" form="{{ property_form_id }}">{{ icon("save") }} сохранить</button>
               {% if property.status.value == "archived" %}
                 <form method="post" action="/properties/{{ property.id }}/restore">
-                  <button class="button button-small" type="submit">восстановить</button>
+                  <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
                 </form>
               {% else %}
                 <form method="post" action="/properties/{{ property.id }}/archive">
-                  <button class="button button-small" type="submit">в архив</button>
+                  <button class="button button-small" type="submit">{{ icon("archive") }} в архив</button>
                 </form>
               {% endif %}
             </div>

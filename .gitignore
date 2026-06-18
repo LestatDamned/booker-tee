@@ -223,6 +223,8 @@ var/uploads/
 
 # Booker Tee local bank statement fixtures
 tests/fixtures/*
+!tests/fixtures/unknown_statements/
+!tests/fixtures/unknown_statements/*.json
 
 # PyPI configuration file
 .pypirc

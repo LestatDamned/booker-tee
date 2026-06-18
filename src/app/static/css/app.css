@@ -33,6 +33,13 @@ a {
   color: inherit;
 }
 
+.icon {
+  width: 1.05em;
+  height: 1.05em;
+  flex: 0 0 auto;
+  stroke: currentcolor;
+}
+
 .shell {
   width: min(100% - 32px, 1120px);
   margin-inline: auto;
@@ -105,6 +112,7 @@ a {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   border: 1px solid var(--border);
   padding: 0 14px;
   color: var(--green);
@@ -130,6 +138,7 @@ a {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+  gap: 7px;
   color: var(--accent);
   text-decoration: none;
   text-transform: uppercase;
@@ -204,7 +213,56 @@ p {
   min-width: 0;
 }
 
+.toolbar > div:first-child {
+  flex: 1 1 320px;
+}
+
 .toolbar form {
+  margin: 0;
+}
+
+.import-page-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.import-page-title {
+  min-width: 0;
+}
+
+.import-page-title h1 {
+  max-width: none;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.05;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.import-document-name {
+  max-width: 100%;
+  margin: 10px 0 0;
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  padding: 8px 10px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: clamp(0.85rem, 1.6vw, 1rem);
+  line-height: 1.35;
+}
+
+.import-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.import-page-actions form {
   margin: 0;
 }
 
@@ -232,6 +290,7 @@ input[type="checkbox"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   font: inherit;
   text-decoration: none;
   text-transform: uppercase;
@@ -272,12 +331,156 @@ input[type="checkbox"] {
   width: 100%;
 }
 
+.mapping-form {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.mapping-form .field,
+.mapping-form .form-field-wide,
+.mapping-form .mapping-action-row {
+  grid-column: auto !important;
+}
+
+.mapping-form .form-field-wide,
+.mapping-form .mapping-action-row {
+  grid-column: 1 / -1 !important;
+}
+
 .form-field-wide {
   grid-column: span 6 !important;
 }
 
 .form-submit {
   grid-column: span 3;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.field-note {
+  display: block;
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.table-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.table-picker-option {
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--accent);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  cursor: pointer;
+}
+
+.table-picker-option input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.table-picker-option small {
+  color: var(--muted);
+  font-size: 0.64rem;
+}
+
+.table-picker-option.is-selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  color: var(--text);
+}
+
+.table-picker-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.table-picker-meta span {
+  border: 1px solid var(--border);
+  padding: 3px 7px;
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.76rem;
+}
+
+.choice-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: start;
+  border: 1px solid var(--border);
+  padding: 10px;
+}
+
+.choice-card input {
+  width: auto;
+  margin-top: 4px;
+}
+
+.choice-card strong {
+  grid-column: 2;
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+}
+
+.mapping-action-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.mapping-help {
+  grid-column: span 6;
+  align-self: end;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.mapping-suggestion {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  background: var(--surface-strong);
+  padding: 10px;
+  color: var(--muted);
+}
+
+.mapping-suggestion strong {
+  color: var(--text);
+}
+
+.mapping-suggestion ul {
+  margin: 0;
+  padding-left: 18px;
 }
 
 .form-panel-embedded {
@@ -370,6 +573,38 @@ input[type="checkbox"] {
   width: 100%;
 }
 
+.entity-card-side {
+  display: grid;
+  min-width: min(280px, 100%);
+  gap: 10px;
+  align-content: start;
+}
+
+.entity-card-side .button {
+  width: 100%;
+}
+
+.account-balance {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  padding: 10px 12px;
+}
+
+.account-balance > span {
+  color: var(--accent);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
+.account-balance .money-value {
+  font-size: clamp(1.2rem, 2.2vw, 1.65rem);
+}
+
 .dashboard-hero {
   margin-bottom: 16px;
 }
@@ -440,9 +675,28 @@ input[type="checkbox"] {
   align-items: center;
   justify-content: space-between;
   min-height: 48px;
+  min-width: 0;
   border-bottom: 1px solid var(--border);
   padding: 10px 12px;
   text-decoration: none;
+}
+
+.entity-row > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.document-name-compact {
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.entity-row .badge {
+  flex: 0 0 auto;
 }
 
 .entity-row:last-child {
@@ -473,6 +727,10 @@ input[type="checkbox"] {
   background: var(--border);
 }
 
+.kpi-strip {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
 .metric {
   display: grid;
   gap: 8px;
@@ -491,6 +749,45 @@ input[type="checkbox"] {
   font-family:
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 1rem;
+}
+
+.metric .money-value {
+  font-size: clamp(1.25rem, 2.4vw, 1.75rem);
+}
+
+.money-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--text);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: clamp(1.25rem, 3vw, 2rem);
+  font-weight: 800;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.money-value small {
+  color: var(--muted);
+  font-size: 0.62em;
+  font-weight: 700;
+}
+
+.money-income {
+  color: var(--green);
+}
+
+.money-expense {
+  color: var(--danger);
+}
+
+.money-transfer {
+  color: var(--accent);
+}
+
+.money-profit {
+  color: var(--warning);
 }
 
 .metric-income {
@@ -802,6 +1099,22 @@ pre {
   padding: 10px;
 }
 
+.preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.preview-meta span {
+  min-width: 0;
+  border: 1px solid var(--border);
+  padding: 5px 8px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 .rule-create-form {
   display: grid;
   gap: 12px;
@@ -869,6 +1182,14 @@ pre {
 
 .manual-operation-transfer {
   border-left-color: var(--accent);
+}
+
+.manual-operation-money {
+  margin-left: auto;
+  border: 1px solid currentcolor;
+  background: var(--surface-strong);
+  padding: 4px 8px;
+  font-size: clamp(1rem, 1.8vw, 1.3rem);
 }
 
 .rule-card:target {
@@ -992,9 +1313,10 @@ pre {
 }
 
 .review-meta {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto auto auto minmax(max-content, 1fr);
   gap: 6px;
+  align-items: center;
   font-family:
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
@@ -1012,6 +1334,14 @@ pre {
 .review-meta .badge {
   min-height: 32px;
   gap: 6px;
+}
+
+.review-money {
+  justify-self: end;
+  border: 1px solid currentcolor;
+  background: var(--surface-strong);
+  padding: 0 8px;
+  font-size: clamp(1rem, 2vw, 1.3rem);
 }
 
 .review-meta strong {
@@ -1078,12 +1408,61 @@ pre {
   min-height: 44px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  list-style: none;
   cursor: pointer;
+}
+
+.action-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.action-details summary::after {
+  content: "+";
+  color: var(--muted);
+}
+
+.action-details[open] summary::after {
+  content: "-";
 }
 
 .action-details form {
   display: grid;
   gap: 8px;
+}
+
+.action-accordion {
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+}
+
+.action-accordion summary {
+  padding: 0 10px;
+}
+
+.action-accordion[open] {
+  padding-bottom: 10px;
+}
+
+.action-accordion > :not(summary) {
+  margin: 0 10px;
+}
+
+.action-group-embedded {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.primary-actions .button {
+  border-color: var(--green);
+  color: var(--green);
 }
 
 .action-fields {
@@ -1373,6 +1752,14 @@ pre {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 
+  .entity-card-side {
+    min-width: 0;
+  }
+
+  .account-balance {
+    justify-items: start;
+  }
+
   .form-panel .field,
   .form-field-wide,
   .form-submit {
@@ -1438,6 +1825,22 @@ pre {
     width: 100%;
   }
 
+  .import-page-header {
+    grid-template-columns: 1fr;
+  }
+
+  .import-page-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+
+  .import-page-actions .button,
+  .import-page-actions form,
+  .import-page-actions form .button {
+    width: 100%;
+  }
+
   .context-strip {
     grid-template-columns: 1fr;
   }
@@ -1460,6 +1863,57 @@ pre {
     overflow-x: auto;
   }
 
+  .report-table {
+    overflow: visible;
+  }
+
+  .report-table thead {
+    display: none;
+  }
+
+  .report-table tbody {
+    display: grid;
+    gap: 8px;
+  }
+
+  .report-table tr {
+    display: grid;
+    border: 1px solid var(--border);
+    background: var(--surface-strong);
+  }
+
+  .report-table th,
+  .report-table td {
+    border: 0;
+  }
+
+  .report-table td {
+    display: grid;
+    grid-template-columns: minmax(86px, 0.7fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 10px;
+    overflow-wrap: anywhere;
+  }
+
+  .report-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .report-table td::before {
+    content: attr(data-label);
+    color: var(--accent);
+    font-size: 0.74rem;
+    text-transform: uppercase;
+  }
+
+  .report-table .amount {
+    justify-content: end;
+    text-align: right;
+    white-space: nowrap;
+  }
+
   .form-panel {
     grid-template-columns: 1fr;
   }
@@ -1478,6 +1932,22 @@ pre {
   .review-meta > span,
   .review-actions .button {
     width: 100%;
+  }
+
+  .review-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .review-meta .badge {
+    width: 100%;
+    justify-content: center;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .review-money {
+    grid-column: 1 / -1;
+    justify-self: stretch;
   }
 
   .rule-create-grid .field,
