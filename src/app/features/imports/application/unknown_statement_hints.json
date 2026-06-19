@@ -1,28 +1,48 @@
 {
-  "generic_control_total_labels": {
-    "opening_balance": [
-      "Opening balance",
-      "Balance brought forward",
-      "Beginning balance"
-    ],
-    "closing_balance": [
-      "Closing balance",
-      "Ending balance",
-      "Balance carried forward"
-    ],
-    "total_inflow": [
-      "Total credits",
-      "Total credit",
-      "Total deposits",
-      "Money in"
-    ],
-    "total_outflow": [
-      "Total debits",
-      "Total debit",
-      "Total withdrawals",
-      "Money out"
-    ]
-  },
+"generic_control_total_labels": {
+  "opening_balance": [
+    "Opening balance",
+    "Balance brought forward",
+    "Beginning balance",
+    "Входящий остаток",
+    "Начальный остаток",
+    "Остаток на начало",
+    "Остаток на начало периода"
+  ],
+  "closing_balance": [
+    "Closing balance",
+    "Ending balance",
+    "Balance carried forward",
+    "Исходящий остаток",
+    "Конечный остаток",
+    "Остаток на конец",
+    "Остаток на конец периода"
+  ],
+  "total_inflow": [
+    "Total credits",
+    "Total credit",
+    "Total deposits",
+    "Money in",
+    "Итого поступлений",
+    "Всего поступлений",
+    "Итого зачислений",
+    "Всего зачислений",
+    "Поступило",
+    "Зачислено"
+  ],
+  "total_outflow": [
+    "Total debits",
+    "Total debit",
+    "Total withdrawals",
+    "Money out",
+    "Итого списаний",
+    "Всего списаний",
+    "Итого расходов",
+    "Всего расходов",
+    "Списано",
+    "Израсходовано"
+  ]
+},
   "banks": [
     {
       "bank_name": "Ozon Bank",
@@ -69,6 +89,72 @@
         "альфа",
         "alfa",
         "alpha bank"
+      ],
+      "statement_types": [
+        {
+          "statement_type": "card_statement",
+          "markers": [
+            "операция по карте"
+          ]
+        },
+        {
+          "statement_type": "account_movement_statement",
+          "markers": [
+            "выписка по счету",
+            "текущий зарпалатный счет"
+          ]
+        }
+      ],
+      "control_total_labels": [
+        {
+          "opening_balance": [
+            "Входящий остаток"
+          ],
+          "closing_balance": [
+            "Текущий баланс"
+          ],
+          "total_inflow": [
+            "Поступления"
+          ],
+          "total_outflow": [
+            "Расходы"
+          ]
+        }
+      ]
+    },
+    {
+      "bank_name": "T bank",
+      "markers": [
+        "т-банк",
+        "тинькофф",
+        "т bank",
+        "т банк"
+      ],
+      "statement_types": [
+        {
+          "statement_type": "card_statement",
+          "markers": [
+            "операция по карте"
+          ]
+        },
+        {
+          "statement_type": "account_movement_statement",
+          "markers": [
+            "выписка по договору"
+          ]
+        }
+      ],
+      "control_total_labels": [
+        {
+          "opening_balance": [],
+          "closing_balance": [],
+          "total_inflow": [
+            "Поступления"
+          ],
+          "total_outflow": [
+            "Расходы"
+          ]
+        }
       ]
     }
   ]

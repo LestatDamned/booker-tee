@@ -1,45 +1,44 @@
-from dataclasses import dataclass
 from pathlib import Path
 
 import pdfplumber
 
+from app.features.imports.infrastructure.extraction.extracted_statement import (
+    ExtractedStatement,
+    ExtractedStatementPageTables,
+)
 
-@dataclass(frozen=True)
-class ExtractedPdfPageTables:
-    page_number: int
-    tables: list[list[list[str | None]]]
-
-
-@dataclass(frozen=True)
-class ExtractedPdf:
-    text_by_page: list[str]
-    tables_by_page: list[ExtractedPdfPageTables]
-    metadata: dict[str, object]
+ExtractedPdfPageTables = ExtractedStatementPageTables
+ExtractedPdf = ExtractedStatement
 
 
 class PdfPlumberExtractor:
     parser_name = "pdfplumber_raw_extractor"
     parser_version = "0.1"
 
-    def extract(self, file_path: Path) -> ExtractedPdf:
+    def extract(self, file_path: Path) -> ExtractedStatement:
         text_by_page: list[str] = []
-        tables_by_page: list[ExtractedPdfPageTables] = []
+        tables_by_page: list[ExtractedStatementPageTables] = []
 
         with pdfplumber.open(file_path) as pdf:
             metadata = _json_safe_mapping(pdf.metadata or {})
             for page_number, page in enumerate(pdf.pages, start=1):
                 text_by_page.append(page.extract_text() or "")
                 tables_by_page.append(
-                    ExtractedPdfPageTables(
+                    ExtractedStatementPageTables(
                         page_number=page_number,
                         tables=page.extract_tables() or [],
                     )
                 )
 
-        return ExtractedPdf(
+        return ExtractedStatement(
             text_by_page=text_by_page,
             tables_by_page=tables_by_page,
-            metadata=metadata,
+            metadata={
+                **metadata,
+                "extractor_name": self.parser_name,
+                "extractor_version": self.parser_version,
+                "source_format": "pdf",
+            },
         )
 
 

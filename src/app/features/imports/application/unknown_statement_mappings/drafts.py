@@ -8,7 +8,7 @@ from app.features.imports.application.unknown_statement_mappings.dto import (
 )
 from app.features.imports.models import RawTransactionStatus
 from app.features.imports.parsing.parser_types import RawTransactionDraft
-from app.features.imports.parsing.parsers.normalization import build_dedupe_hash
+from app.features.imports.parsing.support.normalization import build_dedupe_hash
 
 
 @dataclass(frozen=True)

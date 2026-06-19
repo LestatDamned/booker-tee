@@ -7,8 +7,8 @@ from app.features.imports.application.strategies.known_parser import KnownParser
 from app.features.imports.application.strategies.unknown_fallback import (
     UnknownFallbackImportStrategy,
 )
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
-from app.features.imports.parsing.parsers.factory import StatementParserRegistry
+from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
+from app.features.imports.parsing.registry import StatementParserRegistry
 from app.features.imports.repository import ImportRepository
 
 
@@ -30,7 +30,7 @@ class StatementImportStrategyResolver:
         self.imports = imports
         self.parser_registry = parser_registry
 
-    def resolve(self, extracted: ExtractedPdf) -> StatementImportStrategy:
+    def resolve(self, extracted: ExtractedStatement) -> StatementImportStrategy:
         parser = self.parser_registry.find_parser(extracted)
         if parser is None:
             return UnknownFallbackImportStrategy(

@@ -3,22 +3,22 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.parsing.parser_types import RawTransactionDraft, StatementControlTotals
-from app.features.imports.parsing.parsers.common import (
+from app.features.imports.parsing.parsers.vtb.shared import extract_statement_period
+from app.features.imports.parsing.support.common import (
     build_raw_transaction_draft,
     cell,
     extracted_text,
     parse_with_error,
 )
-from app.features.imports.parsing.parsers.normalization import (
+from app.features.imports.parsing.support.normalization import (
     build_dedupe_hash,
     clean_cell,
     normalize_currency,
     normalize_description,
     parse_bank_date,
 )
-from app.features.imports.parsing.parsers.vtb_shared import extract_statement_period
 
 VTB_CARD_MARKERS = (
     "Номер карты",
@@ -79,13 +79,13 @@ class VtbCardStatementParser:
     parser_name: str = "vtb_card_statement_v1"
     parser_version: str = "0.1"
 
-    def can_parse(self, extracted: ExtractedPdf) -> bool:
+    def can_parse(self, extracted: ExtractedStatement) -> bool:
         text = extracted_text(extracted)
         return all(marker in text for marker in VTB_CARD_MARKERS)
 
     def extract_raw_transactions(
         self,
-        extracted: ExtractedPdf,
+        extracted: ExtractedStatement,
         *,
         account_id: UUID | None,
         currency: str,
@@ -110,7 +110,7 @@ class VtbCardStatementParser:
 
     def extract_control_totals(
         self,
-        extracted: ExtractedPdf,
+        extracted: ExtractedStatement,
         *,
         currency: str,
     ) -> StatementControlTotals | None:
@@ -144,7 +144,7 @@ class VtbCardStatementParser:
         )
 
 
-def extract_vtb_card_rows(extracted: ExtractedPdf) -> list[VtbCardTableRow]:
+def extract_vtb_card_rows(extracted: ExtractedStatement) -> list[VtbCardTableRow]:
     rows: list[VtbCardTableRow] = []
     for page_tables in extracted.tables_by_page:
         for table_index, table in enumerate(page_tables.tables):

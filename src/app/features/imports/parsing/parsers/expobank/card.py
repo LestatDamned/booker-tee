@@ -3,14 +3,14 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.parsing.parser_types import RawTransactionDraft, StatementControlTotals
-from app.features.imports.parsing.parsers.common import (
+from app.features.imports.parsing.support.common import (
     build_raw_transaction_draft,
     cell,
     parse_with_error,
 )
-from app.features.imports.parsing.parsers.normalization import (
+from app.features.imports.parsing.support.normalization import (
     build_dedupe_hash,
     clean_cell,
     normalize_currency,
@@ -54,7 +54,7 @@ class ExpobankCardStatementParser:
     parser_name: str = "expobank_card_statement_v1"
     parser_version: str = "0.1"
 
-    def can_parse(self, extracted: ExtractedPdf) -> bool:
+    def can_parse(self, extracted: ExtractedStatement) -> bool:
         for page_tables in extracted.tables_by_page:
             for table in page_tables.tables:
                 if table and _is_header_row(table[0]):
@@ -63,7 +63,7 @@ class ExpobankCardStatementParser:
 
     def extract_raw_transactions(
         self,
-        extracted: ExtractedPdf,
+        extracted: ExtractedStatement,
         *,
         account_id: UUID | None,
         currency: str,
@@ -80,7 +80,7 @@ class ExpobankCardStatementParser:
 
     def extract_control_totals(
         self,
-        extracted: ExtractedPdf,
+        extracted: ExtractedStatement,
         *,
         currency: str,
     ) -> StatementControlTotals | None:
@@ -105,7 +105,7 @@ def _is_header_row(row: Sequence[str | None]) -> bool:
     )
 
 
-def extract_expobank_rows(extracted: ExtractedPdf) -> list[ExpobankTableRow]:
+def extract_expobank_rows(extracted: ExtractedStatement) -> list[ExpobankTableRow]:
     rows: list[ExpobankTableRow] = []
     for page_tables in extracted.tables_by_page:
         for table_index, table in enumerate(page_tables.tables):

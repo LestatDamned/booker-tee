@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.models import RawTransactionStatus
 
 
@@ -57,16 +57,23 @@ class RawTransactionDraft:
 
 
 class BankStatementRawTransactionParser(Protocol):
-    bank_code: str
-    statement_type: str
-    parser_name: str
-    parser_version: str
+    @property
+    def bank_code(self) -> str: ...
 
-    def can_parse(self, extracted: ExtractedPdf) -> bool: ...
+    @property
+    def statement_type(self) -> str: ...
+
+    @property
+    def parser_name(self) -> str: ...
+
+    @property
+    def parser_version(self) -> str: ...
+
+    def can_parse(self, extracted: ExtractedStatement) -> bool: ...
 
     def extract_raw_transactions(
         self,
-        extracted: ExtractedPdf,
+        extracted: ExtractedStatement,
         *,
         account_id: UUID | None,
         currency: str,
@@ -74,7 +81,7 @@ class BankStatementRawTransactionParser(Protocol):
 
     def extract_control_totals(
         self,
-        extracted: ExtractedPdf,
+        extracted: ExtractedStatement,
         *,
         currency: str,
     ) -> StatementControlTotals | None: ...

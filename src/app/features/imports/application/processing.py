@@ -10,12 +10,12 @@ from app.features.imports.application.strategies.context import (
 from app.features.imports.application.strategies.resolver import (
     StatementImportStrategyResolver,
 )
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.models import (
     ParseAttempt,
     UploadedDocument,
 )
-from app.features.imports.parsing.parsers.factory import StatementParserRegistry
+from app.features.imports.parsing.registry import StatementParserRegistry
 from app.features.imports.repository import ImportRepository
 
 
@@ -38,7 +38,7 @@ class StatementParseProcessor:
         self,
         document: UploadedDocument,
         attempt: ParseAttempt,
-        extracted: ExtractedPdf,
+        extracted: ExtractedStatement,
         *,
         currency: str,
         exclude_duplicate_document_id: UUID | None = None,

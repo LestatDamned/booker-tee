@@ -1,6 +1,7 @@
 OPERATION_DATE_HEADER_KEYWORDS = (
     "дата операции",
     "дата транзакции",
+    "дата и время операции",
     "operation date",
     "transaction date",
 )
@@ -10,6 +11,7 @@ POSTING_DATE_HEADER_KEYWORDS = (
     "дата списания",
     "дата зачисления",
     "дата платежа",
+    "дата обработки банком",
     "posting date",
     "posted date",
     "processed date",
@@ -27,6 +29,7 @@ DATE_HEADER_KEYWORDS = (
     *GENERIC_DATE_HEADER_KEYWORDS,
 )
 DESCRIPTION_HEADER_KEYWORDS = (
+    "описание операции",
     "назначение",
     "описание",
     "description",
@@ -37,6 +40,8 @@ DESCRIPTION_HEADER_KEYWORDS = (
     "purpose",
 )
 AMOUNT_HEADER_KEYWORDS = (
+    "сумма в валюте карты",
+    "сумма операции в валюте операции",
     "сумма",
     "amount",
     "operation amount",
@@ -44,6 +49,7 @@ AMOUNT_HEADER_KEYWORDS = (
 )
 DEBIT_HEADER_KEYWORDS = (
     "debit",
+    "debiting",
     "withdrawal",
     "списание",
     "списано",
@@ -53,6 +59,7 @@ DEBIT_HEADER_KEYWORDS = (
 )
 CREDIT_HEADER_KEYWORDS = (
     "credit",
+    "crediting",
     "deposit",
     "зачисление",
     "зачислено",

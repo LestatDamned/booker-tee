@@ -7,16 +7,17 @@ from app.features.imports.infrastructure.extraction.pdfplumber_extractor import 
     PdfPlumberExtractor,
 )
 from app.features.imports.models import RawTransactionStatus
-from app.features.imports.parsing.parsers.expobank import ExpobankCardStatementParser
-from app.features.imports.parsing.parsers.factory import default_statement_parser_registry
-from app.features.imports.parsing.parsers.normalization import (
+from app.features.imports.parsing.parsers.alfabank.xlsx import AlfabankXlsxStatementParser
+from app.features.imports.parsing.parsers.expobank.card import ExpobankCardStatementParser
+from app.features.imports.parsing.parsers.sberbank.card import SberbankCardStatementParser
+from app.features.imports.parsing.parsers.vtb.card import VtbCardStatementParser
+from app.features.imports.parsing.parsers.vtb.deposit import VtbDepositStatementParser
+from app.features.imports.parsing.registry import default_statement_parser_registry
+from app.features.imports.parsing.support.normalization import (
     normalize_description,
     parse_bank_date,
     parse_money_amount,
 )
-from app.features.imports.parsing.parsers.sberbank_card import SberbankCardStatementParser
-from app.features.imports.parsing.parsers.vtb_card import VtbCardStatementParser
-from app.features.imports.parsing.parsers.vtb_deposit import VtbDepositStatementParser
 
 
 def test_expobank_parser_creates_normalized_raw_transactions_from_fixture() -> None:
@@ -59,11 +60,13 @@ def test_statement_parser_registry_detects_bank_and_statement_type() -> None:
     sberbank_extracted = PdfPlumberExtractor().extract(
         Path("tests/fixtures/sberbank_statement.pdf")
     )
+    alfabank_extracted = alfabank_xlsx_extracted_fixture()
 
     expobank_parser = registry.find_parser(expobank_extracted)
     vtb_parser = registry.find_parser(vtb_extracted)
     vtb_card_parser = registry.find_parser(vtb_card_extracted)
     sberbank_parser = registry.find_parser(sberbank_extracted)
+    alfabank_parser = registry.find_parser(alfabank_extracted)
 
     assert expobank_parser is not None
     assert expobank_parser.parser_name == "expobank_card_statement_v1"
@@ -77,6 +80,38 @@ def test_statement_parser_registry_detects_bank_and_statement_type() -> None:
     assert sberbank_parser is not None
     assert sberbank_parser.parser_name == "sberbank_card_statement_v1"
     assert sberbank_parser.statement_type == "card_statement"
+    assert alfabank_parser is not None
+    assert alfabank_parser.parser_name == "alfabank_xlsx_statement_v1"
+    assert alfabank_parser.statement_type == "card_statement"
+
+
+def test_alfabank_xlsx_parser_creates_raw_transactions_from_table_with_preamble() -> None:
+    extracted = alfabank_xlsx_extracted_fixture()
+    parser = AlfabankXlsxStatementParser()
+
+    rows = parser.extract_raw_transactions(extracted, account_id=None, currency="RUB")
+    control_totals = parser.extract_control_totals(extracted, currency="RUB")
+
+    assert parser.can_parse(extracted)
+    assert len(rows) == 2
+    assert rows[0].status == RawTransactionStatus.NORMALIZED
+    assert rows[0].operation_date == parse_bank_date("2026-06-01")
+    assert rows[0].posting_date == parse_bank_date("2026-06-02")
+    assert rows[0].amount == Decimal("-10.50")
+    assert rows[0].currency == "RUB"
+    assert rows[0].description_normalized == "Coffee"
+    assert rows[0].account_hint_raw == "счет ****"
+    assert rows[0].raw_payload["bank_code"] == "alfabank"
+    assert rows[0].raw_payload["statement_type"] == "card_statement"
+    assert rows[0].raw_payload["source_row_id"] == "alfabank-xlsx:1:0:4"
+    assert rows[1].amount == Decimal("500.00")
+    assert rows[1].description_normalized == "Refund"
+    assert control_totals is not None
+    assert control_totals.currency == "RUB"
+    assert control_totals.opening_balance == Decimal("1000.00")
+    assert control_totals.closing_balance == Decimal("1489.50")
+    assert control_totals.total_inflow == Decimal("500.00")
+    assert control_totals.total_outflow == Decimal("10.50")
 
 
 def test_sberbank_card_parser_creates_raw_transactions_from_fixture() -> None:
@@ -219,3 +254,73 @@ def test_normalizers_parse_bank_values_without_float() -> None:
     assert parse_money_amount("1,298,642.59") == Decimal("1298642.59")
     assert parse_money_amount("-42,000.00") == Decimal("-42000.00")
     assert normalize_description("  Payment\nfor rent ", " Sender ") == "Payment for rent | Sender"
+
+
+def alfabank_xlsx_extracted_fixture() -> ExtractedPdf:
+    return ExtractedPdf(
+        text_by_page=[
+            "\n".join(
+                [
+                    "Альфа-Банк",
+                    "Операция по карте",
+                    "Выписка по счету",
+                ]
+            )
+        ],
+        tables_by_page=[
+            ExtractedPdfPageTables(
+                page_number=1,
+                tables=[
+                    [
+                        row_with_values({0: "Валюта счета", 1: "RUB"}),
+                        row_with_values(
+                            {
+                                0: "Входящий остаток",
+                                1: "1000.00",
+                                4: "Поступления",
+                                5: "500.00",
+                                8: "Расходы",
+                                9: "10.50",
+                                12: "Текущий баланс",
+                                13: "1489.50",
+                            }
+                        ),
+                        row_with_values({0: "Дата формирования выписки", 1: "2026-06-03"}),
+                        row_with_values(
+                            {
+                                0: "Дата операции",
+                                1: "Дата проводки",
+                                11: "Описание",
+                                12: "Сумма в валюте счета",
+                            }
+                        ),
+                        row_with_values(
+                            {
+                                0: "2026-06-01",
+                                1: "2026-06-02",
+                                11: "Coffee",
+                                12: "-10.50",
+                            }
+                        ),
+                        row_with_values(
+                            {
+                                0: "2026-06-02",
+                                1: "2026-06-02",
+                                11: "Refund",
+                                12: "500.00",
+                            }
+                        ),
+                        row_with_values({0: "Итого"}),
+                    ]
+                ],
+            )
+        ],
+        metadata={"source_format": "xlsx"},
+    )
+
+
+def row_with_values(values: dict[int, str]) -> list[str | None]:
+    row: list[str | None] = [None] * 15
+    for index, value in values.items():
+        row[index] = value
+    return row

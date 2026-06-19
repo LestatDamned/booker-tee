@@ -5,7 +5,7 @@ from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappedRow,
     UnknownStatementMappingCommand,
 )
-from app.features.imports.parsing.parsers.normalization import (
+from app.features.imports.parsing.support.normalization import (
     normalize_currency,
     normalize_description,
     parse_bank_date,

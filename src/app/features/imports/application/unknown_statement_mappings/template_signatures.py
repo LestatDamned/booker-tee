@@ -11,7 +11,7 @@ from app.features.imports.application.unknown_statement_mappings.row_mapping imp
     parse_optional_mapped_date,
 )
 from app.features.imports.application.unknown_statement_mappings.values import int_value
-from app.features.imports.parsing.parsers.normalization import normalize_description
+from app.features.imports.parsing.support.normalization import normalize_description
 
 
 def table_signature_for_mapping(

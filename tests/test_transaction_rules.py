@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 from app.features.categories.models import CategoryKind
 from app.features.imports.infrastructure.extraction.pdfplumber_extractor import PdfPlumberExtractor
 from app.features.imports.models import RawTransaction, RawTransactionStatus
-from app.features.imports.parsing.parsers.expobank import ExpobankCardStatementParser
+from app.features.imports.parsing.parsers.expobank.card import ExpobankCardStatementParser
 from app.features.ledger.models import OperationType
 from app.features.transaction_rules.application.fixture_seeding import (
     EXPOBANK_FIXTURE_RULE_SEEDS,

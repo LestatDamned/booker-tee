@@ -13,7 +13,10 @@ from app.features.imports.application.documents.parse_attempts import (
 )
 from app.features.imports.application.processing import StatementParseProcessor
 from app.features.imports.errors import UploadValidationError
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import PdfPlumberExtractor
+from app.features.imports.infrastructure.extraction.resolver import (
+    SUPPORTED_STATEMENT_EXTENSIONS,
+    StatementExtractorResolver,
+)
 from app.features.imports.infrastructure.storage import UploadStorage
 from app.features.imports.models import (
     UploadedDocument,
@@ -21,7 +24,7 @@ from app.features.imports.models import (
     UploadedDocumentStatus,
     UploadedDocumentType,
 )
-from app.features.imports.parsing.parsers.factory import default_statement_parser_registry
+from app.features.imports.parsing.registry import default_statement_parser_registry
 from app.features.imports.repository import ImportRepository
 from app.features.workspaces.service import WorkspaceContext
 
@@ -33,7 +36,7 @@ class StatementUploadUseCase:
         self.accounts = AccountRepository(session)
         self.imports = ImportRepository(session)
         self.storage = UploadStorage(settings.upload_storage_dir)
-        self.extractor = PdfPlumberExtractor()
+        self.extractor = StatementExtractorResolver()
         self.parse_processor = StatementParseProcessor(
             session=session,
             imports=self.imports,
@@ -47,7 +50,7 @@ class StatementUploadUseCase:
         upload_file: UploadFile,
         account_id: UUID | None,
     ) -> UploadedDocument:
-        validate_pdf_upload(upload_file)
+        validate_statement_upload(upload_file)
         account = None
         if account_id is not None:
             account = await self.accounts.get_for_workspace(context.workspace.id, account_id)
@@ -55,7 +58,7 @@ class StatementUploadUseCase:
                 raise UploadValidationError("Selected account is not available in this workspace.")
 
         document_id = uuid4()
-        stored_upload = await self.storage.save_pdf(
+        stored_upload = await self.storage.save_upload(
             upload_file,
             workspace_id=context.workspace.id,
             document_id=document_id,
@@ -126,7 +129,12 @@ class StatementUploadUseCase:
         return await self.imports.create_uploaded_document(document)
 
 
-def validate_pdf_upload(upload_file: UploadFile) -> None:
+def validate_statement_upload(upload_file: UploadFile) -> None:
     filename = upload_file.filename or ""
-    if not filename.lower().endswith(".pdf"):
-        raise UploadValidationError("Only PDF statement files can be uploaded.")
+    if Path(filename).suffix.casefold() not in SUPPORTED_STATEMENT_EXTENSIONS:
+        allowed = ", ".join(sorted(SUPPORTED_STATEMENT_EXTENSIONS))
+        raise UploadValidationError(f"Only {allowed} statement files can be uploaded.")
+
+
+def validate_pdf_upload(upload_file: UploadFile) -> None:
+    validate_statement_upload(upload_file)

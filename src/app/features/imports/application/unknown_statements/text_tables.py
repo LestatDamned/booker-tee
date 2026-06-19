@@ -13,8 +13,8 @@ from app.features.imports.application.unknown_statements.value_detectors import 
     DATE_PATTERNS,
     normalize_cell,
 )
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
-from app.features.imports.parsing.parsers.normalization import (
+from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
+from app.features.imports.parsing.support.normalization import (
     normalize_currency,
     parse_money_amount,
 )
@@ -55,7 +55,7 @@ class MoneyFragment:
 
 
 def build_text_candidate_table_previews(
-    extracted: ExtractedPdf,
+    extracted: ExtractedStatement,
 ) -> list[UnknownStatementTablePreview]:
     return [
         build_table_preview(
@@ -69,7 +69,7 @@ def build_text_candidate_table_previews(
 
 
 def raw_tables_with_text_candidate_tables(
-    extracted: ExtractedPdf,
+    extracted: ExtractedStatement,
     raw_tables: list[dict[str, object]] | None,
 ) -> list[dict[str, object]]:
     candidate_tables = build_text_candidate_tables(extracted)
@@ -89,7 +89,7 @@ def raw_tables_with_text_candidate_tables(
     return [raw_tables_by_page[page_number] for page_number in sorted(raw_tables_by_page)]
 
 
-def build_text_candidate_tables(extracted: ExtractedPdf) -> list[TextCandidateTable]:
+def build_text_candidate_tables(extracted: ExtractedStatement) -> list[TextCandidateTable]:
     tables: list[TextCandidateTable] = []
     existing_table_counts = {
         page_tables.page_number: len(page_tables.tables) for page_tables in extracted.tables_by_page

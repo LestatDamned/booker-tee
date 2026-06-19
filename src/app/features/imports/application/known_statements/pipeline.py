@@ -10,7 +10,7 @@ from app.features.imports.application.pipelines.validation_result import (
 )
 from app.features.imports.domain.deduplication import RawTransactionDeduplicator
 from app.features.imports.domain.validation import validate_statement_totals
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.mapping.raw_transaction_mapper import RawTransactionMapper
 from app.features.imports.models import ParseAttempt, UploadedDocument
 from app.features.imports.parsing.parser_types import BankStatementRawTransactionParser
@@ -30,7 +30,7 @@ class KnownStatementImportPipeline:
         *,
         document: UploadedDocument,
         attempt: ParseAttempt,
-        extracted: ExtractedPdf,
+        extracted: ExtractedStatement,
         parser: BankStatementRawTransactionParser,
         currency: str,
         exclude_duplicate_document_id: UUID | None,

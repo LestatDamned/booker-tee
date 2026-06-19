@@ -3,12 +3,12 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.models import RawTransactionStatus
 from app.features.imports.parsing.parser_types import RawTransactionDraft
 
 
-def extracted_text(extracted: ExtractedPdf) -> str:
+def extracted_text(extracted: ExtractedStatement) -> str:
     return "\n".join(page_text or "" for page_text in extracted.text_by_page)
 
 

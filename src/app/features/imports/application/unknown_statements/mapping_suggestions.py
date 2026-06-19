@@ -20,6 +20,8 @@ from app.features.imports.application.unknown_statements.suggestion_scoring impo
 def build_mapping_suggestions(
     profiles: list[UnknownStatementColumnProfile],
     candidates: list[UnknownStatementColumnCandidate],
+    *,
+    row_offset: int = 0,
 ) -> list[UnknownStatementMappingSuggestion]:
     candidate_by_field = candidate_indexes_by_field(candidates)
     operation_date_column = candidate_by_field.get("operation_date")
@@ -85,7 +87,7 @@ def build_mapping_suggestions(
             credit_amount_column=credit_amount_column,
             currency_column=currency_column,
             balance_after_column=balance_after_column,
-            first_data_row=first_data_row_for_profiles(profiles),
+            first_data_row=row_offset + first_data_row_for_profiles(profiles),
             confidence=round(confidence, 4),
             reasons=reasons,
             warnings=warnings,

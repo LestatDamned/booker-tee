@@ -72,6 +72,21 @@ http://127.0.0.1:8000
 
 The app container runs migrations on startup through `docker/entrypoint.sh`.
 
+## Local Debugging With VSCode
+
+For debugger-driven development, run only PostgreSQL in Docker Compose and run FastAPI on the host:
+
+```bash
+docker compose up -d postgres
+uv sync
+uv run alembic upgrade head
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+The `.env.example` file points `DATABASE_URL` at `localhost:5433`, which is the host port exposed by `compose.yaml`.
+
+In VSCode, use the `Booker Tee: FastAPI debug server` launch configuration to start the app under the debugger. Keep the Docker `app` service stopped while debugging locally so port `8000` is not already in use.
+
 ## Development Commands
 
 Install/sync dependencies:
@@ -108,4 +123,3 @@ The main product and engineering references are:
 - `DOMAIN_MODEL.md`
 - `ARCHITECTURE.md`
 - `AGENTS.md`
-

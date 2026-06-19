@@ -1,12 +1,13 @@
 from uuid import UUID
 
+from openpyxl.utils.exceptions import InvalidFileException
 from pdfplumber.utils.exceptions import PdfminerException
 
 from app.db.base import utc_now
 from app.features.imports.models import ParseAttempt, UploadedDocument, UploadedDocumentStatus
 from app.features.imports.repository import ImportRepository
 
-PARSER_EXCEPTIONS = (OSError, ValueError, TypeError, PdfminerException)
+PARSER_EXCEPTIONS = (OSError, ValueError, TypeError, PdfminerException, InvalidFileException)
 
 
 async def create_running_parse_attempt(
@@ -28,7 +29,7 @@ async def record_failed_parse_attempt(
     imports: ImportRepository,
     document: UploadedDocument,
     attempt: ParseAttempt,
-    exc: OSError | ValueError | TypeError | PdfminerException,
+    exc: OSError | ValueError | TypeError | PdfminerException | InvalidFileException,
     *,
     document_status: UploadedDocumentStatus = UploadedDocumentStatus.FAILED_TO_PARSE,
 ) -> None:

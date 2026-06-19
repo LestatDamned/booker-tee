@@ -36,7 +36,7 @@ from app.features.imports.infrastructure.extraction.pdfplumber_extractor import 
     ExtractedPdf,
     ExtractedPdfPageTables,
 )
-from app.features.imports.parsing.parsers.normalization import parse_bank_date
+from app.features.imports.parsing.support.normalization import parse_bank_date
 
 
 def sanitized_unknown_statement_fixture(name: str) -> ExtractedPdf:
@@ -160,6 +160,50 @@ def test_unknown_statement_analysis_finds_mapping_candidates() -> None:
         "header": "Сумма операции",
         "confidence": 0.85,
     } in column_candidates
+
+
+def test_unknown_statement_analysis_finds_header_after_preamble() -> None:
+    extracted = ExtractedPdf(
+        text_by_page=[
+            "\n".join(
+                [
+                    "Альфа-Банк",
+                    "Операция по карте",
+                ]
+            )
+        ],
+        tables_by_page=[
+            ExtractedPdfPageTables(
+                page_number=1,
+                tables=[
+                    [
+                        ["Дата открытия счета", "2026-01-01", None, None, None],
+                        ["Валюта счета", "RUB", None, None, "Расходы"],
+                        ["Дата формирования выписки", "2026-06-01", None, None, None],
+                        ["Дата операции", "Дата проводки", None, "Описание", "Сумма"],
+                        ["2026-06-01", "2026-06-02", None, "Coffee", "-10.50"],
+                    ]
+                ],
+            )
+        ],
+        metadata={"source_format": "xlsx"},
+    )
+
+    report = analyze_unknown_statement(extracted).as_validation_report()
+    previews = cast(list[dict[str, object]], report["table_previews"])
+    preview = previews[0]
+    rows = cast(list[list[str]], preview["rows"])
+    suggestions = cast(list[dict[str, object]], preview["mapping_suggestions"])
+    suggestion = suggestions[0]
+
+    assert report["detected_bank_name"] == "Alfa Bank"
+    assert report["detected_statement_type"] == "card_statement"
+    assert rows[0] == ["Дата операции", "Дата проводки", "", "Описание", "Сумма"]
+    assert suggestion["operation_date_column"] == 0
+    assert suggestion["posting_date_column"] == 1
+    assert suggestion["description_column"] == 3
+    assert suggestion["amount_column"] == 4
+    assert suggestion["first_data_row"] == 4
 
 
 def test_unknown_statement_analysis_keeps_all_table_candidates() -> None:

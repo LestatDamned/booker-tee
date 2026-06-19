@@ -6,7 +6,7 @@ from app.features.imports.application.unknown_statements.hints import (
     control_total_label_sets_for_text,
 )
 from app.features.imports.parsing.parser_types import StatementControlTotals
-from app.features.imports.parsing.parsers.normalization import parse_money_amount
+from app.features.imports.parsing.support.normalization import parse_money_amount
 
 
 def extract_unknown_statement_control_totals(

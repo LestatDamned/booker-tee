@@ -15,10 +15,10 @@ from app.features.imports.application.unknown_statements.table_analysis import (
 from app.features.imports.application.unknown_statements.text_tables import (
     build_text_candidate_table_previews,
 )
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 
 
-def analyze_unknown_statement(extracted: ExtractedPdf) -> UnknownStatementAnalysis:
+def analyze_unknown_statement(extracted: ExtractedStatement) -> UnknownStatementAnalysis:
     text = "\n".join(extracted.text_by_page)
     table_previews = build_table_previews(extracted)
     if not table_previews:

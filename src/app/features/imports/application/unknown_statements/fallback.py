@@ -19,7 +19,7 @@ from app.features.imports.application.unknown_statements.text_tables import (
     raw_tables_with_text_candidate_tables,
 )
 from app.features.imports.errors import UnknownStatementMappingError
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.models import ParseAttempt, UploadedDocument
 from app.features.imports.repository import ImportRepository
 
@@ -34,7 +34,7 @@ class UnknownStatementFallbackPipeline:
         *,
         document: UploadedDocument,
         attempt: ParseAttempt,
-        extracted: ExtractedPdf,
+        extracted: ExtractedStatement,
         exclude_duplicate_document_id: UUID | None,
         supersede_existing_rows: bool,
     ) -> None:

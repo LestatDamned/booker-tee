@@ -11,13 +11,13 @@ from app.features.imports.application.documents.parse_attempts import (
 )
 from app.features.imports.application.processing import StatementParseProcessor
 from app.features.imports.errors import ImportReparseError
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import PdfPlumberExtractor
+from app.features.imports.infrastructure.extraction.resolver import StatementExtractorResolver
 from app.features.imports.models import (
     RawTransactionStatus,
     UploadedDocument,
     UploadedDocumentStatus,
 )
-from app.features.imports.parsing.parsers.factory import default_statement_parser_registry
+from app.features.imports.parsing.registry import default_statement_parser_registry
 from app.features.imports.repository import ImportRepository
 from app.features.workspaces.service import WorkspaceContext
 
@@ -28,7 +28,7 @@ class StatementReparseUseCase:
         self.settings = settings
         self.accounts = AccountRepository(session)
         self.imports = ImportRepository(session)
-        self.extractor = PdfPlumberExtractor()
+        self.extractor = StatementExtractorResolver()
         self.parse_processor = StatementParseProcessor(
             session=session,
             imports=self.imports,

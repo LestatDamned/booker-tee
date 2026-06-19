@@ -7,21 +7,30 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi import UploadFile
+from openpyxl import Workbook
 
 from app.features.imports.application.documents.management import document_has_linked_operations
-from app.features.imports.application.documents.upload import validate_pdf_upload
+from app.features.imports.application.documents.upload import validate_statement_upload
 from app.features.imports.application.review.status import raw_transaction_status_for_review_action
 from app.features.imports.domain.deduplication import (
     mark_raw_transaction_duplicate,
     possible_duplicate_fingerprint,
 )
 from app.features.imports.errors import UploadValidationError
+from app.features.imports.infrastructure.extraction.openpyxl_extractor import (
+    OpenPyxlStatementExtractor,
+)
 from app.features.imports.infrastructure.extraction.pdfplumber_extractor import (
     PdfPlumberExtractor,
 )
-from app.features.imports.infrastructure.storage import UploadStorage, sanitize_filename
+from app.features.imports.infrastructure.extraction.resolver import StatementExtractorResolver
+from app.features.imports.infrastructure.storage import (
+    UploadStorage,
+    sanitize_filename,
+    sanitize_upload_filename,
+)
 from app.features.imports.models import RawTransaction, RawTransactionStatus
-from app.features.imports.parsing.parsers.normalization import (
+from app.features.imports.parsing.support.normalization import (
     parse_bank_date,
 )
 from app.features.imports.presentation.review import (
@@ -33,6 +42,7 @@ from app.features.imports.presentation.review import (
 def test_sanitize_filename_removes_paths_and_unsafe_characters() -> None:
     assert sanitize_filename("../bank statement июнь.pdf") == "bank_statement_.pdf"
     assert sanitize_filename("statement") == "statement.pdf"
+    assert sanitize_upload_filename("../bank statement июнь.xlsx") == "bank_statement_.xlsx"
 
 
 @pytest.mark.asyncio
@@ -54,11 +64,50 @@ async def test_upload_storage_preserves_pdf_bytes(tmp_path: Path) -> None:
     assert stored.storage_key == f"{workspace_id}/{document_id}/statement.pdf"
 
 
-def test_validate_pdf_upload_rejects_non_pdf_filename() -> None:
+@pytest.mark.asyncio
+async def test_upload_storage_save_pdf_keeps_legacy_pdf_suffix(tmp_path: Path) -> None:
+    upload = UploadFile(file=BytesIO(b"%PDF-1.4"), filename="statement")
+    workspace_id = uuid4()
+    document_id = uuid4()
+
+    stored = await UploadStorage(tmp_path).save_pdf(
+        upload,
+        workspace_id=workspace_id,
+        document_id=document_id,
+    )
+
+    assert stored.storage_key == f"{workspace_id}/{document_id}/statement.pdf"
+
+
+@pytest.mark.asyncio
+async def test_upload_storage_preserves_xlsx_extension(tmp_path: Path) -> None:
+    content = b"local xlsx fixture bytes"
+    upload = UploadFile(file=BytesIO(content), filename="../statement.xlsx")
+    workspace_id = uuid4()
+    document_id = uuid4()
+
+    stored = await UploadStorage(tmp_path).save_upload(
+        upload,
+        workspace_id=workspace_id,
+        document_id=document_id,
+    )
+
+    assert stored.file_size_bytes == len(content)
+    assert stored.sha256_hash == sha256(content).hexdigest()
+    assert stored.path.read_bytes() == content
+    assert stored.storage_key == f"{workspace_id}/{document_id}/statement.xlsx"
+
+
+def test_validate_statement_upload_accepts_pdf_and_xlsx() -> None:
+    validate_statement_upload(UploadFile(file=BytesIO(b"%PDF-1.4"), filename="statement.pdf"))
+    validate_statement_upload(UploadFile(file=BytesIO(b"xlsx"), filename="statement.xlsx"))
+
+
+def test_validate_statement_upload_rejects_unknown_extension() -> None:
     upload = UploadFile(file=BytesIO(b"not a pdf"), filename="statement.txt")
 
     with pytest.raises(UploadValidationError):
-        validate_pdf_upload(upload)
+        validate_statement_upload(upload)
 
 
 def test_pdfplumber_extractor_preserves_raw_pages() -> None:
@@ -67,6 +116,41 @@ def test_pdfplumber_extractor_preserves_raw_pages() -> None:
     assert extracted.text_by_page
     assert len(extracted.tables_by_page) == len(extracted.text_by_page)
     assert all(page.page_number >= 1 for page in extracted.tables_by_page)
+
+
+def test_openpyxl_extractor_preserves_sheet_tables(tmp_path: Path) -> None:
+    workbook_path = tmp_path / "statement.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Card"
+    sheet.append(["Дата", "Описание", "Сумма"])
+    sheet.append(["2026-06-01", "Coffee", -10.5])
+    sheet.append([None, None, None])
+    workbook.save(workbook_path)
+
+    extracted = OpenPyxlStatementExtractor().extract(workbook_path)
+
+    assert extracted.metadata["source_format"] == "xlsx"
+    assert extracted.metadata["sheet_names"] == ["Card"]
+    assert extracted.text_by_page == ["Дата\tОписание\tСумма\n2026-06-01\tCoffee\t-10.5"]
+    assert extracted.tables_by_page[0].page_number == 1
+    assert extracted.tables_by_page[0].tables == [
+        [
+            ["Дата", "Описание", "Сумма"],
+            ["2026-06-01", "Coffee", "-10.5"],
+        ]
+    ]
+
+
+def test_statement_extractor_resolver_selects_extractor_by_extension(tmp_path: Path) -> None:
+    workbook_path = tmp_path / "statement.xlsx"
+    workbook = Workbook()
+    workbook.active.append(["Date", "Amount"])
+    workbook.save(workbook_path)
+
+    extracted = StatementExtractorResolver().extract(workbook_path)
+
+    assert extracted.metadata["source_format"] == "xlsx"
 
 
 def test_raw_transaction_review_actions_map_to_statuses() -> None:

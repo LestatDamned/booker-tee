@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.parsing.parser_types import BankStatementRawTransactionParser
-from app.features.imports.parsing.parsers.expobank import ExpobankCardStatementParser
-from app.features.imports.parsing.parsers.sberbank_card import SberbankCardStatementParser
-from app.features.imports.parsing.parsers.vtb_card import VtbCardStatementParser
-from app.features.imports.parsing.parsers.vtb_deposit import VtbDepositStatementParser
+from app.features.imports.parsing.parsers.alfabank.xlsx import AlfabankXlsxStatementParser
+from app.features.imports.parsing.parsers.expobank.card import ExpobankCardStatementParser
+from app.features.imports.parsing.parsers.sberbank.card import SberbankCardStatementParser
+from app.features.imports.parsing.parsers.vtb.card import VtbCardStatementParser
+from app.features.imports.parsing.parsers.vtb.deposit import VtbDepositStatementParser
 
 
 @dataclass(frozen=True)
@@ -14,7 +15,7 @@ class StatementParserRegistry:
 
     def find_parser(
         self,
-        extracted: ExtractedPdf,
+        extracted: ExtractedStatement,
     ) -> BankStatementRawTransactionParser | None:
         for parser in self.parsers:
             if parser.can_parse(extracted):
@@ -25,6 +26,7 @@ class StatementParserRegistry:
 def default_statement_parser_registry() -> StatementParserRegistry:
     return StatementParserRegistry(
         parsers=(
+            AlfabankXlsxStatementParser(),
             SberbankCardStatementParser(),
             VtbCardStatementParser(),
             VtbDepositStatementParser(),

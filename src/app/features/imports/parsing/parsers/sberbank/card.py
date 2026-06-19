@@ -3,14 +3,14 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
+from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.parsing.parser_types import RawTransactionDraft, StatementControlTotals
-from app.features.imports.parsing.parsers.common import (
+from app.features.imports.parsing.support.common import (
     build_raw_transaction_draft,
     extracted_text,
     parse_with_error,
 )
-from app.features.imports.parsing.parsers.normalization import (
+from app.features.imports.parsing.support.normalization import (
     build_dedupe_hash,
     clean_cell,
     normalize_currency,
@@ -98,13 +98,13 @@ class SberbankCardStatementParser:
     parser_name: str = "sberbank_card_statement_v1"
     parser_version: str = "0.1"
 
-    def can_parse(self, extracted: ExtractedPdf) -> bool:
+    def can_parse(self, extracted: ExtractedStatement) -> bool:
         text = extracted_text(extracted)
         return all(marker in text for marker in SBERBANK_CARD_MARKERS)
 
     def extract_raw_transactions(
         self,
-        extracted: ExtractedPdf,
+        extracted: ExtractedStatement,
         *,
         account_id: UUID | None,
         currency: str,
@@ -129,7 +129,7 @@ class SberbankCardStatementParser:
 
     def extract_control_totals(
         self,
-        extracted: ExtractedPdf,
+        extracted: ExtractedStatement,
         *,
         currency: str,
     ) -> StatementControlTotals | None:
