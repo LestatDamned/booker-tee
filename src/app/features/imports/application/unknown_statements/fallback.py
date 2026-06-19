@@ -15,6 +15,9 @@ from app.features.imports.application.unknown_statement_mappings.template_comman
 from app.features.imports.application.unknown_statements.analyzer import (
     analyze_unknown_statement,
 )
+from app.features.imports.application.unknown_statements.text_tables import (
+    raw_tables_with_text_candidate_tables,
+)
 from app.features.imports.errors import UnknownStatementMappingError
 from app.features.imports.infrastructure.extraction.pdfplumber_extractor import ExtractedPdf
 from app.features.imports.models import ParseAttempt, UploadedDocument
@@ -36,6 +39,11 @@ class UnknownStatementFallbackPipeline:
         supersede_existing_rows: bool,
     ) -> None:
         analysis = analyze_unknown_statement(extracted)
+        if not any(preview.source_type == "pdf_table" for preview in analysis.table_previews):
+            attempt.raw_tables_json = raw_tables_with_text_candidate_tables(
+                extracted,
+                attempt.raw_tables_json,
+            )
         document.bank_name = analysis.detected_bank_name
         document.statement_type = analysis.detected_statement_type
         validation_report = analysis.as_validation_report()

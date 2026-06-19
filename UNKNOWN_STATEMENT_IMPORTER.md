@@ -37,6 +37,45 @@ ExtractedPdf
   -> review
 ```
 
+## Current text-only fallback
+
+When `pdfplumber` extracts readable text but no usable transaction table, the
+unknown importer now tries a conservative text fallback:
+
+```text
+text_by_page
+  -> transaction-like lines
+  -> synthetic table: Date / Description / Amount / Currency / Balance
+  -> existing unknown mapping preview
+  -> reviewable raw transactions
+```
+
+This fallback is intentionally review-first. It does not create confirmed ledger
+records and it does not bypass the existing mapping screen. The synthetic table
+is stored alongside the raw extracted tables for the parse attempt so the normal
+unknown mapping flow can reuse column suggestions, previews, deduplication,
+transaction rules, and statement-total validation.
+
+The first implementation is heuristic and deliberately modest:
+
+- a candidate line must contain a recognizable date and money amount;
+- the first signed amount is treated as the operation amount when present;
+- a later money value can be treated as balance after the operation;
+- lines without a date or amount may be appended as description continuations;
+- OCR, coordinate-based reconstruction, and bank-specific text layouts are not
+  part of this fallback yet.
+
+Known limitations:
+
+- text extracted from PDFs may not preserve visual column order;
+- unsigned amounts can be ambiguous when both operation amount and balance are
+  present;
+- multi-line transactions work only for simple continuation text;
+- scanned PDFs still require OCR before this fallback can help.
+
+Keep future improvements small and test-driven. Prefer adding sanitized text
+fixtures for one failure mode at a time over making the extractor more magical.
+
 ## Statement profile
 
 The profile should describe the document without relying on a dedicated parser:

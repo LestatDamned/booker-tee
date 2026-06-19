@@ -32,6 +32,7 @@ class UnknownStatementTablePreview:
     column_candidates: list[UnknownStatementColumnCandidate]
     column_profiles: list[UnknownStatementColumnProfile]
     mapping_suggestions: list[UnknownStatementMappingSuggestion]
+    source_type: str = "pdf_table"
     is_continuation: bool = False
     continued_from_page_number: int | None = None
     continued_from_table_index: int | None = None
@@ -50,6 +51,7 @@ class UnknownStatementTablePreview:
             "mapping_suggestions": [
                 suggestion.as_json() for suggestion in self.mapping_suggestions
             ],
+            "source_type": self.source_type,
             "is_continuation": self.is_continuation,
             "continued_from_page_number": self.continued_from_page_number,
             "continued_from_table_index": self.continued_from_table_index,

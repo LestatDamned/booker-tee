@@ -31,7 +31,7 @@
     {% if validation and validation.status == "needs_mapping" %}
       <div class="notice">
         <strong>Нужна настройка импорта.</strong>
-        PDF прочитан, таблицы найдены, но подходящего парсера для этой выписки пока нет.
+        PDF прочитан, но подходящего парсера для этой выписки пока нет.
         <a class="button button-small" href="/imports/documents/{{ view.id }}/mapping">{{ icon("settings") }} настроить колонки</a>
       </div>
       <div class="summary-grid">
@@ -59,7 +59,11 @@
             <article class="raw-transaction-card">
               <div class="preview-meta">
                 <span>страница {{ preview.page_number }}</span>
-                <span>таблица {{ preview.table_index + 1 }}</span>
+                {% if preview.source_type == "text_candidate" %}
+                  <span>из текста</span>
+                {% else %}
+                  <span>таблица {{ preview.table_index + 1 }}</span>
+                {% endif %}
                 {% if preview.preview_row_count is defined and preview.preview_row_count < preview.row_count %}
                   <span>показано {{ preview.preview_row_count }} из {{ preview.row_count }} строк</span>
                 {% else %}

@@ -29,6 +29,9 @@ from app.features.imports.application.unknown_statements.hints import (
     DEFAULT_HINT_CONFIG_PATH,
     load_statement_hint_config,
 )
+from app.features.imports.application.unknown_statements.text_tables import (
+    raw_tables_with_text_candidate_tables,
+)
 from app.features.imports.infrastructure.extraction.pdfplumber_extractor import (
     ExtractedPdf,
     ExtractedPdfPageTables,
@@ -466,6 +469,78 @@ def test_unknown_statement_analysis_suggests_mapping_for_table_without_headers()
         "matched_count": 3,
         "sample_count": 3,
     } in reasons
+
+
+def test_unknown_statement_analysis_builds_text_candidate_table_when_pdf_tables_are_empty() -> None:
+    extracted = ExtractedPdf(
+        text_by_page=[
+            "\n".join(
+                [
+                    "ООО «ОЗОН Банк»",
+                    "12.05.2026 Оплата товаров по карте -842,00 ₽ 57 593,38 ₽",
+                    "Продолжение описания покупки",
+                    "13.05.2026 Пополнение карты +10 000,00 RUB 67 593,38 ₽",
+                ]
+            )
+        ],
+        tables_by_page=[
+            ExtractedPdfPageTables(
+                page_number=1,
+                tables=[
+                    [],
+                    [["", "", ""]],
+                ],
+            )
+        ],
+        metadata={},
+    )
+
+    report = analyze_unknown_statement(extracted).as_validation_report()
+    previews = cast(list[dict[str, object]], report["table_previews"])
+    preview = previews[0]
+    command = default_mapping_command(report, default_currency="RUB")
+    mapped_preview = preview_unknown_statement_mapping(
+        raw_tables_with_text_candidate_tables(
+            extracted,
+            raw_tables_from_extracted_fixture(extracted),
+        ),
+        command,
+        max_rows=None,
+    )
+
+    assert report["table_count"] == 2
+    assert report["text_based"] is True
+    assert preview["source_type"] == "text_candidate"
+    assert preview["table_index"] == 2
+    assert preview["rows"] == [
+        ["Date", "Description", "Amount", "Currency", "Balance"],
+        [
+            "12.05.2026",
+            "Оплата товаров по карте Продолжение описания покупки",
+            "-842,00 ₽",
+            "RUB",
+            "57 593,38 ₽",
+        ],
+        ["13.05.2026", "Пополнение карты", "+10 000,00 RUB", "RUB", "67 593,38 ₽"],
+    ]
+    assert command.page_number == 1
+    assert command.table_index == 2
+    assert command.operation_date_column == 0
+    assert command.description_column == 1
+    assert command.amount_column == 2
+    assert command.currency_column == 3
+    assert command.balance_after_column == 4
+    assert command.first_data_row == 1
+    assert mapped_preview.valid_count == 2
+    assert mapped_preview.error_count == 0
+    assert [row.amount for row in mapped_preview.rows] == [
+        Decimal("-842.00"),
+        Decimal("10000.00"),
+    ]
+    assert [row.balance_after for row in mapped_preview.rows] == [
+        Decimal("57593.38"),
+        Decimal("67593.38"),
+    ]
 
 
 def test_unknown_statement_analysis_does_not_treat_transaction_text_as_header() -> None:

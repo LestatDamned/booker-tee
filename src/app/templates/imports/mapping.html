@@ -53,7 +53,11 @@
             {% endfor %}
           </div>
           <div class="table-picker-meta">
-            <span>выбрана страница {{ selected_table.page_number }} · таблица {{ selected_table.table_index + 1 }}</span>
+            {% if selected_table.source_type == "text_candidate" %}
+              <span>выбрана страница {{ selected_table.page_number }} · строки из текста</span>
+            {% else %}
+              <span>выбрана страница {{ selected_table.page_number }} · таблица {{ selected_table.table_index + 1 }}</span>
+            {% endif %}
             <span>{{ selected_table.row_count }} строк · {{ selected_table.column_count }} колонок</span>
             {% if compatible_table_count and compatible_table_count > 1 %}
               <span>импорт: {{ compatible_table_count }} таблиц по этой схеме</span>
@@ -179,7 +183,11 @@
       </form>
 
       {% if selected_table %}
-        <h2 class="status">Выбранная таблица: страница {{ selected_table.page_number }} · таблица {{ selected_table.table_index + 1 }}</h2>
+        {% if selected_table.source_type == "text_candidate" %}
+          <h2 class="status">Выбранные строки из текста: страница {{ selected_table.page_number }}</h2>
+        {% else %}
+          <h2 class="status">Выбранная таблица: страница {{ selected_table.page_number }} · таблица {{ selected_table.table_index + 1 }}</h2>
+        {% endif %}
         {% if selected_table.mapping_suggestions %}
           {% set suggestion = selected_table.mapping_suggestions[0] %}
           {% include "imports/_mapping_suggestion.html" %}
