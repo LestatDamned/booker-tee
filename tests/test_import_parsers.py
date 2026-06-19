@@ -9,6 +9,7 @@ from app.features.imports.infrastructure.extraction.pdfplumber_extractor import 
 from app.features.imports.models import RawTransactionStatus
 from app.features.imports.parsing.parsers.alfabank.xlsx import AlfabankXlsxStatementParser
 from app.features.imports.parsing.parsers.expobank.card import ExpobankCardStatementParser
+from app.features.imports.parsing.parsers.ozon_bank.card import OzonBankCardStatementParser
 from app.features.imports.parsing.parsers.sberbank.card import SberbankCardStatementParser
 from app.features.imports.parsing.parsers.vtb.card import VtbCardStatementParser
 from app.features.imports.parsing.parsers.vtb.deposit import VtbDepositStatementParser
@@ -61,12 +62,14 @@ def test_statement_parser_registry_detects_bank_and_statement_type() -> None:
         Path("tests/fixtures/sberbank_statement.pdf")
     )
     alfabank_extracted = alfabank_xlsx_extracted_fixture()
+    ozon_extracted = ozon_bank_card_extracted_fixture()
 
     expobank_parser = registry.find_parser(expobank_extracted)
     vtb_parser = registry.find_parser(vtb_extracted)
     vtb_card_parser = registry.find_parser(vtb_card_extracted)
     sberbank_parser = registry.find_parser(sberbank_extracted)
     alfabank_parser = registry.find_parser(alfabank_extracted)
+    ozon_parser = registry.find_parser(ozon_extracted)
 
     assert expobank_parser is not None
     assert expobank_parser.parser_name == "expobank_card_statement_v1"
@@ -83,6 +86,9 @@ def test_statement_parser_registry_detects_bank_and_statement_type() -> None:
     assert alfabank_parser is not None
     assert alfabank_parser.parser_name == "alfabank_xlsx_statement_v1"
     assert alfabank_parser.statement_type == "card_statement"
+    assert ozon_parser is not None
+    assert ozon_parser.parser_name == "ozon_bank_card_statement_v1"
+    assert ozon_parser.statement_type == "card_statement"
 
 
 def test_alfabank_xlsx_parser_creates_raw_transactions_from_table_with_preamble() -> None:
@@ -112,6 +118,35 @@ def test_alfabank_xlsx_parser_creates_raw_transactions_from_table_with_preamble(
     assert control_totals.closing_balance == Decimal("1489.50")
     assert control_totals.total_inflow == Decimal("500.00")
     assert control_totals.total_outflow == Decimal("10.50")
+
+
+def test_ozon_bank_card_parser_creates_raw_transactions_from_pdf_table() -> None:
+    extracted = ozon_bank_card_extracted_fixture()
+    parser = OzonBankCardStatementParser()
+
+    rows = parser.extract_raw_transactions(extracted, account_id=None, currency="RUB")
+    control_totals = parser.extract_control_totals(extracted, currency="RUB")
+
+    assert parser.can_parse(extracted)
+    assert len(rows) == 2
+    assert rows[0].status == RawTransactionStatus.NORMALIZED
+    assert rows[0].operation_date == parse_bank_date("2026-06-01")
+    assert rows[0].posting_date is None
+    assert rows[0].amount == Decimal("-390.00")
+    assert rows[0].currency == "RUB"
+    assert rows[0].description_normalized == "Card purchase"
+    assert rows[0].account_hint_raw == "карта ****"
+    assert rows[0].raw_payload["bank_code"] == "ozon_bank"
+    assert rows[0].raw_payload["statement_type"] == "card_statement"
+    assert rows[0].raw_payload["source_row_id"] == "ozon-bank-card:100001"
+    assert rows[1].amount == Decimal("65000.00")
+    assert rows[1].description_normalized == "Cash deposit"
+    assert control_totals is not None
+    assert control_totals.currency == "RUB"
+    assert control_totals.opening_balance == Decimal("1000.00")
+    assert control_totals.closing_balance == Decimal("65610.00")
+    assert control_totals.total_inflow == Decimal("65000.00")
+    assert control_totals.total_outflow == Decimal("390.00")
 
 
 def test_sberbank_card_parser_creates_raw_transactions_from_fixture() -> None:
@@ -316,6 +351,55 @@ def alfabank_xlsx_extracted_fixture() -> ExtractedPdf:
             )
         ],
         metadata={"source_format": "xlsx"},
+    )
+
+
+def ozon_bank_card_extracted_fixture() -> ExtractedPdf:
+    return ExtractedPdf(
+        text_by_page=[
+            "\n".join(
+                [
+                    "Озон Банк",
+                    "Оплата товаров по карте",
+                    "Входящий остаток: 1 000.00 ₽",
+                    "Итого зачислений за период: 65 000.00 ₽",
+                    "Итого списаний за период: 390.00 ₽",
+                    "Исходящий остаток: 65 610.00 ₽",
+                ]
+            )
+        ],
+        tables_by_page=[
+            ExtractedPdfPageTables(
+                page_number=1,
+                tables=[
+                    [
+                        [
+                            "Дата операции",
+                            "Документ",
+                            "Назначение платежа",
+                            "Сумма операции",
+                            "",
+                        ],
+                        ["", "", "", "Российские рубли", "Валюта"],
+                        [
+                            "01.06.2026 10:15:20",
+                            "100001",
+                            "Card purchase",
+                            "- 390.00 ₽",
+                            "- 390.00 ₽",
+                        ],
+                        [
+                            "02.06.2026 11:00:00",
+                            "100002",
+                            "Cash deposit",
+                            "65 000.00 ₽",
+                            "65 000.00 ₽",
+                        ],
+                    ]
+                ],
+            )
+        ],
+        metadata={"source_format": "pdf"},
     )
 
 
