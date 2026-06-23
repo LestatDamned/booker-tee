@@ -12,7 +12,9 @@
       <a class="button" href="/accounts">{{ icon("wallet") }} счета</a>
     </div>
 
+    {% if accounts %}
     <form class="form-panel" method="post" action="/ledger/manual">
+      {{ csrf_input() }}
       <label class="field">
         <span>тип</span>
         <select name="operation_type" required>
@@ -70,6 +72,13 @@
       </label>
       <button class="button form-submit" type="submit">{{ icon("plus") }} создать</button>
     </form>
+    {% else %}
+      <div class="empty-state">
+        <strong>Сначала добавьте счет</strong>
+        <span>Ручная операция всегда двигает деньги на карте, вкладе, расчетном счете или наличных.</span>
+        <a class="button button-small" href="/accounts">{{ icon("plus") }} добавить счет</a>
+      </div>
+    {% endif %}
   </section>
 
   <section class="panel stack">
@@ -89,7 +98,7 @@
             {% set display_currency = operation.primary_entry.account.currency %}
           {% endif %}
           <article id="operation-{{ operation.id }}" class="entity-card manual-operation-card manual-operation-{{ operation.type.value }} {% if operation.status.value == 'ignored' %}entity-card-inactive{% endif %}">
-            <form class="detached-form" id="{{ form_id }}" method="post" action="/ledger/manual/{{ operation.id }}"></form>
+            <form class="detached-form" id="{{ form_id }}" method="post" action="/ledger/manual/{{ operation.id }}">{{ csrf_input() }}</form>
             <div class="entity-card-main">
               <div class="entity-card-title">
                 <strong>{{ operation.description or "Без описания" }}</strong>
@@ -181,13 +190,16 @@
               <button class="button button-small" type="submit" form="{{ form_id }}">{{ icon("save") }} сохранить</button>
               {% if operation.status.value == "confirmed" %}
                 <form method="post" action="/ledger/manual/{{ operation.id }}/cancel">
+                  {{ csrf_input() }}
                   <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} отменить</button>
                 </form>
               {% elif operation.status.value == "ignored" %}
                 <form method="post" action="/ledger/manual/{{ operation.id }}/restore">
+                  {{ csrf_input() }}
                   <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
                 </form>
                 <form method="post" action="/ledger/manual/{{ operation.id }}/delete">
+                  {{ csrf_input() }}
                   <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
                 </form>
               {% endif %}

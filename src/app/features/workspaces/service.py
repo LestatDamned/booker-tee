@@ -25,18 +25,6 @@ class WorkspaceService:
         self.users = UserRepository(session)
         self.workspaces = WorkspaceRepository(session)
 
-    async def ensure_development_context(self) -> WorkspaceContext:
-        user = await self.users.get_by_email(self.settings.dev_user_email)
-        if user is None:
-            user = await self.users.create_development_user(self.settings.dev_user_email)
-
-        workspace = await self.workspaces.get_first_active_for_user(user.id)
-        if workspace is None:
-            workspace = await self.workspaces.create_personal_workspace(user.id)
-
-        await self.session.commit()
-        return WorkspaceContext(user=user, workspace=workspace)
-
     async def resolve_context(
         self,
         *,
@@ -89,14 +77,12 @@ class WorkspaceService:
         return workspace
 
     async def _resolve_user(self, user_id: UUID | None) -> User:
-        if user_id is not None:
-            user = await self.users.get_active(user_id)
-            if user is not None:
-                return user
+        if user_id is None:
+            raise WorkspaceError("Сначала создайте или выберите пользователя.")
 
-        user = await self.users.get_by_email(self.settings.dev_user_email)
+        user = await self.users.get_active(user_id)
         if user is None:
-            user = await self.users.create_development_user(self.settings.dev_user_email)
+            raise WorkspaceError("Пользователь не найден или недоступен.")
         return user
 
     async def _resolve_workspace(

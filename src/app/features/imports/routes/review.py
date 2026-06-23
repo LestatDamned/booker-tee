@@ -47,10 +47,7 @@ async def document_review(
     document = await ImportService(session).get_document(context.workspace.id, document_id)
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    accounts = await AccountService(session).list_or_create_default(
-        context.workspace.id,
-        context.workspace.default_currency,
-    )
+    accounts = await AccountService(session).list_active_accounts(context.workspace.id)
     categories = await CategoryService(session).list_or_seed_defaults(
         context.workspace.id,
         context.workspace.type,

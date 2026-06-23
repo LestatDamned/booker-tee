@@ -28,10 +28,6 @@ async def account_index(
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
     account_service = AccountService(session)
-    await account_service.list_or_create_default(
-        context.workspace.id,
-        context.workspace.default_currency,
-    )
     accounts = await account_service.list_accounts(context.workspace.id)
     ledger = LedgerPostingService(session)
     account_details = [

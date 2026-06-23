@@ -1,59 +1,35 @@
 {% extends "base.html" %}
 
-{% block title %}Пользователи · {{ app_name }}{% endblock %}
+{% block title %}Профиль · {{ app_name }}{% endblock %}
 
 {% block content %}
   <section class="panel stack">
     <div class="toolbar">
       <div>
-        <p class="eyebrow">доступ</p>
-        <h1>Пользователи</h1>
+        <p class="eyebrow">{{ workspace.name }}</p>
+        <h1>Профиль</h1>
       </div>
       <a class="button" href="/workspaces">{{ icon("folder") }} пространства</a>
     </div>
 
-    <form class="form-panel" method="post" action="/users">
-      <label class="field">
+    <div class="summary-grid">
+      <div class="metric">
         <span>email</span>
-        <input name="email" type="email" placeholder="max@example.com" required>
-      </label>
-      <label class="field">
+        <strong>{{ current_user.email }}</strong>
+      </div>
+      <div class="metric">
         <span>имя</span>
-        <input name="name" placeholder="Имя пользователя">
-      </label>
-      <button class="button form-submit" type="submit">{{ icon("plus") }} создать пользователя</button>
-    </form>
+        <strong>{{ current_user.name or "не указано" }}</strong>
+      </div>
+      <div class="metric">
+        <span>текущее пространство</span>
+        <strong>{{ workspace.name }}</strong>
+      </div>
+    </div>
 
-    {% if users %}
-      <div class="entity-card-list">
-        {% for user in users %}
-          <article class="entity-card {% if current_user_id == user.id|string %}entity-card-current{% endif %}">
-            <div class="entity-card-main">
-              <div class="entity-card-title">
-                <strong>{{ user.name or "Без имени" }}</strong>
-                {% if current_user_id == user.id|string %}
-                  <span class="badge badge-confirmed">текущий</span>
-                {% else %}
-                  <span class="badge">активен</span>
-                {% endif %}
-              </div>
-              <div class="entity-card-meta">
-                <span>{{ user.email }}</span>
-                <span title="{{ user.id }}">ID {{ user.id | short_id }}</span>
-              </div>
-            </div>
-            <div class="entity-card-actions">
-              <form method="post" action="/users/{{ user.id }}/select">
-                <button class="button button-small" type="submit">{{ icon("check") }} выбрать</button>
-              </form>
-            </div>
-          </article>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="empty-state">
-        <p>Пользователей пока нет.</p>
-      </div>
-    {% endif %}
+    <form class="form-panel" method="post" action="/logout">
+      {{ csrf_input() }}
+      <button class="button form-submit" type="submit">{{ icon("ignore") }} выйти</button>
+    </form>
   </section>
 {% endblock %}

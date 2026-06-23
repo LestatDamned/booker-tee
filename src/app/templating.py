@@ -4,6 +4,7 @@ from typing import Any, cast
 
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
+from jinja2 import pass_context
 from markupsafe import Markup
 
 RU_LABELS = {
@@ -200,6 +201,7 @@ def create_templates() -> Jinja2Templates:
     templates.env.filters["short_id"] = short_id
     templates.env.filters["date_ru"] = date_ru
     cast(dict[str, Any], templates.env.globals)["icon"] = icon
+    cast(dict[str, Any], templates.env.globals)["csrf_input"] = csrf_input
     return templates
 
 
@@ -209,11 +211,21 @@ def current_context_processor(request: Request) -> dict[str, Any]:
         return {
             "current_user": None,
             "current_workspace": None,
+            "csrf_token": None,
         }
     return {
         "current_user": workspace_context.user,
         "current_workspace": workspace_context.workspace,
+        "csrf_token": getattr(request.state, "csrf_token", None),
     }
+
+
+@pass_context
+def csrf_input(context: Any) -> Markup:
+    token = context.get("csrf_token")
+    if not token:
+        return Markup("")
+    return Markup(f'<input type="hidden" name="csrf_token" value="{token}">')
 
 
 def ru_label(value: Any) -> str:

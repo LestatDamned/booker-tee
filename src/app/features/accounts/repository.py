@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.accounts.models import Account, AccountType
+from app.features.accounts.models import Account
 
 
 class AccountRepository:
@@ -34,17 +34,6 @@ class AccountRepository:
             )
         )
         return result.scalar_one_or_none()
-
-    async def create_parser_lab_account(self, workspace_id: UUID, currency: str) -> Account:
-        account = Account(
-            workspace_id=workspace_id,
-            name="Parser Lab Account",
-            type=AccountType.CARD,
-            currency=currency,
-        )
-        self.session.add(account)
-        await self.session.flush()
-        return account
 
     async def create(self, account: Account) -> Account:
         self.session.add(account)

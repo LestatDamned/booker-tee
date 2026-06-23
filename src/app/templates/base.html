@@ -22,9 +22,15 @@
             <strong>{{ current_workspace.name if current_workspace else "не выбрано" }}</strong>
           </a>
         </div>
-        <a class="status-pill primary-action" href="/imports/upload">{{ icon("upload") }} загрузить</a>
+        {% if current_user %}
+          <a class="status-pill primary-action" href="/imports/upload">{{ icon("upload") }} загрузить</a>
+        {% else %}
+          <a class="status-pill primary-action" href="/login">{{ icon("user") }} войти</a>
+        {% endif %}
       </div>
       <nav class="shell nav-actions">
+        <a class="nav-link" href="/users">{{ icon("user") }} профиль</a>
+        <a class="nav-link" href="/workspaces">{{ icon("folder") }} пространства</a>
         <a class="nav-link" href="/accounts">{{ icon("wallet") }} счета</a>
         <a class="nav-link" href="/ledger/manual">{{ icon("plus") }} операции</a>
         <a class="nav-link" href="/imports">{{ icon("import") }} импорт</a>

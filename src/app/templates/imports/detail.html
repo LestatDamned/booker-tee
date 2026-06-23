@@ -13,12 +13,15 @@
       <div class="import-page-actions">
         <a class="button" href="/imports/documents/{{ view.id }}/review">{{ icon("clipboard-check") }} проверка</a>
         <form method="post" action="/imports/documents/{{ view.id }}/reparse">
+          {{ csrf_input() }}
           <button class="button" type="submit">{{ icon("refresh") }} перепарсить</button>
         </form>
         <form method="post" action="/imports/documents/{{ view.id }}/ignore">
+          {{ csrf_input() }}
           <button class="button" type="submit">{{ icon("ignore") }} игнорировать</button>
         </form>
         <form method="post" action="/imports/documents/{{ view.id }}/delete">
+          {{ csrf_input() }}
           <button class="button" type="submit">{{ icon("trash") }} удалить</button>
         </form>
         <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>

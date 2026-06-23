@@ -17,6 +17,7 @@
       <div class="toolbar">
         <a class="button" href="/imports/documents/{{ document.id }}">{{ icon("file-text") }} детали</a>
         <form method="post" action="/imports/documents/{{ document.id }}/apply-rules">
+          {{ csrf_input() }}
           <button class="button" type="submit">{{ icon("settings") }} применить правила</button>
         </form>
         <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
@@ -168,6 +169,7 @@
                   <details class="action-details">
                     <summary>Исправить</summary>
                     <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/undo-posting">
+                      {{ csrf_input() }}
                       <button class="button button-small button-danger" type="submit">{{ icon("rotate-ccw") }} Отменить проведение</button>
                     </form>
                   </details>
@@ -177,6 +179,7 @@
                   <div class="action-title">Дубль</div>
                   <span class="status">уже найден</span>
                   <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+                    {{ csrf_input() }}
                     <input type="hidden" name="action" value="ignore">
                     <button class="button button-small" type="submit">{{ icon("ignore") }} Игнорировать</button>
                   </form>
@@ -186,6 +189,7 @@
                   <div class="action-title">Дубль</div>
                   <div class="primary-actions">
                     <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+                      {{ csrf_input() }}
                       <input type="hidden" name="action" value="mark_unique">
                       <button class="button button-small" type="submit">{{ icon("check") }} Это новая</button>
                     </form>
@@ -195,10 +199,12 @@
                   <summary>Еще</summary>
                   <div class="inline-actions">
                     <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+                      {{ csrf_input() }}
                       <input type="hidden" name="action" value="needs_review">
                       <button class="button button-small" type="submit">{{ icon("clipboard-check") }} На проверку</button>
                     </form>
                     <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+                      {{ csrf_input() }}
                       <input type="hidden" name="action" value="ignore">
                       <button class="button button-small" type="submit">{{ icon("ignore") }} Игнорировать</button>
                     </form>
@@ -245,6 +251,7 @@
 
                   <div class="primary-actions">
                     <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+                      {{ csrf_input() }}
                       <input type="hidden" name="action" value="confirm">
                       {% if proposal.category %}
                         <input type="hidden" name="category_id" value="{{ proposal.category.id }}">
@@ -260,10 +267,12 @@
                     <summary>Еще</summary>
                     <div class="inline-actions">
                       <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+                        {{ csrf_input() }}
                         <input type="hidden" name="action" value="needs_review">
                         <button class="button button-small" type="submit">{{ icon("clipboard-check") }} На проверку</button>
                       </form>
                       <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+                        {{ csrf_input() }}
                         <input type="hidden" name="action" value="ignore">
                         <button class="button button-small" type="submit">{{ icon("ignore") }} Игнорировать</button>
                       </form>
@@ -273,6 +282,7 @@
                   <details class="action-details action-accordion">
                     <summary>Исправить</summary>
                     <form class="action-group action-group-embedded" method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+                      {{ csrf_input() }}
                       <div class="action-title">Категория</div>
                       <input type="hidden" name="action" value="confirm">
                       <div class="action-fields">
@@ -309,6 +319,7 @@
                 <details class="action-details action-accordion">
                   <summary>Категория</summary>
                   <form class="action-group action-group-embedded" method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+                    {{ csrf_input() }}
                     <input type="hidden" name="action" value="confirm">
                     <div class="action-fields">
                       <select name="category_id" aria-label="Категория">
@@ -337,10 +348,12 @@
                   <summary>Еще</summary>
                   <div class="inline-actions">
                     <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+                      {{ csrf_input() }}
                       <input type="hidden" name="action" value="needs_review">
                       <button class="button button-small" type="submit">{{ icon("clipboard-check") }} На проверку</button>
                     </form>
                     <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+                      {{ csrf_input() }}
                       <input type="hidden" name="action" value="ignore">
                       <button class="button button-small" type="submit">{{ icon("ignore") }} Игнорировать</button>
                     </form>

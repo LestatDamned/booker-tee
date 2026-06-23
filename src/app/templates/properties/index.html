@@ -13,6 +13,7 @@
     </div>
 
     <form class="form-panel" method="post" action="/properties">
+      {{ csrf_input() }}
       <div class="field">
         <label for="name">Название</label>
         <input id="name" name="name" placeholder="Название объекта" required>
@@ -39,7 +40,7 @@
                 <span class="badge badge-{{ property.status.value }}">{{ property.status | ru }}</span>
                 <span title="{{ property.id }}">ID {{ property.id | short_id }}</span>
               </div>
-              <form class="detached-form" id="{{ property_form_id }}" method="post" action="/properties/{{ property.id }}"></form>
+              <form class="detached-form" id="{{ property_form_id }}" method="post" action="/properties/{{ property.id }}">{{ csrf_input() }}</form>
               <div class="form-panel form-panel-embedded">
                 <div class="field">
                   <label for="name-{{ property.id }}">Название</label>
@@ -59,10 +60,12 @@
               <button class="button button-small" type="submit" form="{{ property_form_id }}">{{ icon("save") }} сохранить</button>
               {% if property.status.value == "archived" %}
                 <form method="post" action="/properties/{{ property.id }}/restore">
+                  {{ csrf_input() }}
                   <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
                 </form>
               {% else %}
                 <form method="post" action="/properties/{{ property.id }}/archive">
+                  {{ csrf_input() }}
                   <button class="button button-small" type="submit">{{ icon("archive") }} в архив</button>
                 </form>
               {% endif %}

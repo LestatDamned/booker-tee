@@ -35,6 +35,7 @@
         <details class="action-details action-accordion category-edit-details">
           <summary>{{ icon("settings") }} редактировать</summary>
           <form class="form-panel form-panel-embedded" method="post" action="/categories/{{ category.id }}">
+            {{ csrf_input() }}
             <input type="hidden" name="view" value="{{ category_view }}">
             <label class="field form-field-wide">
               <span>название</span>
@@ -65,11 +66,13 @@
         <a class="button button-small" href="/reports?category_id={{ category.id }}">{{ icon("list-check") }} отчет</a>
         {% if category.is_active %}
           <form method="post" action="/categories/{{ category.id }}/archive">
+            {{ csrf_input() }}
             <input type="hidden" name="view" value="{{ category_view }}">
             <button class="button button-small" type="submit">{{ icon("archive") }} в архив</button>
           </form>
         {% else %}
           <form method="post" action="/categories/{{ category.id }}/restore">
+            {{ csrf_input() }}
             <input type="hidden" name="view" value="{{ category_view }}">
             <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
           </form>
@@ -117,6 +120,7 @@
     </nav>
 
     <form class="form-panel" method="post" action="/categories">
+      {{ csrf_input() }}
       <input type="hidden" name="view" value="{{ category_view }}">
       <div class="field form-field-wide">
         <label for="name">Название</label>

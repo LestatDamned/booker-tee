@@ -15,6 +15,7 @@
 
     {% if accounts %}
       <form class="form-panel" method="post" action="/imports/upload" enctype="multipart/form-data">
+        {{ csrf_input() }}
         <div class="field">
           <label for="account_id">Счет</label>
           <select id="account_id" name="account_id">
@@ -25,8 +26,8 @@
         </div>
 
         <div class="field form-field-wide">
-          <label for="statement_pdf">PDF-выписка</label>
-          <input id="statement_pdf" name="statement_pdf" type="file" accept="application/pdf,.pdf" required>
+          <label for="statement_pdf">PDF/XLSX-выписка</label>
+          <input id="statement_pdf" name="statement_pdf" type="file" accept="application/pdf,.pdf,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
         </div>
 
         <button class="button form-submit" type="submit">{{ icon("import") }} извлечь данные</button>

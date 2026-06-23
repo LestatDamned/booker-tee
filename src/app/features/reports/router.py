@@ -40,10 +40,7 @@ async def reports_index(
         category_id=parse_optional_query_uuid(category_id, field_name="category_id"),
         property_id=parse_optional_query_uuid(property_id, field_name="property_id"),
     )
-    accounts = await AccountService(session).list_or_create_default(
-        context.workspace.id,
-        context.workspace.default_currency,
-    )
+    accounts = await AccountService(session).list_active_accounts(context.workspace.id)
     categories = await CategoryService(session).list_or_seed_defaults(
         context.workspace.id,
         context.workspace.type,

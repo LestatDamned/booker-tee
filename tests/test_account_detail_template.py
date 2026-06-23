@@ -13,7 +13,7 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     operation_id = uuid4()
     account = SimpleNamespace(
         id=account_id,
-        name="Parser Lab Account",
+        name="Экспобанк карта",
         type=AccountType.CARD,
         currency="RUB",
         is_active=True,
@@ -54,7 +54,7 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "tone-expense" in html
     assert "amount-expense" in html
     assert "badge-expense" in html
-    assert "Parser Lab Account" in html
+    assert "Экспобанк карта" in html
     assert "Продукты" in html
     assert f"ID {str(operation_id)[:8]}" in html
     assert "<th>операция</th>" not in html

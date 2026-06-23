@@ -13,6 +13,7 @@
     </div>
 
     <form class="form-panel" method="post" action="/accounts">
+      {{ csrf_input() }}
       <label class="field form-field-wide">
         <span>название</span>
         <input name="name" placeholder="Карта, вклад, наличные" required>
@@ -69,8 +70,8 @@
       </div>
     {% else %}
       <div class="empty-state">
-        <p>Активных счетов пока нет.</p>
-        <a class="button button-small" href="/imports/upload">{{ icon("upload") }} загрузить выписку</a>
+        <strong>Добавьте первый счет</strong>
+        <span>Создайте карту, вклад, расчетный счет или наличные перед импортом выписок.</span>
       </div>
     {% endif %}
   </section>

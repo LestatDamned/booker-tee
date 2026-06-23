@@ -30,6 +30,7 @@
 
     {% if table_options %}
       <form id="mapping-form" class="form-panel mapping-form" method="post" action="/imports/documents/{{ view.id }}/mapping">
+        {{ csrf_input() }}
         <div class="field form-field-wide">
           <label>Таблица</label>
           <span class="field-note">Выбор таблицы обновит предпросмотр ниже.</span>

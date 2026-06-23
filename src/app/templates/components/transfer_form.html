@@ -5,6 +5,7 @@
     action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status"
     x-data="{ selectedAccount: '', matchedRow: '' }"
   >
+    {{ csrf_input() }}
     <input type="hidden" name="action" value="transfer">
     <div class="transfer-fields">
       <label class="field">

@@ -17,14 +17,8 @@ class AccountService:
         self.session = session
         self.accounts = AccountRepository(session)
 
-    async def list_or_create_default(self, workspace_id: UUID, currency: str) -> list[Account]:
-        accounts = await self.accounts.list_active_for_workspace(workspace_id)
-        if accounts:
-            return accounts
-
-        account = await self.accounts.create_parser_lab_account(workspace_id, currency)
-        await self.session.commit()
-        return [account]
+    async def list_active_accounts(self, workspace_id: UUID) -> list[Account]:
+        return await self.accounts.list_active_for_workspace(workspace_id)
 
     async def list_accounts(self, workspace_id: UUID) -> list[Account]:
         return await self.accounts.list_for_workspace(workspace_id)

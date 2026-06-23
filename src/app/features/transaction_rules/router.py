@@ -43,10 +43,7 @@ async def rules_index(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
-    accounts = await AccountService(session).list_or_create_default(
-        context.workspace.id,
-        context.workspace.default_currency,
-    )
+    accounts = await AccountService(session).list_active_accounts(context.workspace.id)
     categories = await CategoryService(session).list_or_seed_defaults(
         context.workspace.id,
         context.workspace.type,

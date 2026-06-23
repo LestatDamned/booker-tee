@@ -9,38 +9,34 @@
         <p class="eyebrow">финансовый рабочий стол</p>
         <h1>Booker Tee</h1>
       </div>
-      <a class="button primary-action" href="/imports/upload">{{ icon("upload") }} загрузить выписку</a>
+      <a class="button primary-action" href="/signup">{{ icon("user") }} начать настройку</a>
     </div>
     <p>
-      Импортируйте выписки, проверяйте строки, подтверждайте операции и смотрите
-      финансовый результат в одном пространстве.
+      Сначала создайте пользователя и рабочее пространство, затем добавьте счета:
+      карты, вклады, расчетные счета или наличные.
     </p>
     <div class="quick-actions">
-      <a class="quick-action" href="/workspaces">
+      <a class="quick-action" href="/signup">
         <span>1</span>
-        <strong>Выбрать пространство</strong>
+        <strong>Создать пользователя</strong>
+      </a>
+      <a class="quick-action" href="/workspaces">
+        <span>2</span>
+        <strong>Настроить пространство</strong>
       </a>
       <a class="quick-action" href="/accounts">
-        <span>2</span>
-        <strong>Настроить счета</strong>
+        <span>3</span>
+        <strong>Добавить счета</strong>
       </a>
       <a class="quick-action" href="/imports/upload">
-        <span>3</span>
+        <span>4</span>
         <strong>Загрузить выписку</strong>
       </a>
       <a class="quick-action" href="/reports">
-        <span>4</span>
+        <span>5</span>
         <strong>Открыть отчеты</strong>
       </a>
     </div>
   </section>
 
-  <section
-    class="dashboard-loader"
-    hx-get="/dashboard/summary"
-    hx-trigger="load"
-    hx-swap="outerHTML"
-  >
-    <div class="panel notice">Загружаем сводку по текущему пространству.</div>
-  </section>
 {% endblock %}

@@ -48,14 +48,12 @@ class StatementUploadUseCase:
         *,
         context: WorkspaceContext,
         upload_file: UploadFile,
-        account_id: UUID | None,
+        account_id: UUID,
     ) -> UploadedDocument:
         validate_statement_upload(upload_file)
-        account = None
-        if account_id is not None:
-            account = await self.accounts.get_for_workspace(context.workspace.id, account_id)
-            if account is None:
-                raise UploadValidationError("Selected account is not available in this workspace.")
+        account = await self.accounts.get_for_workspace(context.workspace.id, account_id)
+        if account is None:
+            raise UploadValidationError("Selected account is not available in this workspace.")
 
         document_id = uuid4()
         stored_upload = await self.storage.save_upload(
@@ -63,9 +61,7 @@ class StatementUploadUseCase:
             workspace_id=context.workspace.id,
             document_id=document_id,
         )
-        selected_currency = (
-            account.currency if account is not None else context.workspace.default_currency
-        )
+        selected_currency = account.currency
         document = await self._create_document(
             context=context,
             document_id=document_id,
@@ -74,7 +70,7 @@ class StatementUploadUseCase:
             storage_key=stored_upload.storage_key,
             sha256_hash=stored_upload.sha256_hash,
             file_size_bytes=stored_upload.file_size_bytes,
-            account_id=account.id if account is not None else None,
+            account_id=account.id,
         )
         await self.session.commit()
 

@@ -10,11 +10,13 @@
         <h1>Правила транзакций</h1>
       </div>
       <form method="post" action="/rules/seed-defaults">
+        {{ csrf_input() }}
         <button class="button" type="submit">{{ icon("import") }} загрузить базовые правила</button>
       </form>
     </div>
 
     <form class="form-panel" method="post" action="/rules">
+      {{ csrf_input() }}
       <label class="field form-field-wide">
         <span>название</span>
         <input name="name" placeholder="Название правила" required>
@@ -97,7 +99,7 @@
         {% for rule in rules %}
           {% set rule_form_id = "rule-form-" ~ rule.id %}
           <article id="rule-{{ rule.id }}" class="entity-card {% if not rule.is_active %}entity-card-inactive{% endif %}">
-            <form class="detached-form" id="{{ rule_form_id }}" method="post" action="/rules/{{ rule.id }}"></form>
+            <form class="detached-form" id="{{ rule_form_id }}" method="post" action="/rules/{{ rule.id }}">{{ csrf_input() }}</form>
             <div class="entity-card-main">
               <div class="entity-card-title">
                 <strong>
@@ -206,10 +208,12 @@
             <div class="entity-card-actions">
               <button class="button button-small" type="submit" form="{{ rule_form_id }}">{{ icon("save") }} сохранить</button>
               <form method="post" action="/rules/{{ rule.id }}/toggle">
+                {{ csrf_input() }}
                 <input type="hidden" name="is_active" value="{{ 'false' if rule.is_active else 'true' }}">
                 <button class="button button-small" type="submit">{{ icon("settings") }} {{ "выключить" if rule.is_active else "включить" }}</button>
               </form>
               <form method="post" action="/rules/{{ rule.id }}/delete">
+                {{ csrf_input() }}
                 <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
               </form>
             </div>

@@ -59,10 +59,7 @@ async def upload_form(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
-    accounts = await AccountService(session).list_or_create_default(
-        context.workspace.id,
-        context.workspace.default_currency,
-    )
+    accounts = await AccountService(session).list_active_accounts(context.workspace.id)
     page_context = UploadPageContext(accounts=accounts)
     return templates.TemplateResponse(
         request,
@@ -81,9 +78,8 @@ async def upload_statement(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
     statement_pdf: Annotated[UploadFile, File()],
-    account_id: Annotated[str | None, Form()] = None,
+    account_id: Annotated[UUID, Form()],
 ) -> Response:
-    parsed_account_id = UUID(account_id) if account_id else None
     try:
         document = await StatementUploadUseCase(
             session,
@@ -91,13 +87,10 @@ async def upload_statement(
         ).upload_and_extract_statement(
             context=context,
             upload_file=statement_pdf,
-            account_id=parsed_account_id,
+            account_id=account_id,
         )
     except UploadValidationError as exc:
-        accounts = await AccountService(session).list_or_create_default(
-            context.workspace.id,
-            context.workspace.default_currency,
-        )
+        accounts = await AccountService(session).list_active_accounts(context.workspace.id)
         page_context = UploadPageContext(accounts=accounts, error=str(exc))
         return templates.TemplateResponse(
             request,
