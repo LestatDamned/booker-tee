@@ -58,6 +58,8 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert "badge badge-suggest" in html
     assert "badge badge-outflow" in html
     assert "badge badge-expense" in html
+    assert "списание" in html
+    assert "расход" in html
     assert f'id="rule-{rule_id}"' in html
     assert f'class="detached-form" id="rule-form-{rule_id}"' in html
     assert 'type="hidden" name="name"' not in html

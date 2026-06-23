@@ -107,6 +107,35 @@ def test_infer_rule_pattern_extracts_expobank_merchant() -> None:
     assert infer_rule_pattern(raw) == "KRASNOE&BELOE"
 
 
+def test_normalized_text_simplifies_merchant_noise() -> None:
+    assert normalized_text("YANDEX*GO") == "yandex go"
+    assert normalized_text("YANDEX 4121 GO") == "yandex go"
+    assert normalized_text("SBER*5411*SAMOKA") == "sber samoka"
+    assert normalized_text("wildberries.ru") == "wildberries ru"
+
+
+def test_contains_rule_matches_noisy_yandex_go_variants() -> None:
+    workspace_id = uuid4()
+    rule = transaction_rule(
+        workspace_id=workspace_id,
+        category_id=uuid4(),
+        pattern="YANDEX GO",
+    )
+    raw = make_raw_transaction(
+        workspace_id=workspace_id,
+        amount=Decimal("-320.00"),
+        description="Оплата YANDEX*GO",
+    )
+
+    assert rule_matches_raw_transaction(rule, raw)
+
+    raw.description_normalized = "YANDEX 4121 GO"
+    assert rule_matches_raw_transaction(rule, raw)
+
+    raw.description_normalized = "YANDEX PLUS"
+    assert not rule_matches_raw_transaction(rule, raw)
+
+
 def test_default_merchant_rule_suggests_products_for_krasnoe_beloe() -> None:
     workspace_id = uuid4()
     products_category_id = uuid4()
@@ -141,7 +170,7 @@ def test_default_merchant_rules_include_collected_user_patterns() -> None:
 
     assert seeds_by_pattern["FASOL"].category_name == "Продукты"
     assert seeds_by_pattern["T-Mobile"].category_name == "Связь и интернет"
-    assert seeds_by_pattern["YANDEX*GO"].category_name == "Такси"
+    assert seeds_by_pattern["YANDEX GO"].category_name == "Такси"
     assert seeds_by_pattern["OZON"].category_name == "Маркетплейсы"
     assert seeds_by_pattern["wildberries.ru"].category_name == "Маркетплейсы"
     assert seeds_by_pattern["YANDEX PLUS"].category_name == "Подписки и сервисы"

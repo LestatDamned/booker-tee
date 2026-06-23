@@ -37,10 +37,17 @@ class IncomeExpenseSummary:
 
 @dataclass(frozen=True)
 class CategorySummaryRow:
+    category_id: UUID | None
     category_name: str
     income: Decimal
     expense: Decimal
     profit: Decimal
+
+
+@dataclass(frozen=True)
+class CategorySummaryKey:
+    category_id: UUID | None
+    category_name: str
 
 
 @dataclass(frozen=True)
@@ -126,23 +133,28 @@ def summarize_income_expense(operations: list[Operation]) -> IncomeExpenseSummar
 
 
 def summarize_by_category(operations: list[Operation]) -> list[CategorySummaryRow]:
-    grouped: dict[str, list[Operation]] = {}
+    grouped: dict[CategorySummaryKey, list[Operation]] = {}
     for operation in operations:
-        category_name = operation.category.name if operation.category else "Без категории"
-        grouped.setdefault(category_name, []).append(operation)
+        category = operation.category
+        if category is None or category.system_key == "uncategorized":
+            key = CategorySummaryKey(category_id=None, category_name="Без категории")
+        else:
+            key = CategorySummaryKey(category_id=category.id, category_name=category.name)
+        grouped.setdefault(key, []).append(operation)
     return [
         CategorySummaryRow(
-            category_name=category_name,
+            category_id=key.category_id,
+            category_name=key.category_name,
             income=summary.income,
             expense=summary.expense,
             profit=summary.profit,
         )
-        for category_name, summary in sorted(
+        for key, summary in sorted(
             (
-                (category_name, summarize_income_expense(category_operations))
-                for category_name, category_operations in grouped.items()
+                (key, summarize_income_expense(category_operations))
+                for key, category_operations in grouped.items()
             ),
-            key=lambda item: item[0],
+            key=lambda item: item[0].category_name,
         )
     ]
 

@@ -11,6 +11,7 @@ from app.features.properties.models import Property
 from app.features.reports.router import parse_optional_query_date, parse_optional_query_uuid
 from app.features.reports.service import (
     list_uncategorized_operations,
+    summarize_by_category,
     summarize_by_property,
     summarize_income_expense,
 )
@@ -55,6 +56,39 @@ def test_property_summary_uses_only_property_linked_profit_operations() -> None:
     assert rows[0].income == Decimal("100.00")
     assert rows[0].expense == Decimal("30.00")
     assert rows[0].profit == Decimal("70.00")
+
+
+def test_category_summary_exposes_links_only_for_real_categories() -> None:
+    category_id = uuid4()
+    categorized = Category(
+        id=category_id,
+        workspace_id=uuid4(),
+        name="Продукты",
+        kind=CategoryKind.EXPENSE,
+    )
+    uncategorized = Category(
+        id=uuid4(),
+        workspace_id=uuid4(),
+        name="Без категории",
+        kind=CategoryKind.MIXED,
+        is_system=True,
+        system_key="uncategorized",
+    )
+    operations = [
+        operation_with_entry(OperationType.EXPENSE, Decimal("-40.00"), category=categorized),
+        operation_with_entry(OperationType.INCOME, Decimal("20.00"), category=uncategorized),
+        operation_with_entry(OperationType.EXPENSE, Decimal("-10.00")),
+    ]
+
+    rows = summarize_by_category(operations)
+
+    assert [(row.category_name, row.category_id) for row in rows] == [
+        ("Без категории", None),
+        ("Продукты", category_id),
+    ]
+    assert rows[0].income == Decimal("20.00")
+    assert rows[0].expense == Decimal("10.00")
+    assert rows[1].expense == Decimal("40.00")
 
 
 def test_uncategorized_report_includes_missing_or_uncategorized_system_category() -> None:

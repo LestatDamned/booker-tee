@@ -9,6 +9,7 @@ from app.templating import create_templates
 
 def test_reports_template_marks_financial_tones() -> None:
     account_id = uuid4()
+    category_id = uuid4()
     operation = SimpleNamespace(
         operation_date="2026-06-13",
         type=OperationType.EXPENSE,
@@ -44,6 +45,7 @@ def test_reports_template_marks_financial_tones() -> None:
             ],
             categories=[
                 SimpleNamespace(
+                    category_id=category_id,
                     category_name="Продукты",
                     income=Decimal("0.00"),
                     expense=Decimal("40.00"),
@@ -64,6 +66,7 @@ def test_reports_template_marks_financial_tones() -> None:
     assert "<small>RUB</small>" in html
     assert "report-table" in html
     assert 'data-label="прибыль"' in html
+    assert f'href="/categories/{category_id}"' in html
     assert "amount-income" in html
     assert "amount-expense" in html
     assert "badge-expense" in html

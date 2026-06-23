@@ -43,6 +43,7 @@ class Category(Base):
         Enum(CategoryKind, values_callable=enum_values, name="category_kind"),
         default=CategoryKind.MIXED,
     )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)
     system_key: Mapped[str | None] = mapped_column(String(64))
     sort_order: Mapped[int] = mapped_column(Integer, default=100)

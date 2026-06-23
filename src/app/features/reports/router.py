@@ -47,6 +47,7 @@ async def reports_index(
     categories = await CategoryService(session).list_or_seed_defaults(
         context.workspace.id,
         context.workspace.type,
+        include_inactive=True,
     )
     properties = await PropertyService(session).list_active(context.workspace.id)
     overview = await ReportsService(session).build_overview(

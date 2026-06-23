@@ -2,6 +2,102 @@
 
 {% block title %}Категории · {{ app_name }}{% endblock %}
 
+{% macro category_card(row, kinds, category_view) %}
+  {% set category = row.category %}
+  <article class="entity-card {% if category.is_system %}entity-card-readonly{% endif %} {% if not category.is_active %}entity-card-inactive{% endif %}">
+    <div class="entity-card-main">
+      <div class="entity-card-title">
+        <strong>{{ category.name }}</strong>
+        <span class="badge badge-{{ category.kind.value }}">{{ category.kind | ru }}</span>
+        {% if category.is_system %}
+          <span class="badge badge-muted">системная</span>
+        {% endif %}
+        {% if not category.is_active %}
+          <span class="badge badge-archived">архив</span>
+        {% endif %}
+      </div>
+      <div class="entity-card-meta">
+        {% if category.system_key %}
+          <span>{{ category.system_key }}</span>
+        {% endif %}
+        <a class="meta-link" href="/categories/{{ category.id }}">{{ row.operation_count }} операций</a>
+        <a class="meta-link" href="/categories/{{ category.id }}#rules">{{ row.rule_count }} правил</a>
+        <details class="technical-details">
+          <summary>ID</summary>
+          <span>{{ category.id }}</span>
+        </details>
+      </div>
+      {% if category.notes %}
+        <p class="muted-text">{{ category.notes }}</p>
+      {% endif %}
+
+      {% if not category.is_system %}
+        <details class="action-details action-accordion category-edit-details">
+          <summary>{{ icon("settings") }} редактировать</summary>
+          <form class="form-panel form-panel-embedded" method="post" action="/categories/{{ category.id }}">
+            <input type="hidden" name="view" value="{{ category_view }}">
+            <label class="field form-field-wide">
+              <span>название</span>
+              <input name="name" value="{{ category.name }}" required>
+            </label>
+            <label class="field">
+              <span>тип</span>
+              <select name="kind">
+                {% for editable_kind in kinds %}
+                  <option value="{{ editable_kind.value }}" {% if category.kind == editable_kind %}selected{% endif %}>
+                    {{ editable_kind | ru }}
+                  </option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field form-field-wide">
+              <span>заметка</span>
+              <input name="notes" value="{{ category.notes or "" }}" placeholder="Когда использовать">
+            </label>
+            <button class="button button-small form-submit" type="submit">{{ icon("save") }} сохранить</button>
+          </form>
+        </details>
+      {% endif %}
+    </div>
+    {% if not category.is_system %}
+      <div class="entity-card-actions">
+        <a class="button button-small" href="/categories/{{ category.id }}">{{ icon("file-text") }} операции</a>
+        <a class="button button-small" href="/reports?category_id={{ category.id }}">{{ icon("list-check") }} отчет</a>
+        {% if category.is_active %}
+          <form method="post" action="/categories/{{ category.id }}/archive">
+            <input type="hidden" name="view" value="{{ category_view }}">
+            <button class="button button-small" type="submit">{{ icon("archive") }} в архив</button>
+          </form>
+        {% else %}
+          <form method="post" action="/categories/{{ category.id }}/restore">
+            <input type="hidden" name="view" value="{{ category_view }}">
+            <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endif %}
+  </article>
+{% endmacro %}
+
+{% macro category_group(title, rows, kinds, category_view) %}
+  {% if rows %}
+    {% for kind in kinds %}
+      {% set kind_rows = rows | selectattr("category.kind", "equalto", kind) | list %}
+      {% if kind_rows %}
+        <div class="section-heading">
+          <p class="eyebrow">{{ title }}</p>
+          <h2>{{ kind | ru }}</h2>
+        </div>
+        <div class="entity-card-list">
+          {% for row in kind_rows %}
+            {{ category_card(row, kinds, category_view) }}
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+{% endmacro %}
+
 {% block content %}
   <section class="panel stack">
     <div class="toolbar">
@@ -12,7 +108,16 @@
       <a class="button" href="/reports">{{ icon("list-check") }} отчеты</a>
     </div>
 
+    <nav class="filter-tabs" aria-label="Фильтр категорий">
+      {% for value, label in category_view_options %}
+        <a class="filter-tab {% if category_view == value %}filter-tab-active{% endif %}" href="/categories{% if value != "active" %}?view={{ value }}{% endif %}">
+          {{ label }}
+        </a>
+      {% endfor %}
+    </nav>
+
     <form class="form-panel" method="post" action="/categories">
+      <input type="hidden" name="view" value="{{ category_view }}">
       <div class="field form-field-wide">
         <label for="name">Название</label>
         <input id="name" name="name" placeholder="Название категории" required>
@@ -25,35 +130,27 @@
           {% endfor %}
         </select>
       </div>
+      <div class="field form-field-wide">
+        <label for="notes">Заметка</label>
+        <input id="notes" name="notes" placeholder="Когда использовать эту категорию">
+      </div>
       <button class="button form-submit" type="submit">{{ icon("plus") }} добавить</button>
     </form>
 
-    {% if categories %}
-      <div class="entity-card-list">
-        {% for category in categories %}
-          <article class="entity-card entity-card-readonly">
-            <div class="entity-card-main">
-              <div class="entity-card-title">
-                <strong>{{ category.name }}</strong>
-                <span class="badge badge-{{ category.kind.value }}">{{ category.kind | ru }}</span>
-                {% if category.is_system %}
-                  <span class="badge badge-muted">системная</span>
-                {% endif %}
-              </div>
-              <div class="entity-card-meta">
-                {% if category.system_key %}
-                  <span>{{ category.system_key }}</span>
-                {% endif %}
-                <span title="{{ category.id }}">ID {{ category.id | short_id }}</span>
-              </div>
-            </div>
-          </article>
-        {% endfor %}
-      </div>
+    {% if user_category_rows or system_category_rows %}
+      {{ category_group("пользовательские", user_category_rows, kinds, category_view) }}
+
+      {% if system_category_rows %}
+        <div class="section-heading">
+          <p class="eyebrow">{{ system_category_rows|length }} служебных категорий</p>
+          <h2>Системные</h2>
+        </div>
+        {{ category_group("служебные", system_category_rows, kinds, category_view) }}
+      {% endif %}
     {% else %}
       <div class="empty-state">
-        <strong>Категорий пока нет</strong>
-        <span>Добавьте первую категорию для доходов, расходов или переводов.</span>
+        <strong>Категорий не найдено</strong>
+        <span>Измените фильтр или добавьте новую категорию.</span>
       </div>
     {% endif %}
   </section>

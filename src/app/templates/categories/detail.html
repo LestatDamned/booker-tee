@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}{{ detail.category.name }} · {{ app_name }}{% endblock %}
+
+{% block content %}
+  <section class="panel stack">
+    <div class="toolbar">
+      <div>
+        <p class="eyebrow">{{ workspace.name }}</p>
+        <h1>{{ detail.category.name }}</h1>
+      </div>
+      <a class="button" href="/categories">{{ icon("tag") }} категории</a>
+    </div>
+
+    <div class="entity-card entity-card-readonly {% if not detail.category.is_active %}entity-card-inactive{% endif %}">
+      <div class="entity-card-main">
+        <div class="entity-card-title">
+          <strong>{{ detail.category.name }}</strong>
+          <span class="badge badge-{{ detail.category.kind.value }}">{{ detail.category.kind | ru }}</span>
+          {% if detail.category.is_system %}
+            <span class="badge badge-muted">системная</span>
+          {% endif %}
+          {% if not detail.category.is_active %}
+            <span class="badge badge-archived">архив</span>
+          {% endif %}
+        </div>
+        <div class="entity-card-meta">
+          <span>{{ detail.operations|length }} операций</span>
+          <a class="meta-link" href="#rules">{{ detail.rules|length }} правил</a>
+          <a class="meta-link" href="/reports?category_id={{ detail.category.id }}">общий отчет</a>
+        </div>
+        {% if detail.category.notes %}
+          <p class="muted-text">{{ detail.category.notes }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="summary-grid kpi-strip">
+      <div>
+        <span>доходы</span>
+        <strong class="money-value money-income">{{ detail.summary.income }} <small>{{ workspace.default_currency }}</small></strong>
+      </div>
+      <div>
+        <span>расходы</span>
+        <strong class="money-value money-expense">{{ detail.summary.expense }} <small>{{ workspace.default_currency }}</small></strong>
+      </div>
+      <div>
+        <span>прибыль</span>
+        <strong class="money-value money-profit">{{ detail.summary.profit }} <small>{{ workspace.default_currency }}</small></strong>
+      </div>
+    </div>
+
+    <div class="section-heading">
+      <p class="eyebrow">{{ detail.operations|length }} подтвержденных операций</p>
+      <h2>Операции</h2>
+    </div>
+    {% if detail.operations %}
+      <div class="table-scroll">
+        <table class="table report-table">
+          <thead>
+            <tr>
+              <th>дата</th>
+              <th>тип</th>
+              <th>счет</th>
+              <th>описание</th>
+              <th>объект</th>
+              <th>сумма</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in detail.operations %}
+              {% set operation = row.operation %}
+              {% set first_entry = operation.money_entries[0] if operation.money_entries else none %}
+              <tr>
+                <td class="status" data-label="дата">{{ operation.operation_date | date_ru }}</td>
+                <td data-label="тип"><span class="badge badge-{{ operation.type.value }}">{{ operation.type | ru }}</span></td>
+                <td data-label="счет">{{ first_entry.account.name if first_entry and first_entry.account else "счет не найден" }}</td>
+                <td data-label="описание">{{ operation.description or "" }}</td>
+                <td data-label="объект">{{ operation.property.name if operation.property else "" }}</td>
+                <td class="amount {% if row.total > 0 %}amount-income{% elif row.total < 0 %}amount-expense{% endif %}" data-label="сумма">{{ row.total }} {{ first_entry.currency if first_entry else workspace.default_currency }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="notice">По этой категории пока нет подтвержденных операций.</div>
+    {% endif %}
+
+    <div id="rules" class="section-heading">
+      <p class="eyebrow">{{ detail.rules|length }} правил</p>
+      <h2>Правила</h2>
+    </div>
+    {% if detail.rules %}
+      <div class="entity-card-list">
+        {% for rule in detail.rules %}
+          <article class="entity-card {% if not rule.is_active %}entity-card-inactive{% endif %}">
+            <div class="entity-card-main">
+              <div class="entity-card-title">
+                <strong>{{ rule.pattern }}</strong>
+                {% if rule.is_active %}
+                  <span class="badge badge-confirmed">активно</span>
+                {% else %}
+                  <span class="badge badge-muted">выключено</span>
+                {% endif %}
+              </div>
+              <div class="entity-card-meta">
+                <span>{{ rule.match_type | ru }}</span>
+                <span class="badge badge-{{ rule.application_mode.value }}">{{ rule.application_mode | ru }}</span>
+                <span class="badge badge-{{ rule.direction.value }}">{{ rule.direction | ru }}</span>
+                {% if rule.target_operation_type %}
+                  <span class="badge badge-{{ rule.target_operation_type.value }}">{{ rule.target_operation_type | ru }}</span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="entity-card-actions">
+              <a class="button button-small" href="/rules#rule-{{ rule.id }}">{{ icon("settings") }} правило</a>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="notice">Для этой категории пока нет правил автокатегоризации.</div>
+    {% endif %}
+  </section>
+{% endblock %}

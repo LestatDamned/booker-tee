@@ -38,4 +38,15 @@ def build_rule_name(
 
 
 def normalized_text(value: str | None) -> str:
-    return " ".join((value or "").casefold().split())
+    tokens: list[str] = []
+    token_chars: list[str] = []
+    for char in (value or "").casefold():
+        if char.isalnum():
+            token_chars.append(char)
+            continue
+        if token_chars:
+            tokens.append("".join(token_chars))
+            token_chars = []
+    if token_chars:
+        tokens.append("".join(token_chars))
+    return " ".join(token for token in tokens if not token.isdecimal())

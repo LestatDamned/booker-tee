@@ -35,6 +35,27 @@ class TransactionRuleRepository:
         )
         return list(result.scalars().all())
 
+    async def list_for_category(
+        self,
+        *,
+        workspace_id: UUID,
+        category_id: UUID,
+    ) -> list[TransactionRule]:
+        result = await self.session.execute(
+            select(TransactionRule)
+            .options(
+                selectinload(TransactionRule.category),
+                selectinload(TransactionRule.property),
+                selectinload(TransactionRule.account),
+            )
+            .where(
+                TransactionRule.workspace_id == workspace_id,
+                TransactionRule.category_id == category_id,
+            )
+            .order_by(TransactionRule.priority, TransactionRule.name)
+        )
+        return list(result.scalars().all())
+
     async def get_for_workspace(
         self,
         workspace_id: UUID,

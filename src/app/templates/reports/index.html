@@ -100,7 +100,13 @@
       <tbody>
         {% for row in overview.categories %}
           <tr>
-            <td data-label="категория">{{ row.category_name }}</td>
+            <td data-label="категория">
+              {% if row.category_id %}
+                <a href="/categories/{{ row.category_id }}">{{ row.category_name }}</a>
+              {% else %}
+                {{ row.category_name }}
+              {% endif %}
+            </td>
             <td class="amount amount-income" data-label="доходы">{{ row.income }}</td>
             <td class="amount amount-expense" data-label="расходы">{{ row.expense }}</td>
             <td class="amount amount-profit" data-label="прибыль">{{ row.profit }}</td>
