@@ -6,6 +6,7 @@ from app.features.imports.parsing.parsers.alfabank.xlsx import AlfabankXlsxState
 from app.features.imports.parsing.parsers.expobank.card import ExpobankCardStatementParser
 from app.features.imports.parsing.parsers.ozon_bank.card import OzonBankCardStatementParser
 from app.features.imports.parsing.parsers.sberbank.card import SberbankCardStatementParser
+from app.features.imports.parsing.parsers.tbank.card import TbankCardStatementParser
 from app.features.imports.parsing.parsers.vtb.card import VtbCardStatementParser
 from app.features.imports.parsing.parsers.vtb.deposit import VtbDepositStatementParser
 
@@ -29,6 +30,7 @@ def default_statement_parser_registry() -> StatementParserRegistry:
         parsers=(
             AlfabankXlsxStatementParser(),
             OzonBankCardStatementParser(),
+            TbankCardStatementParser(),
             SberbankCardStatementParser(),
             VtbCardStatementParser(),
             VtbDepositStatementParser(),
