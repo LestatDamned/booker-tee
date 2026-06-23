@@ -1,0 +1,31 @@
+<dialog class="review-dialog" x-ref="categoryDialog">
+  <form
+    class="review-dialog-panel"
+    method="post"
+    action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/categories"
+  >
+    {{ csrf_input() }}
+    <div class="action-title">Новая категория</div>
+    <label class="field">
+      <span>Название</span>
+      <input name="name" placeholder="например, Здоровье" required autofocus>
+    </label>
+    <label class="field">
+      <span>Тип</span>
+      <select name="kind">
+        {% for kind in category_kinds %}
+          <option
+            value="{{ kind.value }}"
+            {% if (row.amount and row.amount < 0 and kind.value == "expense") or (row.amount and row.amount > 0 and kind.value == "income") or ((not row.amount or row.amount == 0) and kind.value == "mixed") %}selected{% endif %}
+          >
+            {{ kind | ru }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="inline-actions">
+      <button class="button button-small" type="submit">{{ icon("plus") }} Создать</button>
+      <button class="button button-small" type="button" @click="$refs.categoryDialog.close()">Отмена</button>
+    </div>
+  </form>
+</dialog>

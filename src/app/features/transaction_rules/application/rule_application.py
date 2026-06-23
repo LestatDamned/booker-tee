@@ -21,6 +21,7 @@ from app.features.transaction_rules.repository import TransactionRuleRepository
 class RuleApplicationSummary:
     checked_count: int
     suggested_count: int
+    updated_raw_transaction_ids: frozenset[UUID] = frozenset()
 
 
 class TransactionRuleApplicationUseCase:
@@ -54,18 +55,34 @@ class TransactionRuleApplicationUseCase:
         rules = await self.rules.list_active_for_workspace(workspace_id)
         suggested_count = 0
         checked_count = 0
+        updated_raw_transaction_ids: set[UUID] = set()
         for raw_transaction in raw_transactions:
             if not can_suggest_raw_transaction(raw_transaction):
                 continue
             checked_count += 1
+            before = raw_rule_state(raw_transaction)
             clear_rule_suggestion(raw_transaction)
             for rule in rules:
                 if rule_matches_raw_transaction(rule, raw_transaction):
                     apply_rule_suggestion(raw_transaction, rule)
                     suggested_count += 1
                     break
+            if raw_rule_state(raw_transaction) != before:
+                updated_raw_transaction_ids.add(raw_transaction.id)
         await self.session.flush()
         return RuleApplicationSummary(
             checked_count=checked_count,
             suggested_count=suggested_count,
+            updated_raw_transaction_ids=frozenset(updated_raw_transaction_ids),
         )
+
+
+def raw_rule_state(raw_transaction: RawTransaction) -> tuple[object, ...]:
+    return (
+        raw_transaction.status,
+        raw_transaction.suggested_category_id,
+        raw_transaction.suggested_property_id,
+        raw_transaction.suggested_operation_type,
+        raw_transaction.suggested_by_rule_id,
+        (raw_transaction.raw_payload or {}).get("rule_suggestion"),
+    )

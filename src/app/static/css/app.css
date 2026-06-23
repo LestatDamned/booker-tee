@@ -1489,11 +1489,36 @@ pre {
   text-transform: uppercase;
 }
 
+.inline-create-button {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-bottom: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  padding: 0;
+  font: inherit;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.inline-create-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.inline-create-button:hover {
+  color: var(--green);
+  border-bottom-color: var(--green);
+}
+
 .action-details summary {
   min-height: 44px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   list-style: none;
   cursor: pointer;
@@ -1505,6 +1530,7 @@ pre {
 
 .action-details summary::after {
   content: "+";
+  justify-self: end;
   color: var(--muted);
 }
 
@@ -1571,6 +1597,36 @@ pre {
 
 .review-proposal {
   border-left-color: var(--accent);
+}
+
+.review-dialog {
+  width: min(420px, calc(100vw - 28px));
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0;
+}
+
+.review-dialog::backdrop {
+  background: rgba(17, 17, 27, 0.82);
+}
+
+.review-dialog-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.review-dialog .field {
+  display: grid;
+  gap: 6px;
+}
+
+.review-dialog .button {
+  white-space: normal;
 }
 
 .inline-actions {

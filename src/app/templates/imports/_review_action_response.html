@@ -1,0 +1,11 @@
+{% set row = current_row %}
+{% set review_item_oob = false %}
+{% include "imports/_review_item.html" %}
+
+{% for sibling_row in document.raw_transactions %}
+  {% if sibling_row.id in oob_raw_transaction_ids %}
+    {% set row = sibling_row %}
+    {% set review_item_oob = true %}
+    {% include "imports/_review_item.html" %}
+  {% endif %}
+{% endfor %}

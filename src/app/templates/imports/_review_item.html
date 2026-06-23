@@ -1,0 +1,300 @@
+{% from "components/operation_ref.html" import operation_ref %}
+{% from "components/transfer_form.html" import transfer_form %}
+
+{% set rule_suggestion = row.raw_payload.get("rule_suggestion") if row.raw_payload else none %}
+{% set rule_auto_applied = rule_suggestion and rule_suggestion.get("application_mode") == "auto_apply" %}
+{% set row_balance_problems = balance_chain_problems.get(row.row_index, []) %}
+{% set open_category_editor = open_category_editor_by_row.get(row.id) if open_category_editor_by_row is defined else false %}
+{% set selected_category_id = selected_category_id_by_row.get(row.id) if selected_category_id_by_row is defined else row.suggested_category_id %}
+{% set proposal = namespace(category=none, property=none) %}
+{% for category in categories %}
+  {% if selected_category_id == category.id or ((not selected_category_id) and category.system_key == "uncategorized") %}
+    {% set proposal.category = category %}
+  {% endif %}
+{% endfor %}
+{% for property in properties %}
+  {% if row.suggested_property_id == property.id %}
+    {% set proposal.property = property %}
+  {% endif %}
+{% endfor %}
+
+<article
+  class="review-item review-status-{{ row.status.value }}"
+  id="raw-{{ row.id }}"
+  hx-boost="true"
+  hx-target="#raw-{{ row.id }}"
+  hx-swap="outerHTML show:none"
+  hx-push-url="false"
+  x-data
+  {% if review_item_oob is defined and review_item_oob %}hx-swap-oob="true"{% endif %}
+>
+  <div class="review-main">
+    <div class="review-meta">
+      <span><strong>#</strong>{{ row.row_index }}</span>
+      <span class="badge badge-{{ row.status.value }}">{{ row.status | ru }}</span>
+      <span>{{ (row.operation_date or row.operation_date_raw or "") | date_ru }}</span>
+      <span class="review-money money-value {% if row.amount and row.amount > 0 %}money-income{% elif row.amount and row.amount < 0 %}money-expense{% endif %}">{{ row.amount or row.amount_raw or "" }} <small>{{ row.currency or "" }}</small></span>
+    </div>
+    <div class="review-description">{{ row.description_normalized or row.description_raw or "" }}</div>
+    <div class="review-flags">
+      {% if row.normalization_error %}
+        <span>{{ row.normalization_error }}</span>
+      {% endif %}
+      {% for problem in row_balance_problems %}
+        <span>{{ problem }}</span>
+      {% endfor %}
+      {% if row.suggested_by_rule_id %}
+        <span>
+          {{ "автоприменено правило" if rule_auto_applied else "совет правила" }}{% if rule_suggestion and rule_suggestion.get("pattern") %}: {{ rule_suggestion.get("pattern") }}{% endif %}
+        </span>
+      {% endif %}
+      {% if row.linked_operation_id %}
+        {% if row.linked_operation %}
+          {% set route = namespace(from_entry=none, to_entry=none) %}
+          {% for entry in row.linked_operation.money_entries %}
+            {% if entry.amount < 0 and route.from_entry is none %}{% set route.from_entry = entry %}{% endif %}
+            {% if entry.amount > 0 and route.to_entry is none %}{% set route.to_entry = entry %}{% endif %}
+          {% endfor %}
+          {% if row.linked_operation.type.value == "transfer" %}
+            <span>
+              перевод:
+              {{ route.from_entry.account.name if route.from_entry and route.from_entry.account else "счет не найден" }}
+              ->
+              {{ route.to_entry.account.name if route.to_entry and route.to_entry.account else "счет не найден" }}
+            </span>
+          {% else %}
+            <span>
+              операция: {{ row.linked_operation.operation_date | date_ru }} · <span class="badge badge-{{ row.linked_operation.type.value }}">{{ row.linked_operation.type | ru }}</span>
+              {% if route.to_entry and route.to_entry.account %} · на {{ route.to_entry.account.name }}{% endif %}
+              {% if route.from_entry and route.from_entry.account %} · с {{ route.from_entry.account.name }}{% endif %}
+            </span>
+          {% endif %}
+          <span title="{{ row.linked_operation_id }}">ID {{ row.linked_operation_id | short_id }}</span>
+        {% else %}
+          <span title="{{ row.linked_operation_id }}">операция ID {{ row.linked_operation_id | short_id }}</span>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="review-actions">
+    {% if row.linked_operation_id %}
+      <div class="operation-ref-wrap">
+        {% if row.linked_operation %}
+          {{ operation_ref(row.linked_operation, row.linked_operation_id, "Проведено") }}
+        {% else %}
+          <div class="operation-ref">
+            <div class="action-title">Проведено</div>
+            <div class="operation-ref-meta">
+              <span title="{{ row.linked_operation_id }}">ID {{ row.linked_operation_id | short_id }}</span>
+            </div>
+          </div>
+        {% endif %}
+        <details class="action-details">
+          <summary>Исправить</summary>
+          <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/undo-posting">
+            {{ csrf_input() }}
+            <button class="button button-small button-danger" type="submit">{{ icon("rotate-ccw") }} Отменить проведение</button>
+          </form>
+        </details>
+      </div>
+    {% elif row.status.value == "duplicate" %}
+      <div class="action-group">
+        <div class="action-title">Дубль</div>
+        <span class="status">уже найден</span>
+        <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+          {{ csrf_input() }}
+          <input type="hidden" name="action" value="ignore">
+          <button class="button button-small" type="submit">{{ icon("ignore") }} Игнорировать</button>
+        </form>
+      </div>
+    {% elif row.status.value == "possible_duplicate" %}
+      <div class="action-group">
+        <div class="action-title">Дубль</div>
+        <div class="primary-actions">
+          <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+            {{ csrf_input() }}
+            <input type="hidden" name="action" value="mark_unique">
+            <button class="button button-small" type="submit">{{ icon("check") }} Это новая</button>
+          </form>
+        </div>
+      </div>
+      <details class="action-details action-accordion">
+        <summary>Еще</summary>
+        <div class="inline-actions">
+          <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+            {{ csrf_input() }}
+            <input type="hidden" name="action" value="needs_review">
+            <button class="button button-small" type="submit">{{ icon("clipboard-check") }} На проверку</button>
+          </form>
+          <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+            {{ csrf_input() }}
+            <input type="hidden" name="action" value="ignore">
+            <button class="button button-small" type="submit">{{ icon("ignore") }} Игнорировать</button>
+          </form>
+        </div>
+      </details>
+      <details class="action-details action-accordion">
+        {% set suggestions = transfer_suggestions.get(row.id, []) %}
+        <summary>Перевод</summary>
+        {{ transfer_form(document, row, accounts, suggestions) }}
+      </details>
+    {% elif row.suggested_by_rule_id or row.status.value == "suggested" %}
+      <div class="operation-ref-wrap">
+        <div class="operation-ref review-proposal">
+          <div class="action-title">{{ "Автопредложено" if rule_auto_applied else "Предложено" }}</div>
+          <div class="operation-ref-title">
+            {{ (row.operation_date or row.operation_date_raw or "") | date_ru }}
+            ·
+            {% if row.suggested_operation_type %}
+              <span class="badge badge-{{ row.suggested_operation_type.value }}">{{ row.suggested_operation_type | ru }}</span>
+            {% elif row.amount and row.amount < 0 %}
+              расход
+            {% elif row.amount and row.amount > 0 %}
+              доход
+            {% else %}
+              операция
+            {% endif %}
+          </div>
+          <div class="operation-route">
+            <span>категория</span>
+            <strong>{{ proposal.category.name if proposal.category else "без категории" }}</strong>
+            <span>объект</span>
+            <strong>{{ proposal.property.name if proposal.property else "без объекта" }}</strong>
+          </div>
+          <div class="operation-ref-description">{{ row.description_normalized or row.description_raw or "" }}</div>
+          <div class="operation-ref-meta">
+            {% if rule_suggestion and rule_suggestion.get("pattern") %}
+              <span>{{ "автоправило" if rule_auto_applied else "совет" }}: {{ rule_suggestion.get("pattern") }}</span>
+            {% endif %}
+            {% if row.suggested_by_rule_id %}
+              <span title="{{ row.suggested_by_rule_id }}">ID {{ row.suggested_by_rule_id | short_id }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="primary-actions">
+          <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+            {{ csrf_input() }}
+            <input type="hidden" name="action" value="confirm">
+            {% if proposal.category %}
+              <input type="hidden" name="category_id" value="{{ proposal.category.id }}">
+            {% endif %}
+            {% if proposal.property %}
+              <input type="hidden" name="property_id" value="{{ proposal.property.id }}">
+            {% endif %}
+            <button class="button button-small" type="submit">{{ icon("check") }} Подтвердить</button>
+          </form>
+        </div>
+
+        <details class="action-details action-accordion" {% if open_category_editor %}open{% endif %}>
+          <summary>Еще</summary>
+          <div class="inline-actions">
+            <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+              {{ csrf_input() }}
+              <input type="hidden" name="action" value="needs_review">
+              <button class="button button-small" type="submit">{{ icon("clipboard-check") }} На проверку</button>
+            </form>
+            <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+              {{ csrf_input() }}
+              <input type="hidden" name="action" value="ignore">
+              <button class="button button-small" type="submit">{{ icon("ignore") }} Игнорировать</button>
+            </form>
+          </div>
+        </details>
+
+        <details class="action-details action-accordion">
+          <summary>
+            <span>Исправить</span>
+            <button class="inline-create-button" type="button" @click.stop="$refs.categoryDialog.showModal()">{{ icon("plus") }} новая</button>
+          </summary>
+          <form class="action-group action-group-embedded" method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+            {{ csrf_input() }}
+            <input type="hidden" name="action" value="confirm">
+            <div class="action-fields">
+              <select name="category_id" aria-label="Категория">
+                {% for category in categories %}
+                  <option value="{{ category.id }}" {% if selected_category_id == category.id or ((not selected_category_id) and category.system_key == "uncategorized") %}selected{% endif %}>
+                    {{ category.name }}
+                  </option>
+                {% endfor %}
+              </select>
+              <select name="property_id" aria-label="Объект">
+                <option value="">без объекта</option>
+                {% for property in properties %}
+                  <option value="{{ property.id }}" {% if row.suggested_property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <label class="remember-rule">
+              <input type="checkbox" name="remember_rule" value="1">
+              <span>Создать правило</span>
+            </label>
+            <input name="rule_pattern" placeholder="например, KRASNOE&BELOE">
+            <button class="button button-small" type="submit">{{ icon("save") }} Сохранить и подтвердить</button>
+          </form>
+          {% include "imports/_review_category_dialog.html" %}
+        </details>
+
+        <details class="action-details action-accordion">
+          {% set suggestions = transfer_suggestions.get(row.id, []) %}
+          <summary>Перевод</summary>
+          {{ transfer_form(document, row, accounts, suggestions) }}
+        </details>
+      </div>
+    {% else %}
+      <details class="action-details action-accordion" {% if open_category_editor %}open{% endif %}>
+        <summary>
+          <span>Категория</span>
+          <button class="inline-create-button" type="button" @click.stop="$refs.categoryDialog.showModal()">{{ icon("plus") }} новая</button>
+        </summary>
+        <form class="action-group action-group-embedded" method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+          {{ csrf_input() }}
+          <input type="hidden" name="action" value="confirm">
+          <div class="action-fields">
+            <select name="category_id" aria-label="Категория">
+              {% for category in categories %}
+                <option value="{{ category.id }}" {% if selected_category_id == category.id or ((not selected_category_id) and category.system_key == "uncategorized") %}selected{% endif %}>
+                  {{ category.name }}
+                </option>
+              {% endfor %}
+            </select>
+            <select name="property_id" aria-label="Объект">
+              <option value="">без объекта</option>
+              {% for property in properties %}
+                <option value="{{ property.id }}" {% if row.suggested_property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <label class="remember-rule">
+            <input type="checkbox" name="remember_rule" value="1">
+            <span>Создать правило</span>
+          </label>
+          <input name="rule_pattern" placeholder="например, KRASNOE&BELOE">
+          <button class="button button-small" type="submit">{{ icon("check") }} Подтвердить</button>
+        </form>
+        {% include "imports/_review_category_dialog.html" %}
+      </details>
+      <details class="action-details action-accordion">
+        <summary>Еще</summary>
+        <div class="inline-actions">
+          <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+            {{ csrf_input() }}
+            <input type="hidden" name="action" value="needs_review">
+            <button class="button button-small" type="submit">{{ icon("clipboard-check") }} На проверку</button>
+          </form>
+          <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
+            {{ csrf_input() }}
+            <input type="hidden" name="action" value="ignore">
+            <button class="button button-small" type="submit">{{ icon("ignore") }} Игнорировать</button>
+          </form>
+        </div>
+      </details>
+      <details class="action-details action-accordion">
+        {% set suggestions = transfer_suggestions.get(row.id, []) %}
+        <summary>Перевод</summary>
+        {{ transfer_form(document, row, accounts, suggestions) }}
+      </details>
+    {% endif %}
+  </div>
+</article>

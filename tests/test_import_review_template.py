@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
+from app.features.categories.models import CategoryKind
 from app.features.imports.models import RawTransactionStatus
 from app.features.ledger.models import OperationType
 from app.templating import create_templates
@@ -67,6 +68,13 @@ def test_review_template_prefills_suggested_rule_category() -> None:
     assert "review-money money-value" in html
     assert "KRASNOE&amp;BELOE" in html
     assert f'id="raw-{row_id}"' in html
+    assert 'hx-boost="true"' in html
+    assert f'hx-target="#raw-{row_id}"' in html
+    assert 'hx-swap="outerHTML show:none"' in html
+    assert 'hx-push-url="false"' in html
+    assert "новая" in html
+    assert "action-title-row" not in html
+    assert f'action="/imports/documents/{document.id}/raw-transactions/{row_id}/categories"' in html
     assert "review-status-needs_review" in html
     assert f'<input type="hidden" name="category_id" value="{suggested_category_id}">' in html
     assert f'<option value="{suggested_category_id}" selected>' in html
@@ -193,6 +201,129 @@ def test_review_template_shows_readable_transfer_candidate_labels() -> None:
     assert "без парной строки" in html
     assert "Карта Экспобанк" in html
     assert "Зачисление средств по платежу" in html
+
+
+def test_review_action_response_sends_sibling_rows_oob() -> None:
+    current_row = SimpleNamespace(
+        id=uuid4(),
+        row_index=1,
+        status=RawTransactionStatus.NORMALIZED,
+        operation_date="2026-05-29",
+        operation_date_raw=None,
+        amount=Decimal("-100.00"),
+        amount_raw=None,
+        currency="RUB",
+        description_normalized="KRASNOE&BELOE",
+        description_raw=None,
+        normalization_error=None,
+        suggested_by_rule_id=None,
+        suggested_category_id=None,
+        suggested_property_id=None,
+        linked_operation_id=None,
+        raw_payload={},
+    )
+    sibling_row = SimpleNamespace(
+        id=uuid4(),
+        row_index=2,
+        status=RawTransactionStatus.SUGGESTED,
+        operation_date="2026-05-30",
+        operation_date_raw=None,
+        amount=Decimal("-200.00"),
+        amount_raw=None,
+        currency="RUB",
+        description_normalized="KRASNOE&BELOE",
+        description_raw=None,
+        normalization_error=None,
+        suggested_by_rule_id=uuid4(),
+        suggested_category_id=uuid4(),
+        suggested_property_id=None,
+        suggested_operation_type=OperationType.EXPENSE,
+        linked_operation_id=None,
+        raw_payload={
+            "rule_suggestion": {
+                "application_mode": "suggest",
+                "pattern": "KRASNOE&BELOE",
+            }
+        },
+    )
+    document = SimpleNamespace(
+        id=uuid4(),
+        original_filename="statement.pdf",
+        status="requires_review",
+        parse_attempts=[],
+        raw_transactions=[current_row, sibling_row],
+    )
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("imports/_review_action_response.html").render(
+        app_name="Booker Tee",
+        document=document,
+        current_row=current_row,
+        categories=[SimpleNamespace(id=uuid4(), name="Без категории", system_key="uncategorized")],
+        properties=[],
+        accounts=[],
+        balance_chain_problems={},
+        transfer_suggestions={},
+        oob_raw_transaction_ids=frozenset({sibling_row.id}),
+    )
+
+    assert f'id="raw-{current_row.id}"' in html
+    assert f'id="raw-{sibling_row.id}"' in html
+    assert html.count('hx-swap-oob="true"') == 1
+
+
+def test_review_item_selects_newly_created_category() -> None:
+    row_id = uuid4()
+    created_category_id = uuid4()
+    uncategorized_category_id = uuid4()
+    row = SimpleNamespace(
+        id=row_id,
+        row_index=1,
+        status=RawTransactionStatus.NORMALIZED,
+        operation_date="2026-05-29",
+        operation_date_raw=None,
+        amount=Decimal("-100.00"),
+        amount_raw=None,
+        currency="RUB",
+        description_normalized="Аптека",
+        description_raw=None,
+        normalization_error=None,
+        suggested_by_rule_id=None,
+        suggested_category_id=None,
+        suggested_property_id=None,
+        linked_operation_id=None,
+        raw_payload={},
+    )
+    document = SimpleNamespace(id=uuid4(), raw_transactions=[row])
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("imports/_review_item.html").render(
+        document=document,
+        row=row,
+        categories=[
+            SimpleNamespace(
+                id=uncategorized_category_id,
+                name="Без категории",
+                system_key="uncategorized",
+            ),
+            SimpleNamespace(id=created_category_id, name="Аптеки", system_key=None),
+        ],
+        category_kinds=list(CategoryKind),
+        properties=[],
+        accounts=[],
+        balance_chain_problems={},
+        open_category_editor_by_row={row_id: True},
+        selected_category_id_by_row={row_id: created_category_id},
+        transfer_suggestions={},
+    )
+
+    assert 'class="action-details action-accordion" open' in html
+    assert f'<option value="{created_category_id}" selected>' in html
+    assert f'<option value="{uncategorized_category_id}" selected>' not in html
+    assert "Новая категория" in html
+    assert "расход" in html
 
 
 def test_review_template_shows_balance_chain_problem_on_row() -> None:

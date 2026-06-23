@@ -2,6 +2,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
+from app.features.categories.models import CategoryKind
+
 
 @dataclass(frozen=True)
 class ReviewPageContext:
@@ -19,7 +21,10 @@ class ReviewPageContext:
             "categories": self.categories,
             "document": self.document,
             "balance_chain_problems": self.balance_chain_problems,
+            "category_kinds": list(CategoryKind),
             "properties": self.properties,
+            "open_category_editor_by_row": {},
+            "selected_category_id_by_row": {},
             "transfer_suggestions": self.transfer_suggestions,
             "workspace": workspace,
         }
@@ -44,10 +49,7 @@ def build_review_page_context(
 
 
 def review_redirect_url(document_id: UUID, raw_transaction_id: UUID | None = None) -> str:
-    url = f"/imports/documents/{document_id}/review"
-    if raw_transaction_id is None:
-        return url
-    return f"{url}#{review_row_anchor(raw_transaction_id)}"
+    return f"/imports/documents/{document_id}/review"
 
 
 def review_row_anchor(raw_transaction_id: UUID) -> str:

@@ -3,6 +3,8 @@ from decimal import Decimal
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -202,15 +204,89 @@ def test_document_has_linked_operations_detects_confirmed_rows() -> None:
     assert document_has_linked_operations(document) is True
 
 
-def test_review_redirect_url_keeps_user_at_raw_transaction() -> None:
+def test_review_redirect_url_avoids_anchor_jump() -> None:
     document_id = uuid4()
     raw_transaction_id = uuid4()
 
     assert review_row_anchor(raw_transaction_id) == f"raw-{raw_transaction_id}"
     assert review_redirect_url(document_id) == f"/imports/documents/{document_id}/review"
     assert review_redirect_url(document_id, raw_transaction_id) == (
-        f"/imports/documents/{document_id}/review#raw-{raw_transaction_id}"
+        f"/imports/documents/{document_id}/review"
     )
+
+
+@pytest.mark.asyncio
+async def test_confirm_with_remember_rule_reapplies_rules_to_document(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.features.imports.application.review import actions as review_actions
+
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    class FakeLedgerPostingService:
+        def __init__(self, session: object) -> None:
+            self.session = session
+
+        async def post_raw_transaction(self, **kwargs: object) -> None:
+            calls.append(("post", kwargs))
+
+    class FakeTransactionRuleManagementUseCase:
+        def __init__(self, session: object) -> None:
+            self.session = session
+
+        async def create_rule_from_raw_confirmation(self, **kwargs: object) -> None:
+            calls.append(("create_rule", kwargs))
+
+    class FakeTransactionRuleApplicationUseCase:
+        def __init__(self, session: object) -> None:
+            self.session = session
+
+        async def apply_rules_to_document(self, **kwargs: object) -> SimpleNamespace:
+            calls.append(("apply_rules", kwargs))
+            return SimpleNamespace(updated_raw_transaction_ids=frozenset({uuid4()}))
+
+    monkeypatch.setattr(review_actions, "LedgerPostingService", FakeLedgerPostingService)
+    monkeypatch.setattr(
+        review_actions,
+        "TransactionRuleManagementUseCase",
+        FakeTransactionRuleManagementUseCase,
+    )
+    monkeypatch.setattr(
+        review_actions,
+        "TransactionRuleApplicationUseCase",
+        FakeTransactionRuleApplicationUseCase,
+    )
+
+    workspace_id = uuid4()
+    document_id = uuid4()
+    raw_transaction_id = uuid4()
+    category_id = uuid4()
+    use_case = review_actions.RawTransactionReviewUseCase(
+        session=cast(Any, object()),
+        settings=cast(Any, object()),
+    )
+
+    result = await use_case.handle(
+        context=cast(
+            Any,
+            SimpleNamespace(workspace=SimpleNamespace(id=workspace_id)),
+        ),
+        command=review_actions.RawTransactionReviewCommand(
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+            action="confirm",
+            category_id=category_id,
+            remember_rule=True,
+            rule_pattern="KRASNOE&BELOE",
+        ),
+    )
+
+    assert [name for name, _kwargs in calls] == ["post", "create_rule", "apply_rules"]
+    assert result.updated_raw_transaction_ids
+    assert calls[2][1] == {
+        "workspace_id": workspace_id,
+        "document_id": document_id,
+    }
 
 
 def raw_transaction_from_values(
