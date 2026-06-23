@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.categories.models import Category, CategoryKind
 from app.features.categories.repository import CategoryRepository
 from app.features.ledger.models import OperationType
+from app.features.transaction_rules.domain.text import normalized_text
 from app.features.transaction_rules.models import (
     MoneyDirection,
     TransactionRule,
@@ -16,42 +17,71 @@ from app.features.workspaces.service import WorkspaceContext
 
 
 @dataclass(frozen=True)
-class ExpobankFixtureRuleSeed:
+class DefaultMerchantRuleSeed:
     category_name: str
     category_kind: CategoryKind
     pattern: str
     direction: MoneyDirection = MoneyDirection.OUTFLOW
 
 
-EXPOBANK_FIXTURE_RULE_SEEDS = [
-    ExpobankFixtureRuleSeed("Продукты", CategoryKind.EXPENSE, "KRASNOE&BELOE"),
-    ExpobankFixtureRuleSeed("Продукты", CategoryKind.EXPENSE, "SBER*5411*SAMOKA"),
-    ExpobankFixtureRuleSeed("Продукты", CategoryKind.EXPENSE, "SAMOKA"),
-    ExpobankFixtureRuleSeed("Продукты", CategoryKind.EXPENSE, "KOMANDOR"),
-    ExpobankFixtureRuleSeed("Продукты", CategoryKind.EXPENSE, 'ООО "АГРОТОРГ"'),
-    ExpobankFixtureRuleSeed("Продукты", CategoryKind.EXPENSE, "MAGNIT MM"),
-    ExpobankFixtureRuleSeed("Продукты", CategoryKind.EXPENSE, "KRASNYJ YAR"),
-    ExpobankFixtureRuleSeed("Продукты", CategoryKind.EXPENSE, "PYATEROCHKA"),
-    ExpobankFixtureRuleSeed("Продукты", CategoryKind.EXPENSE, "KUPEC"),
-    ExpobankFixtureRuleSeed("Продукты", CategoryKind.EXPENSE, "ALLEYA"),
-    ExpobankFixtureRuleSeed("Продукты", CategoryKind.EXPENSE, "YUMAMART"),
-    ExpobankFixtureRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "KAZANKEBAB"),
-    ExpobankFixtureRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "ALIBI"),
-    ExpobankFixtureRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "KAKAYA-TO RYUMOCHNAYA"),
-    ExpobankFixtureRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "KULA BAR"),
-    ExpobankFixtureRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "AMMA INDIYA"),
-    ExpobankFixtureRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "DO YOU D ALEKSEEVA"),
-    ExpobankFixtureRuleSeed("Авто", CategoryKind.EXPENSE, "GAZPROMNEFT"),
-    ExpobankFixtureRuleSeed("Связь", CategoryKind.EXPENSE, "VTB Mobile"),
-    ExpobankFixtureRuleSeed("Связь", CategoryKind.EXPENSE, "Telecoma"),
-    ExpobankFixtureRuleSeed("Сервисы", CategoryKind.EXPENSE, 'ООО БАНК "ПЭЙДЖИН"'),
-    ExpobankFixtureRuleSeed("Сервисы", CategoryKind.EXPENSE, "SMART GLOCAL SERVICES"),
-    ExpobankFixtureRuleSeed("Сервисы", CategoryKind.EXPENSE, "Veesp"),
-    ExpobankFixtureRuleSeed("Сервисы", CategoryKind.EXPENSE, 'ООО "ВИСП"'),
+DEFAULT_MERCHANT_RULE_SEEDS = [
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "KRASNOE&BELOE"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "SAMOKA"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "KOMANDOR"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, 'ООО "АГРОТОРГ"'),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "MAGNIT MM"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "KRASNYJ YAR"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "PYATEROCHKA"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "KUPEC"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "ALLEYA"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "YUMAMART"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "FASOL"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "BRISTOL"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "KALINA MALINA"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "BATON"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "KALINAMALINA"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "RUSSKIJ RAZGULYAJKA"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "Lenta"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "YARCHE"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "OKEY"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "KAZANKEBAB"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "ALIBI"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "KAKAYA-TO RYUMOCHNAYA"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "KULA BAR"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "AMMA INDIYA"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "AKADEMIYA KOFE"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "CHICKEN DENER"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "LUDWIG64"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "KOFEJNYA ZIZZI"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "SHARMA DYONER KHAUS"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "SUBITO"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "GREEN HOUSE"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "Rostics"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "BLOOM COFFEE"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "YANDEX EDA"),
+    DefaultMerchantRuleSeed("Кафе и рестораны", CategoryKind.EXPENSE, "ESTAFETTE"),
+    DefaultMerchantRuleSeed("Продукты", CategoryKind.EXPENSE, "DO YOU D ALEKSEEVA"),
+    DefaultMerchantRuleSeed("Авто", CategoryKind.EXPENSE, "GAZPROMNEFT"),
+    DefaultMerchantRuleSeed("Транспорт", CategoryKind.EXPENSE, "KRASAVTOTRANS_TPP"),
+    DefaultMerchantRuleSeed("Транспорт", CategoryKind.EXPENSE, "URENT"),
+    DefaultMerchantRuleSeed("Такси", CategoryKind.EXPENSE, "YANDEX GO"),
+    DefaultMerchantRuleSeed("Такси", CategoryKind.EXPENSE, "YANDEX TAXI"),
+    DefaultMerchantRuleSeed("Такси", CategoryKind.EXPENSE, "YANDEX FASTEN"),
+    DefaultMerchantRuleSeed("Маркетплейсы", CategoryKind.EXPENSE, "OZON"),
+    DefaultMerchantRuleSeed("Маркетплейсы", CategoryKind.EXPENSE, "wildberries.ru"),
+    DefaultMerchantRuleSeed("Связь и интернет", CategoryKind.EXPENSE, "VTB Mobile"),
+    DefaultMerchantRuleSeed("Связь и интернет", CategoryKind.EXPENSE, "T-Mobile"),
+    DefaultMerchantRuleSeed("Связь и интернет", CategoryKind.EXPENSE, "TELECOMA"),
+    DefaultMerchantRuleSeed("Подписки и сервисы", CategoryKind.EXPENSE, 'ООО БАНК "ПЭЙДЖИН"'),
+    DefaultMerchantRuleSeed("Подписки и сервисы", CategoryKind.EXPENSE, "SMART GLOCAL SERVICES"),
+    DefaultMerchantRuleSeed("Подписки и сервисы", CategoryKind.EXPENSE, "Veesp"),
+    DefaultMerchantRuleSeed("Подписки и сервисы", CategoryKind.EXPENSE, 'ООО "ВИСП"'),
+    DefaultMerchantRuleSeed("Подписки и сервисы", CategoryKind.EXPENSE, "YANDEX PLUS"),
+    DefaultMerchantRuleSeed("Красота и здоровье", CategoryKind.EXPENSE, "ЕКАТЕРИНБУРГ ЯБЛОКО"),
 ]
 
 
-class ExpobankFixtureRuleSeeder:
+class DefaultMerchantRuleSeeder:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.categories = CategoryRepository(session)
@@ -59,17 +89,18 @@ class ExpobankFixtureRuleSeeder:
 
     async def seed(self, context: WorkspaceContext) -> list[TransactionRule]:
         created_or_existing: list[TransactionRule] = []
-        for seed in EXPOBANK_FIXTURE_RULE_SEEDS:
+        existing_by_identity = {
+            (normalized_text(rule.pattern), rule.category_id): rule
+            for rule in await self.rules.list_for_workspace(context.workspace.id)
+        }
+        for seed in DEFAULT_MERCHANT_RULE_SEEDS:
             category = await self._get_or_create_category(
                 workspace_id=context.workspace.id,
                 name=seed.category_name,
                 kind=seed.category_kind,
             )
-            existing = await self.rules.find_existing(
-                workspace_id=context.workspace.id,
-                pattern=seed.pattern,
-                category_id=category.id,
-            )
+            rule_identity = (normalized_text(seed.pattern), category.id)
+            existing = existing_by_identity.get(rule_identity)
             if existing is not None:
                 existing.application_mode = TransactionRuleApplicationMode.AUTO_APPLY
                 created_or_existing.append(existing)
@@ -90,6 +121,7 @@ class ExpobankFixtureRuleSeeder:
                     )
                 )
             )
+            existing_by_identity[rule_identity] = created_or_existing[-1]
         await self.session.commit()
         return created_or_existing
 

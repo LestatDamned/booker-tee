@@ -24,7 +24,10 @@ async def category_index(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
-    categories = await CategoryService(session).list_or_seed_defaults(context.workspace.id)
+    categories = await CategoryService(session).list_or_seed_defaults(
+        context.workspace.id,
+        context.workspace.type,
+    )
     return templates.TemplateResponse(
         request,
         "categories/index.html",

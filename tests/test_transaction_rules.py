@@ -9,7 +9,7 @@ from app.features.imports.models import RawTransaction, RawTransactionStatus
 from app.features.imports.parsing.parsers.expobank.card import ExpobankCardStatementParser
 from app.features.ledger.models import OperationType
 from app.features.transaction_rules.application.fixture_seeding import (
-    EXPOBANK_FIXTURE_RULE_SEEDS,
+    DEFAULT_MERCHANT_RULE_SEEDS,
 )
 from app.features.transaction_rules.domain.matching import rule_matches_raw_transaction
 from app.features.transaction_rules.domain.patterns import infer_rule_pattern
@@ -17,6 +17,7 @@ from app.features.transaction_rules.domain.suggestions import (
     apply_rule_suggestion,
     rule_suggestion_auto_applies,
 )
+from app.features.transaction_rules.domain.text import normalized_text
 from app.features.transaction_rules.models import (
     MoneyDirection,
     TransactionRule,
@@ -106,7 +107,7 @@ def test_infer_rule_pattern_extracts_expobank_merchant() -> None:
     assert infer_rule_pattern(raw) == "KRASNOE&BELOE"
 
 
-def test_expobank_fixture_rule_suggests_products_for_krasnoe_beloe() -> None:
+def test_default_merchant_rule_suggests_products_for_krasnoe_beloe() -> None:
     workspace_id = uuid4()
     products_category_id = uuid4()
     extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/expobank_statement.pdf"))
@@ -117,7 +118,7 @@ def test_expobank_fixture_rule_suggests_products_for_krasnoe_beloe() -> None:
     )
     krasnoe_beloe_draft = drafts[1]
     rule_seed = next(
-        seed for seed in EXPOBANK_FIXTURE_RULE_SEEDS if seed.pattern == "KRASNOE&BELOE"
+        seed for seed in DEFAULT_MERCHANT_RULE_SEEDS if seed.pattern == "KRASNOE&BELOE"
     )
     rule = transaction_rule(
         workspace_id=workspace_id,
@@ -133,6 +134,25 @@ def test_expobank_fixture_rule_suggests_products_for_krasnoe_beloe() -> None:
     assert rule_seed.category_name == "Продукты"
     assert rule_seed.category_kind == CategoryKind.EXPENSE
     assert rule_matches_raw_transaction(rule, raw)
+
+
+def test_default_merchant_rules_include_collected_user_patterns() -> None:
+    seeds_by_pattern = {seed.pattern: seed for seed in DEFAULT_MERCHANT_RULE_SEEDS}
+
+    assert seeds_by_pattern["FASOL"].category_name == "Продукты"
+    assert seeds_by_pattern["T-Mobile"].category_name == "Связь и интернет"
+    assert seeds_by_pattern["YANDEX*GO"].category_name == "Такси"
+    assert seeds_by_pattern["OZON"].category_name == "Маркетплейсы"
+    assert seeds_by_pattern["wildberries.ru"].category_name == "Маркетплейсы"
+    assert seeds_by_pattern["YANDEX PLUS"].category_name == "Подписки и сервисы"
+    assert seeds_by_pattern["TELECOMA"].category_name == "Связь и интернет"
+    assert seeds_by_pattern["ЕКАТЕРИНБУРГ ЯБЛОКО"].category_name == "Красота и здоровье"
+
+
+def test_default_merchant_rule_patterns_are_normalized_unique() -> None:
+    normalized_patterns = [normalized_text(seed.pattern) for seed in DEFAULT_MERCHANT_RULE_SEEDS]
+
+    assert len(normalized_patterns) == len(set(normalized_patterns))
 
 
 def transaction_rule(

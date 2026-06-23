@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.categories.models import Category, CategoryKind
 from app.features.categories.repository import CategoryRepository
+from app.features.workspaces.models import WorkspaceType
 
 
 class CategoryError(ValueError):
@@ -19,20 +20,60 @@ class SystemCategorySeed:
     sort_order: int
 
 
+@dataclass(frozen=True)
+class DefaultCategorySeed:
+    name: str
+    kind: CategoryKind
+    sort_order: int
+
+
 SYSTEM_CATEGORY_SEEDS = [
     SystemCategorySeed("uncategorized", "Без категории", CategoryKind.MIXED, 10),
-    SystemCategorySeed("income", "Доход", CategoryKind.INCOME, 20),
-    SystemCategorySeed("expense", "Расход", CategoryKind.EXPENSE, 30),
-    SystemCategorySeed("transfer", "Перевод", CategoryKind.TRANSFER, 40),
-    SystemCategorySeed("adjustment", "Корректировка", CategoryKind.ADJUSTMENT, 50),
-    SystemCategorySeed("refund", "Возврат", CategoryKind.MIXED, 60),
-    SystemCategorySeed("duplicate", "Дубль", CategoryKind.MIXED, 70),
-    SystemCategorySeed("ignore", "Не учитывать", CategoryKind.MIXED, 80),
-    SystemCategorySeed("bank_fee", "Комиссия банка", CategoryKind.EXPENSE, 90),
-    SystemCategorySeed("rent", "Аренда", CategoryKind.INCOME, 100),
-    SystemCategorySeed("utilities", "Коммунальные услуги", CategoryKind.EXPENSE, 110),
-    SystemCategorySeed("repair", "Ремонт", CategoryKind.EXPENSE, 120),
-    SystemCategorySeed("other", "Другое", CategoryKind.MIXED, 130),
+    SystemCategorySeed("transfer", "Перевод", CategoryKind.TRANSFER, 20),
+    SystemCategorySeed("adjustment", "Корректировка", CategoryKind.ADJUSTMENT, 30),
+    SystemCategorySeed("refund", "Возврат", CategoryKind.MIXED, 40),
+    SystemCategorySeed("duplicate", "Дубль", CategoryKind.MIXED, 50),
+    SystemCategorySeed("ignore", "Не учитывать", CategoryKind.MIXED, 60),
+    SystemCategorySeed("income", "Прочий доход", CategoryKind.INCOME, 70),
+    SystemCategorySeed("expense", "Прочий расход", CategoryKind.EXPENSE, 80),
+    SystemCategorySeed("rent", "Арендный доход", CategoryKind.INCOME, 90),
+]
+
+
+DEFAULT_CATEGORY_SEEDS = [
+    DefaultCategorySeed("Зарплата", CategoryKind.INCOME, 200),
+    DefaultCategorySeed("Проценты и кэшбэк", CategoryKind.INCOME, 210),
+    DefaultCategorySeed("Возврат от продавца", CategoryKind.INCOME, 220),
+    DefaultCategorySeed("Компенсация", CategoryKind.INCOME, 230),
+    DefaultCategorySeed("Продукты", CategoryKind.EXPENSE, 300),
+    DefaultCategorySeed("Кафе и рестораны", CategoryKind.EXPENSE, 310),
+    DefaultCategorySeed("Транспорт", CategoryKind.EXPENSE, 320),
+    DefaultCategorySeed("Такси", CategoryKind.EXPENSE, 330),
+    DefaultCategorySeed("Авто", CategoryKind.EXPENSE, 340),
+    DefaultCategorySeed("Маркетплейсы", CategoryKind.EXPENSE, 350),
+    DefaultCategorySeed("Аренда жилья/помещения", CategoryKind.EXPENSE, 360),
+    DefaultCategorySeed("Ипотека и кредиты", CategoryKind.EXPENSE, 370),
+    DefaultCategorySeed("Коммунальные услуги", CategoryKind.EXPENSE, 380),
+    DefaultCategorySeed("Связь и интернет", CategoryKind.EXPENSE, 390),
+    DefaultCategorySeed("Подписки и сервисы", CategoryKind.EXPENSE, 400),
+    DefaultCategorySeed("Красота и здоровье", CategoryKind.EXPENSE, 410),
+    DefaultCategorySeed("Одежда", CategoryKind.EXPENSE, 420),
+    DefaultCategorySeed("Дом и быт", CategoryKind.EXPENSE, 430),
+    DefaultCategorySeed("Ремонт", CategoryKind.EXPENSE, 440),
+    DefaultCategorySeed("Подарки и помощь", CategoryKind.EXPENSE, 450),
+    DefaultCategorySeed("Налоги и штрафы", CategoryKind.EXPENSE, 460),
+    DefaultCategorySeed("Комиссия банка", CategoryKind.EXPENSE, 470),
+]
+
+
+PROPERTY_MANAGEMENT_CATEGORY_SEEDS = [
+    DefaultCategorySeed("Компенсация коммунальных услуг", CategoryKind.INCOME, 500),
+    DefaultCategorySeed("Удержанный залог", CategoryKind.INCOME, 510),
+    DefaultCategorySeed("Хозтовары", CategoryKind.EXPENSE, 520),
+    DefaultCategorySeed("Управление/обслуживание", CategoryKind.EXPENSE, 530),
+    DefaultCategorySeed("Страхование", CategoryKind.EXPENSE, 540),
+    DefaultCategorySeed("Налоги", CategoryKind.EXPENSE, 550),
+    DefaultCategorySeed("Проценты по ипотеке", CategoryKind.EXPENSE, 560),
 ]
 
 
@@ -41,15 +82,31 @@ class CategoryService:
         self.session = session
         self.categories = CategoryRepository(session)
 
-    async def list_or_seed_defaults(self, workspace_id: UUID) -> list[Category]:
-        await self.seed_defaults(workspace_id)
+    async def list_or_seed_defaults(
+        self,
+        workspace_id: UUID,
+        workspace_type: WorkspaceType | None = None,
+    ) -> list[Category]:
+        await self.seed_defaults(workspace_id, workspace_type)
         return await self.categories.list_for_workspace(workspace_id)
 
-    async def seed_defaults(self, workspace_id: UUID) -> None:
+    async def seed_defaults(
+        self,
+        workspace_id: UUID,
+        workspace_type: WorkspaceType | None = None,
+    ) -> None:
         existing = await self.categories.list_for_workspace(workspace_id)
-        existing_keys = {category.system_key for category in existing if category.system_key}
+        existing_by_key = {
+            category.system_key: category for category in existing if category.system_key
+        }
+        existing_names = {category.name for category in existing}
         for seed in SYSTEM_CATEGORY_SEEDS:
-            if seed.system_key in existing_keys:
+            existing_category = existing_by_key.get(seed.system_key)
+            if existing_category is not None:
+                existing_category.name = seed.name
+                existing_category.kind = seed.kind
+                existing_category.is_system = True
+                existing_category.sort_order = seed.sort_order
                 continue
             await self.categories.create(
                 Category(
@@ -58,6 +115,18 @@ class CategoryService:
                     kind=seed.kind,
                     is_system=True,
                     system_key=seed.system_key,
+                    sort_order=seed.sort_order,
+                )
+            )
+        for seed in self._default_category_seeds(workspace_type):
+            if seed.name in existing_names:
+                continue
+            await self.categories.create(
+                Category(
+                    workspace_id=workspace_id,
+                    name=seed.name,
+                    kind=seed.kind,
+                    is_system=False,
                     sort_order=seed.sort_order,
                 )
             )
@@ -106,3 +175,12 @@ class CategoryService:
         )
         await self.session.commit()
         return category
+
+    @staticmethod
+    def _default_category_seeds(
+        workspace_type: WorkspaceType | None,
+    ) -> list[DefaultCategorySeed]:
+        seeds = [*DEFAULT_CATEGORY_SEEDS]
+        if workspace_type == WorkspaceType.PROPERTY_MANAGEMENT:
+            seeds.extend(PROPERTY_MANAGEMENT_CATEGORY_SEEDS)
+        return seeds

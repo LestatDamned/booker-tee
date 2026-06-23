@@ -20,7 +20,7 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     rule_id = uuid4()
     rule = SimpleNamespace(
         id=rule_id,
-        name="SAMOKAT -> Сервисы",
+        name="SAMOKAT -> Подписки и сервисы",
         is_active=True,
         pattern="SAMOKAT",
         match_type=TransactionRuleMatchType.CONTAINS,
@@ -50,6 +50,9 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     )
 
     assert "form-panel" in html
+    assert "/rules/seed-defaults" in html
+    assert "seed-expobank" not in html
+    assert "загрузить базовые правила" in html
     assert "entity-card-list" in html
     assert "entity-card" in html
     assert "badge badge-suggest" in html
@@ -58,7 +61,7 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert f'id="rule-{rule_id}"' in html
     assert f'class="detached-form" id="rule-form-{rule_id}"' in html
     assert 'type="hidden" name="name"' not in html
-    assert "SAMOKAT -> Сервисы" not in html
+    assert "SAMOKAT -> Подписки и сервисы" not in html
     assert "Продукты" in html
     assert "SAMOKAT" in html
     assert f"ID {str(rule_id)[:8]}" in html
@@ -76,8 +79,8 @@ def test_generated_rule_name_uses_current_category() -> None:
         build_rule_name(
             pattern='ООО "ВИСП"',
             match_type=TransactionRuleMatchType.CONTAINS,
-            category_name="Сервисы",
+            category_name="Подписки и сервисы",
             target_operation_type=OperationType.EXPENSE,
         )
-        == 'ООО "ВИСП" -> Сервисы'
+        == 'ООО "ВИСП" -> Подписки и сервисы'
     )

@@ -40,7 +40,10 @@ async def manual_operation_form(
         context.workspace.id,
         context.workspace.default_currency,
     )
-    categories = await CategoryService(session).list_or_seed_defaults(context.workspace.id)
+    categories = await CategoryService(session).list_or_seed_defaults(
+        context.workspace.id,
+        context.workspace.type,
+    )
     properties = await PropertyService(session).list_active(context.workspace.id)
     manual_operations = await LedgerPostingService(session).list_manual_operations(
         context.workspace.id

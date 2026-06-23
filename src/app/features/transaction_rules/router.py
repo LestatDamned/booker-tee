@@ -13,7 +13,7 @@ from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
 from app.features.ledger.models import OperationType
 from app.features.properties.service import PropertyService
-from app.features.transaction_rules.application.fixture_seeding import ExpobankFixtureRuleSeeder
+from app.features.transaction_rules.application.fixture_seeding import DefaultMerchantRuleSeeder
 from app.features.transaction_rules.application.rule_management import (
     TransactionRuleManagementUseCase,
 )
@@ -47,7 +47,10 @@ async def rules_index(
         context.workspace.id,
         context.workspace.default_currency,
     )
-    categories = await CategoryService(session).list_or_seed_defaults(context.workspace.id)
+    categories = await CategoryService(session).list_or_seed_defaults(
+        context.workspace.id,
+        context.workspace.type,
+    )
     properties = await PropertyService(session).list_active(context.workspace.id)
     rules = await TransactionRuleQueryUseCase(session).list_rules(context.workspace.id)
     return templates.TemplateResponse(
@@ -104,12 +107,12 @@ async def create_rule(
     return RedirectResponse(url=rule_anchor_url(rule.id), status_code=status.HTTP_303_SEE_OTHER)
 
 
-@router.post("/seed-expobank")
-async def seed_expobank_rules(
+@router.post("/seed-defaults")
+async def seed_default_rules(
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> Response:
-    await ExpobankFixtureRuleSeeder(session).seed(context)
+    await DefaultMerchantRuleSeeder(session).seed(context)
     return RedirectResponse(url="/rules", status_code=status.HTTP_303_SEE_OTHER)
 
 

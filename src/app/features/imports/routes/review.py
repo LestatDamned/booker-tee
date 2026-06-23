@@ -51,7 +51,10 @@ async def document_review(
         context.workspace.id,
         context.workspace.default_currency,
     )
-    categories = await CategoryService(session).list_or_seed_defaults(context.workspace.id)
+    categories = await CategoryService(session).list_or_seed_defaults(
+        context.workspace.id,
+        context.workspace.type,
+    )
     properties = await PropertyService(session).list_active(context.workspace.id)
     transfer_suggestions = await LedgerPostingService(
         session

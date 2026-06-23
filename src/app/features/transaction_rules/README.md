@@ -55,7 +55,7 @@ Domain rules чистые и тестируемые без БД:
 - `application/rule_management.py` - create/update/toggle/delete and rule from raw confirmation.
 - `application/rule_application.py` - apply active rules to raw transactions/documents.
 - `application/rule_queries.py` - read-side rule list query.
-- `application/fixture_seeding.py` - seed current Expobank fixture rules.
+- `application/fixture_seeding.py` - seed default merchant suggestion rules.
 - `repository.py` - SQLAlchemy persistence and read queries.
 - `models.py` - `TransactionRule` persistence model and rule enums.
 - `errors.py` - transaction-rule-specific application exceptions.
