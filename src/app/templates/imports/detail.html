@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from "components/next_step.html" import next_step %}
+{% from "imports/_workflow_steps.html" import workflow_steps %}
 
 {% block title %}{{ view.original_filename }} · {{ app_name }}{% endblock %}
 
@@ -30,6 +32,52 @@
     <p class="import-document-name" title="{{ view.original_filename }}">
       {{ view.original_filename }}
     </p>
+
+    {% if view.status.value == "imported" %}
+      {{ workflow_steps(upload="done", extract="done", mapping="skipped", review="done", ledger="done") }}
+    {% elif validation and validation.status == "needs_mapping" %}
+      {{ workflow_steps(upload="done", extract="done", mapping="current", review="pending", ledger="pending") }}
+    {% elif view.raw_transactions %}
+      {{ workflow_steps(upload="done", extract="done", mapping="skipped", review="current", ledger="pending") }}
+    {% elif view.status.value == "failed_to_parse" %}
+      {{ workflow_steps(upload="done", extract="blocked", mapping="pending", review="pending", ledger="pending") }}
+    {% else %}
+      {{ workflow_steps(upload="done", extract="current", mapping="pending", review="pending", ledger="pending") }}
+    {% endif %}
+
+    {% if validation and validation.status == "needs_mapping" %}
+      {{ next_step(
+        "Настройте колонки",
+        "PDF прочитан, но системе нужно понять, где дата, описание и сумма.",
+        "/imports/documents/" ~ view.id ~ "/mapping",
+        "настроить колонки",
+        "settings"
+      ) }}
+    {% elif view.raw_transactions %}
+      {{ next_step(
+        "Проверьте строки",
+        "Сырые строки извлечены. Подтвердите операции, отметьте переводы и игнорируйте дубли.",
+        "/imports/documents/" ~ view.id ~ "/review",
+        "открыть проверку",
+        "clipboard-check"
+      ) }}
+    {% elif view.status.value == "failed_to_parse" %}
+      {{ next_step(
+        "Загрузите другую выписку",
+        "Этот файл не удалось разобрать. Исходный документ сохранен, можно попробовать другой файл.",
+        "/imports/upload",
+        "загрузить заново",
+        "upload"
+      ) }}
+    {% else %}
+      {{ next_step(
+        "Дождитесь извлечения",
+        "Когда строки появятся, Booker Tee предложит перейти к проверке.",
+        "/imports",
+        "к списку импортов",
+        "import"
+      ) }}
+    {% endif %}
 
     {% if validation and validation.status == "needs_mapping" %}
       <div class="notice">

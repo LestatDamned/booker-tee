@@ -1,0 +1,48 @@
+{% from "components/next_step.html" import next_step %}
+
+{% set review_queue = namespace(total=0, remaining=0, done=0, first_remaining_id=none) %}
+{% for row in document.raw_transactions %}
+  {% set review_queue.total = review_queue.total + 1 %}
+  {% if row.status.value in ["confirmed", "ignored", "duplicate"] %}
+    {% set review_queue.done = review_queue.done + 1 %}
+  {% else %}
+    {% set review_queue.remaining = review_queue.remaining + 1 %}
+    {% if review_queue.first_remaining_id is none %}
+      {% set review_queue.first_remaining_id = row.id %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
+
+<div id="review-next-step" {% if review_next_step_oob is defined and review_next_step_oob %}hx-swap-oob="true"{% endif %}>
+  {% if review_queue.total == 0 %}
+    {{ next_step(
+      "Вернитесь к документу",
+      "Сырых строк пока нет. Проверьте парсинг или настройку колонок на странице документа.",
+      "/imports/documents/" ~ document.id,
+      "открыть документ",
+      "file-text"
+    ) }}
+  {% elif review_queue.remaining > 0 %}
+    {{ next_step(
+      "Продолжайте проверку",
+      "Осталось обработать " ~ review_queue.remaining ~ " из " ~ review_queue.total ~ " строк.",
+      "#raw-" ~ review_queue.first_remaining_id,
+      "к строкам",
+      "clipboard-check",
+      "/imports/documents/" ~ document.id,
+      "детали",
+      "file-text"
+    ) }}
+  {% else %}
+    {{ next_step(
+      "Импорт разобран",
+      "Все строки подтверждены, проигнорированы или отмечены как дубли.",
+      "/reports",
+      "открыть отчеты",
+      "list-check",
+      "/imports",
+      "к импортам",
+      "import"
+    ) }}
+  {% endif %}
+</div>

@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from "components/empty_state.html" import empty_state %}
+{% from "components/inline_hint.html" import inline_hint %}
 
 {% block title %}Ручная операция · {{ app_name }}{% endblock %}
 
@@ -12,8 +14,10 @@
       <a class="button" href="/accounts">{{ icon("wallet") }} счета</a>
     </div>
 
+    {{ inline_hint("Ручные операции нужны для того, чего нет в выписке: наличные, корректировки или разовые записи. Доход и расход влияют на прибыль; перевод только перемещает деньги между счетами.", "critical") }}
+
     {% if accounts %}
-    <form class="form-panel" method="post" action="/ledger/manual">
+    <form id="new-manual-operation" class="form-panel" method="post" action="/ledger/manual">
       {{ csrf_input() }}
       <label class="field">
         <span>тип</span>
@@ -73,11 +77,13 @@
       <button class="button form-submit" type="submit">{{ icon("plus") }} создать</button>
     </form>
     {% else %}
-      <div class="empty-state">
-        <strong>Сначала добавьте счет</strong>
-        <span>Ручная операция всегда двигает деньги на карте, вкладе, расчетном счете или наличных.</span>
-        <a class="button button-small" href="/accounts">{{ icon("plus") }} добавить счет</a>
-      </div>
+      {{ empty_state(
+        "Сначала добавьте счет",
+        "Ручная операция всегда двигает деньги на карте, вкладе, расчетном счете или наличных.",
+        "/accounts",
+        "добавить счет",
+        "plus"
+      ) }}
     {% endif %}
   </section>
 
@@ -208,9 +214,13 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="empty-state">
-        <p>Ручных операций пока нет.</p>
-      </div>
+      {{ empty_state(
+        "Ручных операций пока нет",
+        "Создавайте их для наличных движений, корректировок и операций вне банковских выписок.",
+        "#new-manual-operation",
+        "создать вручную",
+        "plus"
+      ) }}
     {% endif %}
   </section>
 {% endblock %}

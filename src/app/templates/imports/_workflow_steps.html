@@ -1,0 +1,17 @@
+{% macro workflow_steps(upload="done", extract="pending", mapping="pending", review="pending", ledger="pending") %}
+  {% set steps = [
+    ("Загрузка", upload),
+    ("Извлечение", extract),
+    ("Настройка", mapping),
+    ("Проверка", review),
+    ("Учет", ledger),
+  ] %}
+  <nav class="workflow-steps" aria-label="Этапы импорта">
+    {% for label, state in steps %}
+      <span class="workflow-step workflow-step-{{ state }}">
+        <small>{{ loop.index }}</small>
+        <strong>{{ label }}</strong>
+      </span>
+    {% endfor %}
+  </nav>
+{% endmacro %}

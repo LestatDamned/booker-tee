@@ -70,3 +70,71 @@ def test_reports_template_marks_financial_tones() -> None:
     assert "amount-income" in html
     assert "amount-expense" in html
     assert "badge-expense" in html
+
+
+def test_reports_template_empty_state_points_to_accounts_without_accounts() -> None:
+    html = render_reports(
+        accounts=[],
+        overview=empty_overview(account_balances=[]),
+    )
+
+    assert "Сначала создайте счет" in html
+    assert "подтвержденные операции для отчетов" in html
+    assert 'href="/accounts"' in html
+    assert "Балансы счетов" not in html
+    assert "По категориям" not in html
+
+
+def test_reports_template_empty_state_points_to_imports_without_confirmed_operations() -> None:
+    account_id = uuid4()
+    html = render_reports(
+        accounts=[SimpleNamespace(id=account_id, name="Карта")],
+        overview=empty_overview(
+            account_balances=[
+                SimpleNamespace(
+                    account=SimpleNamespace(id=account_id, name="Карта", currency="RUB"),
+                    balance=Decimal("0.00"),
+                )
+            ]
+        ),
+    )
+
+    assert "Отчет пока пуст" in html
+    assert "Переводы между своими счетами в прибыль не входят" in html
+    assert 'href="/imports"' in html
+    assert 'href="/imports/upload"' in html
+    assert "По категориям" not in html
+
+
+def render_reports(*, accounts: list[object], overview: object) -> str:
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+    return templates.env.get_template("reports/index.html").render(
+        app_name="Booker Tee",
+        workspace=SimpleNamespace(name="Personal", default_currency="RUB"),
+        filters=SimpleNamespace(
+            date_from=None,
+            date_to=None,
+            account_id=None,
+            category_id=None,
+            property_id=None,
+        ),
+        accounts=accounts,
+        categories=[],
+        properties=[],
+        overview=overview,
+    )
+
+
+def empty_overview(*, account_balances: list[object]) -> SimpleNamespace:
+    return SimpleNamespace(
+        summary=SimpleNamespace(
+            income=Decimal("0.00"),
+            expense=Decimal("0.00"),
+            profit=Decimal("0.00"),
+        ),
+        account_balances=account_balances,
+        categories=[],
+        properties=[],
+        uncategorized=[],
+    )

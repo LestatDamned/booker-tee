@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from "components/next_step.html" import next_step %}
+{% from "components/empty_state.html" import empty_state %}
 
 {% block title %}Загрузка · {{ app_name }}{% endblock %}
 
@@ -8,6 +10,16 @@
       <p class="eyebrow">{{ workspace.name }}</p>
       <h1>Загрузить выписку</h1>
     </div>
+
+    {% if accounts %}
+      {{ next_step(
+        "Выберите счет и файл",
+        "Выписка будет привязана к счету, чтобы суммы попали в правильное место хранения денег.",
+        "#statement_pdf",
+        "выбрать файл",
+        "upload"
+      ) }}
+    {% endif %}
 
     {% if error %}
       <div class="notice error">{{ error }}</div>
@@ -33,11 +45,13 @@
         <button class="button form-submit" type="submit">{{ icon("import") }} извлечь данные</button>
       </form>
     {% else %}
-      <div class="empty-state">
-        <strong>Сначала нужен счет</strong>
-        <span>Выписка всегда привязана к счету, чтобы проводки считались корректно.</span>
-        <a class="button button-small" href="/accounts">{{ icon("plus") }} создать счет</a>
-      </div>
+      {{ empty_state(
+        "Сначала нужен счет",
+        "Выписка всегда привязана к счету, чтобы проводки считались корректно.",
+        "/accounts",
+        "создать счет",
+        "plus"
+      ) }}
     {% endif %}
   </section>
 {% endblock %}

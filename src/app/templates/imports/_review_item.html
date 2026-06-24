@@ -1,10 +1,13 @@
 {% from "components/operation_ref.html" import operation_ref %}
 {% from "components/transfer_form.html" import transfer_form %}
+{% from "components/inline_hint.html" import inline_hint %}
 
 {% set rule_suggestion = row.raw_payload.get("rule_suggestion") if row.raw_payload else none %}
 {% set rule_auto_applied = rule_suggestion and rule_suggestion.get("application_mode") == "auto_apply" %}
 {% set row_balance_problems = balance_chain_problems.get(row.row_index, []) %}
 {% set open_category_editor = open_category_editor_by_row.get(row.id) if open_category_editor_by_row is defined else false %}
+{% set category_dialog_error = category_dialog_error_by_row.get(row.id) if category_dialog_error_by_row is defined else none %}
+{% set category_dialog_name = category_dialog_name_by_row.get(row.id) if category_dialog_name_by_row is defined else "" %}
 {% set selected_category_id = selected_category_id_by_row.get(row.id) if selected_category_id_by_row is defined else row.suggested_category_id %}
 {% set proposal = namespace(category=none, property=none) %}
 {% for category in categories %}
@@ -25,7 +28,19 @@
   hx-target="#raw-{{ row.id }}"
   hx-swap="outerHTML show:none"
   hx-push-url="false"
-  x-data
+  x-data="{
+    openCategoryDialog(event) {
+      const details = event.currentTarget.closest('details');
+      if (details) {
+        details.open = true;
+      }
+      this.$nextTick(() => {
+        if (this.$refs.categoryDialog && !this.$refs.categoryDialog.open) {
+          this.$refs.categoryDialog.showModal();
+        }
+      });
+    }
+  }"
   {% if review_item_oob is defined and review_item_oob %}hx-swap-oob="true"{% endif %}
 >
   <div class="review-main">
@@ -111,6 +126,7 @@
     {% elif row.status.value == "possible_duplicate" %}
       <div class="action-group">
         <div class="action-title">Дубль</div>
+        {{ inline_hint("Проверьте, не была ли эта строка уже импортирована. Дубли не должны попадать в отчеты повторно.", "warning") }}
         <div class="primary-actions">
           <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
             {{ csrf_input() }}
@@ -137,6 +153,7 @@
       <details class="action-details action-accordion">
         {% set suggestions = transfer_suggestions.get(row.id, []) %}
         <summary>Перевод</summary>
+        {{ inline_hint("Перевод только перемещает деньги между счетами и не влияет на прибыль.", "critical") }}
         {{ transfer_form(document, row, accounts, suggestions) }}
       </details>
     {% elif row.suggested_by_rule_id or row.status.value == "suggested" %}
@@ -206,7 +223,7 @@
         <details class="action-details action-accordion">
           <summary>
             <span>Исправить</span>
-            <button class="inline-create-button" type="button" @click.stop="$refs.categoryDialog.showModal()">{{ icon("plus") }} новая</button>
+            <button class="inline-create-button" type="button" @click.stop="openCategoryDialog($event)">{{ icon("plus") }} новая</button>
           </summary>
           <form class="action-group action-group-embedded" method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
             {{ csrf_input() }}
@@ -230,6 +247,7 @@
               <input type="checkbox" name="remember_rule" value="1">
               <span>Создать правило</span>
             </label>
+            {{ inline_hint("Включайте правило, когда похожие описания должны получать такую же категорию в следующих выписках.", "info") }}
             <input name="rule_pattern" placeholder="например, KRASNOE&BELOE">
             <button class="button button-small" type="submit">{{ icon("save") }} Сохранить и подтвердить</button>
           </form>
@@ -239,6 +257,7 @@
         <details class="action-details action-accordion">
           {% set suggestions = transfer_suggestions.get(row.id, []) %}
           <summary>Перевод</summary>
+          {{ inline_hint("Перевод только перемещает деньги между счетами и не влияет на прибыль.", "critical") }}
           {{ transfer_form(document, row, accounts, suggestions) }}
         </details>
       </div>
@@ -246,7 +265,7 @@
       <details class="action-details action-accordion" {% if open_category_editor %}open{% endif %}>
         <summary>
           <span>Категория</span>
-          <button class="inline-create-button" type="button" @click.stop="$refs.categoryDialog.showModal()">{{ icon("plus") }} новая</button>
+          <button class="inline-create-button" type="button" @click.stop="openCategoryDialog($event)">{{ icon("plus") }} новая</button>
         </summary>
         <form class="action-group action-group-embedded" method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
           {{ csrf_input() }}
@@ -270,6 +289,7 @@
             <input type="checkbox" name="remember_rule" value="1">
             <span>Создать правило</span>
           </label>
+          {{ inline_hint("Включайте правило, когда похожие описания должны получать такую же категорию в следующих выписках.", "info") }}
           <input name="rule_pattern" placeholder="например, KRASNOE&BELOE">
           <button class="button button-small" type="submit">{{ icon("check") }} Подтвердить</button>
         </form>
@@ -293,6 +313,7 @@
       <details class="action-details action-accordion">
         {% set suggestions = transfer_suggestions.get(row.id, []) %}
         <summary>Перевод</summary>
+        {{ inline_hint("Перевод только перемещает деньги между счетами и не влияет на прибыль.", "critical") }}
         {{ transfer_form(document, row, accounts, suggestions) }}
       </details>
     {% endif %}

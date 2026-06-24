@@ -36,3 +36,20 @@ def test_accounts_template_makes_balance_primary() -> None:
     assert "money-value money-income" in html
     assert "23140.76" in html
     assert "<small>RUB</small>" in html
+
+
+def test_accounts_template_empty_state_points_to_account_form() -> None:
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("accounts/index.html").render(
+        account_details=[],
+        account_types=list(AccountType),
+        app_name="Booker Tee",
+        workspace=SimpleNamespace(name="Personal", default_currency="RUB"),
+    )
+
+    assert 'id="new-account"' in html
+    assert "Добавьте первый счет" in html
+    assert "нужен перед импортом выписки" in html
+    assert 'href="#new-account"' in html

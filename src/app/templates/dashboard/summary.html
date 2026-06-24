@@ -1,3 +1,16 @@
+{% from "components/next_step.html" import next_step %}
+{% from "components/empty_state.html" import empty_state %}
+{% from "components/onboarding_checklist.html" import onboarding_checklist %}
+
+{% set dashboard_has_accounts = overview.reports.account_balances %}
+{% set dashboard_has_documents = overview.recent_documents %}
+{% set dashboard_needs_review = overview.documents_needing_review %}
+{% set dashboard_report_categories = overview.reports.categories if overview.reports.categories is defined else [] %}
+{% set dashboard_report_properties = overview.reports.properties if overview.reports.properties is defined else [] %}
+{% set dashboard_report_uncategorized = overview.reports.uncategorized if overview.reports.uncategorized is defined else [] %}
+{% set dashboard_has_report_data = dashboard_report_categories or dashboard_report_properties or dashboard_report_uncategorized %}
+{% set dashboard_setup_complete = dashboard_has_accounts and dashboard_has_documents and not dashboard_needs_review and dashboard_has_report_data %}
+
 <section class="dashboard-grid">
   <div class="summary-grid dashboard-summary kpi-strip">
     <div class="metric metric-income">
@@ -17,6 +30,23 @@
       <strong>{{ overview.documents_needing_review | length }}</strong>
     </div>
   </div>
+
+  {% if dashboard_setup_complete %}
+    <div class="dashboard-guide">
+      {{ next_step(
+        "Откройте отчеты",
+        "Подтвержденные операции уже можно смотреть в сводке по доходам и расходам.",
+        "/reports",
+        "открыть отчеты",
+        "list-check",
+        "/imports/upload",
+        "загрузить еще",
+        "upload"
+      ) }}
+    </div>
+  {% endif %}
+
+  {{ onboarding_checklist(workspace, overview) }}
 
   <article class="panel stack dashboard-card">
     <div class="section-heading">
@@ -38,10 +68,13 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="empty-state">
-        <p>Счетов пока нет.</p>
-        <a class="button button-small" href="/accounts">{{ icon("plus") }} добавить счет</a>
-      </div>
+      {{ empty_state(
+        "Счетов пока нет",
+        "Добавьте счет, чтобы загрузить выписку и видеть баланс.",
+        "/accounts",
+        "добавить счет",
+        "plus"
+      ) }}
     {% endif %}
   </article>
 
@@ -63,10 +96,13 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="empty-state">
-        <p>Загруженных выписок пока нет.</p>
-        <a class="button button-small" href="/imports/upload">{{ icon("upload") }} загрузить выписку</a>
-      </div>
+      {{ empty_state(
+        "Загруженных выписок пока нет",
+        "Загрузите PDF или XLSX по одному из счетов, чтобы начать проверку строк.",
+        "/imports/upload",
+        "загрузить выписку",
+        "upload"
+      ) }}
     {% endif %}
   </article>
 </section>

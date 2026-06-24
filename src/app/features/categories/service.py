@@ -333,7 +333,7 @@ class CategoryService:
     ) -> None:
         existing = await self.categories.get_by_name_for_workspace(workspace_id, name)
         if existing is not None and existing.id != current_category_id:
-            raise CategoryError("Category with this name already exists.")
+            raise CategoryError("Категория с таким названием уже есть.")
 
 
 def clean_optional_text(value: str | None) -> str | None:

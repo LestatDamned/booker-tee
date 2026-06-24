@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from "components/empty_state.html" import empty_state %}
+{% from "components/inline_hint.html" import inline_hint %}
 
 {% block title %}Правила · {{ app_name }}{% endblock %}
 
@@ -15,7 +17,9 @@
       </form>
     </div>
 
-    <form class="form-panel" method="post" action="/rules">
+    {{ inline_hint("Правила помогают подставлять категорию, объект и тип операции по описанию из выписки. Они ускоряют проверку, но не заменяют финансовое решение пользователя.", "info") }}
+
+    <form id="new-rule" class="form-panel" method="post" action="/rules">
       {{ csrf_input() }}
       <label class="field form-field-wide">
         <span>название</span>
@@ -221,7 +225,16 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="notice">Правил транзакций пока нет.</div>
+      {{ empty_state(
+        "Правил транзакций пока нет",
+        "Создайте правило из частого описания или загрузите базовые правила, чтобы похожие строки получали подсказки при проверке.",
+        "#new-rule",
+        "заполнить форму",
+        "plus",
+        "/imports",
+        "к импортам",
+        "import"
+      ) }}
     {% endif %}
   </section>
 {% endblock %}

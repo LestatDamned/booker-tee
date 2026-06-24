@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from "components/next_step.html" import next_step %}
+{% from "components/empty_state.html" import empty_state %}
 
 {% block title %}Импорт · {{ app_name }}{% endblock %}
 
@@ -11,6 +13,33 @@
       </div>
       <a class="button" href="/imports/upload">{{ icon("upload") }} загрузить PDF</a>
     </div>
+
+    {% set review = namespace(document=none) %}
+    {% for document in documents %}
+      {% if review.document is none and document.status.value in ["requires_review", "failed_to_parse", "pending_parse"] %}
+        {% set review.document = document %}
+      {% endif %}
+    {% endfor %}
+    {% if review.document %}
+      {{ next_step(
+        "Проверьте выписку",
+        "Этот документ требует решения перед тем, как строки попадут в учет.",
+        "/imports/documents/" ~ review.document.id ~ "/review",
+        "открыть проверку",
+        "clipboard-check",
+        "/imports/upload",
+        "загрузить еще",
+        "upload"
+      ) }}
+    {% elif documents %}
+      {{ next_step(
+        "Загрузите выписку",
+        "Выберите PDF или XLSX по одному из счетов, чтобы получить строки для проверки.",
+        "/imports/upload",
+        "загрузить выписку",
+        "upload"
+      ) }}
+    {% endif %}
 
     {% if documents %}
       <div class="entity-card-list">
@@ -35,11 +64,13 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="empty-state">
-        <strong>Выписки еще не загружены</strong>
-        <span>Начните с PDF-выписки по одному из счетов.</span>
-        <a class="button button-small" href="/imports/upload">{{ icon("upload") }} загрузить PDF</a>
-      </div>
+      {{ empty_state(
+        "Выписки еще не загружены",
+        "Начните с PDF или XLSX-выписки по одному из счетов.",
+        "/imports/upload",
+        "загрузить выписку",
+        "upload"
+      ) }}
     {% endif %}
   </section>
 {% endblock %}

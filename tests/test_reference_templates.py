@@ -65,6 +65,8 @@ def test_categories_template_uses_compact_cards() -> None:
     )
 
     assert "form-panel" in html
+    assert "почему деньги пришли или ушли" in html
+    assert "влияет на отчеты" in html
     assert "filter-tab-active" in html
     assert "entity-card-readonly" in html
     assert "category-edit-details" in html
@@ -79,6 +81,30 @@ def test_categories_template_uses_compact_cards() -> None:
     assert '<input type="hidden" name="view" value="archived">' in html
     assert "<summary>ID</summary>" in html
     assert str(system_category_id) in html
+
+
+def test_categories_template_empty_state_points_to_creation_form() -> None:
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("categories/index.html").render(
+        app_name="Booker Tee",
+        workspace=SimpleNamespace(name="Personal"),
+        kinds=list(CategoryKind),
+        category_view="active",
+        category_view_options=[
+            ("active", "активные"),
+            ("archived", "архив"),
+            ("system", "системные"),
+            ("all", "все"),
+        ],
+        user_category_rows=[],
+        system_category_rows=[],
+    )
+
+    assert "Категорий не найдено" in html
+    assert "добавьте категорию для будущих операций и правил" in html
+    assert 'href="#name"' in html
 
 
 def test_category_detail_template_shows_operations_and_rules() -> None:

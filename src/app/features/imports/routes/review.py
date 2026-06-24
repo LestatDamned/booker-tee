@@ -177,7 +177,18 @@ async def create_review_category(
             kind=kind,
         )
     except CategoryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return await review_action_response(
+            request=request,
+            session=session,
+            settings=settings,
+            context=context,
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+            oob_raw_transaction_ids=frozenset(),
+            open_category_editor=True,
+            category_dialog_error=str(exc),
+            category_dialog_name=name,
+        )
 
     return await review_action_response(
         request=request,
@@ -225,6 +236,8 @@ async def review_action_response(
     oob_raw_transaction_ids: frozenset[UUID],
     selected_category_id: UUID | None = None,
     open_category_editor: bool = False,
+    category_dialog_error: str | None = None,
+    category_dialog_name: str | None = None,
 ) -> Response:
     if not is_htmx_request(request):
         return RedirectResponse(
@@ -269,6 +282,14 @@ async def review_action_response(
         template_values["selected_category_id_by_row"] = {raw_transaction_id: selected_category_id}
     if open_category_editor:
         template_values["open_category_editor_by_row"] = {raw_transaction_id: True}
+    if category_dialog_error is not None:
+        template_values["category_dialog_error_by_row"] = {
+            raw_transaction_id: category_dialog_error
+        }
+    if category_dialog_name is not None:
+        template_values["category_dialog_name_by_row"] = {
+            raw_transaction_id: category_dialog_name
+        }
     return templates.TemplateResponse(
         request,
         "imports/_review_action_response.html",

@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any, cast
 
 from fastapi import Request
@@ -191,6 +192,8 @@ ICON_PATHS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+STATIC_CSS_PATH = Path("src/app/static/css/app.css")
+
 
 def create_templates() -> Jinja2Templates:
     templates = Jinja2Templates(
@@ -212,12 +215,21 @@ def current_context_processor(request: Request) -> dict[str, Any]:
             "current_user": None,
             "current_workspace": None,
             "csrf_token": None,
+            "css_version": static_asset_version(STATIC_CSS_PATH),
         }
     return {
         "current_user": workspace_context.user,
         "current_workspace": workspace_context.workspace,
         "csrf_token": getattr(request.state, "csrf_token", None),
+        "css_version": static_asset_version(STATIC_CSS_PATH),
     }
+
+
+def static_asset_version(path: Path) -> str:
+    try:
+        return str(path.stat().st_mtime_ns)
+    except OSError:
+        return "dev"
 
 
 @pass_context

@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from "components/next_step.html" import next_step %}
+{% from "imports/_workflow_steps.html" import workflow_steps %}
 
 {% block title %}Настройка импорта · {{ view.original_filename }} · {{ app_name }}{% endblock %}
 
@@ -14,6 +16,43 @@
         <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
       </div>
     </header>
+
+    {{ workflow_steps(upload="done", extract="done", mapping="current", review="pending", ledger="pending") }}
+
+    {% if preview and preview.rows %}
+      {{ next_step(
+        "Импортируйте строки",
+        "Предпросмотр готов. После импорта строки попадут в проверку, но еще не станут подтвержденным учетом.",
+        "#mapping-import-actions",
+        "к импорту строк",
+        "import",
+        "/imports/documents/" ~ view.id,
+        "документ",
+        "file-text"
+      ) }}
+    {% elif table_options %}
+      {{ next_step(
+        "Настройте колонки",
+        "Выберите дату, описание и сумму, затем посмотрите предпросмотр перед импортом.",
+        "#mapping-form",
+        "к настройке",
+        "settings",
+        "/imports/documents/" ~ view.id,
+        "документ",
+        "file-text"
+      ) }}
+    {% else %}
+      {{ next_step(
+        "Вернитесь к документу",
+        "Таблицы для настройки не найдены. Проверьте детали парсинга или загрузите выписку заново.",
+        "/imports/documents/" ~ view.id,
+        "открыть документ",
+        "file-text",
+        "/imports/upload",
+        "загрузить заново",
+        "upload"
+      ) }}
+    {% endif %}
 
     <div class="notice">
       Выберите таблицу и колонки, чтобы проверить, как неизвестная выписка превратится в транзакции.
@@ -164,7 +203,7 @@
           <input id="default_currency" name="default_currency" value="{{ command.default_currency }}">
         </div>
 
-        <div class="mapping-action-row">
+        <div id="mapping-import-actions" class="mapping-action-row">
           <button class="button" type="submit">{{ icon("list-check") }} показать предпросмотр</button>
           {% if preview and preview.rows %}
             <button

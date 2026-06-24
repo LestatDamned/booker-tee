@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
+from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.dashboard.service import DashboardService
 from app.features.workspaces.dependencies import get_current_workspace_context
@@ -12,6 +14,25 @@ from app.templating import create_templates
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 templates = create_templates()
+
+
+@router.get("", response_class=HTMLResponse)
+async def dashboard_index(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+) -> HTMLResponse:
+    overview = await DashboardService(session).build_overview(context.workspace.id)
+    return templates.TemplateResponse(
+        request,
+        "dashboard/index.html",
+        {
+            "app_name": settings.app_name,
+            "overview": overview,
+            "workspace": context.workspace,
+        },
+    )
 
 
 @router.get("/summary", response_class=HTMLResponse)

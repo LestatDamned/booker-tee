@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% from "components/next_step.html" import next_step %}
+{% from "components/empty_state.html" import empty_state %}
+{% from "components/inline_hint.html" import inline_hint %}
+{% from "imports/_workflow_steps.html" import workflow_steps %}
 
 {% block title %}Проверка · {{ document.original_filename }} · {{ app_name }}{% endblock %}
 
@@ -6,6 +10,18 @@
   {% set latest_attempt = document.parse_attempts[0] if document.parse_attempts else none %}
   {% set validation = latest_attempt.validation_report_json if latest_attempt and latest_attempt.validation_report_json else none %}
   {% set balance_chain_problems = balance_chain_problems if balance_chain_problems is defined else {} %}
+  {% set review_queue = namespace(total=0, remaining=0, done=0, first_remaining_id=none) %}
+  {% for row in document.raw_transactions %}
+    {% set review_queue.total = review_queue.total + 1 %}
+    {% if row.status.value in ["confirmed", "ignored", "duplicate"] %}
+      {% set review_queue.done = review_queue.done + 1 %}
+    {% else %}
+      {% set review_queue.remaining = review_queue.remaining + 1 %}
+      {% if review_queue.first_remaining_id is none %}
+        {% set review_queue.first_remaining_id = row.id %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
   <section class="panel stack">
     <div class="toolbar">
       <div>
@@ -21,6 +37,16 @@
         <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
       </div>
     </div>
+
+    {% if review_queue.total > 0 and review_queue.remaining == 0 %}
+      {{ workflow_steps(upload="done", extract="done", mapping="skipped", review="done", ledger="done") }}
+    {% elif review_queue.total > 0 %}
+      {{ workflow_steps(upload="done", extract="done", mapping="skipped", review="current", ledger="pending") }}
+    {% else %}
+      {{ workflow_steps(upload="done", extract="blocked", mapping="pending", review="pending", ledger="pending") }}
+    {% endif %}
+
+    {% include "imports/_review_next_step.html" %}
 
     <div class="table-scroll">
       <table class="table">
@@ -80,6 +106,9 @@
         </table>
       </div>
       <div class="notice">{{ validation.message }}</div>
+      {% if validation.status in ["mismatch", "failed", "failed_to_parse"] or validation.inflow_difference or validation.outflow_difference %}
+        {{ inline_hint("Проверьте строки с пометками перед подтверждением: суммы или остатки не сходятся с выпиской, поэтому отчет может быть неверным.", "warning") }}
+      {% endif %}
     {% else %}
       <div class="notice">Отчет проверки для этого документа пока недоступен.</div>
     {% endif %}
@@ -91,10 +120,16 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="empty-state">
-        <strong>Сырых строк пока нет</strong>
-        <span>Перепарсите документ или загрузите выписку заново.</span>
-      </div>
+      {{ empty_state(
+        "Сырых строк пока нет",
+        "Проверьте страницу документа: возможно, нужно настроить колонки или загрузить выписку заново.",
+        "/imports/documents/" ~ document.id,
+        "открыть документ",
+        "file-text",
+        "/imports/upload",
+        "загрузить заново",
+        "upload"
+      ) }}
     {% endif %}
   </section>
 {% endblock %}

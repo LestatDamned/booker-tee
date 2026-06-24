@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/empty_state.html" import empty_state %}
 
 {% block title %}Отчеты · {{ app_name }}{% endblock %}
 
@@ -69,102 +70,134 @@
       </div>
     </div>
 
-    <h2 class="status">Балансы счетов</h2>
-    <table class="table">
-      <thead>
-        <tr>
-          <th>счет</th>
-          <th>баланс</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in overview.account_balances %}
-          <tr>
-            <td><a href="/accounts/{{ row.account.id }}">{{ row.account.name }}</a></td>
-            <td class="amount {% if row.balance > 0 %}amount-income{% elif row.balance < 0 %}amount-expense{% endif %}">{{ row.balance }} {{ row.account.currency }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <h2 class="status">По категориям</h2>
-    <table class="table report-table">
-      <thead>
-        <tr>
-          <th>категория</th>
-          <th>доходы</th>
-          <th>расходы</th>
-          <th>прибыль</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in overview.categories %}
-          <tr>
-            <td data-label="категория">
-              {% if row.category_id %}
-                <a href="/categories/{{ row.category_id }}">{{ row.category_name }}</a>
-              {% else %}
-                {{ row.category_name }}
-              {% endif %}
-            </td>
-            <td class="amount amount-income" data-label="доходы">{{ row.income }}</td>
-            <td class="amount amount-expense" data-label="расходы">{{ row.expense }}</td>
-            <td class="amount amount-profit" data-label="прибыль">{{ row.profit }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <h2 class="status">По объектам</h2>
-    {% if overview.properties %}
-      <table class="table report-table">
-        <thead>
-          <tr>
-            <th>объект</th>
-            <th>доходы</th>
-            <th>расходы</th>
-            <th>прибыль</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in overview.properties %}
-            <tr>
-              <td data-label="объект">{{ row.property_name }}</td>
-              <td class="amount amount-income" data-label="доходы">{{ row.income }}</td>
-              <td class="amount amount-expense" data-label="расходы">{{ row.expense }}</td>
-              <td class="amount amount-profit" data-label="прибыль">{{ row.profit }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <div class="notice">В этом фильтре нет подтвержденных операций, связанных с объектами.</div>
+    {% set report_has_rows = overview.categories or overview.properties or overview.uncategorized %}
+    {% if not report_has_rows %}
+      {% if accounts %}
+        {{ empty_state(
+          "Отчет пока пуст",
+          "Отчеты строятся только по подтвержденным доходам и расходам. Переводы между своими счетами в прибыль не входят.",
+          "/imports",
+          "открыть импорты",
+          "import",
+          "/imports/upload",
+          "загрузить выписку",
+          "upload"
+        ) }}
+      {% else %}
+        {{ empty_state(
+          "Сначала создайте счет",
+          "Счет нужен, чтобы загрузить выписку и получить подтвержденные операции для отчетов.",
+          "/accounts",
+          "создать счет",
+          "plus"
+        ) }}
+      {% endif %}
     {% endif %}
 
-    <h2 class="status">Без категории</h2>
-    {% if overview.uncategorized %}
-      <table class="table report-table">
+    {% if overview.account_balances %}
+      <h2 class="status">Балансы счетов</h2>
+      <table class="table">
         <thead>
           <tr>
-            <th>дата</th>
-            <th>тип</th>
-            <th>сумма</th>
-            <th>описание</th>
+            <th>счет</th>
+            <th>баланс</th>
           </tr>
         </thead>
         <tbody>
-          {% for row in overview.uncategorized %}
+          {% for row in overview.account_balances %}
             <tr>
-              <td class="status" data-label="дата">{{ row.operation.operation_date | date_ru }}</td>
-              <td data-label="тип"><span class="badge badge-{{ row.operation.type.value }}">{{ row.operation.type | ru }}</span></td>
-              <td class="amount {% if row.total > 0 %}amount-income{% elif row.total < 0 %}amount-expense{% endif %}" data-label="сумма">{{ row.total }}</td>
-              <td data-label="описание">{{ row.operation.description or "" }}</td>
+              <td><a href="/accounts/{{ row.account.id }}">{{ row.account.name }}</a></td>
+              <td class="amount {% if row.balance > 0 %}amount-income{% elif row.balance < 0 %}amount-expense{% endif %}">{{ row.balance }} {{ row.account.currency }}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
-    {% else %}
-      <div class="notice">В этом фильтре нет подтвержденных операций без категории.</div>
+    {% endif %}
+
+    {% if report_has_rows %}
+      <h2 class="status">По категориям</h2>
+      {% if overview.categories %}
+        <table class="table report-table">
+          <thead>
+            <tr>
+              <th>категория</th>
+              <th>доходы</th>
+              <th>расходы</th>
+              <th>прибыль</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in overview.categories %}
+              <tr>
+                <td data-label="категория">
+                  {% if row.category_id %}
+                    <a href="/categories/{{ row.category_id }}">{{ row.category_name }}</a>
+                  {% else %}
+                    {{ row.category_name }}
+                  {% endif %}
+                </td>
+                <td class="amount amount-income" data-label="доходы">{{ row.income }}</td>
+                <td class="amount amount-expense" data-label="расходы">{{ row.expense }}</td>
+                <td class="amount amount-profit" data-label="прибыль">{{ row.profit }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="notice">В этом фильтре нет подтвержденных доходов или расходов по категориям.</div>
+      {% endif %}
+
+      <h2 class="status">По объектам</h2>
+      {% if overview.properties %}
+        <table class="table report-table">
+          <thead>
+            <tr>
+              <th>объект</th>
+              <th>доходы</th>
+              <th>расходы</th>
+              <th>прибыль</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in overview.properties %}
+              <tr>
+                <td data-label="объект">{{ row.property_name }}</td>
+                <td class="amount amount-income" data-label="доходы">{{ row.income }}</td>
+                <td class="amount amount-expense" data-label="расходы">{{ row.expense }}</td>
+                <td class="amount amount-profit" data-label="прибыль">{{ row.profit }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="notice">В этом фильтре нет подтвержденных операций, связанных с объектами.</div>
+      {% endif %}
+
+      <h2 class="status">Без категории</h2>
+      {% if overview.uncategorized %}
+        <table class="table report-table">
+          <thead>
+            <tr>
+              <th>дата</th>
+              <th>тип</th>
+              <th>сумма</th>
+              <th>описание</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in overview.uncategorized %}
+              <tr>
+                <td class="status" data-label="дата">{{ row.operation.operation_date | date_ru }}</td>
+                <td data-label="тип"><span class="badge badge-{{ row.operation.type.value }}">{{ row.operation.type | ru }}</span></td>
+                <td class="amount {% if row.total > 0 %}amount-income{% elif row.total < 0 %}amount-expense{% endif %}" data-label="сумма">{{ row.total }}</td>
+                <td data-label="описание">{{ row.operation.description or "" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="notice">В этом фильтре нет подтвержденных операций без категории.</div>
+      {% endif %}
     {% endif %}
   </section>
 {% endblock %}

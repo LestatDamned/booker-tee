@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/empty_state.html" import empty_state %}
 
 {% block title %}Счета · {{ app_name }}{% endblock %}
 
@@ -12,7 +13,7 @@
       <a class="button" href="/imports">{{ icon("import") }} импорт</a>
     </div>
 
-    <form class="form-panel" method="post" action="/accounts">
+    <form id="new-account" class="form-panel" method="post" action="/accounts">
       {{ csrf_input() }}
       <label class="field form-field-wide">
         <span>название</span>
@@ -69,10 +70,16 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="empty-state">
-        <strong>Добавьте первый счет</strong>
-        <span>Создайте карту, вклад, расчетный счет или наличные перед импортом выписок.</span>
-      </div>
+      {{ empty_state(
+        "Добавьте первый счет",
+        "Счет показывает, где хранятся деньги, и нужен перед импортом выписки.",
+        "#new-account",
+        "заполнить форму",
+        "plus",
+        "/imports/upload",
+        "к загрузке",
+        "upload"
+      ) }}
     {% endif %}
   </section>
 {% endblock %}

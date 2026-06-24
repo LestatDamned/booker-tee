@@ -41,7 +41,7 @@ class CategoryRepository:
         result = await self.session.execute(
             select(Category).where(
                 Category.workspace_id == workspace_id,
-                Category.name == name,
+                func.lower(Category.name) == name.casefold(),
             )
         )
         return result.scalar_one_or_none()

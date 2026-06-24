@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from "components/empty_state.html" import empty_state %}
+{% from "components/inline_hint.html" import inline_hint %}
 
 {% block title %}Категории · {{ app_name }}{% endblock %}
 
@@ -119,6 +121,8 @@
       {% endfor %}
     </nav>
 
+    {{ inline_hint("Категория отвечает на вопрос, почему деньги пришли или ушли. Она влияет на отчеты по доходам, расходам и прибыли.", "info") }}
+
     <form class="form-panel" method="post" action="/categories">
       {{ csrf_input() }}
       <input type="hidden" name="view" value="{{ category_view }}">
@@ -152,10 +156,13 @@
         {{ category_group("служебные", system_category_rows, kinds, category_view) }}
       {% endif %}
     {% else %}
-      <div class="empty-state">
-        <strong>Категорий не найдено</strong>
-        <span>Измените фильтр или добавьте новую категорию.</span>
-      </div>
+      {{ empty_state(
+        "Категорий не найдено",
+        "Измените фильтр или добавьте категорию для будущих операций и правил.",
+        "#name",
+        "добавить категорию",
+        "plus"
+      ) }}
     {% endif %}
   </section>
 {% endblock %}

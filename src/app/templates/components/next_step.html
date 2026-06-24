@@ -1,0 +1,15 @@
+{% macro next_step(title, message, primary_href, primary_label, primary_icon="arrow-left", secondary_href=none, secondary_label=none, secondary_icon="file-text") %}
+  <aside class="next-step-panel">
+    <div class="next-step-copy">
+      <p class="eyebrow">следующий шаг</p>
+      <strong>{{ title }}</strong>
+      <span>{{ message }}</span>
+    </div>
+    <div class="next-step-actions">
+      <a class="button button-small primary-action" href="{{ primary_href }}">{{ icon(primary_icon) }} {{ primary_label }}</a>
+      {% if secondary_href and secondary_label %}
+        <a class="button button-small" href="{{ secondary_href }}">{{ icon(secondary_icon) }} {{ secondary_label }}</a>
+      {% endif %}
+    </div>
+  </aside>
+{% endmacro %}

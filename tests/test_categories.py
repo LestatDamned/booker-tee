@@ -1,6 +1,8 @@
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 from uuid import uuid4
+
+import pytest
 
 from app.features.categories.models import CategoryKind
 from app.features.categories.router import categories_url, split_category_rows
@@ -8,6 +10,7 @@ from app.features.categories.service import (
     DEFAULT_CATEGORY_SEEDS,
     PROPERTY_MANAGEMENT_CATEGORY_SEEDS,
     SYSTEM_CATEGORY_SEEDS,
+    CategoryError,
     CategoryManagementRow,
     CategoryService,
     clean_optional_text,
@@ -93,6 +96,24 @@ def test_categories_url_preserves_non_default_view() -> None:
     assert categories_url("nope") == "/categories"
 
 
+@pytest.mark.asyncio
+async def test_category_name_uniqueness_is_case_insensitive() -> None:
+    category_id = uuid4()
+    service = CategoryService(cast(Any, SimpleNamespace(commit=noop_async)))
+    service.categories = cast(
+        Any,
+        SimpleNamespace(
+            get_by_name_for_workspace=existing_category(category_id),
+        ),
+    )
+
+    with pytest.raises(CategoryError, match="Категория с таким названием уже есть"):
+        await service._ensure_name_available(
+            workspace_id=uuid4(),
+            name="продукты",
+        )
+
+
 def category_row(*, is_active: bool, is_system: bool) -> CategoryManagementRow:
     return cast(
         CategoryManagementRow,
@@ -104,3 +125,14 @@ def category_row(*, is_active: bool, is_system: bool) -> CategoryManagementRow:
             )
         ),
     )
+
+
+async def noop_async() -> None:
+    return None
+
+
+def existing_category(category_id: object) -> object:
+    async def get_by_name_for_workspace(_workspace_id: object, _name: str) -> object:
+        return SimpleNamespace(id=category_id)
+
+    return get_by_name_for_workspace

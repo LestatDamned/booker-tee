@@ -55,6 +55,9 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
         workspace=SimpleNamespace(name="Personal"),
     )
 
+    assert "Ручные операции нужны" in html
+    assert "перевод только перемещает деньги между счетами" in html
+    assert 'id="new-manual-operation"' in html
     assert f'id="operation-{operation_id}"' in html
     assert f'class="detached-form" id="manual-operation-form-{operation_id}"' in html
     assert "entity-card-list" in html
@@ -72,6 +75,45 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "дд.мм.гггг" in html
     assert "сохранить" in html
     assert "отменить" in html
+
+
+def test_manual_operations_template_guides_empty_states() -> None:
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html_without_accounts = templates.env.get_template("ledger/manual.html").render(
+        app_name="Booker Tee",
+        accounts=[],
+        categories=[],
+        manual_operations=[],
+        properties=[],
+        workspace=SimpleNamespace(name="Personal"),
+    )
+
+    assert "Сначала добавьте счет" in html_without_accounts
+    assert "Ручная операция всегда двигает деньги" in html_without_accounts
+    assert 'href="/accounts"' in html_without_accounts
+
+    account = SimpleNamespace(
+        id=uuid4(),
+        name="Карта",
+        currency="RUB",
+        type=None,
+        is_active=True,
+        initial_balance=Decimal("0.00"),
+    )
+    html_with_account = templates.env.get_template("ledger/manual.html").render(
+        app_name="Booker Tee",
+        accounts=[account],
+        categories=[],
+        manual_operations=[],
+        properties=[],
+        workspace=SimpleNamespace(name="Personal"),
+    )
+
+    assert "Ручных операций пока нет" in html_with_account
+    assert "наличных движений, корректировок" in html_with_account
+    assert 'href="#new-manual-operation"' in html_with_account
 
 
 def test_manual_operations_template_allows_restore_and_delete_cancelled_operation() -> None:

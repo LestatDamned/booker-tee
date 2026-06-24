@@ -1,4 +1,8 @@
-<dialog class="review-dialog" x-ref="categoryDialog">
+<dialog
+  class="review-dialog"
+  x-ref="categoryDialog"
+  {% if category_dialog_error %}x-init="$nextTick(() => { if (!$el.open) $el.showModal() })"{% endif %}
+>
   <form
     class="review-dialog-panel"
     method="post"
@@ -6,9 +10,12 @@
   >
     {{ csrf_input() }}
     <div class="action-title">Новая категория</div>
+    {% if category_dialog_error %}
+      <div class="form-error" role="alert">{{ category_dialog_error }}</div>
+    {% endif %}
     <label class="field">
       <span>Название</span>
-      <input name="name" placeholder="например, Здоровье" required autofocus>
+      <input name="name" value="{{ category_dialog_name }}" placeholder="например, Здоровье" required autofocus>
     </label>
     <label class="field">
       <span>Тип</span>

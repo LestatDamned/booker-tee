@@ -133,6 +133,38 @@ Key message near `Create rule`:
 Use this when similar descriptions should get the same category next time.
 ```
 
+Also teach on:
+
+- `/categories`
+- `/rules`
+
+Recommended guidance:
+
+- categories page explains that categories drive reports;
+- rules page explains that rules prefill/suggest review decisions, but do not replace review;
+- empty rule/category states should point to the creation form.
+
+### Manual Operations
+
+User must understand when to create an operation manually instead of importing it from a statement.
+
+Teach on:
+
+- `/ledger/manual`
+
+Key message:
+
+```text
+Use manual operations for cash movements, corrections, and one-off entries outside imported statements.
+Income/expense affects profit. Transfer only moves money between accounts.
+```
+
+Recommended guidance:
+
+- short local hint above the manual operation form;
+- empty state explains why an account is required;
+- empty list explains when manual operations are useful.
+
 ### Raw Data Preservation
 
 User should trust that raw imported rows are preserved even if normalization or review changes.
@@ -388,7 +420,7 @@ Deliverables:
 Status:
 
 ```text
-planned
+done
 ```
 
 ### Phase 2 — Next Step Panel Foundation
@@ -403,10 +435,26 @@ Deliverables:
 - lightweight DTO/helper for title, message, primary action;
 - first usage on dashboard/imports pages.
 
+Initial implementation:
+
+- `templates/components/next_step.html`
+- dashboard summary
+- imports index
+- upload page
+- document detail
+- mapping page
+- review page
+
 Acceptance:
 
 - no page has more than one primary next action;
 - no component contains hardcoded fake progress.
+
+Status:
+
+```text
+done
+```
 
 ### Phase 3 — Import Step Indicator
 
@@ -419,11 +467,24 @@ Deliverables:
 - `templates/imports/_workflow_steps.html`
 - helper that maps document status and validation state to steps.
 
+Initial implementation:
+
+- `templates/imports/_workflow_steps.html`
+- document detail
+- mapping page
+- review page
+
 Acceptance:
 
 - document detail, mapping, and review show the same step state;
 - mapping-required documents clearly point to mapping;
 - review-ready documents clearly point to review.
+
+Status:
+
+```text
+done
+```
 
 ### Phase 4 — Better Empty States
 
@@ -438,10 +499,26 @@ Deliverables:
 - review no-raw-rows state;
 - reports no-confirmed-data state.
 
+Initial implementation:
+
+- reusable `templates/components/empty_state.html`
+- accounts empty state points to the first-account form
+- reports empty state distinguishes no accounts from no confirmed report data
+- dashboard account/import empty states
+- imports index empty state
+- upload no-account empty state
+- review no-raw-rows empty state
+
 Acceptance:
 
 - each empty state has one primary action;
 - each explanation is one or two short sentences.
+
+Status:
+
+```text
+done
+```
 
 ### Phase 5 — Review Guidance
 
@@ -457,10 +534,26 @@ Deliverables:
 - create-rule hint;
 - possible duplicate hint.
 
+Initial implementation:
+
+- review remaining-count panel
+- completion state
+- reusable `templates/components/inline_hint.html`
+- transfer hint inside transfer accordion
+- create-rule hint near the checkbox
+- possible duplicate hint on possible duplicate rows
+- validation mismatch hint near the review validation summary
+
 Acceptance:
 
 - transaction cards remain fast to scan;
 - no repeated wall of instructional text per row.
+
+Status:
+
+```text
+done
+```
 
 ### Phase 6 — Onboarding Checklist
 
@@ -473,10 +566,55 @@ Deliverables:
 - dashboard checklist based on real workspace data;
 - optional compact header/sidebar variant later.
 
+Initial implementation:
+
+- real `/dashboard` page
+- dashboard navigation link
+- workspace selection redirects to `/dashboard`
+- reusable `templates/components/onboarding_checklist.html`
+- checklist state derived from accounts, imported documents, review queue, and report data
+- compact header/sidebar variant deferred until the final UX/UI audit shows it is needed
+
 Acceptance:
 
 - checklist items reflect actual database state;
 - checklist does not appear as a blocking wizard.
+
+Status:
+
+```text
+done
+```
+
+### Phase 7 — Supporting Feature Guidance
+
+Goal:
+
+Teach users how supporting sections help the import/review workflow.
+
+Deliverables:
+
+- category guidance on `/categories`;
+- rule guidance on `/rules`;
+- manual operation guidance on `/ledger/manual`.
+
+Initial implementation:
+
+- categories explain report impact and empty state points to the category form;
+- rules explain suggestions/prefill behavior and empty state points to the rule form;
+- manual operations explain cash/corrections/one-off entries and the income/expense/transfer distinction.
+
+Acceptance:
+
+- supporting pages explain why the feature exists;
+- guidance stays close to the creation form;
+- no page becomes a long manual.
+
+Status:
+
+```text
+done
+```
 
 ## 7. Non-goals for now
 
@@ -522,9 +660,18 @@ Prefer business wording over implementation wording:
 - "проверка" instead of "review pipeline";
 - "проведено" instead of "linked operation" unless showing technical details.
 
-## 9. Open questions
+## 9. UX/UI audit notes
 
-1. Should the dashboard checklist disappear completely after setup, or collapse into an active-work queue?
-2. Should users be able to hide guidance once they are comfortable?
-3. Should import step indicators appear on the imports index cards, or only inside document pages?
-4. Should review completion automatically suggest reports, imports index, or next document requiring review?
+Final guidance audit decisions:
+
+1. Dashboard checklist is the primary guide until setup is complete. Do not show a competing next-step panel during setup.
+2. Empty states should not repeat the same primary action already shown by a next-step panel on the same screen.
+3. Reports should show one strong empty state when there is no report data, not separate "no data" notices for every report section.
+4. Mapping next-step links should jump to the action area that matches the suggested action, not merely to the top of the form.
+5. Supporting feature hints should stay short and local to the form; no separate help/manual page for MVP.
+
+## 10. Open questions
+
+1. Should users be able to hide guidance once they are comfortable?
+2. Should review completion automatically suggest reports, imports index, or next document requiring review?
+3. Should the compact checklist variant be added to the header/sidebar after more real usage?

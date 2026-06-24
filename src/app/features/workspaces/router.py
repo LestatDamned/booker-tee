@@ -122,7 +122,7 @@ async def select_workspace(
         settings=settings,
         workspace_id=workspace.id,
     )
-    return RedirectResponse(url="/accounts", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
 
 
 async def switch_session_workspace(

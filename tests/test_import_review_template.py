@@ -270,7 +270,9 @@ def test_review_action_response_sends_sibling_rows_oob() -> None:
 
     assert f'id="raw-{current_row.id}"' in html
     assert f'id="raw-{sibling_row.id}"' in html
-    assert html.count('hx-swap-oob="true"') == 1
+    assert html.count('hx-swap-oob="true"') == 2
+    assert 'id="review-next-step" hx-swap-oob="true"' in html
+    assert "Осталось обработать 2 из 2 строк." in html
 
 
 def test_review_item_selects_newly_created_category() -> None:
@@ -324,6 +326,52 @@ def test_review_item_selects_newly_created_category() -> None:
     assert f'<option value="{uncategorized_category_id}" selected>' not in html
     assert "Новая категория" in html
     assert "расход" in html
+    assert "openCategoryDialog(event)" in html
+    assert '@click.stop="openCategoryDialog($event)"' in html
+
+
+def test_review_item_reopens_category_dialog_with_error() -> None:
+    row_id = uuid4()
+    row = SimpleNamespace(
+        id=row_id,
+        row_index=1,
+        status=RawTransactionStatus.NORMALIZED,
+        operation_date="2026-05-29",
+        operation_date_raw=None,
+        amount=Decimal("-100.00"),
+        amount_raw=None,
+        currency="RUB",
+        description_normalized="Аптека",
+        description_raw=None,
+        normalization_error=None,
+        suggested_by_rule_id=None,
+        suggested_category_id=None,
+        suggested_property_id=None,
+        linked_operation_id=None,
+        raw_payload={},
+    )
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("imports/_review_item.html").render(
+        document=SimpleNamespace(id=uuid4(), raw_transactions=[row]),
+        row=row,
+        categories=[SimpleNamespace(id=uuid4(), name="Без категории", system_key="uncategorized")],
+        category_kinds=list(CategoryKind),
+        properties=[],
+        accounts=[],
+        balance_chain_problems={},
+        open_category_editor_by_row={row_id: True},
+        category_dialog_error_by_row={row_id: "Категория с таким названием уже есть."},
+        category_dialog_name_by_row={row_id: "Аптека"},
+        transfer_suggestions={},
+    )
+
+    assert 'class="action-details action-accordion" open' in html
+    assert 'role="alert"' in html
+    assert "Категория с таким названием уже есть." in html
+    assert 'value="Аптека"' in html
+    assert "showModal()" in html
 
 
 def test_review_template_shows_balance_chain_problem_on_row() -> None:
@@ -382,4 +430,5 @@ def test_review_template_shows_balance_chain_problem_on_row() -> None:
     )
 
     assert "Остатки после операций не совпадают с суммами строк." in html
+    assert "суммы или остатки не сходятся с выпиской" in html
     assert "остаток не сходится: ожидалось 1070.00, в строке 1060.00" in html

@@ -71,6 +71,13 @@ def test_financial_pages_redirect_to_login_without_session(client) -> None:
     assert response.headers["location"] == "/login"
 
 
+def test_dashboard_redirects_to_login_without_session(client) -> None:
+    response = client.get("/dashboard", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
+
+
 def test_passwords_are_hashed_and_verified() -> None:
     password_hash = hash_password("correct horse battery staple")
 

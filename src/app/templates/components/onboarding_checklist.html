@@ -1,0 +1,80 @@
+{% macro checklist_item(index, title, message, state, href=none, action_label=none) %}
+  <li class="onboarding-item onboarding-item-{{ state }}">
+    <span class="onboarding-index">{{ index }}</span>
+    <div class="onboarding-copy">
+      <strong>{{ title }}</strong>
+      <span>{{ message }}</span>
+    </div>
+    <span class="badge badge-{{ "confirmed" if state == "done" else "needs_review" if state == "current" else "inactive" }}">
+      {{ "готово" if state == "done" else "сейчас" if state == "current" else "позже" }}
+    </span>
+    {% if href and action_label %}
+      <a class="meta-link" href="{{ href }}">{{ action_label }}</a>
+    {% endif %}
+  </li>
+{% endmacro %}
+
+{% macro onboarding_checklist(workspace, overview) %}
+  {% set has_accounts = overview.reports.account_balances %}
+  {% set has_documents = overview.recent_documents %}
+  {% set needs_review = overview.documents_needing_review %}
+  {% set report_categories = overview.reports.categories if overview.reports.categories is defined else [] %}
+  {% set report_properties = overview.reports.properties if overview.reports.properties is defined else [] %}
+  {% set report_uncategorized = overview.reports.uncategorized if overview.reports.uncategorized is defined else [] %}
+  {% set has_report_data = report_categories or report_properties or report_uncategorized %}
+  {% set setup_complete = has_accounts and has_documents and not needs_review and has_report_data %}
+  {% set review_href = "/imports/documents/" ~ needs_review[0].id ~ "/review" if needs_review else "/imports" %}
+
+  {% if not setup_complete %}
+    <article class="panel stack dashboard-card onboarding-checklist">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">настройка</p>
+          <h2>Первые шаги</h2>
+        </div>
+      </div>
+      <ol class="onboarding-list">
+        {{ checklist_item(
+          1,
+          "Рабочее пространство",
+          workspace.name ~ " хранит счета, выписки и отчеты отдельно от других пространств.",
+          "done",
+          "/workspaces",
+          "пространства"
+        ) }}
+        {{ checklist_item(
+          2,
+          "Добавьте счет",
+          "Счет нужен, чтобы выписка попала в правильное место хранения денег.",
+          "done" if has_accounts else "current",
+          "/accounts",
+          "счета"
+        ) }}
+        {{ checklist_item(
+          3,
+          "Загрузите выписку",
+          "Импорт сохранит файл, извлечет строки и подготовит их к проверке.",
+          "done" if has_documents else "current" if has_accounts else "pending",
+          "/imports/upload",
+          "загрузка"
+        ) }}
+        {{ checklist_item(
+          4,
+          "Проверьте строки",
+          "Подтвердите доходы и расходы, отметьте переводы и дубли.",
+          "current" if needs_review else "done" if has_documents else "pending",
+          review_href,
+          "проверка" if needs_review else "импорты"
+        ) }}
+        {{ checklist_item(
+          5,
+          "Откройте отчеты",
+          "Отчеты строятся по подтвержденным операциям; переводы не входят в прибыль.",
+          "done" if has_report_data else "current" if has_documents and not needs_review else "pending",
+          "/reports",
+          "отчеты"
+        ) }}
+      </ol>
+    </article>
+  {% endif %}
+{% endmacro %}
