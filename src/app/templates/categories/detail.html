@@ -35,6 +35,47 @@
       </div>
     </div>
 
+    {% if not detail.category.is_system %}
+      <details class="action-details action-accordion category-edit-details">
+        <summary>{{ icon("settings") }} управление категорией</summary>
+        <form class="form-panel form-panel-embedded" method="post" action="/categories/{{ detail.category.id }}">
+          {{ csrf_input() }}
+          <label class="field form-field-half">
+            <span>название</span>
+            <input name="name" value="{{ detail.category.name }}" required>
+          </label>
+          <label class="field form-field-quarter">
+            <span>тип</span>
+            <select name="kind">
+              {% for editable_kind in kinds %}
+                <option value="{{ editable_kind.value }}" {% if detail.category.kind == editable_kind %}selected{% endif %}>
+                  {{ editable_kind | ru }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field form-field-half">
+            <span>заметка</span>
+            <input name="notes" value="{{ detail.category.notes or "" }}" placeholder="Когда использовать">
+          </label>
+          <div class="form-actions">
+            <button class="button button-small" type="submit">{{ icon("save") }} сохранить</button>
+          </div>
+        </form>
+        {% if detail.category.is_active %}
+          <form method="post" action="/categories/{{ detail.category.id }}/archive">
+            {{ csrf_input() }}
+            <button class="button button-small" type="submit">{{ icon("archive") }} в архив</button>
+          </form>
+        {% else %}
+          <form method="post" action="/categories/{{ detail.category.id }}/restore">
+            {{ csrf_input() }}
+            <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
+          </form>
+        {% endif %}
+      </details>
+    {% endif %}
+
     <div class="summary-grid kpi-strip">
       <div>
         <span>доходы</span>

@@ -19,23 +19,32 @@
     {% if accounts %}
     <form id="new-manual-operation" class="form-panel" method="post" action="/ledger/manual">
       {{ csrf_input() }}
-      <label class="field">
+      <div class="field operation-type-field form-field-half">
         <span>тип</span>
-        <select name="operation_type" required>
-          <option value="income">доход</option>
-          <option value="expense">расход</option>
-          <option value="transfer">перевод</option>
-        </select>
-      </label>
-      <label class="field">
+        <div class="segmented-control" role="radiogroup" aria-label="Тип операции">
+          <label class="segmented-option segmented-income">
+            <input name="operation_type" type="radio" value="income" required checked>
+            <span>доход</span>
+          </label>
+          <label class="segmented-option segmented-expense">
+            <input name="operation_type" type="radio" value="expense" required>
+            <span>расход</span>
+          </label>
+          <label class="segmented-option segmented-transfer">
+            <input name="operation_type" type="radio" value="transfer" required>
+            <span>перевод</span>
+          </label>
+        </div>
+      </div>
+      <label class="field form-field-quarter">
         <span>дата</span>
         <input name="operation_date" inputmode="numeric" placeholder="дд.мм.гггг" pattern="\d{2}\.\d{2}\.\d{4}" required>
       </label>
-      <label class="field">
+      <label class="field form-field-quarter">
         <span>сумма</span>
         <input class="amount" name="amount" inputmode="decimal" placeholder="Сумма" required>
       </label>
-      <label class="field">
+      <label class="field form-field-quarter">
         <span>счет</span>
         <select name="account_id" required>
           {% for account in accounts %}
@@ -43,7 +52,7 @@
           {% endfor %}
         </select>
       </label>
-      <label class="field">
+      <label class="field form-field-quarter">
         <span>счет назначения</span>
         <select name="destination_account_id">
           <option value="">счет назначения</option>
@@ -52,7 +61,7 @@
           {% endfor %}
         </select>
       </label>
-      <label class="field">
+      <label class="field form-field-quarter">
         <span>категория</span>
         <select name="category_id">
           <option value="">без категории</option>
@@ -61,7 +70,7 @@
           {% endfor %}
         </select>
       </label>
-      <label class="field">
+      <label class="field form-field-quarter">
         <span>объект</span>
         <select name="property_id">
           <option value="">без объекта</option>
@@ -70,11 +79,13 @@
           {% endfor %}
         </select>
       </label>
-      <label class="field form-field-wide">
+      <label class="field form-field-half">
         <span>описание</span>
         <input name="description" placeholder="Описание">
       </label>
-      <button class="button form-submit" type="submit">{{ icon("plus") }} создать</button>
+      <div class="form-actions">
+        <button class="button" type="submit">{{ icon("plus") }} создать</button>
+      </div>
     </form>
     {% else %}
       {{ empty_state(
@@ -118,7 +129,6 @@
               </div>
               <div class="entity-card-meta">
                 <span>{{ operation.operation_date | date_ru }}</span>
-                <span title="{{ operation.id }}">ID {{ operation.id | short_id }}</span>
                 {% if operation.type.value == "transfer" %}
                   <span>из {{ operation.source_entry.account.name if operation.source_entry and operation.source_entry.account else "счет не найден" }}</span>
                   <span>в {{ operation.destination_entry.account.name if operation.destination_entry and operation.destination_entry.account else "счет не найден" }}</span>
@@ -127,26 +137,39 @@
                 {% endif %}
                 {% if operation.category %}<span class="badge badge-{{ operation.category.kind.value if operation.category.kind else operation.type.value }}">{{ operation.category.name }}</span>{% endif %}
                 {% if operation.property %}<span>{{ operation.property.name }}</span>{% endif %}
+                <details class="technical-details">
+                  <summary>ID</summary>
+                  <span>ID {{ operation.id }}</span>
+                </details>
               </div>
 
               <div class="form-panel form-panel-embedded">
-                <label class="field">
+                <div class="field operation-type-field form-field-half">
                   <span>тип</span>
-                  <select name="operation_type" form="{{ form_id }}" required>
-                    <option value="income" {% if operation.type.value == "income" %}selected{% endif %}>доход</option>
-                    <option value="expense" {% if operation.type.value == "expense" %}selected{% endif %}>расход</option>
-                    <option value="transfer" {% if operation.type.value == "transfer" %}selected{% endif %}>перевод</option>
-                  </select>
-                </label>
-                <label class="field">
+                  <div class="segmented-control" role="radiogroup" aria-label="Тип операции">
+                    <label class="segmented-option segmented-income">
+                      <input name="operation_type" type="radio" value="income" form="{{ form_id }}" required {% if operation.type.value == "income" %}checked{% endif %}>
+                      <span>доход</span>
+                    </label>
+                    <label class="segmented-option segmented-expense">
+                      <input name="operation_type" type="radio" value="expense" form="{{ form_id }}" required {% if operation.type.value == "expense" %}checked{% endif %}>
+                      <span>расход</span>
+                    </label>
+                    <label class="segmented-option segmented-transfer">
+                      <input name="operation_type" type="radio" value="transfer" form="{{ form_id }}" required {% if operation.type.value == "transfer" %}checked{% endif %}>
+                      <span>перевод</span>
+                    </label>
+                  </div>
+                </div>
+                <label class="field form-field-quarter">
                   <span>дата</span>
                   <input name="operation_date" inputmode="numeric" value="{{ operation.operation_date | date_ru }}" form="{{ form_id }}" placeholder="дд.мм.гггг" pattern="\d{2}\.\d{2}\.\d{4}" required>
                 </label>
-                <label class="field">
+                <label class="field form-field-quarter">
                   <span>сумма</span>
                   <input class="amount" name="amount" inputmode="decimal" value="{{ operation.edit_amount or '' }}" form="{{ form_id }}" required>
                 </label>
-                <label class="field">
+                <label class="field form-field-quarter">
                   <span>счет</span>
                   <select name="account_id" form="{{ form_id }}" required>
                     {% for account in accounts %}
@@ -156,7 +179,7 @@
                     {% endfor %}
                   </select>
                 </label>
-                <label class="field">
+                <label class="field form-field-quarter">
                   <span>счет назначения</span>
                   <select name="destination_account_id" form="{{ form_id }}">
                     <option value="">счет назначения</option>
@@ -167,7 +190,7 @@
                     {% endfor %}
                   </select>
                 </label>
-                <label class="field">
+                <label class="field form-field-quarter">
                   <span>категория</span>
                   <select name="category_id" form="{{ form_id }}">
                     <option value="">без категории</option>
@@ -176,7 +199,7 @@
                     {% endfor %}
                   </select>
                 </label>
-                <label class="field">
+                <label class="field form-field-quarter">
                   <span>объект</span>
                   <select name="property_id" form="{{ form_id }}">
                     <option value="">без объекта</option>
@@ -185,7 +208,7 @@
                     {% endfor %}
                   </select>
                 </label>
-                <label class="field form-field-wide">
+                <label class="field form-field-half">
                   <span>описание</span>
                   <input name="description" value="{{ operation.description or '' }}" form="{{ form_id }}" placeholder="Описание">
                 </label>
@@ -216,10 +239,7 @@
     {% else %}
       {{ empty_state(
         "Ручных операций пока нет",
-        "Создавайте их для наличных движений, корректировок и операций вне банковских выписок.",
-        "#new-manual-operation",
-        "создать вручную",
-        "plus"
+        "Создавайте их через форму выше для наличных движений, корректировок и операций вне банковских выписок."
       ) }}
     {% endif %}
   </section>

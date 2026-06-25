@@ -14,6 +14,7 @@ from app.features.transaction_rules.domain.suggestions import (
     clear_rule_suggestion,
 )
 from app.features.transaction_rules.errors import TransactionRuleError
+from app.features.transaction_rules.models import TransactionRule
 from app.features.transaction_rules.repository import TransactionRuleRepository
 
 
@@ -62,11 +63,10 @@ class TransactionRuleApplicationUseCase:
             checked_count += 1
             before = raw_rule_state(raw_transaction)
             clear_rule_suggestion(raw_transaction)
-            for rule in rules:
-                if rule_matches_raw_transaction(rule, raw_transaction):
-                    apply_rule_suggestion(raw_transaction, rule)
-                    suggested_count += 1
-                    break
+            rule = select_best_matching_rule(rules, raw_transaction)
+            if rule is not None:
+                apply_rule_suggestion(raw_transaction, rule)
+                suggested_count += 1
             if raw_rule_state(raw_transaction) != before:
                 updated_raw_transaction_ids.add(raw_transaction.id)
         await self.session.flush()
@@ -85,4 +85,30 @@ def raw_rule_state(raw_transaction: RawTransaction) -> tuple[object, ...]:
         raw_transaction.suggested_operation_type,
         raw_transaction.suggested_by_rule_id,
         (raw_transaction.raw_payload or {}).get("rule_suggestion"),
+    )
+
+
+def select_best_matching_rule(
+    rules: list[TransactionRule],
+    raw_transaction: RawTransaction,
+) -> TransactionRule | None:
+    best_rule: TransactionRule | None = None
+    best_score: tuple[int, ...] | None = None
+    for rule in rules:
+        if not rule_matches_raw_transaction(rule, raw_transaction):
+            continue
+        score = rule_preference_score(rule)
+        if best_score is None or score > best_score:
+            best_rule = rule
+            best_score = score
+    return best_rule
+
+
+def rule_preference_score(rule: TransactionRule) -> tuple[int, ...]:
+    return (
+        int(rule.category_id is not None),
+        int(rule.property_id is not None),
+        int(rule.target_operation_type is not None),
+        int(rule.account_id is not None),
+        int(rule.amount_min is not None or rule.amount_max is not None),
     )

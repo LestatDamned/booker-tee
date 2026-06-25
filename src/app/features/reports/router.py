@@ -11,6 +11,8 @@ from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
+from app.features.imports.models import UploadedDocumentStatus
+from app.features.imports.query_repository import ImportQueryRepository
 from app.features.properties.service import PropertyService
 from app.features.reports.service import ReportFilters, ReportsService
 from app.features.workspaces.dependencies import get_current_workspace_context
@@ -51,6 +53,9 @@ async def reports_index(
         workspace_id=context.workspace.id,
         filters=filters,
     )
+    documents = await ImportQueryRepository(session).list_documents_for_workspace(
+        context.workspace.id
+    )
     return templates.TemplateResponse(
         request,
         "reports/index.html",
@@ -59,6 +64,16 @@ async def reports_index(
             "app_name": settings.app_name,
             "categories": categories,
             "filters": filters,
+            "documents_needing_review": [
+                document
+                for document in documents
+                if document.status
+                in {
+                    UploadedDocumentStatus.REQUIRES_REVIEW,
+                    UploadedDocumentStatus.FAILED_TO_PARSE,
+                    UploadedDocumentStatus.PENDING_PARSE,
+                }
+            ],
             "overview": overview,
             "properties": properties,
             "workspace": context.workspace,

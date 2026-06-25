@@ -11,7 +11,6 @@
         <p class="eyebrow">{{ workspace.name }}</p>
         <h1>Импорт выписок</h1>
       </div>
-      <a class="button" href="/imports/upload">{{ icon("upload") }} загрузить PDF</a>
     </div>
 
     {% set review = namespace(document=none) %}
@@ -26,15 +25,12 @@
         "Этот документ требует решения перед тем, как строки попадут в учет.",
         "/imports/documents/" ~ review.document.id ~ "/review",
         "открыть проверку",
-        "clipboard-check",
-        "/imports/upload",
-        "загрузить еще",
-        "upload"
+        "clipboard-check"
       ) }}
     {% elif documents %}
       {{ next_step(
         "Загрузите выписку",
-        "Выберите PDF или XLSX по одному из счетов, чтобы получить строки для проверки.",
+        "Перед первой загрузкой советуем подгрузить базовые правила: они ускорят проверку строк и дадут стартовые подсказки по категориям.",
         "/imports/upload",
         "загрузить выписку",
         "upload"
@@ -47,18 +43,23 @@
           <article class="entity-card">
             <div class="entity-card-main">
               <div class="entity-card-title">
-                <strong>{{ document.original_filename }}</strong>
+                <strong class="truncate-label" title="{{ document.original_filename }}">{{ document.original_filename }}</strong>
                 <span class="badge badge-{{ document.status.value }}">{{ document.status | ru }}</span>
-                <span title="{{ document.id }}">ID {{ document.id | short_id }}</span>
               </div>
               <div class="entity-card-meta">
-                <span>{{ document.file_size_bytes or 0 }} байт</span>
-                <span>{{ document.created_at }}</span>
+                <span>загружено {{ document.created_at | date_ru }}</span>
               </div>
+              <details class="technical-details">
+                <summary>ID</summary>
+                <span>ID {{ document.id }}</span>
+                <span>{{ document.file_size_bytes or 0 }} байт</span>
+              </details>
             </div>
             <div class="entity-card-actions">
+              {% if document.status.value in ["requires_review", "imported"] %}
+                <a class="button button-small primary-action" href="/imports/documents/{{ document.id }}/review">{{ icon("clipboard-check") }} проверка</a>
+              {% endif %}
               <a class="button button-small" href="/imports/documents/{{ document.id }}">{{ icon("file-text") }} детали</a>
-              <a class="button button-small" href="/imports/documents/{{ document.id }}/review">{{ icon("clipboard-check") }} проверка</a>
             </div>
           </article>
         {% endfor %}
@@ -66,7 +67,7 @@
     {% else %}
       {{ empty_state(
         "Выписки еще не загружены",
-        "Начните с PDF или XLSX-выписки по одному из счетов.",
+        "Начните с файла выписки в PDF или XLSX по одному из счетов. Для быстрой проверки сначала можно загрузить базовые правила в разделе Правила.",
         "/imports/upload",
         "загрузить выписку",
         "upload"

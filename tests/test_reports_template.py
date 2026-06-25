@@ -106,7 +106,36 @@ def test_reports_template_empty_state_points_to_imports_without_confirmed_operat
     assert "По категориям" not in html
 
 
-def render_reports(*, accounts: list[object], overview: object) -> str:
+def test_reports_template_empty_state_points_to_review_when_documents_need_review() -> None:
+    account_id = uuid4()
+    document_id = uuid4()
+    html = render_reports(
+        accounts=[SimpleNamespace(id=account_id, name="Карта")],
+        documents_needing_review=[SimpleNamespace(id=document_id)],
+        overview=empty_overview(
+            account_balances=[
+                SimpleNamespace(
+                    account=SimpleNamespace(id=account_id, name="Карта", currency="RUB"),
+                    balance=Decimal("0.00"),
+                )
+            ]
+        ),
+    )
+
+    assert "Есть выписка со строками на проверке" in html
+    assert "неподтвержденные строки не входят в доходы, расходы и прибыль" in html
+    assert f'href="/imports/documents/{document_id}/review"' in html
+    assert "проверить строки" in html
+    assert 'href="/imports/upload"' not in html
+    assert "По категориям" not in html
+
+
+def render_reports(
+    *,
+    accounts: list[object],
+    overview: object,
+    documents_needing_review: list[object] | None = None,
+) -> str:
     templates = create_templates()
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
     return templates.env.get_template("reports/index.html").render(
@@ -121,6 +150,7 @@ def render_reports(*, accounts: list[object], overview: object) -> str:
         ),
         accounts=accounts,
         categories=[],
+        documents_needing_review=documents_needing_review or [],
         properties=[],
         overview=overview,
     )

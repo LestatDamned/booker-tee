@@ -9,36 +9,40 @@
     <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
   </head>
   <body>
-    <header class="site-header">
-      <div class="shell header-grid">
-        <a class="brand" href="/">{{ app_name }}</a>
-        <div class="context-strip">
-          <a class="context-item" href="/users">
-            <span>пользователь</span>
-            <strong>{{ current_user.name or current_user.email if current_user else "не выбран" }}</strong>
-          </a>
-          <a class="context-item" href="/workspaces">
-            <span>пространство</span>
-            <strong>{{ current_workspace.name if current_workspace else "не выбрано" }}</strong>
-          </a>
-        </div>
+    <header class="site-header" x-data="{ navOpen: false }" @keydown.escape.window="navOpen = false">
+      <div class="shell header-grid {% if not current_user %}header-grid-public{% endif %}">
+        <a class="brand" href="{% if current_user %}/dashboard{% else %}/{% endif %}">{{ app_name }}</a>
         {% if current_user %}
+          <div class="context-strip">
+            <a class="context-item" href="/workspaces">
+              <span>пространство</span>
+              <strong class="truncate-label" title="{{ current_workspace.name if current_workspace else 'не выбрано' }}">{{ current_workspace.name if current_workspace else "не выбрано" }}</strong>
+            </a>
+          </div>
           <a class="status-pill primary-action" href="/imports/upload">{{ icon("upload") }} загрузить</a>
         {% else %}
           <a class="status-pill primary-action" href="/login">{{ icon("user") }} войти</a>
         {% endif %}
+        <button class="mobile-menu-toggle" type="button" aria-controls="main-navigation" :aria-expanded="navOpen.toString()" @click="navOpen = !navOpen">
+          {{ icon("menu") }} меню
+        </button>
       </div>
-      <nav class="shell nav-actions">
-        <a class="nav-link" href="/dashboard">{{ icon("home") }} обзор</a>
-        <a class="nav-link" href="/users">{{ icon("user") }} профиль</a>
-        <a class="nav-link" href="/workspaces">{{ icon("folder") }} пространства</a>
-        <a class="nav-link" href="/accounts">{{ icon("wallet") }} счета</a>
-        <a class="nav-link" href="/ledger/manual">{{ icon("plus") }} операции</a>
-        <a class="nav-link" href="/imports">{{ icon("import") }} импорт</a>
-        <a class="nav-link" href="/reports">{{ icon("list-check") }} отчеты</a>
-        <a class="nav-link" href="/categories">{{ icon("tag") }} категории</a>
-        <a class="nav-link" href="/properties">{{ icon("building") }} объекты</a>
-        <a class="nav-link" href="/rules">{{ icon("settings") }} правила</a>
+      <nav id="main-navigation" class="shell nav-actions" :class="{ 'nav-actions-open': navOpen }">
+        {% if current_user %}
+          <a class="nav-link" href="/dashboard">{{ icon("home") }} обзор</a>
+          <a class="nav-link" href="/users">{{ icon("user") }} профиль</a>
+          <a class="nav-link" href="/workspaces">{{ icon("folder") }} пространства</a>
+          <a class="nav-link" href="/accounts">{{ icon("wallet") }} счета</a>
+          <a class="nav-link" href="/ledger/manual">{{ icon("plus") }} операции</a>
+          <a class="nav-link" href="/imports">{{ icon("import") }} импорт</a>
+          <a class="nav-link" href="/reports">{{ icon("list-check") }} отчеты</a>
+          <a class="nav-link" href="/categories">{{ icon("tag") }} категории</a>
+          <a class="nav-link" href="/properties">{{ icon("building") }} объекты</a>
+          <a class="nav-link" href="/rules">{{ icon("settings") }} правила</a>
+        {% else %}
+          <a class="nav-link" href="/login">{{ icon("user") }} вход</a>
+          <a class="nav-link" href="/signup">{{ icon("plus") }} регистрация</a>
+        {% endif %}
       </nav>
     </header>
     <main class="shell page-frame">

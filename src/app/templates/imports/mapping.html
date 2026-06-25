@@ -12,7 +12,6 @@
         <h1>Настройка импорта</h1>
       </div>
       <div class="import-page-actions">
-        <a class="button" href="/imports/documents/{{ view.id }}">{{ icon("file-text") }} документ</a>
         <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
       </div>
     </header>
@@ -25,10 +24,7 @@
         "Предпросмотр готов. После импорта строки попадут в проверку, но еще не станут подтвержденным учетом.",
         "#mapping-import-actions",
         "к импорту строк",
-        "import",
-        "/imports/documents/" ~ view.id,
-        "документ",
-        "file-text"
+        "import"
       ) }}
     {% elif table_options %}
       {{ next_step(
@@ -36,10 +32,7 @@
         "Выберите дату, описание и сумму, затем посмотрите предпросмотр перед импортом.",
         "#mapping-form",
         "к настройке",
-        "settings",
-        "/imports/documents/" ~ view.id,
-        "документ",
-        "file-text"
+        "settings"
       ) }}
     {% else %}
       {{ next_step(

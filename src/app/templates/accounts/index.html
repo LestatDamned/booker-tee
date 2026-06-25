@@ -15,11 +15,11 @@
 
     <form id="new-account" class="form-panel" method="post" action="/accounts">
       {{ csrf_input() }}
-      <label class="field form-field-wide">
+      <label class="field form-field-half">
         <span>название</span>
         <input name="name" placeholder="Карта, вклад, наличные" required>
       </label>
-      <label class="field">
+      <label class="field form-field-quarter">
         <span>тип</span>
         <select name="account_type" required>
           {% for account_type in account_types %}
@@ -27,15 +27,17 @@
           {% endfor %}
         </select>
       </label>
-      <label class="field">
+      <label class="field form-field-quarter">
         <span>валюта</span>
         <input name="currency" value="{{ workspace.default_currency }}" placeholder="RUB" maxlength="3" required>
       </label>
-      <label class="field">
+      <label class="field form-field-third">
         <span>начальный баланс</span>
         <input class="amount" name="initial_balance" inputmode="decimal" value="0.00" placeholder="0.00">
       </label>
-      <button class="button form-submit" type="submit">{{ icon("plus") }} добавить счет</button>
+      <div class="form-actions">
+        <button class="button" type="submit">{{ icon("plus") }} добавить счет</button>
+      </div>
     </form>
 
     {% if account_details %}
@@ -44,7 +46,7 @@
           <article class="entity-card {% if not detail.account.is_active %}entity-card-inactive{% endif %}">
             <div class="entity-card-main">
               <div class="entity-card-title">
-                <a href="/accounts/{{ detail.account.id }}"><strong>{{ detail.account.name }}</strong></a>
+                <a href="/accounts/{{ detail.account.id }}"><strong class="truncate-label" title="{{ detail.account.name }}">{{ detail.account.name }}</strong></a>
                 <span class="badge badge-transfer">{{ detail.account.type | ru }}</span>
                 {% if detail.account.is_active %}
                   <span class="badge badge-confirmed">активен</span>
@@ -54,7 +56,10 @@
               </div>
               <div class="entity-card-meta">
                 <span>{{ detail.entries | length }} записей</span>
-                <span title="{{ detail.account.id }}">ID {{ detail.account.id | short_id }}</span>
+                <details class="technical-details">
+                  <summary>ID</summary>
+                  <span>ID {{ detail.account.id }}</span>
+                </details>
               </div>
             </div>
             <div class="entity-card-side">

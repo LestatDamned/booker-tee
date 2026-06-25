@@ -17,15 +17,15 @@
     </div>
 
     <form class="form-panel" method="get" action="/reports">
-      <label class="field">
+      <label class="field form-field-third">
         <span>с</span>
         <input type="date" name="date_from" value="{{ filters.date_from or '' }}">
       </label>
-      <label class="field">
+      <label class="field form-field-third">
         <span>по</span>
         <input type="date" name="date_to" value="{{ filters.date_to or '' }}">
       </label>
-      <label class="field">
+      <label class="field form-field-third">
         <span>счет</span>
         <select name="account_id">
           <option value="">все счета</option>
@@ -34,7 +34,7 @@
           {% endfor %}
         </select>
       </label>
-      <label class="field">
+      <label class="field form-field-third">
         <span>категория</span>
         <select name="category_id">
           <option value="">все категории</option>
@@ -43,7 +43,7 @@
           {% endfor %}
         </select>
       </label>
-      <label class="field">
+      <label class="field form-field-third">
         <span>объект</span>
         <select name="property_id">
           <option value="">все объекты</option>
@@ -52,7 +52,9 @@
           {% endfor %}
         </select>
       </label>
-      <button class="button form-submit" type="submit">{{ icon("filter") }} фильтр</button>
+      <div class="form-actions">
+        <button class="button" type="submit">{{ icon("filter") }} фильтр</button>
+      </div>
     </form>
 
     <div class="summary-grid kpi-strip">
@@ -71,18 +73,33 @@
     </div>
 
     {% set report_has_rows = overview.categories or overview.properties or overview.uncategorized %}
+    {% set report_documents_needing_review = documents_needing_review if documents_needing_review is defined else [] %}
+    {% set next_review_document = report_documents_needing_review[0] if report_documents_needing_review else none %}
     {% if not report_has_rows %}
       {% if accounts %}
-        {{ empty_state(
-          "Отчет пока пуст",
-          "Отчеты строятся только по подтвержденным доходам и расходам. Переводы между своими счетами в прибыль не входят.",
-          "/imports",
-          "открыть импорты",
-          "import",
-          "/imports/upload",
-          "загрузить выписку",
-          "upload"
-        ) }}
+        {% if next_review_document %}
+          {{ empty_state(
+            "Отчет пока пуст",
+            "Есть выписка со строками на проверке. Отчеты строятся только по подтвержденным доходам и расходам; неподтвержденные строки не входят в доходы, расходы и прибыль.",
+            "/imports/documents/" ~ next_review_document.id ~ "/review",
+            "проверить строки",
+            "clipboard-check",
+            "/imports",
+            "к импортам",
+            "import"
+          ) }}
+        {% else %}
+          {{ empty_state(
+            "Отчет пока пуст",
+            "Отчеты строятся только по подтвержденным доходам и расходам. Переводы между своими счетами в прибыль не входят.",
+            "/imports",
+            "открыть импорты",
+            "import",
+            "/imports/upload",
+            "загрузить выписку",
+            "upload"
+          ) }}
+        {% endif %}
       {% else %}
         {{ empty_state(
           "Сначала создайте счет",

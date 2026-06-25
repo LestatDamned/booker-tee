@@ -58,6 +58,10 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "Ручные операции нужны" in html
     assert "перевод только перемещает деньги между счетами" in html
     assert 'id="new-manual-operation"' in html
+    assert "segmented-control" in html
+    assert 'name="operation_type" type="radio" value="income"' in html
+    assert 'name="operation_type" type="radio" value="expense"' in html
+    assert 'name="operation_type" type="radio" value="transfer"' in html
     assert f'id="operation-{operation_id}"' in html
     assert f'class="detached-form" id="manual-operation-form-{operation_id}"' in html
     assert "entity-card-list" in html
@@ -113,7 +117,7 @@ def test_manual_operations_template_guides_empty_states() -> None:
 
     assert "Ручных операций пока нет" in html_with_account
     assert "наличных движений, корректировок" in html_with_account
-    assert 'href="#new-manual-operation"' in html_with_account
+    assert 'href="#new-manual-operation"' not in html_with_account
 
 
 def test_manual_operations_template_allows_restore_and_delete_cancelled_operation() -> None:

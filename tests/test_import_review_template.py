@@ -59,14 +59,21 @@ def test_review_template_prefills_suggested_rule_category() -> None:
         properties=[],
         accounts=[],
         transfer_suggestions={},
+        selected_category_id_by_row={},
     )
 
     assert "совет правила" in html
-    assert "Предложено" in html
+    assert "Будет создано" in html
+    assert "по правилу" in html
     assert "Исправить" in html
     assert "Подтвердить" in html
+    assert "review-queue-bar" in html
+    assert "review-item-next" in html
+    assert "Продолжайте проверку" in html
+    assert "к следующей" in html
     assert "review-money money-value" in html
     assert "KRASNOE&amp;BELOE" in html
+    assert "-> Продукты" in html
     assert f'id="raw-{row_id}"' in html
     assert 'hx-boost="true"' in html
     assert f'hx-target="#raw-{row_id}"' in html
@@ -79,6 +86,7 @@ def test_review_template_prefills_suggested_rule_category() -> None:
     assert f'<input type="hidden" name="category_id" value="{suggested_category_id}">' in html
     assert f'<option value="{suggested_category_id}" selected>' in html
     assert f'<option value="{uncategorized_category_id}" selected>' not in html
+    assert "ID правила" in html
 
 
 def test_review_template_shows_transfer_route_for_linked_operation() -> None:
@@ -256,11 +264,20 @@ def test_review_action_response_sends_sibling_rows_oob() -> None:
     templates = create_templates()
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
 
+    uncategorized_category_id = uuid4()
+    vpn_category_id = uuid4()
     html = templates.env.get_template("imports/_review_action_response.html").render(
         app_name="Booker Tee",
         document=document,
         current_row=current_row,
-        categories=[SimpleNamespace(id=uuid4(), name="Без категории", system_key="uncategorized")],
+        categories=[
+            SimpleNamespace(
+                id=uncategorized_category_id,
+                name="Без категории",
+                system_key="uncategorized",
+            ),
+            SimpleNamespace(id=vpn_category_id, name="VPN", system_key=None),
+        ],
         properties=[],
         accounts=[],
         balance_chain_problems={},
@@ -273,6 +290,8 @@ def test_review_action_response_sends_sibling_rows_oob() -> None:
     assert html.count('hx-swap-oob="true"') == 2
     assert 'id="review-next-step" hx-swap-oob="true"' in html
     assert "Осталось обработать 2 из 2 строк." in html
+    assert f'value="{vpn_category_id}"' in html
+    assert "VPN" in html
 
 
 def test_review_item_selects_newly_created_category() -> None:
@@ -321,7 +340,8 @@ def test_review_item_selects_newly_created_category() -> None:
         transfer_suggestions={},
     )
 
-    assert 'class="action-details action-accordion" open' in html
+    assert "review-category-action" in html
+    assert "open" in html
     assert f'<option value="{created_category_id}" selected>' in html
     assert f'<option value="{uncategorized_category_id}" selected>' not in html
     assert "Новая категория" in html
@@ -367,7 +387,8 @@ def test_review_item_reopens_category_dialog_with_error() -> None:
         transfer_suggestions={},
     )
 
-    assert 'class="action-details action-accordion" open' in html
+    assert "review-category-action" in html
+    assert "open" in html
     assert 'role="alert"' in html
     assert "Категория с таким названием уже есть." in html
     assert 'value="Аптека"' in html

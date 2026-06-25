@@ -1,5 +1,3 @@
-{% from "components/next_step.html" import next_step %}
-
 {% set review_queue = namespace(total=0, remaining=0, done=0, first_remaining_id=none) %}
 {% for row in document.raw_transactions %}
   {% set review_queue.total = review_queue.total + 1 %}
@@ -12,37 +10,39 @@
     {% endif %}
   {% endif %}
 {% endfor %}
+{% set review_progress = (review_queue.done * 100 / review_queue.total) if review_queue.total else 0 %}
 
-<div id="review-next-step" {% if review_next_step_oob is defined and review_next_step_oob %}hx-swap-oob="true"{% endif %}>
+<div id="review-next-step" {% if review_next_step_oob is defined and review_next_step_oob %}hx-swap-oob="true"{% endif %} class="review-queue-bar">
+  <div class="review-queue-main">
+    <div>
+      <p class="eyebrow">очередь проверки</p>
+      {% if review_queue.total == 0 %}
+        <strong>Вернитесь к документу</strong>
+        <span>Сырых строк пока нет. Проверьте парсинг или настройку колонок.</span>
+      {% elif review_queue.remaining > 0 %}
+        <strong>Продолжайте проверку</strong>
+        <span>Осталось обработать {{ review_queue.remaining }} из {{ review_queue.total }} строк.</span>
+      {% else %}
+        <strong>Импорт разобран</strong>
+        <span>Все строки подтверждены, проигнорированы или отмечены как дубли.</span>
+      {% endif %}
+      <span title="{{ document.original_filename }}">{{ document.original_filename }}</span>
+    </div>
+    <div class="review-queue-progress" aria-label="Готово {{ review_queue.done }} из {{ review_queue.total }}">
+      <span style="width: {{ review_progress }}%"></span>
+    </div>
+  </div>
+  <div class="review-queue-stats">
+    <span><strong>{{ review_queue.remaining }}</strong> осталось</span>
+    <span><strong>{{ review_queue.done }}</strong> готово</span>
+    <span><strong>{{ review_queue.total }}</strong> всего</span>
+  </div>
   {% if review_queue.total == 0 %}
-    {{ next_step(
-      "Вернитесь к документу",
-      "Сырых строк пока нет. Проверьте парсинг или настройку колонок на странице документа.",
-      "/imports/documents/" ~ document.id,
-      "открыть документ",
-      "file-text"
-    ) }}
+    <a class="button button-small" href="/imports/documents/{{ document.id }}">{{ icon("file-text") }} открыть документ</a>
   {% elif review_queue.remaining > 0 %}
-    {{ next_step(
-      "Продолжайте проверку",
-      "Осталось обработать " ~ review_queue.remaining ~ " из " ~ review_queue.total ~ " строк.",
-      "#raw-" ~ review_queue.first_remaining_id,
-      "к строкам",
-      "clipboard-check",
-      "/imports/documents/" ~ document.id,
-      "детали",
-      "file-text"
-    ) }}
+    <a class="button button-small primary-action" href="#raw-{{ review_queue.first_remaining_id }}">{{ icon("clipboard-check") }} к следующей</a>
   {% else %}
-    {{ next_step(
-      "Импорт разобран",
-      "Все строки подтверждены, проигнорированы или отмечены как дубли.",
-      "/reports",
-      "открыть отчеты",
-      "list-check",
-      "/imports",
-      "к импортам",
-      "import"
-    ) }}
+    <a class="button button-small primary-action" href="/reports">{{ icon("list-check") }} открыть отчеты</a>
+    <a class="meta-link" href="/imports">к импортам</a>
   {% endif %}
 </div>

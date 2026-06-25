@@ -17,15 +17,17 @@
     {% endif %}
 
     <form class="form-panel" method="post" action="/login">
-      <label class="field form-field-wide">
+      <label class="field form-field-half">
         <span>email</span>
         <input name="email" type="email" autocomplete="email" required>
       </label>
-      <label class="field form-field-wide">
+      <label class="field form-field-half">
         <span>пароль</span>
         <input name="password" type="password" autocomplete="current-password" required>
       </label>
-      <button class="button form-submit" type="submit">{{ icon("check") }} войти</button>
+      <div class="form-actions">
+        <button class="button" type="submit">{{ icon("check") }} войти</button>
+      </div>
     </form>
   </section>
 {% endblock %}

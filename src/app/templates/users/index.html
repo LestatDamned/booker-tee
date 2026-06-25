@@ -15,21 +15,18 @@
     <div class="summary-grid">
       <div class="metric">
         <span>email</span>
-        <strong>{{ current_user.email }}</strong>
+        <strong class="truncate-label" title="{{ current_user.email }}">{{ current_user.email }}</strong>
       </div>
       <div class="metric">
         <span>имя</span>
-        <strong>{{ current_user.name or "не указано" }}</strong>
-      </div>
-      <div class="metric">
-        <span>текущее пространство</span>
-        <strong>{{ workspace.name }}</strong>
+        <strong class="truncate-label" title="{{ current_user.name or 'не указано' }}">{{ current_user.name or "не указано" }}</strong>
       </div>
     </div>
 
-    <form class="form-panel" method="post" action="/logout">
+    <form class="session-actions" method="post" action="/logout">
       {{ csrf_input() }}
-      <button class="button form-submit" type="submit">{{ icon("ignore") }} выйти</button>
+      <span>Сессия</span>
+      <button class="button button-small" type="submit">{{ icon("ignore") }} выйти</button>
     </form>
   </section>
 {% endblock %}

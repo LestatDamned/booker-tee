@@ -69,18 +69,19 @@ def test_categories_template_uses_compact_cards() -> None:
     assert "влияет на отчеты" in html
     assert "filter-tab-active" in html
     assert "entity-card-readonly" in html
-    assert "category-edit-details" in html
+    assert "category-edit-details" not in html
     assert "badge-expense" in html
     assert "системная" in html
     assert "архив" in html
     assert "10 операций" in html
     assert "4 правил" in html
+    assert "отчет" in html
     assert "Супермаркеты и доставка" in html
-    assert f'action="/categories/{custom_category_id}"' in html
-    assert f'action="/categories/{custom_category_id}/restore"' in html
+    assert f'href="/categories/{custom_category_id}"' in html
+    assert f'action="/categories/{custom_category_id}/restore"' not in html
     assert '<input type="hidden" name="view" value="archived">' in html
     assert "<summary>ID</summary>" in html
-    assert str(system_category_id) in html
+    assert f"ID {system_category_id}" in html
 
 
 def test_categories_template_empty_state_points_to_creation_form() -> None:
@@ -116,6 +117,7 @@ def test_category_detail_template_shows_operations_and_rules() -> None:
 
     html = templates.env.get_template("categories/detail.html").render(
         app_name="Booker Tee",
+        kinds=list(CategoryKind),
         workspace=SimpleNamespace(name="Personal", default_currency="RUB"),
         detail=SimpleNamespace(
             category=SimpleNamespace(
@@ -164,6 +166,9 @@ def test_category_detail_template_shows_operations_and_rules() -> None:
     )
 
     assert "Кафе и рестораны" in html
+    assert "управление категорией" in html
+    assert f'action="/categories/{category_id}"' in html
+    assert f'action="/categories/{category_id}/archive"' in html
     assert "GREEN HOUSE" in html
     assert "Экспобанк карта" in html
     assert "-890.00 RUB" in html
@@ -191,8 +196,12 @@ def test_properties_template_uses_inline_card_editing() -> None:
     )
 
     assert "form-panel" in html
+    assert "к чему относится операция" in html
+    assert "квартира" in html
+    assert "семейная цель" in html
     assert "entity-card" in html
     assert "form-panel-embedded" in html
     assert "badge-active" in html
     assert "сохранить" in html
-    assert f"ID {str(property_id)[:8]}" in html
+    assert "<summary>ID</summary>" in html
+    assert f"ID {property_id}" in html

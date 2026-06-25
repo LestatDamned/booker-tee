@@ -8,7 +8,7 @@
 {% set open_category_editor = open_category_editor_by_row.get(row.id) if open_category_editor_by_row is defined else false %}
 {% set category_dialog_error = category_dialog_error_by_row.get(row.id) if category_dialog_error_by_row is defined else none %}
 {% set category_dialog_name = category_dialog_name_by_row.get(row.id) if category_dialog_name_by_row is defined else "" %}
-{% set selected_category_id = selected_category_id_by_row.get(row.id) if selected_category_id_by_row is defined else row.suggested_category_id %}
+{% set selected_category_id = selected_category_id_by_row.get(row.id) if selected_category_id_by_row is defined and row.id in selected_category_id_by_row else row.suggested_category_id %}
 {% set proposal = namespace(category=none, property=none) %}
 {% for category in categories %}
   {% if selected_category_id == category.id or ((not selected_category_id) and category.system_key == "uncategorized") %}
@@ -20,9 +20,15 @@
     {% set proposal.property = property %}
   {% endif %}
 {% endfor %}
+{% set review_item_queue = namespace(first_remaining_id=none) %}
+{% for queue_row in document.raw_transactions %}
+  {% if queue_row.status.value not in ["confirmed", "ignored", "duplicate"] and review_item_queue.first_remaining_id is none %}
+    {% set review_item_queue.first_remaining_id = queue_row.id %}
+  {% endif %}
+{% endfor %}
 
 <article
-  class="review-item review-status-{{ row.status.value }}"
+  class="review-item review-status-{{ row.status.value }} {% if row.id == review_item_queue.first_remaining_id %}review-item-next{% endif %}"
   id="raw-{{ row.id }}"
   hx-boost="true"
   hx-target="#raw-{{ row.id }}"
@@ -61,6 +67,7 @@
       {% if row.suggested_by_rule_id %}
         <span>
           {{ "автоприменено правило" if rule_auto_applied else "совет правила" }}{% if rule_suggestion and rule_suggestion.get("pattern") %}: {{ rule_suggestion.get("pattern") }}{% endif %}
+          {% if proposal.category %} -> {{ proposal.category.name }}{% endif %}
         </span>
       {% endif %}
       {% if row.linked_operation_id %}
@@ -84,9 +91,15 @@
               {% if route.from_entry and route.from_entry.account %} · с {{ route.from_entry.account.name }}{% endif %}
             </span>
           {% endif %}
-          <span title="{{ row.linked_operation_id }}">ID {{ row.linked_operation_id | short_id }}</span>
+          <details class="technical-details">
+            <summary>Технические детали</summary>
+            <span>ID операции {{ row.linked_operation_id }}</span>
+          </details>
         {% else %}
-          <span title="{{ row.linked_operation_id }}">операция ID {{ row.linked_operation_id | short_id }}</span>
+          <details class="technical-details">
+            <summary>Технические детали</summary>
+            <span>ID операции {{ row.linked_operation_id }}</span>
+          </details>
         {% endif %}
       {% endif %}
     </div>
@@ -101,7 +114,10 @@
           <div class="operation-ref">
             <div class="action-title">Проведено</div>
             <div class="operation-ref-meta">
-              <span title="{{ row.linked_operation_id }}">ID {{ row.linked_operation_id | short_id }}</span>
+              <details class="technical-details">
+                <summary>Технические детали</summary>
+                <span>ID {{ row.linked_operation_id }}</span>
+              </details>
             </div>
           </div>
         {% endif %}
@@ -135,8 +151,8 @@
           </form>
         </div>
       </div>
-      <details class="action-details action-accordion">
-        <summary>Еще</summary>
+      <details class="action-details action-accordion review-secondary-action">
+        <summary>Другие действия</summary>
         <div class="inline-actions">
           <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
             {{ csrf_input() }}
@@ -149,17 +165,20 @@
             <button class="button button-small" type="submit">{{ icon("ignore") }} Игнорировать</button>
           </form>
         </div>
-      </details>
-      <details class="action-details action-accordion">
         {% set suggestions = transfer_suggestions.get(row.id, []) %}
-        <summary>Перевод</summary>
-        {{ inline_hint("Перевод только перемещает деньги между счетами и не влияет на прибыль.", "critical") }}
-        {{ transfer_form(document, row, accounts, suggestions) }}
+        <div class="secondary-action-panel">
+          <div class="action-title">Перевод</div>
+          {{ inline_hint("Перевод только перемещает деньги между счетами и не влияет на прибыль.", "critical") }}
+          {{ transfer_form(document, row, accounts, suggestions) }}
+        </div>
       </details>
     {% elif row.suggested_by_rule_id or row.status.value == "suggested" %}
       <div class="operation-ref-wrap">
         <div class="operation-ref review-proposal">
-          <div class="action-title">{{ "Автопредложено" if rule_auto_applied else "Предложено" }}</div>
+          <div class="review-proposal-heading">
+            <div class="action-title">Будет создано</div>
+            <span>{{ "по автоправилу" if rule_auto_applied else "по правилу" }}</span>
+          </div>
           <div class="operation-ref-title">
             {{ (row.operation_date or row.operation_date_raw or "") | date_ru }}
             ·
@@ -179,13 +198,21 @@
             <span>объект</span>
             <strong>{{ proposal.property.name if proposal.property else "без объекта" }}</strong>
           </div>
-          <div class="operation-ref-description">{{ row.description_normalized or row.description_raw or "" }}</div>
+          <div class="operation-ref-description truncate-label" title="{{ row.description_normalized or row.description_raw or "" }}">
+            {{ row.description_normalized or row.description_raw or "" }}
+          </div>
           <div class="operation-ref-meta">
             {% if rule_suggestion and rule_suggestion.get("pattern") %}
-              <span>{{ "автоправило" if rule_auto_applied else "совет" }}: {{ rule_suggestion.get("pattern") }}</span>
+              <span class="rule-result-chip">
+                {{ "автоправило" if rule_auto_applied else "совет" }}: {{ rule_suggestion.get("pattern") }}
+                {% if proposal.category %} -> {{ proposal.category.name }}{% endif %}
+              </span>
             {% endif %}
             {% if row.suggested_by_rule_id %}
-              <span title="{{ row.suggested_by_rule_id }}">ID {{ row.suggested_by_rule_id | short_id }}</span>
+              <details class="technical-details">
+                <summary>ID правила</summary>
+                <span>ID правила {{ row.suggested_by_rule_id }}</span>
+              </details>
             {% endif %}
           </div>
         </div>
@@ -204,8 +231,8 @@
           </form>
         </div>
 
-        <details class="action-details action-accordion" {% if open_category_editor %}open{% endif %}>
-          <summary>Еще</summary>
+        <details class="action-details action-accordion review-secondary-action" {% if open_category_editor %}open{% endif %}>
+          <summary>Другие действия</summary>
           <div class="inline-actions">
             <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
               {{ csrf_input() }}
@@ -218,9 +245,15 @@
               <button class="button button-small" type="submit">{{ icon("ignore") }} Игнорировать</button>
             </form>
           </div>
+          {% set suggestions = transfer_suggestions.get(row.id, []) %}
+          <div class="secondary-action-panel">
+            <div class="action-title">Перевод</div>
+            {{ inline_hint("Перевод только перемещает деньги между счетами и не влияет на прибыль.", "critical") }}
+            {{ transfer_form(document, row, accounts, suggestions) }}
+          </div>
         </details>
 
-        <details class="action-details action-accordion">
+        <details class="action-details action-accordion review-category-action">
           <summary>
             <span>Исправить</span>
             <button class="inline-create-button" type="button" @click.stop="openCategoryDialog($event)">{{ icon("plus") }} новая</button>
@@ -254,15 +287,9 @@
           {% include "imports/_review_category_dialog.html" %}
         </details>
 
-        <details class="action-details action-accordion">
-          {% set suggestions = transfer_suggestions.get(row.id, []) %}
-          <summary>Перевод</summary>
-          {{ inline_hint("Перевод только перемещает деньги между счетами и не влияет на прибыль.", "critical") }}
-          {{ transfer_form(document, row, accounts, suggestions) }}
-        </details>
       </div>
     {% else %}
-      <details class="action-details action-accordion" {% if open_category_editor %}open{% endif %}>
+      <details class="action-details action-accordion review-category-action" {% if open_category_editor %}open{% endif %}>
         <summary>
           <span>Категория</span>
           <button class="inline-create-button" type="button" @click.stop="openCategoryDialog($event)">{{ icon("plus") }} новая</button>
@@ -295,8 +322,8 @@
         </form>
         {% include "imports/_review_category_dialog.html" %}
       </details>
-      <details class="action-details action-accordion">
-        <summary>Еще</summary>
+      <details class="action-details action-accordion review-secondary-action">
+        <summary>Другие действия</summary>
         <div class="inline-actions">
           <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
             {{ csrf_input() }}
@@ -309,12 +336,12 @@
             <button class="button button-small" type="submit">{{ icon("ignore") }} Игнорировать</button>
           </form>
         </div>
-      </details>
-      <details class="action-details action-accordion">
         {% set suggestions = transfer_suggestions.get(row.id, []) %}
-        <summary>Перевод</summary>
-        {{ inline_hint("Перевод только перемещает деньги между счетами и не влияет на прибыль.", "critical") }}
-        {{ transfer_form(document, row, accounts, suggestions) }}
+        <div class="secondary-action-panel">
+          <div class="action-title">Перевод</div>
+          {{ inline_hint("Перевод только перемещает деньги между счетами и не влияет на прибыль.", "critical") }}
+          {{ transfer_form(document, row, accounts, suggestions) }}
+        </div>
       </details>
     {% endif %}
   </div>

@@ -35,7 +35,12 @@
     <div class="operation-ref-meta">
       {% if operation.category %}<span class="tone-{{ operation.category.kind.value if operation.category.kind else operation.type.value }}">{{ operation.category.name }}</span>{% endif %}
       {% if operation.property %}<span>{{ operation.property.name }}</span>{% endif %}
-      {% if operation_id %}<span title="{{ operation_id }}">ID {{ operation_id | short_id }}</span>{% endif %}
+      {% if operation_id %}
+        <details class="technical-details">
+          <summary>Технические детали</summary>
+          <span>ID {{ operation_id }}</span>
+        </details>
+      {% endif %}
     </div>
   </div>
 {% endmacro %}

@@ -33,6 +33,7 @@ def test_accounts_template_makes_balance_primary() -> None:
     )
 
     assert "account-balance" in html
+    assert 'class="truncate-label" title="Экспобанк карта"' in html
     assert "money-value money-income" in html
     assert "23140.76" in html
     assert "<small>RUB</small>" in html

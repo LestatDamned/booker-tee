@@ -15,11 +15,11 @@
     <div class="summary-grid">
       <div class="metric">
         <span>текущий пользователь</span>
-        <strong>{{ current_user.name or current_user.email }}</strong>
+        <strong class="truncate-label" title="{{ current_user.name or current_user.email }}">{{ current_user.name or current_user.email }}</strong>
       </div>
       <div class="metric">
         <span>текущее пространство</span>
-        <strong>{{ workspace.name }}</strong>
+        <strong class="truncate-label" title="{{ workspace.name }}">{{ workspace.name }}</strong>
       </div>
       <div class="metric">
         <span>доступно</span>
@@ -29,11 +29,11 @@
 
     <form class="form-panel" method="post" action="/workspaces">
       {{ csrf_input() }}
-      <label class="field form-field-wide">
+      <label class="field form-field-half">
         <span>название</span>
         <input name="name" placeholder="Личные финансы, семья, бизнес" required>
       </label>
-      <label class="field">
+      <label class="field form-field-quarter">
         <span>тип</span>
         <select name="workspace_type">
           {% for workspace_type in workspace_types %}
@@ -41,11 +41,13 @@
           {% endfor %}
         </select>
       </label>
-      <label class="field">
+      <label class="field form-field-quarter">
         <span>валюта</span>
         <input name="default_currency" value="{{ workspace.default_currency }}" maxlength="3" placeholder="RUB" required>
       </label>
-      <button class="button form-submit" type="submit">{{ icon("plus") }} создать пространство</button>
+      <div class="form-actions-inline">
+        <button class="button" type="submit">{{ icon("plus") }} создать пространство</button>
+      </div>
     </form>
 
     {% if workspaces %}
@@ -56,7 +58,7 @@
             <form class="detached-form" id="{{ workspace_form_id }}" method="post" action="/workspaces/{{ item.id }}">{{ csrf_input() }}</form>
             <div class="entity-card-main">
               <div class="entity-card-title">
-                <strong>{{ item.name }}</strong>
+                <strong class="truncate-label" title="{{ item.name }}">{{ item.name }}</strong>
                 {% if item.id == workspace.id %}
                   <span class="badge badge-confirmed">текущее</span>
                 {% else %}
@@ -66,35 +68,45 @@
               <div class="entity-card-meta">
                 <span>{{ item.type | ru }}</span>
                 <span>{{ item.default_currency }}</span>
-                <span title="{{ item.id }}">ID {{ item.id | short_id }}</span>
+                <details class="technical-details">
+                  <summary>ID</summary>
+                  <span>ID {{ item.id }}</span>
+                </details>
               </div>
-              <div class="form-panel form-panel-embedded">
-                <label class="field form-field-wide">
-                  <span>название</span>
-                  <input name="name" value="{{ item.name }}" form="{{ workspace_form_id }}" required>
-                </label>
-                <label class="field">
-                  <span>тип</span>
-                  <select name="workspace_type" form="{{ workspace_form_id }}">
-                    {% for workspace_type in workspace_types %}
-                      <option value="{{ workspace_type.value }}" {% if item.type == workspace_type %}selected{% endif %}>
-                        {{ workspace_type | ru }}
-                      </option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label class="field">
-                  <span>валюта</span>
-                  <input name="default_currency" value="{{ item.default_currency }}" maxlength="3" form="{{ workspace_form_id }}" required>
-                </label>
-              </div>
+              <details class="admin-details">
+                <summary>Редактирование</summary>
+                <div class="form-panel form-panel-embedded">
+                  <label class="field form-field-half">
+                    <span>название</span>
+                    <input name="name" value="{{ item.name }}" form="{{ workspace_form_id }}" required>
+                  </label>
+                  <label class="field form-field-quarter">
+                    <span>тип</span>
+                    <select name="workspace_type" form="{{ workspace_form_id }}">
+                      {% for workspace_type in workspace_types %}
+                        <option value="{{ workspace_type.value }}" {% if item.type == workspace_type %}selected{% endif %}>
+                          {{ workspace_type | ru }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label class="field form-field-quarter">
+                    <span>валюта</span>
+                    <input name="default_currency" value="{{ item.default_currency }}" maxlength="3" form="{{ workspace_form_id }}" required>
+                  </label>
+                  <div class="form-actions">
+                    <button class="button button-small" type="submit" form="{{ workspace_form_id }}">{{ icon("save") }} сохранить</button>
+                  </div>
+                </div>
+              </details>
             </div>
             <div class="entity-card-actions">
-              <button class="button button-small" type="submit" form="{{ workspace_form_id }}">{{ icon("save") }} сохранить</button>
-              <form method="post" action="/workspaces/{{ item.id }}/select">
-                {{ csrf_input() }}
-                <button class="button button-small" type="submit">{{ icon("check") }} выбрать</button>
-              </form>
+              {% if item.id != workspace.id %}
+                <form method="post" action="/workspaces/{{ item.id }}/select">
+                  {{ csrf_input() }}
+                  <button class="button button-small primary-action" type="submit">{{ icon("check") }} выбрать</button>
+                </form>
+              {% endif %}
             </div>
           </article>
         {% endfor %}

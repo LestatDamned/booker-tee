@@ -20,22 +20,37 @@
         <span>1</span>
         <strong>Создать пользователя</strong>
       </a>
-      <a class="quick-action" href="/workspaces">
-        <span>2</span>
-        <strong>Настроить пространство</strong>
-      </a>
-      <a class="quick-action" href="/accounts">
-        <span>3</span>
-        <strong>Добавить счета</strong>
-      </a>
-      <a class="quick-action" href="/imports/upload">
-        <span>4</span>
-        <strong>Загрузить выписку</strong>
-      </a>
-      <a class="quick-action" href="/reports">
-        <span>5</span>
-        <strong>Открыть отчеты</strong>
-      </a>
+      {% if current_user %}
+        <a class="quick-action" href="/workspaces">
+          <span>2</span>
+          <strong>Настроить пространство</strong>
+        </a>
+        <a class="quick-action" href="/accounts">
+          <span>3</span>
+          <strong>Добавить счета</strong>
+        </a>
+        <a class="quick-action" href="/imports/upload">
+          <span>4</span>
+          <strong>Загрузить выписку</strong>
+        </a>
+        <a class="quick-action" href="/reports">
+          <span>5</span>
+          <strong>Открыть отчеты</strong>
+        </a>
+      {% else %}
+        <a class="quick-action" href="/login">
+          <span>2</span>
+          <strong>Войти в рабочее место</strong>
+        </a>
+        <div class="quick-action quick-action-muted">
+          <span>3</span>
+          <strong>Добавить счета после входа</strong>
+        </div>
+        <div class="quick-action quick-action-muted">
+          <span>4</span>
+          <strong>Загрузить выписку после настройки</strong>
+        </div>
+      {% endif %}
     </div>
   </section>
 

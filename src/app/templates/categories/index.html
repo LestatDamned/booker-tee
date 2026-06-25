@@ -9,7 +9,7 @@
   <article class="entity-card {% if category.is_system %}entity-card-readonly{% endif %} {% if not category.is_active %}entity-card-inactive{% endif %}">
     <div class="entity-card-main">
       <div class="entity-card-title">
-        <strong>{{ category.name }}</strong>
+        <a href="/categories/{{ category.id }}"><strong>{{ category.name }}</strong></a>
         <span class="badge badge-{{ category.kind.value }}">{{ category.kind | ru }}</span>
         {% if category.is_system %}
           <span class="badge badge-muted">системная</span>
@@ -24,63 +24,16 @@
         {% endif %}
         <a class="meta-link" href="/categories/{{ category.id }}">{{ row.operation_count }} операций</a>
         <a class="meta-link" href="/categories/{{ category.id }}#rules">{{ row.rule_count }} правил</a>
+        <a class="meta-link" href="/reports?category_id={{ category.id }}">отчет</a>
         <details class="technical-details">
           <summary>ID</summary>
-          <span>{{ category.id }}</span>
+          <span>ID {{ category.id }}</span>
         </details>
       </div>
       {% if category.notes %}
         <p class="muted-text">{{ category.notes }}</p>
       {% endif %}
-
-      {% if not category.is_system %}
-        <details class="action-details action-accordion category-edit-details">
-          <summary>{{ icon("settings") }} редактировать</summary>
-          <form class="form-panel form-panel-embedded" method="post" action="/categories/{{ category.id }}">
-            {{ csrf_input() }}
-            <input type="hidden" name="view" value="{{ category_view }}">
-            <label class="field form-field-wide">
-              <span>название</span>
-              <input name="name" value="{{ category.name }}" required>
-            </label>
-            <label class="field">
-              <span>тип</span>
-              <select name="kind">
-                {% for editable_kind in kinds %}
-                  <option value="{{ editable_kind.value }}" {% if category.kind == editable_kind %}selected{% endif %}>
-                    {{ editable_kind | ru }}
-                  </option>
-                {% endfor %}
-              </select>
-            </label>
-            <label class="field form-field-wide">
-              <span>заметка</span>
-              <input name="notes" value="{{ category.notes or "" }}" placeholder="Когда использовать">
-            </label>
-            <button class="button button-small form-submit" type="submit">{{ icon("save") }} сохранить</button>
-          </form>
-        </details>
-      {% endif %}
     </div>
-    {% if not category.is_system %}
-      <div class="entity-card-actions">
-        <a class="button button-small" href="/categories/{{ category.id }}">{{ icon("file-text") }} операции</a>
-        <a class="button button-small" href="/reports?category_id={{ category.id }}">{{ icon("list-check") }} отчет</a>
-        {% if category.is_active %}
-          <form method="post" action="/categories/{{ category.id }}/archive">
-            {{ csrf_input() }}
-            <input type="hidden" name="view" value="{{ category_view }}">
-            <button class="button button-small" type="submit">{{ icon("archive") }} в архив</button>
-          </form>
-        {% else %}
-          <form method="post" action="/categories/{{ category.id }}/restore">
-            {{ csrf_input() }}
-            <input type="hidden" name="view" value="{{ category_view }}">
-            <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
-          </form>
-        {% endif %}
-      </div>
-    {% endif %}
   </article>
 {% endmacro %}
 
@@ -126,11 +79,11 @@
     <form class="form-panel" method="post" action="/categories">
       {{ csrf_input() }}
       <input type="hidden" name="view" value="{{ category_view }}">
-      <div class="field form-field-wide">
+      <div class="field form-field-half">
         <label for="name">Название</label>
         <input id="name" name="name" placeholder="Название категории" required>
       </div>
-      <div class="field">
+      <div class="field form-field-quarter">
         <label for="kind">Тип</label>
         <select id="kind" name="kind">
           {% for kind in kinds %}
@@ -138,11 +91,13 @@
           {% endfor %}
         </select>
       </div>
-      <div class="field form-field-wide">
+      <div class="field form-field-half">
         <label for="notes">Заметка</label>
         <input id="notes" name="notes" placeholder="Когда использовать эту категорию">
       </div>
-      <button class="button form-submit" type="submit">{{ icon("plus") }} добавить</button>
+      <div class="form-actions">
+        <button class="button" type="submit">{{ icon("plus") }} добавить</button>
+      </div>
     </form>
 
     {% if user_category_rows or system_category_rows %}

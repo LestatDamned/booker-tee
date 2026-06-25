@@ -22,46 +22,58 @@
       {% endif %}
     {% endif %}
   {% endfor %}
-  <section class="panel stack">
+  <section class="panel stack import-review-page">
     <div class="toolbar">
       <div>
         <p class="eyebrow">{{ document.status | ru }}</p>
         <h1>Проверка импорта</h1>
       </div>
-      <div class="toolbar">
-        <a class="button" href="/imports/documents/{{ document.id }}">{{ icon("file-text") }} детали</a>
-        <form method="post" action="/imports/documents/{{ document.id }}/apply-rules">
-          {{ csrf_input() }}
-          <button class="button" type="submit">{{ icon("settings") }} применить правила</button>
-        </form>
-        <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
+      <div class="import-page-actions">
+        <details class="action-details action-accordion import-more-actions">
+          <summary>{{ icon("settings") }} действия</summary>
+          <div class="action-menu">
+            <form method="post" action="/imports/documents/{{ document.id }}/apply-rules">
+              {{ csrf_input() }}
+              <button class="button button-small" type="submit">{{ icon("settings") }} применить правила</button>
+            </form>
+            <a class="button button-small" href="/imports">{{ icon("arrow-left") }} назад</a>
+          </div>
+        </details>
       </div>
     </div>
 
-    {% if review_queue.total > 0 and review_queue.remaining == 0 %}
-      {{ workflow_steps(upload="done", extract="done", mapping="skipped", review="done", ledger="done") }}
-    {% elif review_queue.total > 0 %}
-      {{ workflow_steps(upload="done", extract="done", mapping="skipped", review="current", ledger="pending") }}
-    {% else %}
-      {{ workflow_steps(upload="done", extract="blocked", mapping="pending", review="pending", ledger="pending") }}
-    {% endif %}
-
     {% include "imports/_review_next_step.html" %}
 
-    <div class="table-scroll">
-      <table class="table">
-        <tbody>
-          <tr>
-            <th>Документ</th>
-            <td>{{ document.original_filename }}</td>
-          </tr>
-          <tr>
-            <th>ID</th>
-            <td class="status">{{ document.id }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <aside class="inline-hint inline-hint-info action-hint review-rule-hint">
+      <div class="action-hint-copy">
+        <strong>Базовые правила ускоряют проверку</strong>
+        <span>Если это первая выписка, загрузите базовые правила в разделе Правила: они дадут стартовые подсказки по категориям. Если правила уже есть, примените их к этой выписке.</span>
+      </div>
+      <div class="action-hint-actions">
+        <a class="button button-small" href="/rules">{{ icon("settings") }} открыть правила</a>
+        <form method="post" action="/imports/documents/{{ document.id }}/apply-rules">
+          {{ csrf_input() }}
+          <button class="button button-small primary-action" type="submit">{{ icon("settings") }} применить к выписке</button>
+        </form>
+      </div>
+    </aside>
+
+    <details class="review-workflow-details">
+      <summary>Этапы импорта</summary>
+      {% if review_queue.total > 0 and review_queue.remaining == 0 %}
+        {{ workflow_steps(upload="done", extract="done", mapping="skipped", review="done", ledger="done") }}
+      {% elif review_queue.total > 0 %}
+        {{ workflow_steps(upload="done", extract="done", mapping="skipped", review="current", ledger="pending") }}
+      {% else %}
+        {{ workflow_steps(upload="done", extract="blocked", mapping="pending", review="pending", ledger="pending") }}
+      {% endif %}
+    </details>
+
+    <details class="technical-details">
+      <summary>Технические детали документа</summary>
+      <span>ID {{ document.id }}</span>
+      <a class="button button-small" href="/imports/documents/{{ document.id }}">{{ icon("file-text") }} открыть документ</a>
+    </details>
 
     {% if validation %}
       <div class="summary-grid">
@@ -83,28 +95,31 @@
         </div>
       </div>
 
-      <div class="table-scroll">
-        <table class="table">
-          <tbody>
-            <tr>
-              <th>Приход в строках</th>
-              <td class="amount amount-income">{{ validation.calculated_total_inflow }}</td>
-              <th>Приход в выписке</th>
-              <td class="amount amount-income">{{ validation.statement_total_inflow or "нет" }}</td>
-              <th>Разница</th>
-              <td class="amount">{{ validation.inflow_difference or "нет" }}</td>
-            </tr>
-            <tr>
-              <th>Расход в строках</th>
-              <td class="amount amount-expense">{{ validation.calculated_total_outflow }}</td>
-              <th>Расход в выписке</th>
-              <td class="amount amount-expense">{{ validation.statement_total_outflow or "нет" }}</td>
-              <th>Разница</th>
-              <td class="amount">{{ validation.outflow_difference or "нет" }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <details class="review-validation-details">
+        <summary>Контрольные итоги</summary>
+        <div class="table-scroll">
+          <table class="table">
+            <tbody>
+              <tr>
+                <th>Приход в строках</th>
+                <td class="amount amount-income">{{ validation.calculated_total_inflow }}</td>
+                <th>Приход в выписке</th>
+                <td class="amount amount-income">{{ validation.statement_total_inflow or "нет" }}</td>
+                <th>Разница</th>
+                <td class="amount">{{ validation.inflow_difference or "нет" }}</td>
+              </tr>
+              <tr>
+                <th>Расход в строках</th>
+                <td class="amount amount-expense">{{ validation.calculated_total_outflow }}</td>
+                <th>Расход в выписке</th>
+                <td class="amount amount-expense">{{ validation.statement_total_outflow or "нет" }}</td>
+                <th>Разница</th>
+                <td class="amount">{{ validation.outflow_difference or "нет" }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
       <div class="notice">{{ validation.message }}</div>
       {% if validation.status in ["mismatch", "failed", "failed_to_parse"] or validation.inflow_difference or validation.outflow_difference %}
         {{ inline_hint("Проверьте строки с пометками перед подтверждением: суммы или остатки не сходятся с выпиской, поэтому отчет может быть неверным.", "warning") }}

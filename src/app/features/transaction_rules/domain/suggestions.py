@@ -21,6 +21,11 @@ def apply_rule_suggestion(
             "rule_name": rule.name,
             "pattern": rule.pattern,
             "application_mode": rule.application_mode.value,
+            "category_id": str(rule.category_id) if rule.category_id else None,
+            "property_id": str(rule.property_id) if rule.property_id else None,
+            "operation_type": rule.target_operation_type.value
+            if rule.target_operation_type
+            else None,
         },
     }
     if raw_transaction.status == RawTransactionStatus.NORMALIZED:

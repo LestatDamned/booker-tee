@@ -76,6 +76,7 @@ async def category_detail(
         {
             "app_name": settings.app_name,
             "detail": detail,
+            "kinds": list(CategoryKind),
             "workspace": context.workspace,
         },
     )

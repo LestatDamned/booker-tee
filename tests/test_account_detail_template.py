@@ -56,5 +56,6 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "badge-expense" in html
     assert "Экспобанк карта" in html
     assert "Продукты" in html
-    assert f"ID {str(operation_id)[:8]}" in html
+    assert "Технические детали" in html
+    assert f"ID {operation_id}" in html
     assert "<th>операция</th>" not in html

@@ -10,6 +10,7 @@
 {% set dashboard_report_uncategorized = overview.reports.uncategorized if overview.reports.uncategorized is defined else [] %}
 {% set dashboard_has_report_data = dashboard_report_categories or dashboard_report_properties or dashboard_report_uncategorized %}
 {% set dashboard_setup_complete = dashboard_has_accounts and dashboard_has_documents and not dashboard_needs_review and dashboard_has_report_data %}
+{% set dashboard_next_review_document = dashboard_needs_review[0] if dashboard_needs_review else none %}
 
 <section class="dashboard-grid">
   <div class="summary-grid dashboard-summary kpi-strip">
@@ -25,10 +26,18 @@
       <span>прибыль за месяц</span>
       <strong class="money-value money-profit">{{ overview.reports.summary.profit }} <small>{{ workspace.default_currency }}</small></strong>
     </div>
-    <div class="metric">
-      <span>требует проверки</span>
-      <strong>{{ overview.documents_needing_review | length }}</strong>
-    </div>
+    {% if dashboard_next_review_document %}
+      <a class="metric metric-review-action" href="/imports/documents/{{ dashboard_next_review_document.id }}/review">
+        <span>требует проверки</span>
+        <strong>{{ overview.documents_needing_review | length }}</strong>
+        <small>проверить строки</small>
+      </a>
+    {% else %}
+      <div class="metric">
+        <span>требует проверки</span>
+        <strong>{{ overview.documents_needing_review | length }}</strong>
+      </div>
+    {% endif %}
   </div>
 
   {% if dashboard_setup_complete %}
@@ -51,7 +60,7 @@
   <article class="panel stack dashboard-card">
     <div class="section-heading">
       <div>
-        <p class="eyebrow">{{ overview.month_start }} — {{ overview.month_end }}</p>
+        <p class="eyebrow">{{ overview.month_start | date_ru }} — {{ overview.month_end | date_ru }}</p>
         <h2>Счета</h2>
       </div>
       <a class="button button-small" href="/accounts">{{ icon("wallet") }} открыть</a>
@@ -60,7 +69,7 @@
       <div class="entity-list">
         {% for row in overview.reports.account_balances %}
           <a class="entity-row" href="/accounts/{{ row.account.id }}">
-            <span>{{ row.account.name }}</span>
+            <span class="truncate-label" title="{{ row.account.name }}">{{ row.account.name }}</span>
             <strong class="amount {% if row.balance > 0 %}amount-income{% elif row.balance < 0 %}amount-expense{% endif %}">
               {{ row.balance }} {{ row.account.currency }}
             </strong>
@@ -90,7 +99,7 @@
       <div class="entity-list">
         {% for document in overview.recent_documents %}
           <a class="entity-row" href="/imports/documents/{{ document.id }}">
-            <span class="document-name-compact">{{ document.original_filename }}</span>
+            <span class="document-name-compact truncate-label" title="{{ document.original_filename }}">{{ document.original_filename }}</span>
             <span class="badge badge-{{ document.status.value }}">{{ document.status | ru }}</span>
           </a>
         {% endfor %}
@@ -98,7 +107,7 @@
     {% else %}
       {{ empty_state(
         "Загруженных выписок пока нет",
-        "Загрузите PDF или XLSX по одному из счетов, чтобы начать проверку строк.",
+        "Загрузите файл выписки в PDF или XLSX по одному из счетов, чтобы начать проверку строк.",
         "/imports/upload",
         "загрузить выписку",
         "upload"

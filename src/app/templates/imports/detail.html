@@ -13,20 +13,24 @@
         <h1>Документ</h1>
       </div>
       <div class="import-page-actions">
-        <a class="button" href="/imports/documents/{{ view.id }}/review">{{ icon("clipboard-check") }} проверка</a>
-        <form method="post" action="/imports/documents/{{ view.id }}/reparse">
-          {{ csrf_input() }}
-          <button class="button" type="submit">{{ icon("refresh") }} перепарсить</button>
-        </form>
-        <form method="post" action="/imports/documents/{{ view.id }}/ignore">
-          {{ csrf_input() }}
-          <button class="button" type="submit">{{ icon("ignore") }} игнорировать</button>
-        </form>
-        <form method="post" action="/imports/documents/{{ view.id }}/delete">
-          {{ csrf_input() }}
-          <button class="button" type="submit">{{ icon("trash") }} удалить</button>
-        </form>
         <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
+        <details class="action-details action-accordion import-more-actions">
+          <summary>{{ icon("settings") }} еще</summary>
+          <div class="action-menu">
+            <form method="post" action="/imports/documents/{{ view.id }}/reparse">
+              {{ csrf_input() }}
+              <button class="button button-small" type="submit">{{ icon("refresh") }} перепарсить</button>
+            </form>
+            <form method="post" action="/imports/documents/{{ view.id }}/ignore">
+              {{ csrf_input() }}
+              <button class="button button-small" type="submit">{{ icon("ignore") }} игнорировать</button>
+            </form>
+            <form method="post" action="/imports/documents/{{ view.id }}/delete">
+              {{ csrf_input() }}
+              <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
+            </form>
+          </div>
+        </details>
       </div>
     </header>
     <p class="import-document-name" title="{{ view.original_filename }}">
@@ -48,7 +52,7 @@
     {% if validation and validation.status == "needs_mapping" %}
       {{ next_step(
         "Настройте колонки",
-        "PDF прочитан, но системе нужно понять, где дата, описание и сумма.",
+        "Файл выписки прочитан, но системе нужно понять, где дата, описание и сумма.",
         "/imports/documents/" ~ view.id ~ "/mapping",
         "настроить колонки",
         "settings"
@@ -82,8 +86,7 @@
     {% if validation and validation.status == "needs_mapping" %}
       <div class="notice">
         <strong>Нужна настройка импорта.</strong>
-        PDF прочитан, но подходящего парсера для этой выписки пока нет.
-        <a class="button button-small" href="/imports/documents/{{ view.id }}/mapping">{{ icon("settings") }} настроить колонки</a>
+        Файл выписки прочитан, но подходящего парсера для этой выписки пока нет.
       </div>
       <div class="summary-grid">
         <div class="metric">
@@ -95,7 +98,7 @@
           <strong>{{ validation.detected_statement_type | ru }}</strong>
         </div>
         <div class="metric">
-          <span>PDF</span>
+          <span>извлечение</span>
           <strong>{% if validation.text_based %}текстовый{% else %}нужен OCR{% endif %}</strong>
         </div>
         <div class="metric">
@@ -211,43 +214,39 @@
       <div class="notice">Отчет проверки для этого документа пока недоступен.</div>
     {% endif %}
 
-    <div class="document-detail-grid">
-      <div class="document-detail-card">
-        <span>ID</span>
-        <strong title="{{ view.id }}">ID {{ view.id | short_id }}</strong>
-      </div>
-      <div class="document-detail-card">
-        <span>SHA-256</span>
-        <strong title="{{ view.sha256_hash }}">{{ view.sha256_hash | short_id(16) }}</strong>
-      </div>
-      <div class="document-detail-card document-detail-card-wide">
-        <span>Ключ хранения</span>
-        <strong class="technical-value" title="{{ view.storage_key }}">{{ view.storage_key }}</strong>
-      </div>
-      {% if view.account %}
+    {% if view.account %}
+      <div class="document-detail-grid">
         <div class="document-detail-card document-detail-card-wide">
           <span>Счет</span>
           <a class="account-ref" href="/accounts/{{ view.account.id }}">
             <strong>{{ view.account.name }}</strong>
             <span>{{ view.account.type | ru }}</span>
             <span>{{ view.account.currency }}</span>
-            <span title="{{ view.account.id }}">ID {{ view.account.id | short_id }}</span>
           </a>
         </div>
+      </div>
+    {% endif %}
+
+    <details class="debug-details document-debug-details">
+      <summary>Отладочные данные документа</summary>
+      <span>ID {{ view.id }}</span>
+      <span>SHA-256 {{ view.sha256_hash }}</span>
+      <span>Ключ хранения {{ view.storage_key }}</span>
+      {% if view.account %}
+        <span>ID счета {{ view.account.id }}</span>
       {% endif %}
-    </div>
+    </details>
 
     {% if view.raw_transactions %}
       <h2 class="status">Сырые транзакции</h2>
       <div class="raw-transaction-list">
         {% for row in view.raw_transactions %}
           <article class="raw-transaction-card">
-            <div class="review-meta">
-              <span><strong>#</strong>{{ row.row_index }}</span>
+            <div class="raw-transaction-head">
+              <strong class="raw-transaction-amount {% if row.amount and row.amount > 0 %}amount-income{% elif row.amount and row.amount < 0 %}amount-expense{% endif %}">{{ row.amount or row.amount_raw or "" }} <small>{{ row.currency or "" }}</small></strong>
+              <span class="raw-transaction-date">{{ row.display_date | date_ru }}</span>
               <span class="badge badge-{{ row.status.value }}">{{ row.status | ru }}</span>
-              <span>{{ row.display_date or "" }}</span>
-              <span class="amount {% if row.amount and row.amount > 0 %}amount-income{% elif row.amount and row.amount < 0 %}amount-expense{% endif %}">{{ row.amount or row.amount_raw or "" }} {{ row.currency or "" }}</span>
-              <span title="{{ row.parse_attempt_id }}">попытка {{ row.parse_attempt_id | short_id }}</span>
+              <span class="raw-transaction-index">#{{ row.row_index }}</span>
             </div>
             <div class="entry-description">{{ row.description }}</div>
             {% if row.normalization_error %}
@@ -255,6 +254,10 @@
                 <span>{{ row.normalization_error }}</span>
               </div>
             {% endif %}
+            <details class="technical-details raw-transaction-debug">
+              <summary>ID строки</summary>
+              <span>ID попытки {{ row.parse_attempt_id }}</span>
+            </details>
           </article>
         {% endfor %}
       </div>
@@ -272,15 +275,18 @@
           <article class="parse-attempt-card">
             <div class="parse-attempt-head">
               <strong>{{ attempt.status | ru }}</strong>
-              <span title="{{ attempt.id }}">ID {{ attempt.id | short_id }}</span>
               <span>{{ attempt.parser_name }} {{ attempt.parser_version or "" }}</span>
             </div>
             <div class="parse-attempt-times">
-              <span>старт {{ attempt.started_at }}</span>
+              <span>старт {{ attempt.started_at | date_ru }}</span>
               {% if attempt.finished_at %}
-                <span>финиш {{ attempt.finished_at }}</span>
+                <span>финиш {{ attempt.finished_at | date_ru }}</span>
               {% endif %}
             </div>
+            <details class="technical-details">
+              <summary>ID попытки</summary>
+              <span>ID {{ attempt.id }}</span>
+            </details>
             {% if attempt.message %}
               <p class="parse-attempt-message">{{ attempt.message }}</p>
             {% endif %}
@@ -290,44 +296,50 @@
     {% endif %}
 
     {% for attempt in view.parse_attempts %}
-      <article class="parse-debug stack">
-        <div class="parse-debug-header">
-          <h2 class="status">Попытка парсинга {{ attempt.status | ru }}</h2>
-          <span title="{{ attempt.id }}">ID {{ attempt.id | short_id }}</span>
-        </div>
-        {% if attempt.error_message %}
-          <div class="notice error">{{ attempt.error_message }}</div>
-        {% endif %}
-        {% if attempt.validation_report %}
-          <h2 class="status">Отчет проверки</h2>
-          <pre>{{ attempt.validation_report | tojson(indent=2) }}</pre>
-        {% endif %}
-
-        <div class="document-detail-grid compact">
-          <div class="document-detail-card">
-            <span>Парсер</span>
-            <strong>{{ attempt.parser_name }} {{ attempt.parser_version or "" }}</strong>
+      <details class="debug-details">
+        <summary>Отладочные данные парсинга {{ attempt.status | ru }}</summary>
+        <article class="parse-debug stack">
+          <div class="parse-debug-header">
+            <h2 class="status">Попытка парсинга {{ attempt.status | ru }}</h2>
+            <details class="technical-details">
+              <summary>ID</summary>
+              <span>ID {{ attempt.id }}</span>
+            </details>
           </div>
-          <div class="document-detail-card">
-            <span>Старт</span>
-            <strong>{{ attempt.started_at }}</strong>
-          </div>
-          <div class="document-detail-card">
-            <span>Финиш</span>
-            <strong>{{ attempt.finished_at or "нет" }}</strong>
-          </div>
-        </div>
+          {% if attempt.error_message %}
+            <div class="notice error">{{ attempt.error_message }}</div>
+          {% endif %}
+          {% if attempt.validation_report %}
+            <h2 class="status">Отчет проверки</h2>
+            <pre>{{ attempt.validation_report | tojson(indent=2) }}</pre>
+          {% endif %}
 
-        {% if attempt.raw_tables %}
-          <h2 class="status">Сырые таблицы</h2>
-          <pre>{{ attempt.raw_tables | tojson(indent=2) }}</pre>
-        {% endif %}
+          <div class="document-detail-grid compact">
+            <div class="document-detail-card">
+              <span>Парсер</span>
+              <strong>{{ attempt.parser_name }} {{ attempt.parser_version or "" }}</strong>
+            </div>
+            <div class="document-detail-card">
+              <span>Старт</span>
+              <strong>{{ attempt.started_at | date_ru }}</strong>
+            </div>
+            <div class="document-detail-card">
+              <span>Финиш</span>
+              <strong>{{ attempt.finished_at | date_ru if attempt.finished_at else "нет" }}</strong>
+            </div>
+          </div>
 
-        {% if attempt.raw_text_by_page %}
-          <h2 class="status">Сырой текст</h2>
-          <pre>{{ attempt.raw_text_by_page | tojson(indent=2) }}</pre>
-        {% endif %}
-      </article>
+          {% if attempt.raw_tables %}
+            <h2 class="status">Сырые таблицы</h2>
+            <pre>{{ attempt.raw_tables | tojson(indent=2) }}</pre>
+          {% endif %}
+
+          {% if attempt.raw_text_by_page %}
+            <h2 class="status">Сырой текст</h2>
+            <pre>{{ attempt.raw_text_by_page | tojson(indent=2) }}</pre>
+          {% endif %}
+        </article>
+      </details>
     {% endfor %}
   </section>
 {% endblock %}

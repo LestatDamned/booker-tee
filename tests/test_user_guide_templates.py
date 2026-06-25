@@ -1,9 +1,11 @@
+from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
 from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
+from app.features.workspaces.models import WorkspaceType
 from app.templating import create_templates
 
 
@@ -75,7 +77,12 @@ def test_upload_page_guides_to_file_when_accounts_exist() -> None:
     )
 
     assert "Выберите счет и файл" in html
-    assert "#statement_pdf" in html
+    assert "загрузить базовые правила" in html
+    assert "inline-hint" in html
+    assert "file-upload-control" in html
+    assert "выбрать файл" in html
+    assert "файл не выбран" in html
+    assert "следующий шаг" not in html
 
 
 def test_document_detail_guides_to_mapping_when_columns_are_unknown() -> None:
@@ -152,6 +159,12 @@ def test_review_page_guides_to_first_remaining_row() -> None:
 
     assert "Продолжайте проверку" in html
     assert "Осталось обработать 1 из 2 строк." in html
+    assert "review-rule-hint" in html
+    assert "Если это первая выписка" in html
+    assert "загрузите базовые правила" in html
+    assert 'href="/rules"' in html
+    assert f'action="/imports/documents/{document_id}/apply-rules"' in html
+    assert "применить к выписке" in html
     assert f"#raw-{remaining_row.id}" in html
     assert "workflow-step-current" in html
 
@@ -187,8 +200,8 @@ def test_dashboard_uses_guided_empty_states() -> None:
         app_name="Booker Tee",
         workspace=SimpleNamespace(name="Personal", default_currency="RUB"),
         overview=SimpleNamespace(
-            month_start="01.06.2026",
-            month_end="30.06.2026",
+            month_start=date(2026, 6, 1),
+            month_end=date(2026, 6, 30),
             documents_needing_review=[],
             recent_documents=[],
             reports=SimpleNamespace(
@@ -207,6 +220,8 @@ def test_dashboard_uses_guided_empty_states() -> None:
     assert "Первые шаги" in html
     assert "Рабочее пространство" in html
     assert "Добавьте счет" in html
+    assert "01.06.2026 — 30.06.2026" in html
+    assert "2026-06-01" not in html
     assert "onboarding-item-current" in html
     assert "следующий шаг" not in html
     assert html.count("empty-state-copy") == 2
@@ -216,15 +231,114 @@ def test_dashboard_index_is_full_page_with_navigation_and_checklist() -> None:
     html = render_template(
         "dashboard/index.html",
         app_name="Booker Tee",
+        current_user=SimpleNamespace(name="Test", email="test@example.com"),
+        current_workspace=SimpleNamespace(name="Personal"),
         workspace=SimpleNamespace(name="Personal", default_currency="RUB"),
         overview=incomplete_dashboard_overview(),
     )
 
     assert "<title>Обзор · Booker Tee</title>" in html
+    assert '<a class="brand" href="/dashboard">Booker Tee</a>' in html
     assert 'href="/dashboard"' in html
     assert 'href="/css/app.css?v=test-css-version"' in html
     assert "Первые шаги" in html
     assert "onboarding-list" in html
+
+
+def test_public_home_focuses_on_auth_before_private_setup_steps() -> None:
+    html = render_template(
+        "home.html",
+        app_name="Booker Tee",
+        current_user=None,
+        current_workspace=None,
+    )
+
+    assert "header-grid-public" in html
+    assert '<a class="brand" href="/">Booker Tee</a>' in html
+    assert 'href="/login"' in html
+    assert 'href="/signup"' in html
+    assert 'href="/accounts"' not in html
+    assert 'href="/imports/upload"' not in html
+    assert "Добавить счета после входа" in html
+
+
+def test_profile_separates_session_action_from_profile_metrics() -> None:
+    html = render_template(
+        "users/index.html",
+        app_name="Booker Tee",
+        current_user=SimpleNamespace(name="Test User", email="test@example.com"),
+        workspace=SimpleNamespace(name="Personal"),
+    )
+
+    assert "session-actions" in html
+    assert 'action="/logout"' in html
+    assert "form-panel" not in html
+    assert 'class="truncate-label" title="test@example.com"' in html
+
+
+def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
+    current_workspace_id = uuid4()
+    other_workspace_id = uuid4()
+    html = render_template(
+        "workspaces/index.html",
+        app_name="Booker Tee",
+        current_user=SimpleNamespace(name="Test User", email="test@example.com"),
+        workspace=SimpleNamespace(
+            id=current_workspace_id,
+            name="Personal",
+            default_currency="RUB",
+        ),
+        workspace_types=list(WorkspaceType),
+        workspaces=[
+            SimpleNamespace(
+                id=current_workspace_id,
+                name="Personal",
+                type=WorkspaceType.PERSONAL,
+                default_currency="RUB",
+            ),
+            SimpleNamespace(
+                id=other_workspace_id,
+                name="Family Budget",
+                type=WorkspaceType.FAMILY,
+                default_currency="RUB",
+            ),
+        ],
+    )
+
+    assert "admin-details" in html
+    assert "Редактирование" in html
+    assert f'action="/workspaces/{other_workspace_id}/select"' in html
+    assert f'action="/workspaces/{current_workspace_id}/select"' not in html
+
+
+def test_dashboard_review_metric_links_to_first_document_requiring_review() -> None:
+    document_id = uuid4()
+    html = render_template(
+        "dashboard/summary.html",
+        app_name="Booker Tee",
+        workspace=SimpleNamespace(name="Personal", default_currency="RUB"),
+        overview=SimpleNamespace(
+            month_start="01.06.2026",
+            month_end="30.06.2026",
+            documents_needing_review=[SimpleNamespace(id=document_id)],
+            recent_documents=[],
+            reports=SimpleNamespace(
+                summary=SimpleNamespace(
+                    income=Decimal("0.00"),
+                    expense=Decimal("0.00"),
+                    profit=Decimal("0.00"),
+                ),
+                account_balances=[],
+                categories=[],
+                properties=[],
+                uncategorized=[],
+            ),
+        ),
+    )
+
+    assert "metric-review-action" in html
+    assert f'href="/imports/documents/{document_id}/review"' in html
+    assert "проверить строки" in html
 
 
 def test_dashboard_hides_onboarding_checklist_after_setup_is_complete() -> None:

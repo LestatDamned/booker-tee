@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% from "components/next_step.html" import next_step %}
 {% from "components/empty_state.html" import empty_state %}
+{% from "components/inline_hint.html" import inline_hint %}
 
 {% block title %}Загрузка · {{ app_name }}{% endblock %}
 
@@ -12,13 +12,7 @@
     </div>
 
     {% if accounts %}
-      {{ next_step(
-        "Выберите счет и файл",
-        "Выписка будет привязана к счету, чтобы суммы попали в правильное место хранения денег.",
-        "#statement_pdf",
-        "выбрать файл",
-        "upload"
-      ) }}
+      {{ inline_hint("Выберите счет и файл выписки в PDF или XLSX. Для быстрой проверки строк советуем заранее загрузить базовые правила в разделе Правила: они дадут первые автоподсказки по категориям.", "info") }}
     {% endif %}
 
     {% if error %}
@@ -28,7 +22,7 @@
     {% if accounts %}
       <form class="form-panel" method="post" action="/imports/upload" enctype="multipart/form-data">
         {{ csrf_input() }}
-        <div class="field">
+        <div class="field form-field-quarter">
           <label for="account_id">Счет</label>
           <select id="account_id" name="account_id">
             {% for account in accounts %}
@@ -37,12 +31,26 @@
           </select>
         </div>
 
-        <div class="field form-field-wide">
-          <label for="statement_pdf">PDF/XLSX-выписка</label>
-          <input id="statement_pdf" name="statement_pdf" type="file" accept="application/pdf,.pdf,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+        <div class="field form-field-half file-upload-field" x-data="{ fileName: '' }">
+          <label for="statement_pdf">Файл выписки</label>
+          <div class="file-upload-control">
+            <input
+              id="statement_pdf"
+              class="file-upload-input"
+              name="statement_pdf"
+              type="file"
+              accept="application/pdf,.pdf,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              required
+              @change="fileName = $event.target.files[0]?.name || ''"
+            >
+            <label class="file-upload-button" for="statement_pdf">{{ icon("upload") }} выбрать файл</label>
+            <span class="file-upload-name" x-text="fileName || 'файл не выбран'">файл не выбран</span>
+          </div>
         </div>
 
-        <button class="button form-submit" type="submit">{{ icon("import") }} извлечь данные</button>
+        <div class="form-actions">
+          <button class="button" type="submit">{{ icon("import") }} извлечь данные</button>
+        </div>
       </form>
     {% else %}
       {{ empty_state(

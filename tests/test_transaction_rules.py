@@ -11,6 +11,7 @@ from app.features.ledger.models import OperationType
 from app.features.transaction_rules.application.fixture_seeding import (
     DEFAULT_MERCHANT_RULE_SEEDS,
 )
+from app.features.transaction_rules.application.rule_application import select_best_matching_rule
 from app.features.transaction_rules.domain.matching import rule_matches_raw_transaction
 from app.features.transaction_rules.domain.patterns import infer_rule_pattern
 from app.features.transaction_rules.domain.suggestions import (
@@ -70,6 +71,8 @@ def test_apply_rule_suggestion_prefills_raw_transaction() -> None:
     assert isinstance(suggestion, dict)
     assert suggestion["pattern"] == "KRASNOE&BELOE"
     assert suggestion["application_mode"] == "suggest"
+    assert suggestion["category_id"] == str(category_id)
+    assert suggestion["operation_type"] == "expense"
     assert rule_suggestion_auto_applies(raw) is False
 
 
@@ -165,6 +168,32 @@ def test_default_merchant_rule_suggests_products_for_krasnoe_beloe() -> None:
     assert rule_matches_raw_transaction(rule, raw)
 
 
+def test_matching_prefers_categorized_rule_over_legacy_categoryless_rule() -> None:
+    workspace_id = uuid4()
+    products_category_id = uuid4()
+    categoryless_rule = transaction_rule(
+        workspace_id=workspace_id,
+        category_id=None,
+        pattern="SAMOKA",
+        application_mode=TransactionRuleApplicationMode.AUTO_APPLY,
+    )
+    products_rule = transaction_rule(
+        workspace_id=workspace_id,
+        category_id=products_category_id,
+        pattern="SAMOKA",
+        application_mode=TransactionRuleApplicationMode.AUTO_APPLY,
+    )
+    raw = make_raw_transaction(
+        workspace_id=workspace_id,
+        amount=Decimal("-1335.00"),
+        description="SBER*5411*SAMOKA T по карте",
+    )
+
+    selected_rule = select_best_matching_rule([categoryless_rule, products_rule], raw)
+
+    assert selected_rule is products_rule
+
+
 def test_default_merchant_rules_include_collected_user_patterns() -> None:
     seeds_by_pattern = {seed.pattern: seed for seed in DEFAULT_MERCHANT_RULE_SEEDS}
 
@@ -187,7 +216,7 @@ def test_default_merchant_rule_patterns_are_normalized_unique() -> None:
 def transaction_rule(
     *,
     workspace_id: UUID,
-    category_id: UUID,
+    category_id: UUID | None,
     pattern: str,
     application_mode: TransactionRuleApplicationMode = TransactionRuleApplicationMode.SUGGEST,
 ) -> TransactionRule:

@@ -200,6 +200,7 @@ async def create_review_category(
         oob_raw_transaction_ids=frozenset(),
         selected_category_id=category.id,
         open_category_editor=True,
+        refresh_category_options=True,
     )
 
 
@@ -238,6 +239,7 @@ async def review_action_response(
     open_category_editor: bool = False,
     category_dialog_error: str | None = None,
     category_dialog_name: str | None = None,
+    refresh_category_options: bool = False,
 ) -> Response:
     if not is_htmx_request(request):
         return RedirectResponse(
@@ -271,6 +273,19 @@ async def review_action_response(
     row = review_row_from_document(document, raw_transaction_id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    if refresh_category_options:
+        refresh_row_ids = set()
+        for sibling_row in document.raw_transactions:
+            sibling_row_id = getattr(sibling_row, "id", None)
+            sibling_status = getattr(sibling_row, "status", None)
+            sibling_status_value = getattr(sibling_status, "value", sibling_status)
+            if (
+                sibling_row_id is not None
+                and sibling_status_value not in {"confirmed", "ignored", "duplicate"}
+            ):
+                refresh_row_ids.add(sibling_row_id)
+        oob_raw_transaction_ids = frozenset(refresh_row_ids)
 
     template_values = page_context.template_values(
         app_name=settings.app_name,

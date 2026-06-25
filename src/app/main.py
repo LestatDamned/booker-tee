@@ -1,13 +1,17 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import Depends, FastAPI, Request, status
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.db.session import session_factory
+from app.core.security import session_token_from_request
+from app.core.settings import Settings
+from app.db.session import get_session, session_factory
 from app.features.accounts.router import router as accounts_router
 from app.features.categories.router import router as categories_router
 from app.features.dashboard.router import router as dashboard_router
@@ -17,6 +21,7 @@ from app.features.properties.router import router as properties_router
 from app.features.reports.router import router as reports_router
 from app.features.transaction_rules.router import router as transaction_rules_router
 from app.features.users.router import router as users_router
+from app.features.users.service import AuthenticationService
 from app.features.workspaces.router import router as workspaces_router
 from app.templating import create_templates
 
@@ -45,7 +50,19 @@ def create_app() -> FastAPI:
     app.include_router(workspaces_router)
 
     @app.get("/", response_class=HTMLResponse)
-    async def home(request: Request) -> HTMLResponse:
+    async def home(
+        request: Request,
+        session: Annotated[AsyncSession, Depends(get_session)],
+        settings: Annotated[Settings, Depends(get_settings)],
+    ) -> Response:
+        session_token = session_token_from_request(request, settings)
+        if session_token:
+            login_session = await AuthenticationService(session, settings).resolve_login_session(
+                session_token
+            )
+            if login_session is not None:
+                return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+
         return templates.TemplateResponse(
             request,
             "home.html",

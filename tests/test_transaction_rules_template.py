@@ -50,8 +50,10 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     )
 
     assert "form-panel" in html
-    assert "Правила помогают подставлять категорию" in html
-    assert "не заменяют финансовое решение пользователя" in html
+    assert "Правила сильно ускоряют проверку выписок" in html
+    assert "советуем загрузить базовые правила" in html
+    assert "rule-advanced-details" in html
+    assert "Условия применения" in html
     assert "/rules/seed-defaults" in html
     assert "seed-expobank" not in html
     assert "загрузить базовые правила" in html
@@ -68,7 +70,8 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert "SAMOKAT -> Подписки и сервисы" not in html
     assert "Продукты" in html
     assert "SAMOKAT" in html
-    assert f"ID {str(rule_id)[:8]}" in html
+    assert "<summary>ID</summary>" in html
+    assert f"ID {rule_id}" in html
     assert "<th>активно</th>" not in html
 
 
@@ -90,8 +93,8 @@ def test_transaction_rules_template_empty_state_points_to_rule_form() -> None:
 
     assert 'id="new-rule"' in html
     assert "Правил транзакций пока нет" in html
-    assert "похожие строки получали подсказки" in html
-    assert 'href="#new-rule"' in html
+    assert "минимальные подсказки для частых операций" in html
+    assert 'href="#new-rule"' not in html
 
 
 def test_rule_anchor_url_points_to_rule_card() -> None:

@@ -14,8 +14,13 @@ from app.features.imports.mapping.dto import (
     ImportAccountRef,
     ImportDocumentDetailView,
     ImportParseAttemptView,
+    ImportRawTransactionRow,
 )
-from app.features.imports.models import ParseAttemptStatus, UploadedDocumentStatus
+from app.features.imports.models import (
+    ParseAttemptStatus,
+    RawTransactionStatus,
+    UploadedDocumentStatus,
+)
 from app.templating import create_templates
 
 
@@ -50,8 +55,8 @@ def test_import_detail_template_shows_readable_account_reference() -> None:
     assert "ВТБ вклад" in html
     assert "депозит" in html
     assert "RUB" in html
-    assert f"ID {str(account_id)[:8]}" in html
-    assert f">{account_id}<" not in html
+    assert "Отладочные данные документа" in html
+    assert f"ID счета {account_id}" in html
 
 
 def test_import_detail_template_keeps_failed_parse_page_compact() -> None:
@@ -95,10 +100,56 @@ def test_import_detail_template_keeps_failed_parse_page_compact() -> None:
     assert "empty-state" in html
     assert "parse-attempt-list" in html
     assert "parse-attempt-card" in html
-    assert f"ID {str(document_id)[:8]}" in html
-    assert f"ID {str(attempt_id)[:8]}" in html
+    assert "Отладочные данные документа" in html
+    assert "Технические детали" not in html
+    assert f"ID {document_id}" in html
+    assert f"ID {attempt_id}" in html
     assert "PdfminerException: No /Root object!" in html
     assert f'<td class="status">{attempt_id}</td>' not in html
+
+
+def test_import_detail_raw_transactions_are_money_first_and_use_ru_date() -> None:
+    parse_attempt_id = uuid4()
+    view = ImportDocumentDetailView(
+        id=uuid4(),
+        original_filename="statement.pdf",
+        status=UploadedDocumentStatus.REQUIRES_REVIEW,
+        sha256_hash="a" * 64,
+        storage_key="workspace/document/statement.pdf",
+        bank_name=None,
+        statement_type=None,
+        account=None,
+        validation=None,
+        parse_attempts=[],
+        raw_transactions=[
+            ImportRawTransactionRow(
+                row_index=0,
+                status=RawTransactionStatus.NORMALIZED,
+                parse_attempt_id=parse_attempt_id,
+                display_date=date(2026, 5, 26),
+                amount=Decimal("-2509.00"),
+                amount_raw="-2509.00",
+                currency="RUB",
+                description="Оплата товаров и услуг. SBER*5411*SAMOKAT.",
+                normalization_error="",
+            ),
+        ],
+    )
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("imports/detail.html").render(
+        app_name="Booker Tee",
+        view=view,
+    )
+
+    assert "raw-transaction-head" in html
+    assert "26.05.2026" in html
+    assert "2026-05-26" not in html
+    assert "Технические детали</summary>" not in html
+    assert "ID строки" in html
+    assert html.index("-2509.00") < html.index("26.05.2026")
+    assert html.index("-2509.00") < html.index("нормализовано")
 
 
 def test_import_detail_template_shows_unknown_statement_mapping_preview() -> None:

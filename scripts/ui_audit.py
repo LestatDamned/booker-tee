@@ -15,14 +15,18 @@ from urllib.request import urlopen
 from openpyxl import Workbook
 from playwright.sync_api import BrowserContext, Page, sync_playwright
 from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 DEFAULT_OUTPUT_DIR = Path("/tmp/booker-ui-audit")
 DEFAULT_AUTH_OUTPUT_DIR = Path("/tmp/booker-ui-audit-auth")
 DEFAULT_REALISTIC_OUTPUT_DIR = Path("/tmp/booker-ui-audit-realistic")
 DEFAULT_REVIEW_OUTPUT_DIR = Path("/tmp/booker-ui-audit-review")
+DEFAULT_BUTTON_OUTPUT_DIR = Path("/tmp/booker-ui-audit-buttons")
+DEFAULT_DESIGN_OUTPUT_DIR = Path("/tmp/booker-ui-audit-design")
 DEFAULT_TIMEOUT_SECONDS = 20
 PAGE_TIMEOUT_MS = 8_000
 DEFAULT_AUTH_PASSWORD = "booker-ui-audit-password"
+MAX_CLICK_TARGETS_PER_PAGE = 60
 
 PAGES: tuple[tuple[str, str], ...] = (
     ("/", "dashboard"),
@@ -121,7 +125,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--scenario",
-        choices=("empty", "realistic", "review_interactions"),
+        choices=(
+            "empty",
+            "realistic",
+            "review_interactions",
+            "button_audit",
+            "design_audit",
+        ),
         default="empty",
         help="Data scenario to prepare before auditing authenticated pages.",
     )
@@ -395,6 +405,7 @@ def collect_overflow(page: Page) -> dict[str, Any]:
 def collect_ux_assertions(
     page: Page,
     *,
+    base_url: str,
     path: str,
     scenario: str,
     scenario_state: dict[str, str],
@@ -415,7 +426,451 @@ def collect_ux_assertions(
     if scenario == "review_interactions" and path == scenario_state.get("review_path"):
         errors.extend(assert_review_interactions(page, scenario_state=scenario_state))
 
+    if scenario == "button_audit":
+        errors.extend(assert_safe_click_interactions(page, base_url=base_url))
+
+    if scenario == "design_audit":
+        errors.extend(assert_design_quality(page, path=path))
+
     return errors
+
+
+def assert_design_quality(page: Page, *, path: str) -> list[str]:
+    state = page.evaluate(
+        """
+        () => {
+          const visible = (element) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            const closedDetails = element.closest('details:not([open])');
+            if (closedDetails && element !== closedDetails.querySelector(':scope > summary')) {
+              return false;
+            }
+            return rect.width > 0
+              && rect.height > 0
+              && style.display !== 'none'
+              && style.visibility !== 'hidden';
+          };
+          const textFor = (element) => (
+            element.innerText || element.getAttribute('aria-label') || ''
+          ).trim().replace(/\\s+/g, ' ');
+          const borderWidth = (style) => (
+            parseFloat(style.borderTopWidth)
+            + parseFloat(style.borderRightWidth)
+            + parseFloat(style.borderBottomWidth)
+            + parseFloat(style.borderLeftWidth)
+          );
+          const isTransparent = (color) => (
+            !color || color === 'transparent' || color === 'rgba(0, 0, 0, 0)'
+          );
+          const controlSelector = [
+            'a.button',
+            'button:not([type="hidden"])',
+            'details.action-details > summary',
+            'details.action-accordion > summary'
+          ].join(',');
+          const visibleMainControls = Array.from(
+            document.querySelectorAll(`main ${controlSelector}`)
+          ).filter(visible);
+          const pageControls = visibleMainControls
+            .filter((element) => !element.closest('.site-header'))
+            .map((element) => textFor(element));
+
+          const blockIssues = Array.from(
+            document.querySelectorAll(
+              '.entity-card, .review-item, .raw-transaction-card, .parse-attempt-card'
+            )
+          ).filter(visible).map((block, index) => {
+            const controls = Array.from(block.querySelectorAll(controlSelector))
+              .filter(visible)
+              .filter((element) => !element.closest('.technical-details'))
+              .map((element) => textFor(element))
+              .filter(Boolean);
+            const primaryActions = Array.from(
+              block.querySelectorAll('.primary-action, .button.primary-action')
+            ).filter(visible).map((element) => textFor(element)).filter(Boolean);
+            return {
+              index: index + 1,
+              label: textFor(block).slice(0, 80),
+              controls,
+              primaryActions,
+            };
+          });
+
+          const technicalSummaries = Array.from(
+            document.querySelectorAll('details.technical-details > summary')
+          ).filter(visible).map((summary) => {
+            const rect = summary.getBoundingClientRect();
+            const style = getComputedStyle(summary);
+            return {
+              text: textFor(summary),
+              height: Math.round(rect.height),
+              width: Math.round(rect.width),
+              borderWidth: borderWidth(style),
+              backgroundColor: style.backgroundColor,
+              insideDenseBlock: Boolean(
+                summary.closest('.entity-card, .review-item, .raw-transaction-card')
+              ),
+            };
+          });
+
+          const badgeMetrics = Array.from(document.querySelectorAll('.badge'))
+            .filter(visible)
+            .map((badge) => {
+              const rect = badge.getBoundingClientRect();
+              return {
+                text: textFor(badge),
+                height: Math.round(rect.height),
+                width: Math.round(rect.width),
+              };
+            });
+
+          const radiusOffenders = Array.from(document.querySelectorAll('*'))
+            .filter(visible)
+            .map((element) => {
+              const style = getComputedStyle(element);
+              const radii = [
+                style.borderTopLeftRadius,
+                style.borderTopRightRadius,
+                style.borderBottomRightRadius,
+                style.borderBottomLeftRadius,
+              ].map((value) => parseFloat(value) || 0);
+              return {
+                tag: element.tagName.toLowerCase(),
+                className: String(element.className || ''),
+                text: textFor(element).slice(0, 60),
+                maxRadius: Math.max(...radii),
+              };
+            })
+            .filter((item) => item.maxRadius > 0.5)
+            .slice(0, 6);
+
+          const visibleDebugBlocks = Array.from(document.querySelectorAll('pre'))
+            .filter(visible)
+            .map((element) => textFor(element).slice(0, 60));
+
+          const webOneControlLabels = visibleMainControls
+            .map((element) => {
+              const rect = element.getBoundingClientRect();
+              const style = getComputedStyle(element);
+              return {
+                text: textFor(element),
+                height: Math.round(rect.height),
+                borderWidth: borderWidth(style),
+                backgroundColor: style.backgroundColor,
+              };
+            })
+            .filter((item) => (
+              /технические детали/i.test(item.text)
+              && (
+                item.height >= 34
+                || item.borderWidth > 0
+                || !isTransparent(item.backgroundColor)
+              )
+            ))
+            .map((item) => item.text);
+
+          return {
+            pageControls,
+            blockIssues,
+            technicalSummaries,
+            badgeMetrics,
+            radiusOffenders,
+            visibleDebugBlocks,
+            webOneControlLabels,
+            viewportWidth: window.innerWidth,
+          };
+        }
+        """
+    )
+    errors: list[str] = []
+    viewport_width = int(state.get("viewportWidth") or 0)
+    page_controls = list(state.get("pageControls") or [])
+    control_limit = 24 if viewport_width < 720 else 34
+    if len(page_controls) > control_limit:
+        errors.append(
+            "designer audit: too many visible page actions "
+            f"({len(page_controls)} > {control_limit}); page feels like a control board"
+        )
+
+    for block in list(state.get("blockIssues") or []):
+        controls = list(block.get("controls") or [])
+        primary_actions = list(block.get("primaryActions") or [])
+        label = str(block.get("label") or f"block {block.get('index')}")
+        block_limit = 4 if viewport_width < 720 else 5
+        if len(controls) > block_limit:
+            errors.append(
+                "designer audit: action noise in block "
+                f"{block.get('index')} ({len(controls)} controls): "
+                f"{label!r}"
+            )
+        if len(primary_actions) > 1:
+            errors.append(
+                "designer audit: more than one primary action in block "
+                f"{block.get('index')}: {primary_actions}"
+            )
+
+    technical_summaries = list(state.get("technicalSummaries") or [])
+    noisy_technical = [
+        item
+        for item in technical_summaries
+        if (
+            str(item.get("text") or "").casefold().startswith("технические детали")
+            and item.get("insideDenseBlock")
+        )
+        or float(item.get("height") or 0) >= 34
+        or float(item.get("borderWidth") or 0) > 0
+    ]
+    if noisy_technical:
+        examples = ", ".join(str(item.get("text") or "") for item in noisy_technical[:3])
+        errors.append(
+            "designer audit: technical details compete with user actions "
+            f"({len(noisy_technical)} visible triggers; examples: {examples})"
+        )
+
+    web_one_controls = list(state.get("webOneControlLabels") or [])
+    if web_one_controls:
+        errors.append(
+            "designer audit: Web 1.0-like technical controls are visually prominent: "
+            + ", ".join(str(label) for label in web_one_controls[:4])
+        )
+
+    badge_metrics = list(state.get("badgeMetrics") or [])
+    if len(badge_metrics) >= 2:
+        heights = [int(item.get("height") or 0) for item in badge_metrics]
+        min_height = min(heights)
+        max_height = max(heights)
+        if max_height - min_height > 4:
+            tall_badges = [
+                str(item.get("text") or "")
+                for item in badge_metrics
+                if int(item.get("height") or 0) == max_height
+            ][:3]
+            errors.append(
+                "designer audit: inconsistent badge heights "
+                f"({min_height}px..{max_height}px; examples: {tall_badges})"
+            )
+
+    radius_offenders = list(state.get("radiusOffenders") or [])
+    if radius_offenders:
+        examples = ", ".join(
+            f"{item.get('tag')}.{item.get('className')}" for item in radius_offenders[:3]
+        )
+        errors.append(f"designer audit: rounded corners found despite design rule: {examples}")
+
+    visible_debug_blocks = list(state.get("visibleDebugBlocks") or [])
+    if visible_debug_blocks:
+        errors.append(
+            "designer audit: raw debug/code blocks are visible by default "
+            f"({len(visible_debug_blocks)} blocks); hide them behind debug details"
+        )
+
+    if path in {"/imports", "/accounts", "/categories", "/properties", "/rules"}:
+        long_technical_labels = [
+            str(item.get("text") or "")
+            for item in technical_summaries
+            if str(item.get("text") or "").casefold().startswith("технические детали")
+        ]
+        if long_technical_labels:
+            errors.append(
+                "designer audit: list pages should use short quiet technical triggers "
+                f"instead of {long_technical_labels[:3]}"
+            )
+
+    return errors
+
+
+def assert_safe_click_interactions(page: Page, *, base_url: str) -> list[str]:
+    errors: list[str] = []
+    original_url = page.url
+    errors.extend(click_visible_summaries(page))
+    errors.extend(click_safe_type_buttons(page))
+    errors.extend(click_safe_links(page, base_url=base_url, original_url=original_url))
+    return errors
+
+
+def click_visible_summaries(page: Page) -> list[str]:
+    errors: list[str] = []
+    summaries = page.locator("summary:visible")
+    count = min(summaries.count(), MAX_CLICK_TARGETS_PER_PAGE)
+    for index in range(count):
+        summary = summaries.nth(index)
+        label = interaction_label(summary, fallback=f"summary #{index + 1}")
+        try:
+            summary.click(timeout=PAGE_TIMEOUT_MS)
+            page.wait_for_timeout(100)
+        except PlaywrightError as exc:
+            errors.append(f"summary click failed ({label}): {short_error(exc)}")
+    return errors
+
+
+def click_safe_type_buttons(page: Page) -> list[str]:
+    errors: list[str] = []
+    buttons = page.locator('button[type="button"]:visible')
+    count = min(buttons.count(), MAX_CLICK_TARGETS_PER_PAGE)
+    for index in range(count):
+        button = buttons.nth(index)
+        label = interaction_label(button, fallback=f"button #{index + 1}")
+        if should_skip_interaction(label):
+            continue
+        try:
+            button.click(timeout=PAGE_TIMEOUT_MS)
+            page.wait_for_timeout(150)
+            dismiss_open_dialogs(page)
+        except PlaywrightError as exc:
+            errors.append(f"button click failed ({label}): {short_error(exc)}")
+    return errors
+
+
+def click_safe_links(page: Page, *, base_url: str, original_url: str) -> list[str]:
+    errors: list[str] = []
+    link_targets = page.evaluate(
+        """
+        () => Array.from(document.querySelectorAll('a[href]'))
+          .filter((element) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return rect.width > 0
+              && rect.height > 0
+              && style.visibility !== 'hidden'
+              && style.display !== 'none';
+          })
+          .map((element) => ({
+            href: element.href,
+            rawHref: element.getAttribute('href') || '',
+            text: (element.innerText || element.getAttribute('aria-label') || '').trim(),
+            target: element.getAttribute('target') || '',
+          }))
+          .slice(0, 80)
+        """
+    )
+    unique_targets: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for target in link_targets:
+        href = str(target.get("href") or "")
+        text = str(target.get("text") or "")
+        key = (href, text)
+        if key not in seen:
+            seen.add(key)
+            unique_targets.append(
+                {
+                    "href": href,
+                    "rawHref": str(target.get("rawHref") or ""),
+                    "text": text,
+                    "target": str(target.get("target") or ""),
+                }
+            )
+
+    for target in unique_targets[:MAX_CLICK_TARGETS_PER_PAGE]:
+        href = target["href"]
+        raw_href = target["rawHref"]
+        label = target["text"] or raw_href or href
+        if should_skip_link(
+            href=href,
+            raw_href=raw_href,
+            label=label,
+            base_url=base_url,
+            target=target["target"],
+        ):
+            continue
+        try:
+            selector = f'a[href="{css_string_escape(raw_href)}"]'
+            link = page.locator(selector).filter(has_text=target["text"]).first
+            if link.count() == 0:
+                link = page.locator(selector).first
+            if link.count() == 0:
+                errors.append(f"link disappeared before click ({label})")
+                continue
+            navigation_response = None
+            try:
+                with page.expect_navigation(
+                    wait_until="domcontentloaded",
+                    timeout=2_000,
+                ) as navigation_info:
+                    link.click(timeout=PAGE_TIMEOUT_MS)
+                navigation_response = navigation_info.value
+            except PlaywrightTimeoutError:
+                pass
+            page.wait_for_timeout(150)
+            if navigation_response is not None and navigation_response.status >= 400:
+                errors.append(
+                    f"link returned HTTP {navigation_response.status} ({label} -> {href})"
+                )
+            body_text = page.locator("body").inner_text(timeout=PAGE_TIMEOUT_MS)
+            if "Internal Server Error" in body_text or '"detail":"Not Found"' in body_text:
+                errors.append(f"link opened error page ({label} -> {href})")
+        except PlaywrightError as exc:
+            errors.append(f"link click failed ({label} -> {href}): {short_error(exc)}")
+        finally:
+            if page.url != original_url:
+                try:
+                    page.goto(original_url, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
+                    page.wait_for_timeout(100)
+                except PlaywrightError as exc:
+                    errors.append(
+                        f"could not return to source page after {label}: {short_error(exc)}"
+                    )
+                    break
+    return errors
+
+
+def dismiss_open_dialogs(page: Page) -> None:
+    cancel_buttons = page.locator('dialog[open] button[type="button"]:visible').filter(
+        has_text="Отмена"
+    )
+    if cancel_buttons.count():
+        cancel_buttons.first.click(timeout=PAGE_TIMEOUT_MS)
+        page.wait_for_timeout(100)
+        return
+    if page.locator("dialog[open]").count():
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(100)
+
+
+def interaction_label(locator: Any, *, fallback: str) -> str:
+    try:
+        text = locator.inner_text(timeout=1_000).strip()
+    except PlaywrightError:
+        text = ""
+    return " ".join(text.split()) or fallback
+
+
+def should_skip_interaction(label: str) -> bool:
+    normalized = label.casefold()
+    skip_markers = (
+        "удалить",
+        "игнорировать",
+        "архив",
+        "выйти",
+        "отменить проведение",
+        "перепарсить",
+    )
+    return any(marker in normalized for marker in skip_markers)
+
+
+def should_skip_link(
+    *,
+    href: str,
+    raw_href: str,
+    label: str,
+    base_url: str,
+    target: str,
+) -> bool:
+    if not href or not raw_href or raw_href.startswith("#") or target == "_blank":
+        return True
+    if not href.startswith(base_url.rstrip("/")):
+        return True
+    if should_skip_interaction(label):
+        return True
+    return False
+
+
+def css_string_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def short_error(exc: Exception) -> str:
+    return str(exc).splitlines()[0][:220]
 
 
 def assert_dashboard_ui(page: Page) -> list[str]:
@@ -636,6 +1091,7 @@ def audit_page(
         overflow_offenders = list(overflow["offenders"])
         ux_assertion_errors = collect_ux_assertions(
             page,
+            base_url=base_url,
             path=path,
             scenario=scenario,
             scenario_state=scenario_state,
@@ -700,7 +1156,7 @@ def run_audit(
                             output_dir=output_dir,
                             viewport_name=viewport_name,
                         )
-                    elif scenario == "review_interactions":
+                    elif scenario in {"review_interactions", "button_audit", "design_audit"}:
                         scenario_state = prepare_review_interaction_scenario(
                             context,
                             base_url=base_url,
@@ -709,7 +1165,11 @@ def run_audit(
                         )
 
                     pages = AUTHENTICATED_PAGES if authenticated else PAGES
-                    if scenario == "review_interactions" and scenario_state.get("review_path"):
+                    if scenario in {
+                        "review_interactions",
+                        "button_audit",
+                        "design_audit",
+                    } and scenario_state.get("review_path"):
                         pages = (*pages, (scenario_state["review_path"], "review-interactions"))
                     for path, label in pages:
                         print(f" - {path}", flush=True)
@@ -783,6 +1243,10 @@ def main() -> int:
     authenticated = bool(args.authenticated or args.scenario != "empty")
     if args.scenario == "review_interactions" and args.output_dir == str(DEFAULT_OUTPUT_DIR):
         output_dir = DEFAULT_REVIEW_OUTPUT_DIR
+    elif args.scenario == "button_audit" and args.output_dir == str(DEFAULT_OUTPUT_DIR):
+        output_dir = DEFAULT_BUTTON_OUTPUT_DIR
+    elif args.scenario == "design_audit" and args.output_dir == str(DEFAULT_OUTPUT_DIR):
+        output_dir = DEFAULT_DESIGN_OUTPUT_DIR
     elif args.scenario == "realistic" and args.output_dir == str(DEFAULT_OUTPUT_DIR):
         output_dir = DEFAULT_REALISTIC_OUTPUT_DIR
     elif authenticated and args.output_dir == str(DEFAULT_OUTPUT_DIR):

@@ -1,14 +1,18 @@
-{% macro empty_state(title, message, primary_href, primary_label, primary_icon="arrow-left", secondary_href=none, secondary_label=none, secondary_icon="file-text") %}
+{% macro empty_state(title, message, primary_href=none, primary_label=none, primary_icon="arrow-left", secondary_href=none, secondary_label=none, secondary_icon="file-text") %}
   <div class="empty-state">
     <div class="empty-state-copy">
       <strong>{{ title }}</strong>
       <span>{{ message }}</span>
     </div>
-    <div class="empty-state-actions">
-      <a class="button button-small primary-action" href="{{ primary_href }}">{{ icon(primary_icon) }} {{ primary_label }}</a>
-      {% if secondary_href and secondary_label %}
-        <a class="button button-small" href="{{ secondary_href }}">{{ icon(secondary_icon) }} {{ secondary_label }}</a>
-      {% endif %}
-    </div>
+    {% if primary_href and primary_label or secondary_href and secondary_label %}
+      <div class="empty-state-actions">
+        {% if primary_href and primary_label %}
+          <a class="button button-small primary-action" href="{{ primary_href }}">{{ icon(primary_icon) }} {{ primary_label }}</a>
+        {% endif %}
+        {% if secondary_href and secondary_label %}
+          <a class="button button-small" href="{{ secondary_href }}">{{ icon(secondary_icon) }} {{ secondary_label }}</a>
+        {% endif %}
+      </div>
+    {% endif %}
   </div>
 {% endmacro %}

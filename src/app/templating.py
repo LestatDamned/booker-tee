@@ -131,6 +131,11 @@ ICON_PATHS: dict[str, tuple[str, ...]] = {
         '<path d="M13 18h8" />',
         '<path d="m3 6 2 2 4-4" />',
     ),
+    "menu": (
+        '<path d="M4 6h16" />',
+        '<path d="M4 12h16" />',
+        '<path d="M4 18h16" />',
+    ),
     "plus": (
         '<path d="M5 12h14" />',
         '<path d="M12 5v14" />',
