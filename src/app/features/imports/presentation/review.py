@@ -12,6 +12,7 @@ class ReviewPageContext:
     categories: Sequence[object]
     properties: Sequence[object]
     transfer_suggestions: Mapping[UUID, Sequence[object]]
+    existing_transfer_suggestions: Mapping[UUID, Sequence[object]]
     balance_chain_problems: dict[int, list[str]]
 
     def template_values(self, *, app_name: str, workspace: object) -> dict[str, object]:
@@ -25,6 +26,7 @@ class ReviewPageContext:
             "properties": self.properties,
             "open_category_editor_by_row": {},
             "selected_category_id_by_row": {},
+            "existing_transfer_suggestions": self.existing_transfer_suggestions,
             "transfer_suggestions": self.transfer_suggestions,
             "workspace": workspace,
         }
@@ -37,6 +39,7 @@ def build_review_page_context(
     categories: Sequence[object],
     properties: Sequence[object],
     transfer_suggestions: Mapping[UUID, Sequence[object]],
+    existing_transfer_suggestions: Mapping[UUID, Sequence[object]],
 ) -> ReviewPageContext:
     return ReviewPageContext(
         document=document,
@@ -44,6 +47,7 @@ def build_review_page_context(
         categories=categories,
         properties=properties,
         transfer_suggestions=transfer_suggestions,
+        existing_transfer_suggestions=existing_transfer_suggestions,
         balance_chain_problems=balance_chain_problem_messages(latest_validation_report(document)),
     )
 

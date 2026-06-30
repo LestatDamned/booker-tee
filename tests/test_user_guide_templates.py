@@ -82,6 +82,15 @@ def test_upload_page_guides_to_file_when_accounts_exist() -> None:
     assert "file-upload-control" in html
     assert "выбрать файл" in html
     assert "файл не выбран" in html
+    assert "Поддержка в альфе" in html
+    assert "PDF, XLSX" in html
+    assert "Альфа-Банк XLSX" in html
+    assert "Ozon Банк" in html
+    assert "T-Банк" in html
+    assert "Сбербанк" in html
+    assert "ВТБ" in html
+    assert "Экспобанк" in html
+    assert "настроить колонки вручную" in html
     assert "следующий шаг" not in html
 
 

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -6,7 +6,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.features.ledger.models import MoneyEntry, Operation, OperationSource, OperationStatus
+from app.features.imports.models import RawTransaction
+from app.features.ledger.models import (
+    MoneyEntry,
+    Operation,
+    OperationSource,
+    OperationStatus,
+    OperationType,
+)
 
 
 class LedgerRepository:
@@ -58,6 +65,52 @@ class LedgerRepository:
             .order_by(Operation.operation_date.desc(), Operation.created_at.desc())
         )
         return list(result.scalars().all())
+
+    async def list_manual_transfer_candidates_for_raw_transaction(
+        self,
+        *,
+        workspace_id: UUID,
+        raw_transaction: RawTransaction,
+        day_window: int = 3,
+    ) -> list[Operation]:
+        if (
+            raw_transaction.amount is None
+            or raw_transaction.currency is None
+            or raw_transaction.operation_date is None
+            or raw_transaction.account_id is None
+        ):
+            return []
+
+        result = await self.session.execute(
+            select(Operation)
+            .join(MoneyEntry)
+            .options(
+                selectinload(Operation.raw_transactions),
+                selectinload(Operation.money_entries).selectinload(MoneyEntry.account),
+            )
+            .where(
+                Operation.workspace_id == workspace_id,
+                Operation.source == OperationSource.MANUAL,
+                Operation.type == OperationType.TRANSFER,
+                Operation.status == OperationStatus.CONFIRMED,
+                Operation.operation_date.between(
+                    raw_transaction.operation_date - timedelta(days=day_window),
+                    raw_transaction.operation_date + timedelta(days=day_window),
+                ),
+                MoneyEntry.account_id == raw_transaction.account_id,
+                MoneyEntry.amount == raw_transaction.amount,
+                MoneyEntry.currency == raw_transaction.currency,
+            )
+            .order_by(Operation.operation_date, Operation.created_at)
+        )
+        return [
+            operation
+            for operation in result.unique().scalars().all()
+            if not any(
+                linked_raw.account_id == raw_transaction.account_id
+                for linked_raw in operation.raw_transactions
+            )
+        ]
 
     async def delete_operation(self, operation: Operation) -> None:
         await self.session.delete(operation)

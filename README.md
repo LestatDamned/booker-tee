@@ -52,6 +52,72 @@ Planned later capabilities:
 
 ## Local Setup
 
+For a first local alpha run, use the friend-friendly script:
+
+macOS or Linux:
+
+```bash
+./scripts/alpha-up.sh
+```
+
+Windows PowerShell:
+
+```powershell
+.\scripts\alpha-up.ps1
+```
+
+For a background smoke test, use:
+
+```bash
+./scripts/alpha-up.sh --detach
+```
+
+Windows PowerShell:
+
+```powershell
+.\scripts\alpha-up.ps1 --detach
+```
+
+If port `8000` is already busy, choose another one:
+
+```bash
+BOOKER_TEE_APP_PORT=8010 ./scripts/alpha-up.sh --detach
+```
+
+Windows PowerShell:
+
+```powershell
+$env:BOOKER_TEE_APP_PORT = "8010"; .\scripts\alpha-up.ps1 --detach
+```
+
+See `ALPHA_TESTING.md` for the suggested tester flow and feedback checklist.
+
+Stop the local alpha:
+
+```bash
+./scripts/alpha-down.sh
+```
+
+Windows PowerShell:
+
+```powershell
+.\scripts\alpha-down.ps1
+```
+
+Reset local alpha data only when you want a clean start:
+
+```bash
+./scripts/alpha-reset.sh --yes
+```
+
+Windows PowerShell:
+
+```powershell
+.\scripts\alpha-reset.ps1 --yes
+```
+
+Manual setup is also available:
+
 Copy the example environment file:
 
 ```bash

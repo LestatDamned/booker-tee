@@ -205,10 +205,137 @@ def test_review_template_shows_readable_transfer_candidate_labels() -> None:
     )
 
     assert "Счет перевода" in html
-    assert "Парная строка" in html
-    assert "без парной строки" in html
+    assert "Связать с" in html
+    assert "создать новый перевод на выбранный счет" in html
+    assert "строка выписки" in html
     assert "Карта Экспобанк" in html
     assert "Зачисление средств по платежу" in html
+
+
+def test_review_template_shows_existing_manual_transfer_candidates() -> None:
+    document_id = uuid4()
+    vtb_account_id = uuid4()
+    expobank_account_id = uuid4()
+    operation_id = uuid4()
+    row = SimpleNamespace(
+        id=uuid4(),
+        row_index=1,
+        status=RawTransactionStatus.NORMALIZED,
+        account_id=expobank_account_id,
+        operation_date="2026-05-29",
+        operation_date_raw=None,
+        amount=Decimal("21000.00"),
+        amount_raw=None,
+        currency="RUB",
+        description_normalized="Зачисление средств по платежу",
+        description_raw=None,
+        normalization_error=None,
+        suggested_by_rule_id=None,
+        suggested_category_id=None,
+        suggested_property_id=None,
+        linked_operation_id=None,
+        raw_payload={},
+    )
+    counterparty_entry = SimpleNamespace(
+        account_id=vtb_account_id,
+        amount=Decimal("-21000.00"),
+        currency="RUB",
+        account=SimpleNamespace(name="ВТБ вклад"),
+    )
+    account_entry = SimpleNamespace(
+        account_id=expobank_account_id,
+        amount=Decimal("21000.00"),
+        currency="RUB",
+        account=SimpleNamespace(name="Экспобанк карта"),
+    )
+    operation = SimpleNamespace(
+        id=operation_id,
+        operation_date="2026-05-29",
+        description="Со вклада снятие",
+        money_entries=[counterparty_entry, account_entry],
+    )
+    document = SimpleNamespace(
+        id=document_id,
+        original_filename="statement.pdf",
+        status="requires_review",
+        parse_attempts=[],
+        raw_transactions=[row],
+    )
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("imports/review.html").render(
+        app_name="Booker Tee",
+        document=document,
+        categories=[SimpleNamespace(id=uuid4(), name="Без категории", system_key="uncategorized")],
+        properties=[],
+        accounts=[
+            SimpleNamespace(id=vtb_account_id, name="ВТБ вклад"),
+            SimpleNamespace(id=expobank_account_id, name="Экспобанк карта"),
+        ],
+        transfer_suggestions={},
+        existing_transfer_suggestions={
+            row.id: [
+                SimpleNamespace(
+                    operation=operation,
+                    account_entry=account_entry,
+                    counterparty_entry=counterparty_entry,
+                    day_distance=0,
+                )
+            ]
+        },
+    )
+
+    assert "созданный перевод" in html
+    assert f'value="operation:{operation_id}"' in html
+    assert 'name="matched_operation_id"' in html
+    assert "ВТБ вклад" in html
+    assert "Со вклада снятие" in html
+
+
+def test_review_transfer_form_includes_csrf_token_from_context() -> None:
+    row = SimpleNamespace(
+        id=uuid4(),
+        row_index=1,
+        status=RawTransactionStatus.NORMALIZED,
+        operation_date="2026-05-29",
+        operation_date_raw=None,
+        amount=Decimal("-21000.00"),
+        amount_raw=None,
+        currency="RUB",
+        description_normalized="Перевод через СБП",
+        description_raw=None,
+        normalization_error=None,
+        suggested_by_rule_id=None,
+        suggested_category_id=None,
+        suggested_property_id=None,
+        linked_operation_id=None,
+        raw_payload={},
+    )
+    document = SimpleNamespace(
+        id=uuid4(),
+        original_filename="statement.pdf",
+        status="requires_review",
+        parse_attempts=[],
+        raw_transactions=[row],
+    )
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("imports/review.html").render(
+        app_name="Booker Tee",
+        csrf_token="csrf-test-token",
+        document=document,
+        categories=[SimpleNamespace(id=uuid4(), name="Без категории", system_key="uncategorized")],
+        properties=[],
+        accounts=[SimpleNamespace(id=uuid4(), name="ВТБ вклад")],
+        transfer_suggestions={},
+        existing_transfer_suggestions={},
+    )
+
+    assert 'name="csrf_token" value="csrf-test-token"' in html
+    assert 'name="matched_raw_transaction_id"' in html
+    assert 'name="matched_operation_id"' in html
 
 
 def test_review_action_response_sends_sibling_rows_oob() -> None:
@@ -348,6 +475,64 @@ def test_review_item_selects_newly_created_category() -> None:
     assert "расход" in html
     assert "openCategoryDialog(event)" in html
     assert '@click.stop="openCategoryDialog($event)"' in html
+
+
+def test_suggested_review_item_keeps_rule_proposal_when_new_category_is_selected() -> None:
+    row_id = uuid4()
+    services_category_id = uuid4()
+    created_category_id = uuid4()
+    row = SimpleNamespace(
+        id=row_id,
+        row_index=10,
+        status=RawTransactionStatus.SUGGESTED,
+        operation_date="2026-05-25",
+        operation_date_raw=None,
+        amount=Decimal("-525.00"),
+        amount_raw=None,
+        currency="RUB",
+        description_normalized="Списание средств в Veesp",
+        description_raw=None,
+        normalization_error=None,
+        suggested_by_rule_id=uuid4(),
+        suggested_category_id=services_category_id,
+        suggested_property_id=None,
+        suggested_operation_type=OperationType.EXPENSE,
+        linked_operation_id=None,
+        raw_payload={
+            "rule_suggestion": {
+                "application_mode": "auto_apply",
+                "pattern": "Veesp",
+            }
+        },
+    )
+    document = SimpleNamespace(id=uuid4(), raw_transactions=[row])
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("imports/_review_item.html").render(
+        document=document,
+        row=row,
+        categories=[
+            SimpleNamespace(id=services_category_id, name="Сервисы", system_key=None),
+            SimpleNamespace(id=created_category_id, name="TTTEST", system_key=None),
+        ],
+        category_kinds=list(CategoryKind),
+        properties=[],
+        accounts=[],
+        balance_chain_problems={},
+        open_category_editor_by_row={row_id: True},
+        selected_category_id_by_row={row_id: created_category_id},
+        transfer_suggestions={},
+    )
+
+    assert "автоприменено правило: Veesp" in html
+    assert "-> Сервисы" in html
+    assert "-> TTTEST" not in html
+    assert "автоправило: Veesp" in html
+    assert f'<option value="{created_category_id}" selected>' in html
+    assert f'<option value="{services_category_id}" selected>' not in html
+    assert 'review-secondary-action" open' not in html
+    assert 'review-category-action" open' in html
 
 
 def test_review_item_reopens_category_dialog_with_error() -> None:

@@ -84,6 +84,8 @@ POSTABLE_RAW_STATUSES = {
     RawTransactionStatus.NORMALIZED,
     RawTransactionStatus.SUGGESTED,
     RawTransactionStatus.MATCHED,
+    RawTransactionStatus.NEEDS_REVIEW,
+    RawTransactionStatus.IGNORED,
 }
 TRANSFER_POSTABLE_RAW_STATUSES = {
     RawTransactionStatus.NORMALIZED,
@@ -91,6 +93,7 @@ TRANSFER_POSTABLE_RAW_STATUSES = {
     RawTransactionStatus.MATCHED,
     RawTransactionStatus.NEEDS_REVIEW,
     RawTransactionStatus.POSSIBLE_DUPLICATE,
+    RawTransactionStatus.IGNORED,
 }
 
 

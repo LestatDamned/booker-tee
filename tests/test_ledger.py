@@ -149,17 +149,18 @@ def test_build_ledger_posting_plan_blocks_already_linked_row() -> None:
         )
 
 
-def test_build_ledger_posting_plan_blocks_review_status() -> None:
+def test_build_ledger_posting_plan_allows_user_reviewed_statuses() -> None:
     account_id = uuid4()
-    with pytest.raises(LedgerPostingError, match="cannot be posted"):
-        LedgerPostingPlan.from_raw_transaction(
+    for status in [RawTransactionStatus.NEEDS_REVIEW, RawTransactionStatus.IGNORED]:
+        plan = LedgerPostingPlan.from_raw_transaction(
             RawTransactionStub(
-                status=RawTransactionStatus.NEEDS_REVIEW,
+                status=status,
                 account_id=account_id,
                 amount=Decimal("100.00"),
             ),
             AccountStub(id=account_id),
         )
+        assert plan.amount == Decimal("100.00")
 
 
 def test_build_ledger_posting_plan_blocks_currency_mismatch() -> None:
@@ -177,13 +178,18 @@ def test_build_ledger_posting_plan_blocks_currency_mismatch() -> None:
 
 
 def test_transfer_source_allows_manual_reviewable_raw_rows() -> None:
-    ensure_raw_transaction_can_post_as_transfer(
-        RawTransactionStub(
-            status=RawTransactionStatus.POSSIBLE_DUPLICATE,
-            account_id=uuid4(),
-            amount=Decimal("-100.00"),
+    for status in [
+        RawTransactionStatus.POSSIBLE_DUPLICATE,
+        RawTransactionStatus.NEEDS_REVIEW,
+        RawTransactionStatus.IGNORED,
+    ]:
+        ensure_raw_transaction_can_post_as_transfer(
+            RawTransactionStub(
+                status=status,
+                account_id=uuid4(),
+                amount=Decimal("-100.00"),
+            )
         )
-    )
 
 
 def test_transfer_source_blocks_already_linked_rows() -> None:

@@ -54,11 +54,16 @@ async def document_review(
         context.workspace.type,
     )
     properties = await PropertyService(session).list_active(context.workspace.id)
-    transfer_suggestions = await LedgerPostingService(
-        session
-    ).list_transfer_suggestions_for_document(
+    ledger_service = LedgerPostingService(session)
+    transfer_suggestions = await ledger_service.list_transfer_suggestions_for_document(
         workspace_id=context.workspace.id,
         raw_transactions=document.raw_transactions,
+    )
+    existing_transfer_suggestions = (
+        await ledger_service.list_existing_transfer_suggestions_for_document(
+            workspace_id=context.workspace.id,
+            raw_transactions=document.raw_transactions,
+        )
     )
     page_context = build_review_page_context(
         document=document,
@@ -66,6 +71,7 @@ async def document_review(
         categories=categories,
         properties=properties,
         transfer_suggestions=transfer_suggestions,
+        existing_transfer_suggestions=existing_transfer_suggestions,
     )
 
     return templates.TemplateResponse(
@@ -90,6 +96,7 @@ async def update_raw_transaction_status(
     category_id: Annotated[str | None, Form()] = None,
     counterparty_account_id: Annotated[str | None, Form()] = None,
     matched_raw_transaction_id: Annotated[str | None, Form()] = None,
+    matched_operation_id: Annotated[str | None, Form()] = None,
     property_id: Annotated[str | None, Form()] = None,
     remember_rule: Annotated[str | None, Form()] = None,
     rule_pattern: Annotated[str | None, Form()] = None,
@@ -102,6 +109,7 @@ async def update_raw_transaction_status(
         property_id=parse_optional_uuid(property_id),
         counterparty_account_id=parse_optional_uuid(counterparty_account_id),
         matched_raw_transaction_id=parse_optional_uuid(matched_raw_transaction_id),
+        matched_operation_id=parse_optional_uuid(matched_operation_id),
         remember_rule=remember_rule is not None,
         rule_pattern=rule_pattern,
     )
@@ -257,11 +265,16 @@ async def review_action_response(
         context.workspace.type,
     )
     properties = await PropertyService(session).list_active(context.workspace.id)
-    transfer_suggestions = await LedgerPostingService(
-        session
-    ).list_transfer_suggestions_for_document(
+    ledger_service = LedgerPostingService(session)
+    transfer_suggestions = await ledger_service.list_transfer_suggestions_for_document(
         workspace_id=context.workspace.id,
         raw_transactions=document.raw_transactions,
+    )
+    existing_transfer_suggestions = (
+        await ledger_service.list_existing_transfer_suggestions_for_document(
+            workspace_id=context.workspace.id,
+            raw_transactions=document.raw_transactions,
+        )
     )
     page_context = build_review_page_context(
         document=document,
@@ -269,6 +282,7 @@ async def review_action_response(
         categories=categories,
         properties=properties,
         transfer_suggestions=transfer_suggestions,
+        existing_transfer_suggestions=existing_transfer_suggestions,
     )
     row = review_row_from_document(document, raw_transaction_id)
     if row is None:
@@ -280,10 +294,11 @@ async def review_action_response(
             sibling_row_id = getattr(sibling_row, "id", None)
             sibling_status = getattr(sibling_row, "status", None)
             sibling_status_value = getattr(sibling_status, "value", sibling_status)
-            if (
-                sibling_row_id is not None
-                and sibling_status_value not in {"confirmed", "ignored", "duplicate"}
-            ):
+            if sibling_row_id is not None and sibling_status_value not in {
+                "confirmed",
+                "ignored",
+                "duplicate",
+            }:
                 refresh_row_ids.add(sibling_row_id)
         oob_raw_transaction_ids = frozenset(refresh_row_ids)
 
@@ -302,9 +317,7 @@ async def review_action_response(
             raw_transaction_id: category_dialog_error
         }
     if category_dialog_name is not None:
-        template_values["category_dialog_name_by_row"] = {
-            raw_transaction_id: category_dialog_name
-        }
+        template_values["category_dialog_name_by_row"] = {raw_transaction_id: category_dialog_name}
     return templates.TemplateResponse(
         request,
         "imports/_review_action_response.html",

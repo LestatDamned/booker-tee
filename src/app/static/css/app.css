@@ -609,6 +609,48 @@ input[type="checkbox"] {
   white-space: nowrap;
 }
 
+.alpha-support {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 14px;
+}
+
+.alpha-support h2 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+}
+
+.alpha-support-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+
+.alpha-support-grid > div {
+  min-width: 0;
+  background: var(--surface-strong);
+  padding: 12px;
+}
+
+.alpha-support-grid dt {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.alpha-support-grid dd {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.45;
+}
+
 .operation-type-field {
   align-self: stretch;
 }
@@ -3364,6 +3406,10 @@ pre {
   .file-upload-button {
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+
+  .alpha-support-grid {
+    grid-template-columns: 1fr;
   }
 
   .form-panel .field,

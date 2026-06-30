@@ -1,5 +1,5 @@
 {% from "components/operation_ref.html" import operation_ref %}
-{% from "components/transfer_form.html" import transfer_form %}
+{% from "components/transfer_form.html" import transfer_form with context %}
 {% from "components/inline_hint.html" import inline_hint %}
 
 {% set rule_suggestion = row.raw_payload.get("rule_suggestion") if row.raw_payload else none %}
@@ -9,9 +9,10 @@
 {% set category_dialog_error = category_dialog_error_by_row.get(row.id) if category_dialog_error_by_row is defined else none %}
 {% set category_dialog_name = category_dialog_name_by_row.get(row.id) if category_dialog_name_by_row is defined else "" %}
 {% set selected_category_id = selected_category_id_by_row.get(row.id) if selected_category_id_by_row is defined and row.id in selected_category_id_by_row else row.suggested_category_id %}
+{% set proposal_category_id = row.suggested_category_id %}
 {% set proposal = namespace(category=none, property=none) %}
 {% for category in categories %}
-  {% if selected_category_id == category.id or ((not selected_category_id) and category.system_key == "uncategorized") %}
+  {% if proposal_category_id == category.id or ((not proposal_category_id) and category.system_key == "uncategorized") %}
     {% set proposal.category = category %}
   {% endif %}
 {% endfor %}
@@ -166,10 +167,11 @@
           </form>
         </div>
         {% set suggestions = transfer_suggestions.get(row.id, []) %}
+        {% set existing_suggestions = existing_transfer_suggestions.get(row.id, []) if existing_transfer_suggestions is defined else [] %}
         <div class="secondary-action-panel">
           <div class="action-title">Перевод</div>
           {{ inline_hint("Перевод только перемещает деньги между счетами и не влияет на прибыль.", "critical") }}
-          {{ transfer_form(document, row, accounts, suggestions) }}
+          {{ transfer_form(document, row, accounts, suggestions, existing_suggestions) }}
         </div>
       </details>
     {% elif row.suggested_by_rule_id or row.status.value == "suggested" %}
@@ -231,7 +233,7 @@
           </form>
         </div>
 
-        <details class="action-details action-accordion review-secondary-action" {% if open_category_editor %}open{% endif %}>
+        <details class="action-details action-accordion review-secondary-action">
           <summary>Другие действия</summary>
           <div class="inline-actions">
             <form method="post" action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/status">
@@ -246,14 +248,15 @@
             </form>
           </div>
           {% set suggestions = transfer_suggestions.get(row.id, []) %}
+          {% set existing_suggestions = existing_transfer_suggestions.get(row.id, []) if existing_transfer_suggestions is defined else [] %}
           <div class="secondary-action-panel">
             <div class="action-title">Перевод</div>
             {{ inline_hint("Перевод только перемещает деньги между счетами и не влияет на прибыль.", "critical") }}
-            {{ transfer_form(document, row, accounts, suggestions) }}
+            {{ transfer_form(document, row, accounts, suggestions, existing_suggestions) }}
           </div>
         </details>
 
-        <details class="action-details action-accordion review-category-action">
+        <details class="action-details action-accordion review-category-action" {% if open_category_editor %}open{% endif %}>
           <summary>
             <span>Исправить</span>
             <button class="inline-create-button" type="button" @click.stop="openCategoryDialog($event)">{{ icon("plus") }} новая</button>
@@ -337,10 +340,11 @@
           </form>
         </div>
         {% set suggestions = transfer_suggestions.get(row.id, []) %}
+        {% set existing_suggestions = existing_transfer_suggestions.get(row.id, []) if existing_transfer_suggestions is defined else [] %}
         <div class="secondary-action-panel">
           <div class="action-title">Перевод</div>
           {{ inline_hint("Перевод только перемещает деньги между счетами и не влияет на прибыль.", "critical") }}
-          {{ transfer_form(document, row, accounts, suggestions) }}
+          {{ transfer_form(document, row, accounts, suggestions, existing_suggestions) }}
         </div>
       </details>
     {% endif %}

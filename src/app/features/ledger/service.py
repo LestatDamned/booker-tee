@@ -14,6 +14,7 @@ from app.features.ledger.application.imported_operation_undo import ImportedOper
 from app.features.ledger.application.manual_operations import ManualOperationUseCase
 from app.features.ledger.application.raw_transaction_posting import RawTransactionPostingUseCase
 from app.features.ledger.application.transfer_suggestions import (
+    ExistingTransferSuggestion,
     TransferSuggestion,
     TransferSuggestionUseCase,
 )
@@ -175,6 +176,23 @@ class LedgerPostingService:
             matched_raw_transaction_id=matched_raw_transaction_id,
         )
 
+    async def link_raw_transaction_to_existing_transfer(
+        self,
+        *,
+        context: WorkspaceContext,
+        document_id: UUID,
+        raw_transaction_id: UUID,
+        operation_id: UUID,
+    ) -> Operation:
+        return await RawTransactionPostingUseCase(
+            self.session,
+        ).link_raw_transaction_to_existing_transfer(
+            context=context,
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+            operation_id=operation_id,
+        )
+
     async def list_transfer_suggestions_for_document(
         self,
         *,
@@ -182,6 +200,17 @@ class LedgerPostingService:
         raw_transactions: list[RawTransaction],
     ) -> dict[UUID, list[TransferSuggestion]]:
         return await TransferSuggestionUseCase(self.session).list_for_document(
+            workspace_id=workspace_id,
+            raw_transactions=raw_transactions,
+        )
+
+    async def list_existing_transfer_suggestions_for_document(
+        self,
+        *,
+        workspace_id: UUID,
+        raw_transactions: list[RawTransaction],
+    ) -> dict[UUID, list[ExistingTransferSuggestion]]:
+        return await TransferSuggestionUseCase(self.session).list_existing_manual_for_document(
             workspace_id=workspace_id,
             raw_transactions=raw_transactions,
         )

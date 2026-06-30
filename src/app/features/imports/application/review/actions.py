@@ -24,6 +24,7 @@ class RawTransactionReviewCommand:
     property_id: UUID | None = None
     counterparty_account_id: UUID | None = None
     matched_raw_transaction_id: UUID | None = None
+    matched_operation_id: UUID | None = None
     remember_rule: bool = False
     rule_pattern: str | None = None
 
@@ -96,6 +97,20 @@ class RawTransactionReviewUseCase:
         context: WorkspaceContext,
         command: RawTransactionReviewCommand,
     ) -> RawTransactionReviewResult:
+        if (
+            command.matched_raw_transaction_id is not None
+            and command.matched_operation_id is not None
+        ):
+            raise ValueError("Choose either a paired raw row or an existing transfer.")
+        if command.matched_operation_id is not None:
+            await self.ledger.link_raw_transaction_to_existing_transfer(
+                context=context,
+                document_id=command.document_id,
+                raw_transaction_id=command.raw_transaction_id,
+                operation_id=command.matched_operation_id,
+            )
+            return RawTransactionReviewResult()
+
         await self.ledger.post_raw_transaction_as_transfer(
             context=context,
             document_id=command.document_id,

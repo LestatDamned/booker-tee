@@ -160,6 +160,49 @@ class RawTransactionPostingUseCase:
             await self.session.rollback()
             raise
 
+    async def link_raw_transaction_to_existing_transfer(
+        self,
+        *,
+        context: WorkspaceContext,
+        document_id: UUID,
+        raw_transaction_id: UUID,
+        operation_id: UUID,
+    ) -> Operation:
+        try:
+            raw_transaction = await self.imports.get_raw_transaction_for_workspace(
+                context.workspace.id,
+                document_id,
+                raw_transaction_id,
+            )
+            if raw_transaction is None:
+                raise LedgerPostingError("Raw transaction row was not found.")
+            ensure_raw_transaction_can_post_as_transfer(raw_transaction)
+
+            candidates = await self.ledger.list_manual_transfer_candidates_for_raw_transaction(
+                workspace_id=context.workspace.id,
+                raw_transaction=raw_transaction,
+            )
+            operation = next(
+                (candidate for candidate in candidates if candidate.id == operation_id),
+                None,
+            )
+            if operation is None:
+                raise LedgerPostingError("Manual transfer is not a transfer candidate.")
+
+            await self.imports.link_raw_transaction_to_operation(
+                raw_transaction,
+                operation_id=operation.id,
+            )
+            await self.document_status.mark_imported_if_complete(
+                workspace_id=context.workspace.id,
+                document_id=document_id,
+            )
+            await self.session.commit()
+            return operation
+        except Exception:
+            await self.session.rollback()
+            raise
+
     async def _post_raw_transaction(
         self,
         *,

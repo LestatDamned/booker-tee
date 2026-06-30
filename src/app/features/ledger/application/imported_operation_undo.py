@@ -40,10 +40,26 @@ class ImportedOperationUndoUseCase:
         )
         if operation is None:
             raise LedgerPostingError("Linked operation was not found.")
-        if operation.source != OperationSource.BANK_PDF:
-            raise LedgerPostingError("Only imported bank PDF operations can be undone here.")
         if operation.status != OperationStatus.CONFIRMED:
             raise LedgerPostingError("Only confirmed operations can be undone.")
+
+        if operation.source == OperationSource.MANUAL:
+            raw_transaction.linked_operation_id = None
+            raw_transaction.status = restored_raw_status_after_unlink(raw_transaction)
+            document = await self.imports.get_document_for_workspace(
+                context.workspace.id,
+                document_id,
+            )
+            if document is not None:
+                await self.imports.mark_document_status(
+                    document,
+                    UploadedDocumentStatus.REQUIRES_REVIEW,
+                )
+            await self.session.commit()
+            return operation
+
+        if operation.source != OperationSource.BANK_PDF:
+            raise LedgerPostingError("Only imported bank PDF operations can be undone here.")
 
         affected_document_ids = {
             linked_raw.uploaded_document_id for linked_raw in operation.raw_transactions
