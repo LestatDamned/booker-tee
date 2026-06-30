@@ -4,6 +4,8 @@
 {% block title %}Счета · {{ app_name }}{% endblock %}
 
 {% block content %}
+  {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
+  {% set can_import = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_manage_imports %}
   <section class="panel stack">
     <div class="toolbar">
       <div>
@@ -13,32 +15,34 @@
       <a class="button" href="/imports">{{ icon("import") }} импорт</a>
     </div>
 
-    <form id="new-account" class="form-panel" method="post" action="/accounts">
-      {{ csrf_input() }}
-      <label class="field form-field-half">
-        <span>название</span>
-        <input name="name" placeholder="Карта, вклад, наличные" required>
-      </label>
-      <label class="field form-field-quarter">
-        <span>тип</span>
-        <select name="account_type" required>
-          {% for account_type in account_types %}
-            <option value="{{ account_type.value }}">{{ account_type | ru }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-quarter">
-        <span>валюта</span>
-        <input name="currency" value="{{ workspace.default_currency }}" placeholder="RUB" maxlength="3" required>
-      </label>
-      <label class="field form-field-third">
-        <span>начальный баланс</span>
-        <input class="amount" name="initial_balance" inputmode="decimal" value="0.00" placeholder="0.00">
-      </label>
-      <div class="form-actions">
-        <button class="button" type="submit">{{ icon("plus") }} добавить счет</button>
-      </div>
-    </form>
+    {% if can_write %}
+      <form id="new-account" class="form-panel" method="post" action="/accounts">
+        {{ csrf_input() }}
+        <label class="field form-field-half">
+          <span>название</span>
+          <input name="name" placeholder="Карта, вклад, наличные" required>
+        </label>
+        <label class="field form-field-quarter">
+          <span>тип</span>
+          <select name="account_type" required>
+            {% for account_type in account_types %}
+              <option value="{{ account_type.value }}">{{ account_type | ru }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field form-field-quarter">
+          <span>валюта</span>
+          <input name="currency" value="{{ workspace.default_currency }}" placeholder="RUB" maxlength="3" required>
+        </label>
+        <label class="field form-field-third">
+          <span>начальный баланс</span>
+          <input class="amount" name="initial_balance" inputmode="decimal" value="0.00" placeholder="0.00">
+        </label>
+        <div class="form-actions">
+          <button class="button" type="submit">{{ icon("plus") }} добавить счет</button>
+        </div>
+      </form>
+    {% endif %}
 
     {% if account_details %}
       <div class="entity-card-list">
@@ -81,8 +85,8 @@
         "#new-account",
         "заполнить форму",
         "plus",
-        "/imports/upload",
-        "к загрузке",
+        "/imports/upload" if can_import else none,
+        "к загрузке" if can_import else none,
         "upload"
       ) }}
     {% endif %}

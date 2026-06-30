@@ -29,7 +29,7 @@ from app.features.transaction_rules.application.rule_application import (
     TransactionRuleApplicationUseCase,
 )
 from app.features.transaction_rules.errors import TransactionRuleError
-from app.features.workspaces.dependencies import get_current_workspace_context
+from app.features.workspaces.dependencies import require_import_management_context
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
 
@@ -43,7 +43,7 @@ async def document_review(
     document_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
 ) -> HTMLResponse:
     document = await ImportService(session).get_document(context.workspace.id, document_id)
     if document is None:
@@ -91,7 +91,7 @@ async def update_raw_transaction_status(
     raw_transaction_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
     action: Annotated[str, Form()],
     category_id: Annotated[str | None, Form()] = None,
     counterparty_account_id: Annotated[str | None, Form()] = None,
@@ -142,7 +142,7 @@ async def undo_raw_transaction_posting(
     raw_transaction_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
 ) -> Response:
     try:
         await LedgerPostingService(session).undo_raw_transaction_posting(
@@ -174,7 +174,7 @@ async def create_review_category(
     raw_transaction_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
     name: Annotated[str, Form()],
     kind: Annotated[CategoryKind, Form()] = CategoryKind.MIXED,
 ) -> Response:
@@ -216,7 +216,7 @@ async def create_review_category(
 async def apply_rules_to_document(
     document_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
 ) -> Response:
     try:
         await TransactionRuleApplicationUseCase(session).apply_rules_to_document(

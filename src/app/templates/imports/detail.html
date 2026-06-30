@@ -5,6 +5,7 @@
 {% block title %}{{ view.original_filename }} · {{ app_name }}{% endblock %}
 
 {% block content %}
+  {% set can_import = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_manage_imports %}
   {% set validation = view.validation %}
   <section class="panel stack import-workflow">
     <header class="import-page-header">
@@ -14,23 +15,25 @@
       </div>
       <div class="import-page-actions">
         <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
-        <details class="action-details action-accordion import-more-actions">
-          <summary>{{ icon("settings") }} еще</summary>
-          <div class="action-menu">
-            <form method="post" action="/imports/documents/{{ view.id }}/reparse">
-              {{ csrf_input() }}
-              <button class="button button-small" type="submit">{{ icon("refresh") }} перепарсить</button>
-            </form>
-            <form method="post" action="/imports/documents/{{ view.id }}/ignore">
-              {{ csrf_input() }}
-              <button class="button button-small" type="submit">{{ icon("ignore") }} игнорировать</button>
-            </form>
-            <form method="post" action="/imports/documents/{{ view.id }}/delete">
-              {{ csrf_input() }}
-              <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
-            </form>
-          </div>
-        </details>
+        {% if can_import %}
+          <details class="action-details action-accordion import-more-actions">
+            <summary>{{ icon("settings") }} еще</summary>
+            <div class="action-menu">
+              <form method="post" action="/imports/documents/{{ view.id }}/reparse">
+                {{ csrf_input() }}
+                <button class="button button-small" type="submit">{{ icon("refresh") }} перепарсить</button>
+              </form>
+              <form method="post" action="/imports/documents/{{ view.id }}/ignore">
+                {{ csrf_input() }}
+                <button class="button button-small" type="submit">{{ icon("ignore") }} игнорировать</button>
+              </form>
+              <form method="post" action="/imports/documents/{{ view.id }}/delete">
+                {{ csrf_input() }}
+                <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
+              </form>
+            </div>
+          </details>
+        {% endif %}
       </div>
     </header>
     <p class="import-document-name" title="{{ view.original_filename }}">
@@ -49,7 +52,7 @@
       {{ workflow_steps(upload="done", extract="current", mapping="pending", review="pending", ledger="pending") }}
     {% endif %}
 
-    {% if validation and validation.status == "needs_mapping" %}
+    {% if validation and validation.status == "needs_mapping" and can_import %}
       {{ next_step(
         "Настройте колонки",
         "Файл выписки прочитан, но системе нужно понять, где дата, описание и сумма.",
@@ -57,7 +60,7 @@
         "настроить колонки",
         "settings"
       ) }}
-    {% elif view.raw_transactions %}
+    {% elif view.raw_transactions and can_import %}
       {{ next_step(
         "Проверьте строки",
         "Сырые строки извлечены. Подтвердите операции, отметьте переводы и игнорируйте дубли.",
@@ -65,7 +68,7 @@
         "открыть проверку",
         "clipboard-check"
       ) }}
-    {% elif view.status.value == "failed_to_parse" %}
+    {% elif view.status.value == "failed_to_parse" and can_import %}
       {{ next_step(
         "Загрузите другую выписку",
         "Этот файл не удалось разобрать. Исходный документ сохранен, можно попробовать другой файл.",

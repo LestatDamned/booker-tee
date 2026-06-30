@@ -100,6 +100,15 @@ a {
   white-space: nowrap;
 }
 
+.context-item small {
+  grid-column: 2;
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
 .brand,
 .status-pill,
 .nav-link,
@@ -999,6 +1008,49 @@ input[type="checkbox"] {
   color: var(--muted);
 }
 
+.invitation-share-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--green) 56%, var(--border));
+  border-left: 3px solid var(--green);
+  background: color-mix(in srgb, var(--green) 8%, var(--surface));
+  padding: 14px;
+}
+
+.invitation-share-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.invitation-share-copy strong {
+  color: var(--green);
+  font-size: 1rem;
+}
+
+.invitation-share-copy span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.copy-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, auto);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.copy-input {
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid color-mix(in srgb, var(--accent) 52%, var(--border));
+  background: color-mix(in srgb, var(--surface-strong) 72%, transparent);
+  padding: 0 12px;
+  color: var(--text);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.82rem;
+}
+
 .meta-link {
   display: inline-flex;
   align-items: center;
@@ -1225,6 +1277,73 @@ input[type="checkbox"] {
   gap: 12px;
   align-items: center;
   justify-content: space-between;
+}
+
+.workspace-section {
+  margin-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  padding-top: 20px;
+}
+
+.workspace-section-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: end;
+  justify-content: space-between;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  padding-bottom: 10px;
+}
+
+.workspace-section-header > div {
+  min-width: 0;
+}
+
+.workspace-section-header .eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: color-mix(in srgb, var(--accent) 72%, var(--muted));
+}
+
+.workspace-section-header h2 {
+  margin: 0;
+}
+
+.section-context {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 38%, transparent);
+  padding: 0 9px;
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.subsection-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.subsection-heading h3 {
+  margin: 0;
+  color: color-mix(in srgb, var(--text) 88%, var(--accent));
+  font-size: 0.92rem;
+}
+
+.subsection-heading span {
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
 }
 
 .quick-actions {
@@ -2378,6 +2497,7 @@ pre {
 .review-list {
   display: grid;
   gap: 10px;
+  overflow-anchor: none;
 }
 
 .review-queue-bar {
@@ -2470,6 +2590,7 @@ pre {
   border: 1px solid var(--border);
   border-left-width: 4px;
   background: var(--surface);
+  overflow-anchor: none;
   padding: 12px;
   scroll-margin-top: var(--review-anchor-offset);
 }
@@ -3087,6 +3208,10 @@ pre {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 
+  .copy-row {
+    grid-template-columns: 1fr;
+  }
+
   .entity-card-side {
     min-width: 0;
   }
@@ -3115,6 +3240,7 @@ pre {
 
   .review-queue-bar {
     grid-template-columns: 1fr;
+    position: static;
     top: 6px;
   }
 

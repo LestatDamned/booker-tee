@@ -32,6 +32,7 @@
   class="review-item review-status-{{ row.status.value }} {% if row.id == review_item_queue.first_remaining_id %}review-item-next{% endif %}"
   id="raw-{{ row.id }}"
   hx-boost="true"
+  hx-select="#raw-{{ row.id }}"
   hx-target="#raw-{{ row.id }}"
   hx-swap="outerHTML show:none"
   hx-push-url="false"

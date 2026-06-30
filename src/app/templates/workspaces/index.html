@@ -3,6 +3,8 @@
 {% block title %}Пространства · {{ app_name }}{% endblock %}
 
 {% block content %}
+  {% set can_manage_workspace = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_manage_workspace %}
+  {% set workspace_select_return_path = workspace_return_path | default('/workspaces', true) %}
   <section class="panel stack">
     <div class="toolbar">
       <div>
@@ -22,99 +24,313 @@
         <strong class="truncate-label" title="{{ workspace.name }}">{{ workspace.name }}</strong>
       </div>
       <div class="metric">
+        <span>роль</span>
+        <strong>{{ current_membership.role | ru if current_membership else "нет" }}</strong>
+      </div>
+      <div class="metric">
         <span>доступно</span>
         <strong>{{ workspaces | length }}</strong>
       </div>
     </div>
 
-    <form class="form-panel" method="post" action="/workspaces">
-      {{ csrf_input() }}
-      <label class="field form-field-half">
-        <span>название</span>
-        <input name="name" placeholder="Личные финансы, семья, бизнес" required>
-      </label>
-      <label class="field form-field-quarter">
-        <span>тип</span>
-        <select name="workspace_type">
-          {% for workspace_type in workspace_types %}
-            <option value="{{ workspace_type.value }}">{{ workspace_type | ru }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-quarter">
-        <span>валюта</span>
-        <input name="default_currency" value="{{ workspace.default_currency }}" maxlength="3" placeholder="RUB" required>
-      </label>
-      <div class="form-actions-inline">
-        <button class="button" type="submit">{{ icon("plus") }} создать пространство</button>
-      </div>
-    </form>
+    {% if error %}
+      <div class="notice error">{{ error }}</div>
+    {% endif %}
 
-    {% if workspaces %}
-      <div class="entity-card-list">
-        {% for item in workspaces %}
-          {% set workspace_form_id = "workspace-form-" ~ item.id %}
-          <article class="entity-card {% if item.id == workspace.id %}entity-card-current{% endif %}">
-            <form class="detached-form" id="{{ workspace_form_id }}" method="post" action="/workspaces/{{ item.id }}">{{ csrf_input() }}</form>
-            <div class="entity-card-main">
-              <div class="entity-card-title">
-                <strong class="truncate-label" title="{{ item.name }}">{{ item.name }}</strong>
-                {% if item.id == workspace.id %}
-                  <span class="badge badge-confirmed">текущее</span>
-                {% else %}
-                  <span class="badge">активно</span>
+    <section class="workspace-section stack" aria-labelledby="workspaces-section-title">
+      <div class="workspace-section-header">
+        <div>
+          <p class="eyebrow">переключение и настройки</p>
+          <h2 id="workspaces-section-title">Пространства</h2>
+        </div>
+        <span class="section-context">{{ workspaces | length }} доступно</span>
+      </div>
+
+      <form class="form-panel" method="post" action="/workspaces">
+        {{ csrf_input() }}
+        <label class="field form-field-half">
+          <span>название</span>
+          <input name="name" placeholder="Личные финансы, семья, бизнес" required>
+        </label>
+        <label class="field form-field-quarter">
+          <span>тип</span>
+          <select name="workspace_type">
+            {% for workspace_type in workspace_types %}
+              <option value="{{ workspace_type.value }}">{{ workspace_type | ru }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field form-field-quarter">
+          <span>валюта</span>
+          <input name="default_currency" value="{{ workspace.default_currency }}" maxlength="3" placeholder="RUB" required>
+        </label>
+        <div class="form-actions-inline">
+          <button class="button" type="submit">{{ icon("plus") }} создать пространство</button>
+        </div>
+      </form>
+
+      {% if workspaces %}
+        <div class="entity-card-list">
+          {% for item in workspaces %}
+            {% set workspace_form_id = "workspace-form-" ~ item.id %}
+            <article class="entity-card {% if item.id == workspace.id %}entity-card-current{% endif %}">
+              <form class="detached-form" id="{{ workspace_form_id }}" method="post" action="/workspaces/{{ item.id }}">{{ csrf_input() }}</form>
+              <div class="entity-card-main">
+                <div class="entity-card-title">
+                  <strong class="truncate-label" title="{{ item.name }}">{{ item.name }}</strong>
+                  {% if item.id == workspace.id %}
+                    <span class="badge badge-confirmed">текущее</span>
+                  {% else %}
+                    <span class="badge">активно</span>
+                  {% endif %}
+                </div>
+                <div class="entity-card-meta">
+                  <span>{{ item.type | ru }}</span>
+                  <span>{{ item.default_currency }}</span>
+                  <details class="technical-details">
+                    <summary>ID</summary>
+                    <span>ID {{ item.id }}</span>
+                  </details>
+                </div>
+                {% if can_manage_workspace %}
+                  <details class="admin-details">
+                    <summary>Редактирование</summary>
+                    <div class="form-panel form-panel-embedded">
+                      <label class="field form-field-half">
+                        <span>название</span>
+                        <input name="name" value="{{ item.name }}" form="{{ workspace_form_id }}" required>
+                      </label>
+                      <label class="field form-field-quarter">
+                        <span>тип</span>
+                        <select name="workspace_type" form="{{ workspace_form_id }}">
+                          {% for workspace_type in workspace_types %}
+                            <option value="{{ workspace_type.value }}" {% if item.type == workspace_type %}selected{% endif %}>
+                              {{ workspace_type | ru }}
+                            </option>
+                          {% endfor %}
+                        </select>
+                      </label>
+                      <label class="field form-field-quarter">
+                        <span>валюта</span>
+                        <input name="default_currency" value="{{ item.default_currency }}" maxlength="3" form="{{ workspace_form_id }}" required>
+                      </label>
+                      <div class="form-actions">
+                        <button class="button button-small" type="submit" form="{{ workspace_form_id }}">{{ icon("save") }} сохранить</button>
+                      </div>
+                    </div>
+                  </details>
                 {% endif %}
               </div>
-              <div class="entity-card-meta">
-                <span>{{ item.type | ru }}</span>
-                <span>{{ item.default_currency }}</span>
-                <details class="technical-details">
-                  <summary>ID</summary>
-                  <span>ID {{ item.id }}</span>
-                </details>
+              <div class="entity-card-actions">
+                {% if item.id != workspace.id %}
+                  <form method="post" action="/workspaces/{{ item.id }}/select">
+                    {{ csrf_input() }}
+                    <input type="hidden" name="next" value="{{ workspace_select_return_path }}">
+                    <button class="button button-small primary-action" type="submit">{{ icon("check") }} выбрать</button>
+                  </form>
+                {% endif %}
               </div>
-              <details class="admin-details">
-                <summary>Редактирование</summary>
-                <div class="form-panel form-panel-embedded">
-                  <label class="field form-field-half">
-                    <span>название</span>
-                    <input name="name" value="{{ item.name }}" form="{{ workspace_form_id }}" required>
-                  </label>
-                  <label class="field form-field-quarter">
-                    <span>тип</span>
-                    <select name="workspace_type" form="{{ workspace_form_id }}">
-                      {% for workspace_type in workspace_types %}
-                        <option value="{{ workspace_type.value }}" {% if item.type == workspace_type %}selected{% endif %}>
-                          {{ workspace_type | ru }}
-                        </option>
-                      {% endfor %}
-                    </select>
-                  </label>
-                  <label class="field form-field-quarter">
-                    <span>валюта</span>
-                    <input name="default_currency" value="{{ item.default_currency }}" maxlength="3" form="{{ workspace_form_id }}" required>
-                  </label>
-                  <div class="form-actions">
-                    <button class="button button-small" type="submit" form="{{ workspace_form_id }}">{{ icon("save") }} сохранить</button>
-                  </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <p>Для пользователя пока нет пространств.</p>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="workspace-section stack" aria-labelledby="members-section-title">
+      <div class="workspace-section-header">
+        <div>
+          <p class="eyebrow">{{ workspace.name }}</p>
+          <h2 id="members-section-title">Участники</h2>
+        </div>
+        <span class="section-context">доступ и приглашения</span>
+      </div>
+
+      {% if members %}
+        <div class="subsection-heading">
+          <h3>Активные участники</h3>
+          <span>{{ members | length }}</span>
+        </div>
+        <div class="entity-card-list">
+          {% for member in members %}
+            <article class="entity-card">
+              <div class="entity-card-main">
+                <div class="entity-card-title">
+                  <strong class="truncate-label" title="{{ member.user.name or member.user.email }}">{{ member.user.name or member.user.email }}</strong>
+                  <span class="badge badge-{{ member.status.value }}">{{ member.status | ru }}</span>
                 </div>
-              </details>
+                <div class="entity-card-meta">
+                  <span>{{ member.user.email }}</span>
+                  <span>{{ member.role | ru }}</span>
+                </div>
+                {% if can_invite_members and member.user_id != current_user.id and member.role.value != "owner" %}
+                  <details class="admin-details">
+                    <summary>Управление</summary>
+                    <div class="form-panel form-panel-embedded">
+                      <form class="detached-form" id="member-role-form-{{ member.id }}" method="post" action="/workspaces/{{ workspace.id }}/members/{{ member.id }}/role">{{ csrf_input() }}</form>
+                      <label class="field form-field-half">
+                        <span>роль</span>
+                        <select name="role" form="member-role-form-{{ member.id }}">
+                          {% for role in member_roles %}
+                            <option value="{{ role.value }}" {% if member.role == role %}selected{% endif %}>{{ role | ru }}</option>
+                          {% endfor %}
+                        </select>
+                      </label>
+                      <div class="form-actions-inline">
+                        <button class="button button-small" type="submit" form="member-role-form-{{ member.id }}">{{ icon("save") }} сохранить роль</button>
+                        {% if member.status.value == "active" %}
+                          <form method="post" action="/workspaces/{{ workspace.id }}/members/{{ member.id }}/disable">
+                            {{ csrf_input() }}
+                            <button class="button button-small" type="submit">{{ icon("trash") }} отключить</button>
+                          </form>
+                        {% elif member.status.value == "disabled" %}
+                          <form method="post" action="/workspaces/{{ workspace.id }}/members/{{ member.id }}/reactivate">
+                            {{ csrf_input() }}
+                            <button class="button button-small" type="submit">{{ icon("refresh") }} восстановить</button>
+                          </form>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </details>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if can_invite_members %}
+        <div class="subsection-heading">
+          <h3>Новая ссылка</h3>
+          <span>одноразовая</span>
+        </div>
+
+        {% if created_invitation_link %}
+          <div class="invitation-share-panel" x-data="{ copied: false }">
+            <div class="invitation-share-copy">
+              <strong>Ссылка-приглашение создана</strong>
+              <span>
+                Показывается один раз. Отправьте ее через доверенный канал.
+                {% if created_invitation_expires_at %}
+                  Действует до {{ created_invitation_expires_at | date_ru }}.
+                {% endif %}
+              </span>
             </div>
-            <div class="entity-card-actions">
-              {% if item.id != workspace.id %}
-                <form method="post" action="/workspaces/{{ item.id }}/select">
+            <div class="copy-row">
+              <input
+                class="copy-input"
+                type="text"
+                value="{{ created_invitation_link }}"
+                readonly
+                x-ref="invitationLink"
+                @focus="$el.select()"
+                aria-label="Ссылка приглашения"
+              >
+              <button
+                class="button button-small primary-action"
+                type="button"
+                @click="$refs.invitationLink.select(); navigator.clipboard?.writeText($refs.invitationLink.value); copied = true; setTimeout(() => copied = false, 1600)"
+              >
+                {{ icon("clipboard-check") }}
+                <span x-text="copied ? 'скопировано' : 'копировать'">копировать</span>
+              </button>
+            </div>
+          </div>
+        {% endif %}
+
+        <form class="form-panel" method="post" action="/workspaces/{{ workspace.id }}/invitations">
+          {{ csrf_input() }}
+          <label class="field form-field-half">
+            <span>роль</span>
+            <select name="role">
+              {% for role in invite_roles %}
+                <option value="{{ role.value }}">{{ role | ru }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <div class="form-actions-inline">
+            <button class="button" type="submit">{{ icon("plus") }} создать ссылку-приглашение</button>
+          </div>
+        </form>
+      {% endif %}
+
+      {% if pending_invitations %}
+        <div class="subsection-heading">
+          <h3>Ожидающие приглашения</h3>
+          <span>{{ pending_invitations | length }}</span>
+        </div>
+        <div class="entity-card-list">
+          {% for invitation in pending_invitations %}
+            <article class="entity-card">
+              <div class="entity-card-main">
+                <div class="entity-card-title">
+                  <strong>Приглашение {{ invitation.id | short_id }}</strong>
+                  <span class="badge badge-warning">{{ invitation.status | ru }}</span>
+                </div>
+                <div class="entity-card-meta">
+                  <span>{{ invitation.role | ru }}</span>
+                  <span>до {{ invitation.expires_at | date_ru }}</span>
+                </div>
+              </div>
+              <div class="entity-card-actions">
+                <form method="post" action="/workspaces/{{ workspace.id }}/invitations/{{ invitation.id }}/revoke">
                   {{ csrf_input() }}
-                  <button class="button button-small primary-action" type="submit">{{ icon("check") }} выбрать</button>
+                  <button class="button button-small" type="submit">{{ icon("trash") }} отозвать</button>
                 </form>
-              {% endif %}
-            </div>
-          </article>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="empty-state">
-        <p>Для пользователя пока нет пространств.</p>
-      </div>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+
+    {% if audit_events %}
+      <section class="workspace-section stack" aria-labelledby="audit-section-title">
+        <div class="workspace-section-header">
+          <div>
+            <p class="eyebrow">{{ workspace.name }}</p>
+            <h2 id="audit-section-title">Журнал</h2>
+          </div>
+          <span class="section-context">последние события</span>
+        </div>
+
+        <div class="entity-card-list">
+          {% for event in audit_events %}
+            <article class="entity-card">
+              <div class="entity-card-main">
+                <div class="entity-card-title">
+                  <strong>{{ event.event_type | ru }}</strong>
+                  <span class="badge">{{ event.created_at | date_ru }}</span>
+                </div>
+                <div class="entity-card-meta">
+                  {% if event.actor %}
+                    <span>кто: {{ event.actor.email }}</span>
+                  {% endif %}
+                  {% if event.target_user %}
+                    <span>кого: {{ event.target_user.email }}</span>
+                  {% endif %}
+                </div>
+                {% if event.details %}
+                  <div class="entity-card-meta">
+                    {% for key, value in event.details.items() %}
+                      <span>{{ key | ru }}: {{ value | ru }}</span>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                {% if event.entity_id %}
+                  <details class="technical-details">
+                    <summary>ID</summary>
+                    <span>{{ event.entity_type | ru }} {{ event.entity_id }}</span>
+                  </details>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      </section>
     {% endif %}
   </section>
 {% endblock %}

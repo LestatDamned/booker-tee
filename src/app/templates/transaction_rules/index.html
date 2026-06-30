@@ -5,21 +5,25 @@
 {% block title %}Правила · {{ app_name }}{% endblock %}
 
 {% block content %}
+  {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
   <section class="panel stack">
     <div class="toolbar">
       <div>
         <p class="eyebrow">{{ workspace.name }}</p>
         <h1>Правила транзакций</h1>
       </div>
-      <form method="post" action="/rules/seed-defaults">
-        {{ csrf_input() }}
-        <button class="button" type="submit">{{ icon("import") }} загрузить базовые правила</button>
-      </form>
+      {% if can_write %}
+        <form method="post" action="/rules/seed-defaults">
+          {{ csrf_input() }}
+          <button class="button" type="submit">{{ icon("import") }} загрузить базовые правила</button>
+        </form>
+      {% endif %}
     </div>
 
     {{ inline_hint("Правила сильно ускоряют проверку выписок: они подставляют категорию, объект и тип операции по описанию строки. В начале советуем загрузить базовые правила, а потом добавлять свои для повторяющихся платежей.", "info") }}
 
-    <form id="new-rule" class="form-panel" method="post" action="/rules">
+    {% if can_write %}
+      <form id="new-rule" class="form-panel" method="post" action="/rules">
       {{ csrf_input() }}
       <label class="field form-field-half">
         <span>название</span>
@@ -96,7 +100,8 @@
           </label>
         </div>
       </details>
-    </form>
+      </form>
+    {% endif %}
   </section>
 
   <section class="panel stack">
@@ -110,7 +115,9 @@
         {% for rule in rules %}
           {% set rule_form_id = "rule-form-" ~ rule.id %}
           <article id="rule-{{ rule.id }}" class="entity-card {% if not rule.is_active %}entity-card-inactive{% endif %}">
-            <form class="detached-form" id="{{ rule_form_id }}" method="post" action="/rules/{{ rule.id }}">{{ csrf_input() }}</form>
+            {% if can_write %}
+              <form class="detached-form" id="{{ rule_form_id }}" method="post" action="/rules/{{ rule.id }}">{{ csrf_input() }}</form>
+            {% endif %}
             <div class="entity-card-main">
               <div class="entity-card-title">
                 <strong>
@@ -145,7 +152,8 @@
                   <span>ID {{ rule.id }}</span>
                 </details>
               </div>
-              <div class="form-panel form-panel-embedded">
+              {% if can_write %}
+                <div class="form-panel form-panel-embedded">
                 <label class="field form-field-half">
                   <span>шаблон</span>
                   <input name="pattern" value="{{ rule.pattern }}" form="{{ rule_form_id }}" required>
@@ -222,20 +230,23 @@
                     </label>
                   </div>
                 </details>
+                </div>
+              {% endif %}
+            </div>
+            {% if can_write %}
+              <div class="entity-card-actions">
+                <button class="button button-small" type="submit" form="{{ rule_form_id }}">{{ icon("save") }} сохранить</button>
+                <form method="post" action="/rules/{{ rule.id }}/toggle">
+                  {{ csrf_input() }}
+                  <input type="hidden" name="is_active" value="{{ 'false' if rule.is_active else 'true' }}">
+                  <button class="button button-small" type="submit">{{ icon("settings") }} {{ "выключить" if rule.is_active else "включить" }}</button>
+                </form>
+                <form method="post" action="/rules/{{ rule.id }}/delete">
+                  {{ csrf_input() }}
+                  <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
+                </form>
               </div>
-            </div>
-            <div class="entity-card-actions">
-              <button class="button button-small" type="submit" form="{{ rule_form_id }}">{{ icon("save") }} сохранить</button>
-              <form method="post" action="/rules/{{ rule.id }}/toggle">
-                {{ csrf_input() }}
-                <input type="hidden" name="is_active" value="{{ 'false' if rule.is_active else 'true' }}">
-                <button class="button button-small" type="submit">{{ icon("settings") }} {{ "выключить" if rule.is_active else "включить" }}</button>
-              </form>
-              <form method="post" action="/rules/{{ rule.id }}/delete">
-                {{ csrf_input() }}
-                <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
-              </form>
-            </div>
+            {% endif %}
           </article>
         {% endfor %}
       </div>

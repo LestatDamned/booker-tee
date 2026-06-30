@@ -170,6 +170,20 @@ uv run ty check .
 uv run pytest
 ```
 
+## Server Runtime Settings
+
+For a private server, do not run with local auth defaults. Set at least:
+
+```bash
+BOOKER_TEE_ENVIRONMENT=production
+BOOKER_TEE_AUTH_SECRET_KEY=<strong random secret, 32+ chars>
+BOOKER_TEE_SESSION_COOKIE_SECURE=true
+BOOKER_TEE_ALLOWED_HOSTS=your-domain.example,127.0.0.1
+```
+
+In production mode the app refuses to start if the auth secret is still local,
+session cookies are not secure, or allowed hosts are missing/wildcarded.
+
 ## Privacy Notes
 
 Booker Tee handles sensitive financial data.

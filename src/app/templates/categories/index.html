@@ -57,6 +57,7 @@
 {% endmacro %}
 
 {% block content %}
+  {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
   <section class="panel stack">
     <div class="toolbar">
       <div>
@@ -76,29 +77,31 @@
 
     {{ inline_hint("Категория отвечает на вопрос, почему деньги пришли или ушли. Она влияет на отчеты по доходам, расходам и прибыли.", "info") }}
 
-    <form class="form-panel" method="post" action="/categories">
-      {{ csrf_input() }}
-      <input type="hidden" name="view" value="{{ category_view }}">
-      <div class="field form-field-half">
-        <label for="name">Название</label>
-        <input id="name" name="name" placeholder="Название категории" required>
-      </div>
-      <div class="field form-field-quarter">
-        <label for="kind">Тип</label>
-        <select id="kind" name="kind">
-          {% for kind in kinds %}
-            <option value="{{ kind.value }}">{{ kind | ru }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field form-field-half">
-        <label for="notes">Заметка</label>
-        <input id="notes" name="notes" placeholder="Когда использовать эту категорию">
-      </div>
-      <div class="form-actions">
-        <button class="button" type="submit">{{ icon("plus") }} добавить</button>
-      </div>
-    </form>
+    {% if can_write %}
+      <form class="form-panel" method="post" action="/categories">
+        {{ csrf_input() }}
+        <input type="hidden" name="view" value="{{ category_view }}">
+        <div class="field form-field-half">
+          <label for="name">Название</label>
+          <input id="name" name="name" placeholder="Название категории" required>
+        </div>
+        <div class="field form-field-quarter">
+          <label for="kind">Тип</label>
+          <select id="kind" name="kind">
+            {% for kind in kinds %}
+              <option value="{{ kind.value }}">{{ kind | ru }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field form-field-half">
+          <label for="notes">Заметка</label>
+          <input id="notes" name="notes" placeholder="Когда использовать эту категорию">
+        </div>
+        <div class="form-actions">
+          <button class="button" type="submit">{{ icon("plus") }} добавить</button>
+        </div>
+      </form>
+    {% endif %}
 
     {% if user_category_rows or system_category_rows %}
       {{ category_group("пользовательские", user_category_rows, kinds, category_view) }}
@@ -111,13 +114,23 @@
         {{ category_group("служебные", system_category_rows, kinds, category_view) }}
       {% endif %}
     {% else %}
-      {{ empty_state(
-        "Категорий не найдено",
-        "Измените фильтр или добавьте категорию для будущих операций и правил.",
-        "#name",
-        "добавить категорию",
-        "plus"
-      ) }}
+      {% if can_write %}
+        {{ empty_state(
+          "Категорий не найдено",
+          "Измените фильтр или добавьте категорию для будущих операций и правил.",
+          "#name",
+          "добавить категорию",
+          "plus"
+        ) }}
+      {% else %}
+        {{ empty_state(
+          "Категорий не найдено",
+          "Измените фильтр или попросите редактора добавить категории.",
+          none,
+          none,
+          "plus"
+        ) }}
+      {% endif %}
     {% endif %}
   </section>
 {% endblock %}

@@ -9,6 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.middleware import install_security_middleware
 from app.core.security import session_token_from_request
 from app.core.settings import Settings
 from app.db.session import get_session, session_factory
@@ -36,7 +37,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    settings.validate_for_runtime()
     app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
+    install_security_middleware(app, settings)
     app.mount("/static", StaticFiles(directory="src/app/static"), name="static")
     app.include_router(accounts_router)
     app.include_router(categories_router)

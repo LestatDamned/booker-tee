@@ -24,7 +24,7 @@ from app.features.imports.presentation.mapping import (
     preview_mapping_page_context,
 )
 from app.features.imports.service import ImportService
-from app.features.workspaces.dependencies import get_current_workspace_context
+from app.features.workspaces.dependencies import require_import_management_context
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
 
@@ -38,7 +38,7 @@ async def document_mapping_form(
     document_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
 ) -> HTMLResponse:
     view = await ImportService(session).get_document_detail_view(context.workspace.id, document_id)
     if view is None:
@@ -75,7 +75,7 @@ async def preview_document_mapping(
     document_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
     table_ref: Annotated[str, Form()],
     operation_date_column: Annotated[int, Form()],
     description_column: Annotated[int, Form()],
@@ -134,7 +134,7 @@ async def preview_document_mapping(
 async def import_document_mapping(
     document_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
     table_ref: Annotated[str, Form()],
     operation_date_column: Annotated[int, Form()],
     description_column: Annotated[int, Form()],

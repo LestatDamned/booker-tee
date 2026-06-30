@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,7 @@ templates = create_templates()
 async def signup_form(
     request: Request,
     settings: Annotated[Settings, Depends(get_settings)],
+    next_path: Annotated[str | None, Query(alias="next")] = None,
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
@@ -30,6 +31,7 @@ async def signup_form(
             "allow_signups": settings.allow_signups,
             "app_name": settings.app_name,
             "error": None,
+            "next_path": safe_next_path(next_path) if next_path else None,
         },
     )
 
@@ -42,7 +44,9 @@ async def signup(
     email: Annotated[str, Form()],
     password: Annotated[str, Form()],
     name: Annotated[str | None, Form()] = None,
+    next_path: Annotated[str | None, Form(alias="next")] = None,
 ) -> Response:
+    redirect_path = safe_next_path(next_path)
     try:
         login_session = await AuthenticationService(session, settings).register(
             email=email,
@@ -57,11 +61,12 @@ async def signup(
                 "allow_signups": settings.allow_signups,
                 "app_name": settings.app_name,
                 "error": str(exc),
+                "next_path": redirect_path,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    response = RedirectResponse(url="/workspaces", status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(url=redirect_path, status_code=status.HTTP_303_SEE_OTHER)
     remember_session(response, settings=settings, session_token=login_session.session_token)
     return response
 
@@ -70,6 +75,7 @@ async def signup(
 async def login_form(
     request: Request,
     settings: Annotated[Settings, Depends(get_settings)],
+    next_path: Annotated[str | None, Query(alias="next")] = None,
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
@@ -77,6 +83,7 @@ async def login_form(
         {
             "app_name": settings.app_name,
             "error": None,
+            "next_path": safe_next_path(next_path) if next_path else None,
         },
     )
 
@@ -88,7 +95,9 @@ async def login(
     settings: Annotated[Settings, Depends(get_settings)],
     email: Annotated[str, Form()],
     password: Annotated[str, Form()],
+    next_path: Annotated[str | None, Form(alias="next")] = None,
 ) -> Response:
+    redirect_path = safe_next_path(next_path)
     try:
         login_session = await AuthenticationService(session, settings).login(
             email=email,
@@ -101,11 +110,12 @@ async def login(
             {
                 "app_name": settings.app_name,
                 "error": str(exc),
+                "next_path": redirect_path,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    response = RedirectResponse(url="/workspaces", status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(url=redirect_path, status_code=status.HTTP_303_SEE_OTHER)
     remember_session(response, settings=settings, session_token=login_session.session_token)
     return response
 
@@ -142,3 +152,11 @@ async def logout(
     response = RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
     forget_session(response, settings=settings)
     return response
+
+
+def safe_next_path(next_path: str | None) -> str:
+    if not next_path:
+        return "/workspaces"
+    if not next_path.startswith("/") or next_path.startswith("//"):
+        return "/workspaces"
+    return next_path

@@ -17,9 +17,18 @@
             <a class="context-item" href="/workspaces">
               <span>пространство</span>
               <strong class="truncate-label" title="{{ current_workspace.name if current_workspace else 'не выбрано' }}">{{ current_workspace.name if current_workspace else "не выбрано" }}</strong>
+              {% if current_membership %}
+                <small>{{ current_membership.role | ru }}</small>
+              {% endif %}
             </a>
           </div>
-          <a class="status-pill primary-action" href="/imports/upload">{{ icon("upload") }} загрузить</a>
+          {% if workspace_permissions and workspace_permissions.can_manage_imports %}
+            <a class="status-pill primary-action" href="/imports/upload">{{ icon("upload") }} загрузить</a>
+          {% elif workspace_permissions and workspace_permissions.can_write_financial_data %}
+            <a class="status-pill primary-action" href="/ledger/manual">{{ icon("plus") }} операция</a>
+          {% else %}
+            <a class="status-pill primary-action" href="/reports">{{ icon("list-check") }} отчеты</a>
+          {% endif %}
         {% else %}
           <a class="status-pill primary-action" href="/login">{{ icon("user") }} войти</a>
         {% endif %}
@@ -33,7 +42,9 @@
           <a class="nav-link" href="/users">{{ icon("user") }} профиль</a>
           <a class="nav-link" href="/workspaces">{{ icon("folder") }} пространства</a>
           <a class="nav-link" href="/accounts">{{ icon("wallet") }} счета</a>
-          <a class="nav-link" href="/ledger/manual">{{ icon("plus") }} операции</a>
+          {% if workspace_permissions and workspace_permissions.can_write_financial_data %}
+            <a class="nav-link" href="/ledger/manual">{{ icon("plus") }} операции</a>
+          {% endif %}
           <a class="nav-link" href="/imports">{{ icon("import") }} импорт</a>
           <a class="nav-link" href="/reports">{{ icon("list-check") }} отчеты</a>
           <a class="nav-link" href="/categories">{{ icon("tag") }} категории</a>

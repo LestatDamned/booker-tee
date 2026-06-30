@@ -12,7 +12,10 @@ from app.db.session import get_session
 from app.features.accounts.models import AccountType
 from app.features.accounts.service import AccountError, AccountService
 from app.features.ledger.service import LedgerPostingService
-from app.features.workspaces.dependencies import get_current_workspace_context
+from app.features.workspaces.dependencies import (
+    get_current_workspace_context,
+    require_financial_write_context,
+)
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
 
@@ -76,7 +79,7 @@ async def account_detail(
 @router.post("")
 async def create_account(
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     name: Annotated[str, Form()],
     account_type: Annotated[AccountType, Form()],
     currency: Annotated[str, Form()],
@@ -99,7 +102,7 @@ async def create_account(
 async def update_account(
     account_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     name: Annotated[str, Form()],
     account_type: Annotated[AccountType, Form()],
     currency: Annotated[str, Form()],
@@ -126,7 +129,7 @@ async def update_account(
 async def archive_account(
     account_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
     await AccountService(session).set_active(
         workspace_id=context.workspace.id,
@@ -140,7 +143,7 @@ async def archive_account(
 async def restore_account(
     account_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
     await AccountService(session).set_active(
         workspace_id=context.workspace.id,

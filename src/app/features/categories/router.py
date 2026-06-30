@@ -10,7 +10,10 @@ from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.categories.models import CategoryKind
 from app.features.categories.service import CategoryError, CategoryManagementRow, CategoryService
-from app.features.workspaces.dependencies import get_current_workspace_context
+from app.features.workspaces.dependencies import (
+    get_current_workspace_context,
+    require_financial_write_context,
+)
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
 
@@ -85,7 +88,7 @@ async def category_detail(
 @router.post("")
 async def create_category(
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     name: Annotated[str, Form()],
     kind: Annotated[CategoryKind, Form()] = CategoryKind.MIXED,
     notes: Annotated[str | None, Form()] = None,
@@ -111,7 +114,7 @@ async def create_category(
 async def update_category(
     category_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     name: Annotated[str, Form()],
     kind: Annotated[CategoryKind, Form()],
     notes: Annotated[str | None, Form()] = None,
@@ -138,7 +141,7 @@ async def update_category(
 async def archive_category(
     category_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     view: Annotated[str | None, Form()] = None,
 ) -> Response:
     try:
@@ -160,7 +163,7 @@ async def archive_category(
 async def restore_category(
     category_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     view: Annotated[str | None, Form()] = None,
 ) -> Response:
     try:

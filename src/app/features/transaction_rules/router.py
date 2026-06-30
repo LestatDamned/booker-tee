@@ -28,7 +28,10 @@ from app.features.transaction_rules.router_forms import (
     build_create_rule_command,
     build_update_rule_command,
 )
-from app.features.workspaces.dependencies import get_current_workspace_context
+from app.features.workspaces.dependencies import (
+    get_current_workspace_context,
+    require_financial_write_context,
+)
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
 
@@ -71,7 +74,7 @@ async def rules_index(
 @router.post("")
 async def create_rule(
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     pattern: Annotated[str, Form()],
     match_type: Annotated[TransactionRuleMatchType, Form()],
     direction: Annotated[MoneyDirection, Form()],
@@ -107,7 +110,7 @@ async def create_rule(
 @router.post("/seed-defaults")
 async def seed_default_rules(
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
     await DefaultMerchantRuleSeeder(session).seed(context)
     return RedirectResponse(url="/rules", status_code=status.HTTP_303_SEE_OTHER)
@@ -117,7 +120,7 @@ async def seed_default_rules(
 async def update_rule(
     rule_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     pattern: Annotated[str, Form()],
     match_type: Annotated[TransactionRuleMatchType, Form()],
     direction: Annotated[MoneyDirection, Form()],
@@ -155,7 +158,7 @@ async def update_rule(
 async def toggle_rule(
     rule_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     is_active: Annotated[bool, Form()] = False,
 ) -> Response:
     rule = await TransactionRuleManagementUseCase(session).set_rule_active(
@@ -170,7 +173,7 @@ async def toggle_rule(
 async def delete_rule(
     rule_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
     await TransactionRuleManagementUseCase(session).delete_rule(
         workspace_id=context.workspace.id,

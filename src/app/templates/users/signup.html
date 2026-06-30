@@ -9,7 +9,7 @@
         <p class="eyebrow">первый шаг</p>
         <h1>Создать пользователя</h1>
       </div>
-      <a class="button" href="/login">{{ icon("check") }} вход</a>
+      <a class="button" href="/login{% if next_path %}?next={{ next_path | urlencode }}{% endif %}">{{ icon("check") }} вход</a>
     </div>
 
     {% if error %}
@@ -18,6 +18,9 @@
 
     {% if allow_signups %}
       <form class="form-panel" method="post" action="/signup">
+        {% if next_path %}
+          <input type="hidden" name="next" value="{{ next_path }}">
+        {% endif %}
         <label class="field form-field-half">
           <span>email</span>
           <input name="email" type="email" autocomplete="email" required>

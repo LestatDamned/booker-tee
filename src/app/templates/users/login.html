@@ -9,7 +9,7 @@
         <p class="eyebrow">доступ</p>
         <h1>Вход</h1>
       </div>
-      <a class="button" href="/signup">{{ icon("user") }} регистрация</a>
+      <a class="button" href="/signup{% if next_path %}?next={{ next_path | urlencode }}{% endif %}">{{ icon("user") }} регистрация</a>
     </div>
 
     {% if error %}
@@ -17,6 +17,9 @@
     {% endif %}
 
     <form class="form-panel" method="post" action="/login">
+      {% if next_path %}
+        <input type="hidden" name="next" value="{{ next_path }}">
+      {% endif %}
       <label class="field form-field-half">
         <span>email</span>
         <input name="email" type="email" autocomplete="email" required>

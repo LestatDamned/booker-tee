@@ -21,7 +21,10 @@ from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.models import OperationType
 from app.features.ledger.service import LedgerPostingService
 from app.features.properties.service import PropertyService
-from app.features.workspaces.dependencies import get_current_workspace_context
+from app.features.workspaces.dependencies import (
+    get_current_workspace_context,
+    require_financial_write_context,
+)
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
 
@@ -62,7 +65,7 @@ async def manual_operation_form(
 @router.post("/manual")
 async def create_manual_operation(
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     operation_type: Annotated[OperationType, Form()],
     account_id: Annotated[UUID, Form()],
     amount: Annotated[Decimal, Form()],
@@ -115,7 +118,7 @@ async def create_manual_operation(
 async def update_manual_operation(
     operation_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     operation_type: Annotated[OperationType, Form()],
     account_id: Annotated[UUID, Form()],
     amount: Annotated[Decimal, Form()],
@@ -152,7 +155,7 @@ async def update_manual_operation(
 async def cancel_manual_operation(
     operation_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
     try:
         operation = await LedgerPostingService(session).cancel_manual_operation(
@@ -171,7 +174,7 @@ async def cancel_manual_operation(
 async def restore_manual_operation(
     operation_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
     try:
         operation = await LedgerPostingService(session).restore_manual_operation(
@@ -190,7 +193,7 @@ async def restore_manual_operation(
 async def delete_manual_operation(
     operation_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
     try:
         await LedgerPostingService(session).delete_manual_operation(

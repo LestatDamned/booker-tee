@@ -10,7 +10,10 @@ from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.properties.models import PropertyStatus
 from app.features.properties.service import PropertyError, PropertyService
-from app.features.workspaces.dependencies import get_current_workspace_context
+from app.features.workspaces.dependencies import (
+    get_current_workspace_context,
+    require_financial_write_context,
+)
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
 
@@ -40,7 +43,7 @@ async def property_index(
 @router.post("")
 async def create_property(
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     name: Annotated[str, Form()],
     short_name: Annotated[str | None, Form()] = None,
     address: Annotated[str | None, Form()] = None,
@@ -62,7 +65,7 @@ async def create_property(
 async def update_property(
     property_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     name: Annotated[str, Form()],
     short_name: Annotated[str | None, Form()] = None,
     address: Annotated[str | None, Form()] = None,
@@ -85,7 +88,7 @@ async def update_property(
 async def archive_property(
     property_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
     await PropertyService(session).set_status(
         workspace_id=context.workspace.id,
@@ -99,7 +102,7 @@ async def archive_property(
 async def restore_property(
     property_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
     await PropertyService(session).set_status(
         workspace_id=context.workspace.id,

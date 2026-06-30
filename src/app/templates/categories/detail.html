@@ -3,6 +3,7 @@
 {% block title %}{{ detail.category.name }} · {{ app_name }}{% endblock %}
 
 {% block content %}
+  {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
   <section class="panel stack">
     <div class="toolbar">
       <div>
@@ -35,7 +36,7 @@
       </div>
     </div>
 
-    {% if not detail.category.is_system %}
+    {% if can_write and not detail.category.is_system %}
       <details class="action-details action-accordion category-edit-details">
         <summary>{{ icon("settings") }} управление категорией</summary>
         <form class="form-panel form-panel-embedded" method="post" action="/categories/{{ detail.category.id }}">

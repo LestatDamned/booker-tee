@@ -4,6 +4,7 @@
 {% block title %}{{ detail.account.name }} · {{ app_name }}{% endblock %}
 
 {% block content %}
+  {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
   <section class="panel stack">
     <div class="toolbar">
       <div>
@@ -11,37 +12,41 @@
         <h1>{{ detail.account.name }}</h1>
       </div>
       <div class="toolbar">
-        {% if detail.account.is_active %}
-          <form method="post" action="/accounts/{{ detail.account.id }}/archive">
-            {{ csrf_input() }}
-            <button class="button" type="submit">{{ icon("archive") }} в архив</button>
-          </form>
-        {% else %}
-          <form method="post" action="/accounts/{{ detail.account.id }}/restore">
-            {{ csrf_input() }}
-            <button class="button" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
-          </form>
+        {% if can_write %}
+          {% if detail.account.is_active %}
+            <form method="post" action="/accounts/{{ detail.account.id }}/archive">
+              {{ csrf_input() }}
+              <button class="button" type="submit">{{ icon("archive") }} в архив</button>
+            </form>
+          {% else %}
+            <form method="post" action="/accounts/{{ detail.account.id }}/restore">
+              {{ csrf_input() }}
+              <button class="button" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
+            </form>
+          {% endif %}
         {% endif %}
         <a class="button" href="/accounts">{{ icon("arrow-left") }} назад</a>
       </div>
     </div>
 
-    <form class="stack" method="post" action="/accounts/{{ detail.account.id }}">
-      {{ csrf_input() }}
-      <div class="toolbar">
-        <input name="name" value="{{ detail.account.name }}" placeholder="Название счета" required>
-        <select name="account_type" required>
-          {% for account_type in account_types %}
-            <option value="{{ account_type.value }}" {% if detail.account.type == account_type %}selected{% endif %}>
-              {{ account_type | ru }}
-            </option>
-          {% endfor %}
-        </select>
-        <input name="currency" value="{{ detail.account.currency }}" placeholder="Валюта" maxlength="3" required>
-        <input class="amount" name="initial_balance" inputmode="decimal" value="{{ detail.account.initial_balance }}" placeholder="Начальный баланс">
-        <button class="button" type="submit">{{ icon("save") }} сохранить</button>
-      </div>
-    </form>
+    {% if can_write %}
+      <form class="stack" method="post" action="/accounts/{{ detail.account.id }}">
+        {{ csrf_input() }}
+        <div class="toolbar">
+          <input name="name" value="{{ detail.account.name }}" placeholder="Название счета" required>
+          <select name="account_type" required>
+            {% for account_type in account_types %}
+              <option value="{{ account_type.value }}" {% if detail.account.type == account_type %}selected{% endif %}>
+                {{ account_type | ru }}
+              </option>
+            {% endfor %}
+          </select>
+          <input name="currency" value="{{ detail.account.currency }}" placeholder="Валюта" maxlength="3" required>
+          <input class="amount" name="initial_balance" inputmode="decimal" value="{{ detail.account.initial_balance }}" placeholder="Начальный баланс">
+          <button class="button" type="submit">{{ icon("save") }} сохранить</button>
+        </div>
+      </form>
+    {% endif %}
 
     <div class="summary-grid">
       <div class="metric">

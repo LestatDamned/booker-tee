@@ -15,7 +15,7 @@ from app.db.base import utc_now
 from app.features.users.errors import UserError
 from app.features.users.models import User, UserSession
 from app.features.users.repository import UserRepository
-from app.features.workspaces.models import Workspace, WorkspaceType
+from app.features.workspaces.models import Workspace, WorkspaceAuditEventType, WorkspaceMember
 from app.features.workspaces.repository import WorkspaceRepository
 
 
@@ -43,6 +43,7 @@ def validate_password(password: str) -> str:
 class LoginSession:
     user: User
     workspace: Workspace
+    membership: WorkspaceMember
     session: UserSession
     session_token: str
 
@@ -51,7 +52,6 @@ class UserService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.users = UserRepository(session)
-        self.workspaces = WorkspaceRepository(session)
 
     async def list_active(self) -> list[User]:
         return await self.users.list_active()
@@ -73,32 +73,6 @@ class UserService:
         await self.session.commit()
         return user
 
-    async def create_with_personal_workspace(
-        self,
-        *,
-        email: str,
-        password: str,
-        name: str | None = None,
-    ) -> tuple[User, Workspace]:
-        normalized_email = normalize_email(email)
-        existing_user = await self.users.get_by_email(normalized_email)
-        if existing_user is not None:
-            raise UserError("Пользователь с таким email уже существует.")
-
-        user = await self.users.create(
-            email=normalized_email,
-            password_hash=hash_password(validate_password(password)),
-            name=clean_user_name(name),
-        )
-        workspace = await self.workspaces.create_workspace(
-            owner_id=user.id,
-            name="Personal",
-            workspace_type=WorkspaceType.PERSONAL,
-            default_currency="RUB",
-        )
-        await self.session.commit()
-        return user, workspace
-
 
 class AuthenticationService:
     def __init__(self, session: AsyncSession, settings: Settings) -> None:
@@ -117,12 +91,23 @@ class AuthenticationService:
         if not self.settings.allow_signups:
             raise UserError("Регистрация временно закрыта.")
 
-        user, workspace = await UserService(self.session).create_with_personal_workspace(
+        user = await self._create_user_for_registration(
             email=email,
             password=password,
             name=name,
         )
-        return await self._create_login_session(user=user, workspace=workspace)
+        (
+            workspace,
+            membership,
+        ) = await self.workspaces.create_personal_workspace_with_owner_membership(user.id)
+        await self._record_personal_workspace_created(user_id=user.id, workspace=workspace)
+        login_session = await self._create_login_session_record(
+            user=user,
+            workspace=workspace,
+            membership=membership,
+        )
+        await self.session.commit()
+        return login_session
 
     async def login(self, *, email: str, password: str) -> LoginSession:
         normalized_email = normalize_email(email)
@@ -132,48 +117,46 @@ class AuthenticationService:
         if not verify_password(password, user.password_hash):
             raise UserError("Неверный email или пароль.")
 
-        workspace = await self.workspaces.get_first_active_for_user(user.id)
-        if workspace is None:
-            workspace = await self.workspaces.create_personal_workspace(user.id)
-            await self.session.commit()
-        return await self._create_login_session(user=user, workspace=workspace)
+        membership = await self.workspaces.get_first_active_membership_for_user(user.id)
+        if membership is None:
+            (
+                workspace,
+                membership,
+            ) = await self.workspaces.create_personal_workspace_with_owner_membership(user.id)
+            await self._record_personal_workspace_created(user_id=user.id, workspace=workspace)
+        else:
+            workspace = membership.workspace
+
+        login_session = await self._create_login_session_record(
+            user=user,
+            workspace=workspace,
+            membership=membership,
+        )
+        await self.session.commit()
+        return login_session
 
     async def resolve_login_session(self, session_token: str) -> LoginSession | None:
-        user_session = await self.users.get_active_session_by_token_hash(
-            hash_session_token(session_token)
-        )
-        if user_session is None or not user_session.user.is_active:
-            return None
-
-        workspace = user_session.current_workspace
-        if workspace is None or not workspace.is_active:
-            workspace = await self.workspaces.get_first_active_for_user(user_session.user_id)
-            if workspace is None:
-                workspace = await self.workspaces.create_personal_workspace(user_session.user_id)
-            user_session.current_workspace_id = workspace.id
-
-        user_session.last_seen_at = utc_now()
-        await self.session.commit()
-        return LoginSession(
-            user=user_session.user,
-            workspace=workspace,
-            session=user_session,
-            session_token=session_token,
-        )
+        login_session = await self._resolve_login_session_record(session_token)
+        if login_session is not None:
+            await self.session.commit()
+        return login_session
 
     async def switch_workspace(self, *, session_token: str, workspace_id: UUID) -> Workspace:
-        login_session = await self.resolve_login_session(session_token)
+        login_session = await self._resolve_login_session_record(session_token)
         if login_session is None:
             raise UserError("Сессия не найдена.")
 
-        workspace = await self.workspaces.get_active_for_user(login_session.user.id, workspace_id)
-        if workspace is None:
+        membership = await self.workspaces.get_active_membership(
+            user_id=login_session.user.id,
+            workspace_id=workspace_id,
+        )
+        if membership is None:
             raise UserError("Workspace не найден или недоступен.")
 
-        login_session.session.current_workspace_id = workspace.id
+        login_session.session.current_workspace_id = membership.workspace_id
         login_session.session.last_seen_at = utc_now()
         await self.session.commit()
-        return workspace
+        return membership.workspace
 
     async def logout(self, session_token: str) -> None:
         user_session = await self.users.get_active_session_by_token_hash(
@@ -183,7 +166,75 @@ class AuthenticationService:
             await self.users.revoke_session(user_session)
             await self.session.commit()
 
-    async def _create_login_session(self, *, user: User, workspace: Workspace) -> LoginSession:
+    async def _create_user_for_registration(
+        self,
+        *,
+        email: str,
+        password: str,
+        name: str | None,
+    ) -> User:
+        normalized_email = normalize_email(email)
+        existing_user = await self.users.get_by_email(normalized_email)
+        if existing_user is not None:
+            raise UserError("Пользователь с таким email уже существует.")
+
+        return await self.users.create(
+            email=normalized_email,
+            password_hash=hash_password(validate_password(password)),
+            name=clean_user_name(name),
+        )
+
+    async def _resolve_login_session_record(self, session_token: str) -> LoginSession | None:
+        user_session = await self.users.get_active_session_by_token_hash(
+            hash_session_token(session_token)
+        )
+        if user_session is None or not user_session.user.is_active:
+            return None
+
+        membership = None
+        if user_session.current_workspace_id is not None:
+            membership = await self.workspaces.get_active_membership(
+                user_id=user_session.user_id,
+                workspace_id=user_session.current_workspace_id,
+            )
+
+        if membership is None:
+            membership = await self.workspaces.get_first_active_membership_for_user(
+                user_session.user_id
+            )
+            if membership is None:
+                (
+                    workspace,
+                    membership,
+                ) = await self.workspaces.create_personal_workspace_with_owner_membership(
+                    user_session.user_id
+                )
+                await self._record_personal_workspace_created(
+                    user_id=user_session.user_id,
+                    workspace=workspace,
+                )
+            else:
+                workspace = membership.workspace
+            user_session.current_workspace_id = workspace.id
+        else:
+            workspace = membership.workspace
+
+        user_session.last_seen_at = utc_now()
+        return LoginSession(
+            user=user_session.user,
+            workspace=workspace,
+            membership=membership,
+            session=user_session,
+            session_token=session_token,
+        )
+
+    async def _create_login_session_record(
+        self,
+        *,
+        user: User,
+        workspace: Workspace,
+        membership: WorkspaceMember,
+    ) -> LoginSession:
         session_token = generate_session_token()
         expires_at = utc_now() + timedelta(seconds=self.settings.session_max_age_seconds)
         user_session = await self.users.create_session(
@@ -194,10 +245,29 @@ class AuthenticationService:
                 expires_at=expires_at,
             )
         )
-        await self.session.commit()
         return LoginSession(
             user=user,
             workspace=workspace,
+            membership=membership,
             session=user_session,
             session_token=session_token,
+        )
+
+    async def _record_personal_workspace_created(
+        self,
+        *,
+        user_id: UUID,
+        workspace: Workspace,
+    ) -> None:
+        await self.workspaces.create_audit_event(
+            workspace_id=workspace.id,
+            event_type=WorkspaceAuditEventType.WORKSPACE_CREATED,
+            actor_user_id=user_id,
+            entity_type="workspace",
+            entity_id=workspace.id,
+            details={
+                "name": workspace.name,
+                "type": workspace.type.value,
+                "default_currency": workspace.default_currency,
+            },
         )

@@ -5,6 +5,7 @@
 {% block title %}Ручная операция · {{ app_name }}{% endblock %}
 
 {% block content %}
+  {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
   <section class="panel stack">
     <div class="toolbar">
       <div>
@@ -16,7 +17,7 @@
 
     {{ inline_hint("Ручные операции нужны для того, чего нет в выписке: наличные, корректировки или разовые записи. Доход и расход влияют на прибыль; перевод только перемещает деньги между счетами.", "critical") }}
 
-    {% if accounts %}
+    {% if accounts and can_write %}
     <form id="new-manual-operation" class="form-panel" method="post" action="/ledger/manual">
       {{ csrf_input() }}
       <div class="field operation-type-field form-field-half">
@@ -87,13 +88,18 @@
         <button class="button" type="submit">{{ icon("plus") }} создать</button>
       </div>
     </form>
-    {% else %}
+    {% elif can_write %}
       {{ empty_state(
         "Сначала добавьте счет",
         "Ручная операция всегда двигает деньги на карте, вкладе, расчетном счете или наличных.",
         "/accounts",
         "добавить счет",
         "plus"
+      ) }}
+    {% else %}
+      {{ empty_state(
+        "Ручные операции доступны только для просмотра",
+        "Попросите редактора или администратора внести изменения."
       ) }}
     {% endif %}
   </section>
@@ -115,7 +121,9 @@
             {% set display_currency = operation.primary_entry.account.currency %}
           {% endif %}
           <article id="operation-{{ operation.id }}" class="entity-card manual-operation-card manual-operation-{{ operation.type.value }} {% if operation.status.value == 'ignored' %}entity-card-inactive{% endif %}">
-            <form class="detached-form" id="{{ form_id }}" method="post" action="/ledger/manual/{{ operation.id }}">{{ csrf_input() }}</form>
+            {% if can_write %}
+              <form class="detached-form" id="{{ form_id }}" method="post" action="/ledger/manual/{{ operation.id }}">{{ csrf_input() }}</form>
+            {% endif %}
             <div class="entity-card-main">
               <div class="entity-card-title">
                 <strong>{{ operation.description or "Без описания" }}</strong>
@@ -143,7 +151,8 @@
                 </details>
               </div>
 
-              <div class="form-panel form-panel-embedded">
+              {% if can_write %}
+                <div class="form-panel form-panel-embedded">
                 <div class="field operation-type-field form-field-half">
                   <span>тип</span>
                   <div class="segmented-control" role="radiogroup" aria-label="Тип операции">
@@ -212,34 +221,37 @@
                   <span>описание</span>
                   <input name="description" value="{{ operation.description or '' }}" form="{{ form_id }}" placeholder="Описание">
                 </label>
-              </div>
-            </div>
-
-            <div class="entity-card-actions">
-              <button class="button button-small" type="submit" form="{{ form_id }}">{{ icon("save") }} сохранить</button>
-              {% if operation.status.value == "confirmed" %}
-                <form method="post" action="/ledger/manual/{{ operation.id }}/cancel">
-                  {{ csrf_input() }}
-                  <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} отменить</button>
-                </form>
-              {% elif operation.status.value == "ignored" %}
-                <form method="post" action="/ledger/manual/{{ operation.id }}/restore">
-                  {{ csrf_input() }}
-                  <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
-                </form>
-                <form method="post" action="/ledger/manual/{{ operation.id }}/delete">
-                  {{ csrf_input() }}
-                  <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
-                </form>
+                </div>
               {% endif %}
             </div>
+
+            {% if can_write %}
+              <div class="entity-card-actions">
+                <button class="button button-small" type="submit" form="{{ form_id }}">{{ icon("save") }} сохранить</button>
+                {% if operation.status.value == "confirmed" %}
+                  <form method="post" action="/ledger/manual/{{ operation.id }}/cancel">
+                    {{ csrf_input() }}
+                    <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} отменить</button>
+                  </form>
+                {% elif operation.status.value == "ignored" %}
+                  <form method="post" action="/ledger/manual/{{ operation.id }}/restore">
+                    {{ csrf_input() }}
+                    <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
+                  </form>
+                  <form method="post" action="/ledger/manual/{{ operation.id }}/delete">
+                    {{ csrf_input() }}
+                    <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
+                  </form>
+                {% endif %}
+              </div>
+            {% endif %}
           </article>
         {% endfor %}
       </div>
     {% else %}
       {{ empty_state(
         "Ручных операций пока нет",
-        "Создавайте их через форму выше для наличных движений, корректировок и операций вне банковских выписок."
+        "Создавайте их через форму выше для наличных движений, корректировок и операций вне банковских выписок." if can_write else "Пока нет ручных операций для просмотра."
       ) }}
     {% endif %}
   </section>

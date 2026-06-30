@@ -25,7 +25,10 @@ from app.features.imports.presentation.documents import (
     UploadPageContext,
 )
 from app.features.imports.service import ImportService
-from app.features.workspaces.dependencies import get_current_workspace_context
+from app.features.workspaces.dependencies import (
+    get_current_workspace_context,
+    require_import_management_context,
+)
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
 
@@ -57,7 +60,7 @@ async def upload_form(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
 ) -> HTMLResponse:
     accounts = await AccountService(session).list_active_accounts(context.workspace.id)
     page_context = UploadPageContext(accounts=accounts)
@@ -76,7 +79,7 @@ async def upload_statement(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
     statement_pdf: Annotated[UploadFile, File()],
     account_id: Annotated[UUID, Form()],
 ) -> Response:
@@ -136,7 +139,7 @@ async def reparse_document(
     document_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
 ) -> Response:
     try:
         await StatementReparseUseCase(session, settings).reparse_document(
@@ -160,7 +163,7 @@ async def ignore_document(
     document_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
 ) -> Response:
     try:
         await ImportDocumentManagementUseCase(session, settings).ignore_document(
@@ -180,7 +183,7 @@ async def delete_document(
     document_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
 ) -> Response:
     try:
         await ImportDocumentManagementUseCase(session, settings).delete_document(

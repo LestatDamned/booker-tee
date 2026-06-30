@@ -298,6 +298,7 @@ def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
             default_currency="RUB",
         ),
         workspace_types=list(WorkspaceType),
+        workspace_return_path="/imports",
         workspaces=[
             SimpleNamespace(
                 id=current_workspace_id,
@@ -317,7 +318,38 @@ def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
     assert "admin-details" in html
     assert "Редактирование" in html
     assert f'action="/workspaces/{other_workspace_id}/select"' in html
+    assert 'name="next" value="/imports"' in html
     assert f'action="/workspaces/{current_workspace_id}/select"' not in html
+
+
+def test_workspace_invitation_link_is_visible_after_creation() -> None:
+    workspace_id = uuid4()
+    invitation_link = "http://testserver/workspaces/invitations/invite-token"
+
+    html = render_template(
+        "workspaces/index.html",
+        app_name="Booker Tee",
+        current_user=SimpleNamespace(name="Test User", email="test@example.com"),
+        workspace=SimpleNamespace(
+            id=workspace_id,
+            name="Family",
+            default_currency="RUB",
+        ),
+        workspace_types=list(WorkspaceType),
+        workspaces=[],
+        can_invite_members=True,
+        created_invitation_link=invitation_link,
+        created_invitation_expires_at=date(2026, 7, 3),
+        invite_roles=[],
+        members=[],
+        pending_invitations=[],
+        audit_events=[],
+    )
+
+    assert "Ссылка-приглашение создана" in html
+    assert "Показывается один раз" in html
+    assert f'value="{invitation_link}"' in html
+    assert "копировать" in html
 
 
 def test_dashboard_review_metric_links_to_first_document_requiring_review() -> None:

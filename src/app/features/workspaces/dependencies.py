@@ -13,6 +13,13 @@ from app.core.security import (
 from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.users.service import AuthenticationService
+from app.features.workspaces.permissions import (
+    can_manage_imports,
+    can_manage_members,
+    can_manage_workspace,
+    can_read_workspace,
+    can_write_financial_data,
+)
 from app.features.workspaces.service import WorkspaceContext
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
@@ -38,8 +45,99 @@ async def get_current_workspace_context(
 
     request.state.login_session = login_session
     request.state.csrf_token = csrf_token_for_session(session_token, settings)
-    context = WorkspaceContext(user=login_session.user, workspace=login_session.workspace)
+    context = WorkspaceContext(
+        user=login_session.user,
+        workspace=login_session.workspace,
+        membership=login_session.membership,
+    )
     request.state.workspace_context = context
+    return context
+
+
+async def require_workspace_read_context(
+    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+) -> WorkspaceContext:
+    return require_workspace_permission(
+        context,
+        allowed=can_read_workspace(context.membership),
+        message="Недостаточно прав для просмотра workspace.",
+    )
+
+
+async def require_financial_write_context(
+    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+) -> WorkspaceContext:
+    return require_workspace_permission(
+        context,
+        allowed=can_write_financial_data(context.membership),
+        message="Недостаточно прав для изменения финансовых данных.",
+    )
+
+
+async def require_import_management_context(
+    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+) -> WorkspaceContext:
+    return require_workspace_permission(
+        context,
+        allowed=can_manage_imports(context.membership),
+        message="Недостаточно прав для управления импортом.",
+    )
+
+
+async def require_member_management_context(
+    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+) -> WorkspaceContext:
+    return require_workspace_permission(
+        context,
+        allowed=can_manage_members(context.membership),
+        message="Недостаточно прав для управления участниками.",
+    )
+
+
+async def require_workspace_management_context(
+    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+) -> WorkspaceContext:
+    return require_workspace_permission(
+        context,
+        allowed=can_manage_workspace(context.membership),
+        message="Недостаточно прав для управления workspace.",
+    )
+
+
+async def get_optional_workspace_context(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> WorkspaceContext | None:
+    session_token = session_token_from_request(request, settings)
+    if session_token is None:
+        return None
+
+    login_session = await AuthenticationService(session, settings).resolve_login_session(
+        session_token
+    )
+    if login_session is None:
+        return None
+
+    request.state.login_session = login_session
+    request.state.csrf_token = csrf_token_for_session(session_token, settings)
+    context = WorkspaceContext(
+        user=login_session.user,
+        workspace=login_session.workspace,
+        membership=login_session.membership,
+    )
+    request.state.workspace_context = context
+    return context
+
+
+def require_workspace_permission(
+    context: WorkspaceContext,
+    *,
+    allowed: bool,
+    message: str,
+) -> WorkspaceContext:
+    if not allowed:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=message)
     return context
 
 

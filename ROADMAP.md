@@ -749,11 +749,16 @@ fine-grained custom roles UI
 
 ---
 
-## 15. Phase 10 — Telegram and email delivery channels
+## 15. Phase 10 — Chat and email delivery channels
 
 ### Goal
 
-Add convenient ways to deliver statements, checks, and documents into Booker Tee.
+Add convenient ways to deliver statements, checks, documents, and simple review
+actions into Booker Tee from familiar tools.
+
+Use `CHAT_INTEGRATIONS.md` as the source of truth for messenger integration
+architecture. Telegram should be the first provider, but the module should be
+designed as provider-neutral chat integrations rather than a Telegram-only bot.
 
 ### User value
 
@@ -762,22 +767,28 @@ The user does not have to manually open the web app every time. They can forward
 ### Main deliverables
 
 ```text
-1. Telegram bot file upload
-2. Telegram user to Booker Tee user mapping
-3. Workspace selection for Telegram uploads
-4. Email/IMAP attachment collector
-5. Source channel metadata on UploadedDocument
-6. Duplicate file protection across channels
-7. Background processing for uploads
+1. Provider-neutral chat integration foundation
+2. Telegram bot as the first chat provider
+3. Telegram user to Booker Tee user mapping
+4. Workspace selection for chat uploads/actions
+5. Button-first guided flows for low-error interaction
+6. Safe shared chat notifications for imports and operation events
+7. Email/IMAP attachment collector
+8. Source channel metadata on UploadedDocument
+9. Duplicate file protection across channels
+10. Background processing for uploads
 ```
 
 ### Acceptance criteria
 
 ```text
 1. A PDF forwarded to the Telegram bot creates UploadedDocument.
-2. An email attachment can create UploadedDocument.
-3. Uploaded documents enter the same parser pipeline as web uploads.
-4. The parser pipeline does not fork into separate channel-specific logic.
+2. Chat users are explicitly linked to Booker Tee users before acting.
+3. Group chat notifications hide sensitive data by default.
+4. Button actions are idempotent and permission-checked.
+5. An email attachment can create UploadedDocument.
+6. Uploaded documents enter the same parser pipeline as web uploads.
+7. The parser pipeline does not fork into separate channel-specific logic.
 ```
 
 ### Explicit non-goals
@@ -1067,4 +1078,3 @@ Then make it collaborative.
 Then make it automated.
 Then make it intelligent.
 ```
-

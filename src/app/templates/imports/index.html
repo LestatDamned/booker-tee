@@ -5,6 +5,7 @@
 {% block title %}Импорт · {{ app_name }}{% endblock %}
 
 {% block content %}
+  {% set can_import = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_manage_imports %}
   <section class="panel stack">
     <div class="toolbar">
       <div>
@@ -19,7 +20,7 @@
         {% set review.document = document %}
       {% endif %}
     {% endfor %}
-    {% if review.document %}
+    {% if review.document and can_import %}
       {{ next_step(
         "Проверьте выписку",
         "Этот документ требует решения перед тем, как строки попадут в учет.",
@@ -27,7 +28,7 @@
         "открыть проверку",
         "clipboard-check"
       ) }}
-    {% elif documents %}
+    {% elif documents and can_import %}
       {{ next_step(
         "Загрузите выписку",
         "Перед первой загрузкой советуем подгрузить базовые правила: они ускорят проверку строк и дадут стартовые подсказки по категориям.",
@@ -56,7 +57,7 @@
               </details>
             </div>
             <div class="entity-card-actions">
-              {% if document.status.value in ["requires_review", "imported"] %}
+              {% if can_import and document.status.value in ["requires_review", "imported"] %}
                 <a class="button button-small primary-action" href="/imports/documents/{{ document.id }}/review">{{ icon("clipboard-check") }} проверка</a>
               {% endif %}
               <a class="button button-small" href="/imports/documents/{{ document.id }}">{{ icon("file-text") }} детали</a>
@@ -68,8 +69,8 @@
       {{ empty_state(
         "Выписки еще не загружены",
         "Начните с файла выписки в PDF или XLSX по одному из счетов. Для быстрой проверки сначала можно загрузить базовые правила в разделе Правила.",
-        "/imports/upload",
-        "загрузить выписку",
+        "/imports/upload" if can_import else none,
+        "загрузить выписку" if can_import else none,
         "upload"
       ) }}
     {% endif %}
