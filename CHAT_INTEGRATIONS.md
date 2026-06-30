@@ -11,6 +11,9 @@ integrations. It should be read together with:
 - `ROADMAP.md` - phase order and product guardrails;
 - `AGENTS.md` - engineering and privacy rules.
 
+Implementation conventions for the code inside the feature live in
+`src/app/features/chat_integrations/README.md`.
+
 ---
 
 ## 1. Product thesis
@@ -72,10 +75,26 @@ Model it as:
 Chat Integrations
 ```
 
-Telegram is the first provider. Other providers may be added later:
+Telegram is the MVP provider because it is familiar to the expected users and
+gives the fastest path to real usage.
+
+Matrix is the long-term independence provider. Element can be the primary
+Matrix client for users, but the integration should treat Matrix as the
+provider/protocol and Element as one client experience.
+
+Provider strategy:
+
+```text
+MVP: Telegram
+Long-term independent architecture: Matrix / Element
+Later convenience providers: WhatsApp Business, Slack, Discord, Mattermost
+```
+
+Other providers may be added later:
 
 ```text
 Telegram
+Matrix / Element
 WhatsApp Business
 Slack
 Discord
@@ -530,7 +549,99 @@ dataclasses/Pydantic schemas.
 
 ---
 
-## 8. Conversation model
+## 8. Local development and testing modes
+
+Telegram Bot API documentation was checked on 2026-06-30:
+
+```text
+1. getUpdates polling and webhooks are mutually exclusive.
+2. Webhook delivery sends HTTPS POST requests with JSON Update payloads.
+3. Webhook secret_token is delivered in the X-Telegram-Bot-Api-Secret-Token header.
+4. InlineKeyboardButton callback_data is limited to 1-64 bytes.
+5. Bot API file downloads are limited to 20 MB on the default Telegram Bot API server.
+6. Original file name and MIME type should be saved from the incoming Document object.
+```
+
+References:
+
+- `https://core.telegram.org/bots/api`
+- `https://core.telegram.org/bots/features`
+
+Support three modes from the beginning:
+
+```text
+Local development: Telegram polling
+Server/production: Telegram webhook
+Automated tests: fake provider
+```
+
+### 8.1 Local development: polling
+
+For local development, prefer polling.
+
+In this mode Booker Tee runs a local worker that asks Telegram for new messages
+and button clicks.
+
+```text
+Local Booker Tee bot worker
+  -> asks Telegram for updates
+  -> normalizes them into InboundChatEvent
+  -> calls chat integration services
+```
+
+Why:
+
+```text
+1. No public local URL is needed.
+2. The developer can test with a real Telegram bot from a laptop.
+3. It is simple to debug button-first flows.
+```
+
+### 8.2 Server mode: webhook
+
+For a deployed server, prefer webhook delivery.
+
+```text
+Telegram
+  -> Booker Tee public webhook endpoint
+  -> provider adapter
+  -> chat integration services
+```
+
+Webhook mode should verify provider authenticity and reject invalid requests.
+
+### 8.3 Production-like local testing: tunnel
+
+When webhook behavior needs to be tested locally, use a temporary public tunnel.
+
+```text
+Telegram
+  -> temporary public tunnel URL
+  -> local Booker Tee
+```
+
+This is useful for checking webhook setup, callback buttons, and file uploads,
+but it should not be required for everyday local development.
+
+### 8.4 Automated tests: fake provider
+
+Automated tests should not require Telegram tokens or network calls.
+
+Use fake provider fixtures:
+
+```text
+Fake provider payload
+  -> provider adapter or normalized InboundChatEvent
+  -> service behavior
+  -> assertions
+```
+
+This should cover permission checks, stale buttons, repeated events, upload
+events, and privacy formatting.
+
+---
+
+## 9. Conversation model
 
 The bot should be stateful enough to guide the user safely.
 
@@ -558,7 +669,7 @@ Rules:
 
 ---
 
-## 9. Data model sketch
+## 10. Data model sketch
 
 Initial entities:
 
@@ -631,7 +742,7 @@ and must never be logged.
 
 ---
 
-## 10. Domain events
+## 11. Domain events
 
 The integration module should react to domain events instead of being called
 from random places in the application.
@@ -657,7 +768,7 @@ queue without changing feature services.
 
 ---
 
-## 11. Permissions and privacy
+## 12. Permissions and privacy
 
 Private financial data must be protected by default.
 
@@ -695,7 +806,7 @@ Sensitive counterparty descriptions
 
 ---
 
-## 12. Implementation phases
+## 13. Implementation phases
 
 ### Phase A - Architecture foundation
 
@@ -714,7 +825,9 @@ Deliverables:
 3. Provider Protocol.
 4. Database models and migration for bindings/state/delivery logs.
 5. Permission helpers.
-6. Unit tests for provider-neutral message handling.
+6. Fake provider for automated tests.
+7. Local polling mode for Telegram development.
+8. Unit tests for provider-neutral message handling.
 ```
 
 ### Phase B - Outbound shared feed
@@ -769,7 +882,7 @@ Let users send statements/documents into the same import pipeline.
 Deliverables:
 
 ```text
-1. Telegram document webhook.
+1. Telegram inbound document handling through polling or webhook.
 2. File download adapter.
 3. Create UploadedDocument through existing import service.
 4. Preserve channel metadata.
@@ -839,7 +952,7 @@ Core flow handlers remain provider-neutral.
 
 ---
 
-## 13. Testing expectations
+## 14. Testing expectations
 
 Prioritize tests for:
 
@@ -855,6 +968,7 @@ Prioritize tests for:
 9. Group chat notification formatter hides private balances by default.
 10. File uploads enter the existing import pipeline.
 11. Provider-specific Telegram payloads are normalized before business logic.
+12. Fake provider tests cover flows without Telegram tokens or network access.
 ```
 
 Use sanitized fixtures only. Do not include real chat transcripts with private
@@ -862,7 +976,7 @@ financial data.
 
 ---
 
-## 14. Code readability standard
+## 15. Code readability standard
 
 This module should read as a story.
 
@@ -907,7 +1021,7 @@ Do not hide important financial behavior behind clever abstractions.
 
 ---
 
-## 15. First implementation target
+## 16. First implementation target
 
 The recommended first vertical slice is:
 
@@ -939,7 +1053,7 @@ idempotency, and state machinery are proven.
 
 ---
 
-## 16. Acceptance criteria for the integration architecture
+## 17. Acceptance criteria for the integration architecture
 
 The architecture is acceptable when:
 
@@ -953,6 +1067,6 @@ The architecture is acceptable when:
 7. Manual capture uses button-first guided flows.
 8. Transfers are impossible to record as income by accident in the main flow.
 9. Uploaded files enter the same import pipeline as web uploads.
-10. Tests cover permission, privacy, idempotency, and financial correctness.
+10. Local development can run through Telegram polling without a public URL.
+11. Tests cover permission, privacy, idempotency, and financial correctness.
 ```
-

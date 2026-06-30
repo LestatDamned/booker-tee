@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Telegram dev link - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <section class="page-section">
+    <div class="section-heading">
+      <p class="eyebrow">chat integrations</p>
+      <h1>Telegram dev link</h1>
+      <p class="muted">
+        Привязка работает только в local/test окружении. Она связывает Telegram ID
+        с текущим пользователем и workspace.
+      </p>
+    </div>
+
+    {% if error %}
+      <div class="alert danger">{{ error }}</div>
+    {% endif %}
+    {% if success %}
+      <div class="alert success">{{ success }}</div>
+    {% endif %}
+
+    <form class="panel stack" method="post" action="/chat-integrations/telegram/dev-link">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="field">
+        <span>Workspace</span>
+        <input value="{{ workspace.name }}" disabled>
+      </label>
+      <label class="field">
+        <span>Пользователь Booker Tee</span>
+        <input value="{{ current_user.email }}" disabled>
+      </label>
+      <label class="field">
+        <span>Telegram ID</span>
+        <input name="external_user_id" value="{{ external_user_id }}" required inputmode="numeric">
+      </label>
+      <label class="field">
+        <span>Имя в Telegram</span>
+        <input name="display_name" value="{{ display_name }}">
+      </label>
+      <button class="button primary" type="submit">Привязать Telegram</button>
+    </form>
+  </section>
+{% endblock %}

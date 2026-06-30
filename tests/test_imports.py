@@ -39,6 +39,7 @@ from app.features.imports.presentation.review import (
     review_redirect_url,
     review_row_anchor,
 )
+from app.features.imports.query_repository import REVIEWABLE_RAW_TRANSACTION_STATUSES
 
 
 def test_sanitize_filename_removes_paths_and_unsafe_characters() -> None:
@@ -156,12 +157,22 @@ def test_statement_extractor_resolver_selects_extractor_by_extension(tmp_path: P
 
 
 def test_raw_transaction_review_actions_map_to_statuses() -> None:
+    assert raw_transaction_status_for_review_action("duplicate") == RawTransactionStatus.DUPLICATE
     assert raw_transaction_status_for_review_action("ignore") == RawTransactionStatus.IGNORED
     assert raw_transaction_status_for_review_action("mark_unique") == RawTransactionStatus.MATCHED
     assert (
         raw_transaction_status_for_review_action("needs_review")
         == RawTransactionStatus.NEEDS_REVIEW
     )
+
+
+def test_reviewable_raw_transaction_statuses_include_normalized_rows() -> None:
+    assert RawTransactionStatus.NORMALIZED in REVIEWABLE_RAW_TRANSACTION_STATUSES
+    assert RawTransactionStatus.SUGGESTED in REVIEWABLE_RAW_TRANSACTION_STATUSES
+    assert RawTransactionStatus.MATCHED in REVIEWABLE_RAW_TRANSACTION_STATUSES
+    assert RawTransactionStatus.CONFIRMED not in REVIEWABLE_RAW_TRANSACTION_STATUSES
+    assert RawTransactionStatus.IGNORED not in REVIEWABLE_RAW_TRANSACTION_STATUSES
+    assert RawTransactionStatus.DUPLICATE not in REVIEWABLE_RAW_TRANSACTION_STATUSES
 
 
 def test_possible_duplicate_fingerprint_requires_normalized_fields() -> None:

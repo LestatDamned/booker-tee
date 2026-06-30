@@ -101,7 +101,7 @@ Phase 6  — Minimal categories, properties, and useful reports
 Phase 7  — Manual operations and transfer matching
 Phase 8  — More banks and parser configuration system
 Phase 9  — Workspace collaboration and roles
-Phase 10 — Telegram and email delivery channels
+Phase 10 — Chat and email delivery channels
 Phase 11 — Property management depth
 Phase 12 — Automation and financial forecasting
 Phase 13 — AI memory, RAG, and Text-to-SQL
@@ -757,7 +757,8 @@ Add convenient ways to deliver statements, checks, documents, and simple review
 actions into Booker Tee from familiar tools.
 
 Use `CHAT_INTEGRATIONS.md` as the source of truth for messenger integration
-architecture. Telegram should be the first provider, but the module should be
+architecture. Telegram is the MVP provider. Matrix/Element is the long-term
+direction for a more independent chat architecture. The module should be
 designed as provider-neutral chat integrations rather than a Telegram-only bot.
 
 ### User value
@@ -773,10 +774,11 @@ The user does not have to manually open the web app every time. They can forward
 4. Workspace selection for chat uploads/actions
 5. Button-first guided flows for low-error interaction
 6. Safe shared chat notifications for imports and operation events
-7. Email/IMAP attachment collector
-8. Source channel metadata on UploadedDocument
-9. Duplicate file protection across channels
-10. Background processing for uploads
+7. Matrix/Element architecture notes for long-term independence
+8. Email/IMAP attachment collector
+9. Source channel metadata on UploadedDocument
+10. Duplicate file protection across channels
+11. Background processing for uploads
 ```
 
 ### Acceptance criteria

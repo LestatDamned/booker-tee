@@ -17,6 +17,7 @@ from app.features.workspaces.models import enum_values
 
 if TYPE_CHECKING:
     from app.features.accounts.models import Account
+    from app.features.categories.models import Category
     from app.features.ledger.models import Operation
     from app.features.workspaces.models import Workspace
 
@@ -272,4 +273,5 @@ class RawTransaction(Base):
     uploaded_document: Mapped[UploadedDocument] = relationship(back_populates="raw_transactions")
     parse_attempt: Mapped[ParseAttempt] = relationship(back_populates="raw_transactions")
     account: Mapped[Account | None] = relationship()
+    suggested_category: Mapped[Category | None] = relationship(foreign_keys=[suggested_category_id])
     linked_operation: Mapped[Operation | None] = relationship(back_populates="raw_transactions")

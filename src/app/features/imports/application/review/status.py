@@ -44,6 +44,7 @@ class RawTransactionReviewStatusUseCase:
 
 def raw_transaction_status_for_review_action(action: str) -> RawTransactionStatus:
     action_map = {
+        "duplicate": RawTransactionStatus.DUPLICATE,
         "ignore": RawTransactionStatus.IGNORED,
         "mark_unique": RawTransactionStatus.MATCHED,
         "needs_review": RawTransactionStatus.NEEDS_REVIEW,

@@ -142,6 +142,7 @@ dependencies = [
     { name = "alembic" },
     { name = "asyncpg" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "jinja2" },
     { name = "openpyxl" },
     { name = "pdfplumber" },
@@ -154,7 +155,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "playwright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -167,6 +167,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.16.0" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "jinja2", specifier = ">=3.1.0" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pdfplumber", specifier = ">=0.11.9" },
@@ -179,7 +180,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx", specifier = ">=0.28.0" },
     { name = "playwright", specifier = ">=1.60.0" },
     { name = "pytest", specifier = ">=8.3.0" },
     { name = "pytest-asyncio", specifier = ">=0.25.0" },

@@ -15,6 +15,7 @@ from app.core.settings import Settings
 from app.db.session import get_session, session_factory
 from app.features.accounts.router import router as accounts_router
 from app.features.categories.router import router as categories_router
+from app.features.chat_integrations.router import router as chat_integrations_router
 from app.features.dashboard.router import router as dashboard_router
 from app.features.imports.router import router as imports_router
 from app.features.ledger.router import router as ledger_router
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory="src/app/static"), name="static")
     app.include_router(accounts_router)
     app.include_router(categories_router)
+    app.include_router(chat_integrations_router)
     app.include_router(dashboard_router)
     app.include_router(imports_router)
     app.include_router(ledger_router)

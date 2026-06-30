@@ -39,6 +39,30 @@ class Settings(BaseSettings):
         default=True,
         validation_alias="BOOKER_TEE_SECURITY_HEADERS_ENABLED",
     )
+    chat_integrations_enabled: bool = Field(
+        default=False,
+        validation_alias="BOOKER_TEE_CHAT_INTEGRATIONS_ENABLED",
+    )
+    telegram_bot_token: str | None = Field(
+        default=None,
+        validation_alias="BOOKER_TEE_TELEGRAM_BOT_TOKEN",
+    )
+    telegram_mode: Literal["polling", "webhook"] = Field(
+        default="polling",
+        validation_alias="BOOKER_TEE_TELEGRAM_MODE",
+    )
+    telegram_webhook_secret: str | None = Field(
+        default=None,
+        validation_alias="BOOKER_TEE_TELEGRAM_WEBHOOK_SECRET",
+    )
+    telegram_polling_timeout_seconds: int = Field(
+        default=30,
+        validation_alias="BOOKER_TEE_TELEGRAM_POLLING_TIMEOUT_SECONDS",
+    )
+    public_base_url: str | None = Field(
+        default=None,
+        validation_alias="BOOKER_TEE_PUBLIC_BASE_URL",
+    )
     upload_storage_dir: Path = Field(
         default=Path("var/uploads"),
         validation_alias="BOOKER_TEE_UPLOAD_STORAGE_DIR",
@@ -62,6 +86,18 @@ class Settings(BaseSettings):
             return [host.strip() for host in value.split(",") if host.strip()]
         return value
 
+    @field_validator(
+        "telegram_bot_token",
+        "telegram_webhook_secret",
+        "public_base_url",
+        mode="before",
+    )
+    @classmethod
+    def empty_string_as_none(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
@@ -77,6 +113,15 @@ class Settings(BaseSettings):
             errors.append("BOOKER_TEE_SESSION_COOKIE_SECURE must be true in production.")
         if not self.allowed_hosts or "*" in self.allowed_hosts:
             errors.append("BOOKER_TEE_ALLOWED_HOSTS must list explicit production hosts.")
+        if self.chat_integrations_enabled and self.telegram_bot_token is None:
+            errors.append("BOOKER_TEE_TELEGRAM_BOT_TOKEN must be set when chat integrations run.")
+        if self.chat_integrations_enabled and self.telegram_mode == "webhook":
+            if self.public_base_url is None:
+                errors.append("BOOKER_TEE_PUBLIC_BASE_URL must be set for Telegram webhook mode.")
+            if self.telegram_webhook_secret is None:
+                errors.append(
+                    "BOOKER_TEE_TELEGRAM_WEBHOOK_SECRET must be set for Telegram webhook mode."
+                )
 
         if errors:
             raise RuntimeError("Invalid production settings: " + " ".join(errors))

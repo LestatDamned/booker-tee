@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.db.base import Base
 from app.features.accounts import models as account_models  # noqa: F401
 from app.features.categories import models as category_models  # noqa: F401
+from app.features.chat_integrations import models as chat_integration_models  # noqa: F401
 from app.features.imports import models as import_models  # noqa: F401
 from app.features.ledger import models as ledger_models  # noqa: F401
 from app.features.properties import models as property_models  # noqa: F401
