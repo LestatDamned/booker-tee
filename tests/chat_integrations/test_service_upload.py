@@ -222,7 +222,7 @@ async def test_chat_event_service_completes_document_upload_after_account_choice
     assert "Выписка загружена" in response.text
     assert "требует проверки" in response.text
     assert response.buttons[0][0].text == "🔎 Проверка"
-    assert response.buttons[0][0].callback_data == "review:next"
+    assert response.buttons[0][0].callback_data == "review:choose"
     assert response.buttons[0][1].callback_data == "status:show"
     assert response.buttons[0][2].text == "🌐 Web"
     assert response.buttons[0][2].url == (

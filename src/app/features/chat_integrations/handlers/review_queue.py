@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
 from app.features.chat_integrations.actions.review import (
+    ChatReviewDocumentSelection,
     ChatReviewNavigationSelection,
     ChatReviewReturnSelection,
 )
@@ -25,6 +26,57 @@ class ChatReviewQueueHandler:
     ) -> None:
         self.session = session
         self.settings = settings
+
+    async def show_document_selection(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None:
+            return None
+
+        selection = await ChatReviewQueueService(self.session).start_document_selection(
+            bound_workspace.context
+        )
+        if selection is None:
+            return TelegramReviewPresenter.show_queue_empty(event.conversation)
+
+        return TelegramReviewPresenter.show_document_selection(event.conversation, selection)
+
+    async def show_selected_document_item(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        selection: ChatReviewDocumentSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None:
+            return None
+
+        try:
+            started_item = await ChatReviewQueueService(
+                self.session
+            ).start_selected_document_review_item(
+                context=bound_workspace.context,
+                selection=selection,
+            )
+        except ChatReviewActionError as exc:
+            return TelegramReviewPresenter.show_action_error(
+                event.conversation,
+                str(exc),
+            )
+        if started_item is None:
+            return TelegramReviewPresenter.show_queue_empty(event.conversation)
+
+        return TelegramReviewPresenter.show_next_item(
+            event.conversation,
+            started_item.item,
+            started_item.action_token,
+            ChatReviewUrlBuilder.build_raw_transaction_review_url(
+                self.settings,
+                document_id=started_item.item.document_id,
+                raw_transaction_id=started_item.item.raw_transaction_id,
+            ),
+        )
 
     async def show_next_item(
         self,

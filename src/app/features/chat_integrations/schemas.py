@@ -91,3 +91,4 @@ class OutboundChatMessage:
     buttons: tuple[tuple[OutboundChatButton, ...], ...] = ()
     delivery_mode: OutboundChatDeliveryMode = OutboundChatDeliveryMode.SEND_NEW
     callback_notification: str | None = None
+    target_message_id: str | None = None

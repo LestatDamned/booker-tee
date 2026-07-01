@@ -32,6 +32,22 @@ class ChatReviewStateReader:
         return ChatReviewStateReader._read_uuid(payload, "raw_transaction_id")
 
     @staticmethod
+    def read_review_document_id(payload: dict[str, object], document_index: int) -> UUID:
+        document_ids = payload.get("document_ids")
+        if not isinstance(document_ids, list):
+            raise ChatReviewActionError("Stored review action does not include documents.")
+        if document_index < 0 or document_index >= len(document_ids):
+            raise ChatReviewActionError("Selected statement is no longer available.")
+
+        document_id = document_ids[document_index]
+        if not isinstance(document_id, str):
+            raise ChatReviewActionError("Stored document id is invalid.")
+        try:
+            return UUID(document_id)
+        except ValueError as exc:
+            raise ChatReviewActionError("Stored document id is invalid.") from exc
+
+    @staticmethod
     def read_category_id(payload: dict[str, object], category_index: int) -> UUID:
         category_ids = payload.get("category_ids")
         if not isinstance(category_ids, list):

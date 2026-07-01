@@ -1,5 +1,7 @@
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
+from typing import Any, cast
 from uuid import uuid4
 
 import pytest
@@ -10,6 +12,8 @@ from app.features.ledger.models import MoneyEntry, Operation, OperationStatus, O
 from app.features.properties.models import Property
 from app.features.reports.router import parse_optional_query_date, parse_optional_query_uuid
 from app.features.reports.service import (
+    ReportFilters,
+    ReportsService,
     list_uncategorized_operations,
     summarize_by_category,
     summarize_by_property,
@@ -139,6 +143,76 @@ def test_report_query_parsers_raise_clear_bad_request_for_invalid_values() -> No
 
     assert uuid_exc.value.status_code == 400
     assert date_exc.value.status_code == 400
+
+
+async def test_report_account_balances_use_selected_account_and_date_to() -> None:
+    workspace_id = uuid4()
+    selected_account_id = uuid4()
+    other_account_id = uuid4()
+    selected_account = SimpleNamespace(
+        id=selected_account_id,
+        initial_balance=Decimal("100.00"),
+    )
+    other_account = SimpleNamespace(
+        id=other_account_id,
+        initial_balance=Decimal("999.00"),
+    )
+    ledger = FakeReportLedger()
+    service = ReportsService(cast(Any, object()))
+    service.accounts = cast(Any, FakeReportAccounts([selected_account, other_account]))
+    service.ledger = cast(Any, ledger)
+
+    overview = await service.build_overview(
+        workspace_id=workspace_id,
+        filters=ReportFilters(
+            date_from=date(2026, 5, 1),
+            date_to=date(2026, 5, 31),
+            account_id=selected_account_id,
+        ),
+    )
+
+    assert len(overview.account_balances) == 1
+    assert overview.account_balances[0].account.id == selected_account_id
+    assert overview.account_balances[0].balance == Decimal("125.00")
+    assert ledger.balance_calls == [
+        {
+            "workspace_id": workspace_id,
+            "account_id": selected_account_id,
+            "date_to": date(2026, 5, 31),
+        }
+    ]
+
+
+class FakeReportAccounts:
+    def __init__(self, accounts: list[object]) -> None:
+        self._accounts = accounts
+
+    async def list_active_for_workspace(self, _workspace_id: object) -> list[object]:
+        return self._accounts
+
+
+class FakeReportLedger:
+    def __init__(self) -> None:
+        self.balance_calls: list[dict[str, object]] = []
+
+    async def get_confirmed_account_entries_total(
+        self,
+        *,
+        workspace_id: object,
+        account_id: object,
+        date_to: date | None,
+    ) -> Decimal:
+        self.balance_calls.append(
+            {
+                "workspace_id": workspace_id,
+                "account_id": account_id,
+                "date_to": date_to,
+            }
+        )
+        return Decimal("25.00")
+
+    async def list_confirmed_operations_for_report(self, **_kwargs: object) -> list[Operation]:
+        return []
 
 
 def operation_with_entry(

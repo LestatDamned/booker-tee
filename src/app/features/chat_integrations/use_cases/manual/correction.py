@@ -9,6 +9,7 @@ from app.features.chat_integrations.errors import ChatManualOperationError
 from app.features.chat_integrations.models import ChatConversationState
 from app.features.chat_integrations.use_cases.manual.builders import (
     ChatManualCategoryChoiceBuilder,
+    ChatManualCategoryPageBuilder,
 )
 from app.features.chat_integrations.use_cases.manual.dto import (
     StartedChatManualAmountInput,
@@ -150,13 +151,18 @@ class ChatManualCorrectionService:
                 "category_names": [choice.name for choice in category_choices],
             },
         )
-        return StartedChatManualCategorySelection(
+        return ChatManualCategoryPageBuilder.build_selection(
             action_token=action_token,
             operation_type=operation_type,
             amount=amount,
             currency=currency,
             account_name=account_name,
             category_choices=category_choices,
+            page_index=0,
+            source_message_id=ChatManualOperationStateReader.read_optional_string(
+                state.state_payload,
+                "source_message_id",
+            ),
         )
 
     async def _select_description_correction(

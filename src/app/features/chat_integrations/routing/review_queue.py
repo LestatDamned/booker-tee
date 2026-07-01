@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from app.features.chat_integrations.actions.review import (
+    ChatReviewDocumentCallbackData,
     ChatReviewNavigationCallbackData,
     ChatReviewReturnCallbackData,
 )
@@ -34,6 +35,22 @@ class ChatReviewQueueCallbackHandler:
                 event,
                 bound_workspace,
                 return_selection,
+            )
+
+        document_selection = ChatReviewDocumentCallbackData.parse_document_selection(
+            event.callback_data
+        )
+        if document_selection is not None:
+            return await self.handlers.review_queue().show_selected_document_item(
+                event,
+                bound_workspace,
+                document_selection,
+            )
+
+        if event.callback_data == "review:choose":
+            return await self.handlers.review_queue().show_document_selection(
+                event,
+                bound_workspace,
             )
 
         if event.callback_data != "review:next":

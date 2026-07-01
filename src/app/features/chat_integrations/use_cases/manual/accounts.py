@@ -86,12 +86,22 @@ class ChatManualAccountSelectionService:
                 "account_id": str(account.id),
                 "account_name": account.name,
                 "currency": account.currency,
+                **ChatManualOperationPayloadBuilder.source_message_payload(
+                    ChatManualOperationStateReader.read_optional_string(
+                        state.state_payload,
+                        "source_message_id",
+                    )
+                ),
             },
         )
         return StartedChatManualAmountInput(
             operation_type=ChatManualOperationFlowMapper.to_operation_type(flow),
             account_name=account.name,
             currency=account.currency,
+            source_message_id=ChatManualOperationStateReader.read_optional_string(
+                state.state_payload,
+                "source_message_id",
+            ),
         )
 
     async def _select_transfer_source_account(
@@ -125,6 +135,12 @@ class ChatManualAccountSelectionService:
                 "source_account_name": source_account.name,
                 "currency": source_account.currency,
                 **ChatManualOperationPayloadBuilder.accounts_payload(destination_accounts),
+                **ChatManualOperationPayloadBuilder.source_message_payload(
+                    ChatManualOperationStateReader.read_optional_string(
+                        state.state_payload,
+                        "source_message_id",
+                    )
+                ),
             },
         )
         return StartedChatManualAccountSelection(
@@ -132,6 +148,10 @@ class ChatManualAccountSelectionService:
             operation_type=OperationType.TRANSFER,
             account_choices=account_choices,
             source_account_name=source_account.name,
+            source_message_id=ChatManualOperationStateReader.read_optional_string(
+                state.state_payload,
+                "source_message_id",
+            ),
         )
 
     async def _select_transfer_destination_account(
@@ -169,6 +189,12 @@ class ChatManualAccountSelectionService:
                 "destination_account_id": str(destination_account.id),
                 "destination_account_name": destination_account.name,
                 "currency": currency,
+                **ChatManualOperationPayloadBuilder.source_message_payload(
+                    ChatManualOperationStateReader.read_optional_string(
+                        state.state_payload,
+                        "source_message_id",
+                    )
+                ),
             },
         )
         return StartedChatManualAmountInput(
@@ -176,4 +202,8 @@ class ChatManualAccountSelectionService:
             account_name=source_account_name,
             currency=currency,
             destination_account_name=destination_account.name,
+            source_message_id=ChatManualOperationStateReader.read_optional_string(
+                state.state_payload,
+                "source_message_id",
+            ),
         )

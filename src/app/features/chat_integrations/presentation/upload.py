@@ -62,7 +62,7 @@ class TelegramUploadPresenter:
     ) -> OutboundChatMessage:
         status_label = TelegramUploadStatusPresenter.status_label(document.status)
         buttons = [
-            OutboundChatButton(text="🔎 Проверка", callback_data="review:next"),
+            OutboundChatButton(text="🔎 Проверка", callback_data="review:choose"),
             OutboundChatButton(text="📊 Статус", callback_data="status:show"),
         ]
         if review_url is not None:

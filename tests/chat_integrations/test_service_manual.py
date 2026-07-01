@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.chat_integrations import service as chat_service
 from app.features.chat_integrations.actions.manual import (
     ChatManualAccountSelection,
+    ChatManualCategoryPageSelection,
     ChatManualCategorySelection,
     ChatManualConfirmationSelection,
     ChatManualCorrectionSelection,
@@ -23,6 +24,7 @@ from app.features.chat_integrations.schemas import (
     ChatUser,
     InboundChatEvent,
     InboundChatEventType,
+    OutboundChatDeliveryMode,
 )
 from app.features.chat_integrations.service import ChatEventService
 from app.features.chat_integrations.use_cases import dashboard as chat_dashboard
@@ -85,6 +87,7 @@ async def test_chat_event_service_shows_manual_operation_entry_for_bound_callbac
 
     assert response is not None
     assert "➕ Ручная операция" in response.text
+    assert response.delivery_mode == OutboundChatDeliveryMode.EDIT_SOURCE_MESSAGE
     assert response.buttons[0][0].callback_data == "manual:expense"
     assert response.buttons[0][1].callback_data == "manual:income"
     assert response.buttons[1][0].callback_data == "manual:transfer"
@@ -131,9 +134,11 @@ async def test_chat_event_service_starts_manual_expense_account_selection(
             *,
             context: WorkspaceContext,
             operation_type: OperationType,
+            source_message_id: str | None = None,
         ):
             assert context.workspace.id == workspace_id
             assert operation_type == OperationType.EXPENSE
+            assert source_message_id is None
             return chat_manual_dto.StartedChatManualAccountSelection(
                 action_token="manualtoken",
                 operation_type=OperationType.EXPENSE,
@@ -168,6 +173,7 @@ async def test_chat_event_service_starts_manual_expense_account_selection(
 
     assert response is not None
     assert "💸 Расход" in response.text
+    assert response.delivery_mode == OutboundChatDeliveryMode.EDIT_SOURCE_MESSAGE
     assert "Откуда ушли деньги?" in response.text
     assert response.buttons[0][0].text == "Cash / RUB"
     assert response.buttons[0][0].callback_data == "mna:manualtoken:0"
@@ -209,8 +215,14 @@ async def test_chat_event_service_starts_manual_transfer_source_selection(
         def __init__(self, _session: object) -> None:
             pass
 
-        async def start_transfer(self, *, context: WorkspaceContext):
+        async def start_transfer(
+            self,
+            *,
+            context: WorkspaceContext,
+            source_message_id: str | None = None,
+        ):
             assert context.workspace.id == workspace_id
+            assert source_message_id is None
             return chat_manual_dto.StartedChatManualAccountSelection(
                 action_token="manualtoken",
                 operation_type=OperationType.TRANSFER,
@@ -473,6 +485,88 @@ async def test_chat_event_service_shows_manual_category_menu_after_date_selectio
     assert response.buttons[0][0].callback_data == "mnc:categorytoken:0"
     assert response.buttons[1][0].text == "Продукты"
     assert response.buttons[1][0].callback_data == "mnc:categorytoken:1"
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_changes_manual_category_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_workspace.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatManualOperationService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def change_category_page(
+            self,
+            *,
+            context: WorkspaceContext,
+            selection: ChatManualCategoryPageSelection,
+        ):
+            assert context.workspace.id == workspace_id
+            assert selection.action_token == "categorytoken"
+            assert selection.page_index == 1
+            return chat_manual_dto.StartedChatManualCategorySelection(
+                action_token="categorytoken",
+                operation_type=OperationType.EXPENSE,
+                amount=Decimal("1250.50"),
+                currency="RUB",
+                account_name="Cash",
+                category_choices=(
+                    chat_manual_dto.ChatManualCategoryChoice(
+                        id=uuid4(),
+                        name="Такси",
+                    ),
+                ),
+                page_index=1,
+                page_count=2,
+                page_start_index=7,
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(
+        chat_manual_handler,
+        "ChatManualOperationService",
+        FakeChatManualOperationService,
+    )
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="mcp:categorytoken:1",
+    )
+
+    response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
+
+    assert response is not None
+    assert "Страница 2 из 2" in response.text
+    assert response.buttons[0][0].text == "Такси"
+    assert response.buttons[0][0].callback_data == "mnc:categorytoken:7"
+    assert response.buttons[1][0].callback_data == "mcp:categorytoken:0"
 
 
 @pytest.mark.asyncio

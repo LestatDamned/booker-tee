@@ -14,6 +14,12 @@ class ChatManualCategorySelection:
 
 
 @dataclass(frozen=True)
+class ChatManualCategoryPageSelection:
+    action_token: str
+    page_index: int
+
+
+@dataclass(frozen=True)
 class ChatManualDateSelection:
     action_token: str
     date_action: str
@@ -90,6 +96,31 @@ class ChatManualCategoryCallbackData:
             action_token=parts[1],
             category_index=category_index,
         )
+
+
+class ChatManualCategoryPageCallbackData:
+    PREFIX = "mcp"
+
+    @classmethod
+    def build_page_action(cls, *, action_token: str, page_index: int) -> str:
+        return f"{cls.PREFIX}:{action_token}:{page_index}"
+
+    @classmethod
+    def parse_page_selection(
+        cls,
+        callback_data: str | None,
+    ) -> ChatManualCategoryPageSelection | None:
+        if callback_data is None:
+            return None
+
+        parts = callback_data.split(":")
+        if len(parts) != 3 or parts[0] != cls.PREFIX:
+            return None
+        try:
+            page_index = int(parts[2])
+        except ValueError:
+            return None
+        return ChatManualCategoryPageSelection(action_token=parts[1], page_index=page_index)
 
 
 class ChatManualDateCallbackData:

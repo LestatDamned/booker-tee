@@ -1,6 +1,7 @@
 from app.features.chat_integrations.actions.manual import (
     ChatManualAccountCallbackData,
     ChatManualCategoryCallbackData,
+    ChatManualCategoryPageCallbackData,
     ChatManualConfirmationCallbackData,
     ChatManualCorrectionCallbackData,
     ChatManualDateCallbackData,
@@ -10,6 +11,7 @@ from app.features.chat_integrations.presentation.formatting import TelegramDateP
 from app.features.chat_integrations.schemas import (
     ChatConversation,
     OutboundChatButton,
+    OutboundChatDeliveryMode,
     OutboundChatMessage,
 )
 from app.features.chat_integrations.use_cases.manual.dto import (
@@ -28,8 +30,24 @@ from app.features.ledger.models import OperationType
 
 class TelegramManualPresenter:
     @staticmethod
-    def show_type_menu(conversation: ChatConversation) -> OutboundChatMessage:
+    def _show_manual_workspace(
+        *,
+        conversation: ChatConversation,
+        text: str,
+        buttons: tuple[tuple[OutboundChatButton, ...], ...],
+        target_message_id: str | None = None,
+    ) -> OutboundChatMessage:
         return OutboundChatMessage(
+            conversation=conversation,
+            text=text,
+            buttons=buttons,
+            delivery_mode=OutboundChatDeliveryMode.EDIT_SOURCE_MESSAGE,
+            target_message_id=target_message_id,
+        )
+
+    @staticmethod
+    def show_type_menu(conversation: ChatConversation) -> OutboundChatMessage:
+        return TelegramManualPresenter._show_manual_workspace(
             conversation=conversation,
             text=("➕ Ручная операция\n\nВыбери тип. Дальше бот покажет только нужные кнопки."),
             buttons=(
@@ -69,7 +87,7 @@ class TelegramManualPresenter:
             if selection.source_account_name is not None
             else TelegramManualOperationPresenter.account_question(selection.operation_type)
         )
-        return OutboundChatMessage(
+        return TelegramManualPresenter._show_manual_workspace(
             conversation=conversation,
             text=(
                 f"{TelegramManualOperationPresenter.operation_type_label(selection.operation_type)}"
@@ -78,6 +96,7 @@ class TelegramManualPresenter:
             ),
             buttons=account_buttons
             + ((OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),),
+            target_message_id=selection.source_message_id,
         )
 
     @staticmethod
@@ -90,7 +109,7 @@ class TelegramManualPresenter:
             if amount_input.destination_account_name is not None
             else amount_input.account_name
         )
-        return OutboundChatMessage(
+        return TelegramManualPresenter._show_manual_workspace(
             conversation=conversation,
             text=(
                 f"{TelegramManualOperationPresenter.operation_type_label(amount_input.operation_type)}"
@@ -100,6 +119,7 @@ class TelegramManualPresenter:
                 "Например: 1250 или 1 250,50"
             ),
             buttons=((OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),),
+            target_message_id=amount_input.source_message_id,
         )
 
     @staticmethod
@@ -119,7 +139,7 @@ class TelegramManualPresenter:
         selection: StartedChatManualDateSelection,
     ) -> OutboundChatMessage:
         direction = TelegramManualOperationPresenter.account_direction(selection)
-        return OutboundChatMessage(
+        return TelegramManualPresenter._show_manual_workspace(
             conversation=conversation,
             text=(
                 f"{TelegramManualOperationPresenter.operation_type_label(selection.operation_type)}"
@@ -153,6 +173,7 @@ class TelegramManualPresenter:
                 ),
                 (OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),
             ),
+            target_message_id=selection.source_message_id,
         )
 
     @staticmethod
@@ -161,7 +182,7 @@ class TelegramManualPresenter:
         date_input: StartedChatManualDateInput,
     ) -> OutboundChatMessage:
         direction = TelegramManualOperationPresenter.account_direction(date_input)
-        return OutboundChatMessage(
+        return TelegramManualPresenter._show_manual_workspace(
             conversation=conversation,
             text=(
                 f"{TelegramManualOperationPresenter.operation_type_label(date_input.operation_type)}"
@@ -172,6 +193,7 @@ class TelegramManualPresenter:
                 "Например: 30.06.2026"
             ),
             buttons=((OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),),
+            target_message_id=date_input.source_message_id,
         )
 
     @staticmethod
@@ -196,23 +218,52 @@ class TelegramManualPresenter:
                     text=choice.name,
                     callback_data=ChatManualCategoryCallbackData.build_category_selection(
                         action_token=selection.action_token,
-                        category_index=index,
+                        category_index=selection.page_start_index + index,
                     ),
                 ),
             )
             for index, choice in enumerate(selection.category_choices)
         )
-        return OutboundChatMessage(
+        page_buttons: list[OutboundChatButton] = []
+        if selection.page_index > 0:
+            page_buttons.append(
+                OutboundChatButton(
+                    text="⬅️ Пред.",
+                    callback_data=ChatManualCategoryPageCallbackData.build_page_action(
+                        action_token=selection.action_token,
+                        page_index=selection.page_index - 1,
+                    ),
+                )
+            )
+        if selection.page_index + 1 < selection.page_count:
+            page_buttons.append(
+                OutboundChatButton(
+                    text="➡️ Еще",
+                    callback_data=ChatManualCategoryPageCallbackData.build_page_action(
+                        action_token=selection.action_token,
+                        page_index=selection.page_index + 1,
+                    ),
+                )
+            )
+        page_row = (tuple(page_buttons),) if page_buttons else ()
+        page_hint = (
+            f"\nСтраница {selection.page_index + 1} из {selection.page_count}"
+            if selection.page_count > 1
+            else ""
+        )
+        return TelegramManualPresenter._show_manual_workspace(
             conversation=conversation,
             text=(
                 f"{TelegramManualOperationPresenter.operation_type_label(selection.operation_type)}"
                 "\n\n"
                 f"Сумма: {selection.amount:.2f} {selection.currency}\n"
                 f"Счет: {selection.account_name}\n\n"
-                "Выбери категорию."
+                f"Выбери категорию.{page_hint}"
             ),
             buttons=category_buttons
+            + page_row
             + ((OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),),
+            target_message_id=selection.source_message_id,
         )
 
     @staticmethod
@@ -226,7 +277,7 @@ class TelegramManualPresenter:
             if description_input.category_name is not None
             else ""
         )
-        return OutboundChatMessage(
+        return TelegramManualPresenter._show_manual_workspace(
             conversation=conversation,
             text=(
                 f"{TelegramManualOperationPresenter.operation_type_label(description_input.operation_type)}"
@@ -248,6 +299,7 @@ class TelegramManualPresenter:
                 ),
                 (OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),
             ),
+            target_message_id=description_input.source_message_id,
         )
 
     @staticmethod
@@ -273,7 +325,7 @@ class TelegramManualPresenter:
             if confirmation.description is not None
             else ""
         )
-        return OutboundChatMessage(
+        return TelegramManualPresenter._show_manual_workspace(
             conversation=conversation,
             text=(
                 "Проверь запись\n\n"
@@ -302,6 +354,7 @@ class TelegramManualPresenter:
                 ),
                 (OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),
             ),
+            target_message_id=confirmation.source_message_id,
         )
 
     @staticmethod
@@ -350,7 +403,7 @@ class TelegramManualPresenter:
                 (OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),
             )
         )
-        return OutboundChatMessage(
+        return TelegramManualPresenter._show_manual_workspace(
             conversation=conversation,
             text=(
                 "✏️ Что исправить?\n\n"
@@ -358,6 +411,7 @@ class TelegramManualPresenter:
                 f"Дата: {TelegramDatePresenter.format_date(confirmation.operation_date)}"
             ),
             buttons=tuple(rows),
+            target_message_id=selection.confirmation.source_message_id,
         )
 
     @staticmethod
@@ -365,7 +419,7 @@ class TelegramManualPresenter:
         conversation: ChatConversation,
         result: ChatManualOperationResult,
     ) -> OutboundChatMessage:
-        return OutboundChatMessage(
+        return TelegramManualPresenter._show_manual_workspace(
             conversation=conversation,
             text=(
                 "✅ Операция записана\n\n"

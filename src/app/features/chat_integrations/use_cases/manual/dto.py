@@ -18,6 +18,7 @@ class StartedChatManualAccountSelection:
     operation_type: OperationType
     account_choices: tuple[ChatManualAccountChoice, ...]
     source_account_name: str | None = None
+    source_message_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -26,6 +27,7 @@ class StartedChatManualAmountInput:
     account_name: str
     currency: str
     destination_account_name: str | None = None
+    source_message_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -36,6 +38,7 @@ class StartedChatManualDateSelection:
     currency: str
     account_name: str
     destination_account_name: str | None = None
+    source_message_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -45,6 +48,7 @@ class StartedChatManualDateInput:
     currency: str
     account_name: str
     destination_account_name: str | None = None
+    source_message_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -57,6 +61,7 @@ class StartedChatManualDescriptionInput:
     account_name: str
     category_name: str | None = None
     destination_account_name: str | None = None
+    source_message_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -73,6 +78,10 @@ class StartedChatManualCategorySelection:
     currency: str
     account_name: str
     category_choices: tuple[ChatManualCategoryChoice, ...]
+    page_index: int = 0
+    page_count: int = 1
+    page_start_index: int = 0
+    source_message_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -86,6 +95,7 @@ class ChatManualOperationConfirmation:
     category_name: str | None = None
     description: str | None = None
     destination_account_name: str | None = None
+    source_message_id: str | None = None
 
 
 @dataclass(frozen=True)

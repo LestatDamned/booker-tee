@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.chat_integrations.actions.manual import (
     ChatManualAccountSelection,
+    ChatManualCategoryPageSelection,
     ChatManualCategorySelection,
     ChatManualConfirmationSelection,
     ChatManualCorrectionSelection,
@@ -52,6 +53,7 @@ class ChatManualEventHandler:
             selection = await ChatManualOperationService(self.session).start_income_expense(
                 context=bound_workspace.context,
                 operation_type=operation_type,
+                source_message_id=event.source_message_id,
             )
         except ChatManualOperationError as exc:
             return TelegramManualPresenter.show_error(
@@ -70,6 +72,7 @@ class ChatManualEventHandler:
         try:
             selection = await ChatManualOperationService(self.session).start_transfer(
                 context=bound_workspace.context,
+                source_message_id=event.source_message_id,
             )
         except ChatManualOperationError as exc:
             return TelegramManualPresenter.show_error(
@@ -113,6 +116,26 @@ class ChatManualEventHandler:
             return None
         try:
             next_step = await ChatManualOperationService(self.session).select_category(
+                context=bound_workspace.context,
+                selection=selection,
+            )
+        except ChatManualOperationError as exc:
+            return TelegramManualPresenter.show_error(
+                event.conversation,
+                str(exc),
+            )
+        return self.show_next_step(event, next_step)
+
+    async def change_category_page(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        selection: ChatManualCategoryPageSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None:
+            return None
+        try:
+            next_step = await ChatManualOperationService(self.session).change_category_page(
                 context=bound_workspace.context,
                 selection=selection,
             )

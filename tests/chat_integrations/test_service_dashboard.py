@@ -146,7 +146,7 @@ async def test_chat_event_service_adds_review_link_when_public_base_url_exists(
     assert response is not None
     assert response.buttons[0][0].text == "🌐 Web"
     assert response.buttons[0][0].url == "https://booker.example/imports"
-    assert response.buttons[1][0].callback_data == "review:next"
+    assert response.buttons[1][0].callback_data == "review:choose"
     assert response.buttons[1][1].callback_data == "status:show"
     assert response.buttons[2][0].callback_data == "workspace:choose"
     assert response.buttons[3][0].callback_data == "main:menu"
@@ -208,7 +208,7 @@ async def test_chat_event_service_returns_private_status_for_bound_callback(
     assert "📊 Статус" in response.text
     assert "📄 Документы: 1" in response.text
     assert "🔎 Проверка: 4" in response.text
-    assert response.buttons[0][0].callback_data == "review:next"
+    assert response.buttons[0][0].callback_data == "review:choose"
     assert response.buttons[0][1].callback_data == "status:show"
     assert response.buttons[1][0].callback_data == "workspace:choose"
     assert response.buttons[2][0].callback_data == "main:menu"

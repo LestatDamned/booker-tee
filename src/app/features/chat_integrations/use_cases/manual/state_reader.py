@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.features.chat_integrations.errors import ChatManualOperationError
 from app.features.chat_integrations.use_cases.manual.dto import (
+    ChatManualCategoryChoice,
     ChatManualOperationConfirmation,
     ChatManualStoredAccount,
     ChatManualStoredCategory,
@@ -90,6 +91,10 @@ class ChatManualOperationStateReader:
                 payload,
                 "destination_account_name",
             ),
+            source_message_id=ChatManualOperationStateReader.read_optional_string(
+                payload,
+                "source_message_id",
+            ),
         )
 
     @staticmethod
@@ -108,6 +113,7 @@ class ChatManualOperationStateReader:
             currency=date_selection.currency,
             account_name=date_selection.account_name,
             destination_account_name=date_selection.destination_account_name,
+            source_message_id=date_selection.source_message_id,
         )
 
     @staticmethod
@@ -139,6 +145,10 @@ class ChatManualOperationStateReader:
             destination_account_name=ChatManualOperationStateReader.read_optional_string(
                 payload,
                 "destination_account_name",
+            ),
+            source_message_id=ChatManualOperationStateReader.read_optional_string(
+                payload,
+                "source_message_id",
             ),
         )
 
@@ -176,6 +186,10 @@ class ChatManualOperationStateReader:
                     payload,
                     "description",
                 ),
+                source_message_id=ChatManualOperationStateReader.read_optional_string(
+                    payload,
+                    "source_message_id",
+                ),
             )
 
         return ChatManualOperationConfirmation(
@@ -196,7 +210,33 @@ class ChatManualOperationStateReader:
                 payload,
                 "description",
             ),
+            source_message_id=ChatManualOperationStateReader.read_optional_string(
+                payload,
+                "source_message_id",
+            ),
         )
+
+    @staticmethod
+    def read_category_choices(
+        payload: dict[str, object],
+    ) -> tuple[ChatManualCategoryChoice, ...]:
+        category_ids = ChatManualOperationStateReader._read_list(payload, "category_ids")
+        category_names = ChatManualOperationStateReader._read_list(payload, "category_names")
+        if len(category_ids) != len(category_names):
+            raise ChatManualOperationError("Stored manual operation categories are invalid.")
+
+        choices: list[ChatManualCategoryChoice] = []
+        for category_id, category_name in zip(category_ids, category_names, strict=True):
+            parsed_category_id: UUID | None = None
+            if category_id is not None:
+                try:
+                    parsed_category_id = UUID(str(category_id))
+                except ValueError as exc:
+                    raise ChatManualOperationError("Stored category id is invalid.") from exc
+            if not isinstance(category_name, str):
+                raise ChatManualOperationError("Stored category is invalid.")
+            choices.append(ChatManualCategoryChoice(id=parsed_category_id, name=category_name))
+        return tuple(choices)
 
     @staticmethod
     def read_account_name_for_operation(

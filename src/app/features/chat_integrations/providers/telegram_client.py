@@ -12,6 +12,7 @@ from app.features.chat_integrations.schemas import (
     ChatDocument,
     ChatDownloadedFile,
     InboundChatEvent,
+    InboundChatEventType,
     OutboundChatButton,
     OutboundChatDeliveryMode,
     OutboundChatMessage,
@@ -187,14 +188,17 @@ class TelegramOutboundMessageSender:
         if response is None:
             return
 
+        edit_message_id = response.target_message_id
+        if edit_message_id is None and event.event_type == InboundChatEventType.CALLBACK_QUERY:
+            edit_message_id = event.source_message_id
         if (
             response.delivery_mode == OutboundChatDeliveryMode.EDIT_SOURCE_MESSAGE
-            and event.source_message_id is not None
+            and edit_message_id is not None
         ):
             try:
                 await client.edit_message_text(
                     message=response,
-                    message_id=event.source_message_id,
+                    message_id=edit_message_id,
                 )
                 return
             except TelegramBotClientError as exc:

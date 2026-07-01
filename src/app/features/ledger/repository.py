@@ -147,8 +147,9 @@ class LedgerRepository:
         *,
         workspace_id: UUID,
         account_id: UUID,
+        date_to: date | None = None,
     ) -> Decimal:
-        result = await self.session.execute(
+        query = (
             select(func.coalesce(func.sum(MoneyEntry.amount), Decimal("0.00")))
             .join(Operation)
             .where(
@@ -157,6 +158,10 @@ class LedgerRepository:
                 Operation.status == OperationStatus.CONFIRMED,
             )
         )
+        if date_to is not None:
+            query = query.where(Operation.operation_date <= date_to)
+
+        result = await self.session.execute(query)
         return result.scalar_one()
 
     async def list_confirmed_operations_for_report(

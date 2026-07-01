@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from app.features.chat_integrations.actions.manual import (
     ChatManualAccountCallbackData,
     ChatManualCategoryCallbackData,
+    ChatManualCategoryPageCallbackData,
     ChatManualConfirmationCallbackData,
     ChatManualCorrectionCallbackData,
     ChatManualDateCallbackData,
@@ -58,6 +59,16 @@ class ChatManualCallbackHandler:
                 event,
                 bound_workspace,
                 category_selection,
+            )
+
+        category_page_selection = ChatManualCategoryPageCallbackData.parse_page_selection(
+            event.callback_data
+        )
+        if category_page_selection is not None:
+            return await self.handlers.manual().change_category_page(
+                event,
+                bound_workspace,
+                category_page_selection,
             )
 
         date_selection = ChatManualDateCallbackData.parse_date_selection(event.callback_data)

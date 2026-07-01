@@ -6,6 +6,8 @@ from app.features.chat_integrations.actions.manual import (
     ChatManualAccountCallbackData,
     ChatManualAccountSelection,
     ChatManualCategoryCallbackData,
+    ChatManualCategoryPageCallbackData,
+    ChatManualCategoryPageSelection,
     ChatManualCategorySelection,
     ChatManualConfirmationCallbackData,
     ChatManualConfirmationSelection,
@@ -23,6 +25,8 @@ from app.features.chat_integrations.actions.review import (
     ChatReviewCategoryPageCallbackData,
     ChatReviewCategoryPageSelection,
     ChatReviewCategorySelection,
+    ChatReviewDocumentCallbackData,
+    ChatReviewDocumentSelection,
     ChatReviewNavigationCallbackData,
     ChatReviewNavigationSelection,
     ChatReviewPropertyCallbackData,
@@ -179,6 +183,20 @@ def test_chat_review_return_callback_data_is_short_and_parseable() -> None:
     assert ChatReviewReturnCallbackData.parse_return_selection("review:next") is None
 
 
+def test_chat_review_document_callback_data_is_short_and_parseable() -> None:
+    callback_data = ChatReviewDocumentCallbackData.build_document_selection(
+        action_token="shorttoken",
+        document_index=2,
+    )
+
+    assert len(callback_data) <= 64
+    assert callback_data == "rvd:shorttoken:2"
+    assert ChatReviewDocumentCallbackData.parse_document_selection(callback_data) == (
+        ChatReviewDocumentSelection(action_token="shorttoken", document_index=2)
+    )
+    assert ChatReviewDocumentCallbackData.parse_document_selection("review:choose") is None
+
+
 def test_chat_review_category_callback_data_is_short_and_parseable() -> None:
     callback_data = ChatReviewCategoryCallbackData.build_category_selection(
         action_token="shorttoken",
@@ -270,6 +288,16 @@ def test_chat_manual_callback_data_is_short_and_parseable() -> None:
     assert ChatManualCategoryCallbackData.parse_category_selection(category_callback_data) == (
         ChatManualCategorySelection(action_token="manualtoken", category_index=2)
     )
+
+    category_page_callback_data = ChatManualCategoryPageCallbackData.build_page_action(
+        action_token="manualtoken",
+        page_index=1,
+    )
+    assert len(category_page_callback_data) <= 64
+    assert category_page_callback_data == "mcp:manualtoken:1"
+    assert ChatManualCategoryPageCallbackData.parse_page_selection(
+        category_page_callback_data
+    ) == ChatManualCategoryPageSelection(action_token="manualtoken", page_index=1)
 
     today_callback_data = ChatManualDateCallbackData.build_today_action(
         action_token="manualtoken",

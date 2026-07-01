@@ -26,7 +26,6 @@ from app.features.chat_integrations.use_cases.dashboard import (
 from app.features.workspaces.service import WorkspaceContext
 
 CHAT_ACCOUNT_BALANCE_ROW_LIMIT = 10
-CHAT_CATEGORY_SUMMARY_ROW_LIMIT = 10
 
 
 class TelegramAccountBalancePresenter:
@@ -61,17 +60,13 @@ class TelegramCategorySummaryPresenter:
         if not summary.rows:
             return "За этот период пока нет подтвержденных операций по категориям."
 
-        rows = summary.rows[:CHAT_CATEGORY_SUMMARY_ROW_LIMIT]
         lines = [
             (
                 f"• {row.category_name}: "
                 f"{TelegramCategorySummaryPresenter.format_row(row, summary.currency)}"
             )
-            for row in rows
+            for row in summary.rows
         ]
-        hidden_count = len(summary.rows) - len(rows)
-        if hidden_count > 0:
-            lines.append(f"…еще категорий: {hidden_count}")
         return "\n".join(lines)
 
     @staticmethod
@@ -159,7 +154,7 @@ class TelegramDashboardPresenter:
                     ),
                 ),
                 (
-                    OutboundChatButton(text="🔎 Проверка", callback_data="review:next"),
+                    OutboundChatButton(text="🔎 Проверка", callback_data="review:choose"),
                     OutboundChatButton(text="💳 Балансы", callback_data="balances:show"),
                 ),
                 (
@@ -252,7 +247,7 @@ class TelegramDashboardPresenter:
         button_rows.extend(
             (
                 (
-                    OutboundChatButton(text="🔎 Проверка", callback_data="review:next"),
+                    OutboundChatButton(text="🔎 Проверка", callback_data="review:choose"),
                     OutboundChatButton(text="🔄 Обновить", callback_data="status:show"),
                 ),
                 (

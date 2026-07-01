@@ -4,6 +4,7 @@ from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
 from app.features.chat_integrations.actions.manual import (
     ChatManualAccountSelection,
+    ChatManualCategoryPageSelection,
     ChatManualCategorySelection,
     ChatManualConfirmationSelection,
     ChatManualCorrectionSelection,
@@ -29,6 +30,7 @@ from app.features.chat_integrations.use_cases.manual.dto import (
     ChatManualOperationResult,
     StartedChatManualAccountSelection,
     StartedChatManualAmountInput,
+    StartedChatManualCategorySelection,
     StartedChatManualDescriptionInput,
 )
 from app.features.chat_integrations.use_cases.manual.posting import ChatManualOperationPoster
@@ -74,6 +76,7 @@ class ChatManualOperationService:
         *,
         context: WorkspaceContext,
         operation_type: OperationType,
+        source_message_id: str | None = None,
     ) -> StartedChatManualAccountSelection:
         if operation_type not in {OperationType.INCOME, OperationType.EXPENSE}:
             raise ChatManualOperationError("Manual operation must be income or expense.")
@@ -87,18 +90,23 @@ class ChatManualOperationService:
             context=context,
             flow=ChatManualOperationFlowMapper.to_flow(operation_type),
             step="choose_account",
-            payload=ChatManualOperationPayloadBuilder.accounts_payload(accounts),
+            payload={
+                **ChatManualOperationPayloadBuilder.accounts_payload(accounts),
+                **ChatManualOperationPayloadBuilder.source_message_payload(source_message_id),
+            },
         )
         return StartedChatManualAccountSelection(
             action_token=action_token,
             operation_type=operation_type,
             account_choices=account_choices,
+            source_message_id=source_message_id,
         )
 
     async def start_transfer(
         self,
         *,
         context: WorkspaceContext,
+        source_message_id: str | None = None,
     ) -> StartedChatManualAccountSelection:
         accounts = await self.accounts.list_active_accounts(context.workspace.id)
         account_choices = ChatManualAccountChoiceBuilder.build_choices(accounts)
@@ -109,12 +117,16 @@ class ChatManualOperationService:
             context=context,
             flow=ChatConversationFlow.RECORD_TRANSFER,
             step="choose_source_account",
-            payload=ChatManualOperationPayloadBuilder.accounts_payload(accounts),
+            payload={
+                **ChatManualOperationPayloadBuilder.accounts_payload(accounts),
+                **ChatManualOperationPayloadBuilder.source_message_payload(source_message_id),
+            },
         )
         return StartedChatManualAccountSelection(
             action_token=action_token,
             operation_type=OperationType.TRANSFER,
             account_choices=account_choices,
+            source_message_id=source_message_id,
         )
 
     async def select_account(
@@ -157,6 +169,17 @@ class ChatManualOperationService:
         selection: ChatManualCategorySelection,
     ) -> StartedChatManualDescriptionInput:
         return await self.progress.select_category(
+            context=context,
+            selection=selection,
+        )
+
+    async def change_category_page(
+        self,
+        *,
+        context: WorkspaceContext,
+        selection: ChatManualCategoryPageSelection,
+    ) -> StartedChatManualCategorySelection:
+        return await self.progress.change_category_page(
             context=context,
             selection=selection,
         )

@@ -23,12 +23,26 @@ class ChatReviewQueueItem:
     document_row_count: int | None = None
     document_reviewable_count: int | None = None
     source_account_id: UUID | None = None
+    document_label: str | None = None
 
 
 @dataclass(frozen=True)
 class StartedChatReviewItem:
     action_token: str
     item: ChatReviewQueueItem
+
+
+@dataclass(frozen=True)
+class ChatReviewDocumentChoice:
+    id: UUID
+    label: str
+    reviewable_count: int
+
+
+@dataclass(frozen=True)
+class StartedChatReviewDocumentSelection:
+    action_token: str
+    document_choices: tuple[ChatReviewDocumentChoice, ...]
 
 
 @dataclass(frozen=True)

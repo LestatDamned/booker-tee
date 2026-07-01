@@ -85,6 +85,7 @@ class ReportsService:
         filters: ReportFilters,
     ) -> ReportsOverview:
         accounts = await self.accounts.list_active_for_workspace(workspace_id)
+        balance_accounts = filter_accounts_for_balance(accounts, filters.account_id)
         account_balances = [
             AccountBalanceRow(
                 account=account,
@@ -93,10 +94,11 @@ class ReportsService:
                     + await self.ledger.get_confirmed_account_entries_total(
                         workspace_id=workspace_id,
                         account_id=account.id,
+                        date_to=filters.date_to,
                     )
                 ).quantize(Decimal("0.01")),
             )
-            for account in accounts
+            for account in balance_accounts
         ]
         operations = await self.ledger.list_confirmed_operations_for_report(
             workspace_id=workspace_id,
@@ -114,6 +116,15 @@ class ReportsService:
             properties=summarize_by_property(profit_operations),
             uncategorized=list_uncategorized_operations(profit_operations),
         )
+
+
+def filter_accounts_for_balance(
+    accounts: list[Account],
+    account_id: UUID | None,
+) -> list[Account]:
+    if account_id is None:
+        return accounts
+    return [account for account in accounts if account.id == account_id]
 
 
 def summarize_income_expense(operations: list[Operation]) -> IncomeExpenseSummary:

@@ -1,14 +1,17 @@
+from decimal import Decimal
+
 from app.features.accounts.models import Account
 from app.features.categories.models import Category, CategoryKind
 from app.features.chat_integrations.errors import ChatManualOperationError
 from app.features.chat_integrations.models import ChatConversationFlow
 from app.features.chat_integrations.use_cases.manual.config import (
     CHAT_MANUAL_ACCOUNT_MAX_CHOICES,
-    CHAT_MANUAL_CATEGORY_MAX_CHOICES,
+    CHAT_MANUAL_CATEGORY_PAGE_SIZE,
 )
 from app.features.chat_integrations.use_cases.manual.dto import (
     ChatManualAccountChoice,
     ChatManualCategoryChoice,
+    StartedChatManualCategorySelection,
 )
 from app.features.ledger.models import OperationType
 
@@ -32,6 +35,12 @@ class ChatManualOperationPayloadBuilder:
             "account_currencies": [account.currency for account in limited_accounts],
         }
 
+    @staticmethod
+    def source_message_payload(source_message_id: str | None) -> dict[str, object]:
+        if source_message_id is None:
+            return {}
+        return {"source_message_id": source_message_id}
+
 
 class ChatManualCategoryChoiceBuilder:
     @staticmethod
@@ -54,8 +63,6 @@ class ChatManualCategoryChoiceBuilder:
             if category.system_key == "uncategorized":
                 continue
             choices.append(ChatManualCategoryChoice(id=category.id, name=category.name))
-            if len(choices) >= CHAT_MANUAL_CATEGORY_MAX_CHOICES:
-                break
 
         return tuple(choices)
 
@@ -68,6 +75,41 @@ class ChatManualCategoryChoiceBuilder:
                 return {CategoryKind.EXPENSE, CategoryKind.MIXED}
             case _:
                 return set()
+
+
+class ChatManualCategoryPageBuilder:
+    @staticmethod
+    def build_selection(
+        *,
+        action_token: str,
+        operation_type: OperationType,
+        amount: Decimal,
+        currency: str,
+        account_name: str,
+        category_choices: tuple[ChatManualCategoryChoice, ...],
+        page_index: int,
+        source_message_id: str | None = None,
+    ) -> StartedChatManualCategorySelection:
+        page_count = max(
+            1,
+            (len(category_choices) + CHAT_MANUAL_CATEGORY_PAGE_SIZE - 1)
+            // CHAT_MANUAL_CATEGORY_PAGE_SIZE,
+        )
+        normalized_page_index = min(max(page_index, 0), page_count - 1)
+        page_start_index = normalized_page_index * CHAT_MANUAL_CATEGORY_PAGE_SIZE
+        page_end_index = page_start_index + CHAT_MANUAL_CATEGORY_PAGE_SIZE
+        return StartedChatManualCategorySelection(
+            action_token=action_token,
+            operation_type=operation_type,
+            amount=amount,
+            currency=currency,
+            account_name=account_name,
+            category_choices=category_choices[page_start_index:page_end_index],
+            page_index=normalized_page_index,
+            page_count=page_count,
+            page_start_index=page_start_index,
+            source_message_id=source_message_id,
+        )
 
 
 class ChatManualOperationFlowMapper:

@@ -3,6 +3,7 @@ from app.features.chat_integrations.actions.review import (
     ChatReviewCallbackData,
     ChatReviewCategoryCallbackData,
     ChatReviewCategoryPageCallbackData,
+    ChatReviewDocumentCallbackData,
     ChatReviewNavigationCallbackData,
     ChatReviewPropertyCallbackData,
     ChatReviewReturnCallbackData,
@@ -20,11 +21,13 @@ from app.features.chat_integrations.schemas import (
     OutboundChatMessage,
 )
 from app.features.chat_integrations.use_cases.review.dto import (
+    ChatReviewDocumentChoice,
     ChatReviewNavigationBoundary,
     ChatReviewQueueItem,
     ChatReviewTransferPairChoice,
     StartedChatReviewActionConfirmation,
     StartedChatReviewCategorySelection,
+    StartedChatReviewDocumentSelection,
     StartedChatReviewPropertySelection,
     StartedChatReviewRulePatternInput,
     StartedChatReviewRulePatternSelection,
@@ -137,6 +140,9 @@ class TelegramReviewPresenter:
                 ),
             )
         )
+        navigation_rows.append(
+            (OutboundChatButton(text="📄 Выписки", callback_data="review:choose"),)
+        )
         navigation_rows.append((OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),))
 
         return TelegramReviewPresenter._show_review_workspace(
@@ -148,6 +154,38 @@ class TelegramReviewPresenter:
                 *navigation_rows,
             ),
             callback_notification=callback_notification,
+        )
+
+    @staticmethod
+    def show_document_selection(
+        conversation: ChatConversation,
+        selection: StartedChatReviewDocumentSelection,
+    ) -> OutboundChatMessage:
+        document_buttons = tuple(
+            (
+                OutboundChatButton(
+                    text=TelegramReviewDocumentChoicePresenter.button_text(choice),
+                    callback_data=ChatReviewDocumentCallbackData.build_document_selection(
+                        action_token=selection.action_token,
+                        document_index=index,
+                    ),
+                ),
+            )
+            for index, choice in enumerate(selection.document_choices)
+        )
+        document_lines = "\n".join(
+            TelegramReviewDocumentChoicePresenter.summary_line(index, choice)
+            for index, choice in enumerate(selection.document_choices, start=1)
+        )
+        return TelegramReviewPresenter._show_review_workspace(
+            conversation=conversation,
+            text=(
+                "🔎 Проверка выписки\n\n"
+                f"{document_lines}\n\n"
+                "Выбери выписку, которую сейчас проверяем."
+            ),
+            buttons=document_buttons
+            + ((OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),),
         )
 
     @staticmethod
@@ -595,6 +633,7 @@ class TelegramReviewQueueCardPresenter:
     def format_item(item: ChatReviewQueueItem) -> str:
         return (
             "🔎 Проверка Booker Tee\n\n"
+            f"{TelegramReviewQueueCardPresenter.document_line(item)}"
             f"📍 Строка: {TelegramReviewQueueCardPresenter.row_position_label(item)}\n"
             f"{TelegramReviewQueueCardPresenter.remaining_line(item)}"
             f"📅 Дата: {TelegramReviewQueueCardPresenter.date_label(item)}\n"
@@ -607,6 +646,12 @@ class TelegramReviewQueueCardPresenter:
             f"👉 Что сделать: {TelegramReviewQueueCardPresenter.action_hint(item)}"
             f"{TelegramReviewQueueCardPresenter.error_suffix(item)}"
         )
+
+    @staticmethod
+    def document_line(item: ChatReviewQueueItem) -> str:
+        if item.document_label is None:
+            return ""
+        return f"📄 Выписка: {item.document_label}\n"
 
     @staticmethod
     def row_position_label(item: ChatReviewQueueItem) -> str:
@@ -694,6 +739,23 @@ class TelegramReviewQueueCardPresenter:
         if not item.normalization_error:
             return ""
         return f"\n\n❗ Почему нужно проверить: {item.normalization_error}"
+
+
+class TelegramReviewDocumentChoicePresenter:
+    BUTTON_TEXT_LIMIT = 48
+
+    @staticmethod
+    def button_text(choice: ChatReviewDocumentChoice) -> str:
+        label = choice.label
+        count = choice.reviewable_count
+        text = f"📄 {label} ({count})"
+        if len(text) <= TelegramReviewDocumentChoicePresenter.BUTTON_TEXT_LIMIT:
+            return text
+        return f"{text[:45]}..."
+
+    @staticmethod
+    def summary_line(index: int, choice: ChatReviewDocumentChoice) -> str:
+        return f"{index}. {choice.label} - к проверке: {choice.reviewable_count}"
 
 
 class TelegramReviewTransferChoicePresenter:

@@ -2,6 +2,7 @@ from datetime import date
 
 from app.features.categories.service import CategoryService
 from app.features.chat_integrations.actions.manual import (
+    ChatManualCategoryPageSelection,
     ChatManualCategorySelection,
     ChatManualDateCallbackData,
     ChatManualDateSelection,
@@ -11,6 +12,7 @@ from app.features.chat_integrations.errors import ChatManualOperationError
 from app.features.chat_integrations.models import ChatConversationState
 from app.features.chat_integrations.use_cases.manual.builders import (
     ChatManualCategoryChoiceBuilder,
+    ChatManualCategoryPageBuilder,
     ChatManualOperationFlowMapper,
 )
 from app.features.chat_integrations.use_cases.manual.dto import (
@@ -153,6 +155,42 @@ class ChatManualOperationProgressService:
             payload=payload,
         )
 
+    async def change_category_page(
+        self,
+        *,
+        context: WorkspaceContext,
+        selection: ChatManualCategoryPageSelection,
+    ) -> StartedChatManualCategorySelection:
+        state = await self.states.get_by_token(
+            context=context,
+            action_token=selection.action_token,
+        )
+        if state.step != "choose_category":
+            raise ChatManualOperationError("Stored manual operation step is invalid.")
+
+        operation_type = ChatManualOperationFlowMapper.to_operation_type(state.flow)
+        return ChatManualCategoryPageBuilder.build_selection(
+            action_token=selection.action_token,
+            operation_type=operation_type,
+            amount=ChatManualOperationStateReader.read_amount(state.state_payload),
+            currency=ChatManualOperationStateReader.read_required_string(
+                state.state_payload,
+                "currency",
+            ),
+            account_name=ChatManualOperationStateReader.read_account_name_for_operation(
+                state.state_payload,
+                operation_type,
+            ),
+            category_choices=ChatManualOperationStateReader.read_category_choices(
+                state.state_payload,
+            ),
+            page_index=selection.page_index,
+            source_message_id=ChatManualOperationStateReader.read_optional_string(
+                state.state_payload,
+                "source_message_id",
+            ),
+        )
+
     async def skip_description(
         self,
         *,
@@ -233,7 +271,7 @@ class ChatManualOperationProgressService:
                         "category_names": [choice.name for choice in category_choices],
                     },
                 )
-                return StartedChatManualCategorySelection(
+                return ChatManualCategoryPageBuilder.build_selection(
                     action_token=action_token,
                     operation_type=operation_type,
                     amount=ChatManualOperationStateReader.read_amount(payload),
@@ -246,6 +284,11 @@ class ChatManualOperationProgressService:
                         "account_name",
                     ),
                     category_choices=category_choices,
+                    page_index=0,
+                    source_message_id=ChatManualOperationStateReader.read_optional_string(
+                        payload,
+                        "source_message_id",
+                    ),
                 )
 
         return await self._start_description_input(

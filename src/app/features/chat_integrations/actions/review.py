@@ -24,6 +24,12 @@ class ChatReviewReturnSelection:
 
 
 @dataclass(frozen=True)
+class ChatReviewDocumentSelection:
+    action_token: str
+    document_index: int
+
+
+@dataclass(frozen=True)
 class ChatReviewCategorySelection:
     action_token: str
     category_index: int
@@ -203,6 +209,34 @@ class ChatReviewReturnCallbackData:
         if len(parts) != 2 or parts[0] != cls.PREFIX:
             return None
         return ChatReviewReturnSelection(action_token=parts[1])
+
+
+class ChatReviewDocumentCallbackData:
+    PREFIX = "rvd"
+
+    @classmethod
+    def build_document_selection(cls, *, action_token: str, document_index: int) -> str:
+        return f"{cls.PREFIX}:{action_token}:{document_index}"
+
+    @classmethod
+    def parse_document_selection(
+        cls,
+        callback_data: str | None,
+    ) -> ChatReviewDocumentSelection | None:
+        if callback_data is None:
+            return None
+
+        parts = callback_data.split(":")
+        if len(parts) != 3 or parts[0] != cls.PREFIX:
+            return None
+        try:
+            document_index = int(parts[2])
+        except ValueError:
+            return None
+        return ChatReviewDocumentSelection(
+            action_token=parts[1],
+            document_index=document_index,
+        )
 
 
 class ChatReviewCategoryCallbackData:

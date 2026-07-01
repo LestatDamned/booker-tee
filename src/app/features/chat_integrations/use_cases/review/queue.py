@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import utc_now
 from app.features.chat_integrations.actions.review import (
+    ChatReviewDocumentSelection,
     ChatReviewNavigationSelection,
     ChatReviewReturnSelection,
 )
@@ -14,22 +15,58 @@ from app.features.chat_integrations.use_cases.action_tokens import ChatActionTok
 from app.features.chat_integrations.use_cases.review.config import CHAT_REVIEW_ACTION_TTL
 from app.features.chat_integrations.use_cases.review.dto import (
     ChatReviewContinuationAnchor,
+    ChatReviewDocumentChoice,
     ChatReviewNavigationBoundary,
     ChatReviewQueueItem,
+    StartedChatReviewDocumentSelection,
     StartedChatReviewItem,
 )
 from app.features.chat_integrations.use_cases.review.state import ChatReviewStateReader
-from app.features.imports.models import RawTransaction
+from app.features.imports.models import RawTransaction, UploadedDocument
 from app.features.imports.query_repository import ImportQueryRepository
 from app.features.workspaces.service import WorkspaceContext
+
+CHAT_REVIEW_DOCUMENT_SELECTION_LIMIT = 8
 
 
 class ChatReviewQueueReader:
     def __init__(self, session: AsyncSession) -> None:
         self.imports = ImportQueryRepository(session)
 
+    async def read_document_choices(
+        self,
+        context: WorkspaceContext,
+    ) -> tuple[ChatReviewDocumentChoice, ...]:
+        documents = await self.imports.list_reviewable_documents_with_counts(
+            workspace_id=context.workspace.id,
+            limit=CHAT_REVIEW_DOCUMENT_SELECTION_LIMIT,
+        )
+        return tuple(
+            ChatReviewDocumentChoice(
+                id=document.id,
+                label=ChatReviewDocumentLabelBuilder.from_document(document),
+                reviewable_count=reviewable_count,
+            )
+            for document, reviewable_count in documents
+        )
+
     async def read_next_item(self, context: WorkspaceContext) -> ChatReviewQueueItem | None:
         raw_transaction = await self.imports.get_next_review_raw_transaction(context.workspace.id)
+        if raw_transaction is None:
+            return None
+
+        return await self._map_raw_transaction(context, raw_transaction)
+
+    async def read_next_item_for_document(
+        self,
+        *,
+        context: WorkspaceContext,
+        document_id: UUID,
+    ) -> ChatReviewQueueItem | None:
+        raw_transaction = await self.imports.get_next_review_raw_transaction_for_document(
+            workspace_id=context.workspace.id,
+            document_id=document_id,
+        )
         if raw_transaction is None:
             return None
 
@@ -47,7 +84,10 @@ class ChatReviewQueueReader:
             current_row_index=anchor.row_index,
         )
         if raw_transaction is None:
-            return None
+            return await self.read_next_item_for_document(
+                context=context,
+                document_id=anchor.document_id,
+            )
 
         return await self._map_raw_transaction(context, raw_transaction)
 
@@ -131,6 +171,9 @@ class ChatReviewQueueItemMapper:
             document_reviewable_count=document_reviewable_count,
             status=raw_transaction.status.value,
             account_name=account_name,
+            document_label=ChatReviewDocumentLabelBuilder.from_document(
+                raw_transaction.uploaded_document,
+            ),
             operation_date=raw_transaction.operation_date,
             amount=raw_transaction.amount,
             amount_raw=raw_transaction.amount_raw,
@@ -146,11 +189,63 @@ class ChatReviewQueueItemMapper:
         )
 
 
+class ChatReviewDocumentLabelBuilder:
+    @staticmethod
+    def from_document(document: UploadedDocument) -> str:
+        parts = [
+            document.bank_name,
+            document.statement_type,
+            ChatReviewDocumentLabelBuilder._period_label(document),
+        ]
+        details = " / ".join(part for part in parts if part)
+        if details:
+            return f"{document.original_filename} ({details})"
+        return document.original_filename
+
+    @staticmethod
+    def _period_label(document: UploadedDocument) -> str | None:
+        if document.statement_period_start is None and document.statement_period_end is None:
+            return None
+        if document.statement_period_start is None:
+            return f"по {document.statement_period_end:%d.%m.%Y}"
+        if document.statement_period_end is None:
+            return f"с {document.statement_period_start:%d.%m.%Y}"
+        return (
+            f"{document.statement_period_start:%d.%m.%Y}-{document.statement_period_end:%d.%m.%Y}"
+        )
+
+
 class ChatReviewQueueService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.chat_integrations = ChatIntegrationRepository(session)
         self.review_queue = ChatReviewQueueReader(session)
+
+    async def start_document_selection(
+        self,
+        context: WorkspaceContext,
+    ) -> StartedChatReviewDocumentSelection | None:
+        document_choices = await self.review_queue.read_document_choices(context)
+        if not document_choices:
+            return None
+
+        action_token = ChatActionTokenBuilder.build_token()
+        await self.chat_integrations.create_conversation_state(
+            workspace_id=context.workspace.id,
+            user_id=context.user.id,
+            flow=ChatConversationFlow.REVIEW,
+            step="choose_document",
+            action_token=action_token,
+            state_payload={
+                "document_ids": [str(choice.id) for choice in document_choices],
+            },
+            expires_at=utc_now() + CHAT_REVIEW_ACTION_TTL,
+        )
+        await self.session.commit()
+        return StartedChatReviewDocumentSelection(
+            action_token=action_token,
+            document_choices=document_choices,
+        )
 
     async def start_next_review_item(
         self,
@@ -164,6 +259,59 @@ class ChatReviewQueueService:
         await self.session.commit()
         return started_item
 
+    async def start_next_review_item_for_document(
+        self,
+        *,
+        context: WorkspaceContext,
+        document_id: UUID,
+    ) -> StartedChatReviewItem | None:
+        item = await self.review_queue.read_next_item_for_document(
+            context=context,
+            document_id=document_id,
+        )
+        if item is None:
+            return None
+
+        started_item = await self._start_review_item(context=context, item=item)
+        await self.session.commit()
+        return started_item
+
+    async def start_selected_document_review_item(
+        self,
+        *,
+        context: WorkspaceContext,
+        selection: ChatReviewDocumentSelection,
+    ) -> StartedChatReviewItem | None:
+        state = await self.chat_integrations.get_active_conversation_state(
+            workspace_id=context.workspace.id,
+            user_id=context.user.id,
+            flow=ChatConversationFlow.REVIEW,
+            action_token=selection.action_token,
+            now=utc_now(),
+        )
+        if state is None:
+            raise ChatReviewActionError("This review action expired. Open statements again.")
+        if state.step != "choose_document":
+            raise ChatReviewActionError("Stored review action is invalid.")
+
+        document_id = ChatReviewStateReader.read_review_document_id(
+            state.state_payload,
+            selection.document_index,
+        )
+        item = await self.review_queue.read_next_item_for_document(
+            context=context,
+            document_id=document_id,
+        )
+        if item is None:
+            await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
+            await self.session.commit()
+            return None
+
+        started_item = await self._start_review_item(context=context, item=item)
+        await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
+        await self.session.commit()
+        return started_item
+
     async def start_next_review_item_after(
         self,
         *,
@@ -171,8 +319,6 @@ class ChatReviewQueueService:
         anchor: ChatReviewContinuationAnchor,
     ) -> StartedChatReviewItem | None:
         item = await self.review_queue.read_next_item_after(context=context, anchor=anchor)
-        if item is None:
-            item = await self.review_queue.read_next_item(context)
         if item is None:
             return None
 

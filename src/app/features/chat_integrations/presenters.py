@@ -57,7 +57,7 @@ class TelegramMainMenuPresenter:
         button_rows: list[tuple[OutboundChatButton, ...]] = [
             (
                 OutboundChatButton(text="📊 Сводка", callback_data="summary:show"),
-                OutboundChatButton(text="🔎 Проверка", callback_data="review:next"),
+                OutboundChatButton(text="🔎 Проверка", callback_data="review:choose"),
             ),
             (
                 OutboundChatButton(text="📎 Выписка", callback_data="upload:start"),

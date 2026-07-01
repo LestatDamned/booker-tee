@@ -38,6 +38,7 @@ def review_item(
     status: str = "needs_review",
     *,
     row_index: int = 0,
+    document_label: str | None = None,
     normalization_error: str | None = None,
     suggested_category_id: UUID | None = None,
     suggested_category_name: str | None = None,
@@ -57,6 +58,7 @@ def review_item(
         normalization_error=normalization_error,
         suggested_category_id=suggested_category_id,
         suggested_category_name=suggested_category_name,
+        document_label=document_label,
     )
 
 
@@ -130,6 +132,37 @@ def test_review_category_menu_uses_pages_and_global_category_indexes() -> None:
     assert response.buttons[7][1].callback_data == "rcp:categorytoken:2"
     assert response.buttons[8][0].text == "🔎 К строке"
     assert response.buttons[8][0].callback_data == "rvb:categorytoken"
+
+
+def test_review_document_selection_shows_statement_choices() -> None:
+    first_document_id = uuid4()
+    second_document_id = uuid4()
+
+    response = TelegramReviewPresenter.show_document_selection(
+        private_conversation(),
+        chat_review_dto.StartedChatReviewDocumentSelection(
+            action_token="documenttoken",
+            document_choices=(
+                chat_review_dto.ChatReviewDocumentChoice(
+                    id=first_document_id,
+                    label="june.pdf (T-Bank / card)",
+                    reviewable_count=4,
+                ),
+                chat_review_dto.ChatReviewDocumentChoice(
+                    id=second_document_id,
+                    label="may.pdf",
+                    reviewable_count=2,
+                ),
+            ),
+        ),
+    )
+
+    assert "Проверка выписки" in response.text
+    assert "1. june.pdf (T-Bank / card) - к проверке: 4" in response.text
+    assert "2. may.pdf - к проверке: 2" in response.text
+    assert response.buttons[0][0].callback_data == "rvd:documenttoken:0"
+    assert response.buttons[1][0].callback_data == "rvd:documenttoken:1"
+    assert response.buttons[2][0].callback_data == "main:menu"
 
 
 def test_review_action_error_shows_friendly_stale_button_message() -> None:
@@ -215,11 +248,13 @@ def test_review_item_formats_human_readable_status_and_hint() -> None:
         review_item(
             "possible_duplicate",
             row_index=1,
+            document_label="june.pdf (T-Bank / card)",
             normalization_error="Same account, date, amount, and currency.",
         ),
         action_token="reviewtoken",
     ).text
 
+    assert "📄 Выписка: june.pdf (T-Bank / card)" in text
     assert "⚠️ Статус: возможный дубль" in text
     assert "🧭 Похоже на: расход" in text
     assert "👉 Что сделать: проверь: это дубль или не дубль" in text
@@ -282,7 +317,7 @@ def test_monthly_summary_shows_financial_totals_and_review_counter() -> None:
     assert response.buttons[0][1].callback_data == "sum:2026-07"
     assert response.buttons[0][2].callback_data == "sum:2026-08"
     assert response.buttons[1][0].callback_data == "sumc:2026-07"
-    assert response.buttons[2][0].callback_data == "review:next"
+    assert response.buttons[2][0].callback_data == "review:choose"
     assert response.buttons[2][1].callback_data == "balances:show"
     assert response.buttons[3][0].callback_data == "workspace:choose"
     assert response.buttons[4][0].callback_data == "main:menu"
@@ -375,3 +410,28 @@ def test_category_summary_shows_category_details_for_period() -> None:
     assert response.buttons[0][0].callback_data == "sum:2026-07"
     assert response.buttons[0][1].callback_data == "balances:show"
     assert response.buttons[1][0].callback_data == "main:menu"
+
+
+def test_category_summary_shows_all_category_rows() -> None:
+    response = TelegramDashboardPresenter.show_category_summary(
+        private_conversation(),
+        workspace_context(),
+        chat_dashboard.ChatCategorySummary(
+            date_from=date(2026, 7, 1),
+            date_to=date(2026, 7, 31),
+            currency="RUB",
+            rows=tuple(
+                chat_dashboard.ChatCategorySummaryRow(
+                    category_name=f"Категория {index}",
+                    income=Decimal("0.00"),
+                    expense=Decimal(index),
+                    profit=-Decimal(index),
+                )
+                for index in range(1, 13)
+            ),
+        ),
+    )
+
+    assert "Категория 1: -1.00 RUB" in response.text
+    assert "Категория 12: -12.00 RUB" in response.text
+    assert "еще категорий" not in response.text
