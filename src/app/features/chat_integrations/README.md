@@ -17,10 +17,11 @@ Root document `CHAT_INTEGRATIONS.md` остается продуктово-ар�
 ```text
 external chat update
 -> provider adapter normalizes it
--> integration service resolves actor and workspace
--> permission check allows or rejects action
--> flow/use case calls existing Booker Tee feature service
--> provider adapter sends a safe response
+-> front controller resolves actor and workspace
+-> routing chain reads callback/text/document intent
+-> scenario handler calls a use case
+-> presenter builds a safe response
+-> provider adapter sends the response
 ```
 
 Telegram, Matrix, Slack, Discord или другой провайдер не должны менять эту
@@ -66,17 +67,19 @@ BOOKER_TEE_TELEGRAM_BOT_TOKEN=<test bot token>
 BOOKER_TEE_TELEGRAM_MODE=polling
 ```
 
-## Target architecture
+## Current architecture
 
-Целевой поток внутри feature:
+Текущий поток внутри feature:
 
 ```text
 router / polling worker
 -> provider adapter
--> service / use case
--> conversation flow
--> existing feature service
--> repository / models
+-> ChatEventService
+-> routing chain
+-> scenario handler
+-> use case / existing Booker Tee feature service
+-> presenter
+-> OutboundChatMessage
 ```
 
 Слои:
@@ -84,9 +87,17 @@ router / polling worker
 - `router.py` принимает HTTP webhook и отдает его application layer.
 - `polling.py` или CLI worker получает updates через `getUpdates`.
 - `providers/` переводит внешний payload в provider-neutral DTO.
-- `service.py` координирует use cases, identity binding, workspace binding и permissions.
-- `conversations/` ведет stateful button-first сценарии.
-- `notifications/` форматирует безопасные исходящие сообщения.
+- `service.py` является front controller: workspace resolution, private-chat guard,
+  document path, callback chain, message chain, safe fallback.
+- `routing/` реализует Chain of Responsibility для bound callback/text сценариев.
+- `handlers/` содержит application-level scenario handlers: upload, manual,
+  review, dashboard, workspace.
+- `use_cases/` содержит бизнес-операции и read-side сценарии, сгруппированные по
+  flow.
+- `actions/` содержит provider-neutral callback/action DTOs and token parsers.
+- `notifications/` форматирует и отправляет безопасные shared-feed сообщения.
+- `presentation/` и `presenters.py` строят provider-neutral `OutboundChatMessage`
+  responses.
 - `repository.py` содержит только SQLAlchemy persistence для chat integration tables.
 - `models.py` содержит только persistence models.
 - `schemas.py` содержит provider-neutral DTO and enums.
@@ -97,10 +108,183 @@ Dependency direction:
 ```text
 provider adapter -> schemas
 router / polling worker -> service
-service -> repository
-service -> existing Booker Tee feature services
+service -> routing
+routing -> handlers
+handlers -> use_cases
+use_cases -> repository / existing Booker Tee feature services
 repository -> models
+presenters -> schemas
 ```
+
+`routing/__init__.py`, `handlers/__init__.py`, `actions/__init__.py` stay
+docstring-only. Do not add re-export/barrel imports there.
+
+## Refactoring direction
+
+Модуль должен читаться как набор взрослых, узких сценариев, а не как один
+большой bot service.
+
+Главная архитектурная позиция:
+
+```text
+Chat integrations are an input/output channel over Booker Tee use cases.
+They are not a second financial domain.
+```
+
+Chat code may:
+
+```text
+normalize provider updates
+resolve chat actor and workspace context
+store short-lived conversation state
+read button/text/document intent
+guide the user through button-first flows
+format privacy-safe responses
+call existing imports / ledger / reports / rules services
+```
+
+Chat code must not:
+
+```text
+duplicate ledger, imports, reports, category, property, or rule business logic
+turn callback_data into a business state store
+mutate financial records without resolving WorkspaceContext
+make provider-specific code decide financial meaning
+```
+
+Current internal story:
+
+```text
+InboundChatEvent
+-> ChatEventService.receive_inbound_event(...)
+-> WorkspaceChatResolver.require_bound_workspace(...)
+-> ChatBoundCallbackChain.answer_if_matches(...)
+   or ChatBoundMessageChain.answer_if_matches(...)
+-> ChatEventHandlers.<scenario>()
+-> Chat<Scenario>EventHandler.<action>()
+-> Chat<Scenario>Service.<use_case>()
+-> TelegramMainMenuPresenter.show_<response>(...)
+-> OutboundChatMessage
+```
+
+Naming balance:
+
+- Class names provide the domain actor: `ChatContextResolver`,
+  `ChatRequestReader`, `ChatFlowRouter`, `ChatResponsePresenter`.
+- Method names provide the action and avoid repeating the class name:
+  `resolve_for_event`, `read_from_event`, `route`, `present`.
+- Variables stay short inside the story: `context`, `request`, `result`,
+  `response`.
+- Generic verbs are allowed only when the class name gives enough context.
+
+Good:
+
+```python
+context = await self.context_resolver.resolve_for_event(event)
+request = self.request_reader.read_from_event(event, context)
+result = await self.flow_router.route(request)
+return self.response_presenter.present(result)
+```
+
+Avoid:
+
+```python
+result = await self.dispatcher.dispatch(action, context)
+return self.chat_response_presenter.present_chat_result(result)
+```
+
+Import rules:
+
+- Prefer direct imports from the module that owns the concept.
+- Avoid barrel modules and compatibility facades when direct imports are practical.
+- If a temporary compatibility facade is needed during a mechanical refactor, remove
+  it as soon as all callers have moved to direct imports.
+- Do not add new re-exports to package `__init__.py` files.
+- Do not import callback/action DTOs from a package root.
+
+Good:
+
+```python
+from app.features.chat_integrations.actions.review import ChatReviewCallbackData
+from app.features.chat_integrations.actions.workspace import ChatWorkspaceSelection
+```
+
+Avoid:
+
+```python
+from app.features.chat_integrations.actions import ChatReviewCallbackData
+```
+
+## Adding a new chat scenario
+
+New code should enter through the narrowest layer that owns the decision.
+
+For a new callback:
+
+```text
+1. Add or extend the DTO/parser in actions/<flow>.py.
+2. Add the routing branch in routing/<flow>.py.
+3. Call a scenario handler from handlers/<flow>.py.
+4. Put business rules in use_cases/<flow>/...
+5. Add presenter output in `presentation/<flow>.py` or `presenters.py` while the
+   flow still has not been extracted.
+6. Add tests at the behavior boundary.
+```
+
+For a new text-message step:
+
+```text
+1. Add a small `BoundMessageHandler` implementation.
+2. Register it in `ChatBoundMessageChain.build(...)` in the intended order.
+3. Keep parsing/state checks in the handler or use case, not in `service.py`.
+```
+
+For a new provider:
+
+```text
+1. Implement provider normalization into `InboundChatEvent`.
+2. Implement outbound sending from `OutboundChatMessage`.
+3. Do not duplicate routing, handlers, use cases, or presenters.
+```
+
+Do not add scenario-specific branches to `ChatEventService` unless the branch is
+a true top-level event type boundary such as document, callback, message, or a
+private/group guard.
+
+Refactoring order:
+
+```text
+1. Keep ChatEventService thin: no callback/message scenario ladders.
+2. Keep routing chains explicit and grouped by flow.
+3. Split Telegram presenters by flow.
+4. Split tests by the same flow boundaries.
+5. Add permissions only as reusable policies, not inline provider checks.
+```
+
+Current test split:
+
+```text
+tests/chat_integrations/test_actions.py -> actions/* callback-data encoding and parsing
+tests/chat_integrations/test_presentation.py -> presentation/* behavior
+tests/chat_integrations/test_providers.py -> providers/* normalization, payloads, clients, and fakes
+tests/chat_integrations/test_transport.py -> router, webhook, and polling entrypoints
+tests/chat_integrations/test_notifications.py -> notifications/* formatting and delivery
+tests/chat_integrations/test_use_cases.py -> pure use-case helpers and policies
+tests/chat_integrations/test_identity_workspace.py -> identity binding and workspace resolution use cases
+tests/chat_integrations/test_service_menu.py -> top-level service menu and safe fallback behavior
+tests/chat_integrations/test_service_dashboard.py -> bound dashboard, status, summaries, balances, and workspace switching
+tests/chat_integrations/test_service_upload.py -> upload instructions, document upload, account choice, and shared-feed notification
+tests/chat_integrations/test_service_manual.py -> manual operation entry, editing, confirmation, and persistence
+tests/chat_integrations/test_service_review_queue.py -> starting, navigating, and empty-state review queue flows
+tests/chat_integrations/test_service_review_actions.py -> ignore, stale-button, confirmed-action, continuation, and suggestion flows
+tests/chat_integrations/test_service_review_transfer.py -> transfer selection, account/pair confirmation, and confirmed transfer flows
+tests/chat_integrations/test_service_review_confirmation.py -> category selection, category confirmation, and property confirmation flows
+tests/chat_integrations/test_service_review_rules.py -> rule suggestion, save suggestion, manual pattern input, and manual pattern save flows
+tests/chat_integrations/test_service_safety.py -> group-chat privacy and safe response behavior
+```
+
+Keep tests in `tests/chat_integrations/` split by behavior boundary. Do not create
+shared test barrels or hidden fixture facades.
 
 Запрещено:
 
@@ -108,7 +292,7 @@ repository -> models
 providers/ -> ledger.repository
 providers/ -> imports.repository
 providers/ -> workspaces.models permission decisions
-conversation flow -> raw SQLAlchemy session queries
+routing / handlers / presenters -> raw SQLAlchemy session queries
 templates / provider payloads -> business rules
 ```
 
@@ -117,31 +301,66 @@ templates / provider payloads -> business rules
 Current foundation:
 
 - `schemas.py` - provider-neutral chat DTOs and downloaded-file DTO.
+- `actions/` - explicit callback/action DTOs grouped by flow: identity, upload,
+  manual, review, summary, workspace.
 - `providers/base.py` - small Protocols for provider adapters.
 - `providers/telegram.py` - Telegram update normalization.
 - `providers/telegram_client.py` - Telegram Bot API client, file downloader, and outbound
   payload builders.
 - `providers/fake.py` - fake provider for tests.
-- `presenters.py` - safe menus, linked private status, and upload-flow responses.
-- `service.py` - provider-neutral inbound event handling with workspace resolution.
+- `routing/chain.py` - bound callback Chain of Responsibility assembly.
+- `routing/message_chain.py` - bound text-message Chain of Responsibility assembly.
+- `routing/protocols.py` - structural Protocols and routing callables.
+- `routing/*.py` - small flow-specific callback handlers.
+- `handlers/factory.py` - explicit `ChatEventHandlers` creator for scenario handlers.
+- `handlers/*.py` - scenario handlers that translate routing decisions into use-case
+  calls and presenter responses.
+- `presentation/` - flow-specific presenter modules extracted from the legacy
+  shared presenter file.
+- `presentation/formatting.py` - shared Telegram date and money formatting.
+- `presentation/dashboard.py` - private status, summary, category summary, and
+  balances responses.
+- `presentation/manual.py` - manual operation flow responses.
+- `presentation/review.py` - review queue, confirmation, transfer, and rule
+  suggestion responses.
+- `presentation/workspace.py` - workspace switching and workspace label responses.
+- `presentation/upload.py` - upload-flow responses.
+- `use_cases/identity.py` - identity binding use cases.
+- `use_cases/workspace.py` - workspace resolution and workspace switching.
+- `use_cases/dashboard.py` - private status, summaries, and balances.
+- `use_cases/action_tokens.py` - short action token generation.
+- `use_cases/review/` - review queue, actions, confirmation, rules, transfer flow.
+- `use_cases/manual/` - manual income/expense/transfer flow state and operations.
+- `presenters.py` - remaining shared Telegram responses: menus, account-link notices,
+  and safe fallbacks.
+- `service.py` - provider-neutral front controller with workspace resolution.
 - `polling.py` - local Telegram polling worker with per-update service/session wiring.
 - `router.py` - local/test Telegram dev-link page and production Telegram webhook endpoint.
 - `models.py` - integration connections, chat identity bindings, conversation bindings,
   conversation state, delivery logs.
 - `repository.py` - workspace-scoped chat binding persistence.
-- `application.py` - identity binding, workspace resolution, private status, and document
-  upload use cases.
+- `application.py` - remaining shared application helpers and compatibility-free
+  use-case wiring that has not yet moved to focused modules.
 - `notifications/formatter.py` - privacy-safe shared chat notification text.
 - `notifications/dispatcher.py` - shared feed delivery with provider registry and delivery log.
 - `webhook.py` - Telegram webhook policy, URL builder, registrar, and update receiver.
-- `commands.py` - write-side commands for chat integration use cases.
 - `errors.py` - module-specific application errors.
 
 Target additions:
 
-- production webhook route in `router.py`.
 - `permissions.py` - chat action permission checks.
-- `conversations/` - button-first flow state machines.
+
+No compatibility facades:
+
+```text
+actions/__init__.py
+handlers/__init__.py
+routing/__init__.py
+use_cases/__init__.py
+```
+
+These files should stay empty except for a package docstring. Import from the
+module that owns the concept.
 
 ## Naming convention: Class.action
 
@@ -185,7 +404,7 @@ Even then, the next call should become specific:
 
 ```python
 event = TelegramUpdateNormalizer.normalize_update(payload)
-await ChatEventService.process_inbound_event(event)
+await ChatEventService.receive_inbound_event(event)
 ```
 
 Use classes when the name gives the reader an actor:
@@ -585,7 +804,7 @@ Current implemented slice:
 ```text
 ChatPrivateStatusReader
 TelegramMainMenuPresenter.show_bound_menu
-TelegramMainMenuPresenter.show_private_status
+TelegramDashboardPresenter.show_private_status
 TelegramMainMenuPresenter.show_group_private_actions_notice
 ChatDocumentUploadService.start_document_upload
 ChatDocumentUploadService.complete_document_upload
@@ -593,7 +812,7 @@ ChatReviewUrlBuilder.build_imports_url
 ChatReviewUrlBuilder.build_document_review_url
 ChatImportNotificationFormatter.format_document_uploaded
 ChatSharedFeedNotificationService.notify_import_document_uploaded
-ChatEventService bound /start and status:show callbacks
+ChatBoundMenuCallbackHandler main menu and status callbacks
 ```
 
 Menu:
@@ -762,6 +981,18 @@ open-in-web links
 Current implemented slice:
 
 ```text
+ChatBoundCallbackChain callback routing
+ChatBoundMessageChain text-message routing
+ChatEventHandlers explicit scenario handler creation
+ChatReviewQueueCallbackHandler review navigation callbacks
+ChatReviewActionCallbackHandler review action callbacks
+ChatReviewConfirmationCallbackHandler category/property callbacks
+ChatReviewTransferCallbackHandler transfer callbacks
+ChatReviewRuleSuggestionCallbackHandler rule suggestion callbacks
+ChatWorkspaceCallbackHandler workspace callbacks
+ChatDashboardCallbackHandler summary and balance callbacks
+ChatBoundMenuCallbackHandler menu/manual-start fallback callbacks
+ChatReviewRulePatternMessageHandler manual rule-pattern text messages
 ChatReviewQueueReader.read_next_item
 ChatReviewQueueReader.read_item
 ChatIntegrationRepository.try_consume_active_conversation_state
@@ -808,50 +1039,15 @@ ChatReviewRuleSuggestionCallbackData short rule action tokens
 ChatReviewRulePatternCallbackData short rule pattern tokens
 ChatWorkspaceCallbackData short workspace tokens
 ChatSummaryCallbackData short month summary tokens
-TelegramMainMenuPresenter.show_workspace_menu
-TelegramMainMenuPresenter.show_workspace_switch_error
-TelegramMainMenuPresenter.show_monthly_summary
-TelegramMainMenuPresenter.show_category_summary
-TelegramMainMenuPresenter.show_account_balances
-TelegramMainMenuPresenter.show_next_review_item
-TelegramMainMenuPresenter.show_review_action_confirmation
-TelegramMainMenuPresenter.show_review_category_menu
-TelegramMainMenuPresenter.show_review_property_menu
-TelegramMainMenuPresenter.show_review_transfer_account_menu
-TelegramMainMenuPresenter.show_review_transfer_confirmation
-TelegramMainMenuPresenter.show_review_rule_suggestion
-TelegramMainMenuPresenter.show_review_rule_pattern_menu
-TelegramMainMenuPresenter.show_review_rule_pattern_input
-TelegramMainMenuPresenter.show_review_action_applied
-TelegramMainMenuPresenter.show_review_stale_button_error
-TelegramMainMenuPresenter.show_review_queue_empty
+TelegramWorkspacePresenter.show_menu
+TelegramWorkspacePresenter.show_switch_error
+TelegramDashboardPresenter.show_monthly_summary
+TelegramDashboardPresenter.show_category_summary
+TelegramDashboardPresenter.show_account_balances
+TelegramManualPresenter manual operation flow screens
+TelegramReviewPresenter review queue and action screens
 TelegramReviewActionErrorPresenter stale-button detection
 ChatReviewStateClaimer one-time final action claim
-ChatEventService review:next callback
-ChatEventService rev:<token>:conf callback
-ChatEventService rev:<token>:trn callback
-ChatEventService rev:<token>:dup callback
-ChatEventService rev:<token>:ign callback
-ChatEventService rev:<token>:uniq callback
-ChatEventService rev:<token>:sug callback
-ChatEventService rva:<token> callback
-ChatEventService rvc:<token>:<index> callback
-ChatEventService rcp:<token>:<page> callback
-ChatEventService rvp:<token>:<index> callback
-ChatEventService rvt:<token>:<index> callback
-ChatEventService rvx:<token>:<index> callback
-ChatEventService rvy:<token> callback
-ChatEventService rvr:<token>:<action> callback
-ChatEventService rvq:<token>:<index> callback
-ChatEventService manual rule pattern message
-ChatEventService rvb:<token> callback
-ChatEventService workspace:choose callback
-ChatEventService wsp:<token>:<index> callback
-ChatEventService summary:show callback
-ChatEventService sum:<yyyy-mm> callback
-ChatEventService sumc:<yyyy-mm> callback
-ChatEventService balances:show callback
-ChatEventService redraws the next review row after safe final actions
 OutboundChatDeliveryMode.EDIT_SOURCE_MESSAGE for review workspaces
 TelegramOutboundMessageSender editMessageText fallback to sendMessage
 ```

@@ -8,10 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
-from app.features.chat_integrations.application import ChatIdentityBinder
-from app.features.chat_integrations.commands import BindChatIdentityCommand
+from app.features.chat_integrations.actions.identity import BindChatIdentityCommand
 from app.features.chat_integrations.errors import ChatIdentityBindingError
 from app.features.chat_integrations.schemas import ChatProviderCode
+from app.features.chat_integrations.use_cases.identity import ChatIdentityBinder
 from app.features.chat_integrations.webhook import (
     TELEGRAM_WEBHOOK_SECRET_HEADER,
     TelegramWebhookSecretPolicy,
