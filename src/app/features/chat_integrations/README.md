@@ -764,35 +764,96 @@ Current implemented slice:
 ```text
 ChatReviewQueueReader.read_next_item
 ChatReviewQueueReader.read_item
+ChatIntegrationRepository.try_consume_active_conversation_state
+ChatIntegrationRepository.deactivate_other_identity_bindings
+ChatWorkspaceSwitcher.start_workspace_selection
+ChatWorkspaceSwitcher.select_workspace
+ChatMonthlySummaryReader.read_current_month_summary
+ChatMonthlySummaryReader.read_month_summary
+ChatMonthlySummaryReader.read_category_summary
+ChatAccountBalanceReader.read_account_balances
+ChatAccountBalanceTotalBuilder.build_totals
+ChatMonthRange.next_month_start
 ChatReviewQueueService.start_next_review_item
+ChatReviewQueueService.return_to_review_item
 ChatReviewActionService.apply_action
+ChatReviewActionService.start_action_confirmation
+ChatReviewActionService.confirm_action
 ChatReviewConfirmationService.start_category_selection
 ChatReviewConfirmationService.confirm_with_category
 ChatReviewConfirmationService.confirm_with_property
+ChatReviewConfirmationService.confirm_with_suggestion
+ChatReviewConfirmationService.change_category_page
+ChatReviewRuleSuggestionService.save_suggestion
+ChatReviewRuleSuggestionService.skip_suggestion
+ChatReviewRuleSuggestionService.start_pattern_selection
+ChatReviewRuleSuggestionService.start_manual_pattern_input
+ChatReviewRuleSuggestionService.save_pattern_selection
+ChatReviewRuleSuggestionService.save_manual_pattern
 ChatReviewTransferService.start_transfer_selection
-ChatReviewTransferService.confirm_transfer_with_account
-ChatReviewTransferService.confirm_transfer_with_pair
+ChatReviewTransferService.start_transfer_confirmation_with_account
+ChatReviewTransferService.start_transfer_confirmation_with_pair
+ChatReviewTransferService.confirm_transfer
 ChatReviewCallbackData short action tokens
+ChatReviewCallbackData accept-suggestion action
+ChatReviewActionConfirmationCallbackData short confirmation token
+ChatReviewReturnCallbackData return-to-row token
 ChatReviewCategoryCallbackData short category tokens
+ChatReviewCategoryPageCallbackData short category page tokens
 ChatReviewPropertyCallbackData short property tokens
 ChatReviewTransferCallbackData short transfer account tokens
 ChatReviewTransferPairCallbackData short transfer pair tokens
+ChatReviewTransferConfirmationCallbackData short transfer confirmation token
+ChatReviewRuleSuggestionCallbackData short rule action tokens
+ChatReviewRulePatternCallbackData short rule pattern tokens
+ChatWorkspaceCallbackData short workspace tokens
+ChatSummaryCallbackData short month summary tokens
+TelegramMainMenuPresenter.show_workspace_menu
+TelegramMainMenuPresenter.show_workspace_switch_error
+TelegramMainMenuPresenter.show_monthly_summary
+TelegramMainMenuPresenter.show_category_summary
+TelegramMainMenuPresenter.show_account_balances
 TelegramMainMenuPresenter.show_next_review_item
+TelegramMainMenuPresenter.show_review_action_confirmation
 TelegramMainMenuPresenter.show_review_category_menu
 TelegramMainMenuPresenter.show_review_property_menu
 TelegramMainMenuPresenter.show_review_transfer_account_menu
+TelegramMainMenuPresenter.show_review_transfer_confirmation
+TelegramMainMenuPresenter.show_review_rule_suggestion
+TelegramMainMenuPresenter.show_review_rule_pattern_menu
+TelegramMainMenuPresenter.show_review_rule_pattern_input
 TelegramMainMenuPresenter.show_review_action_applied
+TelegramMainMenuPresenter.show_review_stale_button_error
 TelegramMainMenuPresenter.show_review_queue_empty
+TelegramReviewActionErrorPresenter stale-button detection
+ChatReviewStateClaimer one-time final action claim
 ChatEventService review:next callback
 ChatEventService rev:<token>:conf callback
 ChatEventService rev:<token>:trn callback
 ChatEventService rev:<token>:dup callback
 ChatEventService rev:<token>:ign callback
 ChatEventService rev:<token>:uniq callback
+ChatEventService rev:<token>:sug callback
+ChatEventService rva:<token> callback
 ChatEventService rvc:<token>:<index> callback
+ChatEventService rcp:<token>:<page> callback
 ChatEventService rvp:<token>:<index> callback
 ChatEventService rvt:<token>:<index> callback
 ChatEventService rvx:<token>:<index> callback
+ChatEventService rvy:<token> callback
+ChatEventService rvr:<token>:<action> callback
+ChatEventService rvq:<token>:<index> callback
+ChatEventService manual rule pattern message
+ChatEventService rvb:<token> callback
+ChatEventService workspace:choose callback
+ChatEventService wsp:<token>:<index> callback
+ChatEventService summary:show callback
+ChatEventService sum:<yyyy-mm> callback
+ChatEventService sumc:<yyyy-mm> callback
+ChatEventService balances:show callback
+ChatEventService redraws the next review row after safe final actions
+OutboundChatDeliveryMode.EDIT_SOURCE_MESSAGE for review workspaces
+TelegramOutboundMessageSender editMessageText fallback to sendMessage
 ```
 
 Card shape:
@@ -804,10 +865,12 @@ short suggested action summary
 safe open-in-web link
 short action token stored in chat_conversation_states
 safe status mutations: ignore, mark as unique, duplicate for possible_duplicate rows
+ignore and duplicate mutations require an explicit confirmation screen
 confirm mutation requires a separate category-selection step
 if active properties exist, confirm mutation requires a property/no-property choice
 transfer mutation requires a separate counterparty account-selection step
 transfer mutation can use a matched raw transaction when a pair candidate exists
+transfer mutation requires an explicit final confirmation screen
 ```
 
 Actions:
@@ -819,9 +882,13 @@ Actions:
 [Ignore]
 [This is unique]
 [Category] implemented as the confirm gate
+[Accept suggestion] confirms the suggested category when it is available
 [Property] optional confirm gate when workspace has active properties
 [Transfer] implemented with matched raw row or explicit counterparty account choice
+[Confirm transfer] final explicit transfer gate
 [Duplicate] only for rows already marked possible_duplicate
+[Prev category page]
+[Next category page]
 ```
 
 Acceptance:
@@ -838,6 +905,18 @@ Acceptance:
 9. Matched raw rows are suggested before account fallback when candidates exist.
 10. Duplicate action is only visible when the row status is possible_duplicate and
     the card shows the review reason.
+11. Suggested category confirmation is a separate explicit action.
+12. Category lists are pageable and keep stable global indexes in callback state.
+13. Review screens are edited in-place when the provider supports message edits.
+14. Ignore and duplicate actions show a consequence-focused confirmation first.
+15. Transfer posting shows a consequence-focused confirmation first.
+16. Expired or already-consumed review buttons show a simple stale-button message.
+17. Final review mutations atomically claim their chat state before posting.
+18. Manual category confirmation can offer a user-approved suggestion rule.
+19. Rule suggestions show the inferred merchant pattern and alternative patterns.
+20. Users can type a custom rule pattern when inferred patterns are too noisy.
+21. After a final row action, review continues after that row before returning to
+    earlier skipped rows.
 ```
 
 ### Phase 9 - Webhook production mode
@@ -894,9 +973,119 @@ Acceptance:
 ## Next implementation slice
 
 ```text
-review action tokens
-ignore/duplicate from bot
-confirm simple suggested operation from bot
+review action UX hardening
+latest confirmed operations
+short import/review completion summary
+```
+
+## Near-term bot roadmap
+
+Keep the bot split into three simple modes.
+
+```text
+1. Проверка
+2. Сводка
+3. Рабочее пространство
+```
+
+### 1. Проверка
+
+Goal:
+
+```text
+Clear imported rows quickly with button-first actions and minimal chat history noise.
+```
+
+Next steps:
+
+```text
+1. Keep one editable review message whenever the provider supports it.
+```
+
+Rule suggestion flow:
+
+```text
+user chooses category manually
+-> operation is confirmed safely
+-> bot shows a compact "remember this?" prompt
+-> user taps "Запомнить", chooses another suggested pattern, types a custom pattern,
+   or taps "Не сейчас"
+-> if accepted, create a workspace-scoped transaction rule
+```
+
+First rule shape:
+
+```text
+if normalized description contains a stable merchant/counterparty fragment
+then suggest category_id for future imported rows in the same workspace
+```
+
+Rules:
+
+```text
+1. Never create rules automatically.
+2. Suggest rules only after the user manually chose a category.
+3. Show exactly what will be remembered before creating the rule.
+4. Do not suggest rules for overly generic or noisy descriptions.
+5. Rules suggest/prefill future rows; risky matches still stay reviewable.
+6. Manual patterns are cleaned and rejected when too short or card-number-like.
+```
+
+### 2. Сводка
+
+Goal:
+
+```text
+Let a linked private user check financial state without opening the web app.
+```
+
+First read-only screens:
+
+```text
+1. Month summary with previous/current/next month navigation. [implemented]
+2. Accounts and balances grouped by currency. [implemented]
+3. Category detail for the selected month. [implemented]
+4. Latest 5 confirmed operations.
+5. Review/import counters. [implemented]
+6. Property summary when operations are linked to properties.
+```
+
+Rules:
+
+```text
+1. Private chat only by default.
+2. Always show the active workspace name.
+3. Use existing reports/read-side services.
+4. Mask sensitive descriptions where possible.
+5. Never expose balances in group chats by default.
+```
+
+### 3. Рабочее пространство
+
+Goal:
+
+```text
+Make the active workspace explicit and easy to change before uploads, reports, and manual actions.
+```
+
+First flow:
+
+```text
+current workspace card
+-> list accessible workspaces
+-> choose workspace by button
+-> make the selected Telegram identity binding active
+-> redraw main menu with the selected workspace
+```
+
+Acceptance:
+
+```text
+1. Every financial chat action resolves a WorkspaceContext.
+2. The user can see the active workspace before mutating data.
+3. Switching workspace never exposes data from another workspace.
+4. Upload, review, manual operation, reports, and balances use the selected workspace.
+5. Callback data stores only a short token and index; workspace ids stay in server state.
 ```
 
 ## Quality bar

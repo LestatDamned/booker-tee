@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -20,6 +20,8 @@ from app.features.chat_integrations.commands import (
     ChatManualConfirmationSelection,
     ChatManualCorrectionSelection,
     ChatManualDescriptionSelection,
+    ChatReviewActionConfirmationCallbackData,
+    ChatReviewActionConfirmationSelection,
     ChatReviewActionSelection,
     ChatReviewCallbackData,
     ChatReviewCategoryCallbackData,
@@ -30,13 +32,26 @@ from app.features.chat_integrations.commands import (
     ChatReviewNavigationSelection,
     ChatReviewPropertyCallbackData,
     ChatReviewPropertySelection,
+    ChatReviewReturnCallbackData,
+    ChatReviewReturnSelection,
+    ChatReviewRulePatternCallbackData,
+    ChatReviewRulePatternSelection,
+    ChatReviewRuleSuggestionCallbackData,
+    ChatReviewRuleSuggestionSelection,
     ChatReviewTransferAccountSelection,
     ChatReviewTransferCallbackData,
+    ChatReviewTransferConfirmationCallbackData,
+    ChatReviewTransferConfirmationSelection,
     ChatReviewTransferPairCallbackData,
     ChatReviewTransferPairSelection,
+    ChatSummaryCallbackData,
+    ChatSummaryPeriodSelection,
+    ChatWorkspaceCallbackData,
+    ChatWorkspaceSelection,
 )
 from app.features.chat_integrations.errors import (
     ChatIdentityBindingError,
+    ChatReviewActionError,
     ChatWorkspaceResolutionError,
 )
 from app.features.chat_integrations.notifications import dispatcher as notification_dispatcher
@@ -58,6 +73,7 @@ from app.features.chat_integrations.providers.telegram import (
 )
 from app.features.chat_integrations.providers.telegram_client import (
     TelegramBotClient,
+    TelegramBotClientError,
     TelegramEditMessageTextPayloadBuilder,
     TelegramOutboundMessageSender,
     TelegramSendMessagePayloadBuilder,
@@ -85,6 +101,50 @@ from app.features.chat_integrations.webhook import (
 from app.features.imports.models import UploadedDocumentStatus
 from app.features.ledger.models import OperationType
 from app.features.workspaces.service import WorkspaceContext
+
+
+def _build_chat_review_queue_item(
+    *,
+    description: str = "NEXT ROW",
+    document_id: UUID | None = None,
+    raw_transaction_id: UUID | None = None,
+) -> chat_application.ChatReviewQueueItem:
+    return chat_application.ChatReviewQueueItem(
+        document_id=document_id or uuid4(),
+        raw_transaction_id=raw_transaction_id or uuid4(),
+        row_index=2,
+        status="needs_review",
+        account_name="T-Bank Card",
+        operation_date=date(2026, 6, 30),
+        amount=Decimal("-500.00"),
+        amount_raw=None,
+        currency="RUB",
+        description=description,
+        suggested_operation_type="expense",
+        normalization_error=None,
+    )
+
+
+def _patch_next_review_item_after_action(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    workspace_id: UUID,
+    item: chat_application.ChatReviewQueueItem | None = None,
+) -> None:
+    next_item = item or _build_chat_review_queue_item()
+
+    class FakeChatReviewQueueService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def start_next_review_item(self, context: WorkspaceContext):
+            assert context.workspace.id == workspace_id
+            return chat_application.StartedChatReviewItem(
+                action_token="nexttoken",
+                item=next_item,
+            )
+
+    monkeypatch.setattr(chat_service, "ChatReviewQueueService", FakeChatReviewQueueService)
 
 
 def test_telegram_normalizer_reads_text_message() -> None:
@@ -199,6 +259,76 @@ def test_chat_review_callback_data_is_short_and_parseable() -> None:
         "rev:shorttoken:sug"
     )
     assert ChatReviewCallbackData.parse_action("review:next") is None
+    confirmation_callback_data = ChatReviewActionConfirmationCallbackData.build_confirm_action(
+        action_token="shorttoken",
+    )
+    assert len(confirmation_callback_data) <= 64
+    assert confirmation_callback_data == "rva:shorttoken"
+    assert (
+        ChatReviewActionConfirmationCallbackData.parse_confirmation_selection(
+            confirmation_callback_data
+        )
+        is not None
+    )
+    transfer_confirmation_callback_data = (
+        ChatReviewTransferConfirmationCallbackData.build_confirm_action(
+            action_token="shorttoken",
+        )
+    )
+    assert len(transfer_confirmation_callback_data) <= 64
+    assert transfer_confirmation_callback_data == "rvy:shorttoken"
+    assert (
+        ChatReviewTransferConfirmationCallbackData.parse_confirmation_selection(
+            transfer_confirmation_callback_data
+        )
+        is not None
+    )
+    rule_save_callback_data = ChatReviewRuleSuggestionCallbackData.build_save_action(
+        action_token="shorttoken",
+    )
+    assert len(rule_save_callback_data) <= 64
+    assert rule_save_callback_data == "rvr:shorttoken:save"
+    assert ChatReviewRuleSuggestionCallbackData.parse_action(rule_save_callback_data) == (
+        ChatReviewRuleSuggestionSelection(action_token="shorttoken", action="save")
+    )
+    assert (
+        ChatReviewRuleSuggestionCallbackData.build_enter_pattern_action(action_token="shorttoken")
+        == "rvr:shorttoken:type"
+    )
+    rule_pattern_callback_data = ChatReviewRulePatternCallbackData.build_pattern_selection(
+        action_token="shorttoken",
+        pattern_index=2,
+    )
+    assert len(rule_pattern_callback_data) <= 64
+    assert rule_pattern_callback_data == "rvq:shorttoken:2"
+    assert ChatReviewRulePatternCallbackData.parse_pattern_selection(
+        rule_pattern_callback_data
+    ) == ChatReviewRulePatternSelection(action_token="shorttoken", pattern_index=2)
+    workspace_callback_data = ChatWorkspaceCallbackData.build_workspace_selection(
+        action_token="shorttoken",
+        workspace_index=1,
+    )
+    assert len(workspace_callback_data) <= 64
+    assert workspace_callback_data == "wsp:shorttoken:1"
+    assert ChatWorkspaceCallbackData.parse_workspace_selection(workspace_callback_data) == (
+        ChatWorkspaceSelection(action_token="shorttoken", workspace_index=1)
+    )
+    summary_callback_data = ChatSummaryCallbackData.build_period_selection(
+        month_start=date(2026, 7, 1),
+    )
+    assert len(summary_callback_data) <= 64
+    assert summary_callback_data == "sum:2026-07"
+    assert ChatSummaryCallbackData.parse_period_selection(summary_callback_data) == (
+        ChatSummaryPeriodSelection(month_start=date(2026, 7, 1))
+    )
+    category_summary_callback_data = ChatSummaryCallbackData.build_category_selection(
+        month_start=date(2026, 7, 1),
+    )
+    assert len(category_summary_callback_data) <= 64
+    assert category_summary_callback_data == "sumc:2026-07"
+    assert ChatSummaryCallbackData.parse_category_selection(category_summary_callback_data) == (
+        ChatSummaryPeriodSelection(month_start=date(2026, 7, 1))
+    )
 
 
 def test_chat_review_navigation_callback_data_is_short_and_parseable() -> None:
@@ -216,6 +346,19 @@ def test_chat_review_navigation_callback_data_is_short_and_parseable() -> None:
         == "rvn:shorttoken:prev"
     )
     assert ChatReviewNavigationCallbackData.parse_navigation_selection("review:next") is None
+
+
+def test_chat_review_return_callback_data_is_short_and_parseable() -> None:
+    callback_data = ChatReviewReturnCallbackData.build_return_action(
+        action_token="shorttoken",
+    )
+
+    assert len(callback_data) <= 64
+    assert callback_data == "rvb:shorttoken"
+    assert ChatReviewReturnCallbackData.parse_return_selection(callback_data) == (
+        ChatReviewReturnSelection(action_token="shorttoken")
+    )
+    assert ChatReviewReturnCallbackData.parse_return_selection("review:next") is None
 
 
 def test_chat_review_category_callback_data_is_short_and_parseable() -> None:
@@ -415,6 +558,363 @@ def test_review_category_menu_uses_pages_and_global_category_indexes() -> None:
     assert response.buttons[7][0].callback_data == "rcp:categorytoken:0"
     assert response.buttons[7][1].callback_data == "rcp:categorytoken:2"
     assert response.buttons[8][0].text == "🔎 К строке"
+    assert response.buttons[8][0].callback_data == "rvb:categorytoken"
+
+
+def test_review_action_error_shows_friendly_stale_button_message() -> None:
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+
+    response = TelegramMainMenuPresenter.show_review_action_error(
+        conversation,
+        "This review action expired. Open the next row again.",
+    )
+
+    assert "Кнопка устарела" in response.text
+    assert "This review action expired" not in response.text
+    assert response.buttons[0][0].text == "🔎 Актуальная строка"
+    assert response.buttons[0][0].callback_data == "review:next"
+    assert response.buttons[0][1].callback_data == "main:menu"
+    assert response.callback_notification == "Кнопка устарела"
+
+
+def test_review_action_error_keeps_non_stale_details() -> None:
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+
+    response = TelegramMainMenuPresenter.show_review_action_error(
+        conversation,
+        "No active categories are available.",
+    )
+
+    assert "Не получилось применить действие" in response.text
+    assert "No active categories are available." in response.text
+    assert response.callback_notification == "Не получилось"
+
+
+def test_review_rule_suggestion_shows_best_pattern_and_alternative_action() -> None:
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+
+    response = TelegramMainMenuPresenter.show_review_rule_suggestion(
+        conversation,
+        chat_application.StartedChatReviewRuleSuggestion(
+            action_token="ruletoken",
+            action_label="операция подтверждена",
+            pattern="KRASNOE&BELOE",
+            alternative_patterns=("KRASNOE",),
+            category_name="Продукты",
+        ),
+    )
+
+    assert "Запомнить для похожих операций?" in response.text
+    assert "Признак: KRASNOE&BELOE" in response.text
+    assert "Категория: Продукты" in response.text
+    assert response.buttons[0][0].callback_data == "rvr:ruletoken:save"
+    assert response.buttons[0][1].callback_data == "rvr:ruletoken:skip"
+    assert response.buttons[1][0].callback_data == "rvr:ruletoken:pick"
+    assert response.buttons[2][0].callback_data == "rvr:ruletoken:type"
+
+
+def test_review_rule_pattern_menu_shows_pattern_choices() -> None:
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+
+    response = TelegramMainMenuPresenter.show_review_rule_pattern_menu(
+        conversation,
+        chat_application.StartedChatReviewRulePatternSelection(
+            action_token="ruletoken",
+            pattern_choices=("KRASNOE&BELOE", "KRASNOE"),
+            category_name="Продукты",
+        ),
+    )
+
+    assert "Выбери признак" in response.text
+    assert response.buttons[0][0].callback_data == "rvq:ruletoken:0"
+    assert response.buttons[1][0].callback_data == "rvq:ruletoken:1"
+    assert response.buttons[2][0].callback_data == "rvr:ruletoken:type"
+    assert response.buttons[3][0].callback_data == "rvr:ruletoken:skip"
+
+
+def test_review_rule_pattern_input_asks_for_manual_pattern() -> None:
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+
+    response = TelegramMainMenuPresenter.show_review_rule_pattern_input(
+        conversation,
+        chat_application.StartedChatReviewRulePatternInput(
+            action_token="ruletoken",
+            category_name="Продукты",
+        ),
+    )
+
+    assert "Напиши признак" in response.text
+    assert "KRASNOE&BELOE" in response.text
+    assert response.buttons[0][0].callback_data == "rvr:ruletoken:skip"
+
+
+def test_workspace_menu_shows_current_and_available_workspaces() -> None:
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+
+    response = TelegramMainMenuPresenter.show_workspace_menu(
+        conversation,
+        chat_application.StartedChatWorkspaceSelection(
+            action_token="worktoken",
+            workspace_choices=(
+                chat_application.ChatWorkspaceChoice(
+                    id=uuid4(),
+                    name="Личное",
+                    is_current=True,
+                ),
+                chat_application.ChatWorkspaceChoice(
+                    id=uuid4(),
+                    name="Бизнес",
+                    is_current=False,
+                ),
+            ),
+        ),
+    )
+
+    assert "Рабочее пространство" in response.text
+    assert response.buttons[0][0].text == "✅ Личное"
+    assert response.buttons[0][0].callback_data == "wsp:worktoken:0"
+    assert response.buttons[1][0].text == "🗂️ Бизнес"
+    assert response.buttons[1][0].callback_data == "wsp:worktoken:1"
+    assert response.buttons[2][0].callback_data == "main:menu"
+
+
+def test_monthly_summary_shows_financial_totals_and_review_counter() -> None:
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=uuid4(), name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+
+    response = TelegramMainMenuPresenter.show_monthly_summary(
+        conversation,
+        context,
+        chat_application.ChatMonthlySummary(
+            date_from=date(2026, 7, 1),
+            date_to=date(2026, 7, 31),
+            currency="RUB",
+            income=Decimal("100000.00"),
+            expense=Decimal("40000.50"),
+            profit=Decimal("59999.50"),
+            documents_needing_attention=1,
+            raw_transactions_needing_attention=4,
+        ),
+    )
+
+    assert "📊 Сводка" in response.text
+    assert "🗂️ Family" in response.text
+    assert "01.07.2026–31.07.2026" in response.text
+    assert "Доход: 100000.00 RUB" in response.text
+    assert "Расход: 40000.50 RUB" in response.text
+    assert "Итог: 59999.50 RUB" in response.text
+    assert "К проверке: 5" in response.text
+    assert response.buttons[0][0].callback_data == "sum:2026-06"
+    assert response.buttons[0][1].text == "Июль 2026"
+    assert response.buttons[0][1].callback_data == "sum:2026-07"
+    assert response.buttons[0][2].callback_data == "sum:2026-08"
+    assert response.buttons[1][0].callback_data == "sumc:2026-07"
+    assert response.buttons[2][0].callback_data == "review:next"
+    assert response.buttons[2][1].callback_data == "balances:show"
+    assert response.buttons[3][0].callback_data == "workspace:choose"
+    assert response.buttons[4][0].callback_data == "main:menu"
+
+
+def test_account_balances_show_totals_and_accounts() -> None:
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=uuid4(), name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+
+    response = TelegramMainMenuPresenter.show_account_balances(
+        conversation,
+        context,
+        chat_application.ChatAccountBalances(
+            rows=(
+                chat_application.ChatAccountBalanceRow(
+                    account_name="Карта",
+                    currency="RUB",
+                    balance=Decimal("25000.00"),
+                ),
+                chat_application.ChatAccountBalanceRow(
+                    account_name="Наличные",
+                    currency="RUB",
+                    balance=Decimal("5000.50"),
+                ),
+                chat_application.ChatAccountBalanceRow(
+                    account_name="Deposit",
+                    currency="USD",
+                    balance=Decimal("100.00"),
+                ),
+            ),
+            totals=(
+                chat_application.ChatCurrencyBalanceTotal(
+                    currency="RUB",
+                    balance=Decimal("30000.50"),
+                ),
+                chat_application.ChatCurrencyBalanceTotal(
+                    currency="USD",
+                    balance=Decimal("100.00"),
+                ),
+            ),
+        ),
+    )
+
+    assert "💳 Балансы" in response.text
+    assert "🗂️ Family" in response.text
+    assert "Итого:" in response.text
+    assert "30000.50 RUB" in response.text
+    assert "100.00 USD" in response.text
+    assert "Карта: 25000.00 RUB" in response.text
+    assert "Наличные: 5000.50 RUB" in response.text
+    assert response.buttons[0][0].callback_data == "summary:show"
+    assert response.buttons[0][1].callback_data == "balances:show"
+    assert response.buttons[1][0].callback_data == "workspace:choose"
+    assert response.buttons[2][0].callback_data == "main:menu"
+
+
+def test_category_summary_shows_category_details_for_period() -> None:
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=uuid4(), name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+
+    response = TelegramMainMenuPresenter.show_category_summary(
+        conversation,
+        context,
+        chat_application.ChatCategorySummary(
+            date_from=date(2026, 7, 1),
+            date_to=date(2026, 7, 31),
+            currency="RUB",
+            rows=(
+                chat_application.ChatCategorySummaryRow(
+                    category_name="Аренда",
+                    income=Decimal("100000.00"),
+                    expense=Decimal("0.00"),
+                    profit=Decimal("100000.00"),
+                ),
+                chat_application.ChatCategorySummaryRow(
+                    category_name="Продукты",
+                    income=Decimal("0.00"),
+                    expense=Decimal("40000.50"),
+                    profit=Decimal("-40000.50"),
+                ),
+                chat_application.ChatCategorySummaryRow(
+                    category_name="Возвраты",
+                    income=Decimal("1000.00"),
+                    expense=Decimal("300.00"),
+                    profit=Decimal("700.00"),
+                ),
+            ),
+        ),
+    )
+
+    assert "🏷 Категории" in response.text
+    assert "01.07.2026–31.07.2026" in response.text
+    assert "Аренда: +100000.00 RUB" in response.text
+    assert "Продукты: -40000.50 RUB" in response.text
+    assert "Возвраты: +1000.00 RUB / -300.00 RUB / = 700.00 RUB" in response.text
+    assert response.buttons[0][0].callback_data == "sum:2026-07"
+    assert response.buttons[0][1].callback_data == "balances:show"
+    assert response.buttons[1][0].callback_data == "main:menu"
+
+
+def test_account_balance_totals_do_not_mix_currencies() -> None:
+    totals = chat_application.ChatAccountBalanceTotalBuilder.build_totals(
+        (
+            chat_application.ChatAccountBalanceRow(
+                account_name="Карта",
+                currency="RUB",
+                balance=Decimal("10.00"),
+            ),
+            chat_application.ChatAccountBalanceRow(
+                account_name="Cash",
+                currency="USD",
+                balance=Decimal("3.50"),
+            ),
+            chat_application.ChatAccountBalanceRow(
+                account_name="Наличные",
+                currency="RUB",
+                balance=Decimal("20.00"),
+            ),
+        )
+    )
+
+    assert totals == (
+        chat_application.ChatCurrencyBalanceTotal(currency="RUB", balance=Decimal("30.00")),
+        chat_application.ChatCurrencyBalanceTotal(currency="USD", balance=Decimal("3.50")),
+    )
+
+
+def test_chat_month_range_handles_december() -> None:
+    assert chat_application.ChatMonthRange.next_month_start(date(2026, 12, 1)) == date(
+        2027,
+        1,
+        1,
+    )
+
+
+@pytest.mark.asyncio
+async def test_chat_review_state_claimer_allows_only_one_final_action() -> None:
+    state = SimpleNamespace(consumed_at=None)
+    claim_results = [True, False]
+
+    class FakeChatIntegrationRepository:
+        async def try_consume_active_conversation_state(self, claimed_state, **_kwargs):
+            assert claimed_state is state
+            return claim_results.pop(0)
+
+    repository = FakeChatIntegrationRepository()
+
+    await chat_application.ChatReviewStateClaimer.claim_once(
+        cast(Any, repository),
+        cast(Any, state),
+    )
+
+    with pytest.raises(ChatReviewActionError, match="Stored review action is invalid."):
+        await chat_application.ChatReviewStateClaimer.claim_once(
+            cast(Any, repository),
+            cast(Any, state),
+        )
 
 
 def test_review_item_formats_human_readable_status_and_hint() -> None:
@@ -550,6 +1050,28 @@ async def test_telegram_client_requests_get_updates() -> None:
 
 
 @pytest.mark.asyncio
+async def test_telegram_client_http_error_hides_bot_token() -> None:
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400,
+            json={"ok": False, "description": "Bad Request: query is too old"},
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        with pytest.raises(TelegramBotClientError) as exc_info:
+            await TelegramBotClient(
+                bot_token="test-token",
+                http_client=http_client,
+            ).get_updates(offset=10, timeout_seconds=30)
+
+    error_text = str(exc_info.value)
+    assert exc_info.value.__cause__ is None
+    assert "test-token" not in error_text
+    assert "getUpdates" in error_text
+    assert "query is too old" in error_text
+
+
+@pytest.mark.asyncio
 async def test_telegram_client_edits_message_text() -> None:
     seen_payloads: list[dict[str, object]] = []
 
@@ -584,6 +1106,60 @@ async def test_telegram_outbound_sender_edits_callback_source_message() -> None:
 
     async def handler(request: httpx.Request) -> httpx.Response:
         requests.append((request.url.path, json.loads(request.content)))
+        return httpx.Response(200, json={"ok": True, "result": {"message_id": 12}})
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1:callback:callback-id",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=None,
+        callback_query_id="callback-id",
+        source_message_id="12",
+    )
+    response = OutboundChatMessage(
+        conversation=conversation,
+        text="Updated review",
+        delivery_mode=OutboundChatDeliveryMode.EDIT_SOURCE_MESSAGE,
+        callback_notification="Готово",
+    )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        await TelegramOutboundMessageSender.send_response(
+            client=TelegramBotClient(bot_token="test-token", http_client=http_client),
+            event=event,
+            response=response,
+        )
+
+    assert requests == [
+        (
+            "/bottest-token/answerCallbackQuery",
+            {"callback_query_id": "callback-id", "text": "Готово"},
+        ),
+        (
+            "/bottest-token/editMessageText",
+            {"chat_id": 42, "text": "Updated review", "message_id": 12},
+        ),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_telegram_outbound_sender_still_edits_when_callback_answer_fails() -> None:
+    requests: list[tuple[str, dict[str, object]]] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        requests.append((request.url.path, payload))
+        if request.url.path.endswith("/answerCallbackQuery"):
+            return httpx.Response(
+                400,
+                json={"ok": False, "description": "Bad Request: query is too old"},
+            )
         return httpx.Response(200, json={"ok": True, "result": {"message_id": 12}})
 
     conversation = ChatConversation(
@@ -986,11 +1562,13 @@ async def test_chat_event_service_returns_bound_menu_for_linked_start(
 
     assert response is not None
     assert "✅ Booker Tee подключен" in response.text
-    assert "🏠 Family" in response.text
+    assert "🗂️ Family" in response.text
     assert "⚠️ К проверке: 5" in response.text
-    assert response.buttons[0][0].callback_data == "status:show"
+    assert response.buttons[0][0].callback_data == "summary:show"
     assert response.buttons[1][0].callback_data == "upload:start"
     assert response.buttons[1][1].callback_data == "manual:start"
+    assert response.buttons[2][0].callback_data == "balances:show"
+    assert response.buttons[2][1].callback_data == "workspace:choose"
 
 
 @pytest.mark.asyncio
@@ -1054,7 +1632,8 @@ async def test_chat_event_service_adds_review_link_when_public_base_url_exists(
     assert response.buttons[0][0].url == "https://booker.example/imports"
     assert response.buttons[1][0].callback_data == "review:next"
     assert response.buttons[1][1].callback_data == "status:show"
-    assert response.buttons[2][0].callback_data == "main:menu"
+    assert response.buttons[2][0].callback_data == "workspace:choose"
+    assert response.buttons[3][0].callback_data == "main:menu"
 
 
 @pytest.mark.asyncio
@@ -1117,7 +1696,494 @@ async def test_chat_event_service_returns_private_status_for_bound_callback(
     assert "🔎 Проверка: 4" in response.text
     assert response.buttons[0][0].callback_data == "review:next"
     assert response.buttons[0][1].callback_data == "status:show"
-    assert response.buttons[1][0].callback_data == "main:menu"
+    assert response.buttons[1][0].callback_data == "workspace:choose"
+    assert response.buttons[2][0].callback_data == "main:menu"
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_returns_monthly_summary_for_bound_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(
+            Any,
+            SimpleNamespace(id=workspace_id, name="Family", default_currency="RUB"),
+        ),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+    summary_contexts: list[WorkspaceContext] = []
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatPrivateStatusReader:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def read_status(
+            self, _context: WorkspaceContext
+        ) -> chat_application.ChatPrivateStatus:
+            return chat_application.ChatPrivateStatus(
+                documents_needing_attention=0,
+                raw_transactions_needing_attention=0,
+            )
+
+    class FakeChatMonthlySummaryReader:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def read_current_month_summary(self, selected_context: WorkspaceContext):
+            summary_contexts.append(selected_context)
+            return chat_application.ChatMonthlySummary(
+                date_from=date(2026, 7, 1),
+                date_to=date(2026, 7, 31),
+                currency="RUB",
+                income=Decimal("100.00"),
+                expense=Decimal("40.00"),
+                profit=Decimal("60.00"),
+                documents_needing_attention=1,
+                raw_transactions_needing_attention=2,
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(chat_service, "ChatPrivateStatusReader", FakeChatPrivateStatusReader)
+    monkeypatch.setattr(chat_service, "ChatMonthlySummaryReader", FakeChatMonthlySummaryReader)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="summary:show",
+    )
+
+    response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
+
+    assert summary_contexts == [context]
+    assert response is not None
+    assert "📊 Сводка" in response.text
+    assert "Доход: 100.00 RUB" in response.text
+    assert "К проверке: 3" in response.text
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_returns_monthly_summary_for_selected_month(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+    requested_months: list[date] = []
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatMonthlySummaryReader:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def read_month_summary(
+            self,
+            *,
+            context: WorkspaceContext,
+            month_start: date,
+        ):
+            assert context.workspace.id == workspace_id
+            requested_months.append(month_start)
+            return chat_application.ChatMonthlySummary(
+                date_from=month_start,
+                date_to=date(2026, 6, 30),
+                currency="RUB",
+                income=Decimal("200.00"),
+                expense=Decimal("50.00"),
+                profit=Decimal("150.00"),
+                documents_needing_attention=0,
+                raw_transactions_needing_attention=1,
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(chat_service, "ChatMonthlySummaryReader", FakeChatMonthlySummaryReader)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="sum:2026-06",
+    )
+
+    response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
+
+    assert requested_months == [date(2026, 6, 1)]
+    assert response is not None
+    assert "Июнь 2026" in response.buttons[0][1].text
+    assert "Доход: 200.00 RUB" in response.text
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_returns_category_summary_for_selected_month(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+    requested_months: list[date] = []
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatMonthlySummaryReader:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def read_category_summary(
+            self,
+            *,
+            context: WorkspaceContext,
+            month_start: date,
+        ):
+            assert context.workspace.id == workspace_id
+            requested_months.append(month_start)
+            return chat_application.ChatCategorySummary(
+                date_from=month_start,
+                date_to=date(2026, 6, 30),
+                currency="RUB",
+                rows=(
+                    chat_application.ChatCategorySummaryRow(
+                        category_name="Продукты",
+                        income=Decimal("0.00"),
+                        expense=Decimal("50.00"),
+                        profit=Decimal("-50.00"),
+                    ),
+                ),
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(chat_service, "ChatMonthlySummaryReader", FakeChatMonthlySummaryReader)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="sumc:2026-06",
+    )
+
+    response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
+
+    assert requested_months == [date(2026, 6, 1)]
+    assert response is not None
+    assert "🏷 Категории" in response.text
+    assert "Продукты: -50.00 RUB" in response.text
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_returns_account_balances_for_bound_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+    balance_contexts: list[WorkspaceContext] = []
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatPrivateStatusReader:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def read_status(
+            self, _context: WorkspaceContext
+        ) -> chat_application.ChatPrivateStatus:
+            return chat_application.ChatPrivateStatus(
+                documents_needing_attention=0,
+                raw_transactions_needing_attention=0,
+            )
+
+    class FakeChatAccountBalanceReader:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def read_account_balances(self, selected_context: WorkspaceContext):
+            balance_contexts.append(selected_context)
+            return chat_application.ChatAccountBalances(
+                rows=(
+                    chat_application.ChatAccountBalanceRow(
+                        account_name="Карта",
+                        currency="RUB",
+                        balance=Decimal("25000.00"),
+                    ),
+                ),
+                totals=(
+                    chat_application.ChatCurrencyBalanceTotal(
+                        currency="RUB",
+                        balance=Decimal("25000.00"),
+                    ),
+                ),
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(chat_service, "ChatPrivateStatusReader", FakeChatPrivateStatusReader)
+    monkeypatch.setattr(chat_service, "ChatAccountBalanceReader", FakeChatAccountBalanceReader)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="balances:show",
+    )
+
+    response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
+
+    assert balance_contexts == [context]
+    assert response is not None
+    assert "💳 Балансы" in response.text
+    assert "Карта: 25000.00 RUB" in response.text
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_starts_workspace_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatPrivateStatusReader:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def read_status(
+            self, _context: WorkspaceContext
+        ) -> chat_application.ChatPrivateStatus:
+            return chat_application.ChatPrivateStatus(
+                documents_needing_attention=0,
+                raw_transactions_needing_attention=0,
+            )
+
+    class FakeChatWorkspaceSwitcher:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def start_workspace_selection(
+            self,
+            selected_bound_workspace: chat_application.BoundChatWorkspace,
+        ):
+            assert selected_bound_workspace is bound_workspace
+            return chat_application.StartedChatWorkspaceSelection(
+                action_token="worktoken",
+                workspace_choices=(
+                    chat_application.ChatWorkspaceChoice(
+                        id=workspace_id,
+                        name="Family",
+                        is_current=True,
+                    ),
+                    chat_application.ChatWorkspaceChoice(
+                        id=uuid4(),
+                        name="Business",
+                        is_current=False,
+                    ),
+                ),
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(chat_service, "ChatPrivateStatusReader", FakeChatPrivateStatusReader)
+    monkeypatch.setattr(chat_service, "ChatWorkspaceSwitcher", FakeChatWorkspaceSwitcher)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="workspace:choose",
+    )
+
+    response = await ChatEventService(cast(AsyncSession, object())).receive_inbound_event(event)
+
+    assert response is not None
+    assert "Рабочее пространство" in response.text
+    assert response.buttons[0][0].callback_data == "wsp:worktoken:0"
+    assert response.buttons[1][0].callback_data == "wsp:worktoken:1"
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_switches_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    old_workspace_id = uuid4()
+    new_workspace_id = uuid4()
+    user_id = uuid4()
+    old_context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=user_id, name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=old_workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    new_context = WorkspaceContext(
+        user=old_context.user,
+        workspace=cast(Any, SimpleNamespace(id=new_workspace_id, name="Business")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    old_bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=old_context,
+    )
+    new_bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=new_context,
+    )
+    selected_indexes: list[int] = []
+    status_contexts: list[WorkspaceContext] = []
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return old_bound_workspace
+
+    class FakeChatWorkspaceSwitcher:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def select_workspace(
+            self,
+            *,
+            bound_workspace: chat_application.BoundChatWorkspace,
+            selection: ChatWorkspaceSelection,
+        ):
+            assert bound_workspace is old_bound_workspace
+            selected_indexes.append(selection.workspace_index)
+            return chat_application.SelectedChatWorkspace(bound_workspace=new_bound_workspace)
+
+    class FakeChatPrivateStatusReader:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def read_status(self, context: WorkspaceContext):
+            status_contexts.append(context)
+            return chat_application.ChatPrivateStatus(
+                documents_needing_attention=1,
+                raw_transactions_needing_attention=2,
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(chat_service, "ChatWorkspaceSwitcher", FakeChatWorkspaceSwitcher)
+    monkeypatch.setattr(chat_service, "ChatPrivateStatusReader", FakeChatPrivateStatusReader)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="wsp:worktoken:1",
+    )
+
+    response = await ChatEventService(
+        cast(AsyncSession, object()),
+        Settings(public_base_url="https://booker.example"),
+    ).receive_inbound_event(event)
+
+    assert selected_indexes == [1]
+    assert status_contexts == [new_context]
+    assert response is not None
+    assert "🗂️ Business" in response.text
+    assert "⚠️ К проверке: 3" in response.text
+    assert response.callback_notification == "Готово: пространство переключено"
 
 
 @pytest.mark.asyncio
@@ -2404,7 +3470,7 @@ async def test_chat_event_service_returns_empty_review_queue_message(
 
 
 @pytest.mark.asyncio
-async def test_chat_event_service_applies_review_action_for_bound_callback(
+async def test_chat_event_service_starts_review_action_confirmation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
@@ -2417,7 +3483,7 @@ async def test_chat_event_service_applies_review_action_for_bound_callback(
         identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
         context=context,
     )
-    applied_actions: list[str] = []
+    confirmation_actions: list[str] = []
 
     class FakeWorkspaceChatResolver:
         def __init__(self, _session: object) -> None:
@@ -2430,16 +3496,19 @@ async def test_chat_event_service_applies_review_action_for_bound_callback(
         def __init__(self, _session: object) -> None:
             pass
 
-        async def apply_action(
+        async def start_action_confirmation(
             self,
             *,
             context: WorkspaceContext,
             selection: ChatReviewActionSelection,
         ):
-            applied_actions.append(selection.action)
+            confirmation_actions.append(selection.action)
             assert context.workspace.id == workspace_id
             assert selection.action_token == "reviewtoken"
-            return chat_application.ChatReviewActionResult(
+            return chat_application.StartedChatReviewActionConfirmation(
+                action_token="confirmtoken",
+                item=_build_chat_review_queue_item(description="ROW TO IGNORE"),
+                action=selection.action,
                 action_label="строка игнорируется",
             )
 
@@ -2465,10 +3534,243 @@ async def test_chat_event_service_applies_review_action_for_bound_callback(
         Settings(public_base_url="https://booker.example"),
     ).receive_inbound_event(event)
 
-    assert applied_actions == ["ign"]
+    assert confirmation_actions == ["ign"]
     assert response is not None
-    assert "Готово: строка игнорируется" in response.text
+    assert "Не учитывать строку?" in response.text
+    assert "ROW TO IGNORE" in response.text
+    assert response.buttons[0][0].callback_data == "rva:confirmtoken"
+    assert response.buttons[1][0].callback_data == "rvb:confirmtoken"
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_shows_friendly_stale_review_button_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatReviewActionService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def apply_action(
+            self,
+            *,
+            context: WorkspaceContext,
+            selection: ChatReviewActionSelection,
+        ):
+            assert context.workspace.id == workspace_id
+            assert selection.action_token == "oldtoken"
+            raise ChatReviewActionError("This review action expired. Open the next row again.")
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(chat_service, "ChatReviewActionService", FakeChatReviewActionService)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="rev:oldtoken:uniq",
+    )
+
+    response = await ChatEventService(
+        cast(AsyncSession, object()),
+        Settings(public_base_url="https://booker.example"),
+    ).receive_inbound_event(event)
+
+    assert response is not None
+    assert "Кнопка устарела" in response.text
+    assert "This review action expired" not in response.text
     assert response.buttons[0][0].callback_data == "review:next"
+    assert response.buttons[0][1].callback_data == "main:menu"
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_confirms_review_action(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+    confirmed_tokens: list[str] = []
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatReviewActionService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def confirm_action(
+            self,
+            *,
+            context: WorkspaceContext,
+            selection: ChatReviewActionConfirmationSelection,
+        ):
+            assert context.workspace.id == workspace_id
+            confirmed_tokens.append(selection.action_token)
+            return chat_application.ChatReviewActionResult(
+                action_label="строка игнорируется",
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(chat_service, "ChatReviewActionService", FakeChatReviewActionService)
+    _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="rva:confirmtoken",
+    )
+
+    response = await ChatEventService(
+        cast(AsyncSession, object()),
+        Settings(public_base_url="https://booker.example"),
+    ).receive_inbound_event(event)
+
+    assert confirmed_tokens == ["confirmtoken"]
+    assert response is not None
+    assert "NEXT ROW" in response.text
+    assert response.callback_notification == "Готово: строка игнорируется"
+    assert response.buttons[0][0].callback_data == "rev:nexttoken:conf"
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_continues_after_confirmed_review_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    document_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+    requested_anchors: list[chat_application.ChatReviewContinuationAnchor] = []
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatReviewActionService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def confirm_action(
+            self,
+            *,
+            context: WorkspaceContext,
+            selection: ChatReviewActionConfirmationSelection,
+        ):
+            assert context.workspace.id == workspace_id
+            assert selection.action_token == "confirmtoken"
+            return chat_application.ChatReviewActionResult(
+                action_label="строка игнорируется",
+                continuation_anchor=chat_application.ChatReviewContinuationAnchor(
+                    document_id=document_id,
+                    row_index=14,
+                ),
+            )
+
+    class FakeChatReviewQueueService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def start_next_review_item(self, _context: WorkspaceContext):
+            raise AssertionError("Expected continuation after the confirmed row.")
+
+        async def start_next_review_item_after(
+            self,
+            *,
+            context: WorkspaceContext,
+            anchor: chat_application.ChatReviewContinuationAnchor,
+        ):
+            assert context.workspace.id == workspace_id
+            requested_anchors.append(anchor)
+            return chat_application.StartedChatReviewItem(
+                action_token="nexttoken",
+                item=_build_chat_review_queue_item(
+                    description="ROW 15",
+                    document_id=document_id,
+                ),
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(chat_service, "ChatReviewActionService", FakeChatReviewActionService)
+    monkeypatch.setattr(chat_service, "ChatReviewQueueService", FakeChatReviewQueueService)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="rva:confirmtoken",
+    )
+
+    response = await ChatEventService(
+        cast(AsyncSession, object()),
+        Settings(public_base_url="https://booker.example"),
+    ).receive_inbound_event(event)
+
+    assert requested_anchors == [
+        chat_application.ChatReviewContinuationAnchor(document_id=document_id, row_index=14)
+    ]
+    assert response is not None
+    assert "ROW 15" in response.text
 
 
 @pytest.mark.asyncio
@@ -2518,6 +3820,7 @@ async def test_chat_event_service_accepts_review_suggestion(
         "ChatReviewConfirmationService",
         FakeChatReviewConfirmationService,
     )
+    _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
 
     conversation = ChatConversation(
         provider=ChatProviderCode.TELEGRAM,
@@ -2540,8 +3843,9 @@ async def test_chat_event_service_accepts_review_suggestion(
 
     assert accepted_tokens == ["reviewtoken"]
     assert response is not None
-    assert "Готово: операция подтверждена" in response.text
-    assert response.buttons[0][0].callback_data == "review:next"
+    assert "NEXT ROW" in response.text
+    assert response.callback_notification == "Готово: операция подтверждена"
+    assert response.buttons[0][0].callback_data == "rev:nexttoken:conf"
 
 
 @pytest.mark.asyncio
@@ -2647,10 +3951,12 @@ async def test_chat_event_service_starts_review_transfer_account_menu(
     assert response.buttons[0][0].callback_data == "rvx:transfertoken:0"
     assert response.buttons[1][0].text == "Deposit / RUB"
     assert response.buttons[1][0].callback_data == "rvt:transfertoken:0"
+    assert response.buttons[2][0].text == "⬅️ Назад"
+    assert response.buttons[2][0].callback_data == "rvb:transfertoken"
 
 
 @pytest.mark.asyncio
-async def test_chat_event_service_confirms_review_item_as_transfer_with_account(
+async def test_chat_event_service_starts_transfer_confirmation_with_account(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
@@ -2676,7 +3982,7 @@ async def test_chat_event_service_confirms_review_item_as_transfer_with_account(
         def __init__(self, _session: object, _settings: Settings) -> None:
             pass
 
-        async def confirm_transfer_with_account(
+        async def start_transfer_confirmation_with_account(
             self,
             *,
             context: WorkspaceContext,
@@ -2685,8 +3991,10 @@ async def test_chat_event_service_confirms_review_item_as_transfer_with_account(
             assert context.workspace.id == workspace_id
             assert selection.action_token == "transfertoken"
             selected_accounts.append(selection.account_index)
-            return chat_application.ChatReviewActionResult(
-                action_label="перевод подтвержден",
+            return chat_application.StartedChatReviewTransferConfirmation(
+                action_token="confirmtransfertoken",
+                item=_build_chat_review_queue_item(description="Transfer to deposit"),
+                target_label="Deposit / RUB",
             )
 
     monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
@@ -2713,12 +4021,15 @@ async def test_chat_event_service_confirms_review_item_as_transfer_with_account(
 
     assert selected_accounts == [1]
     assert response is not None
-    assert "Готово: перевод подтвержден" in response.text
-    assert response.buttons[0][0].callback_data == "review:next"
+    assert "Подтвердить перевод?" in response.text
+    assert "Цель: Deposit / RUB" in response.text
+    assert "Transfer to deposit" in response.text
+    assert response.buttons[0][0].callback_data == "rvy:confirmtransfertoken"
+    assert response.buttons[1][0].callback_data == "rev:confirmtransfertoken:trn"
 
 
 @pytest.mark.asyncio
-async def test_chat_event_service_confirms_review_item_as_transfer_with_pair(
+async def test_chat_event_service_starts_transfer_confirmation_with_pair(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_id = uuid4()
@@ -2744,7 +4055,7 @@ async def test_chat_event_service_confirms_review_item_as_transfer_with_pair(
         def __init__(self, _session: object, _settings: Settings) -> None:
             pass
 
-        async def confirm_transfer_with_pair(
+        async def start_transfer_confirmation_with_pair(
             self,
             *,
             context: WorkspaceContext,
@@ -2753,8 +4064,10 @@ async def test_chat_event_service_confirms_review_item_as_transfer_with_pair(
             assert context.workspace.id == workspace_id
             assert selection.action_token == "transfertoken"
             selected_pairs.append(selection.pair_index)
-            return chat_application.ChatReviewActionResult(
-                action_label="парный перевод подтвержден",
+            return chat_application.StartedChatReviewTransferConfirmation(
+                action_token="confirmtransfertoken",
+                item=_build_chat_review_queue_item(description="Transfer from card"),
+                target_label="Пара: Deposit / 30.06.2026 / 40000.00 RUB",
             )
 
     monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
@@ -2781,8 +4094,80 @@ async def test_chat_event_service_confirms_review_item_as_transfer_with_pair(
 
     assert selected_pairs == [1]
     assert response is not None
-    assert "Готово: парный перевод подтвержден" in response.text
-    assert response.buttons[0][0].callback_data == "review:next"
+    assert "Подтвердить перевод?" in response.text
+    assert "Цель: Пара: Deposit / 30.06.2026 / 40000.00 RUB" in response.text
+    assert "Transfer from card" in response.text
+    assert response.buttons[0][0].callback_data == "rvy:confirmtransfertoken"
+    assert response.buttons[1][0].callback_data == "rev:confirmtransfertoken:trn"
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_confirms_review_transfer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+    confirmed_tokens: list[str] = []
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatReviewTransferService:
+        def __init__(self, _session: object, _settings: Settings) -> None:
+            pass
+
+        async def confirm_transfer(
+            self,
+            *,
+            context: WorkspaceContext,
+            selection: ChatReviewTransferConfirmationSelection,
+        ):
+            assert context.workspace.id == workspace_id
+            confirmed_tokens.append(selection.action_token)
+            return chat_application.ChatReviewActionResult(
+                action_label="перевод подтвержден",
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(chat_service, "ChatReviewTransferService", FakeChatReviewTransferService)
+    _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="rvy:confirmtransfertoken",
+    )
+
+    response = await ChatEventService(
+        cast(AsyncSession, object()),
+        Settings(public_base_url="https://booker.example"),
+    ).receive_inbound_event(event)
+
+    assert confirmed_tokens == ["confirmtransfertoken"]
+    assert response is not None
+    assert "NEXT ROW" in response.text
+    assert response.callback_notification == "Готово: перевод подтвержден"
+    assert response.buttons[0][0].callback_data == "rev:nexttoken:conf"
 
 
 @pytest.mark.asyncio
@@ -2877,6 +4262,8 @@ async def test_chat_event_service_starts_review_confirmation_category_menu(
     assert "📝 Описание: MAGNIT" in response.text
     assert response.buttons[0][0].text == "Продукты"
     assert response.buttons[0][0].callback_data == "rvc:categorytoken:0"
+    assert response.buttons[1][0].text == "🔎 К строке"
+    assert response.buttons[1][0].callback_data == "rvb:categorytoken"
 
 
 @pytest.mark.asyncio
@@ -2949,6 +4336,7 @@ async def test_chat_event_service_changes_review_category_page(
         "ChatReviewConfirmationService",
         FakeChatReviewConfirmationService,
     )
+    _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
 
     conversation = ChatConversation(
         provider=ChatProviderCode.TELEGRAM,
@@ -2973,6 +4361,92 @@ async def test_chat_event_service_changes_review_category_page(
     assert "Страница 2 из 2" in response.text
     assert response.buttons[0][0].callback_data == "rvc:categorytoken:7"
     assert response.buttons[1][0].callback_data == "rcp:categorytoken:0"
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_returns_to_same_review_item(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    document_id = uuid4()
+    raw_transaction_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+    returned_tokens: list[str] = []
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatReviewQueueService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def return_to_review_item(
+            self,
+            *,
+            context: WorkspaceContext,
+            selection: ChatReviewReturnSelection,
+        ):
+            assert context.workspace.id == workspace_id
+            returned_tokens.append(selection.action_token)
+            return chat_application.StartedChatReviewItem(
+                action_token="reviewtoken",
+                item=chat_application.ChatReviewQueueItem(
+                    document_id=document_id,
+                    raw_transaction_id=raw_transaction_id,
+                    row_index=0,
+                    status="needs_review",
+                    account_name="T-Bank Card",
+                    operation_date=date(2026, 6, 30),
+                    amount=Decimal("-1250.00"),
+                    amount_raw=None,
+                    currency="RUB",
+                    description="MAGNIT",
+                    suggested_operation_type="expense",
+                    normalization_error=None,
+                ),
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(chat_service, "ChatReviewQueueService", FakeChatReviewQueueService)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="rvb:categorytoken",
+    )
+
+    response = await ChatEventService(
+        cast(AsyncSession, object()),
+        Settings(public_base_url="https://booker.example"),
+    ).receive_inbound_event(event)
+
+    assert returned_tokens == ["categorytoken"]
+    assert response is not None
+    assert "📝 Описание: MAGNIT" in response.text
+    assert response.buttons[0][0].callback_data == "rev:reviewtoken:conf"
+    assert response.buttons[2][0].url == (
+        f"https://booker.example/imports/documents/{document_id}/review#raw-{raw_transaction_id}"
+    )
 
 
 @pytest.mark.asyncio
@@ -3023,6 +4497,7 @@ async def test_chat_event_service_confirms_review_item_with_category(
         "ChatReviewConfirmationService",
         FakeChatReviewConfirmationService,
     )
+    _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
 
     conversation = ChatConversation(
         provider=ChatProviderCode.TELEGRAM,
@@ -3045,8 +4520,322 @@ async def test_chat_event_service_confirms_review_item_with_category(
 
     assert selected_categories == [1]
     assert response is not None
-    assert "Готово: операция подтверждена" in response.text
-    assert response.buttons[0][0].callback_data == "review:next"
+    assert "NEXT ROW" in response.text
+    assert response.callback_notification == "Готово: операция подтверждена"
+    assert response.buttons[0][0].callback_data == "rev:nexttoken:conf"
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_shows_rule_suggestion_after_manual_category(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatReviewConfirmationService:
+        def __init__(self, _session: object, _settings: Settings) -> None:
+            pass
+
+        async def confirm_with_category(
+            self,
+            *,
+            context: WorkspaceContext,
+            selection: ChatReviewCategorySelection,
+        ):
+            assert context.workspace.id == workspace_id
+            assert selection.action_token == "categorytoken"
+            return chat_application.ChatReviewCategoryActionResult(
+                action_result=chat_application.ChatReviewActionResult(
+                    action_label="операция подтверждена",
+                ),
+                rule_suggestion=chat_application.StartedChatReviewRuleSuggestion(
+                    action_token="ruletoken",
+                    action_label="операция подтверждена",
+                    pattern="KRASNOE&BELOE",
+                    alternative_patterns=("KRASNOE",),
+                    category_name="Продукты",
+                ),
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(
+        chat_service,
+        "ChatReviewConfirmationService",
+        FakeChatReviewConfirmationService,
+    )
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="rvc:categorytoken:1",
+    )
+
+    response = await ChatEventService(
+        cast(AsyncSession, object()),
+        Settings(public_base_url="https://booker.example"),
+    ).receive_inbound_event(event)
+
+    assert response is not None
+    assert "Запомнить для похожих операций?" in response.text
+    assert "Признак: KRASNOE&BELOE" in response.text
+    assert response.buttons[0][0].callback_data == "rvr:ruletoken:save"
+    assert response.buttons[1][0].callback_data == "rvr:ruletoken:pick"
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_saves_review_rule_suggestion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+    saved_tokens: list[str] = []
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatReviewRuleSuggestionService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def save_suggestion(
+            self,
+            *,
+            context: WorkspaceContext,
+            selection: ChatReviewRuleSuggestionSelection,
+        ):
+            assert context.workspace.id == workspace_id
+            saved_tokens.append(selection.action_token)
+            return chat_application.ChatReviewRuleActionResult(
+                action_label="правило сохранено",
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(
+        chat_service,
+        "ChatReviewRuleSuggestionService",
+        FakeChatReviewRuleSuggestionService,
+    )
+    _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="rvr:ruletoken:save",
+    )
+
+    response = await ChatEventService(
+        cast(AsyncSession, object()),
+        Settings(public_base_url="https://booker.example"),
+    ).receive_inbound_event(event)
+
+    assert saved_tokens == ["ruletoken"]
+    assert response is not None
+    assert response.callback_notification == "Готово: правило сохранено"
+    assert "NEXT ROW" in response.text
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_starts_manual_rule_pattern_input(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatReviewRuleSuggestionService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def start_manual_pattern_input(
+            self,
+            *,
+            context: WorkspaceContext,
+            selection: ChatReviewRuleSuggestionSelection,
+        ):
+            assert context.workspace.id == workspace_id
+            assert selection.action_token == "ruletoken"
+            return chat_application.StartedChatReviewRulePatternInput(
+                action_token="manualruletoken",
+                category_name="Продукты",
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(
+        chat_service,
+        "ChatReviewRuleSuggestionService",
+        FakeChatReviewRuleSuggestionService,
+    )
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="rvr:ruletoken:type",
+    )
+
+    response = await ChatEventService(
+        cast(AsyncSession, object()),
+        Settings(public_base_url="https://booker.example"),
+    ).receive_inbound_event(event)
+
+    assert response is not None
+    assert "Напиши признак" in response.text
+    assert response.buttons[0][0].callback_data == "rvr:manualruletoken:skip"
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_saves_manual_rule_pattern_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_application.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+    saved_texts: list[str | None] = []
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatReviewRuleSuggestionService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def save_manual_pattern(
+            self,
+            *,
+            context: WorkspaceContext,
+            text: str | None,
+        ):
+            assert context.workspace.id == workspace_id
+            saved_texts.append(text)
+            return chat_application.ChatReviewRuleActionResult(
+                action_label="правило сохранено",
+            )
+
+    class FakeChatManualOperationService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def continue_from_text_input(
+            self,
+            *,
+            context: WorkspaceContext,
+            text: str | None,
+        ):
+            assert context.workspace.id == workspace_id
+            assert text == "KRASNOE&BELOE"
+            return None
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(
+        chat_service,
+        "ChatManualOperationService",
+        FakeChatManualOperationService,
+    )
+    monkeypatch.setattr(
+        chat_service,
+        "ChatReviewRuleSuggestionService",
+        FakeChatReviewRuleSuggestionService,
+    )
+    _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.MESSAGE,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        text="KRASNOE&BELOE",
+    )
+
+    response = await ChatEventService(
+        cast(AsyncSession, object()),
+        Settings(public_base_url="https://booker.example"),
+    ).receive_inbound_event(event)
+
+    assert saved_texts == ["KRASNOE&BELOE"]
+    assert response is not None
+    assert response.callback_notification == "Готово: правило сохранено"
+    assert "NEXT ROW" in response.text
 
 
 @pytest.mark.asyncio
@@ -3151,6 +4940,8 @@ async def test_chat_event_service_shows_property_menu_after_category_selection(
     assert response.buttons[0][0].callback_data == "rvp:propertytoken:0"
     assert response.buttons[1][0].text == "9 Maya"
     assert response.buttons[1][0].callback_data == "rvp:propertytoken:1"
+    assert response.buttons[2][0].text == "⬅️ Назад"
+    assert response.buttons[2][0].callback_data == "rvb:propertytoken"
 
 
 @pytest.mark.asyncio
@@ -3189,8 +4980,10 @@ async def test_chat_event_service_confirms_review_item_with_property(
             assert context.workspace.id == workspace_id
             assert selection.action_token == "propertytoken"
             selected_properties.append(selection.property_index)
-            return chat_application.ChatReviewActionResult(
-                action_label="операция подтверждена",
+            return chat_application.ChatReviewCategoryActionResult(
+                action_result=chat_application.ChatReviewActionResult(
+                    action_label="операция подтверждена",
+                ),
             )
 
     monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
@@ -3199,6 +4992,7 @@ async def test_chat_event_service_confirms_review_item_with_property(
         "ChatReviewConfirmationService",
         FakeChatReviewConfirmationService,
     )
+    _patch_next_review_item_after_action(monkeypatch, workspace_id=workspace_id)
 
     conversation = ChatConversation(
         provider=ChatProviderCode.TELEGRAM,
@@ -3221,8 +5015,9 @@ async def test_chat_event_service_confirms_review_item_with_property(
 
     assert selected_properties == [1]
     assert response is not None
-    assert "Готово: операция подтверждена" in response.text
-    assert response.buttons[0][0].callback_data == "review:next"
+    assert "NEXT ROW" in response.text
+    assert response.callback_notification == "Готово: операция подтверждена"
+    assert response.buttons[0][0].callback_data == "rev:nexttoken:conf"
 
 
 @pytest.mark.asyncio

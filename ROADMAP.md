@@ -775,10 +775,12 @@ The user does not have to manually open the web app every time. They can forward
 5. Button-first guided flows for low-error interaction
 6. Safe shared chat notifications for imports and operation events
 7. Matrix/Element architecture notes for long-term independence
-8. Email/IMAP attachment collector
-9. Source channel metadata on UploadedDocument
-10. Duplicate file protection across channels
-11. Background processing for uploads
+8. Private read-only summary: current month, balances, latest operations
+9. Explicit workspace switcher for chat actions
+10. Email/IMAP attachment collector
+11. Source channel metadata on UploadedDocument
+12. Duplicate file protection across channels
+13. Background processing for uploads
 ```
 
 ### Acceptance criteria
@@ -788,9 +790,11 @@ The user does not have to manually open the web app every time. They can forward
 2. Chat users are explicitly linked to Booker Tee users before acting.
 3. Group chat notifications hide sensitive data by default.
 4. Button actions are idempotent and permission-checked.
-5. An email attachment can create UploadedDocument.
-6. Uploaded documents enter the same parser pipeline as web uploads.
-7. The parser pipeline does not fork into separate channel-specific logic.
+5. Private users can see safe workspace-scoped summaries and balances.
+6. Users can switch the active workspace before uploads, reports, and actions.
+7. An email attachment can create UploadedDocument.
+8. Uploaded documents enter the same parser pipeline as web uploads.
+9. The parser pipeline does not fork into separate channel-specific logic.
 ```
 
 ### Explicit non-goals
@@ -972,14 +976,15 @@ Recommended priority order:
 1. More reliable parser support for the user’s real banks
 2. Deduplication and transfer matching
 3. Minimal reports users actually check weekly
-4. Transaction rules and categorization memory
+4. Transaction rules and categorization memory, including bot-assisted rule creation after review
 5. Manual operations for cash and transfers
 6. Property linking and landlord reports
-7. Telegram upload convenience
-8. Workspace collaboration
-9. Email import
-10. Forecasting and debts
-11. AI/RAG/Text-to-SQL
+7. Telegram upload and review convenience
+8. Telegram workspace switcher and private read-only summaries
+9. Workspace collaboration
+10. Email import
+11. Forecasting and debts
+12. AI/RAG/Text-to-SQL
 ```
 
 Do not prioritize AI before the user trusts the underlying data.

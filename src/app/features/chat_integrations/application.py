@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from pathlib import Path
 from secrets import token_urlsafe
+from typing import cast
 from uuid import UUID
 
 from fastapi import UploadFile
@@ -27,13 +28,20 @@ from app.features.chat_integrations.commands import (
     ChatManualDateCallbackData,
     ChatManualDateSelection,
     ChatManualDescriptionSelection,
+    ChatReviewActionConfirmationSelection,
     ChatReviewActionSelection,
+    ChatReviewCallbackData,
     ChatReviewCategoryPageSelection,
     ChatReviewCategorySelection,
     ChatReviewNavigationSelection,
     ChatReviewPropertySelection,
+    ChatReviewReturnSelection,
+    ChatReviewRulePatternSelection,
+    ChatReviewRuleSuggestionSelection,
     ChatReviewTransferAccountSelection,
+    ChatReviewTransferConfirmationSelection,
     ChatReviewTransferPairSelection,
+    ChatWorkspaceSelection,
 )
 from app.features.chat_integrations.errors import (
     ChatDocumentUploadError,
@@ -41,6 +49,7 @@ from app.features.chat_integrations.errors import (
     ChatManualOperationError,
     ChatReviewActionError,
     ChatWorkspaceResolutionError,
+    ChatWorkspaceSwitchError,
 )
 from app.features.chat_integrations.models import (
     ChatConversationFlow,
@@ -77,6 +86,16 @@ from app.features.ledger.models import OperationType
 from app.features.ledger.service import LedgerPostingService
 from app.features.properties.models import Property
 from app.features.properties.service import PropertyService
+from app.features.reports.service import ReportFilters, ReportsService
+from app.features.transaction_rules.application.rule_application import (
+    TransactionRuleApplicationUseCase,
+)
+from app.features.transaction_rules.application.rule_management import (
+    TransactionRuleManagementUseCase,
+)
+from app.features.transaction_rules.domain.patterns import infer_rule_pattern
+from app.features.transaction_rules.domain.text import clean_rule_pattern, normalized_text
+from app.features.transaction_rules.errors import TransactionRuleError
 from app.features.users.repository import UserRepository
 from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.service import WorkspaceContext
@@ -97,12 +116,31 @@ CHAT_MANUAL_OPERATION_FLOWS = (
     ChatConversationFlow.RECORD_INCOME,
     ChatConversationFlow.RECORD_TRANSFER,
 )
+CHAT_WORKSPACE_SWITCH_TTL = timedelta(minutes=10)
 
 
 @dataclass(frozen=True)
 class BoundChatWorkspace:
     identity_binding: ChatIdentityBinding
     context: WorkspaceContext
+
+
+@dataclass(frozen=True)
+class ChatWorkspaceChoice:
+    id: UUID
+    name: str
+    is_current: bool
+
+
+@dataclass(frozen=True)
+class StartedChatWorkspaceSelection:
+    action_token: str
+    workspace_choices: tuple[ChatWorkspaceChoice, ...]
+
+
+@dataclass(frozen=True)
+class SelectedChatWorkspace:
+    bound_workspace: BoundChatWorkspace
 
 
 @dataclass(frozen=True)
@@ -113,6 +151,57 @@ class ChatPrivateStatus:
     @property
     def total_needing_attention(self) -> int:
         return self.documents_needing_attention + self.raw_transactions_needing_attention
+
+
+@dataclass(frozen=True)
+class ChatMonthlySummary:
+    date_from: date
+    date_to: date
+    currency: str
+    income: Decimal
+    expense: Decimal
+    profit: Decimal
+    documents_needing_attention: int
+    raw_transactions_needing_attention: int
+
+    @property
+    def total_needing_attention(self) -> int:
+        return self.documents_needing_attention + self.raw_transactions_needing_attention
+
+
+@dataclass(frozen=True)
+class ChatCategorySummaryRow:
+    category_name: str
+    income: Decimal
+    expense: Decimal
+    profit: Decimal
+
+
+@dataclass(frozen=True)
+class ChatCategorySummary:
+    date_from: date
+    date_to: date
+    currency: str
+    rows: tuple[ChatCategorySummaryRow, ...]
+
+
+@dataclass(frozen=True)
+class ChatAccountBalanceRow:
+    account_name: str
+    currency: str
+    balance: Decimal
+
+
+@dataclass(frozen=True)
+class ChatCurrencyBalanceTotal:
+    currency: str
+    balance: Decimal
+
+
+@dataclass(frozen=True)
+class ChatAccountBalances:
+    rows: tuple[ChatAccountBalanceRow, ...]
+    totals: tuple[ChatCurrencyBalanceTotal, ...]
 
 
 @dataclass(frozen=True)
@@ -140,6 +229,14 @@ class ChatReviewQueueItem:
 class StartedChatReviewItem:
     action_token: str
     item: ChatReviewQueueItem
+
+
+@dataclass(frozen=True)
+class StartedChatReviewActionConfirmation:
+    action_token: str
+    item: ChatReviewQueueItem
+    action: str
+    action_label: str
 
 
 @dataclass(frozen=True)
@@ -178,14 +275,50 @@ class StartedChatReviewPropertySelection:
 
 
 @dataclass(frozen=True)
+class ChatReviewContinuationAnchor:
+    document_id: UUID
+    row_index: int
+
+
+@dataclass(frozen=True)
 class ChatReviewActionResult:
     action_label: str
+    continuation_anchor: ChatReviewContinuationAnchor | None = None
+
+
+@dataclass(frozen=True)
+class StartedChatReviewRuleSuggestion:
+    action_token: str
+    action_label: str
+    pattern: str
+    alternative_patterns: tuple[str, ...]
+    category_name: str
+
+
+@dataclass(frozen=True)
+class StartedChatReviewRulePatternSelection:
+    action_token: str
+    pattern_choices: tuple[str, ...]
+    category_name: str
+
+
+@dataclass(frozen=True)
+class StartedChatReviewRulePatternInput:
+    action_token: str
+    category_name: str
 
 
 @dataclass(frozen=True)
 class ChatReviewCategoryActionResult:
     action_result: ChatReviewActionResult | None = None
     property_selection: StartedChatReviewPropertySelection | None = None
+    rule_suggestion: StartedChatReviewRuleSuggestion | None = None
+
+
+@dataclass(frozen=True)
+class ChatReviewRuleActionResult:
+    action_label: str
+    continuation_anchor: ChatReviewContinuationAnchor | None = None
 
 
 @dataclass(frozen=True)
@@ -212,6 +345,13 @@ class StartedChatReviewTransferSelection:
     item: ChatReviewQueueItem
     pair_choices: tuple[ChatReviewTransferPairChoice, ...]
     account_choices: tuple[ChatReviewTransferAccountChoice, ...]
+
+
+@dataclass(frozen=True)
+class StartedChatReviewTransferConfirmation:
+    action_token: str
+    item: ChatReviewQueueItem
+    target_label: str
 
 
 @dataclass(frozen=True)
@@ -438,6 +578,127 @@ class WorkspaceChatResolver:
         )
 
 
+class ChatWorkspaceSwitcher:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.chat_integrations = ChatIntegrationRepository(session)
+        self.workspaces = WorkspaceRepository(session)
+
+    async def start_workspace_selection(
+        self,
+        bound_workspace: BoundChatWorkspace,
+    ) -> StartedChatWorkspaceSelection:
+        workspaces = await self.workspaces.list_active_for_user(bound_workspace.context.user.id)
+        if not workspaces:
+            raise ChatWorkspaceSwitchError("Нет доступных рабочих пространств.")
+
+        choices = tuple(
+            ChatWorkspaceChoice(
+                id=workspace.id,
+                name=workspace.name,
+                is_current=workspace.id == bound_workspace.context.workspace.id,
+            )
+            for workspace in workspaces
+        )
+        action_token = ChatActionTokenBuilder.build_token()
+        await self.chat_integrations.create_conversation_state(
+            workspace_id=bound_workspace.context.workspace.id,
+            user_id=bound_workspace.context.user.id,
+            flow=ChatConversationFlow.MAIN_MENU,
+            step="choose_workspace",
+            action_token=action_token,
+            state_payload={
+                "workspace_ids": [str(choice.id) for choice in choices],
+                "workspace_names": [choice.name for choice in choices],
+            },
+            expires_at=utc_now() + CHAT_WORKSPACE_SWITCH_TTL,
+        )
+        await self.session.commit()
+        return StartedChatWorkspaceSelection(
+            action_token=action_token,
+            workspace_choices=choices,
+        )
+
+    async def select_workspace(
+        self,
+        *,
+        bound_workspace: BoundChatWorkspace,
+        selection: ChatWorkspaceSelection,
+    ) -> SelectedChatWorkspace:
+        state = await self.chat_integrations.get_active_conversation_state(
+            workspace_id=bound_workspace.context.workspace.id,
+            user_id=bound_workspace.context.user.id,
+            flow=ChatConversationFlow.MAIN_MENU,
+            action_token=selection.action_token,
+            now=utc_now(),
+        )
+        if state is None:
+            raise ChatWorkspaceSwitchError(
+                "Выбор рабочего пространства устарел. Открой меню снова."
+            )
+        if state.step != "choose_workspace":
+            raise ChatWorkspaceSwitchError("Сохраненный шаг выбора workspace некорректен.")
+
+        workspace_id = ChatWorkspaceSwitchStateReader.read_workspace_id(
+            state.state_payload,
+            selection.workspace_index,
+        )
+        membership = await self.workspaces.get_active_membership(
+            user_id=bound_workspace.context.user.id,
+            workspace_id=workspace_id,
+        )
+        if membership is None:
+            raise ChatWorkspaceSwitchError("Это рабочее пространство больше недоступно.")
+
+        target_binding = await self._get_or_create_target_binding(
+            bound_workspace=bound_workspace,
+            workspace_id=workspace_id,
+        )
+        target_binding.is_active = True
+        target_binding.display_name = bound_workspace.identity_binding.display_name
+        await self.chat_integrations.deactivate_other_identity_bindings(
+            keep_binding_id=target_binding.id,
+            provider=bound_workspace.identity_binding.provider,
+            external_user_id=bound_workspace.identity_binding.external_user_id,
+        )
+        await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
+        await self.session.commit()
+        return SelectedChatWorkspace(
+            bound_workspace=BoundChatWorkspace(
+                identity_binding=target_binding,
+                context=WorkspaceContext(
+                    user=bound_workspace.context.user,
+                    workspace=membership.workspace,
+                    membership=membership,
+                ),
+            )
+        )
+
+    async def _get_or_create_target_binding(
+        self,
+        *,
+        bound_workspace: BoundChatWorkspace,
+        workspace_id: UUID,
+    ) -> ChatIdentityBinding:
+        target_binding = await self.chat_integrations.get_identity_binding(
+            workspace_id=workspace_id,
+            provider=bound_workspace.identity_binding.provider,
+            external_user_id=bound_workspace.identity_binding.external_user_id,
+        )
+        if target_binding is not None:
+            if target_binding.user_id != bound_workspace.context.user.id:
+                raise ChatWorkspaceSwitchError("Этот чат уже привязан к другому пользователю.")
+            return target_binding
+
+        return await self.chat_integrations.create_identity_binding(
+            workspace_id=workspace_id,
+            user_id=bound_workspace.context.user.id,
+            provider=bound_workspace.identity_binding.provider,
+            external_user_id=bound_workspace.identity_binding.external_user_id,
+            display_name=bound_workspace.identity_binding.display_name,
+        )
+
+
 class ChatPrivateStatusReader:
     def __init__(self, session: AsyncSession) -> None:
         self.imports = ImportQueryRepository(session)
@@ -454,12 +715,140 @@ class ChatPrivateStatusReader:
         )
 
 
+class ChatMonthlySummaryReader:
+    def __init__(self, session: AsyncSession) -> None:
+        self.imports = ImportQueryRepository(session)
+        self.reports = ReportsService(session)
+
+    async def read_current_month_summary(self, context: WorkspaceContext) -> ChatMonthlySummary:
+        today = utc_now().date()
+        return await self.read_month_summary(
+            context=context,
+            month_start=today.replace(day=1),
+        )
+
+    async def read_month_summary(
+        self,
+        *,
+        context: WorkspaceContext,
+        month_start: date,
+    ) -> ChatMonthlySummary:
+        date_from = month_start.replace(day=1)
+        date_to = ChatMonthRange.next_month_start(date_from) - timedelta(days=1)
+        overview = await self.reports.build_overview(
+            workspace_id=context.workspace.id,
+            filters=ReportFilters(date_from=date_from, date_to=date_to),
+        )
+        return ChatMonthlySummary(
+            date_from=date_from,
+            date_to=date_to,
+            currency=getattr(context.workspace, "default_currency", "RUB"),
+            income=overview.summary.income,
+            expense=overview.summary.expense,
+            profit=overview.summary.profit,
+            documents_needing_attention=await self.imports.count_documents_needing_attention(
+                context.workspace.id
+            ),
+            raw_transactions_needing_attention=(
+                await self.imports.count_raw_transactions_needing_attention(context.workspace.id)
+            ),
+        )
+
+    async def read_category_summary(
+        self,
+        *,
+        context: WorkspaceContext,
+        month_start: date,
+    ) -> ChatCategorySummary:
+        date_from = month_start.replace(day=1)
+        date_to = ChatMonthRange.next_month_start(date_from) - timedelta(days=1)
+        overview = await self.reports.build_overview(
+            workspace_id=context.workspace.id,
+            filters=ReportFilters(date_from=date_from, date_to=date_to),
+        )
+        return ChatCategorySummary(
+            date_from=date_from,
+            date_to=date_to,
+            currency=getattr(context.workspace, "default_currency", "RUB"),
+            rows=tuple(
+                ChatCategorySummaryRow(
+                    category_name=row.category_name,
+                    income=row.income,
+                    expense=row.expense,
+                    profit=row.profit,
+                )
+                for row in overview.categories
+            ),
+        )
+
+
+class ChatAccountBalanceReader:
+    def __init__(self, session: AsyncSession) -> None:
+        self.reports = ReportsService(session)
+
+    async def read_account_balances(self, context: WorkspaceContext) -> ChatAccountBalances:
+        overview = await self.reports.build_overview(
+            workspace_id=context.workspace.id,
+            filters=ReportFilters(),
+        )
+        rows = tuple(
+            ChatAccountBalanceRow(
+                account_name=balance_row.account.name,
+                currency=balance_row.account.currency,
+                balance=balance_row.balance,
+            )
+            for balance_row in overview.account_balances
+        )
+        return ChatAccountBalances(
+            rows=rows,
+            totals=ChatAccountBalanceTotalBuilder.build_totals(rows),
+        )
+
+
+class ChatAccountBalanceTotalBuilder:
+    @staticmethod
+    def build_totals(
+        rows: tuple[ChatAccountBalanceRow, ...],
+    ) -> tuple[ChatCurrencyBalanceTotal, ...]:
+        grouped: dict[str, Decimal] = {}
+        for row in rows:
+            grouped[row.currency] = grouped.get(row.currency, Decimal("0.00")) + row.balance
+        return tuple(
+            ChatCurrencyBalanceTotal(currency=currency, balance=balance.quantize(Decimal("0.01")))
+            for currency, balance in sorted(grouped.items())
+        )
+
+
+class ChatMonthRange:
+    @staticmethod
+    def next_month_start(month_start: date) -> date:
+        if month_start.month == 12:
+            return month_start.replace(year=month_start.year + 1, month=1)
+        return month_start.replace(month=month_start.month + 1)
+
+
 class ChatReviewQueueReader:
     def __init__(self, session: AsyncSession) -> None:
         self.imports = ImportQueryRepository(session)
 
     async def read_next_item(self, context: WorkspaceContext) -> ChatReviewQueueItem | None:
         raw_transaction = await self.imports.get_next_review_raw_transaction(context.workspace.id)
+        if raw_transaction is None:
+            return None
+
+        return await self._map_raw_transaction(context, raw_transaction)
+
+    async def read_next_item_after(
+        self,
+        *,
+        context: WorkspaceContext,
+        anchor: ChatReviewContinuationAnchor,
+    ) -> ChatReviewQueueItem | None:
+        raw_transaction = await self.imports.get_next_review_raw_transaction_after(
+            workspace_id=context.workspace.id,
+            document_id=anchor.document_id,
+            current_row_index=anchor.row_index,
+        )
         if raw_transaction is None:
             return None
 
@@ -578,6 +967,22 @@ class ChatReviewQueueService:
         await self.session.commit()
         return started_item
 
+    async def start_next_review_item_after(
+        self,
+        *,
+        context: WorkspaceContext,
+        anchor: ChatReviewContinuationAnchor,
+    ) -> StartedChatReviewItem | None:
+        item = await self.review_queue.read_next_item_after(context=context, anchor=anchor)
+        if item is None:
+            item = await self.review_queue.read_next_item(context)
+        if item is None:
+            return None
+
+        started_item = await self._start_review_item(context=context, item=item)
+        await self.session.commit()
+        return started_item
+
     async def start_adjacent_review_item(
         self,
         *,
@@ -621,6 +1026,45 @@ class ChatReviewQueueService:
         await self.session.commit()
         return started_item
 
+    async def return_to_review_item(
+        self,
+        *,
+        context: WorkspaceContext,
+        selection: ChatReviewReturnSelection,
+    ) -> StartedChatReviewItem:
+        state = await self.chat_integrations.get_active_conversation_state(
+            workspace_id=context.workspace.id,
+            user_id=context.user.id,
+            flow=ChatConversationFlow.REVIEW,
+            action_token=selection.action_token,
+            now=utc_now(),
+        )
+        if state is None:
+            raise ChatReviewActionError("This review action expired. Open the row again.")
+        if state.step not in {
+            "choose_category",
+            "choose_property",
+            "choose_transfer_target",
+            "confirm_review_action",
+            "confirm_transfer",
+        }:
+            raise ChatReviewActionError("Stored review action is invalid.")
+
+        item = await self.review_queue.read_item(
+            context=context,
+            document_id=ChatReviewStateReader.read_document_id(state.state_payload),
+            raw_transaction_id=ChatReviewStateReader.read_raw_transaction_id(
+                state.state_payload,
+            ),
+        )
+        if item is None:
+            raise ChatReviewActionError("Raw transaction row was not found.")
+
+        started_item = await self._start_review_item(context=context, item=item)
+        await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
+        await self.session.commit()
+        return started_item
+
     async def _start_review_item(
         self,
         *,
@@ -644,10 +1088,89 @@ class ChatReviewQueueService:
 
 
 class ChatReviewActionService:
+    CONFIRMABLE_ACTIONS = {
+        ChatReviewCallbackData.DUPLICATE_ACTION,
+        ChatReviewCallbackData.IGNORE_ACTION,
+    }
+
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.chat_integrations = ChatIntegrationRepository(session)
+        self.review_queue = ChatReviewQueueReader(session)
         self.review_status = RawTransactionReviewStatusUseCase(session)
+
+    async def start_action_confirmation(
+        self,
+        *,
+        context: WorkspaceContext,
+        selection: ChatReviewActionSelection,
+    ) -> StartedChatReviewActionConfirmation:
+        if selection.action not in self.CONFIRMABLE_ACTIONS:
+            raise ChatReviewActionError("This review action cannot be confirmed this way.")
+
+        state = await self._get_active_review_state(
+            context=context,
+            action_token=selection.action_token,
+        )
+        if state.step != "review_item":
+            raise ChatReviewActionError("Stored review action is invalid.")
+
+        document_id = ChatReviewStateReader.read_document_id(state.state_payload)
+        raw_transaction_id = ChatReviewStateReader.read_raw_transaction_id(state.state_payload)
+        item = await self.review_queue.read_item(
+            context=context,
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+        )
+        if item is None:
+            raise ChatReviewActionError("Raw transaction row was not found.")
+        if (
+            selection.action == ChatReviewCallbackData.DUPLICATE_ACTION
+            and item.status != "possible_duplicate"
+        ):
+            raise ChatReviewActionError("Строка не помечена как возможный дубль.")
+
+        action_token = ChatActionTokenBuilder.build_token()
+        await self.chat_integrations.create_conversation_state(
+            workspace_id=context.workspace.id,
+            user_id=context.user.id,
+            flow=ChatConversationFlow.REVIEW,
+            step="confirm_review_action",
+            action_token=action_token,
+            state_payload={
+                "document_id": str(document_id),
+                "raw_transaction_id": str(raw_transaction_id),
+                "review_action": selection.action,
+            },
+            expires_at=utc_now() + CHAT_REVIEW_ACTION_TTL,
+        )
+        await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
+        await self.session.commit()
+        return StartedChatReviewActionConfirmation(
+            action_token=action_token,
+            item=item,
+            action=selection.action,
+            action_label=ChatReviewActionMapper.to_action_label(selection.action),
+        )
+
+    async def confirm_action(
+        self,
+        *,
+        context: WorkspaceContext,
+        selection: ChatReviewActionConfirmationSelection,
+    ) -> ChatReviewActionResult:
+        state = await self._get_active_review_state(
+            context=context,
+            action_token=selection.action_token,
+        )
+        if state.step != "confirm_review_action":
+            raise ChatReviewActionError("Stored review action is invalid.")
+
+        return await self._apply_stored_action(
+            context=context,
+            state=state,
+            action=ChatReviewStateReader.read_review_action(state.state_payload),
+        )
 
     async def apply_action(
         self,
@@ -655,19 +1178,55 @@ class ChatReviewActionService:
         context: WorkspaceContext,
         selection: ChatReviewActionSelection,
     ) -> ChatReviewActionResult:
+        state = await self._get_active_review_state(
+            context=context,
+            action_token=selection.action_token,
+        )
+        if state.step != "review_item":
+            raise ChatReviewActionError("Stored review action is invalid.")
+
+        return await self._apply_stored_action(
+            context=context,
+            state=state,
+            action=selection.action,
+        )
+
+    async def _get_active_review_state(
+        self,
+        *,
+        context: WorkspaceContext,
+        action_token: str,
+    ) -> ChatConversationState:
         state = await self.chat_integrations.get_active_conversation_state(
             workspace_id=context.workspace.id,
             user_id=context.user.id,
             flow=ChatConversationFlow.REVIEW,
-            action_token=selection.action_token,
+            action_token=action_token,
             now=utc_now(),
         )
         if state is None:
             raise ChatReviewActionError("This review action expired. Open the next row again.")
+        return state
 
+    async def _apply_stored_action(
+        self,
+        *,
+        context: WorkspaceContext,
+        state: ChatConversationState,
+        action: str,
+    ) -> ChatReviewActionResult:
         document_id = ChatReviewStateReader.read_document_id(state.state_payload)
         raw_transaction_id = ChatReviewStateReader.read_raw_transaction_id(state.state_payload)
-        review_action = ChatReviewActionMapper.to_review_status_action(selection.action)
+        item = await self.review_queue.read_item(
+            context=context,
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+        )
+        if item is None:
+            raise ChatReviewActionError("Raw transaction row was not found.")
+
+        review_action = ChatReviewActionMapper.to_review_status_action(action)
+        await ChatReviewStateClaimer.claim_once(self.chat_integrations, state)
         try:
             await self.review_status.set_status(
                 workspace_id=context.workspace.id,
@@ -678,10 +1237,13 @@ class ChatReviewActionService:
         except RawTransactionReviewError as exc:
             raise ChatReviewActionError(str(exc)) from exc
 
-        await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
         await self.session.commit()
         return ChatReviewActionResult(
-            action_label=ChatReviewActionMapper.to_action_label(selection.action)
+            action_label=ChatReviewActionMapper.to_action_label(action),
+            continuation_anchor=ChatReviewContinuationAnchor(
+                document_id=document_id,
+                row_index=item.row_index,
+            ),
         )
 
 
@@ -709,6 +1271,8 @@ class ChatReviewConfirmationService:
         )
         if state is None:
             raise ChatReviewActionError("This review action expired. Open the next row again.")
+        if state.step not in {"review_item", "confirm_transfer"}:
+            raise ChatReviewActionError("Stored review action is invalid.")
 
         document_id = ChatReviewStateReader.read_document_id(state.state_payload)
         raw_transaction_id = ChatReviewStateReader.read_raw_transaction_id(state.state_payload)
@@ -848,6 +1412,7 @@ class ChatReviewConfirmationService:
             item=item,
             category_id=suggested_choice.id,
             category_name=suggested_choice.name,
+            offer_rule_suggestion=False,
         )
 
     async def confirm_with_category(
@@ -893,6 +1458,7 @@ class ChatReviewConfirmationService:
                 state.state_payload,
                 selection.category_index,
             ),
+            offer_rule_suggestion=True,
         )
 
     async def _finish_category_confirmation(
@@ -905,19 +1471,35 @@ class ChatReviewConfirmationService:
         item: ChatReviewQueueItem,
         category_id: UUID,
         category_name: str,
+        offer_rule_suggestion: bool,
     ) -> ChatReviewCategoryActionResult:
         properties = await self.properties.list_active(context.workspace.id)
         if not properties:
+            await ChatReviewStateClaimer.claim_once(self.chat_integrations, state)
             result = await self._confirm_transaction(
                 context=context,
                 document_id=document_id,
                 raw_transaction_id=raw_transaction_id,
+                item=item,
                 category_id=category_id,
                 property_id=None,
             )
-            await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
+            rule_suggestion = None
+            if offer_rule_suggestion:
+                rule_suggestion = await self._maybe_start_rule_suggestion(
+                    context=context,
+                    document_id=document_id,
+                    raw_transaction_id=raw_transaction_id,
+                    category_id=category_id,
+                    property_id=None,
+                    category_name=category_name,
+                    action_label=result.action_label,
+                )
             await self.session.commit()
-            return ChatReviewCategoryActionResult(action_result=result)
+            return ChatReviewCategoryActionResult(
+                action_result=result,
+                rule_suggestion=rule_suggestion,
+            )
 
         property_choices = ChatReviewPropertyChoiceBuilder.build_choices(properties)
         next_action_token = ChatActionTokenBuilder.build_token()
@@ -931,6 +1513,8 @@ class ChatReviewConfirmationService:
                 "document_id": str(document_id),
                 "raw_transaction_id": str(raw_transaction_id),
                 "category_id": str(category_id),
+                "category_name": category_name,
+                "offer_rule_suggestion": offer_rule_suggestion,
                 "property_ids": [
                     str(choice.id) if choice.id is not None else None for choice in property_choices
                 ],
@@ -953,7 +1537,7 @@ class ChatReviewConfirmationService:
         *,
         context: WorkspaceContext,
         selection: ChatReviewPropertySelection,
-    ) -> ChatReviewActionResult:
+    ) -> ChatReviewCategoryActionResult:
         state = await self.chat_integrations.get_active_conversation_state(
             workspace_id=context.workspace.id,
             user_id=context.user.id,
@@ -966,20 +1550,95 @@ class ChatReviewConfirmationService:
         if state.step != "choose_property":
             raise ChatReviewActionError("Stored review action is invalid.")
 
+        document_id = ChatReviewStateReader.read_document_id(state.state_payload)
+        raw_transaction_id = ChatReviewStateReader.read_raw_transaction_id(state.state_payload)
+        category_id = ChatReviewStateReader.read_confirm_category_id(state.state_payload)
+        property_id = ChatReviewStateReader.read_property_id(
+            state.state_payload,
+            selection.property_index,
+        )
+        item = await self.review_queue.read_item(
+            context=context,
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+        )
+        if item is None:
+            raise ChatReviewActionError("Raw transaction row was not found.")
+
+        await ChatReviewStateClaimer.claim_once(self.chat_integrations, state)
         result = await self._confirm_transaction(
             context=context,
-            document_id=ChatReviewStateReader.read_document_id(state.state_payload),
-            raw_transaction_id=ChatReviewStateReader.read_raw_transaction_id(state.state_payload),
-            category_id=ChatReviewStateReader.read_confirm_category_id(state.state_payload),
-            property_id=ChatReviewStateReader.read_property_id(
-                state.state_payload,
-                selection.property_index,
-            ),
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+            item=item,
+            category_id=category_id,
+            property_id=property_id,
         )
 
-        await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
+        rule_suggestion = None
+        if ChatReviewStateReader.read_offer_rule_suggestion(state.state_payload):
+            rule_suggestion = await self._maybe_start_rule_suggestion(
+                context=context,
+                document_id=document_id,
+                raw_transaction_id=raw_transaction_id,
+                category_id=category_id,
+                property_id=property_id,
+                category_name=ChatReviewStateReader.read_confirm_category_name(state.state_payload),
+                action_label=result.action_label,
+            )
         await self.session.commit()
-        return result
+        return ChatReviewCategoryActionResult(
+            action_result=result,
+            rule_suggestion=rule_suggestion,
+        )
+
+    async def _maybe_start_rule_suggestion(
+        self,
+        *,
+        context: WorkspaceContext,
+        document_id: UUID,
+        raw_transaction_id: UUID,
+        category_id: UUID,
+        property_id: UUID | None,
+        category_name: str,
+        action_label: str,
+    ) -> StartedChatReviewRuleSuggestion | None:
+        raw_transaction = await ImportQueryRepository(self.session).get_review_raw_transaction(
+            workspace_id=context.workspace.id,
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+        )
+        if raw_transaction is None:
+            return None
+
+        pattern_choices = ChatReviewRulePatternBuilder.build_choices(raw_transaction)
+        if not pattern_choices:
+            return None
+
+        action_token = ChatActionTokenBuilder.build_token()
+        await self.chat_integrations.create_conversation_state(
+            workspace_id=context.workspace.id,
+            user_id=context.user.id,
+            flow=ChatConversationFlow.REVIEW,
+            step="suggest_rule",
+            action_token=action_token,
+            state_payload={
+                "document_id": str(document_id),
+                "raw_transaction_id": str(raw_transaction_id),
+                "category_id": str(category_id),
+                "property_id": str(property_id) if property_id is not None else None,
+                "category_name": category_name,
+                "patterns": list(pattern_choices),
+            },
+            expires_at=utc_now() + CHAT_REVIEW_ACTION_TTL,
+        )
+        return StartedChatReviewRuleSuggestion(
+            action_token=action_token,
+            action_label=action_label,
+            pattern=pattern_choices[0],
+            alternative_patterns=pattern_choices[1:],
+            category_name=category_name,
+        )
 
     async def _confirm_transaction(
         self,
@@ -987,6 +1646,7 @@ class ChatReviewConfirmationService:
         context: WorkspaceContext,
         document_id: UUID,
         raw_transaction_id: UUID,
+        item: ChatReviewQueueItem,
         category_id: UUID,
         property_id: UUID | None,
     ) -> ChatReviewActionResult:
@@ -1004,7 +1664,204 @@ class ChatReviewConfirmationService:
         except (LedgerPostingError, RawTransactionReviewError, ValueError) as exc:
             raise ChatReviewActionError(str(exc)) from exc
 
-        return ChatReviewActionResult(action_label="операция подтверждена")
+        return ChatReviewActionResult(
+            action_label="операция подтверждена",
+            continuation_anchor=ChatReviewContinuationAnchor(
+                document_id=document_id,
+                row_index=item.row_index,
+            ),
+        )
+
+
+class ChatReviewRuleSuggestionService:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.chat_integrations = ChatIntegrationRepository(session)
+
+    async def save_suggestion(
+        self,
+        *,
+        context: WorkspaceContext,
+        selection: ChatReviewRuleSuggestionSelection,
+    ) -> ChatReviewRuleActionResult:
+        state = await self._get_rule_suggestion_state(
+            context=context,
+            action_token=selection.action_token,
+        )
+        pattern = ChatReviewStateReader.read_rule_pattern(state.state_payload, 0)
+        anchor = await self._create_rule_from_state(context=context, state=state, pattern=pattern)
+        return ChatReviewRuleActionResult(
+            action_label="правило сохранено",
+            continuation_anchor=anchor,
+        )
+
+    async def skip_suggestion(
+        self,
+        *,
+        context: WorkspaceContext,
+        selection: ChatReviewRuleSuggestionSelection,
+    ) -> ChatReviewRuleActionResult:
+        state = await self._get_rule_suggestion_state(
+            context=context,
+            action_token=selection.action_token,
+        )
+        anchor = await self._build_continuation_anchor(context=context, state=state)
+        await ChatReviewStateClaimer.claim_once(self.chat_integrations, state)
+        await self.session.commit()
+        return ChatReviewRuleActionResult(
+            action_label="без правила",
+            continuation_anchor=anchor,
+        )
+
+    async def start_pattern_selection(
+        self,
+        *,
+        context: WorkspaceContext,
+        selection: ChatReviewRuleSuggestionSelection,
+    ) -> StartedChatReviewRulePatternSelection:
+        state = await self._get_rule_suggestion_state(
+            context=context,
+            action_token=selection.action_token,
+        )
+        return StartedChatReviewRulePatternSelection(
+            action_token=selection.action_token,
+            pattern_choices=ChatReviewStateReader.read_rule_patterns(state.state_payload),
+            category_name=ChatReviewStateReader.read_confirm_category_name(state.state_payload),
+        )
+
+    async def start_manual_pattern_input(
+        self,
+        *,
+        context: WorkspaceContext,
+        selection: ChatReviewRuleSuggestionSelection,
+    ) -> StartedChatReviewRulePatternInput:
+        state = await self._get_rule_suggestion_state(
+            context=context,
+            action_token=selection.action_token,
+        )
+        action_token = ChatActionTokenBuilder.build_token()
+        await self.chat_integrations.create_conversation_state(
+            workspace_id=context.workspace.id,
+            user_id=context.user.id,
+            flow=ChatConversationFlow.REVIEW,
+            step="enter_rule_pattern",
+            action_token=action_token,
+            state_payload=state.state_payload,
+            expires_at=utc_now() + CHAT_REVIEW_ACTION_TTL,
+        )
+        await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
+        await self.session.commit()
+        return StartedChatReviewRulePatternInput(
+            action_token=action_token,
+            category_name=ChatReviewStateReader.read_confirm_category_name(state.state_payload),
+        )
+
+    async def save_manual_pattern(
+        self,
+        *,
+        context: WorkspaceContext,
+        text: str | None,
+    ) -> ChatReviewRuleActionResult | None:
+        state = await self.chat_integrations.get_latest_active_conversation_state_for_flows(
+            workspace_id=context.workspace.id,
+            user_id=context.user.id,
+            flows=(ChatConversationFlow.REVIEW,),
+            now=utc_now(),
+        )
+        if state is None or state.step != "enter_rule_pattern":
+            return None
+
+        pattern = ChatReviewRulePatternBuilder.clean_manual_pattern(text)
+        anchor = await self._create_rule_from_state(context=context, state=state, pattern=pattern)
+        return ChatReviewRuleActionResult(
+            action_label="правило сохранено",
+            continuation_anchor=anchor,
+        )
+
+    async def save_pattern_selection(
+        self,
+        *,
+        context: WorkspaceContext,
+        selection: ChatReviewRulePatternSelection,
+    ) -> ChatReviewRuleActionResult:
+        state = await self._get_rule_suggestion_state(
+            context=context,
+            action_token=selection.action_token,
+        )
+        pattern = ChatReviewStateReader.read_rule_pattern(
+            state.state_payload,
+            selection.pattern_index,
+        )
+        anchor = await self._create_rule_from_state(context=context, state=state, pattern=pattern)
+        return ChatReviewRuleActionResult(
+            action_label="правило сохранено",
+            continuation_anchor=anchor,
+        )
+
+    async def _get_rule_suggestion_state(
+        self,
+        *,
+        context: WorkspaceContext,
+        action_token: str,
+    ) -> ChatConversationState:
+        state = await self.chat_integrations.get_active_conversation_state(
+            workspace_id=context.workspace.id,
+            user_id=context.user.id,
+            flow=ChatConversationFlow.REVIEW,
+            action_token=action_token,
+            now=utc_now(),
+        )
+        if state is None:
+            raise ChatReviewActionError("This review action expired. Open the next row again.")
+        if state.step not in {"suggest_rule", "enter_rule_pattern"}:
+            raise ChatReviewActionError("Stored review action is invalid.")
+        return state
+
+    async def _create_rule_from_state(
+        self,
+        *,
+        context: WorkspaceContext,
+        state: ChatConversationState,
+        pattern: str,
+    ) -> ChatReviewContinuationAnchor:
+        anchor = await self._build_continuation_anchor(context=context, state=state)
+        await ChatReviewStateClaimer.claim_once(self.chat_integrations, state)
+        try:
+            await TransactionRuleManagementUseCase(self.session).create_rule_from_raw_confirmation(
+                context=context,
+                document_id=ChatReviewStateReader.read_document_id(state.state_payload),
+                raw_transaction_id=ChatReviewStateReader.read_raw_transaction_id(
+                    state.state_payload,
+                ),
+                category_id=ChatReviewStateReader.read_confirm_category_id(state.state_payload),
+                property_id=ChatReviewStateReader.read_optional_property_id(state.state_payload),
+                pattern=pattern,
+            )
+            await TransactionRuleApplicationUseCase(self.session).apply_rules_to_document(
+                workspace_id=context.workspace.id,
+                document_id=ChatReviewStateReader.read_document_id(state.state_payload),
+            )
+        except TransactionRuleError as exc:
+            raise ChatReviewActionError(str(exc)) from exc
+        return anchor
+
+    async def _build_continuation_anchor(
+        self,
+        *,
+        context: WorkspaceContext,
+        state: ChatConversationState,
+    ) -> ChatReviewContinuationAnchor:
+        document_id = ChatReviewStateReader.read_document_id(state.state_payload)
+        item = await ChatReviewQueueReader(self.session).read_item(
+            context=context,
+            document_id=document_id,
+            raw_transaction_id=ChatReviewStateReader.read_raw_transaction_id(
+                state.state_payload,
+            ),
+        )
+        if item is None:
+            raise ChatReviewActionError("Raw transaction row was not found.")
+        return ChatReviewContinuationAnchor(document_id=document_id, row_index=item.row_index)
 
 
 class ChatReviewTransferService:
@@ -1069,7 +1926,14 @@ class ChatReviewTransferService:
                 "document_id": str(document_id),
                 "raw_transaction_id": str(raw_transaction_id),
                 "matched_raw_transaction_ids": [str(choice.id) for choice in pair_choices],
+                "matched_raw_transaction_labels": [
+                    ChatReviewTransferLabelBuilder.pair_label(choice) for choice in pair_choices
+                ],
                 "account_ids": [str(choice.id) for choice in account_choices],
+                "account_labels": [
+                    ChatReviewTransferLabelBuilder.account_label(choice)
+                    for choice in account_choices
+                ],
             },
             expires_at=utc_now() + CHAT_REVIEW_ACTION_TTL,
         )
@@ -1082,12 +1946,12 @@ class ChatReviewTransferService:
             account_choices=account_choices,
         )
 
-    async def confirm_transfer_with_account(
+    async def start_transfer_confirmation_with_account(
         self,
         *,
         context: WorkspaceContext,
         selection: ChatReviewTransferAccountSelection,
-    ) -> ChatReviewActionResult:
+    ) -> StartedChatReviewTransferConfirmation:
         state = await self.chat_integrations.get_active_conversation_state(
             workspace_id=context.workspace.id,
             user_id=context.user.id,
@@ -1100,34 +1964,28 @@ class ChatReviewTransferService:
         if state.step != "choose_transfer_target":
             raise ChatReviewActionError("Stored review action is invalid.")
 
-        try:
-            await RawTransactionReviewUseCase(self.session, self.settings).handle(
-                context=context,
-                command=RawTransactionReviewCommand(
-                    document_id=ChatReviewStateReader.read_document_id(state.state_payload),
-                    raw_transaction_id=ChatReviewStateReader.read_raw_transaction_id(
-                        state.state_payload
-                    ),
-                    action="transfer",
-                    counterparty_account_id=ChatReviewStateReader.read_transfer_account_id(
-                        state.state_payload,
-                        selection.account_index,
-                    ),
-                ),
-            )
-        except (LedgerPostingError, RawTransactionReviewError, ValueError) as exc:
-            raise ChatReviewActionError(str(exc)) from exc
+        account_id = ChatReviewStateReader.read_transfer_account_id(
+            state.state_payload,
+            selection.account_index,
+        )
+        target_label = ChatReviewStateReader.read_transfer_account_label(
+            state.state_payload,
+            selection.account_index,
+        )
+        return await self._start_transfer_confirmation(
+            context=context,
+            state=state,
+            target_label=target_label,
+            counterparty_account_id=account_id,
+            matched_raw_transaction_id=None,
+        )
 
-        await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
-        await self.session.commit()
-        return ChatReviewActionResult(action_label="перевод подтвержден")
-
-    async def confirm_transfer_with_pair(
+    async def start_transfer_confirmation_with_pair(
         self,
         *,
         context: WorkspaceContext,
         selection: ChatReviewTransferPairSelection,
-    ) -> ChatReviewActionResult:
+    ) -> StartedChatReviewTransferConfirmation:
         state = await self.chat_integrations.get_active_conversation_state(
             workspace_id=context.workspace.id,
             user_id=context.user.id,
@@ -1140,27 +1998,118 @@ class ChatReviewTransferService:
         if state.step != "choose_transfer_target":
             raise ChatReviewActionError("Stored review action is invalid.")
 
+        matched_raw_transaction_id = ChatReviewStateReader.read_matched_raw_transaction_id(
+            state.state_payload,
+            selection.pair_index,
+        )
+        target_label = ChatReviewStateReader.read_matched_raw_transaction_label(
+            state.state_payload,
+            selection.pair_index,
+        )
+        return await self._start_transfer_confirmation(
+            context=context,
+            state=state,
+            target_label=target_label,
+            counterparty_account_id=None,
+            matched_raw_transaction_id=matched_raw_transaction_id,
+        )
+
+    async def confirm_transfer(
+        self,
+        *,
+        context: WorkspaceContext,
+        selection: ChatReviewTransferConfirmationSelection,
+    ) -> ChatReviewActionResult:
+        state = await self.chat_integrations.get_active_conversation_state(
+            workspace_id=context.workspace.id,
+            user_id=context.user.id,
+            flow=ChatConversationFlow.REVIEW,
+            action_token=selection.action_token,
+            now=utc_now(),
+        )
+        if state is None:
+            raise ChatReviewActionError("This review action expired. Open the next row again.")
+        if state.step != "confirm_transfer":
+            raise ChatReviewActionError("Stored review action is invalid.")
+
+        document_id = ChatReviewStateReader.read_document_id(state.state_payload)
+        item = await self.review_queue.read_item(
+            context=context,
+            document_id=document_id,
+            raw_transaction_id=ChatReviewStateReader.read_raw_transaction_id(
+                state.state_payload,
+            ),
+        )
+        if item is None:
+            raise ChatReviewActionError("Raw transaction row was not found.")
+
+        command = ChatReviewTransferCommandBuilder.build_command(state.state_payload)
+        await ChatReviewStateClaimer.claim_once(self.chat_integrations, state)
         try:
             await RawTransactionReviewUseCase(self.session, self.settings).handle(
                 context=context,
-                command=RawTransactionReviewCommand(
-                    document_id=ChatReviewStateReader.read_document_id(state.state_payload),
-                    raw_transaction_id=ChatReviewStateReader.read_raw_transaction_id(
-                        state.state_payload
-                    ),
-                    action="transfer",
-                    matched_raw_transaction_id=ChatReviewStateReader.read_matched_raw_transaction_id(
-                        state.state_payload,
-                        selection.pair_index,
-                    ),
-                ),
+                command=command,
             )
         except (LedgerPostingError, RawTransactionReviewError, ValueError) as exc:
             raise ChatReviewActionError(str(exc)) from exc
 
+        await self.session.commit()
+        return ChatReviewActionResult(
+            action_label=ChatReviewStateReader.read_transfer_action_label(state.state_payload),
+            continuation_anchor=ChatReviewContinuationAnchor(
+                document_id=document_id,
+                row_index=item.row_index,
+            ),
+        )
+
+    async def _start_transfer_confirmation(
+        self,
+        *,
+        context: WorkspaceContext,
+        state: ChatConversationState,
+        target_label: str,
+        counterparty_account_id: UUID | None,
+        matched_raw_transaction_id: UUID | None,
+    ) -> StartedChatReviewTransferConfirmation:
+        document_id = ChatReviewStateReader.read_document_id(state.state_payload)
+        raw_transaction_id = ChatReviewStateReader.read_raw_transaction_id(state.state_payload)
+        item = await self.review_queue.read_item(
+            context=context,
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+        )
+        if item is None:
+            raise ChatReviewActionError("Raw transaction row was not found.")
+
+        next_action_token = ChatActionTokenBuilder.build_token()
+        payload: dict[str, object] = {
+            "document_id": str(document_id),
+            "raw_transaction_id": str(raw_transaction_id),
+            "target_label": target_label,
+        }
+        if counterparty_account_id is not None:
+            payload["counterparty_account_id"] = str(counterparty_account_id)
+            payload["action_label"] = "перевод подтвержден"
+        if matched_raw_transaction_id is not None:
+            payload["matched_raw_transaction_id"] = str(matched_raw_transaction_id)
+            payload["action_label"] = "парный перевод подтвержден"
+
+        await self.chat_integrations.create_conversation_state(
+            workspace_id=context.workspace.id,
+            user_id=context.user.id,
+            flow=ChatConversationFlow.REVIEW,
+            step="confirm_transfer",
+            action_token=next_action_token,
+            state_payload=payload,
+            expires_at=utc_now() + CHAT_REVIEW_ACTION_TTL,
+        )
         await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
         await self.session.commit()
-        return ChatReviewActionResult(action_label="парный перевод подтвержден")
+        return StartedChatReviewTransferConfirmation(
+            action_token=next_action_token,
+            item=item,
+            target_label=target_label,
+        )
 
     async def _build_transfer_pair_choices(
         self,
@@ -2326,6 +3275,71 @@ class ChatReviewPropertyChoiceBuilder:
         return tuple(choices)
 
 
+class ChatReviewRulePatternBuilder:
+    GENERIC_TOKENS = {
+        "ao",
+        "банк",
+        "карта",
+        "карте",
+        "операция",
+        "оплата",
+        "перевод",
+        "платеж",
+        "покупка",
+        "средств",
+        "списание",
+        "транзакции",
+        "экспобанк",
+    }
+
+    @classmethod
+    def build_choices(cls, raw_transaction: RawTransaction) -> tuple[str, ...]:
+        try:
+            inferred_pattern = infer_rule_pattern(raw_transaction)
+        except TransactionRuleError:
+            return ()
+
+        choices: list[str] = []
+        for candidate in (inferred_pattern, *cls._split_pattern(inferred_pattern)):
+            cleaned = cls._clean_candidate(candidate)
+            if cleaned is None or cleaned in choices:
+                continue
+            choices.append(cleaned)
+        return tuple(choices[:4])
+
+    @classmethod
+    def clean_manual_pattern(cls, value: str | None) -> str:
+        cleaned = cls._clean_candidate(value or "")
+        if cleaned is None:
+            raise ChatReviewActionError(
+                "Напиши более точный признак: минимум 3 буквы или цифры, без номера карты."
+            )
+        return cleaned
+
+    @classmethod
+    def _split_pattern(cls, pattern: str) -> tuple[str, ...]:
+        candidates = re.split(r"[&*/|,;]+|\s+", pattern)
+        return tuple(candidate for candidate in candidates if candidate)
+
+    @classmethod
+    def _clean_candidate(cls, candidate: str) -> str | None:
+        try:
+            cleaned = clean_rule_pattern(candidate)
+        except TransactionRuleError:
+            return None
+        if len(cleaned) < 3 or len(cleaned) > 80:
+            return None
+        normalized = normalized_text(cleaned)
+        if len(normalized) < 3:
+            return None
+        tokens = set(normalized.split())
+        if not tokens or tokens.issubset(cls.GENERIC_TOKENS):
+            return None
+        if "xxxx" in cleaned.casefold():
+            return None
+        return cleaned
+
+
 class ChatReviewTransferAccountChoiceBuilder:
     @staticmethod
     def build_choices(
@@ -2377,6 +3391,53 @@ class ChatReviewTransferPairChoiceBuilder:
         return tuple(choices)
 
 
+class ChatReviewTransferLabelBuilder:
+    @staticmethod
+    def account_label(choice: ChatReviewTransferAccountChoice) -> str:
+        return f"{choice.name} / {choice.currency}"
+
+    @staticmethod
+    def pair_label(choice: ChatReviewTransferPairChoice) -> str:
+        date_label = (
+            choice.operation_date.strftime("%d.%m.%Y")
+            if choice.operation_date is not None
+            else "дата?"
+        )
+        amount_label = "сумма?"
+        if choice.amount is not None:
+            amount_label = f"{choice.amount:.2f} {choice.currency or ''}".strip()
+        account_label = choice.account_name or "счет?"
+        return f"Пара: {account_label} / {date_label} / {amount_label}"
+
+
+class ChatReviewTransferCommandBuilder:
+    @staticmethod
+    def build_command(payload: dict[str, object]) -> RawTransactionReviewCommand:
+        document_id = ChatReviewStateReader.read_document_id(payload)
+        raw_transaction_id = ChatReviewStateReader.read_raw_transaction_id(payload)
+        counterparty_account_id = ChatReviewStateReader.read_confirm_transfer_account_id(payload)
+        if counterparty_account_id is not None:
+            return RawTransactionReviewCommand(
+                document_id=document_id,
+                raw_transaction_id=raw_transaction_id,
+                action="transfer",
+                counterparty_account_id=counterparty_account_id,
+            )
+
+        matched_raw_transaction_id = (
+            ChatReviewStateReader.read_confirm_transfer_matched_raw_transaction_id(payload)
+        )
+        if matched_raw_transaction_id is not None:
+            return RawTransactionReviewCommand(
+                document_id=document_id,
+                raw_transaction_id=raw_transaction_id,
+                action="transfer",
+                matched_raw_transaction_id=matched_raw_transaction_id,
+            )
+
+        raise ChatReviewActionError("Stored transfer action is invalid.")
+
+
 class ChatReviewActionMapper:
     @staticmethod
     def to_review_status_action(callback_action: str) -> str:
@@ -2401,6 +3462,42 @@ class ChatReviewActionMapper:
                 return "строка помечена как уникальная"
             case _:
                 raise ChatReviewActionError("Unknown review action.")
+
+
+class ChatReviewStateClaimer:
+    @staticmethod
+    async def claim_once(
+        chat_integrations: ChatIntegrationRepository,
+        state: ChatConversationState,
+    ) -> None:
+        claimed = await chat_integrations.try_consume_active_conversation_state(
+            state,
+            consumed_at=utc_now(),
+        )
+        if not claimed:
+            raise ChatReviewActionError("Stored review action is invalid.")
+
+
+class ChatWorkspaceSwitchStateReader:
+    @staticmethod
+    def read_workspace_id(payload: dict[str, object], workspace_index: int) -> UUID:
+        if workspace_index < 0:
+            raise ChatWorkspaceSwitchError("Выбранное рабочее пространство не найдено.")
+        workspace_ids = ChatWorkspaceSwitchStateReader._read_list(payload, "workspace_ids")
+        try:
+            value = workspace_ids[workspace_index]
+        except IndexError as exc:
+            raise ChatWorkspaceSwitchError("Выбранное рабочее пространство не найдено.") from exc
+        if not isinstance(value, str):
+            raise ChatWorkspaceSwitchError("Сохраненный выбор workspace некорректен.")
+        return UUID(value)
+
+    @staticmethod
+    def _read_list(payload: dict[str, object], key: str) -> list[object]:
+        value = payload.get(key)
+        if not isinstance(value, list):
+            raise ChatWorkspaceSwitchError("Сохраненный выбор workspace некорректен.")
+        return cast(list[object], value)
 
 
 class ChatReviewStateReader:
@@ -2465,6 +3562,61 @@ class ChatReviewStateReader:
         return ChatReviewStateReader._read_uuid(payload, "category_id")
 
     @staticmethod
+    def read_confirm_category_name(payload: dict[str, object]) -> str:
+        category_name = payload.get("category_name")
+        return category_name if isinstance(category_name, str) else "выбранная категория"
+
+    @staticmethod
+    def read_offer_rule_suggestion(payload: dict[str, object]) -> bool:
+        return payload.get("offer_rule_suggestion") is True
+
+    @staticmethod
+    def read_optional_property_id(payload: dict[str, object]) -> UUID | None:
+        property_id = payload.get("property_id")
+        if property_id is None:
+            return None
+        if not isinstance(property_id, str):
+            raise ChatReviewActionError("Stored property id is invalid.")
+        try:
+            return UUID(property_id)
+        except ValueError as exc:
+            raise ChatReviewActionError("Stored property id is invalid.") from exc
+
+    @staticmethod
+    def read_rule_patterns(payload: dict[str, object]) -> tuple[str, ...]:
+        patterns = payload.get("patterns")
+        if not isinstance(patterns, list):
+            raise ChatReviewActionError("Stored rule suggestion is invalid.")
+        clean_patterns: list[str] = []
+        for pattern in patterns:
+            if not isinstance(pattern, str):
+                raise ChatReviewActionError("Stored rule suggestion is invalid.")
+            clean_patterns.append(pattern)
+        if not clean_patterns:
+            raise ChatReviewActionError("Stored rule suggestion is invalid.")
+        return tuple(clean_patterns)
+
+    @staticmethod
+    def read_rule_pattern(payload: dict[str, object], pattern_index: int) -> str:
+        patterns = ChatReviewStateReader.read_rule_patterns(payload)
+        if pattern_index < 0 or pattern_index >= len(patterns):
+            raise ChatReviewActionError("Selected rule pattern is no longer available.")
+        return patterns[pattern_index]
+
+    @staticmethod
+    def read_review_action(payload: dict[str, object]) -> str:
+        review_action = payload.get("review_action")
+        if not isinstance(review_action, str):
+            raise ChatReviewActionError("Stored review action is invalid.")
+        if review_action not in {
+            ChatReviewCallbackData.DUPLICATE_ACTION,
+            ChatReviewCallbackData.IGNORE_ACTION,
+            ChatReviewCallbackData.MARK_UNIQUE_ACTION,
+        }:
+            raise ChatReviewActionError("Stored review action is invalid.")
+        return review_action
+
+    @staticmethod
     def read_property_id(payload: dict[str, object], property_index: int) -> UUID | None:
         property_ids = payload.get("property_ids")
         if not isinstance(property_ids, list):
@@ -2499,6 +3651,15 @@ class ChatReviewStateReader:
             raise ChatReviewActionError("Stored account id is invalid.") from exc
 
     @staticmethod
+    def read_transfer_account_label(payload: dict[str, object], account_index: int) -> str:
+        return ChatReviewStateReader._read_label(
+            payload=payload,
+            key="account_labels",
+            index=account_index,
+            fallback="выбранный счет",
+        )
+
+    @staticmethod
     def read_matched_raw_transaction_id(payload: dict[str, object], pair_index: int) -> UUID:
         raw_transaction_ids = payload.get("matched_raw_transaction_ids")
         if not isinstance(raw_transaction_ids, list):
@@ -2513,6 +3674,64 @@ class ChatReviewStateReader:
             return UUID(raw_transaction_id)
         except ValueError as exc:
             raise ChatReviewActionError("Stored matched row id is invalid.") from exc
+
+    @staticmethod
+    def read_matched_raw_transaction_label(payload: dict[str, object], pair_index: int) -> str:
+        return ChatReviewStateReader._read_label(
+            payload=payload,
+            key="matched_raw_transaction_labels",
+            index=pair_index,
+            fallback="выбранная парная строка",
+        )
+
+    @staticmethod
+    def read_confirm_transfer_account_id(payload: dict[str, object]) -> UUID | None:
+        value = payload.get("counterparty_account_id")
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ChatReviewActionError("Stored transfer account is invalid.")
+        try:
+            return UUID(value)
+        except ValueError as exc:
+            raise ChatReviewActionError("Stored transfer account is invalid.") from exc
+
+    @staticmethod
+    def read_confirm_transfer_matched_raw_transaction_id(
+        payload: dict[str, object],
+    ) -> UUID | None:
+        value = payload.get("matched_raw_transaction_id")
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ChatReviewActionError("Stored matched row is invalid.")
+        try:
+            return UUID(value)
+        except ValueError as exc:
+            raise ChatReviewActionError("Stored matched row is invalid.") from exc
+
+    @staticmethod
+    def read_transfer_action_label(payload: dict[str, object]) -> str:
+        action_label = payload.get("action_label")
+        if not isinstance(action_label, str):
+            return "перевод подтвержден"
+        return action_label
+
+    @staticmethod
+    def _read_label(
+        *,
+        payload: dict[str, object],
+        key: str,
+        index: int,
+        fallback: str,
+    ) -> str:
+        labels = payload.get(key)
+        if not isinstance(labels, list):
+            return fallback
+        if index < 0 or index >= len(labels):
+            return fallback
+        label = labels[index]
+        return label if isinstance(label, str) else fallback
 
     @staticmethod
     def _read_uuid(payload: dict[str, object], key: str) -> UUID:

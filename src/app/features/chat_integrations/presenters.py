@@ -1,8 +1,13 @@
 from datetime import date
+from decimal import Decimal
 
 from app.features.chat_integrations.application import (
+    ChatAccountBalances,
+    ChatCategorySummary,
+    ChatCategorySummaryRow,
     ChatManualOperationConfirmation,
     ChatManualOperationResult,
+    ChatMonthlySummary,
     ChatPrivateStatus,
     ChatReviewNavigationBoundary,
     ChatReviewQueueItem,
@@ -15,9 +20,15 @@ from app.features.chat_integrations.application import (
     StartedChatManualDateInput,
     StartedChatManualDateSelection,
     StartedChatManualDescriptionInput,
+    StartedChatReviewActionConfirmation,
     StartedChatReviewCategorySelection,
     StartedChatReviewPropertySelection,
+    StartedChatReviewRulePatternInput,
+    StartedChatReviewRulePatternSelection,
+    StartedChatReviewRuleSuggestion,
+    StartedChatReviewTransferConfirmation,
     StartedChatReviewTransferSelection,
+    StartedChatWorkspaceSelection,
 )
 from app.features.chat_integrations.commands import (
     ChatManualAccountCallbackData,
@@ -26,14 +37,21 @@ from app.features.chat_integrations.commands import (
     ChatManualCorrectionCallbackData,
     ChatManualDateCallbackData,
     ChatManualDescriptionCallbackData,
+    ChatReviewActionConfirmationCallbackData,
     ChatReviewCallbackData,
     ChatReviewCategoryCallbackData,
     ChatReviewCategoryPageCallbackData,
     ChatReviewNavigationCallbackData,
     ChatReviewPropertyCallbackData,
+    ChatReviewReturnCallbackData,
+    ChatReviewRulePatternCallbackData,
+    ChatReviewRuleSuggestionCallbackData,
     ChatReviewTransferCallbackData,
+    ChatReviewTransferConfirmationCallbackData,
     ChatReviewTransferPairCallbackData,
+    ChatSummaryCallbackData,
     ChatUploadCallbackData,
+    ChatWorkspaceCallbackData,
 )
 from app.features.chat_integrations.schemas import (
     ChatConversation,
@@ -46,11 +64,122 @@ from app.features.imports.models import UploadedDocument, UploadedDocumentStatus
 from app.features.ledger.models import OperationType
 from app.features.workspaces.service import WorkspaceContext
 
+CHAT_ACCOUNT_BALANCE_ROW_LIMIT = 10
+CHAT_CATEGORY_SUMMARY_ROW_LIMIT = 10
+CHAT_MAIN_MENU_BUTTON_TEXT = "🏠 Меню"
+CHAT_WORKSPACE_BUTTON_TEXT = "🗂️ Пространство"
+CHAT_WORKSPACE_TITLE = "🗂️ Рабочее пространство"
+CHAT_WORKSPACE_CHOICE_PREFIX = "🗂️ "
+
+
+class TelegramWorkspacePresenter:
+    @staticmethod
+    def format_label(workspace_name: str) -> str:
+        return f"{CHAT_WORKSPACE_CHOICE_PREFIX}{workspace_name}"
+
 
 class TelegramDatePresenter:
+    MONTH_NAMES = {
+        1: "Январь",
+        2: "Февраль",
+        3: "Март",
+        4: "Апрель",
+        5: "Май",
+        6: "Июнь",
+        7: "Июль",
+        8: "Август",
+        9: "Сентябрь",
+        10: "Октябрь",
+        11: "Ноябрь",
+        12: "Декабрь",
+    }
+
     @staticmethod
     def format_date(value: date) -> str:
         return value.strftime("%d.%m.%Y")
+
+    @classmethod
+    def format_month(cls, value: date) -> str:
+        return f"{cls.MONTH_NAMES[value.month]} {value.year}"
+
+
+class TelegramMoneyPresenter:
+    @staticmethod
+    def format_money(amount: Decimal, currency: str) -> str:
+        return f"{amount:.2f} {currency}".strip()
+
+
+class TelegramAccountBalancePresenter:
+    @staticmethod
+    def format_balances(balances: ChatAccountBalances) -> str:
+        sections: list[str] = []
+        if balances.totals:
+            total_lines = [
+                f"• {TelegramMoneyPresenter.format_money(total.balance, total.currency)}"
+                for total in balances.totals
+            ]
+            sections.append("Итого:\n" + "\n".join(total_lines))
+
+        visible_rows = balances.rows[:CHAT_ACCOUNT_BALANCE_ROW_LIMIT]
+        account_lines = [
+            (
+                f"• {row.account_name}: "
+                f"{TelegramMoneyPresenter.format_money(row.balance, row.currency)}"
+            )
+            for row in visible_rows
+        ]
+        hidden_count = len(balances.rows) - len(visible_rows)
+        if hidden_count > 0:
+            account_lines.append(f"…еще счетов: {hidden_count}")
+        sections.append("Счета:\n" + "\n".join(account_lines))
+        return "\n\n".join(sections)
+
+
+class TelegramCategorySummaryPresenter:
+    @staticmethod
+    def format_categories(summary: ChatCategorySummary) -> str:
+        if not summary.rows:
+            return "За этот период пока нет подтвержденных операций по категориям."
+
+        rows = summary.rows[:CHAT_CATEGORY_SUMMARY_ROW_LIMIT]
+        lines = [
+            (
+                f"• {row.category_name}: "
+                f"{TelegramCategorySummaryPresenter.format_row(row, summary.currency)}"
+            )
+            for row in rows
+        ]
+        hidden_count = len(summary.rows) - len(rows)
+        if hidden_count > 0:
+            lines.append(f"…еще категорий: {hidden_count}")
+        return "\n".join(lines)
+
+    @staticmethod
+    def format_row(row: ChatCategorySummaryRow, currency: str) -> str:
+        if row.income > Decimal("0.00") and row.expense > Decimal("0.00"):
+            income = TelegramMoneyPresenter.format_money(row.income, currency)
+            expense = TelegramMoneyPresenter.format_money(row.expense, currency)
+            profit = TelegramMoneyPresenter.format_money(row.profit, currency)
+            return f"+{income} / -{expense} / = {profit}"
+        if row.income > Decimal("0.00"):
+            return f"+{TelegramMoneyPresenter.format_money(row.income, currency)}"
+        if row.expense > Decimal("0.00"):
+            return f"-{TelegramMoneyPresenter.format_money(row.expense, currency)}"
+        return TelegramMoneyPresenter.format_money(row.profit, currency)
+
+
+class TelegramSummaryPeriodPresenter:
+    @staticmethod
+    def previous_month(month_start: date) -> date:
+        if month_start.month == 1:
+            return month_start.replace(year=month_start.year - 1, month=12)
+        return month_start.replace(month=month_start.month - 1)
+
+    @staticmethod
+    def next_month(month_start: date) -> date:
+        if month_start.month == 12:
+            return month_start.replace(year=month_start.year + 1, month=1)
+        return month_start.replace(month=month_start.month + 1)
 
 
 class TelegramMainMenuPresenter:
@@ -106,16 +235,24 @@ class TelegramMainMenuPresenter:
         context: WorkspaceContext,
         status: ChatPrivateStatus,
         review_url: str | None = None,
+        callback_notification: str | None = None,
     ) -> OutboundChatMessage:
         user_label = context.user.name or context.user.email
         button_rows: list[tuple[OutboundChatButton, ...]] = [
             (
-                OutboundChatButton(text="📊 Статус", callback_data="status:show"),
+                OutboundChatButton(text="📊 Сводка", callback_data="summary:show"),
                 OutboundChatButton(text="🔎 Проверка", callback_data="review:next"),
             ),
             (
                 OutboundChatButton(text="📎 Выписка", callback_data="upload:start"),
                 OutboundChatButton(text="➕ Операция", callback_data="manual:start"),
+            ),
+            (
+                OutboundChatButton(text="💳 Балансы", callback_data="balances:show"),
+                OutboundChatButton(
+                    text=CHAT_WORKSPACE_BUTTON_TEXT,
+                    callback_data="workspace:choose",
+                ),
             ),
         ]
         if review_url is not None:
@@ -127,11 +264,148 @@ class TelegramMainMenuPresenter:
             text=(
                 "✅ Booker Tee подключен\n\n"
                 f"👤 {user_label}\n"
-                f"🏠 {context.workspace.name}\n"
+                f"{TelegramWorkspacePresenter.format_label(context.workspace.name)}\n"
                 f"⚠️ К проверке: {status.total_needing_attention}\n\n"
                 "📎 Выписку можно отправить файлом в этот чат."
             ),
             buttons=tuple(button_rows),
+            callback_notification=callback_notification,
+        )
+
+    @staticmethod
+    def show_monthly_summary(
+        conversation: ChatConversation,
+        context: WorkspaceContext,
+        summary: ChatMonthlySummary,
+    ) -> OutboundChatMessage:
+        period = (
+            f"{TelegramDatePresenter.format_date(summary.date_from)}"
+            f"–{TelegramDatePresenter.format_date(summary.date_to)}"
+        )
+        income = TelegramMoneyPresenter.format_money(summary.income, summary.currency)
+        expense = TelegramMoneyPresenter.format_money(summary.expense, summary.currency)
+        profit = TelegramMoneyPresenter.format_money(summary.profit, summary.currency)
+        previous_month = TelegramSummaryPeriodPresenter.previous_month(summary.date_from)
+        next_month = TelegramSummaryPeriodPresenter.next_month(summary.date_from)
+        return OutboundChatMessage(
+            conversation=conversation,
+            text=(
+                "📊 Сводка\n\n"
+                f"{TelegramWorkspacePresenter.format_label(context.workspace.name)}\n"
+                f"🗓 {period}\n\n"
+                f"🟢 Доход: {income}\n"
+                f"🔴 Расход: {expense}\n"
+                f"⚖️ Итог: {profit}\n\n"
+                f"🔎 К проверке: {summary.total_needing_attention}"
+            ),
+            buttons=(
+                (
+                    OutboundChatButton(
+                        text="⬅️",
+                        callback_data=ChatSummaryCallbackData.build_period_selection(
+                            month_start=previous_month,
+                        ),
+                    ),
+                    OutboundChatButton(
+                        text=TelegramDatePresenter.format_month(summary.date_from),
+                        callback_data=ChatSummaryCallbackData.build_period_selection(
+                            month_start=summary.date_from,
+                        ),
+                    ),
+                    OutboundChatButton(
+                        text="➡️",
+                        callback_data=ChatSummaryCallbackData.build_period_selection(
+                            month_start=next_month,
+                        ),
+                    ),
+                ),
+                (
+                    OutboundChatButton(
+                        text="🏷 Категории",
+                        callback_data=ChatSummaryCallbackData.build_category_selection(
+                            month_start=summary.date_from,
+                        ),
+                    ),
+                ),
+                (
+                    OutboundChatButton(text="🔎 Проверка", callback_data="review:next"),
+                    OutboundChatButton(text="💳 Балансы", callback_data="balances:show"),
+                ),
+                (
+                    OutboundChatButton(
+                        text=CHAT_WORKSPACE_BUTTON_TEXT,
+                        callback_data="workspace:choose",
+                    ),
+                ),
+                (OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),
+            ),
+            delivery_mode=OutboundChatDeliveryMode.EDIT_SOURCE_MESSAGE,
+        )
+
+    @staticmethod
+    def show_category_summary(
+        conversation: ChatConversation,
+        context: WorkspaceContext,
+        summary: ChatCategorySummary,
+    ) -> OutboundChatMessage:
+        period = (
+            f"{TelegramDatePresenter.format_date(summary.date_from)}"
+            f"–{TelegramDatePresenter.format_date(summary.date_to)}"
+        )
+        return OutboundChatMessage(
+            conversation=conversation,
+            text=(
+                "🏷 Категории\n\n"
+                f"{TelegramWorkspacePresenter.format_label(context.workspace.name)}\n"
+                f"🗓 {period}\n\n"
+                f"{TelegramCategorySummaryPresenter.format_categories(summary)}"
+            ),
+            buttons=(
+                (
+                    OutboundChatButton(
+                        text="📊 Сводка",
+                        callback_data=ChatSummaryCallbackData.build_period_selection(
+                            month_start=summary.date_from,
+                        ),
+                    ),
+                    OutboundChatButton(text="💳 Балансы", callback_data="balances:show"),
+                ),
+                (OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),
+            ),
+            delivery_mode=OutboundChatDeliveryMode.EDIT_SOURCE_MESSAGE,
+        )
+
+    @staticmethod
+    def show_account_balances(
+        conversation: ChatConversation,
+        context: WorkspaceContext,
+        balances: ChatAccountBalances,
+    ) -> OutboundChatMessage:
+        if not balances.rows:
+            body = "Пока нет активных счетов."
+        else:
+            body = TelegramAccountBalancePresenter.format_balances(balances)
+        return OutboundChatMessage(
+            conversation=conversation,
+            text=(
+                "💳 Балансы\n\n"
+                f"{TelegramWorkspacePresenter.format_label(context.workspace.name)}\n\n"
+                f"{body}"
+            ),
+            buttons=(
+                (
+                    OutboundChatButton(text="📊 Сводка", callback_data="summary:show"),
+                    OutboundChatButton(text="🔄 Обновить", callback_data="balances:show"),
+                ),
+                (
+                    OutboundChatButton(
+                        text=CHAT_WORKSPACE_BUTTON_TEXT,
+                        callback_data="workspace:choose",
+                    ),
+                ),
+                (OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),
+            ),
+            delivery_mode=OutboundChatDeliveryMode.EDIT_SOURCE_MESSAGE,
         )
 
     @staticmethod
@@ -150,6 +424,12 @@ class TelegramMainMenuPresenter:
                     OutboundChatButton(text="🔎 Проверка", callback_data="review:next"),
                     OutboundChatButton(text="🔄 Обновить", callback_data="status:show"),
                 ),
+                (
+                    OutboundChatButton(
+                        text=CHAT_WORKSPACE_BUTTON_TEXT,
+                        callback_data="workspace:choose",
+                    ),
+                ),
                 (OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),
             )
         )
@@ -158,11 +438,65 @@ class TelegramMainMenuPresenter:
             conversation=conversation,
             text=(
                 "📊 Статус\n\n"
-                f"🏠 {context.workspace.name}\n"
+                f"{TelegramWorkspacePresenter.format_label(context.workspace.name)}\n"
                 f"📄 Документы: {status.documents_needing_attention}\n"
                 f"🔎 Проверка: {status.raw_transactions_needing_attention}"
             ),
             buttons=tuple(button_rows),
+        )
+
+    @staticmethod
+    def show_workspace_menu(
+        conversation: ChatConversation,
+        selection: StartedChatWorkspaceSelection,
+    ) -> OutboundChatMessage:
+        rows: list[tuple[OutboundChatButton, ...]] = []
+        for index, choice in enumerate(selection.workspace_choices):
+            prefix = "✅ " if choice.is_current else CHAT_WORKSPACE_CHOICE_PREFIX
+            rows.append(
+                (
+                    OutboundChatButton(
+                        text=f"{prefix}{choice.name}",
+                        callback_data=ChatWorkspaceCallbackData.build_workspace_selection(
+                            action_token=selection.action_token,
+                            workspace_index=index,
+                        ),
+                    ),
+                )
+            )
+        rows.append(
+            (
+                OutboundChatButton(
+                    text=CHAT_MAIN_MENU_BUTTON_TEXT,
+                    callback_data="main:menu",
+                ),
+            )
+        )
+        return OutboundChatMessage(
+            conversation=conversation,
+            text=f"{CHAT_WORKSPACE_TITLE}\n\nВыбери, с чем сейчас работаем.",
+            buttons=tuple(rows),
+            delivery_mode=OutboundChatDeliveryMode.EDIT_SOURCE_MESSAGE,
+        )
+
+    @staticmethod
+    def show_workspace_switch_error(
+        conversation: ChatConversation,
+        message: str,
+    ) -> OutboundChatMessage:
+        return TelegramMainMenuPresenter._show_review_workspace(
+            conversation=conversation,
+            text=f"⚠️ Не получилось переключить пространство.\n\n{message}",
+            buttons=(
+                (
+                    OutboundChatButton(
+                        text=CHAT_WORKSPACE_BUTTON_TEXT,
+                        callback_data="workspace:choose",
+                    ),
+                    OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),
+                ),
+            ),
+            callback_notification="Не получилось",
         )
 
     @staticmethod
@@ -171,6 +505,7 @@ class TelegramMainMenuPresenter:
         item: ChatReviewQueueItem,
         action_token: str,
         review_url: str | None = None,
+        callback_notification: str | None = None,
     ) -> OutboundChatMessage:
         action_rows: list[tuple[OutboundChatButton, ...]]
         manual_category_button = OutboundChatButton(
@@ -260,6 +595,48 @@ class TelegramMainMenuPresenter:
                 *secondary_action_rows,
                 *navigation_rows,
             ),
+            callback_notification=callback_notification,
+        )
+
+    @staticmethod
+    def show_review_action_confirmation(
+        conversation: ChatConversation,
+        confirmation: StartedChatReviewActionConfirmation,
+    ) -> OutboundChatMessage:
+        if confirmation.action == ChatReviewCallbackData.DUPLICATE_ACTION:
+            title = "🗑 Пометить как дубль?"
+            consequence = "Эта строка не будет учтена повторно."
+            confirm_label = "✅ Да, это дубль"
+        else:
+            title = "🚫 Не учитывать строку?"
+            consequence = "Она не попадет в доходы, расходы или переводы."
+            confirm_label = "✅ Да, не учитывать"
+
+        return TelegramMainMenuPresenter._show_review_workspace(
+            conversation=conversation,
+            text=(
+                f"{title}\n\n"
+                f"{consequence}\n\n"
+                f"{TelegramReviewQueueCardPresenter.format_item(confirmation.item)}"
+            ),
+            buttons=(
+                (
+                    OutboundChatButton(
+                        text=confirm_label,
+                        callback_data=ChatReviewActionConfirmationCallbackData.build_confirm_action(
+                            action_token=confirmation.action_token,
+                        ),
+                    ),
+                ),
+                (
+                    OutboundChatButton(
+                        text="🔎 К строке",
+                        callback_data=ChatReviewReturnCallbackData.build_return_action(
+                            action_token=confirmation.action_token,
+                        ),
+                    ),
+                ),
+            ),
         )
 
     @staticmethod
@@ -335,7 +712,16 @@ class TelegramMainMenuPresenter:
             ),
             buttons=category_buttons
             + page_row
-            + ((OutboundChatButton(text="🔎 К строке", callback_data="review:next"),),),
+            + (
+                (
+                    OutboundChatButton(
+                        text="🔎 К строке",
+                        callback_data=ChatReviewReturnCallbackData.build_return_action(
+                            action_token=selection.action_token,
+                        ),
+                    ),
+                ),
+            ),
         )
 
     @staticmethod
@@ -363,7 +749,16 @@ class TelegramMainMenuPresenter:
                 f"{TelegramReviewQueueCardPresenter.format_item(selection.item)}"
             ),
             buttons=property_buttons
-            + ((OutboundChatButton(text="⬅️ Назад", callback_data="review:next"),),),
+            + (
+                (
+                    OutboundChatButton(
+                        text="⬅️ Назад",
+                        callback_data=ChatReviewReturnCallbackData.build_return_action(
+                            action_token=selection.action_token,
+                        ),
+                    ),
+                ),
+            ),
         )
 
     @staticmethod
@@ -403,16 +798,186 @@ class TelegramMainMenuPresenter:
             ),
             buttons=pair_buttons
             + account_buttons
-            + ((OutboundChatButton(text="⬅️ Назад", callback_data="review:next"),),),
+            + (
+                (
+                    OutboundChatButton(
+                        text="⬅️ Назад",
+                        callback_data=ChatReviewReturnCallbackData.build_return_action(
+                            action_token=selection.action_token,
+                        ),
+                    ),
+                ),
+            ),
         )
 
     @staticmethod
-    def show_review_queue_empty(conversation: ChatConversation) -> OutboundChatMessage:
+    def show_review_transfer_confirmation(
+        conversation: ChatConversation,
+        confirmation: StartedChatReviewTransferConfirmation,
+    ) -> OutboundChatMessage:
+        return TelegramMainMenuPresenter._show_review_workspace(
+            conversation=conversation,
+            text=(
+                "🔁 Подтвердить перевод?\n\n"
+                "Перевод не попадет в доходы или расходы.\n\n"
+                f"Цель: {confirmation.target_label}\n\n"
+                f"{TelegramReviewQueueCardPresenter.format_item(confirmation.item)}"
+            ),
+            buttons=(
+                (
+                    OutboundChatButton(
+                        text="✅ Да, это перевод",
+                        callback_data=ChatReviewTransferConfirmationCallbackData.build_confirm_action(
+                            action_token=confirmation.action_token,
+                        ),
+                    ),
+                ),
+                (
+                    OutboundChatButton(
+                        text="⬅️ Выбор",
+                        callback_data=ChatReviewCallbackData.build_transfer_action(
+                            action_token=confirmation.action_token,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    @staticmethod
+    def show_review_rule_suggestion(
+        conversation: ChatConversation,
+        suggestion: StartedChatReviewRuleSuggestion,
+    ) -> OutboundChatMessage:
+        choose_pattern_row: tuple[tuple[OutboundChatButton, ...], ...] = ()
+        if suggestion.alternative_patterns:
+            choose_pattern_row = (
+                (
+                    OutboundChatButton(
+                        text="✏️ Другой признак",
+                        callback_data=ChatReviewRuleSuggestionCallbackData.build_choose_pattern_action(
+                            action_token=suggestion.action_token,
+                        ),
+                    ),
+                ),
+            )
+        manual_pattern_row = (
+            (
+                OutboundChatButton(
+                    text="✍️ Ввести вручную",
+                    callback_data=ChatReviewRuleSuggestionCallbackData.build_enter_pattern_action(
+                        action_token=suggestion.action_token,
+                    ),
+                ),
+            ),
+        )
+        return TelegramMainMenuPresenter._show_review_workspace(
+            conversation=conversation,
+            text=(
+                f"✅ {suggestion.action_label}\n\n"
+                "Запомнить для похожих операций?\n\n"
+                f"Признак: {suggestion.pattern}\n"
+                f"Категория: {suggestion.category_name}\n\n"
+                "Если в новых выписках встречу этот признак, предложу эту категорию."
+            ),
+            buttons=(
+                (
+                    OutboundChatButton(
+                        text="✅ Запомнить",
+                        callback_data=ChatReviewRuleSuggestionCallbackData.build_save_action(
+                            action_token=suggestion.action_token,
+                        ),
+                    ),
+                    OutboundChatButton(
+                        text="Не сейчас",
+                        callback_data=ChatReviewRuleSuggestionCallbackData.build_skip_action(
+                            action_token=suggestion.action_token,
+                        ),
+                    ),
+                ),
+                *choose_pattern_row,
+                *manual_pattern_row,
+            ),
+        )
+
+    @staticmethod
+    def show_review_rule_pattern_input(
+        conversation: ChatConversation,
+        selection: StartedChatReviewRulePatternInput,
+    ) -> OutboundChatMessage:
+        return TelegramMainMenuPresenter._show_review_workspace(
+            conversation=conversation,
+            text=(
+                "✍️ Напиши признак для правила.\n\n"
+                f"Категория: {selection.category_name}\n\n"
+                "Например: KRASNOE&BELOE"
+            ),
+            buttons=(
+                (
+                    OutboundChatButton(
+                        text="Не сейчас",
+                        callback_data=ChatReviewRuleSuggestionCallbackData.build_skip_action(
+                            action_token=selection.action_token,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    @staticmethod
+    def show_review_rule_pattern_menu(
+        conversation: ChatConversation,
+        selection: StartedChatReviewRulePatternSelection,
+    ) -> OutboundChatMessage:
+        pattern_buttons = tuple(
+            (
+                OutboundChatButton(
+                    text=pattern,
+                    callback_data=ChatReviewRulePatternCallbackData.build_pattern_selection(
+                        action_token=selection.action_token,
+                        pattern_index=index,
+                    ),
+                ),
+            )
+            for index, pattern in enumerate(selection.pattern_choices)
+        )
+        return TelegramMainMenuPresenter._show_review_workspace(
+            conversation=conversation,
+            text=(
+                "Выбери признак для правила.\n\n"
+                f"Категория: {selection.category_name}\n\n"
+                "По этому тексту бот будет искать похожие операции."
+            ),
+            buttons=pattern_buttons
+            + (
+                (
+                    OutboundChatButton(
+                        text="✍️ Ввести вручную",
+                        callback_data=ChatReviewRuleSuggestionCallbackData.build_enter_pattern_action(
+                            action_token=selection.action_token,
+                        ),
+                    ),
+                ),
+                (
+                    OutboundChatButton(
+                        text="Не сейчас",
+                        callback_data=ChatReviewRuleSuggestionCallbackData.build_skip_action(
+                            action_token=selection.action_token,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    @staticmethod
+    def show_review_queue_empty(
+        conversation: ChatConversation,
+        callback_notification: str | None = "Готово",
+    ) -> OutboundChatMessage:
         return TelegramMainMenuPresenter._show_review_workspace(
             conversation=conversation,
             text="✅ Сейчас нечего проверять.",
             buttons=((OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),),
-            callback_notification="Готово",
+            callback_notification=callback_notification,
         )
 
     @staticmethod
@@ -437,6 +1002,9 @@ class TelegramMainMenuPresenter:
         conversation: ChatConversation,
         message: str,
     ) -> OutboundChatMessage:
+        if TelegramReviewActionErrorPresenter.is_stale_button_error(message):
+            return TelegramMainMenuPresenter.show_review_stale_button_error(conversation)
+
         return TelegramMainMenuPresenter._show_review_workspace(
             conversation=conversation,
             text=f"⚠️ Не получилось применить действие.\n\n{message}",
@@ -447,6 +1015,26 @@ class TelegramMainMenuPresenter:
                 ),
             ),
             callback_notification="Не получилось",
+        )
+
+    @staticmethod
+    def show_review_stale_button_error(conversation: ChatConversation) -> OutboundChatMessage:
+        return TelegramMainMenuPresenter._show_review_workspace(
+            conversation=conversation,
+            text=(
+                "⚠️ Кнопка устарела\n\n"
+                "Эта кнопка уже неактуальна. Открой актуальную строку проверки."
+            ),
+            buttons=(
+                (
+                    OutboundChatButton(
+                        text="🔎 Актуальная строка",
+                        callback_data="review:next",
+                    ),
+                    OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),
+                ),
+            ),
+            callback_notification="Кнопка устарела",
         )
 
     @staticmethod
@@ -1127,3 +1715,11 @@ class TelegramReviewTransferChoicePresenter:
         if pair.amount is None:
             return "сумма?"
         return f"{pair.amount:.2f} {pair.currency or ''}".strip()
+
+
+class TelegramReviewActionErrorPresenter:
+    @staticmethod
+    def is_stale_button_error(message: str) -> bool:
+        return message.startswith("This review action expired.") or message == (
+            "Stored review action is invalid."
+        )

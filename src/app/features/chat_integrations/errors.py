@@ -10,6 +10,10 @@ class ChatWorkspaceResolutionError(ChatIntegrationError):
     pass
 
 
+class ChatWorkspaceSwitchError(ChatIntegrationError):
+    pass
+
+
 class ChatDocumentUploadError(ChatIntegrationError):
     pass
 

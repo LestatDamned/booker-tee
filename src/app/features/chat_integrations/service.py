@@ -3,18 +3,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.settings import Settings
 from app.features.chat_integrations.application import (
     BoundChatWorkspace,
+    ChatAccountBalanceReader,
     ChatDocumentUploadService,
     ChatManualOperationConfirmation,
     ChatManualOperationService,
+    ChatMonthlySummaryReader,
     ChatPrivateStatus,
     ChatPrivateStatusReader,
     ChatReviewActionService,
     ChatReviewCategoryActionResult,
     ChatReviewConfirmationService,
+    ChatReviewContinuationAnchor,
     ChatReviewNavigationBoundary,
     ChatReviewQueueService,
+    ChatReviewRuleSuggestionService,
     ChatReviewTransferService,
     ChatReviewUrlBuilder,
+    ChatWorkspaceSwitcher,
     StartedChatManualAccountSelection,
     StartedChatManualAmountInput,
     StartedChatManualCategorySelection,
@@ -37,6 +42,8 @@ from app.features.chat_integrations.commands import (
     ChatManualDateSelection,
     ChatManualDescriptionCallbackData,
     ChatManualDescriptionSelection,
+    ChatReviewActionConfirmationCallbackData,
+    ChatReviewActionConfirmationSelection,
     ChatReviewActionSelection,
     ChatReviewCallbackData,
     ChatReviewCategoryCallbackData,
@@ -47,18 +54,31 @@ from app.features.chat_integrations.commands import (
     ChatReviewNavigationSelection,
     ChatReviewPropertyCallbackData,
     ChatReviewPropertySelection,
+    ChatReviewReturnCallbackData,
+    ChatReviewReturnSelection,
+    ChatReviewRulePatternCallbackData,
+    ChatReviewRulePatternSelection,
+    ChatReviewRuleSuggestionCallbackData,
+    ChatReviewRuleSuggestionSelection,
     ChatReviewTransferAccountSelection,
     ChatReviewTransferCallbackData,
+    ChatReviewTransferConfirmationCallbackData,
+    ChatReviewTransferConfirmationSelection,
     ChatReviewTransferPairCallbackData,
     ChatReviewTransferPairSelection,
+    ChatSummaryCallbackData,
+    ChatSummaryPeriodSelection,
     ChatUploadAccountSelection,
     ChatUploadCallbackData,
+    ChatWorkspaceCallbackData,
+    ChatWorkspaceSelection,
 )
 from app.features.chat_integrations.errors import (
     ChatDocumentUploadError,
     ChatManualOperationError,
     ChatReviewActionError,
     ChatWorkspaceResolutionError,
+    ChatWorkspaceSwitchError,
 )
 from app.features.chat_integrations.notifications.dispatcher import (
     ChatNotificationProviderRegistry,
@@ -199,6 +219,38 @@ class ChatEventService:
                 manual_description_selection,
             )
 
+        rule_pattern_selection = ChatReviewRulePatternCallbackData.parse_pattern_selection(
+            event.callback_data
+        )
+        if rule_pattern_selection is not None:
+            return await self._save_review_rule_pattern(
+                event,
+                bound_workspace,
+                rule_pattern_selection,
+            )
+
+        rule_suggestion_action = ChatReviewRuleSuggestionCallbackData.parse_action(
+            event.callback_data
+        )
+        if rule_suggestion_action is not None:
+            return await self._apply_review_rule_suggestion_action(
+                event,
+                bound_workspace,
+                rule_suggestion_action,
+            )
+
+        transfer_confirmation = (
+            ChatReviewTransferConfirmationCallbackData.parse_confirmation_selection(
+                event.callback_data
+            )
+        )
+        if transfer_confirmation is not None:
+            return await self._confirm_review_transfer(
+                event,
+                bound_workspace,
+                transfer_confirmation,
+            )
+
         transfer_pair_selection = ChatReviewTransferPairCallbackData.parse_pair_selection(
             event.callback_data
         )
@@ -229,6 +281,26 @@ class ChatEventService:
                 property_selection,
             )
 
+        action_confirmation = ChatReviewActionConfirmationCallbackData.parse_confirmation_selection(
+            event.callback_data
+        )
+        if action_confirmation is not None:
+            return await self._confirm_review_action(
+                event,
+                bound_workspace,
+                action_confirmation,
+            )
+
+        review_return_selection = ChatReviewReturnCallbackData.parse_return_selection(
+            event.callback_data
+        )
+        if review_return_selection is not None:
+            return await self._return_to_review_item(
+                event,
+                bound_workspace,
+                review_return_selection,
+            )
+
         category_page_selection = ChatReviewCategoryPageCallbackData.parse_page_selection(
             event.callback_data
         )
@@ -253,10 +325,43 @@ class ChatEventService:
         if review_action is not None:
             return await self._apply_review_action(event, bound_workspace, review_action)
 
+        workspace_selection = ChatWorkspaceCallbackData.parse_workspace_selection(
+            event.callback_data
+        )
+        if workspace_selection is not None:
+            return await self._select_chat_workspace(event, bound_workspace, workspace_selection)
+
+        summary_period_selection = ChatSummaryCallbackData.parse_period_selection(
+            event.callback_data
+        )
+        if summary_period_selection is not None:
+            return await self._show_monthly_summary_for_period(
+                event,
+                bound_workspace,
+                summary_period_selection,
+            )
+
+        category_summary_selection = ChatSummaryCallbackData.parse_category_selection(
+            event.callback_data
+        )
+        if category_summary_selection is not None:
+            return await self._show_category_summary_for_period(
+                event,
+                bound_workspace,
+                category_summary_selection,
+            )
+
         if event.event_type == InboundChatEventType.MESSAGE and not self._is_start_message(event):
             manual_response = await self._answer_manual_amount_message(event, bound_workspace)
             if manual_response is not None:
                 return manual_response
+
+            rule_pattern_response = await self._answer_review_rule_pattern_message(
+                event,
+                bound_workspace,
+            )
+            if rule_pattern_response is not None:
+                return rule_pattern_response
 
         status = await ChatPrivateStatusReader(self.session).read_status(bound_workspace.context)
 
@@ -302,12 +407,18 @@ class ChatEventService:
                     status,
                     ChatReviewUrlBuilder.build_imports_url(self.settings),
                 )
+            case "summary:show":
+                return await self._show_monthly_summary(event, bound_workspace)
+            case "balances:show":
+                return await self._show_account_balances(event, bound_workspace)
             case "review:next":
                 return await self._show_next_review_item(event, bound_workspace)
             case "upload:start":
                 return TelegramMainMenuPresenter.show_upload_instructions(event.conversation)
             case "manual:start":
                 return TelegramMainMenuPresenter.show_manual_operation_type_menu(event.conversation)
+            case "workspace:choose":
+                return await self._start_chat_workspace_selection(event, bound_workspace)
             case "manual:expense":
                 return await self._start_manual_income_expense(
                     event,
@@ -331,6 +442,129 @@ class ChatEventService:
                     status,
                     ChatReviewUrlBuilder.build_imports_url(self.settings),
                 )
+
+    async def _start_chat_workspace_selection(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        try:
+            selection = await ChatWorkspaceSwitcher(self.session).start_workspace_selection(
+                bound_workspace
+            )
+        except ChatWorkspaceSwitchError as exc:
+            return TelegramMainMenuPresenter.show_workspace_switch_error(
+                event.conversation,
+                str(exc),
+            )
+
+        return TelegramMainMenuPresenter.show_workspace_menu(event.conversation, selection)
+
+    async def _show_monthly_summary(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        summary = await ChatMonthlySummaryReader(self.session).read_current_month_summary(
+            bound_workspace.context
+        )
+        return TelegramMainMenuPresenter.show_monthly_summary(
+            event.conversation,
+            bound_workspace.context,
+            summary,
+        )
+
+    async def _show_monthly_summary_for_period(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        selection: ChatSummaryPeriodSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        summary = await ChatMonthlySummaryReader(self.session).read_month_summary(
+            context=bound_workspace.context,
+            month_start=selection.month_start,
+        )
+        return TelegramMainMenuPresenter.show_monthly_summary(
+            event.conversation,
+            bound_workspace.context,
+            summary,
+        )
+
+    async def _show_category_summary_for_period(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        selection: ChatSummaryPeriodSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        summary = await ChatMonthlySummaryReader(self.session).read_category_summary(
+            context=bound_workspace.context,
+            month_start=selection.month_start,
+        )
+        return TelegramMainMenuPresenter.show_category_summary(
+            event.conversation,
+            bound_workspace.context,
+            summary,
+        )
+
+    async def _show_account_balances(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        balances = await ChatAccountBalanceReader(self.session).read_account_balances(
+            bound_workspace.context
+        )
+        return TelegramMainMenuPresenter.show_account_balances(
+            event.conversation,
+            bound_workspace.context,
+            balances,
+        )
+
+    async def _select_chat_workspace(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        workspace_selection: ChatWorkspaceSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        try:
+            selected = await ChatWorkspaceSwitcher(self.session).select_workspace(
+                bound_workspace=bound_workspace,
+                selection=workspace_selection,
+            )
+        except ChatWorkspaceSwitchError as exc:
+            return TelegramMainMenuPresenter.show_workspace_switch_error(
+                event.conversation,
+                str(exc),
+            )
+
+        status = await ChatPrivateStatusReader(self.session).read_status(
+            selected.bound_workspace.context
+        )
+        return TelegramMainMenuPresenter.show_bound_menu(
+            event.conversation,
+            selected.bound_workspace.context,
+            status,
+            ChatReviewUrlBuilder.build_imports_url(self.settings),
+            callback_notification="Готово: пространство переключено",
+        )
 
     async def _start_manual_income_expense(
         self,
@@ -659,6 +893,74 @@ class ChatEventService:
             ),
         )
 
+    async def _show_next_review_item_after_success(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        action_label: str,
+        continuation_anchor: ChatReviewContinuationAnchor | None = None,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        callback_notification = f"Готово: {action_label}"
+        review_queue = ChatReviewQueueService(self.session)
+        if continuation_anchor is None:
+            started_item = await review_queue.start_next_review_item(bound_workspace.context)
+        else:
+            started_item = await review_queue.start_next_review_item_after(
+                context=bound_workspace.context,
+                anchor=continuation_anchor,
+            )
+        if started_item is None:
+            return TelegramMainMenuPresenter.show_review_queue_empty(
+                event.conversation,
+                callback_notification=callback_notification,
+            )
+
+        return TelegramMainMenuPresenter.show_next_review_item(
+            event.conversation,
+            started_item.item,
+            started_item.action_token,
+            ChatReviewUrlBuilder.build_raw_transaction_review_url(
+                self.settings,
+                document_id=started_item.item.document_id,
+                raw_transaction_id=started_item.item.raw_transaction_id,
+            ),
+            callback_notification=callback_notification,
+        )
+
+    async def _return_to_review_item(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        selection: ChatReviewReturnSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        try:
+            started_item = await ChatReviewQueueService(self.session).return_to_review_item(
+                context=bound_workspace.context,
+                selection=selection,
+            )
+        except ChatReviewActionError as exc:
+            return TelegramMainMenuPresenter.show_review_action_error(
+                event.conversation,
+                str(exc),
+            )
+
+        return TelegramMainMenuPresenter.show_next_review_item(
+            event.conversation,
+            started_item.item,
+            started_item.action_token,
+            ChatReviewUrlBuilder.build_raw_transaction_review_url(
+                self.settings,
+                document_id=started_item.item.document_id,
+                raw_transaction_id=started_item.item.raw_transaction_id,
+            ),
+        )
+
     async def _navigate_review_item(
         self,
         event: InboundChatEvent,
@@ -711,6 +1013,16 @@ class ChatEventService:
         if review_action.action == ChatReviewCallbackData.TRANSFER_ACTION:
             return await self._start_review_transfer(event, bound_workspace, review_action)
 
+        if review_action.action in {
+            ChatReviewCallbackData.DUPLICATE_ACTION,
+            ChatReviewCallbackData.IGNORE_ACTION,
+        }:
+            return await self._start_review_action_confirmation(
+                event,
+                bound_workspace,
+                review_action,
+            )
+
         try:
             result = await ChatReviewActionService(self.session).apply_action(
                 context=bound_workspace.context,
@@ -722,9 +1034,65 @@ class ChatEventService:
                 str(exc),
             )
 
-        return TelegramMainMenuPresenter.show_review_action_applied(
-            event.conversation,
+        return await self._show_next_review_item_after_success(
+            event,
+            bound_workspace,
             result.action_label,
+            result.continuation_anchor,
+        )
+
+    async def _start_review_action_confirmation(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        review_action: ChatReviewActionSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        try:
+            confirmation = await ChatReviewActionService(
+                self.session,
+            ).start_action_confirmation(
+                context=bound_workspace.context,
+                selection=review_action,
+            )
+        except ChatReviewActionError as exc:
+            return TelegramMainMenuPresenter.show_review_action_error(
+                event.conversation,
+                str(exc),
+            )
+
+        return TelegramMainMenuPresenter.show_review_action_confirmation(
+            event.conversation,
+            confirmation,
+        )
+
+    async def _confirm_review_action(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        action_confirmation: ChatReviewActionConfirmationSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        try:
+            result = await ChatReviewActionService(self.session).confirm_action(
+                context=bound_workspace.context,
+                selection=action_confirmation,
+            )
+        except ChatReviewActionError as exc:
+            return TelegramMainMenuPresenter.show_review_action_error(
+                event.conversation,
+                str(exc),
+            )
+
+        return await self._show_next_review_item_after_success(
+            event,
+            bound_workspace,
+            result.action_label,
+            result.continuation_anchor,
         )
 
     async def _start_review_transfer(
@@ -834,7 +1202,7 @@ class ChatEventService:
                 str(exc),
             )
 
-        return self._show_review_category_result(event, category_result)
+        return await self._show_review_category_result(event, bound_workspace, category_result)
 
     async def _complete_review_confirmation(
         self,
@@ -859,11 +1227,12 @@ class ChatEventService:
                 str(exc),
             )
 
-        return self._show_review_category_result(event, category_result)
+        return await self._show_review_category_result(event, bound_workspace, category_result)
 
-    @staticmethod
-    def _show_review_category_result(
+    async def _show_review_category_result(
+        self,
         event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
         category_result: ChatReviewCategoryActionResult,
     ) -> OutboundChatMessage | None:
         if event.conversation is None:
@@ -881,9 +1250,17 @@ class ChatEventService:
                 "Stored review action is invalid.",
             )
 
-        return TelegramMainMenuPresenter.show_review_action_applied(
-            event.conversation,
+        if category_result.rule_suggestion is not None:
+            return TelegramMainMenuPresenter.show_review_rule_suggestion(
+                event.conversation,
+                category_result.rule_suggestion,
+            )
+
+        return await self._show_next_review_item_after_success(
+            event,
+            bound_workspace,
             category_result.action_result.action_label,
+            category_result.action_result.continuation_anchor,
         )
 
     async def _complete_review_property_confirmation(
@@ -896,7 +1273,7 @@ class ChatEventService:
             return None
 
         try:
-            result = await ChatReviewConfirmationService(
+            category_result = await ChatReviewConfirmationService(
                 self.session,
                 self.settings,
             ).confirm_with_property(
@@ -909,9 +1286,162 @@ class ChatEventService:
                 str(exc),
             )
 
-        return TelegramMainMenuPresenter.show_review_action_applied(
-            event.conversation,
+        return await self._show_review_category_result(event, bound_workspace, category_result)
+
+    async def _apply_review_rule_suggestion_action(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        selection: ChatReviewRuleSuggestionSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        if selection.action == ChatReviewRuleSuggestionCallbackData.CHOOSE_PATTERN_ACTION:
+            return await self._start_review_rule_pattern_selection(
+                event,
+                bound_workspace,
+                selection,
+            )
+
+        if selection.action == ChatReviewRuleSuggestionCallbackData.ENTER_PATTERN_ACTION:
+            return await self._start_review_rule_pattern_input(
+                event,
+                bound_workspace,
+                selection,
+            )
+
+        try:
+            if selection.action == ChatReviewRuleSuggestionCallbackData.SAVE_ACTION:
+                result = await ChatReviewRuleSuggestionService(self.session).save_suggestion(
+                    context=bound_workspace.context,
+                    selection=selection,
+                )
+            else:
+                result = await ChatReviewRuleSuggestionService(self.session).skip_suggestion(
+                    context=bound_workspace.context,
+                    selection=selection,
+                )
+        except ChatReviewActionError as exc:
+            return TelegramMainMenuPresenter.show_review_action_error(
+                event.conversation,
+                str(exc),
+            )
+
+        return await self._show_next_review_item_after_success(
+            event,
+            bound_workspace,
             result.action_label,
+            result.continuation_anchor,
+        )
+
+    async def _start_review_rule_pattern_selection(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        selection: ChatReviewRuleSuggestionSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        try:
+            pattern_selection = await ChatReviewRuleSuggestionService(
+                self.session,
+            ).start_pattern_selection(
+                context=bound_workspace.context,
+                selection=selection,
+            )
+        except ChatReviewActionError as exc:
+            return TelegramMainMenuPresenter.show_review_action_error(
+                event.conversation,
+                str(exc),
+            )
+
+        return TelegramMainMenuPresenter.show_review_rule_pattern_menu(
+            event.conversation,
+            pattern_selection,
+        )
+
+    async def _start_review_rule_pattern_input(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        selection: ChatReviewRuleSuggestionSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        try:
+            pattern_input = await ChatReviewRuleSuggestionService(
+                self.session,
+            ).start_manual_pattern_input(
+                context=bound_workspace.context,
+                selection=selection,
+            )
+        except ChatReviewActionError as exc:
+            return TelegramMainMenuPresenter.show_review_action_error(
+                event.conversation,
+                str(exc),
+            )
+
+        return TelegramMainMenuPresenter.show_review_rule_pattern_input(
+            event.conversation,
+            pattern_input,
+        )
+
+    async def _answer_review_rule_pattern_message(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        try:
+            result = await ChatReviewRuleSuggestionService(self.session).save_manual_pattern(
+                context=bound_workspace.context,
+                text=event.text,
+            )
+        except ChatReviewActionError as exc:
+            return TelegramMainMenuPresenter.show_review_action_error(
+                event.conversation,
+                str(exc),
+            )
+        if result is None:
+            return None
+
+        return await self._show_next_review_item_after_success(
+            event,
+            bound_workspace,
+            result.action_label,
+            result.continuation_anchor,
+        )
+
+    async def _save_review_rule_pattern(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        selection: ChatReviewRulePatternSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None:
+            return None
+
+        try:
+            result = await ChatReviewRuleSuggestionService(self.session).save_pattern_selection(
+                context=bound_workspace.context,
+                selection=selection,
+            )
+        except ChatReviewActionError as exc:
+            return TelegramMainMenuPresenter.show_review_action_error(
+                event.conversation,
+                str(exc),
+            )
+
+        return await self._show_next_review_item_after_success(
+            event,
+            bound_workspace,
+            result.action_label,
+            result.continuation_anchor,
         )
 
     async def _complete_review_transfer(
@@ -924,10 +1454,10 @@ class ChatEventService:
             return None
 
         try:
-            result = await ChatReviewTransferService(
+            confirmation = await ChatReviewTransferService(
                 self.session,
                 self.settings,
-            ).confirm_transfer_with_account(
+            ).start_transfer_confirmation_with_account(
                 context=bound_workspace.context,
                 selection=transfer_account_selection,
             )
@@ -937,9 +1467,9 @@ class ChatEventService:
                 str(exc),
             )
 
-        return TelegramMainMenuPresenter.show_review_action_applied(
+        return TelegramMainMenuPresenter.show_review_transfer_confirmation(
             event.conversation,
-            result.action_label,
+            confirmation,
         )
 
     async def _complete_review_transfer_pair(
@@ -952,10 +1482,10 @@ class ChatEventService:
             return None
 
         try:
-            result = await ChatReviewTransferService(
+            confirmation = await ChatReviewTransferService(
                 self.session,
                 self.settings,
-            ).confirm_transfer_with_pair(
+            ).start_transfer_confirmation_with_pair(
                 context=bound_workspace.context,
                 selection=transfer_pair_selection,
             )
@@ -965,9 +1495,39 @@ class ChatEventService:
                 str(exc),
             )
 
-        return TelegramMainMenuPresenter.show_review_action_applied(
+        return TelegramMainMenuPresenter.show_review_transfer_confirmation(
             event.conversation,
+            confirmation,
+        )
+
+    async def _confirm_review_transfer(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        transfer_confirmation: ChatReviewTransferConfirmationSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.session is None or self.settings is None:
+            return None
+
+        try:
+            result = await ChatReviewTransferService(
+                self.session,
+                self.settings,
+            ).confirm_transfer(
+                context=bound_workspace.context,
+                selection=transfer_confirmation,
+            )
+        except ChatReviewActionError as exc:
+            return TelegramMainMenuPresenter.show_review_action_error(
+                event.conversation,
+                str(exc),
+            )
+
+        return await self._show_next_review_item_after_success(
+            event,
+            bound_workspace,
             result.action_label,
+            result.continuation_anchor,
         )
 
     async def _notify_shared_feed_about_uploaded_document(

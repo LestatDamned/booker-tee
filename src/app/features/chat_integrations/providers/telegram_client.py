@@ -118,7 +118,12 @@ class TelegramBotClient:
 
     async def _post_json(self, method: str, payload: dict[str, object]) -> dict[str, Any]:
         response = await self.http_client.post(self._method_url(method), json=payload)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError:
+            raise TelegramBotClientError(
+                TelegramBotClientErrorPresenter.format_http_error(method, response)
+            ) from None
         data = response.json()
         if not isinstance(data, dict) or data.get("ok") is not True:
             description = data.get("description") if isinstance(data, dict) else None
@@ -207,10 +212,33 @@ class TelegramOutboundMessageSender:
         if event.callback_query_id is None:
             return
 
-        await client.answer_callback_query(
-            callback_query_id=event.callback_query_id,
-            text=response.callback_notification if response is not None else None,
-        )
+        try:
+            await client.answer_callback_query(
+                callback_query_id=event.callback_query_id,
+                text=response.callback_notification if response is not None else None,
+            )
+        except TelegramBotClientError:
+            return
+
+
+class TelegramBotClientErrorPresenter:
+    @staticmethod
+    def format_http_error(method: str, response: httpx.Response) -> str:
+        description = TelegramBotClientErrorPresenter.read_error_description(response)
+        status_text = f"HTTP {response.status_code}"
+        detail = description or status_text
+        return f"Telegram method failed: {method}: {detail}"
+
+    @staticmethod
+    def read_error_description(response: httpx.Response) -> str | None:
+        try:
+            data = response.json()
+        except ValueError:
+            return None
+        if not isinstance(data, dict):
+            return None
+        description = data.get("description")
+        return description if isinstance(description, str) else None
 
 
 class TelegramMessageEditFallbackPolicy:

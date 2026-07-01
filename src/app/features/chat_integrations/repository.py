@@ -1,7 +1,9 @@
 from datetime import datetime
+from typing import cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.chat_integrations.models import (
@@ -35,6 +37,24 @@ class ChatIntegrationRepository:
                 ChatIdentityBinding.provider == provider,
                 ChatIdentityBinding.external_user_id == external_user_id,
                 ChatIdentityBinding.is_active.is_(True),
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_identity_binding(
+        self,
+        *,
+        workspace_id: UUID,
+        provider: ChatProviderCode,
+        external_user_id: str,
+    ) -> ChatIdentityBinding | None:
+        result = await self.session.execute(
+            select(ChatIdentityBinding)
+            .where(
+                ChatIdentityBinding.workspace_id == workspace_id,
+                ChatIdentityBinding.provider == provider,
+                ChatIdentityBinding.external_user_id == external_user_id,
             )
             .limit(1)
         )
@@ -77,6 +97,25 @@ class ChatIntegrationRepository:
         self.session.add(binding)
         await self.session.flush()
         return binding
+
+    async def deactivate_other_identity_bindings(
+        self,
+        *,
+        keep_binding_id: UUID,
+        provider: ChatProviderCode,
+        external_user_id: str,
+    ) -> None:
+        await self.session.execute(
+            update(ChatIdentityBinding)
+            .where(
+                ChatIdentityBinding.id != keep_binding_id,
+                ChatIdentityBinding.provider == provider,
+                ChatIdentityBinding.external_user_id == external_user_id,
+                ChatIdentityBinding.is_active.is_(True),
+            )
+            .values(is_active=False)
+        )
+        await self.session.flush()
 
     async def create_conversation_state(
         self,
@@ -178,6 +217,31 @@ class ChatIntegrationRepository:
     ) -> None:
         state.consumed_at = consumed_at
         await self.session.flush()
+
+    async def try_consume_active_conversation_state(
+        self,
+        state: ChatConversationState,
+        *,
+        consumed_at: datetime,
+    ) -> bool:
+        result = cast(
+            CursorResult,
+            await self.session.execute(
+                update(ChatConversationState)
+                .where(
+                    ChatConversationState.id == state.id,
+                    ChatConversationState.consumed_at.is_(None),
+                )
+                .values(consumed_at=consumed_at)
+            ),
+        )
+        if result.rowcount != 1:
+            await self.session.flush()
+            return False
+
+        state.consumed_at = consumed_at
+        await self.session.flush()
+        return True
 
     async def list_active_shared_feed_bindings(
         self,

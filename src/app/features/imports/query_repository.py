@@ -142,6 +142,31 @@ class ImportQueryRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_next_review_raw_transaction_after(
+        self,
+        *,
+        workspace_id: UUID,
+        document_id: UUID,
+        current_row_index: int,
+    ) -> RawTransaction | None:
+        result = await self.session.execute(
+            select(RawTransaction)
+            .options(
+                selectinload(RawTransaction.account),
+                selectinload(RawTransaction.uploaded_document),
+                selectinload(RawTransaction.suggested_category),
+            )
+            .where(
+                RawTransaction.workspace_id == workspace_id,
+                RawTransaction.uploaded_document_id == document_id,
+                RawTransaction.status.in_(REVIEWABLE_RAW_TRANSACTION_STATUSES),
+                RawTransaction.row_index > current_row_index,
+            )
+            .order_by(RawTransaction.row_index.asc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def get_review_raw_transaction(
         self,
         *,
