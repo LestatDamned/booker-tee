@@ -441,5 +441,5 @@ async def test_chat_event_service_returns_empty_review_queue_message(
     ).receive_inbound_event(event)
 
     assert response is not None
-    assert "нечего проверять" in response.text
+    assert "нет строк для проверки" in response.text
     assert response.buttons[0][0].callback_data == "main:menu"

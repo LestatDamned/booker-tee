@@ -6,8 +6,8 @@
 Главная цель модуля: дать пользователю простой button-first интерфейс и при
 этом не сломать финансовую корректность, workspace isolation и privacy.
 
-Root document `CHAT_INTEGRATIONS.md` остается продуктово-архитектурным источником
-истины. Этот README является локальным контрактом для кода внутри
+`docs/integrations/CHAT_INTEGRATIONS.md` остается продуктово-архитектурным
+источником истины. Этот README является локальным контрактом для кода внутри
 `src/app/features/chat_integrations/`.
 
 ## Product story

@@ -2,7 +2,7 @@
 
 Product vision and positioning for Booker Tee.
 
-This document is the product-level source of truth. Coding agents should read it before making major UX, domain, reporting, onboarding, import, or analytics decisions. `AGENTS.md` defines engineering rules. `DOMAIN_MODEL.md` defines the data model. This file defines why the product exists and who it is for.
+This document is the product-level source of truth. Coding agents should read it before making major UX, domain, reporting, onboarding, import, or analytics decisions. [`AGENTS.md`](../../AGENTS.md) defines engineering rules. [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) defines the data model. This file defines why the product exists and who it is for.
 
 ---
 

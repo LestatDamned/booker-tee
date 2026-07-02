@@ -4,10 +4,10 @@ Parser-first MVP specification for Booker Tee.
 
 This document defines the first useful product version. It should be read together with:
 
-- `PROJECT_VISION.md` — product positioning and target audience;
-- `DOMAIN_MODEL.md` — canonical entities and invariants;
-- `ARCHITECTURE.md` — project structure and engineering architecture;
-- `AGENTS.md` — instructions for Codex and other coding agents.
+- [`PROJECT_VISION.md`](PROJECT_VISION.md) — product positioning and target audience;
+- [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) — canonical entities and invariants;
+- [`ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) — project structure and engineering architecture;
+- [`AGENTS.md`](../../AGENTS.md) — instructions for Codex and other coding agents.
 
 ---
 
@@ -1456,7 +1456,7 @@ Use small vertical tasks. Do not ask Codex to implement the whole MVP at once.
 ### Task 1 — Project foundation
 
 ```text
-Create FastAPI project skeleton with config, async SQLAlchemy, PostgreSQL session, Alembic, pytest, healthcheck, and base templates. Follow AGENTS.md.
+Create FastAPI project skeleton with config, async SQLAlchemy, PostgreSQL session, Alembic, pytest, healthcheck, and base templates. Follow `AGENTS.md`.
 ```
 
 ### Task 2 — Workspace foundation

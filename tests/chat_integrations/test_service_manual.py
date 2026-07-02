@@ -329,7 +329,8 @@ async def test_chat_event_service_prompts_manual_amount_after_account_selection(
 
     assert response is not None
     assert "Счет: Cash" in response.text
-    assert "Напиши сумму" in response.text
+    assert "Напиши сумму прямо в чат" in response.text
+    assert "1 250,50" in response.text
 
 
 @pytest.mark.asyncio
@@ -399,10 +400,12 @@ async def test_chat_event_service_shows_manual_date_menu_after_amount(
 
     assert response is not None
     assert "Когда была операция?" in response.text
+    assert "написать дату прямо в чат" in response.text
+    assert "30.06.2026" in response.text
     assert "1250.50 RUB" in response.text
     assert response.buttons[0][0].callback_data == "mnd:datetoken:today"
     assert response.buttons[0][1].callback_data == "mnd:datetoken:yesterday"
-    assert response.buttons[1][0].callback_data == "mnd:datetoken:custom"
+    assert response.buttons[1][0].callback_data == "main:menu"
 
 
 @pytest.mark.asyncio

@@ -181,6 +181,27 @@ async def restore_category(
     )
 
 
+@router.post("/{category_id}/delete")
+async def delete_category(
+    category_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
+    view: Annotated[str | None, Form()] = None,
+) -> Response:
+    try:
+        await CategoryService(session).delete_archived_custom(
+            workspace_id=context.workspace.id,
+            category_id=category_id,
+        )
+    except CategoryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return RedirectResponse(
+        url=categories_url(view),
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
 def normalize_category_view(raw_view: str | None) -> str:
     if raw_view in CATEGORY_VIEW_VALUES:
         return raw_view

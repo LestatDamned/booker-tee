@@ -81,7 +81,8 @@ async def test_chat_event_service_returns_bound_menu_for_linked_start(
     assert response is not None
     assert "✅ Booker Tee подключен" in response.text
     assert "🗂️ Family" in response.text
-    assert "⚠️ К проверке: 5" in response.text
+    assert "📄 Документы: 2" in response.text
+    assert "🔎 К проверке: 3" in response.text
     assert response.buttons[0][0].callback_data == "summary:show"
     assert response.buttons[1][0].callback_data == "upload:start"
     assert response.buttons[1][1].callback_data == "manual:start"
@@ -293,7 +294,8 @@ async def test_chat_event_service_returns_monthly_summary_for_bound_callback(
     assert response is not None
     assert "📊 Сводка" in response.text
     assert "Доход: 100.00 RUB" in response.text
-    assert "К проверке: 3" in response.text
+    assert "Документы: 1" in response.text
+    assert "К проверке: 2" in response.text
 
 
 @pytest.mark.asyncio
@@ -700,5 +702,6 @@ async def test_chat_event_service_switches_workspace(
     assert status_contexts == [new_context]
     assert response is not None
     assert "🗂️ Business" in response.text
-    assert "⚠️ К проверке: 3" in response.text
+    assert "📄 Документы: 1" in response.text
+    assert "🔎 К проверке: 2" in response.text
     assert response.callback_notification == "Готово: пространство переключено"

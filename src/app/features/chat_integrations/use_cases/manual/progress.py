@@ -79,6 +79,13 @@ class ChatManualOperationProgressService:
                 amount_text=text,
             )
 
+        if state.step == "choose_date":
+            return await self._continue_after_operation_date(
+                context=context,
+                state=state,
+                operation_date=ChatManualDateParser.parse(text),
+            )
+
         if state.step == "enter_custom_date":
             return await self._continue_after_operation_date(
                 context=context,

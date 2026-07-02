@@ -90,11 +90,11 @@ Before changing code:
 
 1. Inspect the existing project structure.
 2. Read relevant markdown files, especially:
-   - `PROJECT_VISION.md`
-   - `DOMAIN_MODEL.md`
-   - `ARCHITECTURE.md`
-   - `MVP.md`
-   - `ROADMAP.md`
+   - `docs/product/PROJECT_VISION.md`
+   - `docs/domain/DOMAIN_MODEL.md`
+   - `docs/architecture/ARCHITECTURE.md`
+   - `docs/product/MVP.md`
+   - `docs/product/ROADMAP.md`
    - this `AGENTS.md`
 3. Respect existing decisions unless the task asks to change them.
 4. Keep changes small and focused.

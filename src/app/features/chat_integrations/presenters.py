@@ -81,7 +81,8 @@ class TelegramMainMenuPresenter:
                 "✅ Booker Tee подключен\n\n"
                 f"👤 {user_label}\n"
                 f"{TelegramWorkspacePresenter.format_label(context.workspace.name)}\n"
-                f"⚠️ К проверке: {status.total_needing_attention}\n\n"
+                f"📄 Документы: {status.documents_needing_attention}\n"
+                f"🔎 К проверке: {status.raw_transactions_needing_attention}\n\n"
                 "📎 Выписку можно отправить файлом в этот чат."
             ),
             buttons=tuple(button_rows),

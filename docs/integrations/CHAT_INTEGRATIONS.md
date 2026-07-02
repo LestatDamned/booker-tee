@@ -5,11 +5,11 @@ Product and engineering plan for chat-based Booker Tee integrations.
 This document captures the agreed direction for Telegram and other messenger
 integrations. It should be read together with:
 
-- `PROJECT_VISION.md` - product positioning and target users;
-- `DOMAIN_MODEL.md` - financial entities and invariants;
-- `ARCHITECTURE.md` - code structure and layer boundaries;
-- `ROADMAP.md` - phase order and product guardrails;
-- `AGENTS.md` - engineering and privacy rules.
+- [`PROJECT_VISION.md`](../product/PROJECT_VISION.md) - product positioning and target users;
+- [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) - financial entities and invariants;
+- [`ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) - code structure and layer boundaries;
+- [`ROADMAP.md`](../product/ROADMAP.md) - phase order and product guardrails;
+- [`AGENTS.md`](../../AGENTS.md) - engineering and privacy rules.
 
 Implementation conventions for the code inside the feature live in
 `src/app/features/chat_integrations/README.md`.

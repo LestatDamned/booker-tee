@@ -13,6 +13,7 @@ from app.features.chat_integrations.use_cases.review.config import (
 )
 from app.features.chat_integrations.use_cases.review.dto import (
     ChatReviewCategoryChoice,
+    ChatReviewExistingTransferChoice,
     ChatReviewPropertyChoice,
     ChatReviewQueueItem,
     ChatReviewTransferAccountChoice,
@@ -22,7 +23,10 @@ from app.features.chat_integrations.use_cases.review.dto import (
 from app.features.chat_integrations.use_cases.review.state import ChatReviewStateReader
 from app.features.imports.application.review.actions import RawTransactionReviewCommand
 from app.features.imports.models import RawTransaction
-from app.features.ledger.application.transfer_suggestions import TransferSuggestion
+from app.features.ledger.application.transfer_suggestions import (
+    ExistingTransferSuggestion,
+    TransferSuggestion,
+)
 from app.features.properties.models import Property
 from app.features.transaction_rules.domain.patterns import infer_rule_pattern
 from app.features.transaction_rules.domain.text import clean_rule_pattern, normalized_text
@@ -255,6 +259,33 @@ class ChatReviewTransferPairChoiceBuilder:
         return tuple(choices)
 
 
+class ChatReviewExistingTransferChoiceBuilder:
+    @staticmethod
+    def build_choices(
+        suggestions: list[ExistingTransferSuggestion],
+    ) -> tuple[ChatReviewExistingTransferChoice, ...]:
+        choices: list[ChatReviewExistingTransferChoice] = []
+        for suggestion in suggestions[:CHAT_REVIEW_TRANSFER_PAIR_MAX_CHOICES]:
+            counterparty = suggestion.counterparty_entry
+            if counterparty is None:
+                continue
+            choices.append(
+                ChatReviewExistingTransferChoice(
+                    id=suggestion.operation.id,
+                    operation_date=suggestion.operation.operation_date,
+                    account_name=suggestion.account_entry.account.name,
+                    account_amount=suggestion.account_entry.amount,
+                    account_currency=suggestion.account_entry.currency,
+                    counterparty_account_name=counterparty.account.name,
+                    counterparty_amount=counterparty.amount,
+                    counterparty_currency=counterparty.currency,
+                    description=suggestion.operation.description,
+                    day_distance=suggestion.day_distance,
+                )
+            )
+        return tuple(choices)
+
+
 class ChatReviewTransferLabelBuilder:
     @staticmethod
     def account_label(choice: ChatReviewTransferAccountChoice) -> str:
@@ -272,6 +303,17 @@ class ChatReviewTransferLabelBuilder:
             amount_label = f"{choice.amount:.2f} {choice.currency or ''}".strip()
         account_label = choice.account_name or "счет?"
         return f"Пара: {account_label} / {date_label} / {amount_label}"
+
+    @staticmethod
+    def existing_label(choice: ChatReviewExistingTransferChoice) -> str:
+        date_label = choice.operation_date.strftime("%d.%m.%Y")
+        counterparty_label = choice.counterparty_account_name or "второй счет?"
+        amount_label = "сумма?"
+        if choice.counterparty_amount is not None:
+            amount_label = (
+                f"{choice.counterparty_amount:.2f} {choice.counterparty_currency or ''}".strip()
+            )
+        return f"Созданный: {counterparty_label} / {date_label} / {amount_label}"
 
 
 class ChatReviewTransferCommandBuilder:
@@ -297,6 +339,17 @@ class ChatReviewTransferCommandBuilder:
                 raw_transaction_id=raw_transaction_id,
                 action="transfer",
                 matched_raw_transaction_id=matched_raw_transaction_id,
+            )
+
+        matched_operation_id = ChatReviewStateReader.read_confirm_transfer_matched_operation_id(
+            payload
+        )
+        if matched_operation_id is not None:
+            return RawTransactionReviewCommand(
+                document_id=document_id,
+                raw_transaction_id=raw_transaction_id,
+                action="transfer",
+                matched_operation_id=matched_operation_id,
             )
 
         raise ChatReviewActionError("Stored transfer action is invalid.")

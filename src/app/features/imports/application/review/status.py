@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.review.validation_refresh import (
     refresh_document_validation,
 )
@@ -38,6 +39,10 @@ class RawTransactionReviewStatusUseCase:
             raise RawTransactionReviewError("Document was not found.")
 
         await refresh_document_validation(self.imports, document)
+        await ImportedDocumentStatusUpdater(self.imports).mark_imported_if_complete(
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
         await self.session.commit()
         return document
 

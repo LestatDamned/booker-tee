@@ -4,10 +4,10 @@ Engineering architecture for Booker Tee.
 
 This document defines how code should be structured, how data should move through the system, and which boundaries must not be violated. It should be read together with:
 
-- `PROJECT_VISION.md` — product positioning and target users;
-- `MVP.md` — parser-first MVP scope;
-- `DOMAIN_MODEL.md` — canonical domain entities and invariants;
-- `AGENTS.md` — instructions for Codex and other coding agents.
+- [`PROJECT_VISION.md`](../product/PROJECT_VISION.md) — product positioning and target users;
+- [`MVP.md`](../product/MVP.md) — parser-first MVP scope;
+- [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) — canonical domain entities and invariants;
+- [`AGENTS.md`](../../AGENTS.md) — instructions for Codex and other coding agents.
 
 ---
 
@@ -120,11 +120,15 @@ Recommended project layout:
 ```text
 .
 ├── AGENTS.md
-├── ARCHITECTURE.md
-├── DOMAIN_MODEL.md
-├── MVP.md
-├── PROJECT_VISION.md
-├── ROADMAP.md
+├── README.md
+├── docs/
+│   ├── README.md
+│   ├── architecture/
+│   ├── design/
+│   ├── domain/
+│   ├── guides/
+│   ├── integrations/
+│   └── product/
 ├── pyproject.toml
 ├── uv.lock
 ├── alembic.ini
@@ -1549,7 +1553,7 @@ Does it keep workspace boundaries safe?
 Can it be tested with real PDF fixtures?
 ```
 
-If the answer is no, defer the component to `ROADMAP.md`.
+If the answer is no, defer the component to `docs/product/ROADMAP.md`.
 
 ---
 

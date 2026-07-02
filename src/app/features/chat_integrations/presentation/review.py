@@ -11,6 +11,7 @@ from app.features.chat_integrations.actions.review import (
     ChatReviewRuleSuggestionCallbackData,
     ChatReviewTransferCallbackData,
     ChatReviewTransferConfirmationCallbackData,
+    ChatReviewTransferExistingCallbackData,
     ChatReviewTransferPairCallbackData,
 )
 from app.features.chat_integrations.presentation.formatting import TelegramDatePresenter
@@ -22,9 +23,11 @@ from app.features.chat_integrations.schemas import (
 )
 from app.features.chat_integrations.use_cases.review.dto import (
     ChatReviewDocumentChoice,
+    ChatReviewExistingTransferChoice,
     ChatReviewNavigationBoundary,
     ChatReviewQueueItem,
     ChatReviewTransferPairChoice,
+    ChatReviewTransferPreviewEntry,
     StartedChatReviewActionConfirmation,
     StartedChatReviewCategorySelection,
     StartedChatReviewDocumentSelection,
@@ -356,6 +359,18 @@ class TelegramReviewPresenter:
         conversation: ChatConversation,
         selection: StartedChatReviewTransferSelection,
     ) -> OutboundChatMessage:
+        existing_buttons = tuple(
+            (
+                OutboundChatButton(
+                    text=TelegramReviewTransferChoicePresenter.existing_button_text(transfer),
+                    callback_data=ChatReviewTransferExistingCallbackData.build_existing_selection(
+                        action_token=selection.action_token,
+                        transfer_index=index,
+                    ),
+                ),
+            )
+            for index, transfer in enumerate(selection.existing_transfer_choices)
+        )
         pair_buttons = tuple(
             (
                 OutboundChatButton(
@@ -371,7 +386,7 @@ class TelegramReviewPresenter:
         account_buttons = tuple(
             (
                 OutboundChatButton(
-                    text=f"{account.name} / {account.currency}",
+                    text=f"Создать: {account.name} / {account.currency}",
                     callback_data=ChatReviewTransferCallbackData.build_account_selection(
                         action_token=selection.action_token,
                         account_index=index,
@@ -383,10 +398,13 @@ class TelegramReviewPresenter:
         return TelegramReviewPresenter._show_review_workspace(
             conversation=conversation,
             text=(
-                "Выбери парную строку или встречный счет для перевода.\n\n"
+                "Выбери, как оформить перевод.\n\n"
+                "Сначала лучше привязать строку к уже созданному переводу или парной строке. "
+                "Если совпадений нет - выбери второй счет и создай новый перевод.\n\n"
                 f"{TelegramReviewQueueCardPresenter.format_item(selection.item)}"
             ),
-            buttons=pair_buttons
+            buttons=existing_buttons
+            + pair_buttons
             + account_buttons
             + (
                 (
@@ -405,12 +423,13 @@ class TelegramReviewPresenter:
         conversation: ChatConversation,
         confirmation: StartedChatReviewTransferConfirmation,
     ) -> OutboundChatMessage:
+        transfer_preview = TelegramReviewTransferChoicePresenter.confirmation_preview(confirmation)
         return TelegramReviewPresenter._show_review_workspace(
             conversation=conversation,
             text=(
                 "🔁 Подтвердить перевод?\n\n"
+                f"{transfer_preview}"
                 "Перевод не попадет в доходы или расходы.\n\n"
-                f"Цель: {confirmation.target_label}\n\n"
                 f"{TelegramReviewQueueCardPresenter.format_item(confirmation.item)}"
             ),
             buttons=(
@@ -565,7 +584,10 @@ class TelegramReviewPresenter:
     ) -> OutboundChatMessage:
         return TelegramReviewPresenter._show_review_workspace(
             conversation=conversation,
-            text="✅ Сейчас нечего проверять.",
+            text=(
+                "✅ Сейчас нет строк для проверки.\n\n"
+                "Если в меню есть документы, им нужен разбор выписки или повторный импорт."
+            ),
             buttons=((OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),),
             callback_notification=callback_notification,
         )
@@ -759,6 +781,33 @@ class TelegramReviewDocumentChoicePresenter:
 
 
 class TelegramReviewTransferChoicePresenter:
+    @staticmethod
+    def confirmation_preview(confirmation: StartedChatReviewTransferConfirmation) -> str:
+        if not confirmation.preview_entries:
+            return f"Цель: {confirmation.target_label}\n\n"
+        lines = [
+            TelegramReviewTransferChoicePresenter.preview_entry_line(entry)
+            for entry in confirmation.preview_entries
+        ]
+        return "Проводки:\n" + "\n".join(lines) + "\n\n"
+
+    @staticmethod
+    def preview_entry_line(entry: ChatReviewTransferPreviewEntry) -> str:
+        sign = "+" if entry.amount > 0 else ""
+        amount = f"{sign}{entry.amount:.2f} {entry.currency or ''}".strip()
+        return f"• {entry.account_name}: {amount}"
+
+    @staticmethod
+    def existing_button_text(transfer: ChatReviewExistingTransferChoice) -> str:
+        date_label = TelegramDatePresenter.format_date(transfer.operation_date)
+        counterparty_label = transfer.counterparty_account_name or "второй счет?"
+        amount_label = "сумма?"
+        if transfer.counterparty_amount is not None:
+            amount_label = (
+                f"{transfer.counterparty_amount:.2f} {transfer.counterparty_currency or ''}"
+            ).strip()
+        return f"Созданный: {counterparty_label} / {date_label} / {amount_label}"
+
     @staticmethod
     def pair_button_text(pair: ChatReviewTransferPairChoice) -> str:
         date_label = (

@@ -12,6 +12,7 @@ from app.features.chat_integrations import service as chat_service
 from app.features.chat_integrations.actions.review import (
     ChatReviewTransferAccountSelection,
     ChatReviewTransferConfirmationSelection,
+    ChatReviewTransferExistingSelection,
     ChatReviewTransferPairSelection,
 )
 from app.features.chat_integrations.handlers import review_queue as chat_review_queue_handler
@@ -89,6 +90,7 @@ async def test_chat_event_service_starts_review_transfer_account_menu(
     raw_transaction_id = uuid4()
     account_id = uuid4()
     pair_raw_transaction_id = uuid4()
+    existing_operation_id = uuid4()
     context = WorkspaceContext(
         user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
         workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
@@ -152,6 +154,20 @@ async def test_chat_event_service_starts_review_transfer_account_menu(
                         currency="RUB",
                     ),
                 ),
+                existing_transfer_choices=(
+                    chat_review_dto.ChatReviewExistingTransferChoice(
+                        id=existing_operation_id,
+                        operation_date=date(2026, 6, 30),
+                        account_name="T-Bank Card",
+                        account_amount=Decimal("-40000.00"),
+                        account_currency="RUB",
+                        counterparty_account_name="Manual Deposit",
+                        counterparty_amount=Decimal("40000.00"),
+                        counterparty_currency="RUB",
+                        description="Manual transfer",
+                        day_distance=0,
+                    ),
+                ),
             )
 
     monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
@@ -179,14 +195,16 @@ async def test_chat_event_service_starts_review_transfer_account_menu(
     ).receive_inbound_event(event)
 
     assert response is not None
-    assert "Выбери парную строку" in response.text
+    assert "Выбери, как оформить перевод" in response.text
     assert "📝 Описание: Transfer to deposit" in response.text
-    assert response.buttons[0][0].text == "Пара: Deposit / 30.06.2026 / 40000.00 RUB"
-    assert response.buttons[0][0].callback_data == "rvx:transfertoken:0"
-    assert response.buttons[1][0].text == "Deposit / RUB"
-    assert response.buttons[1][0].callback_data == "rvt:transfertoken:0"
-    assert response.buttons[2][0].text == "⬅️ Назад"
-    assert response.buttons[2][0].callback_data == "rvb:transfertoken"
+    assert response.buttons[0][0].text == ("Созданный: Manual Deposit / 30.06.2026 / 40000.00 RUB")
+    assert response.buttons[0][0].callback_data == "rvo:transfertoken:0"
+    assert response.buttons[1][0].text == "Пара: Deposit / 30.06.2026 / 40000.00 RUB"
+    assert response.buttons[1][0].callback_data == "rvx:transfertoken:0"
+    assert response.buttons[2][0].text == "Создать: Deposit / RUB"
+    assert response.buttons[2][0].callback_data == "rvt:transfertoken:0"
+    assert response.buttons[3][0].text == "⬅️ Назад"
+    assert response.buttons[3][0].callback_data == "rvb:transfertoken"
 
 
 @pytest.mark.asyncio
@@ -229,6 +247,18 @@ async def test_chat_event_service_starts_transfer_confirmation_with_account(
                 action_token="confirmtransfertoken",
                 item=_build_chat_review_queue_item(description="Transfer to deposit"),
                 target_label="Deposit / RUB",
+                preview_entries=(
+                    chat_review_dto.ChatReviewTransferPreviewEntry(
+                        account_name="T-Bank Card",
+                        amount=Decimal("-500.00"),
+                        currency="RUB",
+                    ),
+                    chat_review_dto.ChatReviewTransferPreviewEntry(
+                        account_name="Deposit",
+                        amount=Decimal("500.00"),
+                        currency="RUB",
+                    ),
+                ),
             )
 
     monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
@@ -258,7 +288,10 @@ async def test_chat_event_service_starts_transfer_confirmation_with_account(
     assert selected_accounts == [1]
     assert response is not None
     assert "Подтвердить перевод?" in response.text
-    assert "Цель: Deposit / RUB" in response.text
+    assert "Проводки:" in response.text
+    assert "• T-Bank Card: -500.00 RUB" in response.text
+    assert "• Deposit: +500.00 RUB" in response.text
+    assert "Цель: Deposit / RUB" not in response.text
     assert "Transfer to deposit" in response.text
     assert response.buttons[0][0].callback_data == "rvy:confirmtransfertoken"
     assert response.buttons[1][0].callback_data == "rev:confirmtransfertoken:trn"
@@ -335,6 +368,81 @@ async def test_chat_event_service_starts_transfer_confirmation_with_pair(
     assert "Подтвердить перевод?" in response.text
     assert "Цель: Пара: Deposit / 30.06.2026 / 40000.00 RUB" in response.text
     assert "Transfer from card" in response.text
+    assert response.buttons[0][0].callback_data == "rvy:confirmtransfertoken"
+    assert response.buttons[1][0].callback_data == "rev:confirmtransfertoken:trn"
+
+
+@pytest.mark.asyncio
+async def test_chat_event_service_starts_transfer_confirmation_with_existing_transfer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4(), name="Anna", email="anna@example.test")),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id, name="Family")),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+    bound_workspace = chat_workspace.BoundChatWorkspace(
+        identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
+        context=context,
+    )
+    selected_transfers: list[int] = []
+
+    class FakeWorkspaceChatResolver:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def require_bound_workspace(self, _event: InboundChatEvent):
+            return bound_workspace
+
+    class FakeChatReviewTransferService:
+        def __init__(self, _session: object, _settings: Settings) -> None:
+            pass
+
+        async def start_transfer_confirmation_with_existing(
+            self,
+            *,
+            context: WorkspaceContext,
+            selection: ChatReviewTransferExistingSelection,
+        ):
+            assert context.workspace.id == workspace_id
+            assert selection.action_token == "transfertoken"
+            selected_transfers.append(selection.transfer_index)
+            return chat_review_dto.StartedChatReviewTransferConfirmation(
+                action_token="confirmtransfertoken",
+                item=_build_chat_review_queue_item(description="Transfer from manual"),
+                target_label="Созданный: Ozon deposit / 30.06.2026 / -40000.00 RUB",
+            )
+
+    monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
+    monkeypatch.setattr(
+        chat_review_transfer_handler, "ChatReviewTransferService", FakeChatReviewTransferService
+    )
+
+    conversation = ChatConversation(
+        provider=ChatProviderCode.TELEGRAM,
+        external_chat_id="42",
+        conversation_type=ChatConversationType.PRIVATE,
+    )
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=conversation,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="rvo:transfertoken:1",
+    )
+
+    response = await ChatEventService(
+        cast(AsyncSession, object()),
+        Settings(public_base_url="https://booker.example"),
+    ).receive_inbound_event(event)
+
+    assert selected_transfers == [1]
+    assert response is not None
+    assert "Подтвердить перевод?" in response.text
+    assert "Цель: Созданный: Ozon deposit / 30.06.2026 / -40000.00 RUB" in response.text
+    assert "Transfer from manual" in response.text
     assert response.buttons[0][0].callback_data == "rvy:confirmtransfertoken"
     assert response.buttons[1][0].callback_data == "rev:confirmtransfertoken:trn"
 

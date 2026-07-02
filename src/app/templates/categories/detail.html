@@ -39,41 +39,52 @@
     {% if can_write and not detail.category.is_system %}
       <details class="action-details action-accordion category-edit-details">
         <summary>{{ icon("settings") }} управление категорией</summary>
-        <form class="form-panel form-panel-embedded" method="post" action="/categories/{{ detail.category.id }}">
-          {{ csrf_input() }}
-          <label class="field form-field-half">
-            <span>название</span>
-            <input name="name" value="{{ detail.category.name }}" required>
-          </label>
-          <label class="field form-field-quarter">
-            <span>тип</span>
-            <select name="kind">
-              {% for editable_kind in kinds %}
-                <option value="{{ editable_kind.value }}" {% if detail.category.kind == editable_kind %}selected{% endif %}>
-                  {{ editable_kind | ru }}
-                </option>
-              {% endfor %}
-            </select>
-          </label>
-          <label class="field form-field-half">
-            <span>заметка</span>
-            <input name="notes" value="{{ detail.category.notes or "" }}" placeholder="Когда использовать">
-          </label>
-          <div class="form-actions">
-            <button class="button button-small" type="submit">{{ icon("save") }} сохранить</button>
+        <div class="category-edit-layout">
+          <form class="form-panel form-panel-embedded category-edit-form" method="post" action="/categories/{{ detail.category.id }}">
+            {{ csrf_input() }}
+            <label class="field category-name-field">
+              <span>название</span>
+              <input name="name" value="{{ detail.category.name }}" required>
+            </label>
+            <label class="field category-kind-field">
+              <span>тип</span>
+              <select name="kind">
+                {% for editable_kind in kinds %}
+                  <option value="{{ editable_kind.value }}" {% if detail.category.kind == editable_kind %}selected{% endif %}>
+                    {{ editable_kind | ru }}
+                  </option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field category-notes-field">
+              <span>заметка</span>
+              <input name="notes" value="{{ detail.category.notes or "" }}" placeholder="Когда использовать">
+            </label>
+            <div class="category-primary-action">
+              <button class="button button-small" type="submit">{{ icon("save") }} сохранить</button>
+            </div>
+          </form>
+          <div class="category-lifecycle-actions">
+            {% if detail.category.is_active %}
+              <form method="post" action="/categories/{{ detail.category.id }}/archive">
+                {{ csrf_input() }}
+                <button class="button button-small" type="submit">{{ icon("archive") }} в архив</button>
+              </form>
+            {% else %}
+              <form method="post" action="/categories/{{ detail.category.id }}/restore">
+                {{ csrf_input() }}
+                <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
+              </form>
+              {% if not detail.operations and not detail.rules %}
+                <form method="post" action="/categories/{{ detail.category.id }}/delete" onsubmit="return confirm('Удалить архивную категорию безвозвратно?')">
+                  {{ csrf_input() }}
+                  <input type="hidden" name="view" value="archived">
+                  <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
+                </form>
+              {% endif %}
+            {% endif %}
           </div>
-        </form>
-        {% if detail.category.is_active %}
-          <form method="post" action="/categories/{{ detail.category.id }}/archive">
-            {{ csrf_input() }}
-            <button class="button button-small" type="submit">{{ icon("archive") }} в архив</button>
-          </form>
-        {% else %}
-          <form method="post" action="/categories/{{ detail.category.id }}/restore">
-            {{ csrf_input() }}
-            <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
-          </form>
-        {% endif %}
+        </div>
       </details>
     {% endif %}
 

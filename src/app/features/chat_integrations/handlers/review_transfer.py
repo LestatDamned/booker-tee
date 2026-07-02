@@ -5,6 +5,7 @@ from app.features.chat_integrations.actions.review import (
     ChatReviewActionSelection,
     ChatReviewTransferAccountSelection,
     ChatReviewTransferConfirmationSelection,
+    ChatReviewTransferExistingSelection,
     ChatReviewTransferPairSelection,
 )
 from app.features.chat_integrations.errors import ChatReviewActionError
@@ -99,6 +100,34 @@ class ChatReviewTransferHandler:
             ).start_transfer_confirmation_with_pair(
                 context=bound_workspace.context,
                 selection=transfer_pair_selection,
+            )
+        except ChatReviewActionError as exc:
+            return TelegramReviewPresenter.show_action_error(
+                event.conversation,
+                str(exc),
+            )
+
+        return TelegramReviewPresenter.show_transfer_confirmation(
+            event.conversation,
+            confirmation,
+        )
+
+    async def complete_existing_transfer(
+        self,
+        event: InboundChatEvent,
+        bound_workspace: BoundChatWorkspace,
+        transfer_existing_selection: ChatReviewTransferExistingSelection,
+    ) -> OutboundChatMessage | None:
+        if event.conversation is None or self.settings is None:
+            return None
+
+        try:
+            confirmation = await ChatReviewTransferService(
+                self.session,
+                self.settings,
+            ).start_transfer_confirmation_with_existing(
+                context=bound_workspace.context,
+                selection=transfer_existing_selection,
             )
         except ChatReviewActionError as exc:
             return TelegramReviewPresenter.show_action_error(

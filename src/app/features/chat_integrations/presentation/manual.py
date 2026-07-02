@@ -35,14 +35,12 @@ class TelegramManualPresenter:
         conversation: ChatConversation,
         text: str,
         buttons: tuple[tuple[OutboundChatButton, ...], ...],
-        target_message_id: str | None = None,
     ) -> OutboundChatMessage:
         return OutboundChatMessage(
             conversation=conversation,
             text=text,
             buttons=buttons,
             delivery_mode=OutboundChatDeliveryMode.EDIT_SOURCE_MESSAGE,
-            target_message_id=target_message_id,
         )
 
     @staticmethod
@@ -96,7 +94,6 @@ class TelegramManualPresenter:
             ),
             buttons=account_buttons
             + ((OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),),
-            target_message_id=selection.source_message_id,
         )
 
     @staticmethod
@@ -115,11 +112,10 @@ class TelegramManualPresenter:
                 f"{TelegramManualOperationPresenter.operation_type_label(amount_input.operation_type)}"
                 f"\n\nСчет: {direction}\n"
                 f"Валюта: {amount_input.currency}\n\n"
-                "Напиши сумму одним числом.\n"
-                "Например: 1250 или 1 250,50"
+                "Напиши сумму прямо в чат одним сообщением.\n\n"
+                "Подойдут варианты: 1250 / 1 250,50 \n"
             ),
             buttons=((OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),),
-            target_message_id=amount_input.source_message_id,
         )
 
     @staticmethod
@@ -146,7 +142,9 @@ class TelegramManualPresenter:
                 "\n\n"
                 f"Сумма: {selection.amount:.2f} {selection.currency}\n"
                 f"Счет: {direction}\n\n"
-                "Когда была операция?"
+                "Когда была операция?\n\n"
+                "Можно нажать 'Сегодня/Вчера' или написать дату прямо в чат.\n"
+                "Например: 30.06.2026 или 30.06"
             ),
             buttons=(
                 (
@@ -163,17 +161,8 @@ class TelegramManualPresenter:
                         ),
                     ),
                 ),
-                (
-                    OutboundChatButton(
-                        text="✍️ Другая",
-                        callback_data=ChatManualDateCallbackData.build_custom_action(
-                            action_token=selection.action_token,
-                        ),
-                    ),
-                ),
                 (OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),
             ),
-            target_message_id=selection.source_message_id,
         )
 
     @staticmethod
@@ -193,7 +182,6 @@ class TelegramManualPresenter:
                 "Например: 30.06.2026"
             ),
             buttons=((OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),),
-            target_message_id=date_input.source_message_id,
         )
 
     @staticmethod
@@ -263,7 +251,6 @@ class TelegramManualPresenter:
             buttons=category_buttons
             + page_row
             + ((OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),),
-            target_message_id=selection.source_message_id,
         )
 
     @staticmethod
@@ -299,7 +286,6 @@ class TelegramManualPresenter:
                 ),
                 (OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),
             ),
-            target_message_id=description_input.source_message_id,
         )
 
     @staticmethod
@@ -354,7 +340,6 @@ class TelegramManualPresenter:
                 ),
                 (OutboundChatButton(text="🏠 Меню", callback_data="main:menu"),),
             ),
-            target_message_id=confirmation.source_message_id,
         )
 
     @staticmethod
@@ -411,7 +396,6 @@ class TelegramManualPresenter:
                 f"Дата: {TelegramDatePresenter.format_date(confirmation.operation_date)}"
             ),
             buttons=tuple(rows),
-            target_message_id=selection.confirmation.source_message_id,
         )
 
     @staticmethod

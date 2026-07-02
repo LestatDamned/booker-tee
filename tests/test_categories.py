@@ -114,6 +114,57 @@ async def test_category_name_uniqueness_is_case_insensitive() -> None:
         )
 
 
+@pytest.mark.asyncio
+async def test_archived_category_without_links_can_be_deleted() -> None:
+    category_id = uuid4()
+    category = SimpleNamespace(id=category_id, is_active=False, is_system=False)
+    repository = FakeCategoryRepository(category=category)
+    service = CategoryService(cast(Any, SimpleNamespace(commit=repository.commit)))
+    service.categories = cast(Any, repository)
+
+    await service.delete_archived_custom(
+        workspace_id=uuid4(),
+        category_id=category_id,
+    )
+
+    assert repository.deleted == category
+    assert repository.committed
+
+
+@pytest.mark.asyncio
+async def test_active_category_must_be_archived_before_delete() -> None:
+    category_id = uuid4()
+    category = SimpleNamespace(id=category_id, is_active=True, is_system=False)
+    repository = FakeCategoryRepository(category=category)
+    service = CategoryService(cast(Any, SimpleNamespace(commit=repository.commit)))
+    service.categories = cast(Any, repository)
+
+    with pytest.raises(CategoryError, match="Сначала перенесите категорию в архив"):
+        await service.delete_archived_custom(
+            workspace_id=uuid4(),
+            category_id=category_id,
+        )
+
+    assert repository.deleted is None
+
+
+@pytest.mark.asyncio
+async def test_archived_category_with_operations_cannot_be_deleted() -> None:
+    category_id = uuid4()
+    category = SimpleNamespace(id=category_id, is_active=False, is_system=False)
+    repository = FakeCategoryRepository(category=category, operation_count=1)
+    service = CategoryService(cast(Any, SimpleNamespace(commit=repository.commit)))
+    service.categories = cast(Any, repository)
+
+    with pytest.raises(CategoryError, match="есть операции"):
+        await service.delete_archived_custom(
+            workspace_id=uuid4(),
+            category_id=category_id,
+        )
+
+    assert repository.deleted is None
+
+
 def category_row(*, is_active: bool, is_system: bool) -> CategoryManagementRow:
     return cast(
         CategoryManagementRow,
@@ -125,6 +176,36 @@ def category_row(*, is_active: bool, is_system: bool) -> CategoryManagementRow:
             )
         ),
     )
+
+
+class FakeCategoryRepository:
+    def __init__(
+        self,
+        *,
+        category: Any,
+        operation_count: int = 0,
+        rule_count: int = 0,
+    ) -> None:
+        self.category = category
+        self.operation_count = operation_count
+        self.rule_count = rule_count
+        self.deleted: object | None = None
+        self.committed = False
+
+    async def get_for_workspace(self, _workspace_id: object, _category_id: object) -> object:
+        return self.category
+
+    async def count_operations_by_category(self, _workspace_id: object) -> dict[object, int]:
+        return {self.category.id: self.operation_count}
+
+    async def count_rules_by_category(self, _workspace_id: object) -> dict[object, int]:
+        return {self.category.id: self.rule_count}
+
+    async def delete(self, category: object) -> None:
+        self.deleted = category
+
+    async def commit(self) -> None:
+        self.committed = True
 
 
 async def noop_async() -> None:

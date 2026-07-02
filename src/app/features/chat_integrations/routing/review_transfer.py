@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from app.features.chat_integrations.actions.review import (
     ChatReviewTransferCallbackData,
     ChatReviewTransferConfirmationCallbackData,
+    ChatReviewTransferExistingCallbackData,
     ChatReviewTransferPairCallbackData,
 )
 from app.features.chat_integrations.handlers.factory import ChatEventHandlers
@@ -27,6 +28,16 @@ class ChatReviewTransferCallbackHandler:
                 event,
                 bound_workspace,
                 confirmation,
+            )
+
+        existing_selection = ChatReviewTransferExistingCallbackData.parse_existing_selection(
+            event.callback_data
+        )
+        if existing_selection is not None:
+            return await self.handlers.review_transfer().complete_existing_transfer(
+                event,
+                bound_workspace,
+                existing_selection,
             )
 
         pair_selection = ChatReviewTransferPairCallbackData.parse_pair_selection(

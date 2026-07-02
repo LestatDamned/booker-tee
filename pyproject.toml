@@ -2,7 +2,7 @@
 name = "booker-tee"
 version = "0.1.0"
 description = "Private financial statement importer and review workflow."
-readme = "PROJECT_VISION.md"
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.16.0",

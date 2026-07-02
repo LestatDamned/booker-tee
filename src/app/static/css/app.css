@@ -870,6 +870,50 @@ input[type="checkbox"] {
   padding: 14px 0 0;
 }
 
+.category-edit-layout {
+  display: grid;
+  gap: 12px;
+}
+
+.category-edit-form {
+  align-items: end;
+}
+
+.category-name-field {
+  grid-column: span 6 !important;
+}
+
+.category-kind-field,
+.category-primary-action {
+  grid-column: span 3 !important;
+}
+
+.category-notes-field {
+  grid-column: span 9 !important;
+}
+
+.category-primary-action {
+  min-width: 0;
+}
+
+.category-lifecycle-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-top: 12px;
+}
+
+.category-lifecycle-actions form {
+  min-width: min(100%, 180px);
+}
+
+.category-lifecycle-actions .button {
+  width: 100%;
+}
+
 .filter-tabs {
   width: fit-content;
   max-width: 100%;
@@ -3544,10 +3588,20 @@ pre {
   .form-field-third,
   .form-field-quarter,
   .form-field-full,
+  .category-name-field,
+  .category-kind-field,
+  .category-notes-field,
+  .category-primary-action,
   .form-actions,
   .form-actions-inline,
   .form-submit {
     grid-column: 1 / -1 !important;
+  }
+
+  .category-lifecycle-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-content: stretch;
   }
 
   .action-fields,

@@ -4,11 +4,11 @@ Product and engineering roadmap for Booker Tee.
 
 This document defines the preferred order of product evolution. It should be read together with:
 
-- `PROJECT_VISION.md` — product positioning and target users;
-- `MVP.md` — parser-first MVP scope;
-- `DOMAIN_MODEL.md` — canonical entities and invariants;
-- `ARCHITECTURE.md` — code architecture and data flow;
-- `AGENTS.md` — instructions for Codex and coding agents.
+- [`PROJECT_VISION.md`](PROJECT_VISION.md) — product positioning and target users;
+- [`MVP.md`](MVP.md) — parser-first MVP scope;
+- [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) — canonical entities and invariants;
+- [`ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) — code architecture and data flow;
+- [`AGENTS.md`](../../AGENTS.md) — instructions for Codex and coding agents.
 
 ---
 
@@ -142,7 +142,7 @@ No direct user value yet. This phase exists to avoid technical chaos later.
 ### Recommended Codex tasks
 
 ```text
-1. Create project structure according to ARCHITECTURE.md.
+1. Create project structure according to `docs/architecture/ARCHITECTURE.md`.
 2. Add pyproject.toml with uv, ruff, ty, pytest configuration.
 3. Add application settings module.
 4. Add database session management.
@@ -606,7 +606,7 @@ The first MVP is considered complete when all of these are true:
 12. Parser failures do not crash the application or delete source files.
 13. Basic category and optional property assignment works.
 14. Simple reports provide useful financial clarity.
-15. The code follows AGENTS.md, DOMAIN_MODEL.md, MVP.md, and ARCHITECTURE.md.
+15. The code follows `AGENTS.md`, `docs/domain/DOMAIN_MODEL.md`, `docs/product/MVP.md`, and `docs/architecture/ARCHITECTURE.md`.
 ```
 
 The MVP is not complete if it only extracts tables but cannot confirm rows into the ledger.
@@ -756,7 +756,7 @@ fine-grained custom roles UI
 Add convenient ways to deliver statements, checks, documents, and simple review
 actions into Booker Tee from familiar tools.
 
-Use `CHAT_INTEGRATIONS.md` as the source of truth for messenger integration
+Use `docs/integrations/CHAT_INTEGRATIONS.md` as the source of truth for messenger integration
 architecture. Telegram is the MVP provider. Matrix/Element is the long-term
 direction for a more independent chat architecture. The module should be
 designed as provider-neutral chat integrations rather than a Telegram-only bot.

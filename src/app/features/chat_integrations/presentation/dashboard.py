@@ -122,7 +122,8 @@ class TelegramDashboardPresenter:
                 f"🟢 Доход: {income}\n"
                 f"🔴 Расход: {expense}\n"
                 f"⚖️ Итог: {profit}\n\n"
-                f"🔎 К проверке: {summary.total_needing_attention}"
+                f"📄 Документы: {summary.documents_needing_attention}\n"
+                f"🔎 К проверке: {summary.raw_transactions_needing_attention}"
             ),
             buttons=(
                 (

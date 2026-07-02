@@ -11,6 +11,7 @@ from app.db.session import get_session
 from app.features.accounts.service import AccountService
 from app.features.categories.models import CategoryKind
 from app.features.categories.service import CategoryError, CategoryService
+from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.review.actions import (
     RawTransactionReviewCommand,
     RawTransactionReviewUseCase,
@@ -20,6 +21,7 @@ from app.features.imports.presentation.review import (
     build_review_page_context,
     review_redirect_url,
 )
+from app.features.imports.repository import ImportRepository
 from app.features.imports.routes.form_values import parse_optional_uuid
 from app.features.imports.service import ImportService
 from app.features.ledger.errors import LedgerPostingError
@@ -48,6 +50,15 @@ async def document_review(
     document = await ImportService(session).get_document(context.workspace.id, document_id)
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    status_updated = await ImportedDocumentStatusUpdater(
+        ImportRepository(session)
+    ).mark_imported_if_complete(
+        workspace_id=context.workspace.id,
+        document_id=document_id,
+    )
+    if status_updated:
+        await session.commit()
+
     accounts = await AccountService(session).list_active_accounts(context.workspace.id)
     categories = await CategoryService(session).list_or_seed_defaults(
         context.workspace.id,

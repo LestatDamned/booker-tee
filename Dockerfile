@@ -13,7 +13,7 @@ ENV PATH="/opt/booker-tee-venv/bin:$PATH" \
 
 WORKDIR /app
 
-COPY pyproject.toml uv.lock PROJECT_VISION.md ./
+COPY pyproject.toml uv.lock README.md ./
 COPY alembic.ini ./
 COPY migrations ./migrations
 COPY src ./src

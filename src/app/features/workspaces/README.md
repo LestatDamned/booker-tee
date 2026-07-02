@@ -4,7 +4,7 @@ This document is the implementation plan for making `users` and `workspaces`
 production-ready enough for private server use, shared workspaces, and a future
 Telegram bot entry point.
 
-`DOMAIN_MODEL.md` remains the canonical product/domain source of truth. This file
+`docs/domain/DOMAIN_MODEL.md` remains the canonical product/domain source of truth. This file
 keeps the local module contract concrete for day-to-day implementation.
 
 ## Product goal

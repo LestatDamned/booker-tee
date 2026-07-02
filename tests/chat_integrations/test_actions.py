@@ -40,6 +40,8 @@ from app.features.chat_integrations.actions.review import (
     ChatReviewTransferAccountSelection,
     ChatReviewTransferCallbackData,
     ChatReviewTransferConfirmationCallbackData,
+    ChatReviewTransferExistingCallbackData,
+    ChatReviewTransferExistingSelection,
     ChatReviewTransferPairCallbackData,
     ChatReviewTransferPairSelection,
 )
@@ -265,6 +267,22 @@ def test_chat_review_transfer_pair_callback_data_is_short_and_parseable() -> Non
         ChatReviewTransferPairSelection(action_token="shorttoken", pair_index=1)
     )
     assert ChatReviewTransferPairCallbackData.parse_pair_selection("rvt:shorttoken:1") is None
+
+
+def test_chat_review_transfer_existing_callback_data_is_short_and_parseable() -> None:
+    callback_data = ChatReviewTransferExistingCallbackData.build_existing_selection(
+        action_token="shorttoken",
+        transfer_index=1,
+    )
+
+    assert len(callback_data) <= 64
+    assert callback_data == "rvo:shorttoken:1"
+    assert ChatReviewTransferExistingCallbackData.parse_existing_selection(callback_data) == (
+        ChatReviewTransferExistingSelection(action_token="shorttoken", transfer_index=1)
+    )
+    assert (
+        ChatReviewTransferExistingCallbackData.parse_existing_selection("rvx:shorttoken:1") is None
+    )
 
 
 def test_chat_manual_callback_data_is_short_and_parseable() -> None:

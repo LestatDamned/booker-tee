@@ -4,10 +4,10 @@ Product guidance plan for teaching users how to use Booker Tee without turning t
 
 This document defines what the UI should teach, where it should teach it, and in what order to implement guidance. It complements:
 
-- `PROJECT_VISION.md` — why the product exists;
-- `MVP.md` — parser-first MVP scope;
-- `DOMAIN_MODEL.md` — financial concepts and invariants;
-- `AGENTS.md` — engineering and product constraints.
+- [`PROJECT_VISION.md`](../product/PROJECT_VISION.md) — why the product exists;
+- [`MVP.md`](../product/MVP.md) — parser-first MVP scope;
+- [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) — financial concepts and invariants;
+- [`AGENTS.md`](../../AGENTS.md) — engineering and product constraints.
 
 ## 1. Guidance goal
 
@@ -414,7 +414,7 @@ Write this guide and align future UI tasks around it.
 
 Deliverables:
 
-- `USER_GUIDE.md`
+- `docs/guides/USER_GUIDE.md`
 - no runtime behavior change required.
 
 Status:

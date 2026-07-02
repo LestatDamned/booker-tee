@@ -307,6 +307,26 @@ class CategoryService:
         await self.session.commit()
         return category
 
+    async def delete_archived_custom(
+        self,
+        *,
+        workspace_id: UUID,
+        category_id: UUID,
+    ) -> None:
+        category = await self._get_editable_category(workspace_id, category_id)
+        if category.is_active:
+            raise CategoryError("Сначала перенесите категорию в архив.")
+
+        operation_counts = await self.categories.count_operations_by_category(workspace_id)
+        rule_counts = await self.categories.count_rules_by_category(workspace_id)
+        if operation_counts.get(category.id, 0) > 0:
+            raise CategoryError("Нельзя удалить категорию, у которой есть операции.")
+        if rule_counts.get(category.id, 0) > 0:
+            raise CategoryError("Нельзя удалить категорию, у которой есть правила.")
+
+        await self.categories.delete(category)
+        await self.session.commit()
+
     @staticmethod
     def _default_category_seeds(
         workspace_type: WorkspaceType | None,

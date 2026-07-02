@@ -1,3 +1,4 @@
+from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
 from app.db.base import utc_now
@@ -5,7 +6,10 @@ from app.features.chat_integrations.actions.review import ChatReviewCallbackData
 from app.features.chat_integrations.errors import ChatReviewActionError
 from app.features.chat_integrations.models import ChatConversationState
 from app.features.chat_integrations.repository import ChatIntegrationRepository
-from app.features.chat_integrations.use_cases.review.dto import ChatReviewCategoryChoice
+from app.features.chat_integrations.use_cases.review.dto import (
+    ChatReviewCategoryChoice,
+    ChatReviewTransferPreviewEntry,
+)
 
 
 class ChatReviewStateClaimer:
@@ -198,6 +202,27 @@ class ChatReviewStateReader:
         )
 
     @staticmethod
+    def read_transfer_account_preview_entry(
+        payload: dict[str, object],
+        account_index: int,
+        amount: Decimal,
+    ) -> ChatReviewTransferPreviewEntry:
+        return ChatReviewTransferPreviewEntry(
+            account_name=ChatReviewStateReader._read_label(
+                payload=payload,
+                key="account_names",
+                index=account_index,
+                fallback="выбранный счет",
+            ),
+            amount=amount,
+            currency=ChatReviewStateReader._read_optional_label(
+                payload=payload,
+                key="account_currencies",
+                index=account_index,
+            ),
+        )
+
+    @staticmethod
     def read_matched_raw_transaction_id(payload: dict[str, object], pair_index: int) -> UUID:
         raw_transaction_ids = payload.get("matched_raw_transaction_ids")
         if not isinstance(raw_transaction_ids, list):
@@ -221,6 +246,101 @@ class ChatReviewStateReader:
             index=pair_index,
             fallback="выбранная парная строка",
         )
+
+    @staticmethod
+    def read_matched_raw_transaction_preview_entry(
+        payload: dict[str, object],
+        pair_index: int,
+    ) -> ChatReviewTransferPreviewEntry:
+        return ChatReviewTransferPreviewEntry(
+            account_name=ChatReviewStateReader._read_label(
+                payload=payload,
+                key="matched_raw_transaction_account_names",
+                index=pair_index,
+                fallback="выбранная парная строка",
+            ),
+            amount=ChatReviewStateReader._read_decimal(
+                payload=payload,
+                key="matched_raw_transaction_amounts",
+                index=pair_index,
+                error_message="Stored matched row amount is invalid.",
+            ),
+            currency=ChatReviewStateReader._read_optional_label(
+                payload=payload,
+                key="matched_raw_transaction_currencies",
+                index=pair_index,
+            ),
+        )
+
+    @staticmethod
+    def read_matched_operation_id(payload: dict[str, object], transfer_index: int) -> UUID:
+        operation_ids = payload.get("matched_operation_ids")
+        if not isinstance(operation_ids, list):
+            raise ChatReviewActionError("Stored review action does not include transfers.")
+        if transfer_index < 0 or transfer_index >= len(operation_ids):
+            raise ChatReviewActionError("Selected transfer is no longer available.")
+
+        operation_id = operation_ids[transfer_index]
+        if not isinstance(operation_id, str):
+            raise ChatReviewActionError("Stored transfer id is invalid.")
+        try:
+            return UUID(operation_id)
+        except ValueError as exc:
+            raise ChatReviewActionError("Stored transfer id is invalid.") from exc
+
+    @staticmethod
+    def read_matched_operation_label(payload: dict[str, object], transfer_index: int) -> str:
+        return ChatReviewStateReader._read_label(
+            payload=payload,
+            key="matched_operation_labels",
+            index=transfer_index,
+            fallback="выбранный ручной перевод",
+        )
+
+    @staticmethod
+    def read_matched_operation_preview_entries(
+        payload: dict[str, object],
+        transfer_index: int,
+    ) -> tuple[ChatReviewTransferPreviewEntry, ...]:
+        account_entry = ChatReviewTransferPreviewEntry(
+            account_name=ChatReviewStateReader._read_label(
+                payload=payload,
+                key="matched_operation_account_names",
+                index=transfer_index,
+                fallback="счет строки",
+            ),
+            amount=ChatReviewStateReader._read_decimal(
+                payload=payload,
+                key="matched_operation_account_amounts",
+                index=transfer_index,
+                error_message="Stored transfer amount is invalid.",
+            ),
+            currency=ChatReviewStateReader._read_optional_label(
+                payload=payload,
+                key="matched_operation_account_currencies",
+                index=transfer_index,
+            ),
+        )
+        counterparty_entry = ChatReviewTransferPreviewEntry(
+            account_name=ChatReviewStateReader._read_label(
+                payload=payload,
+                key="matched_operation_counterparty_names",
+                index=transfer_index,
+                fallback="второй счет",
+            ),
+            amount=ChatReviewStateReader._read_decimal(
+                payload=payload,
+                key="matched_operation_counterparty_amounts",
+                index=transfer_index,
+                error_message="Stored transfer amount is invalid.",
+            ),
+            currency=ChatReviewStateReader._read_optional_label(
+                payload=payload,
+                key="matched_operation_counterparty_currencies",
+                index=transfer_index,
+            ),
+        )
+        return (account_entry, counterparty_entry)
 
     @staticmethod
     def read_confirm_transfer_account_id(payload: dict[str, object]) -> UUID | None:
@@ -249,6 +369,20 @@ class ChatReviewStateReader:
             raise ChatReviewActionError("Stored matched row is invalid.") from exc
 
     @staticmethod
+    def read_confirm_transfer_matched_operation_id(
+        payload: dict[str, object],
+    ) -> UUID | None:
+        value = payload.get("matched_operation_id")
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ChatReviewActionError("Stored transfer is invalid.")
+        try:
+            return UUID(value)
+        except ValueError as exc:
+            raise ChatReviewActionError("Stored transfer is invalid.") from exc
+
+    @staticmethod
     def read_transfer_action_label(payload: dict[str, object]) -> str:
         action_label = payload.get("action_label")
         if not isinstance(action_label, str):
@@ -270,6 +404,42 @@ class ChatReviewStateReader:
             return fallback
         label = labels[index]
         return label if isinstance(label, str) else fallback
+
+    @staticmethod
+    def _read_optional_label(
+        *,
+        payload: dict[str, object],
+        key: str,
+        index: int,
+    ) -> str | None:
+        labels = payload.get(key)
+        if not isinstance(labels, list):
+            return None
+        if index < 0 or index >= len(labels):
+            return None
+        label = labels[index]
+        return label if isinstance(label, str) else None
+
+    @staticmethod
+    def _read_decimal(
+        *,
+        payload: dict[str, object],
+        key: str,
+        index: int,
+        error_message: str,
+    ) -> Decimal:
+        values = payload.get(key)
+        if not isinstance(values, list):
+            raise ChatReviewActionError(error_message)
+        if index < 0 or index >= len(values):
+            raise ChatReviewActionError(error_message)
+        value = values[index]
+        if not isinstance(value, str):
+            raise ChatReviewActionError(error_message)
+        try:
+            return Decimal(value)
+        except (InvalidOperation, ValueError) as exc:
+            raise ChatReviewActionError(error_message) from exc
 
     @staticmethod
     def _read_uuid(payload: dict[str, object], key: str) -> UUID:

@@ -154,11 +154,33 @@ class ChatReviewTransferPairChoice:
 
 
 @dataclass(frozen=True)
+class ChatReviewExistingTransferChoice:
+    id: UUID
+    operation_date: date
+    account_name: str | None
+    account_amount: Decimal
+    account_currency: str
+    counterparty_account_name: str | None
+    counterparty_amount: Decimal | None
+    counterparty_currency: str | None
+    description: str | None
+    day_distance: int
+
+
+@dataclass(frozen=True)
+class ChatReviewTransferPreviewEntry:
+    account_name: str
+    amount: Decimal
+    currency: str | None
+
+
+@dataclass(frozen=True)
 class StartedChatReviewTransferSelection:
     action_token: str
     item: ChatReviewQueueItem
     pair_choices: tuple[ChatReviewTransferPairChoice, ...]
     account_choices: tuple[ChatReviewTransferAccountChoice, ...]
+    existing_transfer_choices: tuple[ChatReviewExistingTransferChoice, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -166,3 +188,4 @@ class StartedChatReviewTransferConfirmation:
     action_token: str
     item: ChatReviewQueueItem
     target_label: str
+    preview_entries: tuple[ChatReviewTransferPreviewEntry, ...] = ()

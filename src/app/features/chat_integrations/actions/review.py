@@ -60,6 +60,12 @@ class ChatReviewTransferPairSelection:
 
 
 @dataclass(frozen=True)
+class ChatReviewTransferExistingSelection:
+    action_token: str
+    transfer_index: int
+
+
+@dataclass(frozen=True)
 class ChatReviewTransferConfirmationSelection:
     action_token: str
 
@@ -376,6 +382,34 @@ class ChatReviewTransferPairCallbackData:
         return ChatReviewTransferPairSelection(
             action_token=parts[1],
             pair_index=pair_index,
+        )
+
+
+class ChatReviewTransferExistingCallbackData:
+    PREFIX = "rvo"
+
+    @classmethod
+    def build_existing_selection(cls, *, action_token: str, transfer_index: int) -> str:
+        return f"{cls.PREFIX}:{action_token}:{transfer_index}"
+
+    @classmethod
+    def parse_existing_selection(
+        cls,
+        callback_data: str | None,
+    ) -> ChatReviewTransferExistingSelection | None:
+        if callback_data is None:
+            return None
+
+        parts = callback_data.split(":")
+        if len(parts) != 3 or parts[0] != cls.PREFIX:
+            return None
+        try:
+            transfer_index = int(parts[2])
+        except ValueError:
+            return None
+        return ChatReviewTransferExistingSelection(
+            action_token=parts[1],
+            transfer_index=transfer_index,
         )
 
 

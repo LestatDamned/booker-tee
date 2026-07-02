@@ -90,3 +90,7 @@ class CategoryRepository:
         self.session.add(category)
         await self.session.flush()
         return category
+
+    async def delete(self, category: Category) -> None:
+        await self.session.delete(category)
+        await self.session.flush()

@@ -311,7 +311,8 @@ def test_monthly_summary_shows_financial_totals_and_review_counter() -> None:
     assert "Доход: 100000.00 RUB" in response.text
     assert "Расход: 40000.50 RUB" in response.text
     assert "Итог: 59999.50 RUB" in response.text
-    assert "К проверке: 5" in response.text
+    assert "Документы: 1" in response.text
+    assert "К проверке: 4" in response.text
     assert response.buttons[0][0].callback_data == "sum:2026-06"
     assert response.buttons[0][1].text == "Июль 2026"
     assert response.buttons[0][1].callback_data == "sum:2026-07"

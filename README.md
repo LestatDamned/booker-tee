@@ -90,7 +90,7 @@ Windows PowerShell:
 $env:BOOKER_TEE_APP_PORT = "8010"; .\scripts\alpha-up.ps1 --detach
 ```
 
-See `ALPHA_TESTING.md` for the suggested tester flow and feedback checklist.
+See [ALPHA_TESTING.md](docs/guides/ALPHA_TESTING.md) for the suggested tester flow and feedback checklist.
 
 Stop the local alpha:
 
@@ -195,11 +195,11 @@ Booker Tee handles sensitive financial data.
 
 ## Project Documents
 
-The main product and engineering references are:
+The full documentation index lives in [docs/README.md](docs/README.md). The main product and engineering references are:
 
-- `PROJECT_VISION.md`
-- `MVP.md`
-- `ROADMAP.md`
-- `DOMAIN_MODEL.md`
-- `ARCHITECTURE.md`
-- `AGENTS.md`
+- [PROJECT_VISION.md](docs/product/PROJECT_VISION.md)
+- [MVP.md](docs/product/MVP.md)
+- [ROADMAP.md](docs/product/ROADMAP.md)
+- [DOMAIN_MODEL.md](docs/domain/DOMAIN_MODEL.md)
+- [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)
+- [AGENTS.md](AGENTS.md)
