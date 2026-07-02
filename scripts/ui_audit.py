@@ -293,6 +293,10 @@ def prepare_realistic_scenario(
         page.locator('form#new-account input[name="initial_balance"]').fill("10000.00")
         page.locator('form#new-account button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
         page.get_by_text(account_name, exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
+        account_card = page.locator(".entity-card").filter(has_text=account_name).first
+        account_detail_path = account_card.locator('a[href^="/accounts/"]').first.get_attribute(
+            "href"
+        )
 
         page.goto(build_url(base_url, "/imports/upload"), wait_until="domcontentloaded")
         page.locator('input[name="statement_pdf"]').set_input_files(str(workbook_path))
@@ -303,6 +307,7 @@ def prepare_realistic_scenario(
 
     return {
         "account_name": account_name,
+        "account_detail_path": account_detail_path or "",
         "document_name": document_name,
     }
 
@@ -1165,12 +1170,19 @@ def run_audit(
                         )
 
                     pages = AUTHENTICATED_PAGES if authenticated else PAGES
+                    dynamic_pages: list[tuple[str, str]] = []
+                    if scenario_state.get("account_detail_path"):
+                        dynamic_pages.append(
+                            (scenario_state["account_detail_path"], "account-detail")
+                        )
                     if scenario in {
                         "review_interactions",
                         "button_audit",
                         "design_audit",
                     } and scenario_state.get("review_path"):
-                        pages = (*pages, (scenario_state["review_path"], "review-interactions"))
+                        dynamic_pages.append((scenario_state["review_path"], "review-interactions"))
+                    if dynamic_pages:
+                        pages = (*pages, *dynamic_pages)
                     for path, label in pages:
                         print(f" - {path}", flush=True)
                         page = context.new_page()

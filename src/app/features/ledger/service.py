@@ -8,9 +8,18 @@ from app.features.imports.models import RawTransaction
 from app.features.ledger.application.commands import (
     CreateManualIncomeExpenseCommand,
     CreateManualTransferCommand,
+    UpdateImportedOperationReviewFieldsCommand,
     UpdateManualOperationCommand,
 )
+from app.features.ledger.application.imported_operation_review import ImportedOperationReviewUseCase
 from app.features.ledger.application.imported_operation_undo import ImportedOperationUndoUseCase
+from app.features.ledger.application.listing import (
+    AccountEntryFilters,
+    LedgerPage,
+    LedgerPagination,
+    ManualOperationFilters,
+    normalize_pagination,
+)
 from app.features.ledger.application.manual_operations import ManualOperationUseCase
 from app.features.ledger.application.raw_transaction_posting import RawTransactionPostingUseCase
 from app.features.ledger.application.transfer_suggestions import (
@@ -56,27 +65,65 @@ class LedgerPostingService:
         *,
         workspace_id: UUID,
         account_id: UUID,
+        filters: AccountEntryFilters | None = None,
+        pagination: LedgerPagination | None = None,
     ) -> AccountLedgerDetailView | None:
         account = await self.accounts.get_for_workspace(workspace_id, account_id)
         if account is None:
             return None
+        normalized_filters = filters or AccountEntryFilters()
+        normalized_pagination = pagination or normalize_pagination(1, 50)
         entries_total = await self.ledger.get_confirmed_account_entries_total(
             workspace_id=workspace_id,
             account_id=account_id,
         )
+        matching_count = await self.ledger.count_account_entries(
+            workspace_id=workspace_id,
+            account_id=account_id,
+            filters=normalized_filters,
+        )
         entries = await self.ledger.list_account_entries(
             workspace_id=workspace_id,
             account_id=account_id,
+            filters=normalized_filters,
+            pagination=normalized_pagination,
         )
         return LedgerViewMapper.account_detail_from_parts(
             account=account,
             balance=(account.initial_balance + entries_total).quantize(Decimal("0.01")),
             entries=entries,
+            page=LedgerPage(
+                page=normalized_pagination.page,
+                per_page=normalized_pagination.per_page,
+                total=matching_count,
+            ),
         )
 
-    async def list_manual_operations(self, workspace_id: UUID) -> list[ManualOperationView]:
-        operations = await self.ledger.list_manual_operations_for_workspace(workspace_id)
-        return [LedgerViewMapper.manual_operation_from_model(operation) for operation in operations]
+    async def list_manual_operations(
+        self,
+        workspace_id: UUID,
+        filters: ManualOperationFilters | None = None,
+        pagination: LedgerPagination | None = None,
+    ) -> tuple[list[ManualOperationView], LedgerPage]:
+        normalized_filters = filters or ManualOperationFilters()
+        normalized_pagination = pagination or normalize_pagination(1, 50)
+        operation_count = await self.ledger.count_manual_operations_for_workspace(
+            workspace_id=workspace_id,
+            filters=normalized_filters,
+        )
+        operations = await self.ledger.list_manual_operations_page_for_workspace(
+            workspace_id=workspace_id,
+            filters=normalized_filters,
+            pagination=normalized_pagination,
+        )
+        return (
+            [LedgerViewMapper.manual_operation_from_model(operation) for operation in operations],
+            LedgerPage(
+                page=normalized_pagination.page,
+                per_page=normalized_pagination.per_page,
+                total=operation_count,
+            ),
+        )
 
     async def undo_raw_transaction_posting(
         self,
@@ -120,6 +167,17 @@ class LedgerPostingService:
         command: UpdateManualOperationCommand,
     ) -> Operation:
         return await ManualOperationUseCase(self.session).update(
+            context=context,
+            command=command,
+        )
+
+    async def update_imported_operation_review_fields(
+        self,
+        *,
+        context: WorkspaceContext,
+        command: UpdateImportedOperationReviewFieldsCommand,
+    ) -> Operation:
+        return await ImportedOperationReviewUseCase(self.session).update_review_fields(
             context=context,
             command=command,
         )

@@ -4,7 +4,8 @@ from typing import Any, cast
 from uuid import uuid4
 
 from app.features.accounts.models import AccountType
-from app.features.ledger.models import OperationType
+from app.features.ledger.application.listing import AccountEntryFilters, LedgerPage
+from app.features.ledger.models import OperationSource, OperationStatus, OperationType
 from app.templating import create_templates
 
 
@@ -23,10 +24,13 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
         id=operation_id,
         operation_date="2026-06-05",
         type=OperationType.EXPENSE,
+        status=OperationStatus.CONFIRMED,
+        source=OperationSource.BANK_PDF,
         category=SimpleNamespace(name="Продукты"),
         property=None,
         description='Списание средств по платежу СБП | ООО "ЛЕНТА"',
         money_entries=[],
+        raw_transactions=[],
     )
     entry = SimpleNamespace(
         operation=operation,
@@ -45,8 +49,16 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
             account=account,
             balance=Decimal("32080.66"),
             entries=[entry],
+            page=LedgerPage(page=1, per_page=50, total=1),
         ),
         account_types=list(AccountType),
+        categories=[operation.category],
+        filters=AccountEntryFilters(),
+        operation_sources=list(OperationSource),
+        operation_statuses=list(OperationStatus),
+        operation_types=list(OperationType),
+        page_urls={"previous": None, "next": None},
+        properties=[],
     )
 
     assert "entry-list" in html
@@ -54,6 +66,9 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "tone-expense" in html
     assert "amount-expense" in html
     assert "badge-expense" in html
+    assert "badge-source-bank_pdf" in html
+    assert "импорт" in html
+    assert "разметка" in html
     assert "Экспобанк карта" in html
     assert "Продукты" in html
     assert "Технические детали" in html

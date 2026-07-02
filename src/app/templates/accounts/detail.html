@@ -59,18 +59,95 @@
       </div>
       <div class="metric">
         <span>проводки</span>
-        <strong>{{ detail.entries | length }}</strong>
+        <strong>{{ detail.page.total if detail.page is defined else detail.entries | length }}</strong>
       </div>
     </div>
+
+    <form class="form-panel" method="get" action="/accounts/{{ detail.account.id }}">
+      <label class="field form-field-quarter">
+        <span>с даты</span>
+        <input name="date_from" type="date" value="{{ filters.date_from.isoformat() if filters is defined and filters.date_from else '' }}">
+      </label>
+      <label class="field form-field-quarter">
+        <span>по дату</span>
+        <input name="date_to" type="date" value="{{ filters.date_to.isoformat() if filters is defined and filters.date_to else '' }}">
+      </label>
+      <label class="field form-field-quarter">
+        <span>источник</span>
+        <select name="source">
+          <option value="">любой</option>
+          {% for source in operation_sources | default([]) %}
+            <option value="{{ source.value }}" {% if filters is defined and filters.source == source %}selected{% endif %}>{{ source | ru }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field form-field-quarter">
+        <span>тип</span>
+        <select name="type">
+          <option value="">любой</option>
+          {% for operation_type in operation_types | default([]) %}
+            <option value="{{ operation_type.value }}" {% if filters is defined and filters.operation_type == operation_type %}selected{% endif %}>{{ operation_type | ru }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field form-field-quarter">
+        <span>статус</span>
+        <select name="status">
+          {% for status in operation_statuses | default([]) %}
+            <option value="{{ status.value }}" {% if filters is defined and filters.status == status %}selected{% endif %}>{{ status | ru }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field form-field-quarter">
+        <span>категория</span>
+        <select name="category_id">
+          <option value="">любая</option>
+          {% for category in categories | default([]) %}
+            <option value="{{ category.id }}" {% if filters is defined and filters.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field form-field-quarter">
+        <span>объект</span>
+        <select name="property_id">
+          <option value="">любой</option>
+          {% for property in properties | default([]) %}
+            <option value="{{ property.id }}" {% if filters is defined and filters.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field form-field-quarter">
+        <span>на странице</span>
+        <select name="per_page">
+          {% for option in [25, 50, 100, 200] %}
+            <option value="{{ option }}" {% if detail.page is defined and detail.page.per_page == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field form-field-half">
+        <span>поиск</span>
+        <input name="search" value="{{ filters.search if filters is defined and filters.search else '' }}" placeholder="Описание">
+      </label>
+      <div class="form-actions-inline">
+        <button class="button" type="submit">{{ icon("filter") }} применить</button>
+        <a class="button" href="/accounts/{{ detail.account.id }}">сбросить</a>
+      </div>
+    </form>
 
     {% if detail.entries %}
       <div class="entry-list">
         {% for entry in detail.entries %}
-          <article class="entry-item tone-{{ entry.operation.type.value }}">
+          <article id="operation-{{ entry.operation_id }}" class="entry-item tone-{{ entry.operation.type.value }}">
             <div class="entry-main">
               <div class="review-meta">
                 <span>{{ entry.operation.operation_date | date_ru }}</span>
                 <span class="badge badge-{{ entry.operation.type.value }}">{{ entry.operation.type | ru }}</span>
+                {% if entry.operation.source is defined %}
+                  <span class="badge badge-source-{{ entry.operation.source.value }}">{{ entry.operation.source | ru }}</span>
+                {% endif %}
+                {% if entry.operation.status is defined %}
+                  <span class="badge badge-{{ entry.operation.status.value }}">{{ entry.operation.status | ru }}</span>
+                {% endif %}
                 <span class="amount {% if entry.amount > 0 %}amount-income{% elif entry.amount < 0 %}amount-expense{% endif %}">{{ entry.amount }} {{ entry.currency }}</span>
               </div>
               <div class="entry-description">{{ entry.operation.description or "Без описания" }}</div>
@@ -81,10 +158,80 @@
             </div>
             <div class="entry-operation">
               {{ operation_ref(entry.operation, entry.operation_id, "Операция", false, true) }}
+              {% if can_write and entry.operation.source is defined %}
+                <div class="entry-actions">
+                  {% if entry.operation.source.value == "bank_pdf" %}
+                    <details class="technical-details">
+                      <summary>{{ icon("tag") }} разметка</summary>
+                      <form class="form-panel form-panel-embedded" method="post" action="/accounts/{{ detail.account.id }}/operations/{{ entry.operation_id }}/review-fields">
+                        {{ csrf_input() }}
+                        <label class="field form-field-half">
+                          <span>описание</span>
+                          <input name="description" value="{{ entry.operation.description or '' }}" placeholder="Описание">
+                        </label>
+                        <label class="field form-field-quarter">
+                          <span>статус</span>
+                          <select name="status">
+                            {% for status in operation_statuses | default([]) %}
+                              <option value="{{ status.value }}" {% if entry.operation.status == status %}selected{% endif %}>{{ status | ru }}</option>
+                            {% endfor %}
+                          </select>
+                        </label>
+                        <label class="field form-field-quarter">
+                          <span>категория</span>
+                          <select name="category_id">
+                            <option value="">без категории</option>
+                            {% for category in categories | default([]) %}
+                              <option value="{{ category.id }}" {% if entry.operation.category and entry.operation.category.id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                            {% endfor %}
+                          </select>
+                        </label>
+                        <label class="field form-field-quarter">
+                          <span>объект</span>
+                          <select name="property_id">
+                            <option value="">без объекта</option>
+                            {% for property in properties | default([]) %}
+                              <option value="{{ property.id }}" {% if entry.operation.property and entry.operation.property.id == property.id %}selected{% endif %}>{{ property.name }}</option>
+                            {% endfor %}
+                          </select>
+                        </label>
+                        <div class="form-actions">
+                          <button class="button button-small" type="submit">{{ icon("save") }} сохранить</button>
+                        </div>
+                      </form>
+                    </details>
+                    {% set raw_link = entry.operation.raw_transactions[0] if entry.operation.raw_transactions else none %}
+                    {% if raw_link %}
+                      <a class="button button-small" href="/imports/documents/{{ raw_link.uploaded_document_id }}/review#raw-{{ raw_link.id }}">{{ icon("refresh") }} сделать переводом</a>
+                    {% else %}
+                      <a class="button button-small" href="/imports">{{ icon("refresh") }} сделать переводом</a>
+                    {% endif %}
+                  {% elif entry.operation.source.value == "manual" %}
+                    <a class="button button-small" href="/ledger/manual?operation_id={{ entry.operation_id }}#operation-{{ entry.operation_id }}">{{ icon("plus") }} открыть</a>
+                  {% elif entry.operation.source.value == "system" %}
+                    <span class="badge badge-muted">только чтение</span>
+                  {% endif %}
+                </div>
+              {% endif %}
             </div>
           </article>
         {% endfor %}
       </div>
+      {% if detail.page is defined and detail.page.total_pages > 1 %}
+        <nav class="pagination-bar" aria-label="Страницы операций">
+          {% if page_urls.previous %}
+            <a class="button button-small" href="{{ page_urls.previous }}">{{ icon("arrow-left") }} назад</a>
+          {% else %}
+            <span class="button button-small button-disabled">назад</span>
+          {% endif %}
+          <span class="pagination-status">страница {{ detail.page.page }} из {{ detail.page.total_pages }}</span>
+          {% if page_urls.next %}
+            <a class="button button-small" href="{{ page_urls.next }}">вперед</a>
+          {% else %}
+            <span class="button button-small button-disabled">вперед</span>
+          {% endif %}
+        </nav>
+      {% endif %}
     {% else %}
       <div class="notice">По этому счету пока нет подтвержденных проводок.</div>
     {% endif %}

@@ -5,6 +5,7 @@ from typing import Any, cast
 from uuid import uuid4
 
 from app.features.categories.models import CategoryKind
+from app.features.ledger.application.listing import LedgerPage, ManualOperationFilters
 from app.features.ledger.models import OperationStatus, OperationType
 from app.features.ledger.router import manual_operation_anchor_url, parse_manual_operation_date
 from app.templating import create_templates
@@ -50,7 +51,13 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
         app_name="Booker Tee",
         accounts=[account],
         categories=[operation.category],
+        filters=ManualOperationFilters(),
+        focused_operation_id=operation_id,
         manual_operations=[operation],
+        manual_page=LedgerPage(page=1, per_page=50, total=1),
+        operation_statuses=list(OperationStatus),
+        operation_types=list(OperationType),
+        page_urls={"previous": None, "next": None},
         properties=[operation.property],
         workspace=SimpleNamespace(name="Personal"),
     )
@@ -65,6 +72,9 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert f'id="operation-{operation_id}"' in html
     assert f'class="detached-form" id="manual-operation-form-{operation_id}"' in html
     assert "entity-card-list" in html
+    assert "entity-card-current" in html
+    assert 'name="date_from" type="date"' in html
+    assert 'name="operation_id"' in html
     assert "entity-card manual-operation-card manual-operation-expense" in html
     assert "form-panel form-panel-embedded" in html
     assert "badge badge-expense" in html
@@ -89,7 +99,12 @@ def test_manual_operations_template_guides_empty_states() -> None:
         app_name="Booker Tee",
         accounts=[],
         categories=[],
+        filters=ManualOperationFilters(),
         manual_operations=[],
+        manual_page=LedgerPage(page=1, per_page=50, total=0),
+        operation_statuses=list(OperationStatus),
+        operation_types=list(OperationType),
+        page_urls={"previous": None, "next": None},
         properties=[],
         workspace=SimpleNamespace(name="Personal"),
     )
@@ -110,7 +125,12 @@ def test_manual_operations_template_guides_empty_states() -> None:
         app_name="Booker Tee",
         accounts=[account],
         categories=[],
+        filters=ManualOperationFilters(),
         manual_operations=[],
+        manual_page=LedgerPage(page=1, per_page=50, total=0),
+        operation_statuses=list(OperationStatus),
+        operation_types=list(OperationType),
+        page_urls={"previous": None, "next": None},
         properties=[],
         workspace=SimpleNamespace(name="Personal"),
     )
@@ -158,7 +178,12 @@ def test_manual_operations_template_allows_restore_and_delete_cancelled_operatio
         app_name="Booker Tee",
         accounts=[account],
         categories=[],
+        filters=ManualOperationFilters(),
         manual_operations=[operation],
+        manual_page=LedgerPage(page=1, per_page=50, total=1),
+        operation_statuses=list(OperationStatus),
+        operation_types=list(OperationType),
+        page_urls={"previous": None, "next": None},
         properties=[],
         workspace=SimpleNamespace(name="Personal"),
     )
@@ -172,7 +197,10 @@ def test_manual_operations_template_allows_restore_and_delete_cancelled_operatio
 def test_manual_operation_anchor_url_points_to_operation_card() -> None:
     operation_id = uuid4()
 
-    assert manual_operation_anchor_url(operation_id) == f"/ledger/manual#operation-{operation_id}"
+    assert (
+        manual_operation_anchor_url(operation_id)
+        == f"/ledger/manual?operation_id={operation_id}#operation-{operation_id}"
+    )
 
 
 def test_parse_manual_operation_date_accepts_russian_and_iso_formats() -> None:

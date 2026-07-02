@@ -1,9 +1,10 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
+from urllib.parse import urlencode
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,8 +18,13 @@ from app.features.ledger.application.commands import (
     CreateManualTransferCommand,
     UpdateManualOperationCommand,
 )
+from app.features.ledger.application.listing import (
+    LedgerPage,
+    ManualOperationFilters,
+    normalize_pagination,
+)
 from app.features.ledger.errors import LedgerPostingError
-from app.features.ledger.models import OperationType
+from app.features.ledger.models import OperationStatus, OperationType
 from app.features.ledger.service import LedgerPostingService
 from app.features.properties.service import PropertyService
 from app.features.workspaces.dependencies import (
@@ -26,6 +32,12 @@ from app.features.workspaces.dependencies import (
     require_financial_write_context,
 )
 from app.features.workspaces.service import WorkspaceContext
+from app.shared.query_params import (
+    clean_optional_query_text,
+    parse_optional_query_date,
+    parse_optional_query_enum,
+    parse_optional_query_uuid,
+)
 from app.templating import create_templates
 
 router = APIRouter(prefix="/ledger", tags=["ledger"])
@@ -38,15 +50,43 @@ async def manual_operation_form(
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    date_from: Annotated[str | None, Query()] = None,
+    date_to: Annotated[str | None, Query()] = None,
+    operation_type_filter: Annotated[str | None, Query(alias="type")] = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    account_id: Annotated[str | None, Query()] = None,
+    category_id: Annotated[str | None, Query()] = None,
+    property_id: Annotated[str | None, Query()] = None,
+    search: Annotated[str | None, Query()] = None,
+    operation_id: Annotated[str | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    per_page: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> HTMLResponse:
+    filters = ManualOperationFilters(
+        date_from=parse_optional_query_date(date_from, field_name="date_from"),
+        date_to=parse_optional_query_date(date_to, field_name="date_to"),
+        operation_type=parse_optional_query_enum(
+            operation_type_filter,
+            OperationType,
+            field_name="type",
+        ),
+        status=parse_optional_query_enum(status_filter, OperationStatus, field_name="status"),
+        account_id=parse_optional_query_uuid(account_id, field_name="account_id"),
+        category_id=parse_optional_query_uuid(category_id, field_name="category_id"),
+        property_id=parse_optional_query_uuid(property_id, field_name="property_id"),
+        search=clean_optional_query_text(search),
+    )
+    focused_operation_id = parse_optional_query_uuid(operation_id, field_name="operation_id")
     accounts = await AccountService(session).list_active_accounts(context.workspace.id)
     categories = await CategoryService(session).list_or_seed_defaults(
         context.workspace.id,
         context.workspace.type,
     )
     properties = await PropertyService(session).list_active(context.workspace.id)
-    manual_operations = await LedgerPostingService(session).list_manual_operations(
-        context.workspace.id
+    manual_operations, manual_page = await LedgerPostingService(session).list_manual_operations(
+        context.workspace.id,
+        filters=filters,
+        pagination=normalize_pagination(page, per_page),
     )
     return templates.TemplateResponse(
         request,
@@ -55,7 +95,17 @@ async def manual_operation_form(
             "accounts": accounts,
             "app_name": settings.app_name,
             "categories": categories,
+            "filters": filters,
+            "focused_operation_id": focused_operation_id,
             "manual_operations": manual_operations,
+            "manual_page": manual_page,
+            "operation_statuses": list(OperationStatus),
+            "operation_types": list(OperationType),
+            "page_urls": manual_operation_page_urls(
+                filters,
+                manual_page,
+                operation_id=focused_operation_id,
+            ),
             "properties": properties,
             "workspace": context.workspace,
         },
@@ -229,4 +279,54 @@ def parse_manual_operation_date(raw_value: str) -> date:
 
 
 def manual_operation_anchor_url(operation_id: UUID) -> str:
-    return f"/ledger/manual#operation-{operation_id}"
+    return f"/ledger/manual?operation_id={operation_id}#operation-{operation_id}"
+
+
+def manual_operation_page_urls(
+    filters: ManualOperationFilters,
+    page: LedgerPage,
+    *,
+    operation_id: UUID | None,
+) -> dict[str, str | None]:
+    return {
+        "previous": manual_operation_url(
+            filters,
+            page=page.previous_page,
+            per_page=page.per_page,
+            operation_id=operation_id,
+        )
+        if page.has_previous
+        else None,
+        "next": manual_operation_url(
+            filters,
+            page=page.next_page,
+            per_page=page.per_page,
+            operation_id=operation_id,
+        )
+        if page.has_next
+        else None,
+    }
+
+
+def manual_operation_url(
+    filters: ManualOperationFilters,
+    *,
+    page: int,
+    per_page: int,
+    operation_id: UUID | None = None,
+) -> str:
+    params = {
+        "date_from": filters.date_from.isoformat() if filters.date_from else None,
+        "date_to": filters.date_to.isoformat() if filters.date_to else None,
+        "type": filters.operation_type.value if filters.operation_type else None,
+        "status": filters.status.value if filters.status else None,
+        "account_id": str(filters.account_id) if filters.account_id else None,
+        "category_id": str(filters.category_id) if filters.category_id else None,
+        "property_id": str(filters.property_id) if filters.property_id else None,
+        "search": filters.search,
+        "operation_id": str(operation_id) if operation_id else None,
+        "page": page,
+        "per_page": per_page,
+    }
+    query = urlencode({key: value for key, value in params.items() if value not in {None, ""}})
+    return f"/ledger/manual?{query}"

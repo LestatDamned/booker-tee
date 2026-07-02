@@ -450,6 +450,11 @@ input[type="checkbox"] {
   color: var(--danger);
 }
 
+.button-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .form-panel {
   width: 100%;
   min-width: 0;
@@ -3120,6 +3125,44 @@ pre {
   color: var(--text);
   font-family:
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.badge-source-bank_pdf {
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+  color: var(--accent);
+}
+
+.badge-source-manual {
+  border-color: color-mix(in srgb, var(--green) 62%, var(--border));
+  color: var(--green);
+}
+
+.badge-source-system {
+  border-color: color-mix(in srgb, var(--warning) 62%, var(--border));
+  color: var(--warning);
+}
+
+.pagination-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.pagination-status {
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.82rem;
+  text-transform: uppercase;
 }
 
 .operation-route {

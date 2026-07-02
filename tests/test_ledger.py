@@ -1,11 +1,20 @@
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
 
 from app.features.imports.models import RawTransactionStatus
+from app.features.ledger.application.commands import (
+    UpdateImportedOperationReviewFieldsCommand,
+)
+from app.features.ledger.application.imported_operation_review import (
+    ImportedOperationReviewUseCase,
+)
+from app.features.ledger.application.manual_operations import ManualOperationUseCase
 from app.features.ledger.domain.money import (
     TransferAmounts,
     affects_profit_for_operation_type,
@@ -20,7 +29,7 @@ from app.features.ledger.domain.raw_transactions import (
     restored_raw_status_after_unlink,
 )
 from app.features.ledger.errors import LedgerPostingError
-from app.features.ledger.models import OperationType
+from app.features.ledger.models import OperationSource, OperationStatus, OperationType
 
 
 @dataclass(frozen=True)
@@ -249,3 +258,187 @@ def test_restored_raw_status_after_unlink_preserves_rule_suggestion() -> None:
         )
         == RawTransactionStatus.NORMALIZED
     )
+
+
+@pytest.mark.asyncio
+async def test_imported_operation_review_update_changes_only_review_fields(monkeypatch) -> None:
+    workspace_id = uuid4()
+    user_id = uuid4()
+    operation_id = uuid4()
+    category_id = uuid4()
+    property_id = uuid4()
+    money_entry = SimpleNamespace(
+        account_id=uuid4(),
+        amount=Decimal("-120.00"),
+        currency="RUB",
+    )
+    raw_transaction = SimpleNamespace(id=uuid4(), linked_operation_id=operation_id)
+    operation = SimpleNamespace(
+        id=operation_id,
+        workspace_id=workspace_id,
+        source=OperationSource.BANK_PDF,
+        type=OperationType.EXPENSE,
+        status=OperationStatus.CONFIRMED,
+        category_id=None,
+        property_id=None,
+        description="Old",
+        operation_date=date(2026, 6, 15),
+        money_entries=[money_entry],
+        raw_transactions=[raw_transaction],
+        updated_by_user_id=None,
+    )
+    session = SimpleNamespace(commits=0, rollbacks=0)
+
+    async def commit() -> None:
+        session.commits += 1
+
+    async def rollback() -> None:
+        session.rollbacks += 1
+
+    session.commit = commit
+    session.rollback = rollback
+
+    class FakeRepository:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_operation_for_workspace(self, workspace_id_arg, operation_id_arg):
+            assert workspace_id_arg == workspace_id
+            assert operation_id_arg == operation_id
+            return operation
+
+    class FakeReferences:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_category_or_uncategorized(self, workspace_id_arg, category_id_arg):
+            assert workspace_id_arg == workspace_id
+            assert category_id_arg == category_id
+            return SimpleNamespace(id=category_id)
+
+        async def get_property(self, workspace_id_arg, property_id_arg):
+            assert workspace_id_arg == workspace_id
+            assert property_id_arg == property_id
+            return SimpleNamespace(id=property_id)
+
+    monkeypatch.setattr(
+        "app.features.ledger.application.imported_operation_review.LedgerRepository",
+        FakeRepository,
+    )
+    monkeypatch.setattr(
+        "app.features.ledger.application.imported_operation_review.LedgerReferenceResolver",
+        FakeReferences,
+    )
+
+    updated = await ImportedOperationReviewUseCase(cast(Any, session)).update_review_fields(
+        context=cast(
+            Any,
+            SimpleNamespace(
+                workspace=SimpleNamespace(id=workspace_id),
+                user=SimpleNamespace(id=user_id),
+            ),
+        ),
+        command=UpdateImportedOperationReviewFieldsCommand(
+            operation_id=operation_id,
+            category_id=category_id,
+            property_id=property_id,
+            description="  New   label  ",
+            status=OperationStatus.NEEDS_REVIEW,
+        ),
+    )
+
+    assert updated is operation
+    assert operation.category_id == category_id
+    assert operation.property_id == property_id
+    assert operation.description == "New label"
+    assert operation.status == OperationStatus.NEEDS_REVIEW
+    assert operation.updated_by_user_id == user_id
+    assert operation.type == OperationType.EXPENSE
+    assert operation.operation_date == date(2026, 6, 15)
+    assert operation.money_entries == [money_entry]
+    assert operation.raw_transactions == [raw_transaction]
+    assert money_entry.amount == Decimal("-120.00")
+    assert session.commits == 1
+    assert session.rollbacks == 0
+
+
+@pytest.mark.asyncio
+async def test_imported_operation_review_update_rejects_manual_source(monkeypatch) -> None:
+    workspace_id = uuid4()
+    operation_id = uuid4()
+    operation = SimpleNamespace(id=operation_id, source=OperationSource.MANUAL)
+    session = SimpleNamespace(commits=0, rollbacks=0)
+
+    async def commit() -> None:
+        session.commits += 1
+
+    async def rollback() -> None:
+        session.rollbacks += 1
+
+    session.commit = commit
+    session.rollback = rollback
+
+    class FakeRepository:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_operation_for_workspace(self, _workspace_id, _operation_id):
+            return operation
+
+    class FakeReferences:
+        def __init__(self, _session: object) -> None:
+            pass
+
+    monkeypatch.setattr(
+        "app.features.ledger.application.imported_operation_review.LedgerRepository",
+        FakeRepository,
+    )
+    monkeypatch.setattr(
+        "app.features.ledger.application.imported_operation_review.LedgerReferenceResolver",
+        FakeReferences,
+    )
+
+    with pytest.raises(LedgerPostingError, match="Only imported bank PDF"):
+        await ImportedOperationReviewUseCase(cast(Any, session)).update_review_fields(
+            context=cast(
+                Any,
+                SimpleNamespace(
+                    workspace=SimpleNamespace(id=workspace_id),
+                    user=SimpleNamespace(id=uuid4()),
+                ),
+            ),
+            command=UpdateImportedOperationReviewFieldsCommand(
+                operation_id=operation_id,
+                category_id=None,
+                property_id=None,
+                description="New",
+                status=OperationStatus.CONFIRMED,
+            ),
+        )
+    assert session.commits == 0
+    assert session.rollbacks == 1
+
+
+@pytest.mark.asyncio
+async def test_manual_operation_use_case_rejects_imported_operation(monkeypatch) -> None:
+    workspace_id = uuid4()
+    operation_id = uuid4()
+    operation = SimpleNamespace(id=operation_id, source=OperationSource.BANK_PDF)
+
+    class FakeRepository:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_operation_for_workspace(self, workspace_id_arg, operation_id_arg):
+            assert workspace_id_arg == workspace_id
+            assert operation_id_arg == operation_id
+            return operation
+
+    monkeypatch.setattr(
+        "app.features.ledger.application.manual_operations.LedgerRepository",
+        FakeRepository,
+    )
+
+    use_case = ManualOperationUseCase(cast(Any, object()))
+    with pytest.raises(LedgerPostingError, match="Only manual operations"):
+        await use_case._get_manual_operation(workspace_id, operation_id)

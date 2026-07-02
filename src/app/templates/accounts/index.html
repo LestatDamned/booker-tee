@@ -59,7 +59,7 @@
                 {% endif %}
               </div>
               <div class="entity-card-meta">
-                <span>{{ detail.entries | length }} записей</span>
+                <span>{{ detail.page.total if detail.page is defined else detail.entries | length }} записей</span>
                 <details class="technical-details">
                   <summary>ID</summary>
                   <span>ID {{ detail.account.id }}</span>

@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.ledger.models import OperationType
+from app.features.ledger.models import OperationStatus, OperationType
 
 
 @dataclass(frozen=True)
@@ -37,3 +37,12 @@ class UpdateManualOperationCommand:
     category_id: UUID | None
     property_id: UUID | None
     destination_account_id: UUID | None
+
+
+@dataclass(frozen=True)
+class UpdateImportedOperationReviewFieldsCommand:
+    operation_id: UUID
+    category_id: UUID | None
+    property_id: UUID | None
+    description: str | None
+    status: OperationStatus

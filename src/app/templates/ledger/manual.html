@@ -106,9 +106,84 @@
 
   <section class="panel stack">
     <div>
-      <p class="eyebrow">{{ manual_operations | length }} ручных операций</p>
+      <p class="eyebrow">{{ manual_page.total if manual_page is defined else manual_operations | length }} ручных операций</p>
       <h2>Ручные операции</h2>
     </div>
+
+    <form class="form-panel" method="get" action="/ledger/manual">
+      {% if focused_operation_id is defined and focused_operation_id %}
+        <input type="hidden" name="operation_id" value="{{ focused_operation_id }}">
+      {% endif %}
+      <label class="field form-field-quarter">
+        <span>с даты</span>
+        <input name="date_from" type="date" value="{{ filters.date_from.isoformat() if filters is defined and filters.date_from else '' }}">
+      </label>
+      <label class="field form-field-quarter">
+        <span>по дату</span>
+        <input name="date_to" type="date" value="{{ filters.date_to.isoformat() if filters is defined and filters.date_to else '' }}">
+      </label>
+      <label class="field form-field-quarter">
+        <span>тип</span>
+        <select name="type">
+          <option value="">любой</option>
+          {% for operation_type in operation_types | default([]) %}
+            <option value="{{ operation_type.value }}" {% if filters is defined and filters.operation_type == operation_type %}selected{% endif %}>{{ operation_type | ru }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field form-field-quarter">
+        <span>статус</span>
+        <select name="status">
+          <option value="">любой</option>
+          {% for status in operation_statuses | default([]) %}
+            <option value="{{ status.value }}" {% if filters is defined and filters.status == status %}selected{% endif %}>{{ status | ru }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field form-field-quarter">
+        <span>счет</span>
+        <select name="account_id">
+          <option value="">любой</option>
+          {% for account in accounts %}
+            <option value="{{ account.id }}" {% if filters is defined and filters.account_id == account.id %}selected{% endif %}>{{ account.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field form-field-quarter">
+        <span>категория</span>
+        <select name="category_id">
+          <option value="">любая</option>
+          {% for category in categories %}
+            <option value="{{ category.id }}" {% if filters is defined and filters.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field form-field-quarter">
+        <span>объект</span>
+        <select name="property_id">
+          <option value="">любой</option>
+          {% for property in properties %}
+            <option value="{{ property.id }}" {% if filters is defined and filters.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field form-field-quarter">
+        <span>на странице</span>
+        <select name="per_page">
+          {% for option in [25, 50, 100, 200] %}
+            <option value="{{ option }}" {% if manual_page is defined and manual_page.per_page == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field form-field-half">
+        <span>поиск</span>
+        <input name="search" value="{{ filters.search if filters is defined and filters.search else '' }}" placeholder="Описание">
+      </label>
+      <div class="form-actions-inline">
+        <button class="button" type="submit">{{ icon("filter") }} применить</button>
+        <a class="button" href="/ledger/manual">сбросить</a>
+      </div>
+    </form>
 
     {% if manual_operations %}
       <div class="entity-card-list">
@@ -120,7 +195,7 @@
           {% elif operation.primary_entry and operation.primary_entry.account %}
             {% set display_currency = operation.primary_entry.account.currency %}
           {% endif %}
-          <article id="operation-{{ operation.id }}" class="entity-card manual-operation-card manual-operation-{{ operation.type.value }} {% if operation.status.value == 'ignored' %}entity-card-inactive{% endif %}">
+          <article id="operation-{{ operation.id }}" class="entity-card manual-operation-card manual-operation-{{ operation.type.value }} {% if focused_operation_id is defined and focused_operation_id == operation.id %}entity-card-current{% endif %} {% if operation.status.value == 'ignored' %}entity-card-inactive{% endif %}">
             {% if can_write %}
               <form class="detached-form" id="{{ form_id }}" method="post" action="/ledger/manual/{{ operation.id }}">{{ csrf_input() }}</form>
             {% endif %}
@@ -248,6 +323,21 @@
           </article>
         {% endfor %}
       </div>
+      {% if manual_page is defined and manual_page.total_pages > 1 %}
+        <nav class="pagination-bar" aria-label="Страницы ручных операций">
+          {% if page_urls.previous %}
+            <a class="button button-small" href="{{ page_urls.previous }}">{{ icon("arrow-left") }} назад</a>
+          {% else %}
+            <span class="button button-small button-disabled">назад</span>
+          {% endif %}
+          <span class="pagination-status">страница {{ manual_page.page }} из {{ manual_page.total_pages }}</span>
+          {% if page_urls.next %}
+            <a class="button button-small" href="{{ page_urls.next }}">вперед</a>
+          {% else %}
+            <span class="button button-small button-disabled">вперед</span>
+          {% endif %}
+        </nav>
+      {% endif %}
     {% else %}
       {{ empty_state(
         "Ручных операций пока нет",

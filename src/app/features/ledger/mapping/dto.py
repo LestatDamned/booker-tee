@@ -5,7 +5,15 @@ from uuid import UUID
 
 from app.features.accounts.models import Account, AccountType
 from app.features.categories.models import Category, CategoryKind
-from app.features.ledger.models import MoneyEntry, Operation, OperationStatus, OperationType
+from app.features.imports.models import RawTransaction
+from app.features.ledger.application.listing import LedgerPage
+from app.features.ledger.models import (
+    MoneyEntry,
+    Operation,
+    OperationSource,
+    OperationStatus,
+    OperationType,
+)
 from app.features.properties.models import Property
 
 
@@ -40,15 +48,23 @@ class OperationRefMoneyEntryView:
 
 
 @dataclass(frozen=True)
+class RawTransactionLinkView:
+    id: UUID
+    uploaded_document_id: UUID
+
+
+@dataclass(frozen=True)
 class OperationRefView:
     id: UUID
     type: OperationType
     status: OperationStatus
+    source: OperationSource
     operation_date: date
     description: str | None
     category: CategoryView | None
     property: PropertyView | None
     money_entries: list[OperationRefMoneyEntryView]
+    raw_transactions: list[RawTransactionLinkView]
 
 
 @dataclass(frozen=True)
@@ -64,6 +80,7 @@ class AccountLedgerDetailView:
     account: AccountView
     balance: Decimal
     entries: list[AccountLedgerEntryView]
+    page: LedgerPage
 
 
 @dataclass(frozen=True)
@@ -90,6 +107,7 @@ class LedgerViewMapper:
         account: Account,
         balance: Decimal,
         entries: list[MoneyEntry],
+        page: LedgerPage,
     ) -> AccountLedgerDetailView:
         account_view = LedgerViewMapper.account_from_model(account)
         if account_view is None:
@@ -98,6 +116,7 @@ class LedgerViewMapper:
             account=account_view,
             balance=balance,
             entries=[LedgerViewMapper.account_entry_from_model(entry) for entry in entries],
+            page=page,
         )
 
     @staticmethod
@@ -144,6 +163,7 @@ class LedgerViewMapper:
             id=operation.id,
             type=operation.type,
             status=operation.status,
+            source=operation.source,
             operation_date=operation.operation_date,
             description=operation.description,
             category=LedgerViewMapper.category_from_model(operation.category),
@@ -151,6 +171,10 @@ class LedgerViewMapper:
             money_entries=[
                 LedgerViewMapper.operation_money_entry_from_model(entry)
                 for entry in operation.money_entries
+            ],
+            raw_transactions=[
+                LedgerViewMapper.raw_transaction_link_from_model(row)
+                for row in operation.raw_transactions
             ],
         )
 
@@ -192,6 +216,13 @@ class LedgerViewMapper:
         return PropertyView(
             id=property_.id,
             name=property_.name,
+        )
+
+    @staticmethod
+    def raw_transaction_link_from_model(raw_transaction: RawTransaction) -> RawTransactionLinkView:
+        return RawTransactionLinkView(
+            id=raw_transaction.id,
+            uploaded_document_id=raw_transaction.uploaded_document_id,
         )
 
 
