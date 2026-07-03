@@ -298,6 +298,16 @@ def prepare_realistic_scenario(
             "href"
         )
 
+        page.goto(build_url(base_url, "/ledger/manual"), wait_until="domcontentloaded")
+        page.locator("label.segmented-expense").click(timeout=PAGE_TIMEOUT_MS)
+        page.locator('input[name="operation_date"]').fill("30.06.2026")
+        page.locator('input[name="amount"]').fill("881.12")
+        page.locator('input[name="description"]').fill("UI Audit expense")
+        page.locator('form#new-manual-operation button[type="submit"]').click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        page.wait_for_url("**/ledger/manual?operation_id=**", timeout=PAGE_TIMEOUT_MS)
+
         page.goto(build_url(base_url, "/imports/upload"), wait_until="domcontentloaded")
         page.locator('input[name="statement_pdf"]').set_input_files(str(workbook_path))
         page.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
@@ -405,6 +415,28 @@ def collect_overflow(page: Page) -> dict[str, Any]:
         }
         """
     )
+
+
+def prepare_design_audit_page(page: Page) -> None:
+    page.evaluate(
+        """
+        () => {
+          const selectors = [
+            'details.account-create-details',
+            'details.account-settings-details',
+            'details.filter-details',
+            'details.compact-help-details',
+            'details.operation-edit-details',
+          ];
+          for (const selector of selectors) {
+            for (const details of document.querySelectorAll(selector)) {
+              details.open = true;
+            }
+          }
+        }
+        """
+    )
+    page.wait_for_timeout(100)
 
 
 def collect_ux_assertions(
@@ -575,6 +607,49 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
             ))
             .map((item) => item.text);
 
+          const accordionOverflow = Array.from(
+            document.querySelectorAll('details.action-accordion[open]')
+          ).flatMap((details, index) => {
+            const containerRect = details.getBoundingClientRect();
+            return Array.from(details.children)
+              .filter((element) => element.tagName.toLowerCase() !== 'summary')
+              .filter(visible)
+              .map((element) => {
+                const rect = element.getBoundingClientRect();
+                return {
+                  index: index + 1,
+                  className: String(element.className || ''),
+                  label: textFor(details.querySelector(':scope > summary')),
+                  left: Math.round(rect.left),
+                  right: Math.round(rect.right),
+                  containerLeft: Math.round(containerRect.left),
+                  containerRight: Math.round(containerRect.right),
+                };
+              })
+              .filter((item) => (
+                item.left < item.containerLeft - 1
+                || item.right > item.containerRight + 1
+              ));
+          });
+
+          const entryMoneyIssues = Array.from(document.querySelectorAll('.entry-money'))
+            .filter(visible)
+            .map((element) => {
+              const text = textFor(element);
+              const className = String(element.className || '');
+              return { text, className };
+            })
+            .filter((item) => {
+              const normalized = item.text.replace(/\\s+/g, '');
+              if (normalized.startsWith('-')) {
+                return !item.className.includes('money-expense');
+              }
+              if (normalized.startsWith('0') || normalized.startsWith('+0')) {
+                return !item.className.includes('money-transfer');
+              }
+              return !item.className.includes('money-income');
+            });
+
           return {
             pageControls,
             blockIssues,
@@ -583,6 +658,8 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
             radiusOffenders,
             visibleDebugBlocks,
             webOneControlLabels,
+            accordionOverflow,
+            entryMoneyIssues,
             viewportWidth: window.innerWidth,
           };
         }
@@ -669,6 +746,20 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
             "designer audit: raw debug/code blocks are visible by default "
             f"({len(visible_debug_blocks)} blocks); hide them behind debug details"
         )
+
+    accordion_overflow = list(state.get("accordionOverflow") or [])
+    if accordion_overflow:
+        examples = ", ".join(
+            f"{item.get('label')} ({item.get('className')})" for item in accordion_overflow[:3]
+        )
+        errors.append("designer audit: expanded accordion content escapes its border: " + examples)
+
+    entry_money_issues = list(state.get("entryMoneyIssues") or [])
+    if entry_money_issues:
+        examples = ", ".join(
+            f"{item.get('text')} ({item.get('className')})" for item in entry_money_issues[:3]
+        )
+        errors.append("designer audit: operation amount color class is wrong: " + examples)
 
     if path in {"/imports", "/accounts", "/categories", "/properties", "/rules"}:
         long_technical_labels = [
@@ -1091,6 +1182,8 @@ def audit_page(
         )
         page.wait_for_timeout(300)
         status = response.status if response is not None else None
+        if scenario == "design_audit":
+            prepare_design_audit_page(page)
         overflow = collect_overflow(page)
         horizontal_overflow_px = int(overflow["horizontalOverflowPx"])
         overflow_offenders = list(overflow["offenders"])

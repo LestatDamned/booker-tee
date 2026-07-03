@@ -74,6 +74,14 @@ class AccountLedgerEntryView:
     amount: Decimal
     currency: str
 
+    @property
+    def amount_direction(self) -> str:
+        if self.amount > 0:
+            return "income"
+        if self.amount < 0:
+            return "expense"
+        return "transfer"
+
 
 @dataclass(frozen=True)
 class AccountLedgerDetailView:

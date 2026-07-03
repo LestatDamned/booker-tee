@@ -69,11 +69,14 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert 'name="operation_type" type="radio" value="income"' in html
     assert 'name="operation_type" type="radio" value="expense"' in html
     assert 'name="operation_type" type="radio" value="transfer"' in html
+    assert "x-show=\"operationType === 'transfer'\"" in html
+    assert "x-bind:disabled=\"operationType !== 'transfer'\"" in html
     assert f'id="operation-{operation_id}"' in html
     assert f'class="detached-form" id="manual-operation-form-{operation_id}"' in html
     assert "entity-card-list" in html
     assert "entity-card-current" in html
     assert 'name="date_from" type="date"' in html
+    assert "фильтры списка" in html
     assert 'name="operation_id"' in html
     assert "entity-card manual-operation-card manual-operation-expense" in html
     assert "form-panel form-panel-embedded" in html

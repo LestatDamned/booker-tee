@@ -6,6 +6,7 @@
 
 {% block content %}
   {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
+  {% set manual_filters_active = filters is defined and (filters.date_from or filters.date_to or filters.operation_type or filters.status or filters.account_id or filters.category_id or filters.property_id or filters.search or focused_operation_id is defined and focused_operation_id) %}
   <section class="panel stack">
     <div class="toolbar">
       <div>
@@ -18,21 +19,21 @@
     {{ inline_hint("Ручные операции нужны для того, чего нет в выписке: наличные, корректировки или разовые записи. Доход и расход влияют на прибыль; перевод только перемещает деньги между счетами.", "critical") }}
 
     {% if accounts and can_write %}
-    <form id="new-manual-operation" class="form-panel" method="post" action="/ledger/manual">
+    <form id="new-manual-operation" class="form-panel" method="post" action="/ledger/manual" x-data="{ operationType: 'income' }">
       {{ csrf_input() }}
       <div class="field operation-type-field form-field-half">
         <span>тип</span>
         <div class="segmented-control" role="radiogroup" aria-label="Тип операции">
           <label class="segmented-option segmented-income">
-            <input name="operation_type" type="radio" value="income" required checked>
+            <input name="operation_type" type="radio" value="income" required checked x-model="operationType">
             <span>доход</span>
           </label>
           <label class="segmented-option segmented-expense">
-            <input name="operation_type" type="radio" value="expense" required>
+            <input name="operation_type" type="radio" value="expense" required x-model="operationType">
             <span>расход</span>
           </label>
           <label class="segmented-option segmented-transfer">
-            <input name="operation_type" type="radio" value="transfer" required>
+            <input name="operation_type" type="radio" value="transfer" required x-model="operationType">
             <span>перевод</span>
           </label>
         </div>
@@ -53,9 +54,9 @@
           {% endfor %}
         </select>
       </label>
-      <label class="field form-field-quarter">
+      <label class="field form-field-quarter" x-show="operationType === 'transfer'" x-cloak>
         <span>счет назначения</span>
-        <select name="destination_account_id">
+        <select name="destination_account_id" x-bind:disabled="operationType !== 'transfer'">
           <option value="">счет назначения</option>
           {% for account in accounts %}
             <option value="{{ account.id }}">{{ account.name }} · {{ account.currency }}</option>
@@ -110,80 +111,83 @@
       <h2>Ручные операции</h2>
     </div>
 
-    <form class="form-panel" method="get" action="/ledger/manual">
-      {% if focused_operation_id is defined and focused_operation_id %}
-        <input type="hidden" name="operation_id" value="{{ focused_operation_id }}">
-      {% endif %}
-      <label class="field form-field-quarter">
-        <span>с даты</span>
-        <input name="date_from" type="date" value="{{ filters.date_from.isoformat() if filters is defined and filters.date_from else '' }}">
-      </label>
-      <label class="field form-field-quarter">
-        <span>по дату</span>
-        <input name="date_to" type="date" value="{{ filters.date_to.isoformat() if filters is defined and filters.date_to else '' }}">
-      </label>
-      <label class="field form-field-quarter">
-        <span>тип</span>
-        <select name="type">
-          <option value="">любой</option>
-          {% for operation_type in operation_types | default([]) %}
-            <option value="{{ operation_type.value }}" {% if filters is defined and filters.operation_type == operation_type %}selected{% endif %}>{{ operation_type | ru }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-quarter">
-        <span>статус</span>
-        <select name="status">
-          <option value="">любой</option>
-          {% for status in operation_statuses | default([]) %}
-            <option value="{{ status.value }}" {% if filters is defined and filters.status == status %}selected{% endif %}>{{ status | ru }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-quarter">
-        <span>счет</span>
-        <select name="account_id">
-          <option value="">любой</option>
-          {% for account in accounts %}
-            <option value="{{ account.id }}" {% if filters is defined and filters.account_id == account.id %}selected{% endif %}>{{ account.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-quarter">
-        <span>категория</span>
-        <select name="category_id">
-          <option value="">любая</option>
-          {% for category in categories %}
-            <option value="{{ category.id }}" {% if filters is defined and filters.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-quarter">
-        <span>объект</span>
-        <select name="property_id">
-          <option value="">любой</option>
-          {% for property in properties %}
-            <option value="{{ property.id }}" {% if filters is defined and filters.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-quarter">
-        <span>на странице</span>
-        <select name="per_page">
-          {% for option in [25, 50, 100, 200] %}
-            <option value="{{ option }}" {% if manual_page is defined and manual_page.per_page == option %}selected{% endif %}>{{ option }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-half">
-        <span>поиск</span>
-        <input name="search" value="{{ filters.search if filters is defined and filters.search else '' }}" placeholder="Описание">
-      </label>
-      <div class="form-actions-inline">
-        <button class="button" type="submit">{{ icon("filter") }} применить</button>
-        <a class="button" href="/ledger/manual">сбросить</a>
-      </div>
-    </form>
+    <details class="action-details action-accordion filter-details" {% if manual_filters_active %}open{% endif %}>
+      <summary>{{ icon("filter") }} фильтры списка</summary>
+      <form class="form-panel form-panel-embedded" method="get" action="/ledger/manual">
+        {% if focused_operation_id is defined and focused_operation_id %}
+          <input type="hidden" name="operation_id" value="{{ focused_operation_id }}">
+        {% endif %}
+        <label class="field form-field-quarter">
+          <span>с даты</span>
+          <input name="date_from" type="date" value="{{ filters.date_from.isoformat() if filters is defined and filters.date_from else '' }}">
+        </label>
+        <label class="field form-field-quarter">
+          <span>по дату</span>
+          <input name="date_to" type="date" value="{{ filters.date_to.isoformat() if filters is defined and filters.date_to else '' }}">
+        </label>
+        <label class="field form-field-quarter">
+          <span>тип</span>
+          <select name="type">
+            <option value="">любой</option>
+            {% for operation_type in operation_types | default([]) %}
+              <option value="{{ operation_type.value }}" {% if filters is defined and filters.operation_type == operation_type %}selected{% endif %}>{{ operation_type | ru }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field form-field-quarter">
+          <span>статус</span>
+          <select name="status">
+            <option value="">любой</option>
+            {% for status in operation_statuses | default([]) %}
+              <option value="{{ status.value }}" {% if filters is defined and filters.status == status %}selected{% endif %}>{{ status | ru }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field form-field-quarter">
+          <span>счет</span>
+          <select name="account_id">
+            <option value="">любой</option>
+            {% for account in accounts %}
+              <option value="{{ account.id }}" {% if filters is defined and filters.account_id == account.id %}selected{% endif %}>{{ account.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field form-field-quarter">
+          <span>категория</span>
+          <select name="category_id">
+            <option value="">любая</option>
+            {% for category in categories %}
+              <option value="{{ category.id }}" {% if filters is defined and filters.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field form-field-quarter">
+          <span>объект</span>
+          <select name="property_id">
+            <option value="">любой</option>
+            {% for property in properties %}
+              <option value="{{ property.id }}" {% if filters is defined and filters.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field form-field-quarter">
+          <span>на странице</span>
+          <select name="per_page">
+            {% for option in [25, 50, 100, 200] %}
+              <option value="{{ option }}" {% if manual_page is defined and manual_page.per_page == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field form-field-half">
+          <span>поиск</span>
+          <input name="search" value="{{ filters.search if filters is defined and filters.search else '' }}" placeholder="Описание">
+        </label>
+        <div class="form-actions-inline">
+          <button class="button" type="submit">{{ icon("filter") }} применить</button>
+          <a class="button" href="/ledger/manual">сбросить</a>
+        </div>
+      </form>
+    </details>
 
     {% if manual_operations %}
       <div class="entity-card-list">
@@ -227,20 +231,20 @@
               </div>
 
               {% if can_write %}
-                <div class="form-panel form-panel-embedded">
+                <div class="form-panel form-panel-embedded" x-data="{ operationType: '{{ operation.type.value }}' }">
                 <div class="field operation-type-field form-field-half">
                   <span>тип</span>
                   <div class="segmented-control" role="radiogroup" aria-label="Тип операции">
                     <label class="segmented-option segmented-income">
-                      <input name="operation_type" type="radio" value="income" form="{{ form_id }}" required {% if operation.type.value == "income" %}checked{% endif %}>
+                      <input name="operation_type" type="radio" value="income" form="{{ form_id }}" required {% if operation.type.value == "income" %}checked{% endif %} x-model="operationType">
                       <span>доход</span>
                     </label>
                     <label class="segmented-option segmented-expense">
-                      <input name="operation_type" type="radio" value="expense" form="{{ form_id }}" required {% if operation.type.value == "expense" %}checked{% endif %}>
+                      <input name="operation_type" type="radio" value="expense" form="{{ form_id }}" required {% if operation.type.value == "expense" %}checked{% endif %} x-model="operationType">
                       <span>расход</span>
                     </label>
                     <label class="segmented-option segmented-transfer">
-                      <input name="operation_type" type="radio" value="transfer" form="{{ form_id }}" required {% if operation.type.value == "transfer" %}checked{% endif %}>
+                      <input name="operation_type" type="radio" value="transfer" form="{{ form_id }}" required {% if operation.type.value == "transfer" %}checked{% endif %} x-model="operationType">
                       <span>перевод</span>
                     </label>
                   </div>
@@ -263,9 +267,9 @@
                     {% endfor %}
                   </select>
                 </label>
-                <label class="field form-field-quarter">
+                <label class="field form-field-quarter" x-show="operationType === 'transfer'" x-cloak>
                   <span>счет назначения</span>
-                  <select name="destination_account_id" form="{{ form_id }}">
+                  <select name="destination_account_id" form="{{ form_id }}" x-bind:disabled="operationType !== 'transfer'">
                     <option value="">счет назначения</option>
                     {% for account in accounts %}
                       <option value="{{ account.id }}" {% if operation.destination_entry and operation.destination_entry.account_id == account.id %}selected{% endif %}>

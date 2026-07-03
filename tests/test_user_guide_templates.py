@@ -169,6 +169,7 @@ def test_review_page_guides_to_first_remaining_row() -> None:
     assert "Продолжайте проверку" in html
     assert "Осталось обработать 1 из 2 строк." in html
     assert "review-rule-hint" in html
+    assert "compact-help-details" in html
     assert "Если это первая выписка" in html
     assert "загрузите базовые правила" in html
     assert 'href="/rules"' in html

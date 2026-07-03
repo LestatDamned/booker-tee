@@ -5,13 +5,48 @@ from uuid import uuid4
 
 from app.features.accounts.models import AccountType
 from app.features.ledger.application.listing import AccountEntryFilters, LedgerPage
+from app.features.ledger.mapping.dto import AccountLedgerEntryView
 from app.features.ledger.models import OperationSource, OperationStatus, OperationType
 from app.templating import create_templates
+
+
+def test_account_ledger_entry_amount_direction_tracks_money_sign() -> None:
+    operation = cast(Any, object())
+
+    assert (
+        AccountLedgerEntryView(
+            operation=operation,
+            operation_id=uuid4(),
+            amount=Decimal("-10.00"),
+            currency="RUB",
+        ).amount_direction
+        == "expense"
+    )
+    assert (
+        AccountLedgerEntryView(
+            operation=operation,
+            operation_id=uuid4(),
+            amount=Decimal("10.00"),
+            currency="RUB",
+        ).amount_direction
+        == "income"
+    )
+    assert (
+        AccountLedgerEntryView(
+            operation=operation,
+            operation_id=uuid4(),
+            amount=Decimal("0.00"),
+            currency="RUB",
+        ).amount_direction
+        == "transfer"
+    )
 
 
 def test_account_detail_template_uses_compact_entry_cards() -> None:
     account_id = uuid4()
     operation_id = uuid4()
+    raw_transaction_id = uuid4()
+    document_id = uuid4()
     account = SimpleNamespace(
         id=account_id,
         name="Экспобанк карта",
@@ -30,7 +65,7 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
         property=None,
         description='Списание средств по платежу СБП | ООО "ЛЕНТА"',
         money_entries=[],
-        raw_transactions=[],
+        raw_transactions=[SimpleNamespace(id=raw_transaction_id, uploaded_document_id=document_id)],
     )
     entry = SimpleNamespace(
         operation=operation,
@@ -63,14 +98,21 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
 
     assert "entry-list" in html
     assert "entry-item" in html
+    assert "account-detail-title" in html
+    assert "account-settings-details" in html
+    assert "фильтры проводок" in html
     assert "tone-expense" in html
-    assert "amount-expense" in html
+    assert "entry-money money-value money-expense" in html
     assert "badge-expense" in html
     assert "badge-source-bank_pdf" in html
     assert "импорт" in html
-    assert "разметка" in html
+    assert "Действия с операцией" in html
+    assert "изменить описание и категорию" in html
+    assert "изменить на перевод" in html
+    assert "разметка" not in html
     assert "Экспобанк карта" in html
     assert "Продукты" in html
-    assert "Технические детали" in html
+    assert "ID операции" in html
     assert f"ID {operation_id}" in html
+    assert f"/imports/documents/{document_id}/review#raw-{raw_transaction_id}" in html
     assert "<th>операция</th>" not in html

@@ -20,6 +20,10 @@
   box-sizing: border-box;
 }
 
+[x-cloak] {
+  display: none !important;
+}
+
 html,
 body {
   min-height: 100%;
@@ -206,6 +210,10 @@ h1 {
   line-height: 1.05;
   letter-spacing: 0;
   overflow-wrap: anywhere;
+}
+
+.account-detail-title {
+  max-width: 860px;
 }
 
 p {
@@ -448,6 +456,18 @@ input[type="checkbox"] {
 .button-danger {
   border-color: var(--danger);
   color: var(--danger);
+}
+
+.form-panel .button-danger {
+  border-color: color-mix(in srgb, var(--danger) 78%, var(--border));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-strong));
+  color: var(--danger);
+}
+
+.form-panel .button-danger:hover {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, var(--surface-strong));
+  color: var(--text);
 }
 
 .button-disabled {
@@ -1183,6 +1203,19 @@ input[type="checkbox"] {
   margin-top: 6px;
 }
 
+.inline-technical-details {
+  justify-self: start;
+}
+
+.inline-technical-details span {
+  position: absolute;
+  z-index: 30;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 48px));
+  margin-top: 4px;
+  white-space: normal;
+}
+
 .admin-details {
   border-top: 1px solid var(--border);
   padding-top: 10px;
@@ -1583,6 +1616,12 @@ input[type="checkbox"] {
 
 .action-hint-actions .button {
   min-height: 44px;
+}
+
+.compact-help-details .action-hint {
+  margin-top: 0;
+  border-inline: 0;
+  border-bottom: 0;
 }
 
 .example-strip {
@@ -2705,6 +2744,29 @@ pre {
   gap: 6px;
 }
 
+.entry-money {
+  justify-self: end;
+  border: 1px solid currentcolor;
+  background: var(--surface-strong);
+  padding: 6px 10px;
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+}
+
+.entry-money.money-income {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.entry-money.money-expense {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.entry-money.money-transfer {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .review-money {
   justify-self: end;
   border: 1px solid currentcolor;
@@ -2842,6 +2904,29 @@ pre {
 
 .action-accordion > :not(summary) {
   margin: 0 10px;
+  max-width: calc(100% - 20px);
+}
+
+.account-create-details,
+.account-settings-details,
+.filter-details,
+.compact-help-details {
+  background: color-mix(in srgb, var(--surface-strong) 48%, transparent);
+}
+
+.account-create-details summary,
+.account-settings-details summary,
+.filter-details summary,
+.compact-help-details summary {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 44px;
+}
+
+.account-create-details .form-panel,
+.account-settings-details .form-panel,
+.filter-details .form-panel {
+  margin-top: 0;
+  width: auto;
 }
 
 .review-category-action {
@@ -3128,10 +3213,36 @@ pre {
 }
 
 .entry-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 8px;
   margin-top: 10px;
+}
+
+.entry-actions > .button,
+.entry-actions > .action-details {
+  width: 100%;
+}
+
+.operation-edit-details {
+  background: color-mix(in srgb, var(--surface-strong) 44%, transparent);
+}
+
+.operation-edit-details summary {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.operation-review-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.operation-review-fields .field,
+.operation-review-submit {
+  grid-column: auto !important;
+}
+
+.operation-review-description,
+.operation-review-submit {
+  grid-column: 1 / -1 !important;
 }
 
 .badge-source-bank_pdf {
@@ -3441,6 +3552,13 @@ pre {
     font-size: 2rem;
   }
 
+  .account-detail-title {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
   .panel {
     padding: 16px;
   }
@@ -3549,6 +3667,10 @@ pre {
 
   .summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .import-review-page .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .table {
@@ -3677,6 +3799,12 @@ pre {
     justify-content: center;
     overflow-wrap: anywhere;
     white-space: normal;
+  }
+
+  .entry-money {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    justify-content: space-between;
   }
 
   .review-money {
