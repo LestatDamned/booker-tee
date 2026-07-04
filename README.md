@@ -1,41 +1,54 @@
 # Booker Tee
 
-Booker Tee is a private financial assistant for turning bank statements and manual money movements into trusted financial records.
+Booker Tee is a private financial assistant for turning bank statements and
+manual money movements into trusted financial records, balances, and reports.
 
-The project is currently an MVP. The first of three major product capabilities is implemented: reliable bank statement import into a reviewable ledger.
+The original parser-first MVP has been completed and exceeded. The current focus
+is to keep the financial core reliable while improving import review, SSR/UI
+consistency, maintainability, and user workflows.
+
+Core flow:
 
 ```text
-PDF bank statement
+PDF/XLSX/manual entry
   -> raw extracted data
-  -> normalized transactions
-  -> validation and review
-  -> confirmed operations and money entries
-  -> balances and simple reports
+  -> normalized draft rows
+  -> validation and deduplication
+  -> user review
+  -> confirmed Operation + MoneyEntry
+  -> balances and reports
 ```
 
-Booker Tee is not full accounting software, ERP, tax reporting, or an AI finance platform. The current goal is narrower: make imported financial data trustworthy before adding broader automation.
+Booker Tee is not full accounting software, ERP, tax filing, CRM, or an AI
+finance platform. The product is deliberately centered on trustworthy financial
+data, review-first workflows, workspace boundaries, and correct ledger posting.
 
-## Current Status
+## Current Capabilities
 
-Implemented MVP capability:
+Implemented:
 
-- Upload PDF bank statements.
-- Preserve uploaded documents and parser attempts.
-- Extract raw PDF tables/text with `pdfplumber`.
-- Normalize imported rows into raw transactions.
+- Upload and preserve bank statement documents.
+- Run parse attempts and preserve raw extracted data.
+- Extract PDF tables/text with `pdfplumber`.
+- Import unknown statement layouts through mapping templates.
+- Normalize imported rows into reviewable raw transactions.
 - Validate statement totals when available.
-- Review, confirm, ignore, and repair imported rows.
+- Detect duplicates and support safe reparsing.
+- Review, confirm, ignore, match, or mark imported rows as duplicate.
 - Post confirmed rows into `Operation` + `MoneyEntry`.
-- Keep internal transfers out of income/expense/profit reports.
-- Detect duplicate imports and support reparsing.
-- Manage minimal accounts, categories, properties, transaction rules, and manual operations.
-- Show useful account and report screens for monthly income/expense checks.
+- Keep internal transfers out of income, expense, profit, and property ROI.
+- Manage workspaces, users, accounts, categories, properties, transaction rules,
+  and manual operations.
+- Show dashboard, account detail, import review, and report screens.
+- Provide chat integration groundwork with strict workspace boundaries.
 
-Planned later capabilities:
+Current engineering focus:
 
-- More banks and configurable parser definitions.
-- Deeper workspace collaboration, property workflows, and operational finance features.
-- Automation, forecasting, and AI-assisted analysis after the core data pipeline is reliable.
+- Unify SSR/UI patterns.
+- Move complex template logic into Presenter/ViewModel layers.
+- Refactor import review around `ReviewItemVM`, action policy, and reusable
+  partials.
+- Keep code modular through progressive feature architecture.
 
 ## Tech Stack
 
@@ -45,14 +58,15 @@ Planned later capabilities:
 - Alembic
 - PostgreSQL
 - Jinja2 server-rendered templates
-- HTMX/Alpine-ready UI
-- Tailwind/CSS
+- HTMX
+- Alpine.js
+- Tailwind/project CSS
 - `pdfplumber`
 - uv, Ruff, ty, pytest
 
-## Local Setup
+## Local Alpha Run
 
-For a first local alpha run, use the friend-friendly script:
+For a first local run, use the alpha scripts.
 
 macOS or Linux:
 
@@ -66,7 +80,7 @@ Windows PowerShell:
 .\scripts\alpha-up.ps1
 ```
 
-For a background smoke test, use:
+For a background smoke test:
 
 ```bash
 ./scripts/alpha-up.sh --detach
@@ -78,7 +92,7 @@ Windows PowerShell:
 .\scripts\alpha-up.ps1 --detach
 ```
 
-If port `8000` is already busy, choose another one:
+If port `8000` is busy:
 
 ```bash
 BOOKER_TEE_APP_PORT=8010 ./scripts/alpha-up.sh --detach
@@ -90,7 +104,14 @@ Windows PowerShell:
 $env:BOOKER_TEE_APP_PORT = "8010"; .\scripts\alpha-up.ps1 --detach
 ```
 
-See [ALPHA_TESTING.md](docs/guides/ALPHA_TESTING.md) for the suggested tester flow and feedback checklist.
+Open:
+
+```text
+http://127.0.0.1:8000
+```
+
+See [ALPHA_TESTING.md](docs/guides/ALPHA_TESTING.md) for the suggested tester
+flow and feedback checklist.
 
 Stop the local alpha:
 
@@ -116,7 +137,7 @@ Windows PowerShell:
 .\scripts\alpha-reset.ps1 --yes
 ```
 
-Manual setup is also available:
+## Manual Setup
 
 Copy the example environment file:
 
@@ -130,17 +151,12 @@ Start the application and PostgreSQL:
 docker compose up --build
 ```
 
-Open:
-
-```text
-http://127.0.0.1:8000
-```
-
 The app container runs migrations on startup through `docker/entrypoint.sh`.
 
 ## Local Debugging With VSCode
 
-For debugger-driven development, run only PostgreSQL in Docker Compose and run FastAPI on the host:
+For debugger-driven development, run only PostgreSQL in Docker Compose and run
+FastAPI on the host:
 
 ```bash
 docker compose up -d postgres
@@ -149,9 +165,12 @@ uv run alembic upgrade head
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-The `.env.example` file points `DATABASE_URL` at `localhost:5433`, which is the host port exposed by `compose.yaml`.
+The `.env.example` file points `DATABASE_URL` at `localhost:5433`, the host port
+exposed by `compose.yaml`.
 
-In VSCode, use the `Booker Tee: FastAPI debug server` launch configuration to start the app under the debugger. Keep the Docker `app` service stopped while debugging locally so port `8000` is not already in use.
+In VSCode, use the `Booker Tee: FastAPI debug server` launch configuration. Keep
+the Docker `app` service stopped while debugging locally so port `8000` is not
+already in use.
 
 ## Development Commands
 
@@ -170,6 +189,15 @@ uv run ty check .
 uv run pytest
 ```
 
+Run UI audits:
+
+```bash
+uv run python scripts/ui_audit.py
+uv run python scripts/ui_audit.py --scenario realistic
+uv run python scripts/ui_audit.py --scenario review_interactions
+uv run python scripts/ui_audit.py --scenario design_audit
+```
+
 ## Server Runtime Settings
 
 For a private server, do not run with local auth defaults. Set at least:
@@ -184,22 +212,38 @@ BOOKER_TEE_ALLOWED_HOSTS=your-domain.example,127.0.0.1
 In production mode the app refuses to start if the auth secret is still local,
 session cookies are not secure, or allowed hosts are missing/wildcarded.
 
+Chat integrations are disabled by default. When enabling Telegram/webhook mode,
+set the matching `BOOKER_TEE_CHAT_INTEGRATIONS_ENABLED`,
+`BOOKER_TEE_TELEGRAM_*`, and `BOOKER_TEE_PUBLIC_BASE_URL` values explicitly.
+
 ## Privacy Notes
 
 Booker Tee handles sensitive financial data.
 
-- Do not commit real bank statements, passports, contracts, `.env` files, tokens, passwords, or secrets.
+- Do not commit real bank statements, passports, contracts, `.env` files,
+  tokens, passwords, or secrets.
 - Local uploads are stored under `var/uploads/` and ignored by git.
 - Local PDF fixtures under `tests/fixtures/` are ignored by git.
-- If parser tests should run in a clean clone, add sanitized fixtures or make fixture-dependent tests skip when local files are missing.
+- Use sanitized fixtures for tests.
+- Do not send financial documents to external services unless explicitly
+  requested.
 
 ## Project Documents
 
-The full documentation index lives in [docs/README.md](docs/README.md). The main product and engineering references are:
+The documentation index lives in [docs/README.md](docs/README.md). Start there
+instead of reading every markdown file.
 
-- [PROJECT_VISION.md](docs/product/PROJECT_VISION.md)
-- [MVP.md](docs/product/MVP.md)
-- [ROADMAP.md](docs/product/ROADMAP.md)
-- [DOMAIN_MODEL.md](docs/domain/DOMAIN_MODEL.md)
-- [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)
-- [AGENTS.md](AGENTS.md)
+Main references:
+
+- [AGENTS.md](AGENTS.md) - instructions for Codex and coding agents.
+- [PROJECT_VISION.md](docs/product/PROJECT_VISION.md) - product compass.
+- [ROADMAP.md](docs/product/ROADMAP.md) - planning reference.
+- [DOMAIN_MODEL.md](docs/domain/DOMAIN_MODEL.md) - financial entities and
+  invariants.
+- [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) - code structure and
+  feature boundaries.
+- [DESIGN.md](docs/design/DESIGN.md) - UI/UX principles and visual direction.
+- [REFACTOR_PROJECT_DESIGN.md](docs/design/REFACTOR_PROJECT_DESIGN.md) - current
+  import review SSR refactor plan.
+- [MVP.md](docs/product/MVP.md) - historical parser-first MVP baseline and
+  guardrails.

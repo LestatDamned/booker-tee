@@ -7,10 +7,51 @@ Root files are intentionally limited to:
 - [`README.md`](../README.md) — project overview and local setup.
 - [`AGENTS.md`](../AGENTS.md) — instructions for Codex and other coding agents.
 
+## Reading Order
+
+Do not read every document for every task. Start from the smallest relevant set.
+
+For any coding task:
+
+1. [`AGENTS.md`](../AGENTS.md)
+2. This file
+3. One or two task-specific documents from the table below
+4. Relevant code
+
+For frontend/SSR refactor work:
+
+1. [`DESIGN.md`](design/DESIGN.md)
+2. [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md)
+3. [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md), especially SSR/presentation
+   and feature boundary rules
+
+For financial/domain changes:
+
+1. [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md)
+2. [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md)
+3. Product docs only if the change affects scope or roadmap
+
+## Document Status
+
+| Document | Status | Read When |
+| --- | --- | --- |
+| [`PROJECT_VISION.md`](product/PROJECT_VISION.md) | active product compass | Product positioning, target users, major UX/domain decisions |
+| [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md) | active source of truth | Database models, ledger behavior, imports, reports, financial correctness |
+| [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md) | active architecture reference | Code structure, feature boundaries, services/repositories/presentation layer |
+| [`DESIGN.md`](design/DESIGN.md) | active design reference | General UI/UX rules, visual direction, financial UI patterns |
+| [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md) | active implementation plan | Current import review/frontend SSR refactor |
+| [`MVP.md`](product/MVP.md) | historical baseline / guardrails | Preventing regressions in the completed parser-first MVP |
+| [`ROADMAP.md`](product/ROADMAP.md) | planning reference | Future sequencing, not a current task list |
+| [`FUTURE_IDEAS.md`](product/FUTURE_IDEAS.md) | parked ideas | Only when discussing post-core features |
+| [`USER_GUIDE.md`](guides/USER_GUIDE.md) | guide/reference | User-facing wording and onboarding/help flows |
+| [`ALPHA_TESTING.md`](guides/ALPHA_TESTING.md) | guide/reference | Manual alpha testing |
+| [`CHAT_INTEGRATIONS.md`](integrations/CHAT_INTEGRATIONS.md) | future/partial integration plan | Chat/Telegram work only |
+| [`UNKNOWN_STATEMENT_IMPORTER.md`](integrations/UNKNOWN_STATEMENT_IMPORTER.md) | active reference | Unknown bank statement mapping/import work |
+
 ## Product
 
-- [`PROJECT_VISION.md`](product/PROJECT_VISION.md) — product source of truth.
-- [`MVP.md`](product/MVP.md) — parser-first MVP scope.
+- [`PROJECT_VISION.md`](product/PROJECT_VISION.md) — product compass.
+- [`MVP.md`](product/MVP.md) — historical parser-first MVP baseline and guardrails.
 - [`ROADMAP.md`](product/ROADMAP.md) — preferred evolution order.
 - [`FUTURE_IDEAS.md`](product/FUTURE_IDEAS.md) — parked post-MVP ideas.
 
@@ -20,11 +61,15 @@ Root files are intentionally limited to:
 
 ## Architecture
 
-- [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md) — code structure and data flow.
+- [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md) — code structure, progressive
+  feature architecture, feature boundaries, and data flow.
 
 ## Design
 
-- [`DESIGN.md`](design/DESIGN.md) — UI/UX plan.
+- [`DESIGN.md`](design/DESIGN.md) — UI/UX principles and visual direction.
+- [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md) — current
+  frontend/SSR refactor anchor for ReviewItemVM, action policy, and reusable
+  review item components.
 
 ## Guides
 

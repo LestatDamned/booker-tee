@@ -2,6 +2,12 @@
 
 Живой документ для подготовки и проведения рефакторинга frontend/SSR слоя Booker Tee.
 
+```text
+Status: active implementation plan
+Read when: working on import review, ReviewItemVM, action policy, or SSR frontend refactor
+Do not use as: general product roadmap
+```
+
 Цель документа: собрать решения до начала больших правок, чтобы рефакторинг был
 последовательным, проверяемым и не превращался в серию случайных переделок.
 

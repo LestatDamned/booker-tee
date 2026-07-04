@@ -1,129 +1,94 @@
-# PROJECT_VISION.md — Booker Tee
+# PROJECT_VISION.md - Booker Tee
 
 Product vision and positioning for Booker Tee.
 
-This document is the product-level source of truth. Coding agents should read it before making major UX, domain, reporting, onboarding, import, or analytics decisions. [`AGENTS.md`](../../AGENTS.md) defines engineering rules. [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) defines the data model. This file defines why the product exists and who it is for.
+Status: active product compass.
+
+Read this document when changing product scope, UX direction, import/review
+behavior, reporting, onboarding, workspace behavior, automation, or user-facing
+language.
+
+This file explains why Booker Tee exists. It is not a task checklist.
+
+Use:
+
+- [`ROADMAP.md`](./ROADMAP.md) for sequencing and planning.
+- [`MVP.md`](./MVP.md) as historical MVP baseline and guardrails.
+- [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) for financial/domain rules.
+- [`ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) for implementation shape.
+- [`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md) for the
+  current import review UI/SSR refactor.
+
+Current assessment: the original MVP has been completed and exceeded. Booker Tee
+already has workspaces, users, accounts, imports, review, operations, money
+entries, categories, properties, rules, reports, manual operations, workspace
+membership, and unknown statement mapping. The active challenge is to make the
+product clearer, more reliable, easier to maintain, and ready for deeper
+workflows without losing the review-first financial core.
 
 ---
 
-## 1. One-sentence vision
+## 1. Vision
 
-**Booker Tee helps financially aware people turn scattered money movements into a clear, reliable picture of cash flow, profit, assets, and financial results.**
+**Booker Tee helps financially aware people turn scattered money movements into
+a clear, reliable picture of cash flow, profit, assets, and financial results.**
 
-Booker Tee is not traditional accounting software. It is a private financial analysis and management tool for people who need to understand money flows across personal life, family, property, and small business activities.
+Booker Tee is not traditional accounting software. It is a private financial
+analysis and management tool for people who need to understand money flows
+across personal life, family, property, and small business activity.
 
----
-
-## 2. Product thesis
-
-Many people already care about their finances, but their real financial life is fragmented:
-
-- cash in pockets, safes, and envelopes;
-- personal cards and business cards;
-- bank accounts and deposits;
-- rent payments from tenants;
-- repairs, utilities, taxes, contractor payments;
-- family expenses mixed with business expenses;
-- PDF bank statements, receipts, documents, and manual notes.
-
-They do not necessarily need formal bookkeeping, statutory accounting, payroll, ERP, or tax reporting.
-
-They need a simple and reliable system that answers practical questions:
-
-- Where did the money come from?
-- Where did the money go?
-- Where is the money now?
-- Which activity, property, project, or workspace produced the result?
-- Which transactions are confirmed, suspicious, duplicated, or still waiting for review?
-- What is the real cash flow, not just the bank balance?
-
-The core product promise:
+The product promise:
 
 ```text
-Import / enter money movements
+Import or enter money movements
   -> preserve raw source data
   -> normalize transactions
   -> validate and deduplicate
-  -> let the user review
+  -> let the user review uncertainty
   -> produce clear reports and metrics
 ```
 
 ---
 
-## 3. Target audience
+## 2. Product Thesis
 
-Booker Tee is built for financially aware users who already want control and clarity.
+Real financial life is fragmented:
 
-### 3.1 Financially aware individuals
+- cash, cards, bank accounts, deposits, and wallets;
+- family, property, personal, and small business expenses mixed together;
+- rent, repairs, utilities, taxes, contractors, refunds, and manual notes;
+- PDF bank statements and source documents that need preservation.
 
-People who track or want to track their personal finances, accounts, cards, cash, deposits, categories, and recurring payments.
+Many users do not need statutory accounting, payroll, ERP, or tax filing. They
+need a reliable system that answers:
 
-They are not satisfied with vague bank app analytics because they need a more flexible view across multiple accounts and sources.
-
-### 3.2 Family finance managers
-
-People who want to understand shared household spending, family cash flow, common goals, recurring obligations, and shared accounts.
-
-They need collaboration, but not corporate accounting complexity.
-
-### 3.3 DIY landlords
-
-People who own and manage rental properties themselves.
-
-They need each property to act as a financial center:
-
-- rent income;
-- repairs;
-- utilities;
-- tenant deposits;
-- taxes;
-- insurance;
-- maintenance;
-- vacancy impact in later versions.
-
-They need to know the real result of each property, not just see incoming rent.
-
-### 3.4 Small entrepreneurs
-
-People running small entrepreneurial activity where money flows through cards, cash, bank accounts, deposits, contractors, customers, and informal operational notes.
-
-They need management finance: cash position, income, expense, profit, obligations, and trends.
-
-They do not want a heavy accounting system built for accountants.
-
-### 3.5 Small businesses and microbusinesses
-
-Small teams and owner-operated businesses that need a simple financial command center.
-
-They need reports, transaction review, controlled imports, roles, workspace separation, and visibility into where money goes.
-
-### 3.6 Trusted collaborators
-
-Later versions should support spouses, family members, assistants, property managers, and analysts.
-
-These users may upload documents, classify expenses, review reports, or manage a specific workspace, but they should not automatically see every balance, deposit, profit metric, or private account.
+- Where did money come from?
+- Where did it go?
+- Where is it now?
+- Which property, project, family context, or workspace produced the result?
+- Which transactions are confirmed, suspicious, duplicated, or still waiting for
+  review?
 
 ---
 
-## 4. User mindset
+## 3. Target Users
 
-Booker Tee users are not casual budget app users who only want colorful charts.
+Booker Tee is for financially aware users who already want control and clarity.
 
-They are more serious:
-
-- they already understand that money must be tracked;
-- they are willing to review unclear transactions;
-- they care about correctness;
-- they want reliable reports;
-- they may have multiple financial contexts;
-- they may mix cash, cards, bank transfers, deposits, and property income;
-- they want automation, but not at the cost of wrong numbers.
-
-The product should feel like a trustworthy financial cockpit, not a toy.
+- Individuals who track accounts, cards, cash, deposits, categories, and
+  recurring payments.
+- Family finance managers who need shared visibility without corporate
+  accounting complexity.
+- DIY landlords who need income, expenses, deposits, repairs, and net result per
+  property.
+- Small entrepreneurs and microbusinesses that need management finance, not a
+  heavy accounting suite.
+- Trusted collaborators such as spouses, assistants, property managers,
+  analysts, and accountants, with intentional scoped access.
 
 ---
 
-## 5. What Booker Tee is
+## 4. What Booker Tee Is
 
 Booker Tee is:
 
@@ -133,112 +98,70 @@ Booker Tee is:
 - a cash-flow and profit analysis tool;
 - a workspace-based money management system;
 - a property-aware financial tracker;
-- a future document and financial memory layer;
-- a simple management reporting tool for people who are not accountants.
-
-Booker Tee should help the user move from messy financial fragments to structured financial understanding.
-
----
-
-## 6. What Booker Tee is not
+- a simple reporting tool for people who care about numbers;
+- a future financial memory layer built on trustworthy structured data.
 
 Booker Tee is not:
 
-- full statutory accounting software;
-- a tax filing product;
-- payroll software;
-- ERP;
-- CRM;
-- inventory management;
-- a trading terminal;
-- a bank replacement;
+- statutory accounting, tax filing, payroll, ERP, CRM, or inventory management;
+- a trading terminal or bank replacement;
 - a personal finance game;
 - an AI chatbot with finance features attached;
-- a product that silently guesses and mutates financial records without review.
-
-Booker Tee may later integrate with accountants, exports, AI search, and advanced analytics, but the first product must remain focused on reliable financial data and clear reporting.
+- a system that silently guesses and mutates financial records without review.
 
 ---
 
-## 7. Core product principle
+## 5. Product Principles
 
-### Simple enough for non-accountants. Precise enough for people who care.
+Simple enough for non-accountants. Precise enough for people who care.
 
-The user should not need to understand double-entry bookkeeping terminology to use Booker Tee.
+Non-negotiable rules:
 
-But the system itself must preserve financial correctness:
-
-- internal transfers must not become income;
-- deposits from cash to card must not double-count money;
+- internal transfers must not become income or expense;
+- moving cash to a card must not double-count money;
 - tenant security deposits must not count as profit until retained;
 - failed imports must not pollute reports;
 - duplicate statements must not double-count transactions;
-- reports must be based on confirmed or explicitly accepted data.
+- raw imported data must be preserved;
+- uncertain data must go through review;
+- reports must be based on confirmed or explicitly accepted data;
+- workspace boundaries must be strict;
+- private financial data must not be sent to external AI/API services unless the
+  user explicitly opts in.
 
 ---
 
-## 8. Primary product promise
+## 6. Financial Questions
 
-Booker Tee should answer four questions better than a bank app or spreadsheet:
+Booker Tee should answer four questions better than a bank app or spreadsheet.
 
-### 8.1 Where did money come from?
+Where did money come from?
 
-Examples:
+- rent, salary, customer payment, refund, owner contribution, retained deposit,
+  asset sale.
 
-- rent from property `9 Maya 20`;
-- customer payment;
-- salary;
-- refund;
-- owner contribution;
-- retained tenant deposit;
-- sale of an asset.
+Where did money go?
 
-### 8.2 Where did money go?
+- repairs, groceries, utilities, contractors, taxes, family expenses, property
+  maintenance, business purchases.
 
-Examples:
+Where is money now?
 
-- repair;
-- groceries;
-- utilities;
-- contractor;
-- tax;
-- family expense;
-- property maintenance;
-- business purchase.
+- cash safe, wallet, personal card, business card, checking account, deposit,
+  future virtual envelope.
 
-### 8.3 Where is money now?
+What result did it produce?
 
-Examples:
-
-- cash safe;
-- wallet;
-- personal card;
-- business card;
-- checking account;
-- deposit;
-- virtual envelope in a later version.
-
-### 8.4 What result did it produce?
-
-Examples:
-
-- property profit;
-- family spending by category;
-- business cash flow;
-- monthly net result;
-- account balance by source;
-- unreviewed imported transactions;
-- suspicious mismatches.
+- property profit, family spending, business cash flow, monthly net result,
+  account balances, unreviewed rows, suspicious mismatches.
 
 ---
 
-## 9. Workspace vision
+## 7. Workspace Vision
 
-Booker Tee should be workspace-first.
+Booker Tee is workspace-first.
 
-A workspace is a strict financial context and data boundary.
-
-Examples:
+A workspace is a strict financial context and data boundary:
 
 ```text
 Personal
@@ -248,19 +171,19 @@ Small Business
 Project
 ```
 
-The same user may manage several workspaces. Each workspace has its own accounts, categories, properties, transaction rules, documents, reports, and members.
-
-Workspace separation prevents the common mistake of mixing personal, family, business, and property finances into one confusing stream.
-
-The MVP may create only one default personal workspace, but the architecture must support multiple workspaces from the beginning.
+Each workspace owns its accounts, categories, properties, transaction rules,
+documents, reports, operations, and members. Workspace separation prevents
+personal, family, business, and property finances from becoming one confusing
+stream.
 
 ---
 
-## 10. Accounting philosophy without accounting complexity
+## 8. Financial Language
 
-Booker Tee should avoid presenting itself as traditional bookkeeping, but it must still use sound financial logic internally.
+The UI should avoid feeling like traditional bookkeeping software, but the system
+must use sound financial logic internally.
 
-User-facing language should prefer:
+Prefer:
 
 ```text
 Account / Wallet
@@ -276,24 +199,25 @@ Report
 Review
 ```
 
-Avoid making the core UI feel like accounting software with terms such as:
+Avoid making the core UI depend on:
 
 ```text
 Chart of accounts
 Debit
 Credit
-Ledger
 Trial balance
 Journal posting
 ```
 
-The domain model may use accounting-inspired structure internally, especially `Operation -> MoneyEntry`, but the interface should remain practical and easy to understand.
+The implementation may use accounting-inspired structure internally, especially
+`Operation -> MoneyEntry`, while the interface stays practical and readable.
 
 ---
 
-## 11. Critical financial rule: transfers are not income
+## 9. Critical Rule: Transfers Are Not Income
 
-Booker Tee must never confuse internal money movement with real financial result.
+Booker Tee must never confuse internal money movement with real financial
+result.
 
 Example:
 
@@ -311,25 +235,17 @@ Correct interpretation:
 3. Transfer: card -> deposit, affects profit = false
 ```
 
-Only the first event changes profit. The second and third events only change where the same money is stored.
-
-This rule is central to product trust.
+Only the first event changes profit. The second and third events only change
+where the same money is stored.
 
 ---
 
-## 12. PDF import is the first wedge
+## 10. Import And Review
 
-The first strong product wedge is reliable import of bank statements, especially PDF statements.
+Reliable bank statement import, especially PDF import, is the first strong
+product wedge.
 
-Why this matters:
-
-- users already have bank statements;
-- many banks do not provide convenient APIs for personal users;
-- manual entry is too slow;
-- bank apps do not understand the user's full context;
-- reliable import creates the data foundation for all reports.
-
-The import pipeline should be:
+The pipeline should stay reviewable:
 
 ```text
 Uploaded document
@@ -342,180 +258,96 @@ Uploaded document
   -> confirmed operations
 ```
 
-Imported data must be reviewable. Raw source data must be preserved. Failed parsing must not delete files. Control-total mismatches must require review.
+Imported data must be explainable. Raw source data must be preserved. Failed
+parsing must not delete files. Control-total mismatches and uncertain rows must
+require review.
+
+Current active UX focus: make the review item clear, consistent, and
+presenter-driven. Jinja should render prepared ViewModels instead of deciding
+financial state, actions, suggestions, and confirmation readiness inside
+templates.
 
 ---
 
-## 13. Reporting vision
+## 11. Reporting Vision
 
 Reports should be simple, useful, and explainable.
 
 Core report types:
 
-### 13.1 Cash position
-
-Shows where money is now:
-
-- by account;
-- by account type;
-- by workspace;
-- by currency in later versions.
-
-### 13.2 Cash flow
-
-Shows money movement over time:
-
-- income;
-- expenses;
-- internal transfers separately;
-- net result;
-- opening and closing balance where possible.
-
-### 13.3 Category report
-
-Shows what money was spent on or received for:
-
-- groceries;
-- repairs;
-- utilities;
-- rent income;
-- contractor payments;
-- taxes;
-- family expenses;
-- business expenses.
-
-### 13.4 Property result
-
-Shows the financial result of each rental property:
-
-- rent income;
-- repair expenses;
-- utility expenses;
-- taxes;
-- insurance;
-- retained deposits;
-- net operating result;
-- ROI and vacancy metrics in later versions.
-
-### 13.5 Review and data quality report
-
-Shows trust level of the data:
-
-- unreviewed transactions;
-- failed parse attempts;
-- duplicate candidates;
-- control-total mismatches;
-- imported rows not linked to confirmed operations;
-- rules that need confirmation.
+- cash position: where money is now;
+- cash flow: income, expenses, transfers, and net result over time;
+- category report: why money appeared or disappeared;
+- property result: income, expenses, and net result per property;
+- data quality report: unreviewed rows, failed imports, duplicate candidates,
+  mismatches, and rows not linked to confirmed operations.
 
 A financial report is only useful if the user can trust the underlying data.
 
 ---
 
-## 14. Property management vision
+## 12. Property Vision
 
-Property support should start simple and become deeper over time.
+Property support should remain financial-first.
 
-MVP-level property support:
+Current and near-term property support:
 
 - create a property;
 - link income and expenses to a property;
 - view property income, expenses, and net result.
 
-Later property features:
-
-- tenant profiles;
-- lease terms;
-- security deposits;
-- meter readings;
-- recurring rent expectations;
-- vacancy tracking;
-- document storage;
-- repair history;
-- profitability comparison across properties.
-
-Property support should remain financial-first. Booker Tee is not initially a full property management CRM.
+Later property features may include tenants, lease terms, security deposits,
+meters, recurring rent expectations, vacancy tracking, documents, repair
+history, and profitability comparison. Booker Tee is not initially a full
+property management CRM.
 
 ---
 
-## 15. Collaboration vision
+## 13. Collaboration Vision
 
 Collaboration should be based on workspace membership and roles.
-
-Future users may include:
-
-- spouse;
-- family member;
-- business partner;
-- assistant;
-- property manager;
-- analyst;
-- accountant or bookkeeper.
 
 Access must be intentional and scoped:
 
 - a spouse may manage family expenses;
-- an assistant may upload PDF statements without seeing sensitive balances;
+- an assistant may upload statements without seeing sensitive balances;
 - a property manager may manage property documents and expenses;
 - an analyst may view reports without editing transactions.
 
-Do not build full collaboration before the core import and review workflow is stable, but keep the architecture ready.
+Do not let collaboration features weaken workspace isolation or financial
+privacy.
 
 ---
 
-## 16. Automation philosophy
+## 14. Automation And AI
 
 Automation should reduce repetitive work, not hide uncertainty.
 
-Good automation:
+Good automation suggests categories/properties, detects transfers, finds
+duplicates, notices recurring rent, checks control totals, and asks for review
+when confidence is low.
 
-- suggest a category based on past confirmed behavior;
-- suggest a property based on payer, description, amount, and pattern;
-- detect possible internal transfers;
-- detect duplicate imported rows;
-- detect recurring rent payments;
-- detect statement control-total mismatches;
-- ask for review when confidence is low.
+Bad automation silently confirms unclear data, guesses property links without
+review, counts transfers as profit, deletes raw source data, hides parser errors,
+or changes reports without explaining why.
 
-Bad automation:
+AI is a future amplifier, not the product foundation. It may later help with
+semantic search, natural-language report queries, messy description matching,
+suspicious movement detection, period summaries, and cash-flow explanations.
 
-- silently marks unclear income as confirmed;
-- guesses property links without review;
-- counts transfers as profit;
-- deletes raw imported data;
-- hides parser errors;
-- changes reports without explaining why.
-
-Booker Tee should be conservative by default.
+The reliable foundation is structured data, deterministic validation, review
+flow, and clear reports.
 
 ---
 
-## 17. AI vision
-
-AI is a future amplifier, not the MVP foundation.
-
-AI may later help with:
-
-- semantic search across documents and transactions;
-- natural-language report queries;
-- matching messy bank descriptions to known categories;
-- finding suspicious movements;
-- summarizing financial periods;
-- explaining cash-flow changes.
-
-But the first version should not depend on AI to produce correct financial results.
-
-The correct foundation is structured data, deterministic validation, review flow, and clear reports.
-
----
-
-## 18. Privacy vision
+## 15. Privacy Vision
 
 Booker Tee handles sensitive financial information.
 
 Product decisions must respect privacy:
 
-- do not send private financial data to external AI or analytics APIs unless the user explicitly opts in;
+- do not send private financial data to external AI or analytics APIs unless the
+  user explicitly opts in;
 - preserve strict workspace boundaries;
 - design future roles around least privilege;
 - make exports and data deletion explicit;
@@ -526,80 +358,85 @@ Trust is a product feature.
 
 ---
 
-## 19. UX personality
+## 16. UX Personality
 
-Booker Tee should feel:
+Booker Tee should feel clear, strict, reliable, private, analytical, calm,
+practical, and built for people who care about numbers.
 
-- clear;
-- strict;
-- reliable;
-- private;
-- analytical;
-- calm;
-- practical;
-- built for people who care about numbers.
+It should not feel childish, gamified, noisy, over-automated, corporate,
+bureaucratic, like a tax-accounting suite, or like a generic AI wrapper.
 
-It should not feel:
-
-- childish;
-- gamified;
-- noisy;
-- over-automated;
-- corporate and bureaucratic;
-- like a tax-accounting suite;
-- like a generic AI wrapper.
-
-The interface should prioritize review, tables, filters, reports, status indicators, and traceability.
+The interface should prioritize review, tables, filters, reports, status
+indicators, traceability, and predictable actions.
 
 ---
 
-## 20. MVP scope
+## 17. Current Product Baseline
 
-The MVP should prove that Booker Tee can reliably transform messy financial inputs into useful reports.
+The original MVP target has become the product baseline.
 
-MVP must focus on:
+Booker Tee should preserve and refine:
 
-- default workspace;
-- accounts/wallets;
-- manual income, expense, transfer, and adjustment operations;
-- PDF document upload;
-- parse attempts;
+- workspace/user/account foundations;
+- document upload and parse attempts;
 - raw transaction preservation;
-- normalized draft records;
-- review queue;
-- confirmation flow;
-- categories;
-- basic transaction rules;
-- basic property linking;
-- basic reports;
-- duplicate prevention;
-- control-total validation where available.
+- normalization, validation, and review;
+- confirmed operations and money entries;
+- manual income, expense, transfer, and adjustment operations;
+- categories, properties, and transaction rules;
+- duplicate prevention and reparse safety;
+- account balances and financial reports;
+- workspace membership and invitations;
+- unknown statement mapping;
+- clear SSR/HTMX workflows.
 
-MVP should not focus on:
-
-- full AI/RAG;
-- Text-to-SQL;
-- full document knowledge base;
-- advanced RBAC UI;
-- Telegram bot;
-- IMAP ingestion;
-- full property CRM;
-- tax filing;
-- payroll;
-- invoices;
-- ERP workflows;
-- complex dashboards before data quality is solved.
+New work should improve clarity and reliability before widening the product.
 
 ---
 
-## 21. North Star
+## 18. Product Positioning
 
-The North Star is not the number of imported files, charts, or AI responses.
+Recommended positioning:
+
+> Booker Tee is a private financial management tool for financially aware
+> individuals, DIY landlords, small entrepreneurs, and small businesses. It turns
+> bank statements, cash movements, and manual records into clean transactions,
+> reliable reports, and clear financial metrics without forcing users into heavy
+> accounting software.
+
+Shorter positioning:
+
+> Booker Tee helps you understand money flows across personal life, family,
+> property, and small business - simply, privately, and reliably.
+
+---
+
+## 19. Decision Filter
+
+Before adding a feature, ask:
+
+1. Does it improve financial clarity?
+2. Does it improve data reliability?
+3. Does it reduce manual review without hiding uncertainty?
+4. Does it respect workspace boundaries?
+5. Does it avoid counting the same money twice?
+6. Does it help the target user understand cash flow, profit, assets, or
+   property results?
+7. Is it necessary for the current phase, or should it wait until the
+   import/review core is clearer?
+
+If a feature does not help the user understand financial flows or trust the
+reports, it should wait.
+
+---
+
+## 20. North Star
 
 The North Star is:
 
 ```text
-The user trusts Booker Tee as the place where their real financial picture becomes clear.
+The user trusts Booker Tee as the place where their real financial picture
+becomes clear.
 ```
 
 A user should eventually be able to say:
@@ -609,47 +446,17 @@ I know where my money came from.
 I know where it went.
 I know where it is now.
 I know which activity produced profit or loss.
-I trust the numbers because the system preserves sources, validates imports, and asks me to review uncertainty.
+I trust the numbers because the system preserves sources, validates imports,
+and asks me to review uncertainty.
 ```
 
 ---
 
-## 22. Product positioning
-
-Recommended positioning:
-
-> Booker Tee is a private financial management tool for financially aware individuals, DIY landlords, small entrepreneurs, and small businesses. It turns bank statements, cash movements, and manual records into clean transactions, reliable reports, and clear financial metrics without forcing users into heavy accounting software.
-
-Shorter positioning:
-
-> Booker Tee helps you understand money flows across personal life, family, property, and small business — simply, privately, and reliably.
-
-MVP positioning:
-
-> Booker Tee turns PDF bank statements and manual money movements into reviewed transactions, account balances, categories, property-linked results, and simple financial reports.
-
----
-
-## 23. Decision filter for new features
-
-Before adding a feature, ask:
-
-1. Does it improve financial clarity?
-2. Does it improve data reliability?
-3. Does it reduce manual review without hiding uncertainty?
-4. Does it respect workspace boundaries?
-5. Does it avoid counting the same money twice?
-6. Does it help the target audience understand cash flow, profit, assets, or property results?
-7. Is it necessary for the current phase, or should it wait until after the import/review core is stable?
-
-If a feature does not help the user understand financial flows or trust the reports, it should not be part of the MVP.
-
----
-
-## 24. Product mantra
+## 21. Product Mantra
 
 ```text
 Reliable financial clarity, not heavy accounting.
 ```
 
-Booker Tee should help serious users understand their money without forcing them to become accountants.
+Booker Tee should help serious users understand their money without forcing them
+to become accountants.

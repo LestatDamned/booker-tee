@@ -2,11 +2,31 @@
 
 Parser-first MVP specification for Booker Tee.
 
+```text
+Status: historical baseline / guardrails
+Current assessment: completed and exceeded
+Read when: checking MVP regressions, parser-first scope, or financial correctness basics
+Do not use as: current implementation roadmap
+```
+
+Status note:
+
+This document describes the first useful parser-first product slice and remains
+the baseline for financial correctness and scope discipline. The repository may
+now contain capabilities that grew beyond the initial MVP slice, such as manual
+operations, category/rule workflows, properties, reports, and richer review UI.
+Do not treat the original MVP non-goals as a reason to remove or weaken already
+implemented reliable workflows. Treat them as guardrails against expanding into
+unrelated platform features before the import/review/ledger foundation remains
+trustworthy.
+
 This document defines the first useful product version. It should be read together with:
 
 - [`PROJECT_VISION.md`](PROJECT_VISION.md) — product positioning and target audience;
 - [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) — canonical entities and invariants;
 - [`ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) — project structure and engineering architecture;
+- [`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md) —
+  current frontend/SSR refactor anchor for the import review UI;
 - [`AGENTS.md`](../../AGENTS.md) — instructions for Codex and other coding agents.
 
 ---

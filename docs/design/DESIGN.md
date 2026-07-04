@@ -1,87 +1,192 @@
-# DESIGN.md — Booker Tee UI/UX plan
+# DESIGN.md - Booker Tee UI/UX Principles
 
-Заметка фиксирует текущий план по интерфейсу Booker Tee. Цель не в
-декоративном редизайне, а в том, чтобы приложение стало понятным, единообразным
-и удобным для регулярной финансовой работы.
+UI/UX direction for Booker Tee.
 
-## Цель интерфейса
+Status: active design reference.
 
-Booker Tee должен ощущаться как надежный финансовый рабочий стол:
+Read when changing layout, templates, CSS, actions, empty states, status badges,
+financial rows, or user flows.
 
-```text
-понять текущий контекст
--> загрузить или внести данные
--> проверить сомнительные строки
--> увидеть результат
--> настроить правила и справочники
-```
+Do not use as the detailed implementation plan for the current import review
+refactor. For that, read
+[`REFACTOR_PROJECT_DESIGN.md`](REFACTOR_PROJECT_DESIGN.md). If the two documents
+conflict on the first import review slice, `REFACTOR_PROJECT_DESIGN.md` has
+priority.
 
-Интерфейс должен помогать пользователю не ошибиться с workspace, счетом,
-доходом, расходом или внутренним переводом.
+Current assessment: the first UI cleanup phase is mostly complete. The design
+work is no longer about adding more boxes, hints, and buttons. The next phase is
+about clarity, reuse, financial hierarchy, and a calmer modern style.
 
-## Основные принципы
+---
 
-1. Финансовая ясность важнее декоративности.
-2. Пользователь всегда должен видеть текущего пользователя и текущее
-   пространство.
-3. Основные пути должны быть очевидны без чтения документации.
-4. Одинаковые сущности должны выглядеть одинаково на разных страницах.
-5. Статусы, типы операций и опасные действия должны иметь единый визуальный
-   язык.
-6. Таблицы допустимы только там, где они реально помогают сканировать данные.
-   Для сложных строк лучше использовать компактные карточки.
-7. Пустое состояние должно предлагать следующее действие.
-8. Интерфейс должен быть компактным и эффективно использовать пространство:
-   меньше декоративных промежутков, больше полезной информации на первом
-   экране, без ощущения перегруженности.
+## 1. Interface Goal
 
-## Навигационная модель
-
-Верхний layout должен разделять:
-
-- контекст: пользователь и пространство;
-- основную работу: счета, операции, импорт, отчеты;
-- настройки учета: категории, объекты, правила;
-- системное: пользователи и пространства.
-
-Главная кнопка действия: `Загрузить выписку`.
-
-Пользователь на любой странице должен понимать:
+Booker Tee should feel like a reliable financial workbench:
 
 ```text
-я работаю как <user>
-в пространстве <workspace>
+understand context
+-> import or enter data
+-> review uncertainty
+-> confirm financial meaning
+-> see results
+-> tune rules and reference data
 ```
 
-## Главная страница
+The interface should help the user avoid mistakes with workspace, account,
+income, expense, transfer, category, property, and review status.
 
-`/` должна стать рабочим dashboard, а не технической страницей.
+---
 
-Минимальный состав:
+## 2. Visual Direction
 
-- текущее пространство;
-- баланс по счетам;
-- доходы, расходы и прибыль за текущий месяц;
-- документы/строки, требующие проверки;
-- быстрые действия:
-  - загрузить выписку;
-  - добавить ручную операцию;
-  - открыть отчеты;
-  - настроить правила.
-
-## Единый компонент финансовой строки
-
-Для review, ручных операций, проводок и похожих списков используем один общий
-паттерн:
+Booker Tee should feel like a modern financial workbench:
 
 ```text
-[статус] [тип] [дата] [сумма]
-Описание
-метки: счет, категория, объект, ID
-действия
+calm
+dense
+precise
+private
+functional
+trustworthy
+distinctive
 ```
 
-Это должно читаться одинаково на страницах:
+The style may keep restrained rebellious creativity:
+
+```text
+sharp enough to feel personal and memorable
+quiet enough to never compete with money, statuses, and decisions
+```
+
+Keep:
+
+- dark-first interface;
+- strong readability;
+- clear financial hierarchy;
+- compact data density;
+- confident accent colors;
+- expressive but consistent badges;
+- subtle interaction feedback;
+- a little personality in copy, rhythm, and details.
+
+Avoid:
+
+- decorative brutality;
+- visual aggression;
+- sterile generic SaaS sameness;
+- excessive borders and nested boxes;
+- playful/gamified finance;
+- style choices that make reports or review slower to scan.
+
+The old `techno-neobrutalist` direction is not a hard requirement anymore.
+Booker Tee can keep its character without forcing every screen into harsh
+rectangles, terminal mood, or high-friction visual density.
+
+Style changes should happen through shared components and CSS tokens, not by
+redesigning every page separately.
+
+---
+
+## 3. Core Principles
+
+1. Financial clarity is more important than decoration.
+2. The current user and workspace must be visible in the main app shell.
+3. Main workflows must be understandable without reading documentation.
+4. Similar entities should look and behave similarly across pages.
+5. Statuses, operation types, money direction, and dangerous actions need one
+   visual language.
+6. Tables are useful only when they improve scanning. Complex rows may use
+   compact cards instead.
+7. Empty states should explain what is missing and point to the next useful
+   action.
+8. Technical details should be available, but not visually equal to financial
+   decisions.
+9. One screen should have one main next step.
+10. Reuse components and patterns before inventing another local variant.
+
+---
+
+## 4. App Shell And Navigation
+
+The top-level layout should separate:
+
+- context: current user and workspace;
+- main work: dashboard, accounts, operations, imports, reports;
+- reference data: categories, properties, rules;
+- system/admin: users, workspaces, integrations.
+
+Primary global action:
+
+```text
+Загрузить выписку
+```
+
+On any authenticated page, the user should understand:
+
+```text
+I am working as <user>
+inside workspace <workspace>
+```
+
+---
+
+## 5. Money First
+
+The main object of Booker Tee is money.
+
+Financial screens should first show:
+
+- current money position;
+- income;
+- expenses;
+- profit/result;
+- rows requiring a decision;
+- what will change after confirmation.
+
+Principle:
+
+```text
+money first
+decision second
+technical details last
+```
+
+Suggested reusable classes:
+
+```text
+money-value
+money-income
+money-expense
+money-transfer
+money-profit
+kpi-strip
+money-card
+```
+
+Rules:
+
+- amounts should be easy to scan;
+- currency must stay near the amount;
+- negative values must not disappear in normal text;
+- financial values should usually be more visually important than UUIDs,
+  timestamps, parser names, and debug state.
+
+---
+
+## 6. Financial Row Pattern
+
+For review rows, manual operations, account movements, and similar lists, use a
+common pattern:
+
+```text
+[amount] [direction] [date] [status badges]        [actions]
+Description
+Meta: account, category, property, row/source info
+Decision/result summary
+Technical details collapsed
+```
+
+This pattern should feel familiar across:
 
 - import review;
 - manual operations;
@@ -89,23 +194,28 @@ Booker Tee должен ощущаться как надежный финанс�
 - reports;
 - transaction rules where applicable.
 
-## Единый язык статусов
+Do not force one universal component for every entity. Reuse the pattern and
+shared partials where the UX concept is actually the same.
 
-Нужны общие CSS-классы и единая семантика:
+---
+
+## 7. Status And Badge Language
+
+Use one semantic language for statuses and operation types:
 
 ```text
-income      -> зеленый
-expense     -> красно-розовый
-transfer    -> синий
-warning     -> желтый
-confirmed   -> зеленый / спокойный
-needs_review -> желтый
-ignored     -> приглушенный
-archived    -> приглушенный
-error       -> красный
+income        -> green
+expense       -> red/pink
+transfer      -> blue/neutral
+warning       -> yellow
+confirmed     -> calm green
+needs_review  -> yellow
+ignored       -> muted
+archived      -> muted
+error         -> red
 ```
 
-Желаемые reusable classes:
+Reusable classes:
 
 ```text
 badge
@@ -117,547 +227,320 @@ badge-muted
 badge-danger
 ```
 
-Не создавать новый визуальный стиль статуса на каждой странице.
+Do not create a new status style on each page.
 
-## Формы и действия
+---
 
-Правила:
+## 8. Action Hierarchy
 
-1. Создание новой сущности — компактная форма сверху страницы.
-2. Редактирование простой сущности — inline в списке.
-3. Редактирование сложной сущности — отдельная detail/edit страница.
-4. Опасные действия визуально отделены и используют danger style.
-5. Действия должны быть подписаны понятными словами, а не только ID или UUID.
-6. После действия пользователь должен оставаться в рабочем контексте, а не
-   возвращаться внезапно наверх страницы.
-7. Формы должны быть плотными: поля группируются в сетку, занимают ровно
-   столько места, сколько нужно, и не растягивают страницу без причины.
+Too many equal buttons reduce confidence.
 
-## Money first
-
-Главный объект интерфейса Booker Tee — деньги. Суммы, итоги, доходы, расходы и
-прибыль должны быть заметнее технических статусов, UUID и вспомогательных
-действий.
-
-Новый принцип следующего UI-этапа:
-
-```text
-деньги первыми
-решение вторым
-технические детали последними
-```
-
-На финансовых экранах пользователь должен сначала видеть:
-
-- сколько денег сейчас;
-- сколько пришло;
-- сколько ушло;
-- какая прибыль;
-- какие строки требуют решения;
-- что изменится после подтверждения.
-
-Суммы должны иметь отдельный визуальный язык:
-
-- `money-value` — крупнее обычного текста, моноширинный, хорошо сканируемый;
-- `money-income` — доход, зеленый;
-- `money-expense` — расход, розово-красный;
-- `money-transfer` — внутреннее перемещение, синий/нейтральный;
-- `money-profit` — результат, выделяется отдельно;
-- валюта меньше суммы, но всегда рядом;
-- отрицательные суммы не должны теряться среди текста.
-
-Пример желаемого паттерна финансовой строки:
-
-```text
-[расход] [подтверждено]                 -2 438.87 RUB
-Лента
-Продукты · Экспобанк карта · 2026-06-05
-```
-
-А не:
-
-```text
-статус · дата · ID · описание · сумма · кнопки
-```
-
-## Иерархия действий
-
-Россыпь кнопок снижает уверенность пользователя. Для экранов с большим числом
-действий используем единый паттерн:
+For rows/cards with many actions:
 
 ```text
 1 primary action
-2-3 secondary actions максимум
-остальное в "Еще"
-опасное в отдельной danger-zone
+0-1 visible secondary action
+rest in "Еще" / action menu
+danger actions separated
 ```
 
-Правила:
+Rules:
 
-1. На карточке или строке должно быть одно очевидное главное действие.
-2. Вторичные действия должны быть визуально слабее.
-3. Редкие действия прячем в `details`/`Еще`.
-4. Опасные действия (`удалить`, `игнорировать`, `отменить проведение`) не
-   должны стоять вперемешку с обычными.
-5. Набор действий зависит от состояния сущности.
-6. Если сущность уже подтверждена, показываем результат и одну кнопку
-   `Исправить`, а не полную форму редактирования.
+1. A row/card should answer: "What should I probably do now?"
+2. Secondary actions must not compete with primary.
+3. Rare actions go to `details`, `Еще`, or an action menu.
+4. Dangerous actions are visually separated and require confirmation when
+   destructive.
+5. The action set depends on entity state.
+6. Confirmed entities should show result and focused correction/open actions,
+   not the full unresolved form again.
 
-Пример для строки import review:
+For import review, the detailed action policy lives in
+[`REFACTOR_PROJECT_DESIGN.md`](REFACTOR_PROJECT_DESIGN.md).
+
+Reusable classes:
 
 ```text
-нужна проверка:
-  primary: Подтвердить
-  secondary: Изменить
-  more: На проверку, Игнорировать, Сделать перевод
-
-подтверждено:
-  показываем проведенную операцию
-  primary: Исправить
-  danger-zone/details: Отменить проведение
+primary-action
+secondary-actions
+action-menu
+danger-zone
 ```
 
-Пример для документа импорта:
+---
+
+## 9. Forms And Editing
+
+Rules:
+
+1. Creating a simple entity may use a compact form at the top of the page.
+2. Editing a simple entity may be inline or on a detail page, depending on
+   density.
+3. Editing a complex entity should use a dedicated detail/edit surface.
+4. Forms should be dense but readable.
+5. Fields should group by meaning, not by database order.
+6. Dangerous actions should not sit inside the same visual rhythm as save
+   actions.
+7. After an action, the user should stay in the working context.
+
+Suggested reusable classes:
 
 ```text
-primary: Проверить
-secondary: Перепарсить, Назад
-more/danger-zone: Игнорировать, Удалить, Технические детали
+form-panel
+form-grid
+form-actions
+entity-card
+entity-row
 ```
 
-## Иконки и компактные действия
+---
 
-Иконки можно использовать для экономии места, но только там, где действие
-достаточно знакомое или повторяется много раз. Иконки не должны превращать
-интерфейс в загадку.
+## 10. Technical Details
 
-Правило:
+Technical details are useful for development and debugging, but they should not
+compete with money and user decisions.
+
+Hide by default:
+
+- full UUIDs;
+- storage keys;
+- raw tables;
+- raw text;
+- parse attempt debug;
+- dedupe/debug fields;
+- long parser messages;
+- raw JSON.
+
+Keep visible:
+
+- account;
+- amount;
+- date;
+- category;
+- property;
+- review state;
+- clear operation description;
+- linked operation summary.
+
+Reusable class:
 
 ```text
-primary actions -> текстовая кнопка
-частые secondary actions -> icon button + title/aria-label
-опасные действия -> текст или icon + явный danger style
-редкие действия -> "Еще" / action-menu
+technical-details
 ```
 
-Где иконки уместны:
+---
 
-- `назад` -> стрелка назад;
-- `детали` -> info/document;
-- `исправить` -> pencil;
-- `сохранить` -> check/save;
-- `перепарсить` -> refresh;
-- `удалить` -> trash + danger;
-- `в архив` -> archive;
-- `восстановить` -> undo/restore;
-- `фильтр` -> filter;
-- раскрытие дополнительных действий -> more/menu.
+## 11. Icons And Compact Actions
 
-Где лучше оставить текст:
+Icons are useful when they save space and the meaning is familiar.
 
-- `Загрузить выписку`;
-- `Подтвердить`;
-- `Создать правило`;
-- `Сделать перевод`;
-- опасные действия, если ошибка пользователя дорого стоит.
+Rules:
 
-Требования:
+```text
+primary actions -> text button
+frequent secondary actions -> icon button + title/aria-label
+danger actions -> text or icon+text with danger style
+rare actions -> "Еще" / action menu
+```
 
-- каждая icon-only кнопка имеет `aria-label` и `title`;
-- размер touch target не меньше 44x44px;
-- иконки должны быть одного визуального стиля;
-- не смешивать несколько разных иконных библиотек;
-- для MVP предпочтительнее простые inline SVG/icon-компоненты или один
-  библиотечный набор, а не случайные символы.
+Every icon-only button must have:
 
-Желаемые reusable classes:
+- `aria-label`;
+- `title`;
+- stable touch target, at least 44x44px;
+- one consistent icon style.
+
+Reusable classes:
 
 ```text
 icon-button
 icon-button-danger
 icon-button-muted
-action-menu
 sr-only
 ```
 
-## Технические детали
+---
 
-UUID, parse attempts, raw tables, raw PDF text, storage keys и debug-данные
-полезны для разработки и разбора ошибок, но они не должны конкурировать с
-деньгами и пользовательскими решениями.
+## 12. Density And Space
 
-Правило:
+Booker Tee is a working financial tool. Screens should be compact and
+scannable.
 
-```text
-обычный пользователь видит финансовый смысл
-технический пользователь раскрывает details
-```
-
-Что прячем глубже:
-
-- полные UUID;
-- storage keys;
-- raw tables;
-- raw text;
-- parse attempt debug;
-- длинные parser messages;
-- внутренние dedupe/debug поля.
-
-Что оставляем на поверхности:
-
-- счет;
-- сумма;
-- дата;
-- категория;
-- объект;
-- статус решения;
-- понятное описание операции.
-
-## Следующий UX-этап
-
-Цель следующего этапа — сделать интерфейс не только компактным, но и финансово
-выразительным.
-
-План:
-
-1. Ввести CSS-компоненты:
-   - `money-value`;
-   - `money-card`;
-   - `kpi-strip`;
-   - `primary-action`;
-   - `secondary-actions`;
-   - `action-menu`;
-   - `danger-zone`;
-   - `technical-details`.
-2. Переделать dashboard под финансовые KPI:
-   - общий баланс;
-   - доходы месяца;
-   - расходы месяца;
-   - прибыль;
-   - строки, требующие проверки;
-   - главный путь: счет -> выписка -> проверка -> отчет.
-3. Переделать reports:
-   - крупные итоги сверху;
-   - категории отсортированы по расходам/вкладу;
-   - расходы визуально читаются быстрее доходов;
-   - таблицы на мобильном заменяются карточками там, где это полезнее.
-4. Переделать import review:
-   - сумма крупно и стабильно в одном месте;
-   - одно главное действие на строку;
-   - действия группируются по состоянию;
-   - `Перевод`, `Игнорировать`, `На проверку` уходят в `Еще`;
-   - debug и ID уходят в `Технические детали`.
-5. Переделать document detail:
-   - сверху финансовый итог документа;
-   - technical/debug блоки свернуты по умолчанию.
-6. Пройти Playwright audit и вручную посмотреть screenshots.
-7. Провести live-сценарий с человеком:
-   - “загрузи выписку”;
-   - “подтверди расходы”;
-   - “найди расходы за месяц”;
-   - записать места, где человек остановился или засомневался.
-
-## Плотность и использование пространства
-
-Booker Tee — рабочий финансовый инструмент, поэтому интерфейс должен быть
-компактным и сканируемым.
-
-Рекомендации:
+Prefer:
 
 ```text
-много повторяемых строк -> компактные карточки или таблица
-простая сущность -> inline-редактирование
-сложная сущность -> отдельная detail/edit страница
-метаданные -> маленькие badge/meta chips
-главное действие -> видимое, но не огромное
+repeated rows -> compact rows/cards or table
+simple entity -> compact form or inline edit
+complex entity -> detail/edit page
+metadata -> small chips/badges
+main action -> visible, not huge
 ```
 
-Избегаем:
+Avoid:
 
-- больших hero-блоков внутри рабочих разделов;
-- карточек внутри карточек;
-- длинных поясняющих текстов там, где достаточно понятной подписи поля;
-- таблиц, которые создают горизонтальный скролл без необходимости;
-- огромных форм, где каждое поле занимает целую строку;
-- декоративных пустот, которые прячут рабочие данные ниже первого экрана.
+- large hero blocks inside working sections;
+- cards inside cards;
+- long explanatory text where a clear label is enough;
+- unnecessary horizontal scroll;
+- huge forms where every field takes a full row;
+- decorative empty space that pushes useful data below the first screen;
+- mobile screens that feel like stacked nested boxes.
 
-Хороший экран должен отвечать:
+A good screen answers:
 
 ```text
-где я?
-что важно сейчас?
-что требует действия?
-какое следующее действие?
+where am I?
+what matters now?
+what requires action?
+what is the next step?
 ```
 
-## Пользовательские пути
+---
 
-Первый запуск:
+## 13. Empty States And Hints
+
+Empty states should explain the current absence of data and offer the next
+useful action.
+
+Guidance:
+
+- one page should not show multiple competing CTAs for the same action;
+- `next_step`, `inline_hint`, `notice`, `empty_state`, and `workflow_steps`
+  should have distinct roles;
+- do not show an empty-state CTA if the creation form is already visible;
+- `next_step` should appear only when it truly advances the current workflow.
+
+---
+
+## 14. Core User Paths
+
+First setup:
 
 ```text
-создать пользователя
--> создать пространство
--> создать счет
--> загрузить выписку
--> проверить транзакции
--> открыть отчет
+create user
+-> create/select workspace
+-> create account
+-> upload statement
+-> review transactions
+-> open report
 ```
 
-Ежедневная работа:
+Regular work:
 
 ```text
-выбрать пространство
--> загрузить выписку
--> применить правила
--> проверить строки
--> посмотреть отчет
+select workspace
+-> upload statement
+-> apply suggestions/rules
+-> review rows
+-> confirm operations
+-> inspect reports
 ```
 
-Настройка:
+Reference setup:
 
 ```text
-счета
--> категории
--> объекты
--> правила
+accounts
+-> categories
+-> properties
+-> rules
 ```
 
-## Очередность UI-рефакторинга
+---
 
-1. Переработать header/navigation: текущий пользователь, текущее пространство,
-   основная навигация, primary action.
-2. Сделать dashboard на `/`.
-3. Ввести общие CSS-компоненты: `badge`, `entity-card`, `action-bar`,
-   `form-grid`.
-4. Привести `users`, `workspaces`, `accounts`, `rules`, `manual operations`,
-   `import review` к общей композиции.
-5. Улучшить пустые состояния с понятными next actions.
-6. Проверить широкие и узкие экраны, чтобы не было горизонтального скролла там,
-   где он не нужен.
+## 15. Refactor Priority
 
-## UI audit
+Current priority is not a visual redesign for its own sake.
 
-Для браузерной проверки используем Playwright:
+Refactor in this order:
+
+1. Import review item and action system via ViewModel/Presenter.
+2. Account detail financial rows.
+3. Manual operations.
+4. Shared CRUD/reference screens: categories, properties, users, workspaces,
+   rules.
+5. Reports and financial summaries.
+6. Mapping and unknown statement flows.
+
+Use shared components where concepts are stable:
+
+```text
+badge
+money-value
+entity-card
+form-panel
+action-menu
+technical-details
+empty-state
+```
+
+---
+
+## 16. UI Audit
+
+For browser checks, use Playwright audit scripts:
 
 ```bash
-uv run playwright install chromium
 uv run python scripts/ui_audit.py
 uv run python scripts/ui_audit.py --authenticated
 uv run python scripts/ui_audit.py --scenario realistic
 uv run python scripts/ui_audit.py --scenario review_interactions
-```
-
-Скрипт сам поднимает `uvicorn`, открывает ключевые страницы на desktop и
-mobile, сохраняет скриншоты и отчет в `/tmp/booker-ui-audit`.
-Авторизованный сценарий создает временного пользователя через UI и сохраняет
-отдельный отчет в `/tmp/booker-ui-audit-auth`.
-Сценарий `realistic` создает счет, загружает тестовую XLSX-выписку через UI,
-проверяет dashboard с данными и сохраняет отчет в
-`/tmp/booker-ui-audit-realistic`.
-Сценарий `review_interactions` дополнительно настраивает колонки, импортирует
-строки в review, открывает accordion категории, проверяет модалку новой
-категории, создает категорию и подтверждает строку через HTMX.
-
-Можно проверить уже запущенное приложение:
-
-```bash
-uv run python scripts/ui_audit.py --base-url http://127.0.0.1:8000
-uv run python scripts/ui_audit.py --base-url http://127.0.0.1:8000 --scenario realistic
-uv run python scripts/ui_audit.py --base-url http://127.0.0.1:8000 --scenario review_interactions
-```
-
-Минимальные критерии:
-
-- страница открывается без HTTP 500/404;
-- нет ошибок консоли и page errors;
-- нет failed requests;
-- нет горизонтального переполнения viewport;
-- сценарные UX assertions не находят stale CSS, сломанную сетку onboarding или
-  пропавшие seeded данные;
-- review interaction assertions не находят сломанную модалку категории,
-  закрытый accordion после создания категории, скачок строки после HTMX-действия
-  или stale progress copy;
-- скриншоты читаемы на desktop и mobile.
-
-## UX/UI audit backlog
-
-Последний полный аудит показал: интерфейс уже надежный, консистентный и
-финансово аккуратный, но местами слишком тяжелый и админский. Следующий этап
-должен не добавлять еще больше подсказок, а снижать визуальный шум, улучшать
-mobile-first рабочий режим и прятать технические детали там, где они не помогают
-принять финансовое решение.
-
-Дополнительный аудит дублей показал отдельную проблему: приложение часто
-показывает одно и то же действие несколькими равноправными способами. На одной
-странице могут одновременно быть global primary action, page action,
-`next_step`, empty state CTA, action в карточке и action внутри строки. Это
-создает ощущение тяжелого интерфейса даже там, где сценарий технически работает
-правильно.
-
-Главное правило следующего UI-этапа:
-
-```text
-одна страница -> один главный следующий шаг
-```
-
-Остальные действия должны быть вторичными, контекстными или спрятанными в
-`details`/`Еще`.
-
-### Designer audit rubric
-
-Цель отдельного designer audit — ловить не только техническую работоспособность,
-но и ощущение современного функционального продукта. Страница не должна
-выглядеть как WEB 1.0-админка из набора одинаковых рамок и кнопок.
-
-Проверяемые признаки:
-
-- один явный главный action в рабочем блоке;
-- технические детали выглядят как тихая отладочная ссылка, а не как
-  равноправная кнопка;
-- бейджи одной системы имеют одинаковую высоту и не прыгают строками;
-- карточка не превращается в набор bordered controls;
-- debug JSON, сырые таблицы и внутренние ID не видны по умолчанию;
-- верх страницы дает рабочий контекст и следующий шаг, а не панель
-  административных команд;
-- mobile экран не выглядит как стопка вложенных коробок;
-- destructive actions отделены и не конкурируют с обычными действиями.
-
-Запуск:
-
-```bash
 uv run python scripts/ui_audit.py --scenario design_audit
 ```
 
-Этот сценарий может падать с findings. Это нормально: он работает как
-автоматический дизайн-ревьюер, а не как smoke test для CI.
+Use `--base-url` when the app is already running:
 
-Покрытие сценария включает статичные рабочие страницы, созданную в сценарии
-детальную страницу счета `/accounts/{account_id}` и review-страницу загруженной
-выписки.
+```bash
+uv run python scripts/ui_audit.py --base-url http://127.0.0.1:8000 --scenario realistic
+```
 
-### Focused audit — дубли и подсказки
+Minimum checks:
 
-- [ ] Унифицировать систему подсказок: `next_step`, `inline_hint`, `notice`,
-  `empty_state` и `workflow_steps` должны иметь разные роли, а не конкурировать
-  за внимание.
-- [ ] Ввести правило: `next_step` может быть только один на странице и только
-  когда он реально ведет пользователя дальше по текущему сценарию.
-- [ ] Не показывать empty state CTA, если форма создания уже видна на этом же
-  экране. В таком случае empty state должен объяснять отсутствие данных, а не
-  дублировать кнопку.
-- [ ] Убрать дубли CTA на страницах импорта: global `Загрузить`, page
-  `Загрузить PDF/XLSX`, `Загрузить еще`, карточка документа и `Следующий шаг`
-  не должны одновременно быть главными действиями.
-- [ ] Упростить верх import review: workflow, next step, документ, validation и
-  actions должны помогать проверять строки, а не отодвигать строки слишком
-  далеко вниз.
-- [ ] Сократить повторяющиеся actions в списке категорий. Для каждой категории
-  оставить одно основное действие, а `операции`, `отчет`, `в архив`, ID и
-  редактирование увести во вторичный слой.
-- [ ] Привести copy к одному словарю: `Загрузить выписку`, `Проверить строки`,
-  `Применить правила`, `Открыть отчеты`. Не смешивать `PDF`, `PDF/XLSX`,
-  `загрузка`, `импорт`, `проверка` как равнозначные CTA.
-- [ ] На мобильных экранах снизить эффект "коробка в коробке": меньше вложенных
-  рамок, меньше повторяющихся кнопок, больше сканируемых финансовых строк.
+- no HTTP 500/404 on key pages;
+- no console/page errors;
+- no failed requests;
+- no unintended horizontal overflow;
+- desktop and mobile screenshots are readable;
+- critical HTMX interactions work;
+- design audit does not reveal button noise, visible debug data, broken badges,
+  or nested-box overload on core screens.
 
-### P0 — рабочая компактность и ясность
+`design_audit` may fail with findings. Treat it as a design reviewer, not only a
+CI smoke test.
 
-- [x] Сделать компактный mobile header: бренд, текущее пространство, primary
-  action и menu toggle вместо полной навигационной простыни на каждом экране.
-- [x] Уменьшить hero-scale `h1` на внутренних рабочих страницах: dashboard,
-  import review, accounts, reports, rules, categories, workspaces.
-- [x] Спрятать технические ID, storage keys, timezone timestamps и hash values в
-  `details`/`Технические детали`, оставив их доступными для отладки.
-- [x] Исправить copy импорта: не писать только `PDF`, если поддерживаются
-  `PDF/XLSX`.
-- [x] Привести все page-level CTA к правилу `один главный следующий шаг`, чтобы
-  toolbar, empty state и карточки не повторяли друг друга.
-- [x] Улучшить empty state отчетов: если есть документы/строки на проверке,
-  явно вести пользователя в review и объяснять, что неподтвержденные строки не
-  входят в доходы, расходы и прибыль.
+---
 
-### P1 — самые тяжелые рабочие экраны
+## 17. Progress Snapshot
 
-- [x] Переработать страницу категорий: список стал сканируемым, действия
-  редактирования/архива перенесены на detail, карточки больше не создают
-  кнопочный шум в `design_audit`.
-- [x] Упростить import review: добавлены sticky queue summary, подсветка
-  следующей строки, workflow и контрольные итоги убраны во вторичный слой.
-- [x] Довести карточку import review до более плотного рабочего режима:
-  компактнее мета строки, меньше вложенных рамок внутри действий, яснее
-  различать `Категория` и `Другие действия`.
-- [x] Сделать кастомный file input для загрузки выписки, чтобы убрать нативный
-  `Choose File / No file chosen` и сохранить русский интерфейс.
-- [x] Для правил транзакций ввести progressive disclosure: сначала самые важные
-  поля, редкие ограничения суммы/объекта/режима — во вторичный блок.
-- [x] В ручных операциях заменить общий select `тип` на сегментированный выбор
-  `доход / расход / перевод`, чтобы пользователь сразу понимал финансовый
-  эффект.
+Already achieved:
 
-### P2 — качество восприятия и polish
+- app shell with user/workspace context and primary action;
+- dashboard shell;
+- baseline shared `badge`, `entity-card`, `form-panel`, empty states;
+- common visual language applied to accounts, rules, manual operations, imports,
+  categories, properties, users, and workspaces;
+- import review made denser and more review-focused without changing business
+  logic;
+- technical/debug details hidden more consistently;
+- Playwright `ui_audit`, `button_audit`, and `design_audit` added;
+- current design audit findings for categories and mobile import review cleaned
+  up.
 
-- [x] Добавить объектам короткое объяснение через примеры: квартира, проект,
-  аренда, семейная цель.
-- [x] Упростить публичный режим до входа: меньше внутренней навигации, больше
-  фокуса на вход/регистрацию и первый setup.
-- [x] На dashboard сделать `требует проверки` более кликабельным и заметным
-  рабочим переходом.
-- [x] Для длинных названий счетов, документов и workspace добавить аккуратные
-  short labels с полным текстом в title/details.
-- [x] Для страниц профиля и пространств отделить обычные пользовательские
-  действия от админского редактирования.
+Still active:
 
-### Audit follow-up
+- ReviewItemVM-based import review refactor.
+- Stronger shared action policy and component partials.
+- Better financial rows for account detail/manual operations/reports.
+- Style evolution toward modern financial workbench with restrained rebellious
+  creativity.
 
-- [x] Разобрать текущие findings `design_audit`: mobile import review
-  перегружен action controls.
-- [ ] Добавить Playwright scenario для длинных списков категорий с поиском и
-  фильтрами после их реализации.
-- [ ] Добавить Playwright scenario для reports после подтверждения всех строк
-  импорта, чтобы проверять непустой отчет.
-- [ ] Оптимизировать `button_audit` под CI: исключить повторную проверку
-  глобальной навигации на каждой странице и оставить отдельный полный прогон
-  для ручного UX-аудита.
-- [ ] Расширить `design_audit` визуальными метриками для spacing, contrast и
-  плотности вложенных рамок после переработки P1-экранов.
-- [ ] Добавить cleanup/test workspace strategy для сценарных UI-аудитов на
-  живом dev-сервере.
+---
 
-## Progress
+## 18. Not Doing Now
 
-- [x] Header/navigation: контекст пользователя и пространства, primary action,
-  отдельная основная навигация.
-- [x] Dashboard shell на `/`: быстрые пользовательские пути и HTMX-сводка.
-- [x] Базовые CSS-компоненты для `badge`, dashboard cards, entity rows и empty
-  states.
-- [x] Общий визуальный язык применен к accounts, rules и manual operations.
-- [x] Import review приведен к общим badge/status и пустым состояниям без смены
-  бизнес-сценариев проверки.
-- [x] Базовые CSS-компоненты для `form-panel` и `entity-card`.
-- [x] Привести `users` и `workspaces` к общей карточной композиции.
-- [x] Начать унификацию `accounts`: общий `form-panel` и `badge` для статусов.
-- [x] Привести `rules` к общей композиции `form-panel/entity-card/badge`.
-- [x] Привести `manual operations` к общей композиции.
-- [x] Привести страницу `import review`
-  к общей композиции.
-- [x] Привести страницы `imports`, `categories` и `properties` к плотной
-  карточной/форменной композиции.
-- [x] Последовательно заменить разрозненные status/type элементы на общий
-  `badge` язык.
-- [x] Добавить Playwright UI audit для desktop/mobile smoke-проверки.
-- [x] Добавить Playwright `button_audit` для безопасной проверки ссылок,
-  `details`/аккордеонов, модалок и `type=button` на desktop/mobile.
-- [x] Добавить Playwright `design_audit` как автоматический дизайнерский
-  ревьюер для кнопочного шума, технических деталей, бейджей и debug-блоков.
-- [x] Убрать текущие `design_audit` findings на `/categories` и mobile import
-  review.
-- [x] Проверить UI в браузере на desktop/mobile и убрать оставшиеся проблемы
-  скролла/переполнений.
-
-## Что не делаем сейчас
-
-- Маркетинговую landing page.
-- Сложный onboarding wizard.
-- Полноценный RBAC UI.
-- Декоративные иллюстрации вместо рабочих финансовых экранов.
-- Смену дизайн-направления: сохраняем темный techno-neobrutalist стиль.
+- Marketing landing page.
+- Complex onboarding wizard.
+- Full RBAC UI redesign.
+- Decorative illustrations instead of working financial screens.
+- Full visual redesign page by page.
+- New frontend framework.
+- Style changes that bypass shared components and CSS tokens.

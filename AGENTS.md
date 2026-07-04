@@ -1,54 +1,87 @@
-# AGENTS.md — Booker Tee
+# AGENTS.md - Booker Tee
 
 Project instructions for Codex and other coding agents.
 
 Official references:
+
 - Codex AGENTS.md: https://developers.openai.com/codex/guides/agents-md
 - uv: https://docs.astral.sh/uv/
 - Ruff: https://docs.astral.sh/ruff/
 - ty: https://docs.astral.sh/ty/
 
-## 1. Product focus
+---
 
-Booker Tee is a private financial assistant focused first on reliable financial data import.
+## 1. Product Focus
 
-Current MVP focus:
+Booker Tee is a private financial assistant focused on reliable financial data
+import, review, and ledger correctness.
+
+The original parser-first MVP has been completed and exceeded. The current
+product challenge is to keep the financial core trustworthy while improving
+maintainability, SSR/UI consistency, and user workflows.
+
+Core flow:
 
 ```text
-PDF bank statement -> raw extracted data -> normalized transactions -> validation -> review -> confirmed accounting
+PDF/XLSX/manual entry
+  -> raw extracted data
+  -> normalized draft rows
+  -> validation and deduplication
+  -> user review
+  -> confirmed Operation + MoneyEntry
+  -> balances and reports
 ```
 
-Do not turn the MVP into a broad AI/asset-management platform too early. The first valuable product is a trustworthy importer and review flow for bank statements, manual cash movements, accounts, categories, and property-linked income/expenses.
+Do not turn Booker Tee into a broad AI, asset-management, CRM, ERP, or SaaS
+billing platform unless explicitly requested.
 
-## 2. Core product principles
+---
+
+## 2. Non-Negotiable Principles
 
 1. Reliability over magic.
-2. Financial correctness over UI polish.
+2. Financial correctness over decorative polish.
 3. User review over silent automation.
 4. Raw imported data must never be lost.
-5. Internal transfers must never be counted as income or expense.
+5. Internal transfers must never be counted as income, expense, profit, or
+   property ROI.
 6. Workspaces are strict data boundaries.
-7. Private financial data must not be sent to external AI/API services unless explicitly requested.
+7. Private financial data must not be sent to external AI/API services unless
+   explicitly requested.
+8. Parsers must not create confirmed ledger records directly.
+9. Duplicate imports must not double-count money.
+10. Confirmed financial records should be corrected carefully, not casually
+    hard-deleted.
 
-## 3. Tech stack
+---
 
-Use this stack unless the repository already contains a conflicting decision:
+## 3. Tech Stack
+
+Use the repository's current stack unless a task explicitly changes it:
 
 - Python 3.12+
 - FastAPI
-- SQLAlchemy 2.0, async style
+- SQLAlchemy 2.0 async style
 - Alembic
 - Pydantic v2
 - PostgreSQL
-- Jinja2 templates for SSR
+- Jinja2 for SSR
 - HTMX for server-driven interactivity
-- Alpine.js for small client-side interactions
-- Tailwind CSS for styling
-- pdfplumber for PDF table extraction
-- Celery/Redis only when background processing is explicitly needed
-- pgvector / local LLM / RAG only in later phases, not in the first MVP unless explicitly requested
+- Alpine.js for small local UI state
+- Tailwind/project CSS
+- pdfplumber and file extractors for statement import
+- uv
+- Ruff
+- ty
+- pytest
 
-## 4. Package management and quality tools
+Do not introduce a new frontend framework, background queue, AI stack, storage
+backend, or large infrastructure dependency without a strong reason and user
+approval.
+
+---
+
+## 4. Package Management And Checks
 
 Use Astral tooling.
 
@@ -61,143 +94,156 @@ uv add --dev <package>
 uv run <command>
 ```
 
-Do not use plain `pip install`, Poetry, Pipenv, or ad-hoc virtualenv commands unless the user explicitly asks.
+Do not use plain `pip install`, Poetry, Pipenv, or ad-hoc virtualenv commands
+unless explicitly requested.
 
-Linting and formatting:
+Quality commands:
 
 ```bash
 uv run ruff format .
 uv run ruff check .
-```
-
-Type checking:
-
-```bash
 uv run ty check .
-```
-
-Tests:
-
-```bash
 uv run pytest
 ```
 
-Before finishing a coding task, run the relevant checks. If a command cannot be run because dependencies or infrastructure are missing, explain that clearly in the final response.
+Before finishing a coding task, run the relevant checks. If dependencies,
+database, browser tooling, or infrastructure prevent a check from running, say
+that clearly in the final response.
 
-## 5. Repository approach
+---
 
-Before changing code:
+## 5. Documentation Reading Order
 
-1. Inspect the existing project structure.
-2. Read relevant markdown files, especially:
-   - `docs/product/PROJECT_VISION.md`
-   - `docs/domain/DOMAIN_MODEL.md`
-   - `docs/architecture/ARCHITECTURE.md`
-   - `docs/product/MVP.md`
-   - `docs/product/ROADMAP.md`
-   - this `AGENTS.md`
-3. Respect existing decisions unless the task asks to change them.
-4. Keep changes small and focused.
-5. Do not rewrite unrelated files.
-6. Do not introduce new frameworks without a strong reason.
+Do not read every document for every task. Start with:
 
-When adding a feature, prefer one complete vertical slice over scattered partial code.
+1. This `AGENTS.md`.
+2. [`docs/README.md`](docs/README.md).
+3. One or two task-specific documents.
+4. Relevant code.
 
-## 6. Architecture style
+Task-specific documents:
 
-Use feature-driven vertical slices with clear layers inside each feature:
+- Product/scope decisions:
+  [`docs/product/PROJECT_VISION.md`](docs/product/PROJECT_VISION.md) and
+  [`docs/product/ROADMAP.md`](docs/product/ROADMAP.md).
+- Financial/domain/model/report changes:
+  [`docs/domain/DOMAIN_MODEL.md`](docs/domain/DOMAIN_MODEL.md).
+- Code structure/layers/module boundaries:
+  [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md).
+- UI/SSR/templates/CSS/actions:
+  [`docs/design/DESIGN.md`](docs/design/DESIGN.md).
+- Current import review refactor:
+  [`docs/design/REFACTOR_PROJECT_DESIGN.md`](docs/design/REFACTOR_PROJECT_DESIGN.md).
+- Historical parser-first MVP guardrails:
+  [`docs/product/MVP.md`](docs/product/MVP.md).
+
+Respect existing decisions unless the task asks to change them.
+
+---
+
+## 6. Architecture Rules
+
+Use progressive feature architecture.
+
+Simple features may stay simple:
 
 ```text
-Router -> Service -> Repository -> Model
+feature/
+  models.py
+  repository.py
+  service.py
+  router.py
 ```
 
-Recommended initial layout:
+Complex features may grow internal layers:
 
 ```text
-src/app/
-  main.py
-  core/
-    config.py
-    security.py
-  db/
-    base.py
-    session.py
-  features/
-    workspaces/
-      models.py
-      schemas.py
-      repository.py
-      service.py
-      router.py
-    accounts/
-      models.py
-      schemas.py
-      repository.py
-      service.py
-      router.py
-    operations/
-      models.py
-      schemas.py
-      repository.py
-      service.py
-      router.py
-    categories/
-      models.py
-      schemas.py
-      repository.py
-      service.py
-      router.py
-    documents/
-      models.py
-      schemas.py
-      repository.py
-      service.py
-      router.py
-    imports/
-      parsers/
-      models.py
-      schemas.py
-      repository.py
-      service.py
-      router.py
-  templates/
-  static/
-tests/
+feature/
+  routes/
+  application/
+  domain/
+  presentation/
+  mapping/
+  infrastructure/
 ```
 
-Layer rules:
+Layer responsibilities:
 
-- Routers handle HTTP, request parsing, response rendering, and dependency injection.
-- Services contain business rules and use cases.
-- Repositories contain database queries.
+- Routers handle HTTP, dependencies, forms, redirects, template responses, and
+  HTMX responses.
+- Application/use-case code owns workflows, orchestration, and transactions.
+- Domain code owns pure policies, calculations, validators, and status
+  resolvers.
+- Presenters/ViewModels prepare UI data for Jinja and must not mutate financial
+  data.
+- Repositories contain database queries only.
 - Models define persistence only.
-- Schemas define external input/output contracts.
-- Templates must not contain business logic.
-- Every database schema change must include an Alembic migration.
+- Infrastructure adapters handle files, extraction, external services, and
+  provider clients.
+- Templates render prepared data and must not contain business rules.
 
-## 7. Workspace-first rule
-
-Booker Tee must be multi-workspace by design.
-
-A `User` is a person. A `Workspace` is a financial context such as personal budget, family, business, property management, or project.
-
-Almost every business entity must belong to a workspace:
+Default flow:
 
 ```text
-accounts.workspace_id
-categories.workspace_id
-operations.workspace_id
-money_entries.workspace_id or operation.workspace_id
-properties.workspace_id
-uploaded_documents.workspace_id
-parse_attempts.workspace_id
-raw_transactions.workspace_id
-transaction_rules.workspace_id
+Router -> Service / Application Use Case -> Repository -> Model
+Router -> Service / Use Case -> Presenter / ViewModel -> Jinja partial
 ```
 
-Use `created_by_user_id`, `updated_by_user_id`, or audit fields to record who performed an action. Do not use `user_id` as the main ownership boundary for financial data.
+Keep files readable. If one file starts telling several stories, split by reason
+to change: `routes/`, `application/`, `domain/`, `presentation/`, `mapping/`, or
+`infrastructure/`.
 
-Every query for workspace-owned data must filter by `workspace_id`.
+---
+
+## 7. Code Readability Rules
+
+Prefer explicit imports and visible dependencies.
+
+Good:
+
+```python
+from app.features.ledger.application.manual_operations import ManualOperationService
+```
+
+Avoid:
+
+```python
+from app.features.ledger.application import *
+```
+
+Avoid dynamic import magic and implicit registration through import side effects
+unless documented and genuinely needed.
+
+Prefer actor-oriented workflow APIs:
+
+```text
+ManualOperationService.create_expense(...)
+LedgerPostingService.post_transfer(...)
+ImportReviewPresenter.build_item(...)
+TransactionRuleMatcher.match(...)
+DuplicateDetector.mark_duplicate_candidates(...)
+```
+
+Free functions are fine for small pure helpers, predicates, formatting,
+normalization, and simple calculations. Business actions, workflows, external
+operations, and state transitions should usually live on a named service,
+policy, presenter, matcher, resolver, factory, or adapter.
+
+Reuse existing policies, presenters, formatters, option builders, parsers, and
+partials when they express the same concept. Avoid duplication for money
+formatting, review state, action policy, transfer preview, workspace checks,
+dedupe, and status transitions.
+
+Do not create generic abstractions before repeated stable use exists.
+
+---
+
+## 8. Workspace-First Rule
+
+A `Workspace` is the main ownership boundary for financial data.
+
+Every query for workspace-owned data must filter by `workspace_id` or a strictly
+validated workspace-owned parent.
 
 Bad:
 
@@ -214,308 +260,137 @@ select(Operation).where(
 )
 ```
 
-## 8. Financial domain model
+Never trust `workspace_id` from a form without checking membership. Chat and
+integration actions must obey the same workspace rules as web routes.
 
-Use these concepts:
+---
 
-```text
-Account       = where money is stored
-Operation     = business meaning of a money event
-MoneyEntry    = actual movement on one account
-Category      = why money appeared/disappeared
-Property      = optional object/property linked to the operation
-RawTransaction = imported bank row before confirmation
-```
+## 9. Financial Domain Rules
 
-Prefer this accounting shape:
+Use this accounting shape:
 
 ```text
 Operation 1 -> N MoneyEntry
 ```
 
-Examples:
-
-Income from rent paid in cash:
+Concepts:
 
 ```text
-Operation:
-  type = income
-  affects_profit = true
-  category = Rent
-  property = 9 Maya 20
-
-MoneyEntry:
-  account = Cash/Safe
-  amount = +40000
+Account         = where money is stored
+Operation       = business meaning of a money event
+MoneyEntry      = signed movement on one account
+Category        = why money appeared/disappeared
+Property        = optional property/object link
+RawTransaction  = imported row before confirmation
 ```
 
-Cash deposited to card:
+Rules:
 
-```text
-Operation:
-  type = transfer
-  affects_profit = false
-
-MoneyEntry:
-  account = Cash/Safe
-  amount = -40000
-
-MoneyEntry:
-  account = Bank Card
-  amount = +40000
-```
-
-Card transferred to deposit:
-
-```text
-Operation:
-  type = transfer
-  affects_profit = false
-
-MoneyEntry:
-  account = Bank Card
-  amount = -40000
-
-MoneyEntry:
-  account = Deposit
-  amount = +40000
-```
-
-Critical rule:
-
-```text
-Income/expense changes financial result.
-Transfer changes only the location of money.
-```
-
-Never count internal transfers as income, expense, profit, or property ROI.
-
-## 9. Money and precision
-
-- Use `Decimal` in Python.
-- Use PostgreSQL `Numeric(12, 2)` or stricter precision for money.
+- Income/expense changes financial result.
+- Transfer changes only the location of money.
+- Transfer operations must have `affects_profit=false`.
+- Draft/review/ignored/duplicate operations do not affect official balances.
+- Balances are derived from confirmed `MoneyEntry` records.
+- Use `Decimal` in Python and `Numeric` in PostgreSQL.
 - Never use `float` for money.
 - Store currency explicitly.
-- Store `operation_date`.
-- Store `posting_date` / `processed_at` when imported from banks and available.
+- Tenant security deposits are not income until retained.
 
-## 10. Operation statuses
+---
 
-Imported or manually created operations should support review states:
+## 10. Import And Review Rules
 
-```text
-draft
-needs_review
-confirmed
-ignored
-duplicate
-```
-
-Do not silently publish questionable imported data into confirmed accounting.
-
-## 11. PDF import pipeline
-
-PDF import must be robust and reviewable.
-
-Use this pipeline:
+Import must be robust and reviewable:
 
 ```text
 uploaded_documents
   -> parse_attempts
   -> raw_transactions
-  -> normalized draft operations/money_entries
-  -> validation
+  -> validation / deduplication / suggestions
   -> review
-  -> confirmed operations/money_entries
+  -> confirmed operations + money entries
 ```
 
 Rules:
 
-1. Store the uploaded document metadata and file reference first.
-2. Extract raw text/tables and keep them for debugging.
-3. Save each parser run as a `parse_attempt`.
-4. Save extracted rows as `raw_transactions`.
-5. Do not create confirmed operations directly from a PDF parser.
-6. If parsing fails, set the document/attempt status to `failed_to_parse` and preserve raw data.
-7. If validation is uncertain, set status to `requires_review` / `needs_review`.
-8. Add idempotency/deduplication so the same statement can be uploaded twice safely.
+1. Store document metadata and file reference before parsing.
+2. Preserve extracted raw text/tables/payloads where available.
+3. Save every parser run as a `ParseAttempt`.
+4. Save extracted rows as `RawTransaction`.
+5. Parser code never creates confirmed operations directly.
+6. Failed parsing preserves document and safe error details.
+7. Uncertain validation requires review.
+8. Dedupe/idempotency prevents repeated imports from double-counting money.
+9. Transaction rules may suggest/prefill, but must not bypass financial
+   invariants.
+10. `ready_to_confirm` is a presentation state, not a backend status.
 
-## 12. Parser design
+---
 
-Use parser classes per bank and statement type.
+## 11. SSR/UI Rules
 
-Recommended shape:
+Use server-side rendering with Jinja2 and HTMX.
 
-```text
-BaseStatementParser
-TBankCardStatementParser
-TBankDepositStatementParser
-SberCardStatementParser
-AlfaCardStatementParser
-```
-
-Use a parser factory to detect the correct parser by document markers.
-
-Prefer configuration over hardcoded column positions:
+Current visual direction:
 
 ```text
-parsers/configs/tbank_card.yaml
-parsers/configs/tbank_deposit.yaml
+modern financial workbench
+dark-first
+calm
+dense
+precise
+trustworthy
+with restrained rebellious creativity
 ```
 
-Parser configs may define:
+Templates should render prepared data. They should not compute financial state,
+review state, duplicate policy, transfer direction, action policy, or
+confirmation readiness.
 
-```yaml
-bank_name: "T-Bank"
-statement_type: "card"
-markers:
-  - "T-BANK"
-header_keywords:
-  - "Дата операции"
-  - "Сумма"
-  - "Описание"
-mapping:
-  operation_date_col: 0
-  description_col: 1
-  amount_col: 3
-date_format: "%d.%m.%Y"
-```
-
-Use `pdfplumber` table extraction first. Avoid OCR unless there is no other option.
-
-## 13. Statement validation
-
-When the bank statement contains control totals, parse and verify them:
+For complex screens use:
 
 ```text
-opening_balance
-income_total
-expense_total
-closing_balance
+Router -> Service / Use Case -> Presenter / ViewModel -> Jinja partial
 ```
 
-Expected formula:
+For the current import review refactor, follow
+[`docs/design/REFACTOR_PROJECT_DESIGN.md`](docs/design/REFACTOR_PROJECT_DESIGN.md).
 
-```text
-opening_balance + income_total - expense_total = closing_balance
-```
+---
 
-If the formula does not match, do not confirm imported operations automatically. Mark the import as requiring review.
-
-## 14. Deduplication
-
-Bank imports must be idempotent.
-
-Use a deterministic deduplication hash where possible:
-
-```text
-workspace_id
-account_id
-operation_date
-posting_date if available
-amount
-currency
-normalized_description
-balance_after if available
-source_document_id or statement period when useful
-```
-
-If confidence is high, mark as duplicate automatically. If confidence is medium, mark as possible duplicate and ask for review.
-
-## 15. Categories and rules
-
-Categories are workspace-specific.
-
-Support system categories that cannot be deleted casually:
-
-```text
-Transfer
-Adjustment
-Refund
-Duplicate
-Ignore / Do not count
-Uncategorized
-```
-
-Transaction rules are also workspace-specific. A rule may match normalized description, counterparty, amount pattern, account, or recurrence and then suggest:
-
-```text
-category_id
-property_id
-auto_description
-operation_type
-```
-
-Rules should suggest or prefill. For risky cases, keep user review.
-
-## 16. Property management MVP
-
-For the MVP, keep property management small.
-
-Required early model:
-
-```text
-Property
-- id
-- workspace_id
-- name
-- short_name
-- address optional
-- status optional
-```
-
-Transactions/operations may be linked to a property with `property_id`.
-
-Do not implement meters, vacancy rate, tenants, lease documents, deposits, and complex ROI unless the task explicitly asks.
-
-Important tenant deposit rule:
-
-```text
-Tenant security deposits are not income until retained.
-```
-
-## 17. Security and privacy
+## 12. Security And Privacy
 
 This project handles sensitive financial data.
 
-- Never commit real bank statements, passports, contracts, `.env` files, tokens, passwords, or secrets.
+- Never commit real bank statements, passports, contracts, `.env` files, tokens,
+  passwords, or secrets.
 - Use sanitized fixtures for tests.
-- Do not log full PDF text, full card numbers, account numbers, personal names, or sensitive descriptions.
-- Mask sensitive values in logs and error messages.
-- Prefer local processing for PDFs.
-- Do not send user financial data to external AI services unless explicitly requested.
+- Do not log full PDF text, full extracted tables, full card numbers, account
+  numbers, tokens, passwords, or secrets.
+- Mask sensitive values in logs and errors.
+- Prefer local processing for financial documents.
+- External AI/API processing requires explicit user/product decision.
 - Add authorization checks before data access.
 
-## 18. UI rules
+---
 
-Use a dark techno-neobrutalist style with Catppuccin Mocha-inspired colors.
-
-Design rules:
-
-- No rounded corners: `border-radius: 0`.
-- Prefer clear borders over soft shadows.
-- Mobile-first layout.
-- Touch targets at least 44x44px.
-- Use monospaced font for amounts, dates, IDs, statuses, and financial tables.
-- Use sans-serif font for normal text.
-- Keep financial tables readable before making them decorative.
-
-## 19. Testing expectations
-
-Add tests for business-critical behavior.
+## 13. Testing Expectations
 
 Prioritize tests for:
 
-- Internal transfer does not affect profit.
-- Income/expense affects profit correctly.
-- Workspace isolation: users cannot access other workspace data.
-- PDF parser preserves raw rows.
-- Failed parser attempts do not delete uploaded documents.
-- Control-total mismatch creates `needs_review` / `requires_review`.
-- Deduplication detects repeated imports.
-- Category rules apply only inside the current workspace.
+- internal transfer does not affect profit;
+- income/expense affects profit correctly;
+- workspace isolation;
+- parser/raw row preservation;
+- failed parser attempts preserve uploaded documents;
+- control-total mismatch creates review state;
+- dedupe detects repeated imports;
+- category/rule behavior stays workspace-scoped;
+- ViewModel/action policy behavior for complex SSR screens.
 
-## 20. Database and migrations
+---
+
+## 14. Database And Migrations
 
 - Use Alembic for every schema change.
 - Keep migrations deterministic.
@@ -524,44 +399,34 @@ Prioritize tests for:
 - Add foreign keys for ownership and integrity.
 - Prefer explicit enum values and stable names.
 
-Recommended indexes:
+---
 
-```text
-(workspace_id, operation_date)
-(workspace_id, account_id)
-(workspace_id, category_id)
-(workspace_id, property_id)
-(workspace_id, status)
-(workspace_id, dedupe_hash)
-```
+## 15. Avoid Unless Requested
 
-## 21. What not to build yet
+Do not introduce these unless explicitly requested and scoped:
 
-Do not implement these unless explicitly requested:
+- new frontend framework or SPA rewrite;
+- external AI/RAG/Text-to-SQL;
+- external document processing services;
+- full property CRM;
+- tenant/lease/meter/vacancy workflows;
+- complex RBAC redesign;
+- SaaS billing;
+- broad product expansion unrelated to import/review/ledger clarity.
 
-- RAG
-- Text-to-SQL
-- local LLM assistant
-- Telegram bot
-- IMAP ingestion
-- complex RBAC UI
-- full property management
-- tenant management
-- utility meters
-- vacancy metrics
-- complex dashboards
-- paid SaaS billing
+Chat integrations already exist. Treat them as integration features with strict
+workspace boundaries; do not expand them into a second app or parallel ledger.
 
-Keep the MVP narrow.
+---
 
-## 22. Final response format for coding tasks
+## 16. Final Response Format For Coding Tasks
 
-When finishing a task, report:
+When finishing a coding task, report:
 
 1. What changed.
 2. Files changed.
 3. Commands run.
 4. Test/lint/type-check result.
-5. Any known limitations or follow-up needed.
+5. Known limitations or follow-up needed.
 
 Do not claim checks passed if they were not run.
