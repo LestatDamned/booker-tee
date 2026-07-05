@@ -266,7 +266,7 @@ Good:
 
 ```python
 from app.features.ledger.application.manual_operations import ManualOperationService
-from app.features.imports.presentation.review import ImportReviewPresenter
+from app.features.imports.presentation.review.item import ImportReviewPresenter
 ```
 
 Avoid:

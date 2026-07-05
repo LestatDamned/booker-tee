@@ -1,0 +1,69 @@
+{% set payload = panel.payload %}
+
+<div class="review-panel-body review-transfer-panel-body">
+  <form
+    class="review-panel-form transfer-form review-transfer-form"
+    method="post"
+    action="{{ payload.action_url }}"
+    x-data="{ selectedAccount: '', transferMatch: 'new' }"
+  >
+    {{ csrf_input() }}
+    <input type="hidden" name="action" value="transfer">
+    <input
+      type="hidden"
+      name="matched_raw_transaction_id"
+      :value="transferMatch.startsWith('raw:') ? transferMatch.slice(4) : ''"
+    >
+    <input
+      type="hidden"
+      name="matched_operation_id"
+      :value="transferMatch.startsWith('operation:') ? transferMatch.slice(10) : ''"
+    >
+    <div class="review-panel-grid review-transfer-grid">
+      <label class="field">
+        <span>Счет перевода</span>
+        <select
+          name="counterparty_account_id"
+          aria-label="Счет перевода"
+          x-model="selectedAccount"
+          @change="transferMatch = 'new'"
+        >
+          <option value="">выбери счет</option>
+          {% for option in payload.account_options %}
+            <option value="{{ option.id }}">{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field review-transfer-match-field">
+        <span>Связать с</span>
+        <select
+          aria-label="Связать перевод"
+          x-model="transferMatch"
+        >
+          {% for option in payload.match_options %}
+            <option
+              value="{{ option.value }}"
+              data-account-id="{{ option.account_id or '' }}"
+              x-show="!selectedAccount || !'{{ option.account_id or '' }}' || selectedAccount === '{{ option.account_id or '' }}'"
+              x-bind:hidden="selectedAccount && '{{ option.account_id or '' }}' && selectedAccount !== '{{ option.account_id or '' }}'"
+              x-bind:disabled="selectedAccount && '{{ option.account_id or '' }}' && selectedAccount !== '{{ option.account_id or '' }}'"
+            >
+              {{ option.label }}
+            </option>
+          {% endfor %}
+          {% if payload.empty_match_message %}
+            <option value="" disabled>{{ payload.empty_match_message }}</option>
+          {% endif %}
+        </select>
+      </label>
+    </div>
+    {% if payload.manual_operation_note %}
+      <div class="transfer-empty-state">
+        {{ payload.manual_operation_note }}
+      </div>
+    {% endif %}
+    <div class="review-panel-footer">
+      <button class="button button-small primary-action" type="submit">{{ icon("refresh") }} Это перевод</button>
+    </div>
+  </form>
+</div>

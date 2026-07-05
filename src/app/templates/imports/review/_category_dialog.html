@@ -1,0 +1,40 @@
+{% set payload = panel.payload %}
+
+<dialog
+  class="review-dialog"
+  x-ref="categoryDialog"
+  {% if payload.category_dialog_error %}x-init="$nextTick(() => { if (!$el.open) $el.showModal() })"{% endif %}
+>
+  <form
+    class="review-dialog-panel"
+    method="post"
+    action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/categories"
+  >
+    {{ csrf_input() }}
+    <div class="review-dialog-header">
+      <div class="action-title">Новая категория</div>
+      <button class="button button-small review-dialog-close" type="button" aria-label="Закрыть" @click="$refs.categoryDialog.close()">{{ icon("x") }}</button>
+    </div>
+    <div class="review-dialog-body">
+      {% if payload.category_dialog_error %}
+        <div class="form-error" role="alert">{{ payload.category_dialog_error }}</div>
+      {% endif %}
+      <label class="field">
+        <span>Название</span>
+        <input name="name" value="{{ payload.category_dialog_name }}" placeholder="например, Здоровье" required autofocus>
+      </label>
+      <label class="field">
+        <span>Тип</span>
+        <select name="kind">
+          {% for option in payload.category_kind_options %}
+            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="review-dialog-footer">
+      <button class="button button-small review-dialog-cancel" type="button" @click="$refs.categoryDialog.close()">Отмена</button>
+      <button class="button button-small primary-action" type="submit">{{ icon("plus") }} Создать</button>
+    </div>
+  </form>
+</dialog>

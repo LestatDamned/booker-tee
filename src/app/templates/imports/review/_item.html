@@ -1,0 +1,121 @@
+{% set panel_state = namespace(active_panel_id="") %}
+{% for panel in item.panels %}
+  {% if panel.is_open and not panel_state.active_panel_id %}
+    {% set panel_state.active_panel_id = panel.id %}
+  {% endif %}
+{% endfor %}
+{% set action_summary = item.operation_link or item.outcome_summary %}
+
+<article
+  class="review-item review-item-vm review-status-{{ item.visual_state }} {% if item.is_next %}review-item-next{% endif %}"
+  id="{{ item.anchor_id }}"
+  hx-boost="true"
+  hx-select="#{{ item.anchor_id }}"
+  hx-target="#{{ item.anchor_id }}"
+  hx-swap="outerHTML show:none"
+  hx-push-url="false"
+  x-data="{
+    activePanel: '{{ panel_state.active_panel_id }}',
+    togglePanel(panelId) {
+      this.activePanel = this.activePanel === panelId ? '' : panelId;
+    },
+    openCategoryDialog(event) {
+      this.$nextTick(() => {
+        if (this.$refs.categoryDialog && !this.$refs.categoryDialog.open) {
+          this.$refs.categoryDialog.showModal();
+        }
+      });
+    }
+  }"
+  {% if item.oob or (review_item_oob is defined and review_item_oob) %}hx-swap-oob="true"{% endif %}
+>
+  {% set row = item.row %}
+  <div class="review-main">
+    <div class="review-topline">
+      <div class="review-meta">
+        <span class="review-row-index"><strong>#</strong>{{ item.row_index }}</span>
+        <span class="review-date-chip">
+          <span class="review-date-label">дата</span>
+          <strong>{{ item.date_label | date_ru }}</strong>
+        </span>
+        <span class="review-account-chip">{{ item.account_label }}</span>
+      </div>
+      <span class="review-money money-value {{ item.money_tone }}">{{ item.amount_label }} <small>{{ item.currency }}</small></span>
+    </div>
+
+    <div class="review-description">{{ item.description }}</div>
+
+    {% if not action_summary and (item.state_badge or item.classification_badge or item.classification_source_badge) %}
+      <div class="review-state-summary">
+        <div class="review-state-primary">
+          {% if item.state_badge %}
+            <span class="review-state-token tone-{{ item.state_badge.tone }}">{{ item.state_badge.label }}</span>
+          {% endif %}
+          {% if item.classification_badge %}
+            <span class="review-state-token tone-{{ item.classification_badge.tone }}">{{ item.classification_badge.label }}</span>
+          {% endif %}
+        </div>
+        {% if item.classification_source_badge %}
+          <div class="review-state-secondary">
+            {% if item.classification_source_badge %}
+              <span>{{ item.classification_source_badge.label }}</span>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if item.proposal_summary or item.problems %}
+      <div class="review-flags">
+        {% if item.proposal_summary %}
+          <span class="review-signal review-signal-proposal">{{ item.proposal_summary }}</span>
+        {% endif %}
+        {% for problem in item.problems %}
+          <span class="review-signal review-signal-problem problem-{{ problem.tone }}">{{ problem.message }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="review-actions">
+    {% if action_summary %}
+      <div
+        class="review-ledger-summary review-action-status review-ledger-summary-{{ action_summary.tone }}"
+        {% if item.operation_link %}title="operation {{ item.operation_link.operation_id }}"{% endif %}
+      >
+        <div class="review-ledger-summary-meta">
+          {% if action_summary.type_value %}
+            <span class="review-ledger-type tone-{{ action_summary.type_value }}">{{ action_summary.type_label }}</span>
+          {% endif %}
+          <span class="review-ledger-status">{{ action_summary.title }}</span>
+        </div>
+        <div class="review-ledger-title">{{ action_summary.detail }}</div>
+      </div>
+    {% endif %}
+
+    {% include "imports/review/_action_set.html" %}
+  </div>
+
+  {% if item.panels %}
+    <div class="review-panels">
+      <div class="review-panel-tabs">
+        {% for panel in item.panels %}
+          {% include "imports/review/_expanded_panel.html" %}
+        {% endfor %}
+      </div>
+      <div class="review-panel-drawers">
+        {% for panel in item.panels %}
+          <div
+            id="{{ panel.id }}-drawer"
+            class="secondary-action-panel review-panel-drawer review-{{ panel.panel_type }}-drawer"
+            {% if panel_state.active_panel_id != panel.id %}style="display: none;"{% endif %}
+            x-show="activePanel === '{{ panel.id }}'"
+            x-cloak
+          >
+            {% include panel.template_name %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</article>

@@ -7,6 +7,7 @@ from app.features.accounts.repository import AccountRepository
 from app.features.categories.models import Category
 from app.features.categories.service import CategoryError, CategoryService
 from app.features.imports.models import RawTransaction
+from app.features.ledger.domain.raw_transactions import raw_transaction_effective_account_id
 from app.features.ledger.errors import LedgerPostingError
 from app.features.properties.models import Property
 from app.features.properties.service import PropertyError, PropertyService
@@ -29,9 +30,10 @@ class LedgerReferenceResolver:
         workspace_id: UUID,
         raw_transaction: RawTransaction,
     ) -> Account:
-        if raw_transaction.account_id is None:
+        account_id = raw_transaction_effective_account_id(raw_transaction)
+        if account_id is None:
             raise LedgerPostingError("Raw transaction row has no account.")
-        return await self.get_account(workspace_id, raw_transaction.account_id)
+        return await self.get_account(workspace_id, account_id)
 
     async def get_category_or_uncategorized(
         self,

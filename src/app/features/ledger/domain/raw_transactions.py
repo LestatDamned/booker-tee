@@ -33,6 +33,14 @@ class RawTransactionSuggestionState(Protocol):
     suggested_by_rule_id: UUID | None
 
 
+def raw_transaction_effective_account_id(raw_transaction: object) -> UUID | None:
+    account_id = getattr(raw_transaction, "account_id", None)
+    if account_id is not None:
+        return account_id
+    uploaded_document = getattr(raw_transaction, "uploaded_document", None)
+    return getattr(uploaded_document, "account_id", None)
+
+
 @dataclass(frozen=True)
 class LedgerPostingPlan:
     operation_type: OperationType
@@ -56,7 +64,7 @@ class LedgerPostingPlan:
             raise LedgerPostingError(
                 f"Raw transaction status cannot be posted: {raw_transaction.status}"
             )
-        if raw_transaction.account_id != account.id:
+        if raw_transaction_effective_account_id(raw_transaction) != account.id:
             raise LedgerPostingError("Raw transaction account does not match selected account.")
         if raw_transaction.amount is None:
             raise LedgerPostingError("Raw transaction row has no normalized amount.")
@@ -110,7 +118,7 @@ def ensure_matched_transfer_account(
 ) -> None:
     if (
         selected_account_id is not None
-        and matched_raw_transaction.account_id != selected_account_id
+        and raw_transaction_effective_account_id(matched_raw_transaction) != selected_account_id
     ):
         raise LedgerPostingError(
             "Matched transfer row does not belong to the selected transfer account."

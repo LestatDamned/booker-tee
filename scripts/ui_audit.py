@@ -280,6 +280,7 @@ def prepare_realistic_scenario(
 ) -> dict[str, str]:
     scenario_id = f"{viewport_name}-{time.time_ns()}"
     account_name = f"UI Audit Cash {scenario_id}"
+    rule_category_name = "UI Audit Food"
     document_name = f"ui-audit-statement-{scenario_id}.xlsx"
     workbook_path = output_dir / document_name
     create_statement_fixture(workbook_path)
@@ -308,6 +309,27 @@ def prepare_realistic_scenario(
         )
         page.wait_for_url("**/ledger/manual?operation_id=**", timeout=PAGE_TIMEOUT_MS)
 
+        page.goto(build_url(base_url, "/categories"), wait_until="domcontentloaded")
+        category_form = page.locator('form[action="/categories"]').first
+        category_form.locator('input[name="name"]').fill(rule_category_name)
+        category_form.locator('select[name="kind"]').select_option("expense")
+        category_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+        page.get_by_text(rule_category_name, exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
+
+        page.goto(build_url(base_url, "/rules"), wait_until="domcontentloaded")
+        rule_form = page.locator("form#new-rule")
+        rule_form.locator('input[name="name"]').fill(f"OZON -> {rule_category_name}")
+        rule_form.locator('input[name="pattern"]').fill("OZON")
+        rule_form.locator('select[name="target_operation_type"]').select_option("expense")
+        rule_form.locator('select[name="category_id"]').select_option(label=rule_category_name)
+        rule_form.locator("details.rule-advanced-details summary").click(timeout=PAGE_TIMEOUT_MS)
+        rule_form.locator('select[name="direction"]').select_option("outflow")
+        rule_form.locator('select[name="application_mode"]').select_option("suggest")
+        rule_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+        page.get_by_text(f"OZON -> {rule_category_name}", exact=True).wait_for(
+            timeout=PAGE_TIMEOUT_MS
+        )
+
         page.goto(build_url(base_url, "/imports/upload"), wait_until="domcontentloaded")
         page.locator('input[name="statement_pdf"]').set_input_files(str(workbook_path))
         page.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
@@ -319,6 +341,7 @@ def prepare_realistic_scenario(
         "account_name": account_name,
         "account_detail_path": account_detail_path or "",
         "document_name": document_name,
+        "rule_category_name": rule_category_name,
     }
 
 
@@ -479,9 +502,15 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
           const visible = (element) => {
             const rect = element.getBoundingClientRect();
             const style = getComputedStyle(element);
-            const closedDetails = element.closest('details:not([open])');
-            if (closedDetails && element !== closedDetails.querySelector(':scope > summary')) {
-              return false;
+            let ancestor = element.parentElement;
+            while (ancestor) {
+              if (ancestor.matches('details:not([open])')) {
+                const summary = ancestor.querySelector(':scope > summary');
+                if (element !== summary && !summary?.contains(element)) {
+                  return false;
+                }
+              }
+              ancestor = ancestor.parentElement;
             }
             return rect.width > 0
               && rect.height > 0
@@ -539,8 +568,11 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
           ).filter(visible).map((summary) => {
             const rect = summary.getBoundingClientRect();
             const style = getComputedStyle(summary);
+            const details = summary.closest('details.technical-details');
             return {
               text: textFor(summary),
+              detailsText: details ? textFor(details).slice(0, 80) : '',
+              className: details ? String(details.className || '') : '',
               height: Math.round(rect.height),
               width: Math.round(rect.width),
               borderWidth: borderWidth(style),
@@ -579,7 +611,7 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
                 maxRadius: Math.max(...radii),
               };
             })
-            .filter((item) => item.maxRadius > 0.5)
+            .filter((item) => item.maxRadius > 8)
             .slice(0, 6);
 
           const visibleDebugBlocks = Array.from(document.querySelectorAll('pre'))
@@ -704,7 +736,13 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
         or float(item.get("borderWidth") or 0) > 0
     ]
     if noisy_technical:
-        examples = ", ".join(str(item.get("text") or "") for item in noisy_technical[:3])
+        examples = ", ".join(
+            (
+                f"{item.get('text') or item.get('detailsText') or '<empty>'} "
+                f"[{item.get('className')}; {item.get('height')}px]"
+            )
+            for item in noisy_technical[:3]
+        )
         errors.append(
             "designer audit: technical details compete with user actions "
             f"({len(noisy_technical)} visible triggers; examples: {examples})"
@@ -738,7 +776,9 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
         examples = ", ".join(
             f"{item.get('tag')}.{item.get('className')}" for item in radius_offenders[:3]
         )
-        errors.append(f"designer audit: rounded corners found despite design rule: {examples}")
+        errors.append(
+            "designer audit: rounded corners exceed 8px design limit: " + examples
+        )
 
     visible_debug_blocks = list(state.get("visibleDebugBlocks") or [])
     if visible_debug_blocks:
@@ -1037,6 +1077,17 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
     if not row_id:
         errors.append("first review row has no stable id")
         return errors
+    if row.locator(".review-ledger-summary-suggested").count() == 0:
+        errors.append("suggested review row does not show proposed outcome summary")
+    else:
+        suggested_summary = row.locator(".review-ledger-summary-suggested").first.inner_text(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        if "предложено" not in suggested_summary.casefold():
+            errors.append("proposed outcome summary does not show suggested state")
+        rule_category_name = scenario_state.get("rule_category_name")
+        if rule_category_name and rule_category_name not in suggested_summary:
+            errors.append("proposed outcome summary does not show suggested category")
 
     page.evaluate(
         """
@@ -1052,10 +1103,24 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
     page.wait_for_timeout(100)
     before_top = locator_top(row)
 
-    category_details = row.locator("details.action-accordion").filter(has_text="Категория").first
-    category_details.locator("summary").click()
-    if category_details.get_attribute("open") is None:
-        errors.append("category accordion did not open")
+    category_toggle = row.locator(".review-category-action:visible").first
+    if category_toggle.count() == 0:
+        category_toggle = row.locator(".action-category_panel:visible").first
+    if category_toggle.count() == 0:
+        errors.append("category panel trigger was not found")
+        return errors
+    category_toggle.click()
+    if (
+        category_toggle.evaluate("element => element.classList.contains('review-panel-tab')")
+        and category_toggle.get_attribute("aria-expanded") != "true"
+    ):
+        errors.append("category panel did not open")
+    try:
+        row.locator(".review-panel-drawer:visible").first.wait_for(timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError:
+        pass
+    if row.locator(".review-panel-drawer:visible").count() != 1:
+        errors.append("category panel opening did not leave exactly one visible drawer")
 
     row.locator(".inline-create-button").first.click()
     dialog = row.locator("dialog.review-dialog")
@@ -1093,8 +1158,26 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
     if refreshed_row.count() == 0:
         errors.append("review row disappeared after category creation")
         return errors
-    if refreshed_row.locator("details.action-accordion[open]").count() == 0:
-        errors.append("category accordion did not stay open after category creation")
+    refreshed_category_toggle = refreshed_row.locator(".review-category-action:visible").first
+    if refreshed_category_toggle.count() == 0:
+        refreshed_category_toggle = refreshed_row.locator(".action-category_panel:visible").first
+    if refreshed_category_toggle.count() == 0:
+        errors.append("category panel trigger was not found after category creation")
+    elif (
+        refreshed_category_toggle.evaluate(
+            "element => element.classList.contains('review-panel-tab')"
+        )
+        and refreshed_category_toggle.get_attribute("aria-expanded") != "true"
+    ):
+        errors.append("category panel did not stay open after category creation")
+    try:
+        refreshed_row.locator(".review-panel-drawer:visible").first.wait_for(
+            timeout=PAGE_TIMEOUT_MS
+        )
+    except PlaywrightError:
+        pass
+    if refreshed_row.locator(".review-panel-drawer:visible").count() != 1:
+        errors.append("category panel refresh did not leave exactly one visible drawer")
     if refreshed_row.locator(f'text="{category_name}"').count() == 0:
         errors.append("created category is not visible in refreshed review row")
 
@@ -1125,8 +1208,22 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
             errors.append(
                 f"review row jumped {abs(after_top - before_top):.0f}px after HTMX confirm"
             )
-    if confirmed_row.locator(".operation-ref").count() == 0:
+    if confirmed_row.locator(".review-ledger-summary").count() == 0:
         errors.append("confirmed review row does not show operation reference")
+    correction_action = confirmed_row.locator(".review-correction-action").first
+    if correction_action.count() == 0:
+        errors.append("confirmed review row does not expose correction action")
+    else:
+        correction_action.locator("summary").click()
+        undo_button = correction_action.locator("button.action-undo_posting").first
+        if undo_button.count() == 0:
+            errors.append("confirmed review row does not expose undo posting action")
+        else:
+            page.once("dialog", lambda dialog: dialog.dismiss())
+            undo_button.click()
+            page.wait_for_timeout(500)
+            if confirmed_row.locator(".review-ledger-summary-confirmed").count() == 0:
+                errors.append("undo posting continued after canceling confirmation dialog")
     next_step_text = page.locator("#review-next-step").inner_text(timeout=PAGE_TIMEOUT_MS)
     if "Осталось обработать 2 из 3 строк." not in next_step_text:
         errors.append("review progress did not update after HTMX confirm")

@@ -808,40 +808,37 @@ presenter/resolver слое.
 
 ## Placement
 
-Текущий модуль уже содержит presentation слой:
+Import review presentation слой живет внутри feature-owned package:
 
 ```text
-src/app/features/imports/presentation/review.py
 src/app/features/imports/presentation/mapping.py
+src/app/features/imports/presentation/review/
 ```
 
-Сейчас `presentation/review.py` содержит `ReviewPageContext`, который в основном
-прокидывает ORM/document/raw rows в Jinja. Для первого refactor slice лучше не
-создавать глубокую структуру сразу, но отделить review item код от page context.
+`presentation/review/` является владельцем page context, `ReviewItemVM`,
+action policy, labels, panels, reference lookup and state/confirmability
+presentation rules.
 
-Рекомендуемое размещение:
+Текущее размещение:
 
 ```text
-src/app/features/imports/presentation/review.py
-src/app/features/imports/presentation/review_items.py
+src/app/features/imports/presentation/review/page.py
+src/app/features/imports/presentation/review/item.py
+src/app/features/imports/presentation/review/models.py
+src/app/features/imports/presentation/review/actions.py
+src/app/features/imports/presentation/review/panels.py
+src/app/features/imports/presentation/review/labels.py
+src/app/features/imports/presentation/review/references.py
+src/app/features/imports/presentation/review/state.py
 ```
 
 Где:
 
-- `review.py` остается page-level context/builder.
-- `review_items.py` содержит `ReviewItemVM`, маленькие VM dataclasses,
-  visual-state resolver и action-policy builder.
-
-Если `review_items.py` станет слишком большим, его можно позже разложить на:
-
-```text
-src/app/features/imports/presentation/review_items/models.py
-src/app/features/imports/presentation/review_items/presenter.py
-src/app/features/imports/presentation/review_items/actions.py
-```
-
-Но первый шаг должен быть проще: один файл с высокой связностью вокруг review
-item.
+- `page.py` содержит page-level context/builder.
+- `item.py` содержит `ImportReviewPresenter` and item orchestration.
+- `models.py` содержит маленькие VM dataclasses.
+- `actions.py`, `panels.py`, `labels.py`, `references.py`, `state.py`
+  держат отдельные presentation reasons to change.
 
 ## Already Available Data
 
@@ -1498,6 +1495,10 @@ DB-миграций, изменения URL endpoints и отката бизне
 5. Оставить только `ReviewItemVM`-based rendering.
 
 Не оставлять две ветки навсегда и не развивать старый partial дальше.
+
+Текущий implementation slice выполнил этот пункт: `use_review_item_vm` и
+старый `RawTransaction`-based review partial удалены, active review rendering
+идет через `imports/review/_item.html` и подготовленный `ReviewItemVM`.
 
 ## Открытые вопросы
 

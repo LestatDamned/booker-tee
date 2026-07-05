@@ -6,12 +6,13 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.features.imports.models import RawTransaction
+from app.features.imports.models import RawTransaction, UploadedDocument
 from app.features.ledger.application.listing import (
     AccountEntryFilters,
     LedgerPagination,
     ManualOperationFilters,
 )
+from app.features.ledger.domain.raw_transactions import raw_transaction_effective_account_id
 from app.features.ledger.models import (
     MoneyEntry,
     Operation,
@@ -122,11 +123,15 @@ class LedgerRepository:
         raw_transaction: RawTransaction,
         day_window: int = 3,
     ) -> list[Operation]:
+        source_account_id = await self._raw_transaction_effective_account_id(
+            workspace_id=workspace_id,
+            raw_transaction=raw_transaction,
+        )
         if (
             raw_transaction.amount is None
             or raw_transaction.currency is None
             or raw_transaction.operation_date is None
-            or raw_transaction.account_id is None
+            or source_account_id is None
         ):
             return []
 
@@ -134,7 +139,9 @@ class LedgerRepository:
             select(Operation)
             .join(MoneyEntry)
             .options(
-                selectinload(Operation.raw_transactions),
+                selectinload(Operation.raw_transactions).selectinload(
+                    RawTransaction.uploaded_document
+                ),
                 selectinload(Operation.money_entries).selectinload(MoneyEntry.account),
             )
             .where(
@@ -146,7 +153,7 @@ class LedgerRepository:
                     raw_transaction.operation_date - timedelta(days=day_window),
                     raw_transaction.operation_date + timedelta(days=day_window),
                 ),
-                MoneyEntry.account_id == raw_transaction.account_id,
+                MoneyEntry.account_id == source_account_id,
                 MoneyEntry.amount == raw_transaction.amount,
                 MoneyEntry.currency == raw_transaction.currency,
             )
@@ -156,10 +163,27 @@ class LedgerRepository:
             operation
             for operation in result.unique().scalars().all()
             if not any(
-                linked_raw.account_id == raw_transaction.account_id
+                raw_transaction_effective_account_id(linked_raw) == source_account_id
                 for linked_raw in operation.raw_transactions
             )
         ]
+
+    async def _raw_transaction_effective_account_id(
+        self,
+        *,
+        workspace_id: UUID,
+        raw_transaction: RawTransaction,
+    ) -> UUID | None:
+        account_id = raw_transaction_effective_account_id(raw_transaction)
+        if account_id is not None:
+            return account_id
+        result = await self.session.execute(
+            select(UploadedDocument.account_id).where(
+                UploadedDocument.id == raw_transaction.uploaded_document_id,
+                UploadedDocument.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def delete_operation(self, operation: Operation) -> None:
         await self.session.delete(operation)

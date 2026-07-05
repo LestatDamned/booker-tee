@@ -7,21 +7,6 @@
 {% block title %}Проверка · {{ document.original_filename }} · {{ app_name }}{% endblock %}
 
 {% block content %}
-  {% set latest_attempt = document.parse_attempts[0] if document.parse_attempts else none %}
-  {% set validation = latest_attempt.validation_report_json if latest_attempt and latest_attempt.validation_report_json else none %}
-  {% set balance_chain_problems = balance_chain_problems if balance_chain_problems is defined else {} %}
-  {% set review_queue = namespace(total=0, remaining=0, done=0, first_remaining_id=none) %}
-  {% for row in document.raw_transactions %}
-    {% set review_queue.total = review_queue.total + 1 %}
-    {% if row.status.value in ["confirmed", "ignored", "duplicate"] %}
-      {% set review_queue.done = review_queue.done + 1 %}
-    {% else %}
-      {% set review_queue.remaining = review_queue.remaining + 1 %}
-      {% if review_queue.first_remaining_id is none %}
-        {% set review_queue.first_remaining_id = row.id %}
-      {% endif %}
-    {% endif %}
-  {% endfor %}
   <section class="panel stack import-review-page">
     <div class="toolbar">
       <div>
@@ -30,13 +15,25 @@
       </div>
       <div class="import-page-actions">
         <details class="action-details action-accordion import-more-actions">
-          <summary>{{ icon("settings") }} действия</summary>
+          <summary>
+            {{ icon("settings") }}
+            <span>Действия</span>
+            <span class="details-toggle-label" aria-hidden="true">
+              <span class="details-toggle-open">Открыть</span>
+              <span class="details-toggle-close">Закрыть</span>
+            </span>
+          </summary>
           <div class="action-menu">
             <form method="post" action="/imports/documents/{{ document.id }}/apply-rules">
               {{ csrf_input() }}
               <button class="button button-small" type="submit">{{ icon("settings") }} применить правила</button>
             </form>
             <a class="button button-small" href="/imports">{{ icon("arrow-left") }} назад</a>
+            <details class="technical-details import-hidden-technical-details">
+              <summary>Технические детали</summary>
+              <span>ID {{ document.id }}</span>
+              <a class="button button-small" href="/imports/documents/{{ document.id }}">{{ icon("file-text") }} открыть документ</a>
+            </details>
           </div>
         </details>
       </div>
@@ -44,97 +41,103 @@
 
     {% include "imports/_review_next_step.html" %}
 
-    <details class="action-details action-accordion review-rule-hint compact-help-details">
-      <summary>{{ icon("settings") }} подсказки правил</summary>
-      <aside class="inline-hint inline-hint-info action-hint">
-        <div class="action-hint-copy">
-          <strong>Базовые правила ускоряют проверку</strong>
-          <span>Если это первая выписка, загрузите базовые правила в разделе Правила: они дадут стартовые подсказки по категориям. Если правила уже есть, примените их к этой выписке.</span>
+    <div class="review-page-tools" aria-label="Инструменты проверки импорта">
+      <aside class="review-support-card review-rule-hint">
+        <div class="review-support-copy">
+          <span class="review-support-title">{{ icon("settings") }} Правила</span>
+          <span>Подсказки категорий можно применить к этой выписке.</span>
         </div>
-        <div class="action-hint-actions">
+        <div class="review-support-actions">
           <a class="button button-small" href="/rules">{{ icon("settings") }} открыть правила</a>
           <form method="post" action="/imports/documents/{{ document.id }}/apply-rules">
             {{ csrf_input() }}
-            <button class="button button-small primary-action" type="submit">{{ icon("settings") }} применить к выписке</button>
+            <button class="button button-small primary-action" type="submit">{{ icon("settings") }} применить</button>
           </form>
         </div>
       </aside>
-    </details>
 
-    <details class="review-workflow-details">
-      <summary>Этапы импорта</summary>
-      {% if review_queue.total > 0 and review_queue.remaining == 0 %}
-        {{ workflow_steps(upload="done", extract="done", mapping="skipped", review="done", ledger="done") }}
-      {% elif review_queue.total > 0 %}
-        {{ workflow_steps(upload="done", extract="done", mapping="skipped", review="current", ledger="pending") }}
-      {% else %}
-        {{ workflow_steps(upload="done", extract="blocked", mapping="pending", review="pending", ledger="pending") }}
-      {% endif %}
-    </details>
+      <section class="review-support-card review-workflow-card" aria-label="Этапы импорта">
+        <span class="review-support-title">Этапы импорта</span>
+        {{ workflow_steps(
+          upload=review_queue.workflow_upload,
+          extract=review_queue.workflow_extract,
+          mapping=review_queue.workflow_mapping,
+          review=review_queue.workflow_review,
+          ledger=review_queue.workflow_ledger
+        ) }}
+      </section>
+    </div>
 
-    <details class="technical-details">
-      <summary>Технические детали документа</summary>
-      <span>ID {{ document.id }}</span>
-      <a class="button button-small" href="/imports/documents/{{ document.id }}">{{ icon("file-text") }} открыть документ</a>
-    </details>
+    {% if review_validation %}
+      <section class="review-validation-panel">
+        <div class="summary-grid review-validation-summary">
+          <div class="metric">
+            <span>проверка</span>
+            <strong>{{ review_validation.status_label | ru }}</strong>
+          </div>
+          <div class="metric">
+            <span>строки</span>
+            <strong>{{ review_validation.extracted_count }}</strong>
+          </div>
+          <div class="metric">
+            <span>нужна проверка</span>
+            <strong>{{ review_validation.needs_review_count }}</strong>
+          </div>
+          <div class="metric">
+            <span>валюта</span>
+            <strong>{{ review_validation.currency }}</strong>
+          </div>
+        </div>
 
-    {% if validation %}
-      <div class="summary-grid">
-        <div class="metric">
-          <span>проверка</span>
-          <strong>{{ validation.status | ru }}</strong>
-        </div>
-        <div class="metric">
-          <span>строки</span>
-          <strong>{{ validation.extracted_count }}</strong>
-        </div>
-        <div class="metric">
-          <span>нужна проверка</span>
-          <strong>{{ validation.needs_review_count }}</strong>
-        </div>
-        <div class="metric">
-          <span>валюта</span>
-          <strong>{{ validation.currency or "" }}</strong>
-        </div>
-      </div>
+        <div class="review-validation-message">{{ review_validation.message }}</div>
+        {% if review_validation.warning_message %}
+          {{ inline_hint(review_validation.warning_message, "warning") }}
+        {% endif %}
 
-      <details class="review-validation-details">
-        <summary>Контрольные итоги</summary>
-        <div class="table-scroll">
-          <table class="table">
-            <tbody>
-              <tr>
-                <th>Приход в строках</th>
-                <td class="amount amount-income">{{ validation.calculated_total_inflow }}</td>
-                <th>Приход в выписке</th>
-                <td class="amount amount-income">{{ validation.statement_total_inflow or "нет" }}</td>
-                <th>Разница</th>
-                <td class="amount">{{ validation.inflow_difference or "нет" }}</td>
-              </tr>
-              <tr>
-                <th>Расход в строках</th>
-                <td class="amount amount-expense">{{ validation.calculated_total_outflow }}</td>
-                <th>Расход в выписке</th>
-                <td class="amount amount-expense">{{ validation.statement_total_outflow or "нет" }}</td>
-                <th>Разница</th>
-                <td class="amount">{{ validation.outflow_difference or "нет" }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </details>
-      <div class="notice">{{ validation.message }}</div>
-      {% if validation.status in ["mismatch", "failed", "failed_to_parse"] or validation.inflow_difference or validation.outflow_difference %}
-        {{ inline_hint("Проверьте строки с пометками перед подтверждением: суммы или остатки не сходятся с выпиской, поэтому отчет может быть неверным.", "warning") }}
-      {% endif %}
+        <section class="review-control-totals" aria-label="Контрольные итоги">
+          <span class="review-control-totals-title">Контрольные итоги</span>
+          <div class="review-control-total-grid">
+            <div class="review-control-total-row">
+              <span class="review-control-total-kind">Приход</span>
+              <span class="review-control-total-cell">
+                <small>строки</small>
+                <strong class="amount amount-income">{{ review_validation.calculated_total_inflow }}</strong>
+              </span>
+              <span class="review-control-total-cell">
+                <small>выписка</small>
+                <strong class="amount amount-income">{{ review_validation.statement_total_inflow }}</strong>
+              </span>
+              <span class="review-control-total-cell">
+                <small>разница</small>
+                <strong class="amount">{{ review_validation.inflow_difference }}</strong>
+              </span>
+            </div>
+            <div class="review-control-total-row">
+              <span class="review-control-total-kind">Расход</span>
+              <span class="review-control-total-cell">
+                <small>строки</small>
+                <strong class="amount amount-expense">{{ review_validation.calculated_total_outflow }}</strong>
+              </span>
+              <span class="review-control-total-cell">
+                <small>выписка</small>
+                <strong class="amount amount-expense">{{ review_validation.statement_total_outflow }}</strong>
+              </span>
+              <span class="review-control-total-cell">
+                <small>разница</small>
+                <strong class="amount">{{ review_validation.outflow_difference }}</strong>
+              </span>
+            </div>
+          </div>
+        </section>
+      </section>
     {% else %}
-      <div class="notice">Отчет проверки для этого документа пока недоступен.</div>
+      <div class="notice review-validation-empty">Отчет проверки для этого документа пока недоступен.</div>
     {% endif %}
 
     {% if document.raw_transactions %}
       <div class="review-list">
-        {% for row in document.raw_transactions %}
-          {% include "imports/_review_item.html" %}
+        {% for item in review_items %}
+          {% include "imports/review/_item.html" %}
         {% endfor %}
       </div>
     {% else %}
@@ -157,7 +160,6 @@
     (() => {
       const storageKey = `booker-tee.review-scroll:${window.location.pathname}`;
       let pendingReviewPosition = null;
-      let lastReviewPosition = null;
       let restoreTimerIds = [];
 
       if ("scrollRestoration" in history) {
@@ -187,14 +189,8 @@
 
       const rememberReviewPosition = (row) => {
         const currentPosition = captureReviewPosition(row);
-        const stablePosition =
-          lastReviewPosition &&
-          lastReviewPosition.rowId === currentPosition.rowId &&
-          currentPosition.top < 0
-            ? lastReviewPosition
-            : currentPosition;
-        pendingReviewPosition = stablePosition;
-        sessionStorage.setItem(storageKey, JSON.stringify(stablePosition));
+        pendingReviewPosition = currentPosition;
+        sessionStorage.setItem(storageKey, JSON.stringify(currentPosition));
       };
 
       const restoreReviewPosition = (state) => {
@@ -224,7 +220,6 @@
             requestAnimationFrame(() => {
               restoreReviewPosition(state);
               if (index === delays.length - 1) {
-                lastReviewPosition = state;
                 pendingReviewPosition = null;
                 forgetStoredPosition();
                 restoreTimerIds = [];

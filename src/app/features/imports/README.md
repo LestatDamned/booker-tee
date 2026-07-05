@@ -253,6 +253,7 @@ imports/
     documents.py
     mapping.py
     review.py
+    review_responses.py
     form_values.py
 
   application/
@@ -261,6 +262,12 @@ imports/
       reparse.py
       management.py
       parse_attempts.py
+
+    review/
+      actions.py
+      status.py
+      validation_refresh.py
+      page_data.py
 
     pipelines/
       statement_import.py
@@ -311,10 +318,18 @@ imports/
       drafts.py
       templates.py
 
+  presentation/
+    documents.py
+    mapping.py
     review/
       actions.py
-      status.py
-      validation_refresh.py
+      item.py
+      labels.py
+      models.py
+      page.py
+      panels.py
+      references.py
+      state.py
 
   domain/
     deduplication.py
@@ -508,11 +523,14 @@ import path easy to test.
 ## Current module map
 
 - `router.py` - thin HTTP router aggregator for the imports feature.
-- `routes/` - story-based HTTP endpoints: documents/upload lifecycle,
-  unknown statement mapping, and review actions.
+- `routes/` - story-based HTTP endpoints and close HTTP adapters:
+  documents/upload lifecycle, unknown statement mapping, review actions, form
+  parsing, redirects, and HTMX response rendering.
 - `service.py` - small read-side facade for document list/detail views.
 - `application/documents/` - document lifecycle use cases and helpers: upload, reparse, ignore/delete, parse attempts.
-- `application/review/` - review lifecycle use cases and helpers: confirmation/transfer actions, status changes, validation refresh.
+- `application/review/` - review lifecycle use cases and helpers:
+  confirmation/transfer actions, status changes, validation refresh, and
+  review page data loading.
 - `application/processing.py` - parse success orchestrator: stores extracted statement data, resolves an import strategy, then runs it.
 - `application/strategies/` - import strategy resolver and branches for known parser imports and unknown statement fallback.
 - `application/pipelines/` - shared import pipeline steps: review-required attempts and validation result storage.
@@ -683,9 +701,10 @@ Completed cleanup:
 
 ## Remaining cleanup plan
 
-1. Keep slimming `router.py`:
-   move repeated template context building into `presentation/`, then split
-   routes by story only when the single router stops being useful.
+1. Keep route modules thin:
+   `router.py` should only aggregate story routers; story modules should keep
+   HTTP parsing, dependency wiring, redirects, and response adapters close to
+   the route while moving data loading and workflows into `application/`.
 2. Keep `ImportService` read-side:
    it may list documents and build detail views, but new command behavior
    should go into explicit use cases under `application/`.

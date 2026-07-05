@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.imports.models import RawTransaction
 from app.features.imports.repository import ImportRepository
+from app.features.ledger.domain.raw_transactions import raw_transaction_effective_account_id
 from app.features.ledger.models import MoneyEntry, Operation
 from app.features.ledger.repository import LedgerRepository
 
@@ -96,12 +97,15 @@ class TransferSuggestionUseCase:
         raw_transaction: RawTransaction,
         operation: Operation,
     ) -> ExistingTransferSuggestion | None:
+        account_id = raw_transaction_effective_account_id(raw_transaction)
+        if account_id is None:
+            return None
         account_entry = next(
             (
                 entry
                 for entry in operation.money_entries
                 if (
-                    entry.account_id == raw_transaction.account_id
+                    entry.account_id == account_id
                     and entry.amount == raw_transaction.amount
                     and entry.currency == raw_transaction.currency
                 )
@@ -114,7 +118,7 @@ class TransferSuggestionUseCase:
             (
                 entry
                 for entry in operation.money_entries
-                if entry.account_id != raw_transaction.account_id
+                if entry.account_id != account_id
             ),
             None,
         )

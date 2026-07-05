@@ -55,6 +55,9 @@ def test_import_detail_template_shows_readable_account_reference() -> None:
     assert "ВТБ вклад" in html
     assert "депозит" in html
     assert "RUB" in html
+    assert "import-more-actions" in html
+    assert "details-toggle-open" in html
+    assert "details-toggle-close" in html
     assert "Отладочные данные документа" in html
     assert f"ID счета {account_id}" in html
 

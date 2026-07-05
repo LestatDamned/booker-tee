@@ -5,6 +5,7 @@ from typing import Any, cast
 from uuid import uuid4
 
 from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
+from app.features.imports.presentation.review.page import build_review_page_context
 from app.features.workspaces.models import WorkspaceType
 from app.templating import create_templates
 
@@ -14,6 +15,26 @@ def render_template(template_name: str, **context: object) -> str:
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
     context.setdefault("css_version", "test-css-version")
     return templates.env.get_template(template_name).render(**context)
+
+
+def render_review_template(*, document: object) -> str:
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+    page_context = build_review_page_context(
+        document=document,
+        accounts=[],
+        categories=[],
+        properties=[],
+        transfer_suggestions={},
+        existing_transfer_suggestions={},
+    )
+    return templates.env.get_template("imports/review.html").render(
+        **page_context.template_values(
+            app_name="Booker Tee",
+            workspace=SimpleNamespace(id=uuid4(), name="Personal"),
+        ),
+        css_version="test-css-version",
+    )
 
 
 def test_import_index_guides_to_review_when_document_needs_attention() -> None:
@@ -150,9 +171,7 @@ def test_review_page_guides_to_first_remaining_row() -> None:
     document_id = uuid4()
     confirmed_row = raw_row(RawTransactionStatus.CONFIRMED)
     remaining_row = raw_row(RawTransactionStatus.NORMALIZED)
-    html = render_template(
-        "imports/review.html",
-        app_name="Booker Tee",
+    html = render_review_template(
         document=SimpleNamespace(
             id=document_id,
             original_filename="statement.pdf",
@@ -160,30 +179,24 @@ def test_review_page_guides_to_first_remaining_row() -> None:
             parse_attempts=[],
             raw_transactions=[confirmed_row, remaining_row],
         ),
-        categories=[],
-        properties=[],
-        accounts=[],
-        transfer_suggestions={},
     )
 
     assert "Продолжайте проверку" in html
     assert "Осталось обработать 1 из 2 строк." in html
     assert "review-rule-hint" in html
-    assert "compact-help-details" in html
-    assert "Если это первая выписка" in html
-    assert "загрузите базовые правила" in html
+    assert "review-support-card" in html
+    assert "review-support-actions" in html
+    assert "Подсказки категорий можно применить к этой выписке." in html
     assert 'href="/rules"' in html
     assert f'action="/imports/documents/{document_id}/apply-rules"' in html
-    assert "применить к выписке" in html
+    assert "применить" in html
     assert f"#raw-{remaining_row.id}" in html
     assert "workflow-step-current" in html
 
 
 def test_review_page_guides_from_empty_raw_rows_to_document() -> None:
     document_id = uuid4()
-    html = render_template(
-        "imports/review.html",
-        app_name="Booker Tee",
+    html = render_review_template(
         document=SimpleNamespace(
             id=document_id,
             original_filename="statement.pdf",
@@ -191,10 +204,6 @@ def test_review_page_guides_from_empty_raw_rows_to_document() -> None:
             parse_attempts=[],
             raw_transactions=[],
         ),
-        categories=[],
-        properties=[],
-        accounts=[],
-        transfer_suggestions={},
     )
 
     assert "Сырых строк пока нет" in html
@@ -433,11 +442,9 @@ def test_dashboard_hides_onboarding_checklist_after_setup_is_complete() -> None:
     assert "Откройте отчеты" in html
 
 
-def test_review_page_shows_inline_safety_hints() -> None:
+def test_review_page_shows_review_panels_without_inline_safety_copy() -> None:
     row = raw_row(RawTransactionStatus.NORMALIZED)
-    html = render_template(
-        "imports/review.html",
-        app_name="Booker Tee",
+    html = render_review_template(
         document=SimpleNamespace(
             id=uuid4(),
             original_filename="statement.pdf",
@@ -445,15 +452,13 @@ def test_review_page_shows_inline_safety_hints() -> None:
             parse_attempts=[],
             raw_transactions=[row],
         ),
-        categories=[],
-        properties=[],
-        accounts=[],
-        transfer_suggestions={},
     )
 
-    assert "похожие описания должны получать такую же категорию" in html
-    assert "не влияет на прибыль" in html
-    assert "inline-hint" in html
+    assert "Категория" in html
+    assert "основной разбор строки" in html
+    assert "Перевод" in html
+    assert "если это перемещение между счетами" in html
+    assert "похожие описания должны получать такую же категорию" not in html
 
 
 def incomplete_dashboard_overview() -> SimpleNamespace:
@@ -476,10 +481,8 @@ def incomplete_dashboard_overview() -> SimpleNamespace:
     )
 
 
-def test_review_page_shows_possible_duplicate_hint() -> None:
-    html = render_template(
-        "imports/review.html",
-        app_name="Booker Tee",
+def test_review_page_shows_possible_duplicate_actions() -> None:
+    html = render_review_template(
         document=SimpleNamespace(
             id=uuid4(),
             original_filename="statement.pdf",
@@ -487,19 +490,17 @@ def test_review_page_shows_possible_duplicate_hint() -> None:
             parse_attempts=[],
             raw_transactions=[raw_row(RawTransactionStatus.POSSIBLE_DUPLICATE)],
         ),
-        categories=[],
-        properties=[],
-        accounts=[],
-        transfer_suggestions={},
     )
 
-    assert "Дубли не должны попадать в отчеты повторно" in html
+    assert "возможный дубль" in html
+    assert "Это новая операция" in html
+    assert "На проверку" in html
+    assert "Игнорировать" in html
+    assert "Сравнить" not in html
 
 
 def test_review_page_guides_to_reports_when_import_is_done() -> None:
-    html = render_template(
-        "imports/review.html",
-        app_name="Booker Tee",
+    html = render_review_template(
         document=SimpleNamespace(
             id=uuid4(),
             original_filename="statement.pdf",
@@ -510,10 +511,6 @@ def test_review_page_guides_to_reports_when_import_is_done() -> None:
                 raw_row(RawTransactionStatus.IGNORED),
             ],
         ),
-        categories=[],
-        properties=[],
-        accounts=[],
-        transfer_suggestions={},
     )
 
     assert "Импорт разобран" in html

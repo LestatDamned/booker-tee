@@ -26,6 +26,7 @@ from app.features.ledger.domain.raw_transactions import (
     LedgerPostingPlan,
     ensure_matched_transfer_account,
     ensure_raw_transaction_can_post_as_transfer,
+    raw_transaction_effective_account_id,
     restored_raw_status_after_unlink,
 )
 from app.features.ledger.errors import LedgerPostingError
@@ -47,12 +48,18 @@ class RawTransactionStub:
     balance_after: Decimal | None = None
     dedupe_hash: str | None = "hash"
     suggested_by_rule_id: UUID | None = None
+    uploaded_document: object | None = None
 
 
 @dataclass(frozen=True)
 class AccountStub:
     id: UUID
     currency: str = "RUB"
+
+
+@dataclass(frozen=True)
+class UploadedDocumentStub:
+    account_id: UUID | None
 
 
 def test_operation_type_for_amount_maps_income_and_expense() -> None:
@@ -127,6 +134,33 @@ def test_build_ledger_posting_plan_for_income_raw_row() -> None:
     assert plan.amount == Decimal("100.00")
     assert plan.affects_profit is True
     assert plan.description == "Rent"
+
+
+def test_build_ledger_posting_plan_accepts_document_account() -> None:
+    account_id = uuid4()
+    raw_transaction = RawTransactionStub(
+        status=RawTransactionStatus.NORMALIZED,
+        account_id=None,
+        amount=Decimal("100.00"),
+        uploaded_document=UploadedDocumentStub(account_id=account_id),
+    )
+
+    plan = LedgerPostingPlan.from_raw_transaction(raw_transaction, AccountStub(id=account_id))
+
+    assert raw_transaction_effective_account_id(raw_transaction) == account_id
+    assert plan.operation_type == OperationType.INCOME
+
+
+def test_ensure_matched_transfer_account_accepts_document_account() -> None:
+    account_id = uuid4()
+    raw_transaction = RawTransactionStub(
+        status=RawTransactionStatus.NORMALIZED,
+        account_id=None,
+        amount=Decimal("-100.00"),
+        uploaded_document=UploadedDocumentStub(account_id=account_id),
+    )
+
+    ensure_matched_transfer_account(raw_transaction, account_id)
 
 
 def test_build_ledger_posting_plan_for_expense_raw_row() -> None:

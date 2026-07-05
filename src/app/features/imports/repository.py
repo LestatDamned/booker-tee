@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -176,7 +176,13 @@ class ImportRepository:
         raw_transaction_id: UUID,
     ) -> RawTransaction | None:
         result = await self.session.execute(
-            select(RawTransaction).where(
+            select(RawTransaction)
+            .options(
+                selectinload(RawTransaction.uploaded_document).selectinload(
+                    UploadedDocument.account
+                ),
+            )
+            .where(
                 RawTransaction.id == raw_transaction_id,
                 RawTransaction.workspace_id == workspace_id,
                 RawTransaction.uploaded_document_id == document_id,
@@ -190,7 +196,13 @@ class ImportRepository:
         raw_transaction_id: UUID,
     ) -> RawTransaction | None:
         result = await self.session.execute(
-            select(RawTransaction).where(
+            select(RawTransaction)
+            .options(
+                selectinload(RawTransaction.uploaded_document).selectinload(
+                    UploadedDocument.account
+                ),
+            )
+            .where(
                 RawTransaction.id == raw_transaction_id,
                 RawTransaction.workspace_id == workspace_id,
             )
@@ -204,22 +216,36 @@ class ImportRepository:
         raw_transaction: RawTransaction,
         day_window: int = 3,
     ) -> list[RawTransaction]:
+        source_account_id = await self._raw_transaction_effective_account_id(
+            workspace_id=workspace_id,
+            raw_transaction=raw_transaction,
+        )
         if (
             raw_transaction.amount is None
             or raw_transaction.currency is None
             or raw_transaction.operation_date is None
-            or raw_transaction.account_id is None
+            or source_account_id is None
         ):
             return []
+        candidate_account_id = func.coalesce(
+            RawTransaction.account_id,
+            UploadedDocument.account_id,
+        )
         result = await self.session.execute(
             select(RawTransaction)
-            .options(selectinload(RawTransaction.account))
+            .join(UploadedDocument, UploadedDocument.id == RawTransaction.uploaded_document_id)
+            .options(
+                selectinload(RawTransaction.account),
+                selectinload(RawTransaction.uploaded_document).selectinload(
+                    UploadedDocument.account
+                ),
+            )
             .where(
                 RawTransaction.workspace_id == workspace_id,
                 RawTransaction.id != raw_transaction.id,
                 RawTransaction.linked_operation_id.is_(None),
-                RawTransaction.account_id.is_not(None),
-                RawTransaction.account_id != raw_transaction.account_id,
+                candidate_account_id.is_not(None),
+                candidate_account_id != source_account_id,
                 RawTransaction.currency == raw_transaction.currency,
                 RawTransaction.amount == -raw_transaction.amount,
                 RawTransaction.operation_date.between(
@@ -239,6 +265,22 @@ class ImportRepository:
             .order_by(RawTransaction.operation_date, RawTransaction.row_index)
         )
         return list(result.scalars().all())
+
+    async def _raw_transaction_effective_account_id(
+        self,
+        *,
+        workspace_id: UUID,
+        raw_transaction: RawTransaction,
+    ) -> UUID | None:
+        if raw_transaction.account_id is not None:
+            return raw_transaction.account_id
+        result = await self.session.execute(
+            select(UploadedDocument.account_id).where(
+                UploadedDocument.id == raw_transaction.uploaded_document_id,
+                UploadedDocument.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def mark_raw_transaction_status(
         self,

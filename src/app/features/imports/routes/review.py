@@ -8,25 +8,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
-from app.features.accounts.service import AccountService
 from app.features.categories.models import CategoryKind
 from app.features.categories.service import CategoryError, CategoryService
 from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.review.actions import (
-    RawTransactionReviewCommand,
     RawTransactionReviewUseCase,
 )
+from app.features.imports.application.review.page_data import ImportReviewPageDataLoader
 from app.features.imports.errors import RawTransactionReviewError
-from app.features.imports.presentation.review import (
-    build_review_page_context,
-    review_redirect_url,
-)
+from app.features.imports.presentation.review.page import build_review_page_context
 from app.features.imports.repository import ImportRepository
-from app.features.imports.routes.form_values import parse_optional_uuid
-from app.features.imports.service import ImportService
+from app.features.imports.routes.form_values import RawTransactionReviewFormParser
+from app.features.imports.routes.review_responses import (
+    ReviewActionResponseRenderer,
+    ReviewActionResponseRequest,
+)
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.service import LedgerPostingService
-from app.features.properties.service import PropertyService
 from app.features.transaction_rules.application.rule_application import (
     TransactionRuleApplicationUseCase,
 )
@@ -47,7 +45,11 @@ async def document_review(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
 ) -> HTMLResponse:
-    document = await ImportService(session).get_document(context.workspace.id, document_id)
+    review_data_loader = ImportReviewPageDataLoader(session)
+    document = await review_data_loader.load_document(
+        workspace_id=context.workspace.id,
+        document_id=document_id,
+    )
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     status_updated = await ImportedDocumentStatusUpdater(
@@ -59,30 +61,17 @@ async def document_review(
     if status_updated:
         await session.commit()
 
-    accounts = await AccountService(session).list_active_accounts(context.workspace.id)
-    categories = await CategoryService(session).list_or_seed_defaults(
-        context.workspace.id,
-        context.workspace.type,
-    )
-    properties = await PropertyService(session).list_active(context.workspace.id)
-    ledger_service = LedgerPostingService(session)
-    transfer_suggestions = await ledger_service.list_transfer_suggestions_for_document(
-        workspace_id=context.workspace.id,
-        raw_transactions=document.raw_transactions,
-    )
-    existing_transfer_suggestions = (
-        await ledger_service.list_existing_transfer_suggestions_for_document(
-            workspace_id=context.workspace.id,
-            raw_transactions=document.raw_transactions,
-        )
+    page_data = await review_data_loader.load_page_data(
+        context=context,
+        document=document,
     )
     page_context = build_review_page_context(
         document=document,
-        accounts=accounts,
-        categories=categories,
-        properties=properties,
-        transfer_suggestions=transfer_suggestions,
-        existing_transfer_suggestions=existing_transfer_suggestions,
+        accounts=page_data.accounts,
+        categories=page_data.categories,
+        properties=page_data.properties,
+        transfer_suggestions=page_data.transfer_suggestions,
+        existing_transfer_suggestions=page_data.existing_transfer_suggestions,
     )
 
     return templates.TemplateResponse(
@@ -112,16 +101,16 @@ async def update_raw_transaction_status(
     remember_rule: Annotated[str | None, Form()] = None,
     rule_pattern: Annotated[str | None, Form()] = None,
 ) -> Response:
-    command = RawTransactionReviewCommand(
+    command = RawTransactionReviewFormParser().build_command(
         document_id=document_id,
         raw_transaction_id=raw_transaction_id,
         action=action,
-        category_id=parse_optional_uuid(category_id),
-        property_id=parse_optional_uuid(property_id),
-        counterparty_account_id=parse_optional_uuid(counterparty_account_id),
-        matched_raw_transaction_id=parse_optional_uuid(matched_raw_transaction_id),
-        matched_operation_id=parse_optional_uuid(matched_operation_id),
-        remember_rule=remember_rule is not None,
+        category_id=category_id,
+        property_id=property_id,
+        counterparty_account_id=counterparty_account_id,
+        matched_raw_transaction_id=matched_raw_transaction_id,
+        matched_operation_id=matched_operation_id,
+        remember_rule=remember_rule,
         rule_pattern=rule_pattern,
     )
     try:
@@ -135,14 +124,17 @@ async def update_raw_transaction_status(
             detail=str(exc),
         ) from exc
 
-    return await review_action_response(
+    review_data_loader = ImportReviewPageDataLoader(session)
+    response_renderer = ReviewActionResponseRenderer(review_data_loader)
+    return await response_renderer.render(
         request=request,
-        session=session,
         settings=settings,
         context=context,
-        document_id=document_id,
-        raw_transaction_id=raw_transaction_id,
-        oob_raw_transaction_ids=result.updated_raw_transaction_ids,
+        response_request=ReviewActionResponseRequest(
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+            oob_raw_transaction_ids=result.updated_raw_transaction_ids,
+        ),
     )
 
 
@@ -167,14 +159,16 @@ async def undo_raw_transaction_posting(
             detail=str(exc),
         ) from exc
 
-    return await review_action_response(
+    review_data_loader = ImportReviewPageDataLoader(session)
+    response_renderer = ReviewActionResponseRenderer(review_data_loader)
+    return await response_renderer.render(
         request=request,
-        session=session,
         settings=settings,
         context=context,
-        document_id=document_id,
-        raw_transaction_id=raw_transaction_id,
-        oob_raw_transaction_ids=frozenset(),
+        response_request=ReviewActionResponseRequest(
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+        ),
     )
 
 
@@ -189,6 +183,8 @@ async def create_review_category(
     name: Annotated[str, Form()],
     kind: Annotated[CategoryKind, Form()] = CategoryKind.MIXED,
 ) -> Response:
+    review_data_loader = ImportReviewPageDataLoader(session)
+    response_renderer = ReviewActionResponseRenderer(review_data_loader)
     try:
         category = await CategoryService(session).create_custom(
             workspace_id=context.workspace.id,
@@ -196,30 +192,30 @@ async def create_review_category(
             kind=kind,
         )
     except CategoryError as exc:
-        return await review_action_response(
+        return await response_renderer.render(
             request=request,
-            session=session,
             settings=settings,
             context=context,
-            document_id=document_id,
-            raw_transaction_id=raw_transaction_id,
-            oob_raw_transaction_ids=frozenset(),
-            open_category_editor=True,
-            category_dialog_error=str(exc),
-            category_dialog_name=name,
+            response_request=ReviewActionResponseRequest(
+                document_id=document_id,
+                raw_transaction_id=raw_transaction_id,
+                open_category_editor=True,
+                category_dialog_error=str(exc),
+                category_dialog_name=name,
+            ),
         )
 
-    return await review_action_response(
+    return await response_renderer.render(
         request=request,
-        session=session,
         settings=settings,
         context=context,
-        document_id=document_id,
-        raw_transaction_id=raw_transaction_id,
-        oob_raw_transaction_ids=frozenset(),
-        selected_category_id=category.id,
-        open_category_editor=True,
-        refresh_category_options=True,
+        response_request=ReviewActionResponseRequest(
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+            selected_category_id=category.id,
+            open_category_editor=True,
+            refresh_category_options=True,
+        ),
     )
 
 
@@ -242,107 +238,4 @@ async def apply_rules_to_document(
     return RedirectResponse(
         url=f"/imports/documents/{document_id}/review",
         status_code=status.HTTP_303_SEE_OTHER,
-    )
-
-
-async def review_action_response(
-    *,
-    request: Request,
-    session: AsyncSession,
-    settings: Settings,
-    context: WorkspaceContext,
-    document_id: UUID,
-    raw_transaction_id: UUID,
-    oob_raw_transaction_ids: frozenset[UUID],
-    selected_category_id: UUID | None = None,
-    open_category_editor: bool = False,
-    category_dialog_error: str | None = None,
-    category_dialog_name: str | None = None,
-    refresh_category_options: bool = False,
-) -> Response:
-    if not is_htmx_request(request):
-        return RedirectResponse(
-            url=review_redirect_url(document_id, raw_transaction_id),
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
-
-    document = await ImportService(session).get_document(context.workspace.id, document_id)
-    if document is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-
-    accounts = await AccountService(session).list_active_accounts(context.workspace.id)
-    categories = await CategoryService(session).list_or_seed_defaults(
-        context.workspace.id,
-        context.workspace.type,
-    )
-    properties = await PropertyService(session).list_active(context.workspace.id)
-    ledger_service = LedgerPostingService(session)
-    transfer_suggestions = await ledger_service.list_transfer_suggestions_for_document(
-        workspace_id=context.workspace.id,
-        raw_transactions=document.raw_transactions,
-    )
-    existing_transfer_suggestions = (
-        await ledger_service.list_existing_transfer_suggestions_for_document(
-            workspace_id=context.workspace.id,
-            raw_transactions=document.raw_transactions,
-        )
-    )
-    page_context = build_review_page_context(
-        document=document,
-        accounts=accounts,
-        categories=categories,
-        properties=properties,
-        transfer_suggestions=transfer_suggestions,
-        existing_transfer_suggestions=existing_transfer_suggestions,
-    )
-    row = review_row_from_document(document, raw_transaction_id)
-    if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-
-    if refresh_category_options:
-        refresh_row_ids = set()
-        for sibling_row in document.raw_transactions:
-            sibling_row_id = getattr(sibling_row, "id", None)
-            sibling_status = getattr(sibling_row, "status", None)
-            sibling_status_value = getattr(sibling_status, "value", sibling_status)
-            if sibling_row_id is not None and sibling_status_value not in {
-                "confirmed",
-                "ignored",
-                "duplicate",
-            }:
-                refresh_row_ids.add(sibling_row_id)
-        oob_raw_transaction_ids = frozenset(refresh_row_ids)
-
-    template_values = page_context.template_values(
-        app_name=settings.app_name,
-        workspace=context.workspace,
-    )
-    template_values["current_row"] = row
-    template_values["oob_raw_transaction_ids"] = oob_raw_transaction_ids - {raw_transaction_id}
-    if selected_category_id is not None:
-        template_values["selected_category_id_by_row"] = {raw_transaction_id: selected_category_id}
-    if open_category_editor:
-        template_values["open_category_editor_by_row"] = {raw_transaction_id: True}
-    if category_dialog_error is not None:
-        template_values["category_dialog_error_by_row"] = {
-            raw_transaction_id: category_dialog_error
-        }
-    if category_dialog_name is not None:
-        template_values["category_dialog_name_by_row"] = {raw_transaction_id: category_dialog_name}
-    return templates.TemplateResponse(
-        request,
-        "imports/_review_action_response.html",
-        template_values,
-    )
-
-
-def is_htmx_request(request: Request) -> bool:
-    return request.headers.get("hx-request") == "true"
-
-
-def review_row_from_document(document: object, raw_transaction_id: UUID) -> object | None:
-    raw_transactions = getattr(document, "raw_transactions", [])
-    return next(
-        (row for row in raw_transactions if getattr(row, "id", None) == raw_transaction_id),
-        None,
     )

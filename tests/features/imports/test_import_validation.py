@@ -8,7 +8,7 @@ from app.features.imports.domain.validation import (
 )
 from app.features.imports.models import RawTransactionStatus
 from app.features.imports.parsing.parser_types import StatementControlTotals
-from app.features.imports.presentation.review import balance_chain_problem_messages
+from app.features.imports.presentation.review.page import balance_chain_problem_messages
 
 
 @dataclass(frozen=True)

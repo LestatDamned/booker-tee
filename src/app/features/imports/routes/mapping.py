@@ -19,6 +19,7 @@ from app.features.imports.application.unknown_statement_mappings.template_use_ca
 )
 from app.features.imports.errors import UnknownStatementMappingError
 from app.features.imports.presentation.mapping import (
+    MappingPresentationError,
     build_mapping_page_context,
     parse_table_ref,
     preview_mapping_page_context,
@@ -92,7 +93,7 @@ async def preview_document_mapping(
     if view is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
-    page_number, table_index = parse_table_ref(table_ref)
+    page_number, table_index = parse_table_ref_or_400(table_ref)
     command = command_from_form_data(
         page_number=page_number,
         table_index=table_index,
@@ -148,7 +149,7 @@ async def import_document_mapping(
     default_currency: Annotated[str, Form()] = "RUB",
     save_template_name: Annotated[str | None, Form()] = None,
 ) -> Response:
-    page_number, table_index = parse_table_ref(table_ref)
+    page_number, table_index = parse_table_ref_or_400(table_ref)
     command = command_from_form_data(
         page_number=page_number,
         table_index=table_index,
@@ -180,3 +181,13 @@ async def import_document_mapping(
         url=f"/imports/documents/{document_id}/review",
         status_code=status.HTTP_303_SEE_OTHER,
     )
+
+
+def parse_table_ref_or_400(table_ref: str) -> tuple[int, int]:
+    try:
+        return parse_table_ref(table_ref)
+    except MappingPresentationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc

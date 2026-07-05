@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 
-from fastapi import HTTPException, status
-
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
     UnknownStatementMappingPreview,
@@ -21,6 +19,10 @@ from app.features.imports.application.unknown_statement_mappings.ui_defaults imp
 )
 from app.features.imports.mapping.dto import ImportDocumentDetailView
 from app.features.imports.models import ImportMappingTemplate
+
+
+class MappingPresentationError(ValueError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -123,10 +125,7 @@ def parse_table_ref(value: str) -> tuple[int, int]:
             raise ValueError
         return parsed_page_number, parsed_table_index
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid table reference.",
-        ) from exc
+        raise MappingPresentationError("Invalid table reference.") from exc
 
 
 def selected_mapping_table(
