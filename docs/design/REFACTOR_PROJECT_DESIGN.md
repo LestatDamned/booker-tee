@@ -1443,6 +1443,35 @@ review-actions__danger
 22. Если что-то ломается, старый partial можно временно вернуть без миграций БД
     и отката бизнес-логики.
 
+### Current Acceptance Audit
+
+Состояние на 2026-07-06 после stabilization cleanup первого import review slice.
+
+| # | Status | Evidence / note |
+| --- | --- | --- |
+| 1 | Closed | `review.html` рендерит `review_items`; `_item.html` получает `item`; `ReviewItemVM` больше не хранит raw `row`; есть guard test на отсутствие `item.row` / `document` / `use_review_item_vm` в `_item.html`. |
+| 2 | Closed | `visual_state`, confirmability, proposal summary, action policy, problems и badges собираются в `presentation/review/*`; `_item.html` только отображает подготовленные поля и коллекции. |
+| 3 | Closed | Template отображает текущие VM-поля (`amount_label`, `date_label`, `account_label`, badges, summary, actions, panels). Имена отличаются от раннего sketch, но ответственность соблюдена. |
+| 4 | Closed | `CategoryPanelPayload` и `TransferPanelPayload` являются typed payload внутри `ReviewPanelVM`; category/property/account options подготовлены presenter-слоем. |
+| 5 | Closed by adjusted design | Общий shell реализован как `ReviewPanelVM + _panel_tab.html + _panel_drawer.html`; `panel.actions` сознательно не введен для первого slice. |
+| 6 | Closed | `ReviewActionPolicy` собирает `primary`, `visible_secondary`, `menu`, `danger`; Jinja не принимает action-policy решений. |
+| 7 | Closed | `ActionSetVM` структурно ограничивает 0-1 primary и 0-1 visible secondary; template уводит остальные actions в menu/danger. |
+| 8 | Closed | Danger actions рендерятся отдельно; destructive actions имеют `confirm_message`; covered by presentation/template tests. |
+| 9 | Mostly covered | HTMX response renderer and template tests cover row/OOB refresh and category-create refresh. `scripts/ui_audit.py --scenario review_interactions` covers panel opening/category refresh and one visible drawer. Full browser coverage for every listed action, especially transfer submit, should remain a follow-up. |
+| 10 | Closed | Alpine state uses one `activePanel` per item; UI audit checks that opening a panel leaves exactly one visible drawer. |
+| 11 | Closed | Existing review template tests were adapted and expanded around VM rendering and action response values. |
+| 12 | Partial | Unit/template tests cover visual state, confirmability, action policy, operation type source labels and panel behavior. Dedicated tests for a named `transfer_preview` VM field are not applicable yet because `TransferPanelPayload` does not expose that field explicitly. |
+| 13 | Closed | First slice changed presentation/templates/routes composition only; no DB enum/model/posting URL behavior was intentionally changed. |
+| 14 | Closed | `ready_to_confirm` is produced by `ReviewStateResolver`; `RawTransaction.status` remains unchanged. Covered by `test_ready_to_confirm_is_presentation_only_state`. |
+| 15 | Closed | `ReviewConfirmabilityPolicy` rejects income/expense without a real category, including uncategorized fallback. |
+| 16 | Closed | `ReviewConfirmabilityPolicy` requires source account, counterparty account, and different accounts for transfer. |
+| 17 | Partial | Linked transfer summaries show route direction (`source -> counterparty`). The transfer edit panel does not yet expose a first-class `transfer_preview` field as described in the aspirational payload sketch. |
+| 18 | Closed | Date is in the top line via `review-date-chip`; covered by template assertions around `review-topline`. |
+| 19 | Closed | Row index is small meta; raw id is not surfaced as primary content; technical details do not compete with money/date/description in the current item layout. |
+| 20 | Accepted debt | Stabilized new parts use `review-panel__*`, `review-actions__*`, and `review-item--vm`. Older inner classes (`review-main`, `review-meta`, `review-topline`) remain as an explicit compatibility layer until the next UI touch point. |
+| 21 | Closed | New active rendering path uses `imports/review/_item.html` and `ReviewItemVM`; old raw-transaction review item fallback was removed after stabilization. |
+| 22 | Superseded | Initial rollback criterion was useful during the feature-flag phase. After stabilization, the old partial and `use_review_item_vm` were removed by decision; rollback would now be a normal git revert, not a runtime switch. |
+
 ## Gradual Migration Plan
 
 Не переписывать весь frontend сразу.
