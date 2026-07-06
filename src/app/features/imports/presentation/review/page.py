@@ -5,9 +5,19 @@ from uuid import UUID
 from app.features.imports.presentation.review.item import ImportReviewPresenter
 from app.features.imports.presentation.review.models import (
     ActionVM,
+    ReviewControlTotalCellVM,
+    ReviewControlTotalRowVM,
+    ReviewEmptyStateVM,
     ReviewItemVM,
+    ReviewPageHeaderVM,
+    ReviewPageToolsVM,
+    ReviewPageVM,
     ReviewQueueVM,
+    ReviewRuleHintVM,
+    ReviewValidationMetricVM,
     ReviewValidationSummaryVM,
+    ReviewWorkflowStepVM,
+    ReviewWorkflowVM,
 )
 from app.features.imports.presentation.review.state import FINAL_RAW_STATUSES
 
@@ -15,6 +25,7 @@ from app.features.imports.presentation.review.state import FINAL_RAW_STATUSES
 @dataclass(frozen=True)
 class ReviewPageContext:
     document: object
+    review_page: ReviewPageVM
     review_validation: ReviewValidationSummaryVM | None
     review_queue: ReviewQueueVM
     review_items: Sequence[ReviewItemVM]
@@ -30,8 +41,7 @@ class ReviewPageContext:
         return {
             "app_name": app_name,
             "document": self.document,
-            "review_queue": self.review_queue,
-            "review_validation": self.review_validation,
+            "review_page": self.review_page,
             "review_items": self.review_items,
             "workspace": workspace,
         }
@@ -74,11 +84,117 @@ def build_review_page_context(
             review_items.append(review_items_by_id[row_id])
     return ReviewPageContext(
         document=document,
+        review_page=ReviewPagePresenter().build(
+            document=document,
+            review_queue=review_queue,
+            review_validation=review_validation,
+            has_review_items=bool(review_items),
+        ),
         review_validation=review_validation,
         review_queue=review_queue,
         review_items=review_items,
         review_items_by_id=review_items_by_id,
     )
+
+
+class ReviewPagePresenter:
+    def build(
+        self,
+        *,
+        document: object,
+        review_queue: ReviewQueueVM,
+        review_validation: ReviewValidationSummaryVM | None,
+        has_review_items: bool,
+    ) -> ReviewPageVM:
+        document_id = getattr(document, "id", "")
+        document_filename = str(getattr(document, "original_filename", ""))
+        return ReviewPageVM(
+            title=f"Проверка · {document_filename}",
+            header=ReviewPageHeaderVM(
+                title="Проверка импорта",
+                status_label=self.document_status_label(getattr(document, "status", "")),
+                document_filename=document_filename,
+                document_id_label=f"ID {document_id}",
+                actions_label="Действия",
+                technical_title="Технические детали",
+                apply_rules_action=ActionVM(
+                    id="apply_rules",
+                    label="применить правила",
+                    icon="settings",
+                    placement="secondary",
+                    action_type="post",
+                    url=f"/imports/documents/{document_id}/apply-rules",
+                ),
+                back_action=ActionVM(
+                    id="back_to_imports",
+                    label="назад",
+                    icon="arrow-left",
+                    placement="secondary",
+                    action_type="link",
+                    url="/imports",
+                ),
+                open_document_action=ActionVM(
+                    id="open_document",
+                    label="открыть документ",
+                    icon="file-text",
+                    placement="secondary",
+                    action_type="link",
+                    url=f"/imports/documents/{document_id}",
+                ),
+            ),
+            queue=review_queue,
+            tools=ReviewPageToolsVM(
+                rule_hint=ReviewRuleHintVM(
+                    title="Правила",
+                    icon="settings",
+                    message="Подсказки категорий можно применить к этой выписке.",
+                    open_rules_action=ActionVM(
+                        id="open_rules",
+                        label="открыть правила",
+                        icon="settings",
+                        placement="secondary",
+                        action_type="link",
+                        url="/rules",
+                    ),
+                    apply_rules_action=ActionVM(
+                        id="apply_rules",
+                        label="применить",
+                        icon="settings",
+                        placement="primary",
+                        action_type="post",
+                        url=f"/imports/documents/{document_id}/apply-rules",
+                    ),
+                ),
+                workflow=ReviewWorkflowPresenter().build(review_queue),
+            ),
+            validation=review_validation,
+            empty_state=ReviewEmptyStateVM(
+                title="Сырых строк пока нет",
+                message=(
+                    "Проверьте страницу документа: возможно, нужно настроить колонки "
+                    "или загрузить выписку заново."
+                ),
+                primary_url=f"/imports/documents/{document_id}",
+                primary_label="открыть документ",
+                primary_icon="file-text",
+                secondary_url="/imports/upload",
+                secondary_label="загрузить заново",
+                secondary_icon="upload",
+            ),
+            has_review_items=has_review_items,
+        )
+
+    def document_status_label(self, status: object) -> str:
+        labels = {
+            "uploaded": "загружено",
+            "pending_parse": "ожидает разбора",
+            "parsing": "парсинг",
+            "requires_review": "требует проверки",
+            "failed_to_parse": "ошибка разбора",
+            "imported": "импортировано",
+        }
+        raw_status = getattr(status, "value", status)
+        return labels.get(str(raw_status), str(raw_status or ""))
 
 
 class ReviewQueuePresenter:
@@ -180,6 +296,20 @@ class ReviewQueuePresenter:
         )
 
 
+class ReviewWorkflowPresenter:
+    def build(self, review_queue: ReviewQueueVM) -> ReviewWorkflowVM:
+        return ReviewWorkflowVM(
+            title="Этапы импорта",
+            steps=[
+                ReviewWorkflowStepVM(1, "Загрузка", review_queue.workflow_upload),
+                ReviewWorkflowStepVM(2, "Извлечение", review_queue.workflow_extract),
+                ReviewWorkflowStepVM(3, "Настройка", review_queue.workflow_mapping),
+                ReviewWorkflowStepVM(4, "Проверка", review_queue.workflow_review),
+                ReviewWorkflowStepVM(5, "Учет", review_queue.workflow_ledger),
+            ],
+        )
+
+
 class ReviewValidationPresenter:
     def build(
         self,
@@ -187,18 +317,51 @@ class ReviewValidationPresenter:
     ) -> ReviewValidationSummaryVM | None:
         if validation is None:
             return None
+        extracted_count = validation.get("extracted_count", "")
+        needs_review_count = validation.get("needs_review_count", "")
+        currency = validation.get("currency") or ""
+        calculated_total_inflow = validation.get("calculated_total_inflow", "")
+        calculated_total_outflow = validation.get("calculated_total_outflow", "")
+        statement_total_inflow = validation.get("statement_total_inflow") or "нет"
+        statement_total_outflow = validation.get("statement_total_outflow") or "нет"
+        inflow_difference = validation.get("inflow_difference") or "нет"
+        outflow_difference = validation.get("outflow_difference") or "нет"
         return ReviewValidationSummaryVM(
             status_label=str(validation.get("status", "")),
             message=str(validation.get("message", "")),
-            extracted_count=validation.get("extracted_count", ""),
-            needs_review_count=validation.get("needs_review_count", ""),
-            currency=validation.get("currency") or "",
-            calculated_total_inflow=validation.get("calculated_total_inflow", ""),
-            calculated_total_outflow=validation.get("calculated_total_outflow", ""),
-            statement_total_inflow=validation.get("statement_total_inflow") or "нет",
-            statement_total_outflow=validation.get("statement_total_outflow") or "нет",
-            inflow_difference=validation.get("inflow_difference") or "нет",
-            outflow_difference=validation.get("outflow_difference") or "нет",
+            metrics=[
+                ReviewValidationMetricVM("проверка", str(validation.get("status", ""))),
+                ReviewValidationMetricVM("строки", extracted_count),
+                ReviewValidationMetricVM("нужна проверка", needs_review_count),
+                ReviewValidationMetricVM("валюта", currency),
+            ],
+            extracted_count=extracted_count,
+            needs_review_count=needs_review_count,
+            currency=currency,
+            calculated_total_inflow=calculated_total_inflow,
+            calculated_total_outflow=calculated_total_outflow,
+            statement_total_inflow=statement_total_inflow,
+            statement_total_outflow=statement_total_outflow,
+            inflow_difference=inflow_difference,
+            outflow_difference=outflow_difference,
+            control_total_rows=[
+                ReviewControlTotalRowVM(
+                    "Приход",
+                    [
+                        ReviewControlTotalCellVM("строки", calculated_total_inflow, "income"),
+                        ReviewControlTotalCellVM("выписка", statement_total_inflow, "income"),
+                        ReviewControlTotalCellVM("разница", inflow_difference),
+                    ],
+                ),
+                ReviewControlTotalRowVM(
+                    "Расход",
+                    [
+                        ReviewControlTotalCellVM("строки", calculated_total_outflow, "expense"),
+                        ReviewControlTotalCellVM("выписка", statement_total_outflow, "expense"),
+                        ReviewControlTotalCellVM("разница", outflow_difference),
+                    ],
+                ),
+            ],
             warning_message=self._warning_message(validation),
         )
 

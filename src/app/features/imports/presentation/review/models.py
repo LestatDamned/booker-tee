@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from uuid import UUID
@@ -128,9 +130,93 @@ class ReviewQueueVM:
 
 
 @dataclass(frozen=True)
+class ReviewPageHeaderVM:
+    title: str
+    status_label: str
+    document_filename: str
+    document_id_label: str
+    actions_label: str
+    technical_title: str
+    apply_rules_action: ActionVM
+    back_action: ActionVM
+    open_document_action: ActionVM
+
+
+@dataclass(frozen=True)
+class ReviewWorkflowStepVM:
+    index: int
+    label: str
+    state: str
+
+
+@dataclass(frozen=True)
+class ReviewWorkflowVM:
+    title: str
+    steps: Sequence[ReviewWorkflowStepVM]
+
+
+@dataclass(frozen=True)
+class ReviewRuleHintVM:
+    title: str
+    icon: str
+    message: str
+    open_rules_action: ActionVM
+    apply_rules_action: ActionVM
+
+
+@dataclass(frozen=True)
+class ReviewPageToolsVM:
+    rule_hint: ReviewRuleHintVM
+    workflow: ReviewWorkflowVM
+
+
+@dataclass(frozen=True)
+class ReviewEmptyStateVM:
+    title: str
+    message: str
+    primary_url: str
+    primary_label: str
+    primary_icon: str
+    secondary_url: str
+    secondary_label: str
+    secondary_icon: str
+
+
+@dataclass(frozen=True)
+class ReviewPageVM:
+    title: str
+    header: ReviewPageHeaderVM
+    queue: ReviewQueueVM
+    tools: ReviewPageToolsVM
+    validation: ReviewValidationSummaryVM | None
+    empty_state: ReviewEmptyStateVM
+    has_review_items: bool
+
+
+@dataclass(frozen=True)
+class ReviewValidationMetricVM:
+    label: str
+    value: object
+
+
+@dataclass(frozen=True)
+class ReviewControlTotalCellVM:
+    label: str
+    value: object
+    tone: str | None = None
+
+
+@dataclass(frozen=True)
+class ReviewControlTotalRowVM:
+    kind: str
+    cells: Sequence[ReviewControlTotalCellVM]
+
+
+@dataclass(frozen=True)
 class ReviewValidationSummaryVM:
     status_label: str
     message: str
+    metrics: Sequence[ReviewValidationMetricVM]
     extracted_count: object
     needs_review_count: object
     currency: object
@@ -140,6 +226,7 @@ class ReviewValidationSummaryVM:
     statement_total_outflow: object
     inflow_difference: object
     outflow_difference: object
+    control_total_rows: Sequence[ReviewControlTotalRowVM]
     warning_message: str | None
 
 

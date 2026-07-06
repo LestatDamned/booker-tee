@@ -1,156 +1,25 @@
 {% extends "base.html" %}
-{% from "components/next_step.html" import next_step %}
-{% from "components/empty_state.html" import empty_state %}
-{% from "components/inline_hint.html" import inline_hint %}
-{% from "imports/_workflow_steps.html" import workflow_steps %}
 
-{% block title %}Проверка · {{ document.original_filename }} · {{ app_name }}{% endblock %}
+{% block title %}{{ review_page.title }} · {{ app_name }}{% endblock %}
 
 {% block content %}
   <section class="panel stack import-review-page">
-    <div class="toolbar">
-      <div>
-        <p class="eyebrow">{{ document.status | ru }}</p>
-        <h1>Проверка импорта</h1>
-      </div>
-      <div class="import-page-actions">
-        <details class="action-details action-accordion import-more-actions">
-          <summary>
-            {{ icon("settings") }}
-            <span>Действия</span>
-            <span class="details-toggle-label" aria-hidden="true">
-              <span class="details-toggle-open">Открыть</span>
-              <span class="details-toggle-close">Закрыть</span>
-            </span>
-          </summary>
-          <div class="action-menu">
-            <form method="post" action="/imports/documents/{{ document.id }}/apply-rules">
-              {{ csrf_input() }}
-              <button class="button button-small" type="submit">{{ icon("settings") }} применить правила</button>
-            </form>
-            <a class="button button-small" href="/imports">{{ icon("arrow-left") }} назад</a>
-            <details class="technical-details import-hidden-technical-details">
-              <summary>Технические детали</summary>
-              <span>ID {{ document.id }}</span>
-              <a class="button button-small" href="/imports/documents/{{ document.id }}">{{ icon("file-text") }} открыть документ</a>
-            </details>
-          </div>
-        </details>
-      </div>
-    </div>
+    {% include "imports/review/_page_header.html" %}
 
-    {% include "imports/_review_next_step.html" %}
+    {% include "imports/review/_queue_bar.html" %}
 
-    <div class="review-page-tools" aria-label="Инструменты проверки импорта">
-      <aside class="review-support-card review-rule-hint">
-        <div class="review-support-copy">
-          <span class="review-support-title">{{ icon("settings") }} Правила</span>
-          <span>Подсказки категорий можно применить к этой выписке.</span>
-        </div>
-        <div class="review-support-actions">
-          <a class="button button-small" href="/rules">{{ icon("settings") }} открыть правила</a>
-          <form method="post" action="/imports/documents/{{ document.id }}/apply-rules">
-            {{ csrf_input() }}
-            <button class="button button-small primary-action" type="submit">{{ icon("settings") }} применить</button>
-          </form>
-        </div>
-      </aside>
+    {% include "imports/review/_page_tools.html" %}
 
-      <section class="review-support-card review-workflow-card" aria-label="Этапы импорта">
-        <span class="review-support-title">Этапы импорта</span>
-        {{ workflow_steps(
-          upload=review_queue.workflow_upload,
-          extract=review_queue.workflow_extract,
-          mapping=review_queue.workflow_mapping,
-          review=review_queue.workflow_review,
-          ledger=review_queue.workflow_ledger
-        ) }}
-      </section>
-    </div>
+    {% include "imports/review/_validation_panel.html" %}
 
-    {% if review_validation %}
-      <section class="review-validation-panel">
-        <div class="summary-grid review-validation-summary">
-          <div class="metric">
-            <span>проверка</span>
-            <strong>{{ review_validation.status_label | ru }}</strong>
-          </div>
-          <div class="metric">
-            <span>строки</span>
-            <strong>{{ review_validation.extracted_count }}</strong>
-          </div>
-          <div class="metric">
-            <span>нужна проверка</span>
-            <strong>{{ review_validation.needs_review_count }}</strong>
-          </div>
-          <div class="metric">
-            <span>валюта</span>
-            <strong>{{ review_validation.currency }}</strong>
-          </div>
-        </div>
-
-        <div class="review-validation-message">{{ review_validation.message }}</div>
-        {% if review_validation.warning_message %}
-          {{ inline_hint(review_validation.warning_message, "warning") }}
-        {% endif %}
-
-        <section class="review-control-totals" aria-label="Контрольные итоги">
-          <span class="review-control-totals-title">Контрольные итоги</span>
-          <div class="review-control-total-grid">
-            <div class="review-control-total-row">
-              <span class="review-control-total-kind">Приход</span>
-              <span class="review-control-total-cell">
-                <small>строки</small>
-                <strong class="amount amount-income">{{ review_validation.calculated_total_inflow }}</strong>
-              </span>
-              <span class="review-control-total-cell">
-                <small>выписка</small>
-                <strong class="amount amount-income">{{ review_validation.statement_total_inflow }}</strong>
-              </span>
-              <span class="review-control-total-cell">
-                <small>разница</small>
-                <strong class="amount">{{ review_validation.inflow_difference }}</strong>
-              </span>
-            </div>
-            <div class="review-control-total-row">
-              <span class="review-control-total-kind">Расход</span>
-              <span class="review-control-total-cell">
-                <small>строки</small>
-                <strong class="amount amount-expense">{{ review_validation.calculated_total_outflow }}</strong>
-              </span>
-              <span class="review-control-total-cell">
-                <small>выписка</small>
-                <strong class="amount amount-expense">{{ review_validation.statement_total_outflow }}</strong>
-              </span>
-              <span class="review-control-total-cell">
-                <small>разница</small>
-                <strong class="amount">{{ review_validation.outflow_difference }}</strong>
-              </span>
-            </div>
-          </div>
-        </section>
-      </section>
-    {% else %}
-      <div class="notice review-validation-empty">Отчет проверки для этого документа пока недоступен.</div>
-    {% endif %}
-
-    {% if document.raw_transactions %}
+    {% if review_page.has_review_items %}
       <div class="review-list">
         {% for item in review_items %}
           {% include "imports/review/_item.html" %}
         {% endfor %}
       </div>
     {% else %}
-      {{ empty_state(
-        "Сырых строк пока нет",
-        "Проверьте страницу документа: возможно, нужно настроить колонки или загрузить выписку заново.",
-        "/imports/documents/" ~ document.id,
-        "открыть документ",
-        "file-text",
-        "/imports/upload",
-        "загрузить заново",
-        "upload"
-      ) }}
+      {% include "imports/review/_empty_state.html" %}
     {% endif %}
   </section>
 {% endblock %}

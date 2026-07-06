@@ -1,0 +1,8 @@
+<nav class="workflow-steps" aria-label="{{ review_page.tools.workflow.title }}">
+  {% for step in review_page.tools.workflow.steps %}
+    <span class="workflow-step workflow-step-{{ step.state }}">
+      <small>{{ step.index }}</small>
+      <strong>{{ step.label }}</strong>
+    </span>
+  {% endfor %}
+</nav>

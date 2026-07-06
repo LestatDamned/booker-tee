@@ -302,6 +302,17 @@ def test_review_page_context_uses_review_item_vm_by_default() -> None:
     assert page_context.review_item_for(row_id) is page_context.review_items_by_id[row_id]
     assert page_context.review_items_for_row_ids({row_id}) == page_context.review_items
     assert [item.id for item in page_context.review_items] == [row_id]
+    assert page_context.review_page.header.status_label == "требует проверки"
+    assert page_context.review_page.header.apply_rules_action.action_type == "post"
+    assert (
+        page_context.review_page.header.apply_rules_action.url
+        == f"/imports/documents/{document.id}/apply-rules"
+    )
+    assert page_context.review_page.queue is page_context.review_queue
+    assert page_context.review_page.validation is page_context.review_validation
+    assert page_context.review_page.tools.workflow.steps[3].label == "Проверка"
+    assert page_context.review_page.tools.workflow.steps[3].state == "current"
+    assert page_context.review_page.has_review_items is True
     assert "review-item-vm" in html
 
 
@@ -1220,6 +1231,9 @@ def test_review_action_response_template_values_expose_only_review_item_vms() ->
 
     assert values["current_item"] is page_context.review_items_by_id[row_id]
     assert values["oob_review_items"] == [page_context.review_items_by_id[sibling_row_id]]
+    assert "review_page" in values
+    assert "review_queue" not in values
+    assert "review_validation" not in values
     assert "current_row" not in values
     assert "oob_raw_transaction_ids" not in values
     assert "selected_category_id_by_row" not in values

@@ -1,0 +1,39 @@
+{% from "components/inline_hint.html" import inline_hint %}
+{% set validation = review_page.validation %}
+
+{% if validation %}
+  <section class="review-validation-panel">
+    <div class="summary-grid review-validation-summary">
+      {% for metric in validation.metrics %}
+        <div class="metric">
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.value | ru }}</strong>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="review-validation-message">{{ validation.message }}</div>
+    {% if validation.warning_message %}
+      {{ inline_hint(validation.warning_message, "warning") }}
+    {% endif %}
+
+    <section class="review-control-totals" aria-label="Контрольные итоги">
+      <span class="review-control-totals-title">Контрольные итоги</span>
+      <div class="review-control-total-grid">
+        {% for row in validation.control_total_rows %}
+          <div class="review-control-total-row">
+            <span class="review-control-total-kind">{{ row.kind }}</span>
+            {% for cell in row.cells %}
+              <span class="review-control-total-cell">
+                <small>{{ cell.label }}</small>
+                <strong class="amount{% if cell.tone %} amount-{{ cell.tone }}{% endif %}">{{ cell.value }}</strong>
+              </span>
+            {% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </section>
+{% else %}
+  <div class="notice review-validation-empty">Отчет проверки для этого документа пока недоступен.</div>
+{% endif %}

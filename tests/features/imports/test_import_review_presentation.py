@@ -328,4 +328,18 @@ def test_review_validation_presenter_prepares_summary_and_warning() -> None:
     assert summary.inflow_difference == "нет"
     assert summary.outflow_difference == "10.00"
     assert summary.warning_message is not None
+    assert [(metric.label, metric.value) for metric in summary.metrics] == [
+        ("проверка", "mismatch"),
+        ("строки", 2),
+        ("нужна проверка", 1),
+        ("валюта", "RUB"),
+    ]
+    assert [row.kind for row in summary.control_total_rows] == ["Приход", "Расход"]
+    assert [cell.label for cell in summary.control_total_rows[0].cells] == [
+        "строки",
+        "выписка",
+        "разница",
+    ]
+    assert summary.control_total_rows[0].cells[0].tone == "income"
+    assert summary.control_total_rows[1].cells[0].tone == "expense"
     assert "суммы или остатки не сходятся" in summary.warning_message

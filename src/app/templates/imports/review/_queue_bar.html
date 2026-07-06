@@ -1,0 +1,26 @@
+{% set queue = review_page.queue %}
+<div id="review-next-step" {% if review_next_step_oob is defined and review_next_step_oob %}hx-swap-oob="true"{% endif %} class="review-queue-bar">
+  <div class="review-queue-status">
+    <div>
+      <p class="eyebrow">очередь проверки</p>
+      <strong>{{ queue.title }}</strong>
+      <span>{{ queue.message }}</span>
+      <span title="{{ queue.document_filename }}">{{ queue.document_filename }}</span>
+    </div>
+    <div class="review-queue-progress" aria-label="Готово {{ queue.done }} из {{ queue.total }}">
+      <span style="width: {{ queue.progress_percent }}%"></span>
+    </div>
+  </div>
+  <div class="review-queue-stats">
+    <span><strong>{{ queue.remaining }}</strong> осталось</span>
+    <span><strong>{{ queue.done }}</strong> готово</span>
+    <span><strong>{{ queue.total }}</strong> всего</span>
+  </div>
+  <div class="review-queue-actions">
+    {% set action = queue.primary_action %}
+    {% include "ui/_action.html" %}
+    {% if queue.secondary_url and queue.secondary_label %}
+      <a class="meta-link" href="{{ queue.secondary_url }}">{{ queue.secondary_label }}</a>
+    {% endif %}
+  </div>
+</div>
