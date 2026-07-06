@@ -59,8 +59,8 @@ class ReviewItemPresenterDependencies:
         existing_transfer_suggestions: Mapping[UUID, Sequence[object]],
         selected_category_id_by_row: Mapping[UUID, UUID] | None,
         open_category_editor_by_row: Mapping[UUID, bool] | None,
-        category_dialog_error_by_row: Mapping[UUID, str] | None,
-        category_dialog_name_by_row: Mapping[UUID, str] | None,
+        create_category_error_by_row: Mapping[UUID, str] | None,
+        create_category_initial_name_by_row: Mapping[UUID, str] | None,
     ) -> "ReviewItemPresenterDependencies":
         labeler = ReviewLabeler()
         return cls(
@@ -82,8 +82,8 @@ class ReviewItemPresenterDependencies:
                 existing_transfer_suggestions=existing_transfer_suggestions,
                 selected_category_id_by_row=selected_category_id_by_row,
                 open_category_editor_by_row=open_category_editor_by_row,
-                category_dialog_error_by_row=category_dialog_error_by_row,
-                category_dialog_name_by_row=category_dialog_name_by_row,
+                create_category_error_by_row=create_category_error_by_row,
+                create_category_initial_name_by_row=create_category_initial_name_by_row,
             ),
             action_policy=ReviewActionPolicy(
                 document_id=ReviewReferenceResolver.required_id(document),
@@ -104,8 +104,8 @@ class ImportReviewPresenter:
         balance_chain_problems: dict[int, list[str]],
         selected_category_id_by_row: Mapping[UUID, UUID] | None = None,
         open_category_editor_by_row: Mapping[UUID, bool] | None = None,
-        category_dialog_error_by_row: Mapping[UUID, str] | None = None,
-        category_dialog_name_by_row: Mapping[UUID, str] | None = None,
+        create_category_error_by_row: Mapping[UUID, str] | None = None,
+        create_category_initial_name_by_row: Mapping[UUID, str] | None = None,
         dependencies: ReviewItemPresenterDependencies | None = None,
     ) -> None:
         self.document = document
@@ -121,8 +121,8 @@ class ImportReviewPresenter:
             existing_transfer_suggestions=existing_transfer_suggestions,
             selected_category_id_by_row=selected_category_id_by_row,
             open_category_editor_by_row=open_category_editor_by_row,
-            category_dialog_error_by_row=category_dialog_error_by_row,
-            category_dialog_name_by_row=category_dialog_name_by_row,
+            create_category_error_by_row=create_category_error_by_row,
+            create_category_initial_name_by_row=create_category_initial_name_by_row,
         )
 
     def build_items(self) -> dict[UUID, ReviewItemVM]:

@@ -28,8 +28,8 @@ class ReviewPanelPresenter:
         existing_transfer_suggestions: Mapping[UUID, Sequence[object]],
         selected_category_id_by_row: Mapping[UUID, UUID] | None = None,
         open_category_editor_by_row: Mapping[UUID, bool] | None = None,
-        category_dialog_error_by_row: Mapping[UUID, str] | None = None,
-        category_dialog_name_by_row: Mapping[UUID, str] | None = None,
+        create_category_error_by_row: Mapping[UUID, str] | None = None,
+        create_category_initial_name_by_row: Mapping[UUID, str] | None = None,
     ) -> None:
         self.document = document
         self.accounts = accounts
@@ -39,8 +39,8 @@ class ReviewPanelPresenter:
         self.existing_transfer_suggestions = existing_transfer_suggestions
         self.selected_category_id_by_row = selected_category_id_by_row or {}
         self.open_category_editor_by_row = open_category_editor_by_row or {}
-        self.category_dialog_error_by_row = category_dialog_error_by_row or {}
-        self.category_dialog_name_by_row = category_dialog_name_by_row or {}
+        self.create_category_error_by_row = create_category_error_by_row or {}
+        self.create_category_initial_name_by_row = create_category_initial_name_by_row or {}
         self.date_labeler = ReviewDateLabeler()
 
     def category_panel(self, row: object) -> CategoryPanelPayload:
@@ -79,8 +79,8 @@ class ReviewPanelPresenter:
             ],
             selected_property_id=selected_property_id,
             open_category_editor=self.open_category_editor_by_row.get(row_id, False),
-            category_dialog_error=self.category_dialog_error_by_row.get(row_id),
-            category_dialog_name=self.category_dialog_name_by_row.get(row_id, ""),
+            create_category_error=self.create_category_error_by_row.get(row_id),
+            create_category_initial_name=self.create_category_initial_name_by_row.get(row_id, ""),
         )
 
     def category_kind_options(self, row: object) -> list[CategoryKindOptionVM]:

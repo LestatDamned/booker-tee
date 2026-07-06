@@ -30,8 +30,8 @@ def render_review_page(
     existing_transfer_suggestions: Mapping[UUID, Sequence[object]] | None = None,
     selected_category_id_by_row: Mapping[UUID, UUID] | None = None,
     open_category_editor_by_row: Mapping[UUID, bool] | None = None,
-    category_dialog_error_by_row: Mapping[UUID, str] | None = None,
-    category_dialog_name_by_row: Mapping[UUID, str] | None = None,
+    create_category_error_by_row: Mapping[UUID, str] | None = None,
+    create_category_initial_name_by_row: Mapping[UUID, str] | None = None,
     extra_context: dict[str, object] | None = None,
 ) -> str:
     templates = create_templates()
@@ -45,8 +45,8 @@ def render_review_page(
         existing_transfer_suggestions=existing_transfer_suggestions or {},
         selected_category_id_by_row=selected_category_id_by_row,
         open_category_editor_by_row=open_category_editor_by_row,
-        category_dialog_error_by_row=category_dialog_error_by_row,
-        category_dialog_name_by_row=category_dialog_name_by_row,
+        create_category_error_by_row=create_category_error_by_row,
+        create_category_initial_name_by_row=create_category_initial_name_by_row,
     )
     template_values = page_context.template_values(
         app_name="Booker Tee",
@@ -1135,14 +1135,14 @@ def test_review_action_response_state_builds_transient_row_maps() -> None:
         oob_raw_transaction_ids=frozenset(),
         selected_category_id=category_id,
         open_category_editor=True,
-        category_dialog_error="Категория с таким названием уже есть.",
-        category_dialog_name="Аптека",
+        create_category_error="Категория с таким названием уже есть.",
+        create_category_initial_name="Аптека",
     )
 
     assert state.selected_category_id_by_row() == {row_id: category_id}
     assert state.open_category_editor_by_row() == {row_id: True}
-    assert state.category_dialog_error_by_row() == {row_id: "Категория с таким названием уже есть."}
-    assert state.category_dialog_name_by_row() == {row_id: "Аптека"}
+    assert state.create_category_error_by_row() == {row_id: "Категория с таким названием уже есть."}
+    assert state.create_category_initial_name_by_row() == {row_id: "Аптека"}
 
 
 def test_review_action_response_request_builds_presentation_state() -> None:
@@ -1232,8 +1232,8 @@ def test_review_action_response_template_values_expose_only_review_item_vms() ->
         oob_raw_transaction_ids=frozenset({sibling_row_id}),
         selected_category_id=category_id,
         open_category_editor=True,
-        category_dialog_error="",
-        category_dialog_name="",
+        create_category_error="",
+        create_category_initial_name="",
     )
 
     values = state.template_values(
@@ -1253,8 +1253,8 @@ def test_review_action_response_template_values_expose_only_review_item_vms() ->
     assert "oob_raw_transaction_ids" not in values
     assert "selected_category_id_by_row" not in values
     assert "open_category_editor_by_row" not in values
-    assert "category_dialog_error_by_row" not in values
-    assert "category_dialog_name_by_row" not in values
+    assert "create_category_error_by_row" not in values
+    assert "create_category_initial_name_by_row" not in values
 
 
 def test_raw_transaction_review_form_parser_builds_application_command() -> None:
@@ -1472,8 +1472,8 @@ def test_review_item_reopens_category_dialog_with_error() -> None:
         ),
         categories=[SimpleNamespace(id=uuid4(), name="Без категории", system_key="uncategorized")],
         open_category_editor_by_row={row_id: True},
-        category_dialog_error_by_row={row_id: "Категория с таким названием уже есть."},
-        category_dialog_name_by_row={row_id: "Аптека"},
+        create_category_error_by_row={row_id: "Категория с таким названием уже есть."},
+        create_category_initial_name_by_row={row_id: "Аптека"},
     )
 
     assert "review-item--vm" in html

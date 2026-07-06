@@ -200,8 +200,8 @@ async def create_review_category(
                 document_id=document_id,
                 raw_transaction_id=raw_transaction_id,
                 open_category_editor=True,
-                category_dialog_error=str(exc),
-                category_dialog_name=name,
+                create_category_error=str(exc),
+                create_category_initial_name=name,
             ),
         )
 

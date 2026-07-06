@@ -720,10 +720,9 @@ SelectOptionVM:
 
 Naming decision:
 
-- Не использовать `category_dialog_name`.
-- Использовать `create_category_initial_name`.
-- Не использовать `category_dialog_error`.
-- Использовать `create_category_error`.
+- Старое имя `category_dialog_name` заменено на
+  `create_category_initial_name`.
+- Старое имя `category_dialog_error` заменено на `create_category_error`.
 - Не добавлять `category_dialog_open` на первом шаге.
 - Если понадобится открывать форму после ошибки, позже добавить
   `should_open_create_category_dialog`.
@@ -885,8 +884,8 @@ src/app/features/imports/presentation/review/state.py
 - temporary UI state after HTMX actions:
   - `selected_category_id_by_row`;
   - `open_category_editor_by_row`;
-  - `category_dialog_error_by_row`;
-  - `category_dialog_name_by_row`.
+  - `create_category_error_by_row`;
+  - `create_category_initial_name_by_row`.
 
 ## Logic To Move Out Of Jinja
 

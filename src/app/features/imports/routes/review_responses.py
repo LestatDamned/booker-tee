@@ -25,8 +25,8 @@ class ReviewActionResponseRequest:
     oob_raw_transaction_ids: frozenset[UUID] = frozenset()
     selected_category_id: UUID | None = None
     open_category_editor: bool = False
-    category_dialog_error: str | None = None
-    category_dialog_name: str | None = None
+    create_category_error: str | None = None
+    create_category_initial_name: str | None = None
     refresh_category_options: bool = False
 
     def redirect_url(self) -> str:
@@ -38,8 +38,8 @@ class ReviewActionResponseRequest:
             oob_raw_transaction_ids=self.oob_raw_transaction_ids,
             selected_category_id=self.selected_category_id,
             open_category_editor=self.open_category_editor,
-            category_dialog_error=self.category_dialog_error,
-            category_dialog_name=self.category_dialog_name,
+            create_category_error=self.create_category_error,
+            create_category_initial_name=self.create_category_initial_name,
             refresh_category_options=self.refresh_category_options,
         )
 
@@ -50,8 +50,8 @@ class ReviewActionResponseState:
     oob_raw_transaction_ids: frozenset[UUID]
     selected_category_id: UUID | None = None
     open_category_editor: bool = False
-    category_dialog_error: str | None = None
-    category_dialog_name: str | None = None
+    create_category_error: str | None = None
+    create_category_initial_name: str | None = None
     refresh_category_options: bool = False
 
     def selected_category_id_by_row(self) -> Mapping[UUID, UUID]:
@@ -64,15 +64,15 @@ class ReviewActionResponseState:
             return {}
         return {self.raw_transaction_id: True}
 
-    def category_dialog_error_by_row(self) -> Mapping[UUID, str]:
-        if self.category_dialog_error is None:
+    def create_category_error_by_row(self) -> Mapping[UUID, str]:
+        if self.create_category_error is None:
             return {}
-        return {self.raw_transaction_id: self.category_dialog_error}
+        return {self.raw_transaction_id: self.create_category_error}
 
-    def category_dialog_name_by_row(self) -> Mapping[UUID, str]:
-        if self.category_dialog_name is None:
+    def create_category_initial_name_by_row(self) -> Mapping[UUID, str]:
+        if self.create_category_initial_name is None:
             return {}
-        return {self.raw_transaction_id: self.category_dialog_name}
+        return {self.raw_transaction_id: self.create_category_initial_name}
 
     def oob_row_ids(self, document: object) -> frozenset[UUID]:
         if self.refresh_category_options:
@@ -195,8 +195,8 @@ class ReviewActionResponseRenderer:
             existing_transfer_suggestions=page_data.existing_transfer_suggestions,
             selected_category_id_by_row=response_state.selected_category_id_by_row(),
             open_category_editor_by_row=response_state.open_category_editor_by_row(),
-            category_dialog_error_by_row=response_state.category_dialog_error_by_row(),
-            category_dialog_name_by_row=response_state.category_dialog_name_by_row(),
+            create_category_error_by_row=response_state.create_category_error_by_row(),
+            create_category_initial_name_by_row=response_state.create_category_initial_name_by_row(),
         )
 
     def _template_response(

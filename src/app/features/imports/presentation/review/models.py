@@ -85,8 +85,8 @@ class CategoryPanelPayload:
     category_kind_options: Sequence[CategoryKindOptionVM]
     selected_property_id: UUID | None
     open_category_editor: bool
-    category_dialog_error: str | None
-    category_dialog_name: str
+    create_category_error: str | None
+    create_category_initial_name: str
 
 
 @dataclass(frozen=True)

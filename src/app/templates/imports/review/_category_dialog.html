@@ -3,7 +3,7 @@
 <dialog
   class="review-dialog"
   x-ref="categoryDialog"
-  {% if payload.category_dialog_error %}x-init="$nextTick(() => { if (!$el.open) $el.showModal() })"{% endif %}
+  {% if payload.create_category_error %}x-init="$nextTick(() => { if (!$el.open) $el.showModal() })"{% endif %}
 >
   <form
     class="review-dialog-panel"
@@ -16,12 +16,12 @@
       <button class="button button-small review-dialog-close" type="button" aria-label="Закрыть" @click="$refs.categoryDialog.close()">{{ icon("x") }}</button>
     </div>
     <div class="review-dialog-body">
-      {% if payload.category_dialog_error %}
-        <div class="form-error" role="alert">{{ payload.category_dialog_error }}</div>
+      {% if payload.create_category_error %}
+        <div class="form-error" role="alert">{{ payload.create_category_error }}</div>
       {% endif %}
       <label class="field">
         <span>Название</span>
-        <input name="name" value="{{ payload.category_dialog_name }}" placeholder="например, Здоровье" required autofocus>
+        <input name="name" value="{{ payload.create_category_initial_name }}" placeholder="например, Здоровье" required autofocus>
       </label>
       <label class="field">
         <span>Тип</span>

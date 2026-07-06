@@ -53,8 +53,8 @@ def build_review_page_context(
     existing_transfer_suggestions: Mapping[UUID, Sequence[object]],
     selected_category_id_by_row: Mapping[UUID, UUID] | None = None,
     open_category_editor_by_row: Mapping[UUID, bool] | None = None,
-    category_dialog_error_by_row: Mapping[UUID, str] | None = None,
-    category_dialog_name_by_row: Mapping[UUID, str] | None = None,
+    create_category_error_by_row: Mapping[UUID, str] | None = None,
+    create_category_initial_name_by_row: Mapping[UUID, str] | None = None,
 ) -> ReviewPageContext:
     validation_report = latest_validation_report(document)
     balance_chain_problems = balance_chain_problem_messages(validation_report)
@@ -70,8 +70,8 @@ def build_review_page_context(
         balance_chain_problems=balance_chain_problems,
         selected_category_id_by_row=selected_category_id_by_row,
         open_category_editor_by_row=open_category_editor_by_row,
-        category_dialog_error_by_row=category_dialog_error_by_row,
-        category_dialog_name_by_row=category_dialog_name_by_row,
+        create_category_error_by_row=create_category_error_by_row,
+        create_category_initial_name_by_row=create_category_initial_name_by_row,
     ).build_items()
     review_items: list[ReviewItemVM] = []
     for row in getattr(document, "raw_transactions", []):
