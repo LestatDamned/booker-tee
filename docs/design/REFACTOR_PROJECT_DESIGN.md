@@ -1434,6 +1434,31 @@ Rules:
 
 Не переписывать весь frontend сразу.
 
+### First Slice Implementation Note
+
+После первого implementation slice import review использует активный
+`ReviewItemVM`-рендеринг без legacy RawTransaction partial fallback.
+
+Панели review item стабилизированы как UX-модель `tabs + drawers`, а не как
+единый универсальный panel shell:
+
+- `ReviewPanelVM` описывает панель review item;
+- `_panel_tab.html` отвечает за кнопку панели;
+- `_panel_drawer.html` отвечает за drawer-оболочку и подключение typed partial;
+- `_category_panel.html` и `_transfer_panel.html` остаются владельцами
+  конкретного содержимого и форм;
+- `panel.actions` пока не вводится, потому что category и transfer panels имеют
+  разные form contracts и не требуют общей action footer abstraction.
+
+Новый CSS для panel/action слоя мигрирует к BEM-like naming постепенно:
+
+- `review-panel__*`;
+- `review-actions__*`.
+
+Старые классы `review-main`, `review-meta`, `review-topline` и соседние
+review-item классы будут мигрировать только при следующем естественном UI/refactor
+touch point, чтобы не делать массовый rename без продуктовой пользы.
+
 Шаги:
 
 1. Добавить VM dataclasses и presenter tests без изменения HTML.

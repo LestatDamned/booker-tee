@@ -1,6 +1,6 @@
 <button
   id="{{ panel.id }}"
-  class="review-panel-tab review-panel-role-{{ panel.role }} review-{{ panel.panel_type }}-action"
+  class="review-panel__tab review-panel__tab--{{ panel.role }} review-panel__tab--{{ panel.panel_type }}"
   type="button"
   aria-controls="{{ panel.id }}-drawer"
   x-bind:aria-expanded="activePanel === '{{ panel.id }}' ? 'true' : 'false'"

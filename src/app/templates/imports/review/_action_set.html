@@ -1,5 +1,5 @@
-<div class="review-action-system">
-  <div class="review-action-row">
+<div class="review-actions__system">
+  <div class="review-actions__row">
     {% if item.primary_action %}
       <div class="primary-actions">
         {% set action = item.primary_action %}
@@ -24,7 +24,7 @@
             <span class="details-toggle-close">Закрыть</span>
           </span>
         </summary>
-        <div class="danger-actions danger-actions-direct">
+        <div class="danger-actions review-actions__danger-direct">
         {% set action = item.danger_actions[0] %}
         {% include "ui/_action.html" %}
         </div>
@@ -40,14 +40,14 @@
           </span>
         </summary>
         {% if item.menu_actions %}
-          <div class="review-action-menu-section">
+          <div class="review-actions__menu-section">
             {% for action in item.menu_actions %}
               {% include "ui/_action.html" %}
             {% endfor %}
           </div>
         {% endif %}
         {% if item.danger_actions %}
-          <div class="danger-zone review-action-menu-section">
+          <div class="danger-zone review-actions__menu-section">
             <div class="action-title">Опасная зона</div>
             {% for action in item.danger_actions %}
               {% include "ui/_action.html" %}

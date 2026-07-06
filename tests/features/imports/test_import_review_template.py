@@ -193,11 +193,11 @@ def test_action_set_partial_renders_primary_secondary_menu_and_danger_slots() ->
 
     html = render_action_set(item)
 
-    assert "review-action-row" in html
+    assert "review-actions__row" in html
     assert "primary-actions" in html
     assert "secondary-actions" in html
     assert "review-action-menu" in html
-    assert "review-action-menu-section" in html
+    assert "review-actions__menu-section" in html
     assert "review-action-heading" not in html
     assert "Действие" not in html
     assert "Уточнить" not in html
@@ -211,7 +211,7 @@ def test_action_set_partial_renders_primary_secondary_menu_and_danger_slots() ->
     assert "Сделать перевод" in html
     assert "Игнорировать" in html
     assert html.index("primary-actions") < html.index("secondary-actions")
-    assert html.index("review-action-menu-section") < html.index("danger-zone")
+    assert html.index("review-actions__menu-section") < html.index("danger-zone")
 
 
 def test_action_set_partial_hides_single_danger_action_behind_correction_toggle() -> None:
@@ -239,7 +239,7 @@ def test_action_set_partial_hides_single_danger_action_behind_correction_toggle(
     assert "Исправить" in html
     assert "Открыть" in html
     assert "Закрыть" in html
-    assert "danger-actions-direct" in html
+    assert "review-actions__danger-direct" in html
     assert "Отменить проведение" in html
     assert "Еще действия" not in html
     assert "Опасная зона" not in html
@@ -303,6 +303,7 @@ def test_review_page_context_uses_review_item_vm_by_default() -> None:
     assert page_context.review_items_for_row_ids({row_id}) == page_context.review_items
     assert [item.id for item in page_context.review_items] == [row_id]
     assert "review-item-vm" in html
+
 
 def test_review_template_prefills_suggested_rule_category() -> None:
     account_id = uuid4()
@@ -449,7 +450,7 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
     assert "Подтвердить" in html
     assert "Сохранить и подтвердить" in html
     assert "Игнорировать" in html
-    assert 'hx-confirm=' in html
+    assert "hx-confirm=" in html
     assert html.index("29.05.2026") < html.index("Veesp hosting")
     assert "review-topline" in html
     assert "review-date-chip" in html
@@ -459,15 +460,15 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
     assert "по сумме" in html
     assert "предложено операция связана" not in html
     assert "review-panels" in html
-    assert "review-panel-role-primary" in html
-    assert "review-panel-role-alternative" in html
+    assert "review-panel__tab--primary" in html
+    assert "review-panel__tab--alternative" in html
     assert "основной разбор строки" in html
     assert "если это перемещение между счетами" in html
-    assert "review-panel-tabs" in html
-    assert "review-panel-drawers" in html
-    assert "review-panel-tab" in html
+    assert "review-panel__tabs" in html
+    assert "review-panel__drawers" in html
+    assert "review-panel__tab" in html
     assert "togglePanel(" in html
-    assert "x-show=\"activePanel ===" in html
+    assert 'x-show="activePanel ===' in html
     assert "Открыть" in html
     assert "Закрыть" in html
     assert "review-panel-body" in html
@@ -1086,8 +1087,12 @@ def test_review_action_response_renders_prepared_review_item_vms() -> None:
     )
     template_values["current_item"] = page_context.review_items_by_id[current_row.id]
     template_values["oob_review_items"] = [page_context.review_items_by_id[sibling_row.id]]
-    html = create_templates().env.get_template("imports/_review_action_response.html").render(
-        **template_values,
+    html = (
+        create_templates()
+        .env.get_template("imports/_review_action_response.html")
+        .render(
+            **template_values,
+        )
     )
 
     assert "review-item-vm" in html
@@ -1111,9 +1116,7 @@ def test_review_action_response_state_builds_transient_row_maps() -> None:
 
     assert state.selected_category_id_by_row() == {row_id: category_id}
     assert state.open_category_editor_by_row() == {row_id: True}
-    assert state.category_dialog_error_by_row() == {
-        row_id: "Категория с таким названием уже есть."
-    }
+    assert state.category_dialog_error_by_row() == {row_id: "Категория с таким названием уже есть."}
     assert state.category_dialog_name_by_row() == {row_id: "Аптека"}
 
 
@@ -1324,7 +1327,7 @@ def test_review_item_selects_newly_created_category() -> None:
     )
 
     assert "review-item-vm" in html
-    assert "review-category-action" in html
+    assert "review-panel__tab--category" in html
     assert "review-category-panel-body" in html
     assert "review-category-grid" in html
     assert "review-category-primary" in html
@@ -1405,7 +1408,7 @@ def test_suggested_review_item_keeps_rule_proposal_when_new_category_is_selected
     assert f'<option value="{services_category_id}" selected>' not in html
     assert 'review-secondary-action" open' not in html
     assert f'id="category-panel-{row_id}"' in html
-    assert "review-category-action" in html
+    assert "review-panel__tab--category" in html
     assert "open" in html
 
 
@@ -1444,7 +1447,7 @@ def test_review_item_reopens_category_dialog_with_error() -> None:
     )
 
     assert "review-item-vm" in html
-    assert "review-category-action" in html
+    assert "review-panel__tab--category" in html
     assert "open" in html
     assert 'role="alert"' in html
     assert "Категория с таким названием уже есть." in html

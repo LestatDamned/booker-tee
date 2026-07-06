@@ -96,7 +96,7 @@ class TransferPanelPayload:
 
 
 @dataclass(frozen=True)
-class ExpandedPanelVM:
+class ReviewPanelVM:
     id: str
     title: str
     summary_note: str
@@ -196,7 +196,8 @@ class ReviewItemVM:
     visible_secondary_action: ActionVM | None
     menu_actions: Sequence[ActionVM]
     danger_actions: Sequence[ActionVM]
-    panels: Sequence[ExpandedPanelVM]
+    initial_active_panel_id: str
+    panels: Sequence[ReviewPanelVM]
     proposal_summary: str | None
     outcome_summary: ReviewOutcomeVM | None
     operation_link: OperationLinkVM | None

@@ -776,9 +776,7 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
         examples = ", ".join(
             f"{item.get('tag')}.{item.get('className')}" for item in radius_offenders[:3]
         )
-        errors.append(
-            "designer audit: rounded corners exceed 8px design limit: " + examples
-        )
+        errors.append("designer audit: rounded corners exceed 8px design limit: " + examples)
 
     visible_debug_blocks = list(state.get("visibleDebugBlocks") or [])
     if visible_debug_blocks:
@@ -1103,7 +1101,7 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
     page.wait_for_timeout(100)
     before_top = locator_top(row)
 
-    category_toggle = row.locator(".review-category-action:visible").first
+    category_toggle = row.locator(".review-panel__tab--category:visible").first
     if category_toggle.count() == 0:
         category_toggle = row.locator(".action-category_panel:visible").first
     if category_toggle.count() == 0:
@@ -1111,15 +1109,15 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
         return errors
     category_toggle.click()
     if (
-        category_toggle.evaluate("element => element.classList.contains('review-panel-tab')")
+        category_toggle.evaluate("element => element.classList.contains('review-panel__tab')")
         and category_toggle.get_attribute("aria-expanded") != "true"
     ):
         errors.append("category panel did not open")
     try:
-        row.locator(".review-panel-drawer:visible").first.wait_for(timeout=PAGE_TIMEOUT_MS)
+        row.locator(".review-panel__drawer:visible").first.wait_for(timeout=PAGE_TIMEOUT_MS)
     except PlaywrightError:
         pass
-    if row.locator(".review-panel-drawer:visible").count() != 1:
+    if row.locator(".review-panel__drawer:visible").count() != 1:
         errors.append("category panel opening did not leave exactly one visible drawer")
 
     row.locator(".inline-create-button").first.click()
@@ -1158,25 +1156,25 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
     if refreshed_row.count() == 0:
         errors.append("review row disappeared after category creation")
         return errors
-    refreshed_category_toggle = refreshed_row.locator(".review-category-action:visible").first
+    refreshed_category_toggle = refreshed_row.locator(".review-panel__tab--category:visible").first
     if refreshed_category_toggle.count() == 0:
         refreshed_category_toggle = refreshed_row.locator(".action-category_panel:visible").first
     if refreshed_category_toggle.count() == 0:
         errors.append("category panel trigger was not found after category creation")
     elif (
         refreshed_category_toggle.evaluate(
-            "element => element.classList.contains('review-panel-tab')"
+            "element => element.classList.contains('review-panel__tab')"
         )
         and refreshed_category_toggle.get_attribute("aria-expanded") != "true"
     ):
         errors.append("category panel did not stay open after category creation")
     try:
-        refreshed_row.locator(".review-panel-drawer:visible").first.wait_for(
+        refreshed_row.locator(".review-panel__drawer:visible").first.wait_for(
             timeout=PAGE_TIMEOUT_MS
         )
     except PlaywrightError:
         pass
-    if refreshed_row.locator(".review-panel-drawer:visible").count() != 1:
+    if refreshed_row.locator(".review-panel__drawer:visible").count() != 1:
         errors.append("category panel refresh did not leave exactly one visible drawer")
     if refreshed_row.locator(f'text="{category_name}"').count() == 0:
         errors.append("created category is not visible in refreshed review row")

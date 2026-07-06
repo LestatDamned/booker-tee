@@ -13,10 +13,10 @@ from app.features.imports.presentation.review.labels import (
 from app.features.imports.presentation.review.models import (
     BadgeVM,
     ClassificationVM,
-    ExpandedPanelVM,
     ProblemVM,
     ReviewItemVM,
     ReviewOutcomeVM,
+    ReviewPanelVM,
 )
 from app.features.imports.presentation.review.panels import ReviewPanelPresenter
 from app.features.imports.presentation.review.references import ReviewReferenceResolver
@@ -151,7 +151,7 @@ class ImportReviewPresenter:
         )
         row_id = ReviewReferenceResolver.required_id(row)
         panels = [
-            ExpandedPanelVM(
+            ReviewPanelVM(
                 id=f"category-panel-{row_id}",
                 title="Категория",
                 summary_note="основной разбор строки",
@@ -161,7 +161,7 @@ class ImportReviewPresenter:
                 is_open=category_panel.open_category_editor,
                 payload=category_panel,
             ),
-            ExpandedPanelVM(
+            ReviewPanelVM(
                 id=f"transfer-panel-{row_id}",
                 title="Перевод",
                 summary_note="если это перемещение между счетами",
@@ -233,6 +233,7 @@ class ImportReviewPresenter:
             visible_secondary_action=actions.visible_secondary,
             menu_actions=actions.menu,
             danger_actions=actions.danger,
+            initial_active_panel_id=self.initial_active_panel_id(panels),
             panels=self.visible_panels(visual_state=visual_state, panels=panels),
             proposal_summary=self.build_proposal_summary(
                 row,
@@ -360,11 +361,15 @@ class ImportReviewPresenter:
         self,
         *,
         visual_state: str,
-        panels: Sequence[ExpandedPanelVM],
-    ) -> Sequence[ExpandedPanelVM]:
+        panels: Sequence[ReviewPanelVM],
+    ) -> Sequence[ReviewPanelVM]:
         if visual_state in {"confirmed", "matched"}:
             return []
         return panels
+
+    def initial_active_panel_id(self, panels: Sequence[ReviewPanelVM]) -> str:
+        panel = next((panel for panel in panels if panel.is_open), None)
+        return panel.id if panel is not None else ""
 
 
 def review_row_anchor(raw_transaction_id: UUID) -> str:

@@ -1,9 +1,3 @@
-{% set panel_state = namespace(active_panel_id="") %}
-{% for panel in item.panels %}
-  {% if panel.is_open and not panel_state.active_panel_id %}
-    {% set panel_state.active_panel_id = panel.id %}
-  {% endif %}
-{% endfor %}
 {% set action_summary = item.operation_link or item.outcome_summary %}
 
 <article
@@ -15,7 +9,7 @@
   hx-swap="outerHTML show:none"
   hx-push-url="false"
   x-data="{
-    activePanel: '{{ panel_state.active_panel_id }}',
+    activePanel: '{{ item.initial_active_panel_id }}',
     togglePanel(panelId) {
       this.activePanel = this.activePanel === panelId ? '' : panelId;
     },
@@ -98,22 +92,14 @@
 
   {% if item.panels %}
     <div class="review-panels">
-      <div class="review-panel-tabs">
+      <div class="review-panel__tabs">
         {% for panel in item.panels %}
-          {% include "imports/review/_expanded_panel.html" %}
+          {% include "imports/review/_panel_tab.html" %}
         {% endfor %}
       </div>
-      <div class="review-panel-drawers">
+      <div class="review-panel__drawers">
         {% for panel in item.panels %}
-          <div
-            id="{{ panel.id }}-drawer"
-            class="secondary-action-panel review-panel-drawer review-{{ panel.panel_type }}-drawer"
-            {% if panel_state.active_panel_id != panel.id %}style="display: none;"{% endif %}
-            x-show="activePanel === '{{ panel.id }}'"
-            x-cloak
-          >
-            {% include panel.template_name %}
-          </div>
+          {% include "imports/review/_panel_drawer.html" %}
         {% endfor %}
       </div>
     </div>
