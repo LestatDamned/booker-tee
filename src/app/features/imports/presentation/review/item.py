@@ -190,7 +190,6 @@ class ImportReviewPresenter:
             getattr(row, "suggested_property_id", None),
         )
         return ReviewItemVM(
-            row=row,
             id=row_id,
             anchor_id=review_row_anchor(row_id),
             row_index=getattr(row, "row_index", 0),

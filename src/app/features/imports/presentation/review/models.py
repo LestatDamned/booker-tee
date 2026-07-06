@@ -258,7 +258,6 @@ class ClassificationVM:
 
 @dataclass(frozen=True)
 class ReviewItemVM:
-    row: object
     id: UUID
     anchor_id: str
     row_index: int

@@ -505,7 +505,6 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
 def test_review_item_vm_omits_empty_badge_flag_and_panel_regions() -> None:
     row_id = uuid4()
     item = SimpleNamespace(
-        row=SimpleNamespace(id=row_id),
         id=row_id,
         anchor_id=f"raw-{row_id}",
         row_index=1,
