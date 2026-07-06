@@ -55,6 +55,10 @@ class ReviewPanelPresenter:
                 f"/imports/documents/{ReviewReferenceResolver.required_id(self.document)}"
                 f"/raw-transactions/{row_id}/status"
             ),
+            create_category_url=(
+                f"/imports/documents/{ReviewReferenceResolver.required_id(self.document)}"
+                f"/raw-transactions/{row_id}/categories"
+            ),
             selected_category_id=selected_category_id,
             category_options=[
                 CategoryOptionVM(

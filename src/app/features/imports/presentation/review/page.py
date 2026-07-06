@@ -24,10 +24,7 @@ from app.features.imports.presentation.review.state import FINAL_RAW_STATUSES
 
 @dataclass(frozen=True)
 class ReviewPageContext:
-    document: object
     review_page: ReviewPageVM
-    review_validation: ReviewValidationSummaryVM | None
-    review_queue: ReviewQueueVM
     review_items: Sequence[ReviewItemVM]
     review_items_by_id: Mapping[UUID, ReviewItemVM]
 
@@ -40,7 +37,6 @@ class ReviewPageContext:
     def template_values(self, *, app_name: str, workspace: object) -> dict[str, object]:
         return {
             "app_name": app_name,
-            "document": self.document,
             "review_page": self.review_page,
             "review_items": self.review_items,
             "workspace": workspace,
@@ -83,15 +79,12 @@ def build_review_page_context(
         if row_id in review_items_by_id:
             review_items.append(review_items_by_id[row_id])
     return ReviewPageContext(
-        document=document,
         review_page=ReviewPagePresenter().build(
             document=document,
             review_queue=review_queue,
             review_validation=review_validation,
             has_review_items=bool(review_items),
         ),
-        review_validation=review_validation,
-        review_queue=review_queue,
         review_items=review_items,
         review_items_by_id=review_items_by_id,
     )

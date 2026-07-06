@@ -1,0 +1,120 @@
+(() => {
+  const storageKey = `booker-tee.review-scroll:${window.location.pathname}`;
+  let pendingReviewPosition = null;
+  let restoreTimerIds = [];
+
+  if ("scrollRestoration" in history) {
+    history.scrollRestoration = "manual";
+  }
+
+  const readStoredPosition = () => {
+    try {
+      return JSON.parse(sessionStorage.getItem(storageKey) || "null");
+    } catch {
+      return null;
+    }
+  };
+
+  const forgetStoredPosition = () => {
+    sessionStorage.removeItem(storageKey);
+  };
+
+  const captureReviewPosition = (row) => {
+    const rect = row.getBoundingClientRect();
+    return {
+      rowId: row.id,
+      scrollY: window.scrollY,
+      top: rect.top,
+    };
+  };
+
+  const rememberReviewPosition = (row) => {
+    const currentPosition = captureReviewPosition(row);
+    pendingReviewPosition = currentPosition;
+    sessionStorage.setItem(storageKey, JSON.stringify(currentPosition));
+  };
+
+  const restoreReviewPosition = (state) => {
+    if (!state) {
+      return;
+    }
+
+    const target = state.rowId ? document.getElementById(state.rowId) : null;
+    if (target && Number.isFinite(state.top)) {
+      const currentTop = target.getBoundingClientRect().top;
+      window.scrollTo(0, Math.max(0, window.scrollY + currentTop - state.top));
+      return;
+    }
+
+    if (Number.isFinite(state.scrollY)) {
+      window.scrollTo(0, state.scrollY);
+    }
+  };
+
+  const scheduleReviewPositionRestore = (state) => {
+    if (!state) {
+      return;
+    }
+    restoreTimerIds.forEach((timerId) => window.clearTimeout(timerId));
+    restoreTimerIds = [0, 80, 180, 360].map((delay, index, delays) => {
+      return window.setTimeout(() => {
+        requestAnimationFrame(() => {
+          restoreReviewPosition(state);
+          if (index === delays.length - 1) {
+            pendingReviewPosition = null;
+            forgetStoredPosition();
+            restoreTimerIds = [];
+          }
+        });
+      }, delay);
+    });
+  };
+
+  window.addEventListener(
+    "pageshow",
+    () => {
+      scheduleReviewPositionRestore(readStoredPosition());
+    },
+    { once: true },
+  );
+
+  document.addEventListener("htmx:afterSettle", () => {
+    scheduleReviewPositionRestore(pendingReviewPosition || readStoredPosition());
+  });
+
+  document.addEventListener("htmx:beforeRequest", (event) => {
+    const source = event.detail ? event.detail.elt : null;
+    if (!(source instanceof Element)) {
+      return;
+    }
+
+    const row = source.closest(".review-item");
+    if (!row || !row.id) {
+      return;
+    }
+
+    rememberReviewPosition(row);
+  });
+
+  document.addEventListener("htmx:afterRequest", () => {
+    scheduleReviewPositionRestore(pendingReviewPosition || readStoredPosition());
+  });
+
+  document.addEventListener(
+    "submit",
+    (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement)) {
+        return;
+      }
+
+      const row = form.closest(".review-item");
+      if (!row || !row.id) {
+        return;
+      }
+
+      rememberReviewPosition(row);
+    },
+    true,
+  );
+})();

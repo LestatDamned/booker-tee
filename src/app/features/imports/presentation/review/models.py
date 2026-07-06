@@ -78,6 +78,7 @@ class TransferMatchOptionVM:
 @dataclass(frozen=True)
 class CategoryPanelPayload:
     action_url: str
+    create_category_url: str
     selected_category_id: UUID | None
     category_options: Sequence[CategoryOptionVM]
     property_options: Sequence[PropertyOptionVM]

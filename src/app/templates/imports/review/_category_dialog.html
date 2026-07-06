@@ -8,7 +8,7 @@
   <form
     class="review-dialog-panel"
     method="post"
-    action="/imports/documents/{{ document.id }}/raw-transactions/{{ row.id }}/categories"
+    action="{{ payload.create_category_url }}"
   >
     {{ csrf_input() }}
     <div class="review-dialog-header">
