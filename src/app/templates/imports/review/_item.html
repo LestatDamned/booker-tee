@@ -1,7 +1,7 @@
 {% set action_summary = item.operation_link or item.outcome_summary %}
 
 <article
-  class="review-item review-item-vm review-status-{{ item.visual_state }} {% if item.is_next %}review-item-next{% endif %}"
+  class="review-item review-item--vm review-status-{{ item.visual_state }} {% if item.is_next %}review-item-next{% endif %}"
   id="{{ item.anchor_id }}"
   hx-boost="true"
   hx-select="#{{ item.anchor_id }}"
@@ -23,7 +23,6 @@
   }"
   {% if item.oob or (review_item_oob is defined and review_item_oob) %}hx-swap-oob="true"{% endif %}
 >
-  {% set row = item.row %}
   <div class="review-main">
     <div class="review-topline">
       <div class="review-meta">

@@ -1208,7 +1208,7 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
             )
     if confirmed_row.locator(".review-ledger-summary").count() == 0:
         errors.append("confirmed review row does not show operation reference")
-    correction_action = confirmed_row.locator(".review-correction-action").first
+    correction_action = confirmed_row.locator(".review-actions__correction").first
     if correction_action.count() == 0:
         errors.append("confirmed review row does not expose correction action")
     else:

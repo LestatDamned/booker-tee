@@ -196,7 +196,7 @@ def test_action_set_partial_renders_primary_secondary_menu_and_danger_slots() ->
     assert "review-actions__row" in html
     assert "primary-actions" in html
     assert "secondary-actions" in html
-    assert "review-action-menu" in html
+    assert "review-actions__menu" in html
     assert "review-actions__menu-section" in html
     assert "review-action-heading" not in html
     assert "Действие" not in html
@@ -235,7 +235,7 @@ def test_action_set_partial_hides_single_danger_action_behind_correction_toggle(
 
     html = render_action_set(item)
 
-    assert "review-correction-action" in html
+    assert "review-actions__correction" in html
     assert "Исправить" in html
     assert "Открыть" in html
     assert "Закрыть" in html
@@ -243,7 +243,7 @@ def test_action_set_partial_hides_single_danger_action_behind_correction_toggle(
     assert "Отменить проведение" in html
     assert "Еще действия" not in html
     assert "Опасная зона" not in html
-    assert "review-action-menu" not in html
+    assert "review-actions__menu" not in html
 
 
 def test_review_page_context_uses_review_item_vm_by_default() -> None:
@@ -313,7 +313,7 @@ def test_review_page_context_uses_review_item_vm_by_default() -> None:
     assert page_context.review_page.tools.workflow.steps[3].label == "Проверка"
     assert page_context.review_page.tools.workflow.steps[3].state == "current"
     assert page_context.review_page.has_review_items is True
-    assert "review-item-vm" in html
+    assert "review-item--vm" in html
 
 
 def test_review_template_prefills_suggested_rule_category() -> None:
@@ -455,7 +455,7 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
         ),
     )
 
-    assert "review-item-vm" in html
+    assert "review-item--vm" in html
     assert "review-status-ready_to_confirm" in html
     assert "готово" in html
     assert "Подтвердить" in html
@@ -515,7 +515,7 @@ def test_review_item_vm_omits_empty_badge_flag_and_panel_regions() -> None:
 
     html = create_templates().env.get_template("imports/review/_item.html").render(item=item)
 
-    assert "review-item-vm" in html
+    assert "review-item--vm" in html
     assert "review-state-summary" not in html
     assert "review-flags" not in html
     assert "review-panels" not in html
@@ -649,7 +649,7 @@ def test_review_template_shows_expense_category_for_linked_operation() -> None:
     assert "автоправило: KRASNOE&amp;BELOE" not in html
     assert "строка уже в финальном состоянии" not in html
     assert "review-flags" not in html
-    assert "review-correction-action" in html
+    assert "review-actions__correction" in html
     assert "Исправить" in html
     assert "Отменить проведение" in html
     assert "Открыть операцию" not in html
@@ -1106,7 +1106,7 @@ def test_review_action_response_renders_prepared_review_item_vms() -> None:
         )
     )
 
-    assert "review-item-vm" in html
+    assert "review-item--vm" in html
     assert f'id="raw-{current_row.id}"' in html
     assert f'id="raw-{sibling_row.id}"' in html
     assert html.count('hx-swap-oob="true"') == 2
@@ -1341,7 +1341,7 @@ def test_review_item_selects_newly_created_category() -> None:
         selected_category_id_by_row={row_id: created_category_id},
     )
 
-    assert "review-item-vm" in html
+    assert "review-item--vm" in html
     assert "review-panel__tab--category" in html
     assert "review-category-panel-body" in html
     assert "review-category-grid" in html
@@ -1422,7 +1422,7 @@ def test_suggested_review_item_keeps_rule_proposal_when_new_category_is_selected
     assert "автоприменено правило" not in html
     assert f'<option value="{created_category_id}" selected>' in html
     assert f'<option value="{services_category_id}" selected>' not in html
-    assert 'review-secondary-action" open' not in html
+    assert 'review-actions__secondary" open' not in html
     assert f'id="category-panel-{row_id}"' in html
     assert "review-panel__tab--category" in html
     assert "open" in html
@@ -1462,7 +1462,7 @@ def test_review_item_reopens_category_dialog_with_error() -> None:
         category_dialog_name_by_row={row_id: "Аптека"},
     )
 
-    assert "review-item-vm" in html
+    assert "review-item--vm" in html
     assert "review-panel__tab--category" in html
     assert "open" in html
     assert 'role="alert"' in html

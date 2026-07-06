@@ -1,4 +1,5 @@
 (() => {
+  const reviewItemSelector = ".review-item";
   const storageKey = `booker-tee.review-scroll:${window.location.pathname}`;
   let pendingReviewPosition = null;
   let restoreTimerIds = [];
@@ -16,7 +17,11 @@
   };
 
   const forgetStoredPosition = () => {
-    sessionStorage.removeItem(storageKey);
+    try {
+      sessionStorage.removeItem(storageKey);
+    } catch {
+      // Ignore storage failures: scroll restoration is a UI enhancement.
+    }
   };
 
   const captureReviewPosition = (row) => {
@@ -31,7 +36,11 @@
   const rememberReviewPosition = (row) => {
     const currentPosition = captureReviewPosition(row);
     pendingReviewPosition = currentPosition;
-    sessionStorage.setItem(storageKey, JSON.stringify(currentPosition));
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(currentPosition));
+    } catch {
+      // Keep the in-memory position for the current HTMX cycle.
+    }
   };
 
   const restoreReviewPosition = (state) => {
@@ -88,7 +97,7 @@
       return;
     }
 
-    const row = source.closest(".review-item");
+    const row = source.closest(reviewItemSelector);
     if (!row || !row.id) {
       return;
     }
@@ -108,7 +117,7 @@
         return;
       }
 
-      const row = form.closest(".review-item");
+      const row = form.closest(reviewItemSelector);
       if (!row || !row.id) {
         return;
       }

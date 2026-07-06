@@ -15,7 +15,7 @@
     {% endif %}
 
     {% if not item.primary_action and not item.visible_secondary_action and not item.menu_actions and item.danger_actions|length == 1 %}
-      <details class="action-details action-accordion review-secondary-action review-correction-action">
+      <details class="action-details action-accordion review-actions__secondary review-actions__correction">
         <summary>
           {{ icon("settings") }}
           <span>Исправить</span>
@@ -30,7 +30,7 @@
         </div>
       </details>
     {% elif item.menu_actions or item.danger_actions %}
-      <details class="action-details action-accordion review-secondary-action review-action-menu">
+      <details class="action-details action-accordion review-actions__secondary review-actions__menu">
         <summary>
           {{ icon("list-check") }}
           <span>Еще действия</span>

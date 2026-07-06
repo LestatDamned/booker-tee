@@ -7,8 +7,8 @@
   x-bind:class="{ 'is-active': activePanel === '{{ panel.id }}' }"
   @click="togglePanel('{{ panel.id }}')"
 >
-  <span class="review-panel-summary-title">{{ panel.title }}</span>
-  <span class="review-panel-summary-note">{{ panel.summary_note }}</span>
+  <span class="review-panel__tab-title">{{ panel.title }}</span>
+  <span class="review-panel__tab-note">{{ panel.summary_note }}</span>
   <span class="details-toggle-label" aria-hidden="true">
     <span class="details-toggle-open" x-show="activePanel !== '{{ panel.id }}'">Открыть</span>
     <span class="details-toggle-close" x-show="activePanel === '{{ panel.id }}'">Закрыть</span>
