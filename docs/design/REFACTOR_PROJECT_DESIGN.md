@@ -600,7 +600,7 @@ ExpandedPanelVM
 
 Для `expanded_panel` выбран смешанный подход.
 
-Нужен один общий `ExpandedPanelVM` как shell:
+Изначально планировался один общий `ExpandedPanelVM` как shell:
 
 ```text
 ExpandedPanelVM:
@@ -626,13 +626,19 @@ ManualFixPanelPayload
 Не делаем универсальный form-builder с абстрактными `fields`/`sections` на
 первом этапе. Это может превратиться в слишком общий и сложный слой.
 
+Реализация первого slice приняла более легкий компромисс: общий shell
+существует как `ReviewPanelVM` плюс два partial-уровня `tab + drawer`.
+Это дает единое поведение раскрытия, но не заставляет category/transfer формы
+подчиняться преждевременному generic `panel.actions`.
+
 Логика:
 
 - `ReviewItemVM` знает, какая панель раскрыта.
-- `ExpandedPanelVM` задает общий контейнер панели.
+- `ReviewPanelVM` описывает общий контейнер панели.
 - `panel.type` выбирает partial-шаблон.
 - `payload` содержит только данные, нужные конкретной панели.
-- `actions` остаются обычными `ActionVM`.
+- panel actions не вводятся, пока реальные формы category/transfer не требуют
+  общей footer/action abstraction.
 
 Цель: сохранить простой общий механизм раскрытия панели, но не смешивать разные
 UX-сценарии в один generic fields-объект.
@@ -656,11 +662,12 @@ UX-сценарии в один generic fields-объект.
 - `ActionVM`;
 - `BadgeVM`;
 - `ProblemVM`;
-- `ExpandedPanelVM` как общий shell;
+- `ReviewPanelVM` как общий shell для tab/drawer;
 - `CategoryPanelPayload`;
 - `TransferPanelPayload`;
 - partial для review item;
-- `panel_shell.html`;
+- `_panel_tab.html`;
+- `_panel_drawer.html`;
 - `category_panel.html`;
 - `transfer_panel.html`.
 
@@ -1218,7 +1225,7 @@ Decision line:
 
 Expanded panel:
 
-- `panel_shell.html`;
+- `_panel_tab.html` + `_panel_drawer.html`;
 - внутри `category_panel.html` или `transfer_panel.html` по `panel.type`.
 
 Важное правило: дата не должна теряться в мелком meta-тексте вместе с row index.
@@ -1239,7 +1246,8 @@ Row index — техническая деталь, а дата — ключев�
 ```text
 src/app/templates/imports/review/_item.html
 src/app/templates/imports/review/_actions.html
-src/app/templates/imports/review/_panel_shell.html
+src/app/templates/imports/review/_panel_tab.html
+src/app/templates/imports/review/_panel_drawer.html
 src/app/templates/imports/review/panels/_category.html
 src/app/templates/imports/review/panels/_transfer.html
 ```
@@ -1248,7 +1256,8 @@ src/app/templates/imports/review/panels/_transfer.html
 
 ```text
 src/app/templates/imports/review/_item.html
-src/app/templates/imports/review/_panel_shell.html
+src/app/templates/imports/review/_panel_tab.html
+src/app/templates/imports/review/_panel_drawer.html
 src/app/templates/imports/review/_category_panel.html
 src/app/templates/imports/review/_transfer_panel.html
 ```
@@ -1271,10 +1280,10 @@ src/app/templates/ui/_select.html
 
 ### CSS Naming
 
-Для нового review item используем BEM-like naming convention, но только внутри
-новых/переписанных компонентов. Не переписывать весь старый CSS проекта.
+Для нового review item используем BEM-like naming convention постепенно, только
+внутри новых/переписанных компонентов. Не переписывать весь старый CSS проекта.
 
-Основной компонент:
+Целевой основной компонент:
 
 ```text
 review-item
@@ -1333,13 +1342,16 @@ review-actions__menu
 review-actions__danger
 ```
 
-Rules:
+Правила:
 
 - Новые review partials используют BEM-like classes.
 - Старую верстку не трогать без необходимости.
-- Не смешивать старые классы `review-main` / `review-meta` с новым
-  `review-item__*` внутри нового компонента.
-- State modifier строится из `visual_state`:
+- Для текущего stabilized slice допустим root modifier `review-item--vm` и
+  старые внутренние классы `review-main` / `review-meta` как compatibility
+  layer.
+- При следующем UI touch point не смешивать старые классы `review-main` /
+  `review-meta` с новым `review-item__*` внутри одного изменяемого блока.
+- Целевой state modifier строится из `visual_state`:
 
   ```jinja
   review-item--state-{{ item.visual_state }}
@@ -1371,12 +1383,13 @@ Rules:
    - `item.primary_action`;
    - `item.expanded_panel`.
 4. `CategoryPanelPayload` и `TransferPanelPayload` работают через typed payload.
-5. `ExpandedPanelVM` используется как общий shell:
+5. `ReviewPanelVM` используется как общий shell:
    - `panel.type`;
    - `panel.title`;
    - `panel.payload`;
-   - `panel.actions`.
    Конкретное содержимое рендерится через category/transfer partial.
+   В первом slice `panel.actions` не вводится: category и transfer панели
+   используют собственные form contracts.
 6. Primary/secondary/danger actions приходят из presenter/action policy, а не
    собираются в Jinja.
 7. В review item визуально есть максимум:
@@ -1420,11 +1433,12 @@ Rules:
     meta-информацию.
 19. Row index / raw id / technical details не конкурируют визуально с суммой,
     датой, статусом и описанием.
-20. Новый CSS использует BEM-like naming только для нового компонента:
-    - `review-item__*`;
+20. Новый CSS использует BEM-like naming для стабилизированных новых частей:
     - `review-panel__*`;
     - `review-actions__*`.
-    Старые CSS-классы не смешиваются внутри нового partial без необходимости.
+    Root нового item помечен как `review-item--vm`. Старые CSS-классы
+    `review-main`, `review-meta`, `review-topline` пока остаются как
+    совместимость и будут мигрировать только при следующем UI touch point.
 21. Новый partial можно включить точечно вместо старого review item без
     переписывания всего модуля импорта.
 22. Если что-то ломается, старый partial можно временно вернуть без миграций БД

@@ -1,5 +1,7 @@
+import re
 from collections.abc import Mapping, Sequence
 from decimal import Decimal
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -14,6 +16,8 @@ from app.features.imports.routes.review_responses import (
 )
 from app.features.ledger.models import OperationType
 from app.templating import create_templates
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 def render_review_page(
@@ -51,6 +55,17 @@ def render_review_page(
     if extra_context:
         template_values.update(extra_context)
     return templates.env.get_template("imports/review.html").render(**template_values)
+
+
+def test_review_item_partial_keeps_review_item_vm_contract() -> None:
+    source = (PROJECT_ROOT / "src/app/templates/imports/review/_item.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert re.search(r"\bitem\.row\b", source) is None
+    assert "{% set row" not in source
+    assert "document." not in source
+    assert "use_review_item_vm" not in source
 
 
 def render_action(action: ActionVM, *, csrf_token: str | None = "csrf-test-token") -> str:
