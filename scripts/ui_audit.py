@@ -334,12 +334,15 @@ def prepare_realistic_scenario(
         page.locator('input[name="statement_pdf"]').set_input_files(str(workbook_path))
         page.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
         page.wait_for_url("**/imports/documents/**", timeout=PAGE_TIMEOUT_MS)
+        detail_path = page.url.replace(base_url.rstrip("/"), "")
     finally:
         page.close()
 
     return {
         "account_name": account_name,
         "account_detail_path": account_detail_path or "",
+        "document_detail_path": detail_path,
+        "mapping_path": f"{detail_path.rstrip('/')}/mapping",
         "document_name": document_name,
         "rule_category_name": rule_category_name,
     }
@@ -1363,6 +1366,12 @@ def run_audit(
                         dynamic_pages.append(
                             (scenario_state["account_detail_path"], "account-detail")
                         )
+                    if scenario_state.get("document_detail_path"):
+                        dynamic_pages.append(
+                            (scenario_state["document_detail_path"], "import-document-detail")
+                        )
+                    if scenario == "realistic" and scenario_state.get("mapping_path"):
+                        dynamic_pages.append((scenario_state["mapping_path"], "import-mapping"))
                     if scenario in {
                         "review_interactions",
                         "button_audit",

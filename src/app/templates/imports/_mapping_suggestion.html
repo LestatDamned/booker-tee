@@ -1,16 +1,16 @@
-<div class="mapping-suggestion">
-  <strong>{{ suggestion.title }}</strong>
+<div class="mapping-suggestion mapping-suggestion--proposal">
+  <strong class="mapping-suggestion__title">{{ suggestion.title }}</strong>
   {% if suggestion.reasons %}
-    <ul>
+    <ul class="mapping-suggestion__reasons">
       {% for reason in suggestion.reasons %}
-        <li>{{ reason.message }}</li>
+        <li class="mapping-suggestion__reason">{{ reason.message }}</li>
       {% endfor %}
     </ul>
   {% endif %}
   {% if suggestion.warnings %}
-    <div class="review-flags">
+    <div class="review-flags mapping-suggestion__warnings">
       {% for warning in suggestion.warnings %}
-        <span>{{ warning.message }}</span>
+        <span class="mapping-suggestion__warning">{{ warning.message }}</span>
       {% endfor %}
     </div>
   {% endif %}

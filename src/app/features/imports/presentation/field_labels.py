@@ -11,3 +11,12 @@ def mapping_field_label(value: object) -> str:
     }
     field = "" if value is None else str(value)
     return labels.get(field, field)
+
+
+def mapping_column_candidate_message(
+    *,
+    field: object,
+    column_number: int,
+    header: object,
+) -> str:
+    return f"{mapping_field_label(field)}: колонка {column_number} · {header}"

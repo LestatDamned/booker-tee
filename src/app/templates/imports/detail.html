@@ -96,11 +96,8 @@
                 {% include "imports/_mapping_suggestion.html" %}
               {% endif %}
               {% if preview.column_candidates %}
-                <div class="review-flags">
-                  {% for candidate in preview.column_candidates %}
-                    <span>{{ candidate.field }}: колонка {{ candidate.column_number }} · {{ candidate.header }}</span>
-                  {% endfor %}
-                </div>
+                {% set candidates = preview.column_candidates %}
+                {% include "imports/_mapping_candidates.html" %}
               {% endif %}
               <div class="table-scroll">
                 <table class="table">

@@ -50,6 +50,7 @@ class DocumentDetailColumnCandidateVM:
     field: str
     column_number: int
     header: str
+    message: str
 
 
 @dataclass(frozen=True)

@@ -944,6 +944,38 @@ input[type="checkbox"] {
   padding-left: 18px;
 }
 
+.mapping-suggestion__title,
+.mapping-suggestion__reason,
+.mapping-suggestion__warning,
+.mapping-candidates__item {
+  overflow-wrap: anywhere;
+}
+
+.mapping-suggestion__reasons {
+  display: grid;
+  gap: 4px;
+}
+
+.mapping-suggestion__warnings {
+  padding-top: 2px;
+}
+
+.mapping-suggestion__warning,
+.mapping-candidates__item {
+  border-left: 2px solid color-mix(in srgb, var(--accent) 58%, var(--border));
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  padding: 5px 8px;
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.mapping-candidates {
+  gap: 4px;
+}
+
 .form-panel-embedded {
   border: 0;
   border-top: 1px solid var(--border);

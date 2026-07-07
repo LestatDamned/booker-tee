@@ -308,8 +308,8 @@ def test_import_detail_template_shows_unknown_statement_mapping_preview() -> Non
     assert "preview-meta" in html
     assert "Предложение маппинга · 91%" in html
     assert "дата: колонка 1 выбрана по заголовку" in html
-    assert "operation_date: колонка 1" in html
-    assert "amount: колонка 4" in html
+    assert "дата: колонка 1 · Дата операции" in html
+    assert "сумма: колонка 4 · Сумма операции" in html
     assert "показано 5 из 8 строк" in html
     assert "Продолжение таблицы · страница 1 · таблица 1" in html
     assert "дата: колонка 1" in html
@@ -729,7 +729,7 @@ def test_mapping_selected_table_prepares_suggestions_and_candidates() -> None:
         "Найдена только одна колонка списания/зачисления. Проверьте знак суммы перед импортом."
     ]
     assert [candidate.message for candidate in selected_table.column_candidates] == [
-        "operation_date: колонка 1 · Дата операции"
+        "дата: колонка 1 · Дата операции"
     ]
     assert [row.cells for row in selected_table.rows] == [
         ["Дата операции", "Описание", "Документ", "Сумма операции"],

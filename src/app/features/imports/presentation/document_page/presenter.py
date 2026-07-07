@@ -41,7 +41,10 @@ from app.features.imports.presentation.document_page.models import (
     DocumentDetailValueVM,
     DocumentDetailWorkflowVM,
 )
-from app.features.imports.presentation.field_labels import mapping_field_label
+from app.features.imports.presentation.field_labels import (
+    mapping_column_candidate_message,
+    mapping_field_label,
+)
 from app.features.imports.presentation.mapping_suggestions import (
     MappingSuggestionVM,
     first_mapping_suggestion_from_raw,
@@ -299,11 +302,19 @@ class DocumentDetailPresenter:
         for candidate in candidates:
             if not isinstance(candidate, Mapping):
                 continue
+            field = string_value(candidate.get("field"))
+            column_number = int_value(candidate.get("column_index")) + 1
+            header = string_value(candidate.get("header"))
             result.append(
                 DocumentDetailColumnCandidateVM(
-                    field=string_value(candidate.get("field")),
-                    column_number=int_value(candidate.get("column_index")) + 1,
-                    header=string_value(candidate.get("header")),
+                    field=field,
+                    column_number=column_number,
+                    header=header,
+                    message=mapping_column_candidate_message(
+                        field=field,
+                        column_number=column_number,
+                        header=header,
+                    ),
                 )
             )
         return result

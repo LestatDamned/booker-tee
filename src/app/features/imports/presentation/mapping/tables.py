@@ -4,6 +4,7 @@ from typing import cast
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
 )
+from app.features.imports.presentation.field_labels import mapping_column_candidate_message
 from app.features.imports.presentation.mapping.models import (
     MappingColumnCandidateVM,
     MappingColumnOptionVM,
@@ -104,9 +105,10 @@ def _mapping_column_candidates(table: Mapping[str, object]) -> list[MappingColum
 
 def _mapping_column_candidate_message(candidate: Mapping[str, object]) -> str:
     column_number = _int_table_value(candidate, "column_index", default=0) + 1
-    return (
-        f"{_string_table_value(candidate, 'field')}: колонка {column_number} · "
-        f"{_string_table_value(candidate, 'header')}"
+    return mapping_column_candidate_message(
+        field=candidate.get("field"),
+        column_number=column_number,
+        header=_string_table_value(candidate, "header"),
     )
 
 
