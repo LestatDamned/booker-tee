@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "imports/_document_summary.html" import import_document_summary %}
 {% from "imports/_page_hero.html" import import_page_hero %}
 {% from "imports/_workflow_steps.html" import workflow_steps %}
 
@@ -8,17 +9,13 @@
   <section class="panel stack import-workflow import-mapping-page">
     {% call(slot) import_page_hero(page.document.status_label, "Настройка импорта", page.next_step, class_name="import-mapping-hero") %}
       {% if slot == "main" %}
-        <div class="import-document-summary">
-          <div class="import-document-summary__file">
-            <span>Файл</span>
-            <strong title="{{ page.document.filename }}">{{ page.document.filename }}</strong>
-          </div>
-          <a class="import-document-summary__account" href="{{ page.document.detail_url }}">
-            <span>Документ</span>
-            <strong>Детали импорта</strong>
-            <small>вернуться к документу</small>
-          </a>
-        </div>
+        {{ import_document_summary(
+          page.document.filename,
+          account_href=page.document.detail_url,
+          account_label="Документ",
+          account_title="Детали импорта",
+          account_meta="вернуться к документу"
+        ) }}
 
         {{ workflow_steps(upload="done", extract="done", mapping="current", review="pending", ledger="pending") }}
       {% endif %}

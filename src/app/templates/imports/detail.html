@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "imports/_document_summary.html" import import_document_summary %}
 {% from "imports/_page_hero.html" import import_page_hero %}
 {% from "imports/_workflow_steps.html" import workflow_steps %}
 
@@ -8,19 +9,11 @@
   <section class="panel stack import-workflow import-document-page">
     {% call(slot) import_page_hero(page.status_label, page.title, page.next_step, class_name="import-document-hero") %}
       {% if slot == "main" %}
-        <div class="import-document-summary">
-          <div class="import-document-summary__file">
-            <span>Файл</span>
-            <strong title="{{ page.document_name }}">{{ page.document_name }}</strong>
-          </div>
-          {% if page.account %}
-            <a class="import-document-summary__account" href="/accounts/{{ page.account.id }}">
-              <span>Счет</span>
-              <strong>{{ page.account.name }}</strong>
-              <small>{{ page.account.type_label }} · {{ page.account.currency }}</small>
-            </a>
-          {% endif %}
-        </div>
+        {{ import_document_summary(
+          page.document_name,
+          account=page.account,
+          account_href="/accounts/" ~ page.account.id if page.account else none
+        ) }}
 
         {{ workflow_steps(
           upload=page.workflow.upload,
@@ -142,28 +135,7 @@
       <h2 class="status">Сырые транзакции</h2>
       <div class="raw-transaction-list">
         {% for row in page.raw_transactions %}
-          <article class="raw-transaction-card import-raw-row{% if row.amount_tone %} import-raw-row--{{ row.amount_tone }}{% endif %}">
-            <div class="raw-transaction-head import-raw-row__topline">
-              <div class="import-raw-row__meta">
-                <span class="raw-transaction-index import-raw-row__index">#{{ row.row_index }}</span>
-                <span class="raw-transaction-date import-raw-row__date">{{ row.display_date | date_ru }}</span>
-                <span class="badge {{ row.status_css_class }} import-raw-row__status">{{ row.status_label }}</span>
-              </div>
-              <strong class="raw-transaction-amount import-raw-row__amount{% if row.amount_tone %} amount-{{ row.amount_tone }}{% endif %}">{{ row.amount_label }} <small>{{ row.currency }}</small></strong>
-            </div>
-            <div class="import-raw-row__body">
-              <div class="entry-description import-raw-row__description">{{ row.description }}</div>
-              {% if row.normalization_error %}
-                <div class="review-flags import-raw-row__flags">
-                  <span>{{ row.normalization_error }}</span>
-                </div>
-              {% endif %}
-              <details class="technical-details raw-transaction-debug import-raw-row__debug">
-                <summary>ID строки</summary>
-                <span>ID попытки {{ row.parse_attempt_id }}</span>
-              </details>
-            </div>
-          </article>
+          {% include "imports/_raw_transaction_row.html" %}
         {% endfor %}
       </div>
     {% else %}
