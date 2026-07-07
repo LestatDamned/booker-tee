@@ -54,6 +54,21 @@ def raw_transaction_row() -> ImportRawTransactionRow:
     )
 
 
+def failed_parse_attempt() -> ImportParseAttemptView:
+    return ImportParseAttemptView(
+        id=uuid4(),
+        status=ParseAttemptStatus.FAILED,
+        parser_name="expobank_card_statement_v1",
+        parser_version="0.1",
+        started_at=datetime(2026, 6, 13, 11, 5, 8),
+        finished_at=datetime(2026, 6, 13, 11, 5, 8),
+        error_message="PdfminerException: No /Root object!",
+        validation_report=None,
+        raw_tables=None,
+        raw_text_by_page=None,
+    )
+
+
 def test_document_detail_presenter_routes_raw_rows_to_review() -> None:
     page = DocumentDetailPresenter().build(
         document_view(raw_transactions=[raw_transaction_row()]),
@@ -69,6 +84,20 @@ def test_document_detail_presenter_routes_raw_rows_to_review() -> None:
         "игнорировать",
         "удалить",
     ]
+    assert page.parse_history_open is False
+
+
+def test_document_detail_presenter_opens_parse_history_for_failed_parse() -> None:
+    page = DocumentDetailPresenter().build(
+        document_view(
+            status=UploadedDocumentStatus.FAILED_TO_PARSE,
+            parse_attempts=[failed_parse_attempt()],
+        ),
+        can_manage_imports=True,
+    )
+
+    assert page.parse_history_open is True
+    assert page.parse_history_count_label == "1 попытка"
 
 
 def test_document_detail_presenter_routes_unknown_statement_to_mapping() -> None:

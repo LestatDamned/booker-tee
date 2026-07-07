@@ -3133,6 +3133,44 @@ pre {
   background: color-mix(in srgb, var(--surface) 74%, transparent);
 }
 
+.import-parse-history {
+  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  padding-top: 10px;
+}
+
+.import-parse-history__summary {
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  cursor: pointer;
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  list-style: none;
+  text-transform: uppercase;
+}
+
+.import-parse-history__summary::-webkit-details-marker {
+  display: none;
+}
+
+.import-parse-history__summary strong {
+  color: var(--text);
+  font-size: 0.86rem;
+  text-transform: none;
+}
+
+.import-parse-history__eyebrow {
+  color: color-mix(in srgb, var(--accent) 82%, var(--muted));
+}
+
+.import-parse-history__list {
+  margin-top: 8px;
+}
+
 .import-parse-attempt {
   gap: 10px;
   border-color: color-mix(in srgb, var(--border) 82%, transparent);

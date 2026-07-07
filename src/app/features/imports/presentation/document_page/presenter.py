@@ -71,6 +71,8 @@ class DocumentDetailPresenter:
             account=self.account(view),
             raw_transactions=self.raw_transactions(view.raw_transactions),
             parse_attempts=self.parse_attempts(view.parse_attempts),
+            parse_history_open=view.status == UploadedDocumentStatus.FAILED_TO_PARSE,
+            parse_history_count_label=_parse_attempt_count_label(len(view.parse_attempts)),
             technical_details=self.technical_details(view),
         )
 
@@ -412,3 +414,13 @@ class DocumentDetailPresenter:
             raw_tables=attempt.raw_tables,
             raw_text_by_page=attempt.raw_text_by_page,
         )
+
+
+def _parse_attempt_count_label(count: int) -> str:
+    if count % 10 == 1 and count % 100 != 11:
+        noun = "попытка"
+    elif count % 10 in {2, 3, 4} and count % 100 not in {12, 13, 14}:
+        noun = "попытки"
+    else:
+        noun = "попыток"
+    return f"{count} {noun}"

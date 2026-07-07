@@ -143,4 +143,6 @@ class DocumentDetailPageVM:
     account: DocumentDetailAccountVM | None
     raw_transactions: Sequence[DocumentDetailRawTransactionVM]
     parse_attempts: Sequence[DocumentDetailParseAttemptVM]
+    parse_history_open: bool
+    parse_history_count_label: str
     technical_details: DocumentDetailTechnicalVM
