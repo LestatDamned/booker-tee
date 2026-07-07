@@ -1468,7 +1468,7 @@ review-actions__danger
 | 17 | Closed | `TransferPanelPayload.transfer_preview` exposes a server-built route label. Positive raw rows preview as `выбери счет -> счет выписки`; negative rows preview as `счет выписки -> выбери счет`. |
 | 18 | Closed | Date is in the top line via `review-item__date`; covered by template assertions around `review-item__topline`. |
 | 19 | Closed | Row index is small meta; raw id is not surfaced as primary content; technical details do not compete with money/date/description in the current item layout. |
-| 20 | Accepted debt | Stabilized new parts use `review-item__*`, `review-panel__*`, `review-actions__*`, and `review-item--vm`. The item partial no longer emits older inner classes; `app.css` still keeps fallback selectors for shared/legacy templates until a dedicated CSS cleanup. |
+| 20 | Closed | Stabilized new parts use `review-item__*`, `review-panel__*`, `review-actions__*`, and `review-item--vm`. Older item/dialog fallback selectors were removed from `app.css` after `review_interactions` audit. |
 | 21 | Closed | New active rendering path uses `imports/review/_item.html` and `ReviewItemVM`; old raw-transaction review item fallback was removed after stabilization. |
 | 22 | Superseded | Initial rollback criterion was useful during the feature-flag phase. After stabilization, the old partial and `use_review_item_vm` were removed by decision; rollback would now be a normal git revert, not a runtime switch. |
 

@@ -1233,26 +1233,33 @@ input[type="checkbox"] {
 
 .mapping-action-row {
   grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(180px, 0.72fr) minmax(240px, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
+  align-items: stretch;
   border-top: 1px solid var(--border);
   padding-top: 12px;
 }
 
 .mapping-action-row__button {
+  flex: 1 1 220px;
   min-height: 46px;
+}
+
+.mapping-action-row__button--primary {
+  flex-grow: 1.25;
+  min-width: min(100%, 280px);
 }
 
 .mapping-form .mapping-action-row__button--secondary {
   border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
-  background: color-mix(in srgb, var(--surface-strong) 82%, var(--bg));
-  color: var(--text);
+  background: color-mix(in srgb, var(--surface-strong) 38%, transparent);
+  color: color-mix(in srgb, var(--text) 82%, var(--muted));
 }
 
 .mapping-form .mapping-action-row__button--secondary:hover {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--surface-strong) 76%, var(--accent));
+  background: color-mix(in srgb, var(--surface-strong) 70%, var(--accent));
   color: var(--text);
 }
 
@@ -5174,7 +5181,14 @@ pre {
 
 @media (max-width: 720px) {
   .mapping-action-row {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .mapping-action-row__button,
+  .mapping-action-row__button--primary {
+    flex: none;
+    width: 100%;
+    min-width: 0;
   }
 
   .header-grid {
