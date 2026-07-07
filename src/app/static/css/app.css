@@ -718,6 +718,7 @@ input[type="checkbox"] {
   justify-content: center;
   gap: 8px;
   border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-radius: 6px;
   background: color-mix(in srgb, var(--surface-strong) 82%, var(--bg));
   color: var(--text);
   font: inherit;
@@ -926,7 +927,9 @@ input[type="checkbox"] {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: stretch;
   border: 1px solid var(--border);
+  border-radius: 6px;
   background: var(--surface);
+  overflow: hidden;
 }
 
 .file-upload-input {
@@ -944,6 +947,7 @@ input[type="checkbox"] {
 
 .file-upload-button {
   border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-radius: 0;
   border-top: 0;
   border-bottom: 0;
   border-left: 0;
