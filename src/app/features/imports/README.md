@@ -320,7 +320,18 @@ imports/
 
   presentation/
     documents.py
-    mapping.py
+    field_labels.py
+    mapping_suggestions.py
+    document_page/
+      formatting.py
+      models.py
+      presenter.py
+    mapping/
+      form.py
+      models.py
+      page.py
+      preview.py
+      tables.py
     review/
       actions.py
       item.py
@@ -372,6 +383,67 @@ imports/
 
 This target map is a direction, not a required big-bang rewrite. Move files
 only in behavior-preserving steps.
+
+## Presentation contracts
+
+`presentation/` готовит данные для SSR/Jinja. Этот слой не меняет финансовые
+данные, не применяет статусы, не создает raw rows и не решает, как проводить
+операции. Его задача - превратить application/read DTOs и raw validation payloads
+в маленькие ViewModel-объекты, которые шаблон может просто отрисовать.
+
+Правильная форма:
+
+```text
+route / response adapter
+-> application read data or use case result
+-> presentation presenter / VM factory
+-> dumb Jinja template or partial
+```
+
+Шаблоны не должны вычислять confidence labels, field labels, action policy,
+review state, mapping warning text или другие смысловые подписи. Если текст
+зависит от raw payload, он должен быть подготовлен в presenter/helper рядом с
+соответствующей страницей или в общем presentation-helper, если реально
+используется несколькими страницами.
+
+Текущие presentation-пакеты:
+
+- `presentation/documents.py` - компактные VM для списка импортированных
+  документов.
+- `presentation/document_page/` - страница конкретного документа:
+  workflow/status labels, next step, validation summary, previews, raw rows and
+  technical debug blocks.
+- `presentation/mapping/` - страница ручного маппинга неизвестной выписки:
+  page VM, form options, selected table preview, import preview and warnings.
+- `presentation/review/` - import review page: review item VM, action VM,
+  panel payloads, page context and review-specific labels.
+- `presentation/field_labels.py` - общие человекочитаемые labels для полей
+  выписки, когда один и тот же field name показывается на нескольких страницах.
+- `presentation/mapping_suggestions.py` - общий presenter для raw
+  `mapping_suggestions`: превращает suggestion payload из unknown-statement
+  analysis в `MappingSuggestionVM` с готовыми `title`, `reason.message` и
+  `warning.message`.
+
+`mapping_suggestions.py` существует потому, что одно и то же предложение
+маппинга показывается на document detail и mapping page. Без общего helper
+страницы начинают по-разному переводить `confidence`, `evidence`,
+`column_index`, `field` и `warning.code` в UI-текст. Это именно presentation
+logic: application слой продолжает хранить machine-readable suggestion payload,
+а UI получает уже готовый текст.
+
+Не расширяйте `presentation/__init__.py` в barrel exports. Импорты должны
+оставаться явными:
+
+```python
+from app.features.imports.presentation.mapping_suggestions import (
+    first_mapping_suggestion_from_raw,
+)
+from app.features.imports.presentation.mapping.page import MappingPagePresenter
+```
+
+Если helper используется только одной страницей, держите его внутри
+соответствующего package. Выносите общий файл в `presentation/` только когда
+есть повторное стабильное использование, как у mapping suggestions.
 
 ## Sensitive local fixtures
 
@@ -541,9 +613,21 @@ import path easy to test.
 - `domain/validation.py` - pure statement total validation logic.
 - `mapping/raw_transaction_mapper.py` - `RawTransactionDraft` to ORM model mapping.
 - `mapping/dto.py` - import detail view models and mapper.
-- `presentation/` - small view/page-context helpers for routers/templates:
-  document/upload contexts, redirect anchors, selected mapping table, form
-  reference parsing, review context, and validation messages.
+- `presentation/` - SSR/Jinja-facing presenters and ViewModels. This layer
+  prepares display labels, page contracts, selected mapping table previews,
+  shared mapping suggestion messages, review item/action VMs, and document
+  detail page VMs. It must not mutate imports, post ledger entries, or decide
+  persistence state transitions.
+- `presentation/document_page/` - presenter, VM models, and formatting helpers
+  for `/imports/documents/{document_id}`.
+- `presentation/mapping/` - presenter, VM models, form/table/preview builders
+  for `/imports/documents/{document_id}/mapping`.
+- `presentation/review/` - review page presenter and VMs for raw transaction
+  review, action system, and expandable panels.
+- `presentation/mapping_suggestions.py` - shared raw mapping suggestion to UI VM
+  conversion used by document detail and mapping pages.
+- `presentation/field_labels.py` - shared human labels for mapping/raw statement
+  field names.
 - `errors.py` - import-specific application exceptions.
 - `repository.py` - SQLAlchemy persistence and compatibility read wrappers.
 - `query_repository.py` - read-side document queries for UI/detail workflows.
@@ -598,8 +682,16 @@ these packages:
 - `application/<workflow_package>/` - cohesive helpers for one application workflow when a single file stops reading linearly.
 - `domain/` - pure import rules such as deduplication and statement total validation.
 - `mapping/` - DTO projection and draft-to-ORM mapping.
-- `presentation/` - HTTP/template-facing helpers that prepare display values
-  but do not perform business workflow decisions.
+- `presentation/` - HTTP/template-facing presenters, ViewModels, and display
+  helpers that prepare UI contracts but do not perform business workflow
+  decisions.
+- `presentation/<page_or_story>/` - cohesive page presenters when one
+  presentation file stops reading linearly. Keep package size modest and split
+  by reason to change: `models.py`, `page.py`/`presenter.py`, `form.py`,
+  `tables.py`, `preview.py`, or page-specific formatting.
+- `presentation/<shared_helper>.py` - small shared presentation helpers used by
+  more than one page. Example: `mapping_suggestions.py` is shared by document
+  detail and mapping pages.
 - `routes/` - FastAPI route modules grouped by user story. Keep them thin:
   request parsing, dependency injection, response rendering, redirects, and
   HTTP errors.
