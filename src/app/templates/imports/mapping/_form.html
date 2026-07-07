@@ -73,16 +73,15 @@
   </div>
 
   <div id="mapping-import-actions" class="mapping-action-row">
-    <button class="button" type="submit">{{ icon("list-check") }} показать предпросмотр</button>
-    {% if page.import_action %}
+    {% for action in page.form_actions %}
       <button
-        class="button"
+        class="button mapping-action-row__button mapping-action-row__button--{{ action.tone }}{% if action.tone == 'primary' %} primary-action{% endif %}"
         type="submit"
-        formaction="{{ page.import_action.form_action }}"
+        {% if action.form_action %}formaction="{{ action.form_action }}"{% endif %}
       >
-        {{ icon(page.import_action.icon) }}
-        {{ page.import_action.label }}
+        {{ icon(action.icon) }}
+        {{ action.label }}
       </button>
-    {% endif %}
+    {% endfor %}
   </div>
 </form>

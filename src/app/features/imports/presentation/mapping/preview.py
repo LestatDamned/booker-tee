@@ -11,6 +11,7 @@ from app.features.imports.presentation.mapping.models import (
     MappingImportActionVM,
     MappingPreviewRowVM,
     MappingPreviewSummaryVM,
+    MappingSubmitActionVM,
     MappingSummaryMetricVM,
     MappingWarningVM,
 )
@@ -55,10 +56,9 @@ def mapping_warning(warning: UnknownStatementMappingWarning) -> MappingWarningVM
 def mapping_import_action(
     *,
     document: MappingDocumentVM,
-    preview: UnknownStatementMappingPreview | None,
     compatible_table_count: int,
 ) -> MappingImportActionVM | None:
-    if preview is None or not preview.rows:
+    if compatible_table_count <= 0:
         return None
     label = "импортировать все страницы" if compatible_table_count > 1 else "импортировать строки"
     return MappingImportActionVM(
@@ -66,6 +66,33 @@ def mapping_import_action(
         label=label,
         icon="import",
     )
+
+
+def mapping_submit_actions(
+    *,
+    document: MappingDocumentVM,
+    import_action: MappingImportActionVM | None,
+    preview_ready: bool,
+) -> list[MappingSubmitActionVM]:
+    preview_tone = "secondary" if preview_ready and import_action else "primary"
+    actions = [
+        MappingSubmitActionVM(
+            label="обновить предпросмотр" if preview_ready else "показать предпросмотр",
+            icon="list-check",
+            tone=preview_tone,
+            form_action=document.preview_url,
+        )
+    ]
+    if import_action:
+        actions.append(
+            MappingSubmitActionVM(
+                form_action=import_action.form_action,
+                label=import_action.label,
+                icon=import_action.icon,
+                tone="primary" if preview_ready else "secondary",
+            )
+        )
+    return actions
 
 
 def mapping_preview_summary(

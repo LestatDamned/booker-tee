@@ -333,12 +333,14 @@ p {
   width: 100%;
 }
 
+.import-page-hero__actions .import-action-details,
 .import-page-hero__actions .import-more-actions {
   border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
   border-radius: 6px;
   background: color-mix(in srgb, var(--surface-strong) 42%, transparent);
 }
 
+.import-page-hero__actions .import-action-details__summary,
 .import-page-hero__actions .import-more-actions summary {
   min-height: 42px;
   display: grid;
@@ -349,15 +351,19 @@ p {
   padding: 0 11px;
 }
 
+.import-page-hero__actions .import-action-details__summary::after,
+.import-page-hero__actions .import-action-details[open] .import-action-details__summary::after,
 .import-page-hero__actions .import-more-actions summary::after,
 .import-page-hero__actions .import-more-actions[open] summary::after {
   content: none;
 }
 
+.import-page-hero__actions .import-action-details[open] .import-action-details__summary,
 .import-page-hero__actions .import-more-actions[open] summary {
   border-bottom: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
 }
 
+.import-page-hero__actions .import-action-details__menu,
 .import-page-hero__actions .action-menu {
   position: static;
   width: 100%;
@@ -600,6 +606,7 @@ p {
   min-width: 0;
 }
 
+.import-page-actions .import-action-details,
 .import-page-actions .import-more-actions {
   position: relative;
   border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
@@ -607,6 +614,7 @@ p {
   background: color-mix(in srgb, var(--surface-strong) 42%, transparent);
 }
 
+.import-page-actions .import-action-details__summary,
 .import-page-actions .import-more-actions summary {
   min-height: 42px;
   display: grid;
@@ -617,23 +625,29 @@ p {
   padding: 0 11px;
 }
 
+.import-page-actions .import-action-details__summary::after,
+.import-page-actions .import-action-details[open] .import-action-details__summary::after,
 .import-page-actions .import-more-actions summary::after,
 .import-page-actions .import-more-actions[open] summary::after {
   content: none;
 }
 
+.import-page-actions .import-action-details[open] .import-action-details__summary,
 .import-page-actions .import-more-actions[open] summary {
   border-bottom: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
 }
 
+.import-page-actions .import-action-details[open],
 .import-page-actions .import-more-actions[open] {
   padding-bottom: 0;
 }
 
+.import-page-actions .import-action-details > :not(summary),
 .import-page-actions .import-more-actions > :not(summary) {
   margin: 0;
 }
 
+.import-page-actions .import-action-details__menu,
 .import-page-actions .action-menu {
   position: absolute;
   z-index: 20;
@@ -1217,10 +1231,26 @@ input[type="checkbox"] {
 .mapping-action-row {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: minmax(180px, 0.72fr) minmax(240px, 1fr);
   gap: 12px;
   border-top: 1px solid var(--border);
   padding-top: 12px;
+}
+
+.mapping-action-row__button {
+  min-height: 46px;
+}
+
+.mapping-form .mapping-action-row__button--secondary {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  background: color-mix(in srgb, var(--surface-strong) 82%, var(--bg));
+  color: var(--text);
+}
+
+.mapping-form .mapping-action-row__button--secondary:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--surface-strong) 76%, var(--accent));
+  color: var(--text);
 }
 
 .mapping-help {
@@ -5094,6 +5124,10 @@ pre {
 }
 
 @media (max-width: 720px) {
+  .mapping-action-row {
+    grid-template-columns: 1fr;
+  }
+
   .header-grid {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;

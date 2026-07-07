@@ -38,6 +38,7 @@ from app.features.imports.presentation.mapping.preview import (
     mapping_import_action,
     mapping_preview_rows,
     mapping_preview_summary,
+    mapping_submit_actions,
     mapping_warnings,
 )
 from app.features.imports.presentation.mapping.tables import (
@@ -439,6 +440,10 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
         import_url=f"/imports/documents/{view.id}/mapping/import",
     )
     selected_table_vm = mapping_selected_table_vm(table, compatible_table_count=14)
+    import_action = mapping_import_action(
+        document=document,
+        compatible_table_count=14,
+    )
 
     html = templates.env.get_template("imports/mapping.html").render(
         app_name="Booker Tee",
@@ -458,10 +463,10 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
             form=mapping_form(command, selected_table_vm.column_options),
             has_preview=True,
             warnings=mapping_warnings(preview),
-            import_action=mapping_import_action(
+            form_actions=mapping_submit_actions(
                 document=document,
-                preview=preview,
-                compatible_table_count=14,
+                import_action=import_action,
+                preview_ready=True,
             ),
             preview_summary=mapping_preview_summary(preview),
             preview_rows=mapping_preview_rows(preview),
@@ -488,6 +493,9 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
     assert "Остаток после" in html
     assert "Предпросмотр транзакций" in html
     assert "В предпросмотре много строк с ошибками" in html
+    assert "обновить предпросмотр" in html
+    assert "mapping-action-row__button--secondary" in html
+    assert "mapping-action-row__button--primary" in html
     assert "импортировать все страницы" in html
     assert "импорт: 14 таблиц по этой схеме" in html
     assert 'form="mapping-form"' in html
@@ -531,42 +539,20 @@ def test_mapping_import_action_presentation_matches_preview_scope() -> None:
         preview_url="/imports/documents/document-id/mapping",
         import_url="/imports/documents/document-id/mapping/import",
     )
-    preview = UnknownStatementMappingPreview(
-        rows=[
-            UnknownStatementMappedRow(
-                page_number=1,
-                table_index=0,
-                source_row_number=1,
-                operation_date_raw="12.05.2026",
-                operation_date=date(2026, 5, 12),
-                description_raw="Оплата товаров",
-                description="Оплата товаров",
-                amount_raw="-842,00",
-                amount=Decimal("-842.00"),
-                currency_raw="RUB",
-                currency="RUB",
-                status="valid",
-                error="",
-            )
-        ]
-    )
 
     single_table_action = mapping_import_action(
         document=document,
-        preview=preview,
         compatible_table_count=1,
     )
     multi_table_action = mapping_import_action(
         document=document,
-        preview=preview,
         compatible_table_count=14,
     )
 
     assert (
         mapping_import_action(
             document=document,
-            preview=None,
-            compatible_table_count=14,
+            compatible_table_count=0,
         )
         is None
     )
@@ -575,6 +561,40 @@ def test_mapping_import_action_presentation_matches_preview_scope() -> None:
     assert single_table_action.form_action == "/imports/documents/document-id/mapping/import"
     assert multi_table_action is not None
     assert multi_table_action.label == "импортировать все страницы"
+
+
+def test_mapping_submit_actions_make_import_primary_after_preview() -> None:
+    document = MappingDocumentVM(
+        status_label="требует проверки",
+        filename="statement.pdf",
+        detail_url="/imports/documents/document-id",
+        preview_url="/imports/documents/document-id/mapping",
+        import_url="/imports/documents/document-id/mapping/import",
+    )
+
+    import_action = mapping_import_action(
+        document=document,
+        compatible_table_count=1,
+    )
+    preview_actions = mapping_submit_actions(
+        document=document,
+        import_action=import_action,
+        preview_ready=False,
+    )
+    import_actions = mapping_submit_actions(
+        document=document,
+        import_action=import_action,
+        preview_ready=True,
+    )
+
+    assert [(action.label, action.tone) for action in preview_actions] == [
+        ("показать предпросмотр", "primary"),
+        ("импортировать строки", "secondary"),
+    ]
+    assert [(action.label, action.tone) for action in import_actions] == [
+        ("обновить предпросмотр", "secondary"),
+        ("импортировать строки", "primary"),
+    ]
 
 
 def test_mapping_preview_summary_presentation_counts_rows() -> None:

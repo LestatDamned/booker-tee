@@ -29,6 +29,7 @@ from app.features.imports.presentation.mapping.preview import (
     mapping_import_action,
     mapping_preview_rows,
     mapping_preview_summary,
+    mapping_submit_actions,
     mapping_warnings,
 )
 from app.features.imports.presentation.mapping.tables import (
@@ -93,6 +94,10 @@ class MappingPagePresenter:
             selected_table,
             compatible_table_count=compatible_table_count,
         )
+        import_action = mapping_import_action(
+            document=document,
+            compatible_table_count=compatible_table_count,
+        )
         return MappingPageContext(
             document=document,
             next_step=_mapping_next_step(
@@ -106,10 +111,10 @@ class MappingPagePresenter:
             table_picker_options=mapping_table_picker_options(table_options, command),
             has_preview=preview is not None,
             warnings=mapping_warnings(preview),
-            import_action=mapping_import_action(
+            form_actions=mapping_submit_actions(
                 document=document,
-                preview=preview,
-                compatible_table_count=compatible_table_count,
+                import_action=import_action,
+                preview_ready=preview is not None,
             ),
             preview_summary=mapping_preview_summary(preview),
             preview_rows=mapping_preview_rows(preview),

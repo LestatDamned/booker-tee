@@ -84,6 +84,14 @@ class MappingImportActionVM:
 
 
 @dataclass(frozen=True)
+class MappingSubmitActionVM:
+    label: str
+    icon: str
+    tone: str
+    form_action: str | None = None
+
+
+@dataclass(frozen=True)
 class MappingSummaryMetricVM:
     label: str
     value: int
@@ -152,7 +160,7 @@ class MappingPageContext:
     table_picker_options: list[MappingTableOptionVM]
     has_preview: bool
     warnings: list[MappingWarningVM]
-    import_action: MappingImportActionVM | None
+    form_actions: list[MappingSubmitActionVM]
     preview_summary: MappingPreviewSummaryVM | None
     preview_rows: list[MappingPreviewRowVM]
 

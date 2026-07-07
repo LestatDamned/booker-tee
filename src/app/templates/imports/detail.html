@@ -24,16 +24,16 @@
         ) }}
       {% elif slot == "actions" %}
         {% if page.actions %}
-          <details class="action-details action-accordion import-more-actions">
-            <summary>
+          <details class="action-details action-accordion import-more-actions import-action-details">
+            <summary class="import-action-details__summary">
               {{ icon("settings") }}
               <span>Еще</span>
-              <span class="details-toggle-label" aria-hidden="true">
+              <span class="details-toggle-label import-action-details__toggle" aria-hidden="true">
                 <span class="details-toggle-open">Открыть</span>
                 <span class="details-toggle-close">Закрыть</span>
               </span>
             </summary>
-            <div class="action-menu">
+            <div class="action-menu import-action-details__menu">
               {% for action in page.actions %}
                 <form method="post" action="{{ action.action_url }}">
                   {{ csrf_input() }}
