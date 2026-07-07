@@ -3097,6 +3097,22 @@ pre {
   opacity: 0.84;
 }
 
+.import-detail-debug__item {
+  min-width: 0;
+  max-width: 100%;
+  display: block;
+  margin-top: 6px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
+  padding: 6px 8px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 .parse-debug {
   min-width: 0;
   border-top: 1px solid var(--border);
