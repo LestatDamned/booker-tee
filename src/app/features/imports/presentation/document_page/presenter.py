@@ -35,6 +35,7 @@ from app.features.imports.presentation.document_page.models import (
     DocumentDetailPageVM,
     DocumentDetailParseAttemptDebugVM,
     DocumentDetailParseAttemptVM,
+    DocumentDetailRawEmptyVM,
     DocumentDetailRawTransactionVM,
     DocumentDetailTablePreviewVM,
     DocumentDetailTechnicalVM,
@@ -70,6 +71,7 @@ class DocumentDetailPresenter:
             validation=validation,
             account=self.account(view),
             raw_transactions=self.raw_transactions(view.raw_transactions),
+            raw_empty_state=self.raw_empty_state(view, validation),
             parse_attempts=self.parse_attempts(view.parse_attempts),
             parse_history_open=view.status == UploadedDocumentStatus.FAILED_TO_PARSE,
             parse_history_count_label=_parse_attempt_count_label(len(view.parse_attempts)),
@@ -165,6 +167,30 @@ class DocumentDetailPresenter:
                 tone="danger",
             ),
         ]
+
+    def raw_empty_state(
+        self,
+        view: ImportDocumentDetailView,
+        validation: DocumentDetailValidationVM | None,
+    ) -> DocumentDetailRawEmptyVM:
+        if validation is not None and validation.needs_mapping:
+            return DocumentDetailRawEmptyVM(
+                title="Строки появятся после настройки",
+                message=(
+                    "Выберите таблицу и колонки, затем импортируйте строки в проверку."
+                ),
+            )
+        if view.status == UploadedDocumentStatus.FAILED_TO_PARSE:
+            return DocumentDetailRawEmptyVM(
+                title="Сырые строки не извлечены",
+                message=(
+                    "Загрузите другую выписку или перепарсите документ после исправления файла."
+                ),
+            )
+        return DocumentDetailRawEmptyVM(
+            title="Сырых строк пока нет",
+            message="Дождитесь извлечения, перепарсите документ или загрузите выписку заново.",
+        )
 
     def validation(self, validation: dict[str, object] | None) -> DocumentDetailValidationVM | None:
         if validation is None:

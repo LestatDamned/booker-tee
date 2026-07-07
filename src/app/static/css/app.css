@@ -575,6 +575,16 @@ p {
   font-size: 0.78rem;
 }
 
+.import-document-card__technical {
+  justify-self: start;
+}
+
+.import-document-card__technical summary {
+  min-height: 24px;
+  color: color-mix(in srgb, var(--muted) 82%, var(--border));
+  font-size: 0.7rem;
+}
+
 .import-document-card__action,
 .import-document-card__actions .button {
   width: 100%;
@@ -5556,6 +5566,35 @@ pre {
   .import-table-cards {
     display: grid;
     gap: 8px;
+  }
+
+  .import-table-card {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .import-table-card__cells {
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+    gap: 5px;
+  }
+
+  .import-table-card__cells div {
+    padding: 6px 7px;
+  }
+
+  .import-table-card__cells strong {
+    font-size: 0.84rem;
+    line-height: 1.28;
+  }
+
+  .mapping-selected-table,
+  .mapping-preview-card {
+    gap: 8px;
+  }
+
+  .mapping-suggestion {
+    gap: 6px;
+    padding: 8px;
   }
 
   .import-raw-row__topline {

@@ -126,6 +126,8 @@ def test_import_detail_template_keeps_failed_parse_page_compact() -> None:
 
     assert "document-detail-grid" in html
     assert "empty-state" in html
+    assert "Сырые строки не извлечены" in html
+    assert "Загрузите другую выписку" in html
     assert 'class="import-parse-history" open' in html
     assert "история парсинга" in html
     assert "1 попытка" in html
@@ -312,6 +314,8 @@ def test_import_detail_template_shows_unknown_statement_mapping_preview() -> Non
     html = render_import_detail(view)
 
     assert "Нужна настройка импорта" in html
+    assert "Строки появятся после настройки" in html
+    assert "Выберите таблицу и колонки" in html
     assert "import-parse-history" in html
     assert 'class="import-parse-history" open' not in html
     assert "Ozon Bank" in html

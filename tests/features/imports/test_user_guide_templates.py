@@ -98,6 +98,9 @@ def test_import_index_guides_to_review_when_document_needs_attention() -> None:
     assert "Проверьте выписку" in html
     assert f"/imports/documents/{document_id}/review" in html
     assert "import-document-card__action--primary" in html
+    assert "import-document-card__technical" in html
+    assert "<summary>ID</summary>" not in html
+    assert "<summary>Еще</summary>" in html
 
 
 def test_import_index_guides_to_upload_when_no_documents_exist() -> None:

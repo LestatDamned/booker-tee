@@ -106,6 +106,12 @@ class DocumentDetailRawTransactionVM:
 
 
 @dataclass(frozen=True)
+class DocumentDetailRawEmptyVM:
+    title: str
+    message: str
+
+
+@dataclass(frozen=True)
 class DocumentDetailValueVM:
     label: str
     value: object
@@ -142,6 +148,7 @@ class DocumentDetailPageVM:
     validation: DocumentDetailValidationVM | None
     account: DocumentDetailAccountVM | None
     raw_transactions: Sequence[DocumentDetailRawTransactionVM]
+    raw_empty_state: DocumentDetailRawEmptyVM
     parse_attempts: Sequence[DocumentDetailParseAttemptVM]
     parse_history_open: bool
     parse_history_count_label: str

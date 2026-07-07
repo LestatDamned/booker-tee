@@ -87,6 +87,16 @@ def test_document_detail_presenter_routes_raw_rows_to_review() -> None:
     assert page.parse_history_open is False
 
 
+def test_document_detail_presenter_explains_empty_raw_rows_before_extraction() -> None:
+    page = DocumentDetailPresenter().build(
+        document_view(),
+        can_manage_imports=True,
+    )
+
+    assert page.raw_empty_state.title == "Сырых строк пока нет"
+    assert "Дождитесь извлечения" in page.raw_empty_state.message
+
+
 def test_document_detail_presenter_opens_parse_history_for_failed_parse() -> None:
     page = DocumentDetailPresenter().build(
         document_view(
@@ -98,6 +108,7 @@ def test_document_detail_presenter_opens_parse_history_for_failed_parse() -> Non
 
     assert page.parse_history_open is True
     assert page.parse_history_count_label == "1 попытка"
+    assert page.raw_empty_state.title == "Сырые строки не извлечены"
 
 
 def test_document_detail_presenter_routes_unknown_statement_to_mapping() -> None:
@@ -122,6 +133,8 @@ def test_document_detail_presenter_routes_unknown_statement_to_mapping() -> None
     assert page.next_step.title == "Настройте колонки"
     assert page.validation is not None
     assert page.validation.needs_mapping is True
+    assert page.raw_empty_state.title == "Строки появятся после настройки"
+    assert "импортируйте строки в проверку" in page.raw_empty_state.message
     assert page.validation.message == (
         "Для этой выписки пока нет готового парсера, но найдены таблицы, похожие "
         "на операции. Настройте колонки, чтобы импортировать строки."

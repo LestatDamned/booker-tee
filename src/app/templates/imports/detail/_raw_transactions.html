@@ -8,8 +8,8 @@
 {% else %}
   <div class="empty-state import-detail-empty">
     <div class="empty-state-copy">
-      <strong>Сырых строк пока нет</strong>
-      <span>Перепарсите документ или загрузите выписку заново.</span>
+      <strong>{{ page.raw_empty_state.title }}</strong>
+      <span>{{ page.raw_empty_state.message }}</span>
     </div>
   </div>
 {% endif %}

@@ -1590,147 +1590,53 @@ DB-миграций, изменения URL endpoints и отката бизне
 
 ---------------
 
-## Текущий рабочий план: Imports Flow UI/UX Convergence
+## Imports Flow UI/UX Convergence Note
 
-Этот раздел является временным рабочим планом текущего refactor slice. Его можно
-удалить или заменить короткой implementation note после стабилизации всего
-imports flow.
-
-### Текущее состояние
-
-Первый эталонный slice `Import review + ReviewItemVM + action system`
-стабилизирован:
-
-- active rendering идет через `imports/review/_item.html` и подготовленный
-  `ReviewItemVM`;
-- legacy `RawTransaction` partial fallback и `use_review_item_vm` удалены;
-- action policy, confirmability, badges, problems, proposal summary и panels
-  собираются в presenter/ViewModel слое;
-- `ReviewPanelVM + _panel_tab.html + _panel_drawer.html` закреплен как легкий
-  shell для category/transfer drawers;
-- `CategoryPanelPayload` и `TransferPanelPayload` остаются typed payload;
-- DB enum, models, URL endpoints и ledger posting не менялись.
-
-После этого refactor расширился на соседние страницы imports flow:
-
-- document detail получил `presentation/document_page/` presenter и page-level
-  VM contract;
-- unknown mapping получил `presentation/mapping/` package, page/form/table/
-  preview models and partials;
-- `imports/detail.html` и `imports/mapping.html` разбиты на dumb partials;
-- upload/detail/mapping/index начали двигаться к review-inspired geometry через
-  общий imports hero, document summary, workflow steps and next-step pattern;
-- видимые technical/debug детали перенесены ниже и скрыты по умолчанию;
-- mapping form actions получили presenter-backed hierarchy: preview/import
-  buttons are prepared as action VMs, import is visible immediately, and the
-  primary action changes only after preview is ready;
-- imports page/detail/review action-details use a local
-  `imports/_action_details.html` shell with `import-action-details__*` owner
-  classes;
-- import review actions, category panel, category dialog, transfer panel and
-  item structure/panel tabs/drawers now have owner-class contracts such as
-  `review-item__*`, `review-actions__*`, `review-category-panel__*`,
-  `review-category-dialog__*`, `review-transfer-panel__*` and
-  `review-panel__*`;
-- новые или затронутые controls мигрируют к BEM-like owner naming, например
-  `site-header__*`, `mapping-table-picker__*`, `import-page-next-step__*`,
-  `import-document-card__action*` and `import-upload-form__*`.
-
-### Цель текущего slice
-
-Привести imports flow к одному визуальному и архитектурному языку:
+The imports flow now uses the import review screen as the visual and
+architectural reference:
 
 ```text
-upload
-  -> document detail
-  -> mapping, если выписка неизвестного формата
-  -> review
-  -> ledger/report context
+upload -> document detail -> mapping, if needed -> review -> ledger/report context
 ```
 
-Пользователь должен узнавать один и тот же рабочий паттерн:
+Current stabilized contracts:
 
-```text
-контекст / статус / финансовые факты        next step / actions
-основное содержимое                         technical details collapsed
-```
+- import review renders through `ReviewItemVM`, `ReviewPanelVM`, typed category
+  and transfer payloads, and the action system;
+- document detail renders through `presentation/document_page/` page-level VMs;
+- unknown-statement mapping renders through `presentation/mapping/` page, form,
+  table and preview VMs;
+- upload, document detail, mapping, index and review share the same broad
+  geometry: context/status/facts first, next-step/actions in a predictable
+  action area, technical/debug details collapsed and visually secondary;
+- touched controls migrate to BEM-like owner naming such as `review-item__*`,
+  `review-actions__*`, `review-panel__*`, `import-action-details__*`,
+  `import-document-card__*`, `mapping-table-picker__*`,
+  `mapping-action-row__*` and `import-upload-form__*`;
+- raw source/debug data remains available, but it should not dominate the first
+  screen.
 
-Страницы могут отличаться по задаче, но не должны создавать третий или
-четвертый layout language внутри imports.
+Guardrails that remain in force:
 
-### Current Scope
+- do not change URL endpoints, parser behavior, DB models/enums, or ledger
+  posting rules as part of UI/SSR convergence;
+- do not delete raw source/debug data;
+- do not rewrite all CSS for naming alone;
+- keep presenter/ViewModel ownership over status/action policy and page copy;
+- migrate old generic classes only when touching the related UI for product or
+  maintainability reasons.
 
-Разрешено:
+Validation note:
 
-- продолжать BEM-like migration только в трогаемых imports/app-shell controls;
-- держать CSS рядом с владельцем компонента, а не раздувать старые generic
-  классы;
-- улучшать action hierarchy на mapping/detail/upload/index;
-- улучшать mobile rendering таблиц и preview данных;
-- обновлять focused template/presenter tests;
-- использовать `scripts/ui_audit.py --scenario realistic` как базовый браузерный
-  smoke/audit для imports flow.
+`validation_report_json` is refreshed through the review/status update flow. If
+old documents appear with stale validation reports, handle that as a separate
+repair/migration task rather than mixing it into UI/SSR refactor work.
 
-Не делать в этом slice:
+Completion gate for this slice:
 
-- менять URL endpoints;
-- менять parser behavior;
-- менять DB models/enums;
-- менять ledger posting rules;
-- удалять raw source/debug данные;
-- переписывать весь CSS проекта ради naming cleanup;
-- вводить новый frontend framework или SPA/API-first архитектуру.
-
-### Validation And Repair Note
-
-Resolved for the current imports flow.
-
-`validation_report_json` пересчитывается через review/status update flow: когда
-статус raw transaction меняется, validation report документа обновляется и
-сохраняется заново. Поэтому stale `validation_report_json` не является активным
-UI refactor blocker для текущего slice.
-
-Если позже появятся документы, которые вообще не проходили через review/status
-updates после изменения validation semantics, это нужно решать отдельным
-repair/migration task, а не смешивать с UI/SSR refactor.
-
-### Current Acceptance Checklist
-
-Текущий imports-flow slice считается здоровым, если:
-
-- `detail.html` и `mapping.html` получают page-level VM/presenter contracts and
-  do not decide status/action policy directly in Jinja;
-- visible technical/debug data does not dominate the first screen;
-- upload, document detail, mapping, import list and review use the same broad
-  geometry: context left/main, next step/actions right or in a predictable
-  action area;
-- primary actions are visually stronger than secondary actions;
-- dangerous actions are separated and destructive actions require confirmation;
-- mobile screenshots do not show accidental horizontal page overflow;
-- wide table data uses explicit scroll regions or mobile-friendly card
-  rendering;
-- newly touched CSS uses BEM-like owner naming instead of adding another generic
-  local variant;
-- existing tests are adapted, not deleted;
-- relevant `pytest`, `ruff`, `ty`, and UI audit commands pass.
-
-### Active Follow-Ups
-
-1. Imports visual consistency audit:
-   - continue checking upload/detail/mapping/index/review for old square
-     controls, unclear primary/secondary hierarchy and accidental layout drift;
-   - prefer owner BEM classes on touched controls instead of adding another
-     generic local class.
-2. Shared action components:
-   - import pages now have a local `import-action-details` shell;
-   - before applying it outside imports, decide whether the app needs a broader
-     shared action-details contract.
-3. Document detail / mapping audit scenario:
-   - `realistic` covers these pages today;
-   - add a dedicated scenario only if realistic stops catching important
-     document/mapping regressions.
-4. Continue gradual BEM migration:
-   - migrate old generic classes only at natural UI/refactor touch points;
-   - keep older review inner classes as compatibility layer until the next
-     product-facing touch point replaces them;
-   - do not rename stable code without product or maintainability benefit.
+- focused presenter/template tests pass for touched flows;
+- `ruff`, `ty` and `git diff --check` pass for touched code;
+- `scripts/ui_audit.py --authenticated --scenario realistic` passes;
+- desktop/mobile screenshots show no accidental horizontal overflow, no
+  prominent technical/debug blocks on first screen, and consistent primary /
+  secondary action hierarchy.
