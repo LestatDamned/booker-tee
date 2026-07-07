@@ -212,20 +212,16 @@
           </div>
         {% endif %}
 
-        <div class="summary-grid">
-          <div class="metric">
-            <span>строки</span>
-            <strong>{{ preview.rows | length }}</strong>
+        {% if mapping_preview_summary %}
+          <div class="summary-grid">
+            {% for metric in mapping_preview_summary.metrics %}
+              <div class="{{ metric.class_name }}">
+                <span>{{ metric.label }}</span>
+                <strong>{{ metric.value }}</strong>
+              </div>
+            {% endfor %}
           </div>
-          <div class="metric metric-income">
-            <span>готово</span>
-            <strong>{{ preview.valid_count }}</strong>
-          </div>
-          <div class="metric metric-expense">
-            <span>ошибки</span>
-            <strong>{{ preview.error_count }}</strong>
-          </div>
-        </div>
+        {% endif %}
 
         <h2 class="status">Предпросмотр транзакций</h2>
         {% if preview.rows %}

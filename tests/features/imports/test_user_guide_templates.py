@@ -569,6 +569,7 @@ def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
         preview=None,
         mapping_warnings=[],
         mapping_import_action=None,
+        mapping_preview_summary=None,
         selected_table={
             "column_count": 0,
             "rows": [],

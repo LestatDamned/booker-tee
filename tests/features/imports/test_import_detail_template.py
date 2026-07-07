@@ -27,6 +27,7 @@ from app.features.imports.presentation.mapping import (
     MappingNextStepVM,
     build_mapping_page_context,
     mapping_import_action,
+    mapping_preview_summary,
     mapping_selected_table,
     mapping_table_options,
     mapping_warnings,
@@ -439,6 +440,7 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
             preview=preview,
             compatible_table_count=14,
         ),
+        mapping_preview_summary=mapping_preview_summary(preview),
         selected_table=table,
         selected_table_vm=mapping_selected_table(table, compatible_table_count=14),
         table_options=[table],
@@ -551,6 +553,55 @@ def test_mapping_import_action_presentation_matches_preview_scope() -> None:
     assert multi_table_action.label == "импортировать все страницы"
 
 
+def test_mapping_preview_summary_presentation_counts_rows() -> None:
+    preview = UnknownStatementMappingPreview(
+        rows=[
+            UnknownStatementMappedRow(
+                page_number=1,
+                table_index=0,
+                source_row_number=1,
+                operation_date_raw="12.05.2026",
+                operation_date=date(2026, 5, 12),
+                description_raw="Оплата товаров",
+                description="Оплата товаров",
+                amount_raw="-842,00",
+                amount=Decimal("-842.00"),
+                currency_raw="RUB",
+                currency="RUB",
+                status="valid",
+                error="",
+            ),
+            UnknownStatementMappedRow(
+                page_number=1,
+                table_index=0,
+                source_row_number=2,
+                operation_date_raw="",
+                operation_date=None,
+                description_raw="",
+                description=None,
+                amount_raw="",
+                amount=None,
+                currency_raw="RUB",
+                currency="RUB",
+                status="error",
+                error="missing date",
+            ),
+        ]
+    )
+
+    summary = mapping_preview_summary(preview)
+
+    assert summary is not None
+    assert [metric.label for metric in summary.metrics] == ["строки", "готово", "ошибки"]
+    assert [metric.value for metric in summary.metrics] == [2, 1, 1]
+    assert [metric.class_name for metric in summary.metrics] == [
+        "metric",
+        "metric metric-income",
+        "metric metric-expense",
+    ]
+    assert mapping_preview_summary(None) is None
+
+
 def test_mapping_page_context_prepares_document_contract() -> None:
     document_id = uuid4()
     view = ImportDocumentDetailView(
@@ -588,3 +639,4 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     assert values["table_picker_options"] == page_context.table_picker_options
     assert values["mapping_warnings"] == page_context.warnings
     assert values["mapping_import_action"] == page_context.import_action
+    assert values["mapping_preview_summary"] == page_context.preview_summary

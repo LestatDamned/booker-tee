@@ -85,6 +85,18 @@ class MappingImportActionVM:
 
 
 @dataclass(frozen=True)
+class MappingSummaryMetricVM:
+    label: str
+    value: int
+    class_name: str
+
+
+@dataclass(frozen=True)
+class MappingPreviewSummaryVM:
+    metrics: list[MappingSummaryMetricVM]
+
+
+@dataclass(frozen=True)
 class MappingPageContext:
     document: MappingDocumentVM
     next_step: MappingNextStepVM
@@ -96,6 +108,7 @@ class MappingPageContext:
     table_picker_options: list[MappingTableOptionVM]
     warnings: list[MappingWarningVM]
     import_action: MappingImportActionVM | None
+    preview_summary: MappingPreviewSummaryVM | None
     compatible_table_count: int
     mapping_templates: list[ImportMappingTemplate]
 
@@ -117,6 +130,7 @@ class MappingPageContext:
             "table_picker_options": self.table_picker_options,
             "mapping_warnings": self.warnings,
             "mapping_import_action": self.import_action,
+            "mapping_preview_summary": self.preview_summary,
             "compatible_table_count": self.compatible_table_count,
             "mapping_templates": self.mapping_templates,
             "workspace": workspace,
@@ -213,6 +227,7 @@ def mapping_page_context_from_command(
             preview=preview,
             compatible_table_count=compatible_table_count,
         ),
+        preview_summary=mapping_preview_summary(preview),
         compatible_table_count=compatible_table_count,
         mapping_templates=mapping_templates,
     )
@@ -292,6 +307,32 @@ def mapping_import_action(
         form_action=document.import_url,
         label=label,
         icon="import",
+    )
+
+
+def mapping_preview_summary(
+    preview: UnknownStatementMappingPreview | None,
+) -> MappingPreviewSummaryVM | None:
+    if preview is None:
+        return None
+    return MappingPreviewSummaryVM(
+        metrics=[
+            MappingSummaryMetricVM(
+                label="строки",
+                value=len(preview.rows),
+                class_name="metric",
+            ),
+            MappingSummaryMetricVM(
+                label="готово",
+                value=preview.valid_count,
+                class_name="metric metric-income",
+            ),
+            MappingSummaryMetricVM(
+                label="ошибки",
+                value=preview.error_count,
+                class_name="metric metric-expense",
+            ),
+        ]
     )
 
 
