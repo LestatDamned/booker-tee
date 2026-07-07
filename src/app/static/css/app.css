@@ -274,6 +274,16 @@ p {
   align-items: start;
 }
 
+.import-document-page {
+  gap: 16px;
+}
+
+.import-document-page .import-page-header {
+  align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  padding-bottom: 14px;
+}
+
 .import-page-title {
   min-width: 0;
 }
@@ -284,6 +294,10 @@ p {
   line-height: 1.05;
   overflow-wrap: break-word;
   word-break: normal;
+}
+
+.import-document-page .import-page-title h1 {
+  font-size: clamp(2.25rem, 5vw, 2.8rem);
 }
 
 .import-document-name {
@@ -299,6 +313,54 @@ p {
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: clamp(0.85rem, 1.6vw, 1rem);
   line-height: 1.35;
+}
+
+.import-document-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
+  gap: 1px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--border) 72%, transparent);
+  overflow: hidden;
+}
+
+.import-document-summary__file,
+.import-document-summary__account {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
+  padding: 12px 14px;
+}
+
+.import-document-summary__account {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.import-document-summary__account:hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-strong));
+}
+
+.import-document-summary span,
+.import-document-summary small {
+  color: color-mix(in srgb, var(--muted) 86%, var(--accent));
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.import-document-summary strong {
+  min-width: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: clamp(0.94rem, 1.5vw, 1.08rem);
+  line-height: 1.3;
 }
 
 .import-page-actions {
@@ -1892,6 +1954,35 @@ input[type="checkbox"] {
   opacity: 0.72;
 }
 
+.import-document-page .workflow-steps {
+  border-color: color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--border) 68%, transparent);
+  overflow: hidden;
+}
+
+.import-document-page .workflow-step {
+  min-height: 48px;
+  background: color-mix(in srgb, var(--surface-strong) 76%, transparent);
+  padding: 8px 10px;
+}
+
+.import-document-page .workflow-step small {
+  width: 24px;
+  height: 24px;
+}
+
+.import-document-page .workflow-step-current {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-strong));
+}
+
+.import-document-page .next-step-panel {
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--help) 9%, var(--surface));
+  padding: 14px 16px;
+}
+
 .review-control-totals {
   border-top: 1px solid var(--border);
   padding-top: 10px;
@@ -2644,6 +2735,70 @@ pre {
 }
 
 .raw-transaction-debug {
+  justify-self: start;
+}
+
+.import-raw-row {
+  grid-template-columns: minmax(170px, 0.28fr) minmax(0, 1fr);
+  gap: 0;
+  border-left-width: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  overflow: hidden;
+  padding: 0;
+}
+
+.import-raw-row--income {
+  border-color: color-mix(in srgb, var(--green) 42%, var(--border));
+}
+
+.import-raw-row--expense {
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+}
+
+.import-raw-row__facts {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+  align-content: start;
+  border-right: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 56%, transparent);
+  padding: 12px;
+}
+
+.import-raw-row__amount {
+  width: 100%;
+  justify-content: space-between;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+
+.import-raw-row__date,
+.import-raw-row__status,
+.import-raw-row__index {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.import-raw-row__body {
+  min-width: 0;
+  display: grid;
+  gap: 9px;
+  align-content: start;
+  padding: 13px 14px;
+}
+
+.import-raw-row__description {
+  max-width: none;
+  margin: 0;
+  color: var(--text);
+  font-size: 0.98rem;
+  line-height: 1.45;
+}
+
+.import-raw-row__debug {
   justify-self: start;
 }
 
@@ -4552,6 +4707,10 @@ pre {
     grid-template-columns: 1fr;
   }
 
+  .import-document-summary {
+    grid-template-columns: 1fr;
+  }
+
   .import-page-actions {
     display: grid;
     grid-template-columns: 1fr;
@@ -4752,6 +4911,16 @@ pre {
 
   .raw-transaction-head {
     grid-template-columns: 1fr auto;
+  }
+
+  .import-raw-row {
+    grid-template-columns: 1fr;
+  }
+
+  .import-raw-row__facts {
+    grid-template-columns: minmax(0, 1fr) auto;
+    border-right: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
   }
 
   .raw-transaction-amount {
