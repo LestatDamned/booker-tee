@@ -1,0 +1,6 @@
+<details class="debug-details document-debug-details">
+  <summary>Отладочные данные документа</summary>
+  {% for item in page.technical_details.document_items %}
+    <span>{{ item.label }} {{ item.value }}</span>
+  {% endfor %}
+</details>

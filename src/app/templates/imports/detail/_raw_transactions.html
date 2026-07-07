@@ -1,0 +1,13 @@
+{% if page.raw_transactions %}
+  <h2 class="status">Сырые транзакции</h2>
+  <div class="raw-transaction-list">
+    {% for row in page.raw_transactions %}
+      {% include "imports/_raw_transaction_row.html" %}
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state">
+    <strong>Сырых строк пока нет</strong>
+    <span>Перепарсите документ или загрузите выписку заново.</span>
+  </div>
+{% endif %}

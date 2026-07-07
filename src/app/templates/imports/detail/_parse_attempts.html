@@ -1,0 +1,26 @@
+{% if page.parse_attempts %}
+  <h2 class="status">История парсинга</h2>
+  <div class="parse-attempt-list">
+    {% for attempt in page.parse_attempts %}
+      <article class="parse-attempt-card">
+        <div class="parse-attempt-head">
+          <strong>{{ attempt.status_label }}</strong>
+          <span>{{ attempt.parser_label }}</span>
+        </div>
+        <div class="parse-attempt-times">
+          <span>старт {{ attempt.started_at | date_ru }}</span>
+          {% if attempt.finished_at %}
+            <span>финиш {{ attempt.finished_at | date_ru }}</span>
+          {% endif %}
+        </div>
+        <details class="technical-details">
+          <summary>ID попытки</summary>
+          <span>ID {{ attempt.id }}</span>
+        </details>
+        {% if attempt.message %}
+          <p class="parse-attempt-message">{{ attempt.message }}</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+{% endif %}

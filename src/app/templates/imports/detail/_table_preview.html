@@ -1,0 +1,48 @@
+{% if page.validation.table_previews %}
+  <h2 class="status">Предпросмотр таблиц</h2>
+  <div class="mapping-preview-list">
+    {% for preview in page.validation.table_previews %}
+      <article class="mapping-preview-card">
+        <div class="preview-meta mapping-preview-card__meta">
+          {% for meta_item in preview.meta %}
+            <span>{{ meta_item }}</span>
+          {% endfor %}
+        </div>
+        {% if preview.is_continuation %}
+          <div class="mapping-suggestion">
+            <strong>{{ preview.continuation_summary }}</strong>
+            {% if preview.continuation_fields %}
+              <ul>
+                {% for mapping_field in preview.continuation_fields %}
+                  <li>
+                    {{ mapping_field.label }}: колонка {{ mapping_field.column_number }}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        {% elif preview.primary_mapping_suggestion %}
+          {% set suggestion = preview.primary_mapping_suggestion %}
+          {% include "imports/_mapping_suggestion.html" %}
+        {% endif %}
+        {% if preview.column_candidates %}
+          {% set candidates = preview.column_candidates %}
+          {% include "imports/_mapping_candidates.html" %}
+        {% endif %}
+        <div class="table-scroll mapping-preview-card__table">
+          <table class="table mapping-preview-table">
+            <tbody>
+              {% for row in preview.rows %}
+                <tr>
+                  {% for cell in row %}
+                    <td>{{ cell }}</td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+{% endif %}
