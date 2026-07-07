@@ -35,8 +35,8 @@ from app.features.imports.presentation.mapping.preview import (
     mapping_warnings,
 )
 from app.features.imports.presentation.mapping.tables import (
-    mapping_selected_table,
-    mapping_table_options,
+    mapping_selected_table_vm,
+    mapping_table_picker_options,
 )
 from app.templating import create_templates
 
@@ -424,7 +424,7 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
         preview_url=f"/imports/documents/{view.id}/mapping",
         import_url=f"/imports/documents/{view.id}/mapping/import",
     )
-    selected_table_vm = mapping_selected_table(table, compatible_table_count=14)
+    selected_table_vm = mapping_selected_table_vm(table, compatible_table_count=14)
 
     html = templates.env.get_template("imports/mapping.html").render(
         app_name="Booker Tee",
@@ -450,7 +450,7 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
         mapping_preview_summary=mapping_preview_summary(preview),
         mapping_preview_rows=mapping_preview_rows(preview),
         selected_table_vm=selected_table_vm,
-        table_picker_options=mapping_table_options([table], command),
+        table_picker_options=mapping_table_picker_options([table], command),
         mapping_templates=[],
     )
 
@@ -709,7 +709,7 @@ def test_mapping_selected_table_prepares_suggestions_and_candidates() -> None:
         ],
     }
 
-    selected_table = mapping_selected_table(table, compatible_table_count=1)
+    selected_table = mapping_selected_table_vm(table, compatible_table_count=1)
 
     assert selected_table.mapping_suggestion is not None
     assert selected_table.mapping_suggestion.title == "Предложение маппинга · 91%"
@@ -730,7 +730,7 @@ def test_mapping_selected_table_prepares_suggestions_and_candidates() -> None:
 
 
 def test_mapping_form_prepares_selected_fields() -> None:
-    column_options = mapping_selected_table(
+    column_options = mapping_selected_table_vm(
         {
             "page_number": 1,
             "table_index": 0,

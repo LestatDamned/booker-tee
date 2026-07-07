@@ -102,21 +102,6 @@ def table_row_count_label(*, row_count: int, preview_row_count: int | None) -> s
     return f"{row_count} строк"
 
 
-def mapping_field_label(value: object) -> str:
-    labels = {
-        "operation_date": "дата",
-        "posting_date": "дата проводки",
-        "description": "описание",
-        "amount": "сумма",
-        "debit_amount": "списание",
-        "credit_amount": "зачисление",
-        "currency": "валюта",
-        "balance_after": "остаток после операции",
-    }
-    field = string_value(value)
-    return labels.get(field, field)
-
-
 def table_rows(value: object) -> Sequence[Sequence[object]]:
     if not isinstance(value, list):
         return []

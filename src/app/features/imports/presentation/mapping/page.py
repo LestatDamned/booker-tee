@@ -31,8 +31,8 @@ from app.features.imports.presentation.mapping.preview import (
     mapping_warnings,
 )
 from app.features.imports.presentation.mapping.tables import (
-    mapping_selected_table,
-    mapping_table_options,
+    mapping_selected_table_vm,
+    mapping_table_picker_options,
 )
 
 
@@ -86,7 +86,7 @@ def mapping_page_context_from_command(
     selected_table = selected_mapping_table(table_options, command)
     compatible_table_count = compatible_mapping_table_count(raw_tables, command)
     document = mapping_document(view)
-    selected_table_vm = mapping_selected_table(
+    selected_table_vm = mapping_selected_table_vm(
         selected_table,
         compatible_table_count=compatible_table_count,
     )
@@ -99,7 +99,7 @@ def mapping_page_context_from_command(
         ),
         form=mapping_form(command, selected_table_vm.column_options),
         selected_table_vm=selected_table_vm,
-        table_picker_options=mapping_table_options(table_options, command),
+        table_picker_options=mapping_table_picker_options(table_options, command),
         has_preview=preview is not None,
         warnings=mapping_warnings(preview),
         import_action=mapping_import_action(

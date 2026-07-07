@@ -11,7 +11,6 @@ from app.features.imports.presentation.document_page.formatting import (
     account_type_label,
     document_status_label,
     int_value,
-    mapping_field_label,
     money_tone,
     money_value,
     optional_int_value,
@@ -42,6 +41,7 @@ from app.features.imports.presentation.document_page.models import (
     DocumentDetailValueVM,
     DocumentDetailWorkflowVM,
 )
+from app.features.imports.presentation.field_labels import mapping_field_label
 
 
 class DocumentDetailPresenter:
