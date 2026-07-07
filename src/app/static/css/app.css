@@ -274,11 +274,13 @@ p {
   align-items: start;
 }
 
-.import-document-page {
+.import-document-page,
+.import-mapping-page {
   gap: 16px;
 }
 
-.import-document-hero {
+.import-document-hero,
+.import-mapping-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
   gap: 16px;
@@ -287,13 +289,15 @@ p {
   padding-bottom: 16px;
 }
 
-.import-document-hero__main {
+.import-document-hero__main,
+.import-mapping-hero__main {
   min-width: 0;
   display: grid;
   gap: 14px;
 }
 
-.import-document-hero__actions {
+.import-document-hero__actions,
+.import-mapping-hero__actions {
   min-width: 0;
   display: grid;
   gap: 8px;
@@ -301,7 +305,10 @@ p {
 
 .import-document-hero__actions .button,
 .import-document-hero__actions details,
-.import-document-hero__actions details summary {
+.import-document-hero__actions details summary,
+.import-mapping-hero__actions .button,
+.import-mapping-hero__actions details,
+.import-mapping-hero__actions details summary {
   width: 100%;
 }
 
@@ -969,22 +976,23 @@ input[type="checkbox"] {
 }
 
 .table-picker {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, max-content));
   gap: 6px;
 }
 
 .table-picker-option {
   position: relative;
-  min-width: 44px;
+  min-width: 120px;
   min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
   color: var(--accent);
+  padding: 8px 10px;
   font-family:
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   cursor: pointer;
@@ -1003,11 +1011,12 @@ input[type="checkbox"] {
 .table-picker-option small {
   color: var(--muted);
   font-size: 0.64rem;
+  text-transform: uppercase;
 }
 
 .table-picker-option.is-selected {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 72%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-strong));
   color: var(--text);
 }
 
@@ -1067,6 +1076,10 @@ input[type="checkbox"] {
   color: color-mix(in srgb, var(--text) 82%, var(--help));
   font-size: 0.86rem;
   line-height: 1.45;
+}
+
+.import-mapping-note {
+  margin: 0;
 }
 
 .mapping-suggestion {
@@ -1161,6 +1174,85 @@ input[type="checkbox"] {
   border-top: 1px solid var(--border);
   background: transparent;
   padding: 14px 0 0;
+}
+
+.mapping-preview-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.mapping-preview-row {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  padding: 12px;
+}
+
+.mapping-preview-row--income {
+  border-color: color-mix(in srgb, var(--green) 42%, var(--border));
+}
+
+.mapping-preview-row--expense {
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+}
+
+.mapping-preview-row__topline {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 12px;
+  align-items: center;
+}
+
+.mapping-preview-row__meta {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.76rem;
+}
+
+.mapping-preview-row__amount {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+  border: 1px solid currentcolor;
+  border-radius: 6px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  padding: 0 10px;
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.mapping-preview-row__amount small {
+  margin-left: 6px;
+  font-size: 0.68rem;
+}
+
+.mapping-preview-row__description {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 1rem;
+  font-weight: 640;
+  line-height: 1.45;
+}
+
+.mapping-preview-row__error {
+  margin: 0;
 }
 
 .category-edit-layout {
@@ -4798,7 +4890,8 @@ pre {
     grid-template-columns: 1fr;
   }
 
-  .import-document-hero {
+  .import-document-hero,
+  .import-mapping-hero {
     grid-template-columns: 1fr;
   }
 
@@ -5010,6 +5103,15 @@ pre {
 
   .import-raw-row__topline {
     grid-template-columns: 1fr;
+  }
+
+  .mapping-preview-row__topline {
+    grid-template-columns: 1fr;
+  }
+
+  .mapping-preview-row__amount {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .raw-transaction-amount {

@@ -1,37 +1,48 @@
 {% extends "base.html" %}
-{% from "components/next_step.html" import next_step %}
 {% from "imports/_workflow_steps.html" import workflow_steps %}
 
 {% block title %}Настройка импорта · {{ page.document.filename }} · {{ app_name }}{% endblock %}
 
 {% block content %}
-  <section class="panel stack import-workflow">
-    <header class="import-page-header">
-      <div class="import-page-title">
-        <p class="eyebrow">{{ page.document.status_label }}</p>
-        <h1>Настройка импорта</h1>
+  <section class="panel stack import-workflow import-mapping-page">
+    <header class="import-mapping-hero">
+      <div class="import-mapping-hero__main">
+        <div class="import-page-title">
+          <p class="eyebrow">{{ page.document.status_label }}</p>
+          <h1>Настройка импорта</h1>
+        </div>
+        <div class="import-document-summary">
+          <div class="import-document-summary__file">
+            <span>Файл</span>
+            <strong title="{{ page.document.filename }}">{{ page.document.filename }}</strong>
+          </div>
+          <a class="import-document-summary__account" href="{{ page.document.detail_url }}">
+            <span>Документ</span>
+            <strong>Детали импорта</strong>
+            <small>вернуться к документу</small>
+          </a>
+        </div>
+
+        {{ workflow_steps(upload="done", extract="done", mapping="current", review="pending", ledger="pending") }}
       </div>
-      <div class="import-page-actions">
+
+      <aside class="import-mapping-hero__actions">
+        <div class="import-document-next-step">
+          <p class="eyebrow">следующий шаг</p>
+          <strong>{{ page.next_step.title }}</strong>
+          <span>{{ page.next_step.message }}</span>
+          <a class="button button-small primary-action" href="{{ page.next_step.primary_href }}">{{ icon(page.next_step.primary_icon) }} {{ page.next_step.primary_label }}</a>
+          {% if page.next_step.secondary_href and page.next_step.secondary_label %}
+            <a class="button button-small" href="{{ page.next_step.secondary_href }}">{{ icon(page.next_step.secondary_icon) }} {{ page.next_step.secondary_label }}</a>
+          {% endif %}
+        </div>
         <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
-      </div>
+      </aside>
     </header>
 
-    {{ workflow_steps(upload="done", extract="done", mapping="current", review="pending", ledger="pending") }}
-
-    {{ next_step(
-      page.next_step.title,
-      page.next_step.message,
-      page.next_step.primary_href,
-      page.next_step.primary_label,
-      page.next_step.primary_icon,
-      page.next_step.secondary_href,
-      page.next_step.secondary_label,
-      page.next_step.secondary_icon
-    ) }}
-
-    <div class="notice">
+    <div class="notice import-mapping-note">
+      <strong>Настройка не влияет на учет.</strong>
       Выберите таблицу и колонки, чтобы проверить, как неизвестная выписка превратится в транзакции.
-      На этом шаге данные в учет не записываются.
     </div>
 
     {% if page.template_notice %}
@@ -179,35 +190,28 @@
               Шаблон сохранится только при импорте строк.
             </div>
           </div>
-          <div class="table-scroll">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>строка</th>
-                  <th>статус</th>
-                  <th>дата</th>
-                  <th>проводка</th>
-                  <th>сумма</th>
-                  <th>валюта</th>
-                  <th>описание</th>
-                  <th>ошибка</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in page.preview_rows %}
-                  <tr>
-                    <td>{{ row.source_row_number }}</td>
-                    <td><span class="badge {{ row.status_badge_class }}">{{ row.status_label }}</span></td>
-                    <td>{{ row.operation_date }}</td>
-                    <td>{{ row.posting_date }}</td>
-                    <td class="{{ row.amount_class }}">{{ row.amount }}</td>
-                    <td>{{ row.currency }}</td>
-                    <td>{{ row.description }}</td>
-                    <td>{{ row.error }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+          <div class="mapping-preview-rows">
+            {% for row in page.preview_rows %}
+              <article class="mapping-preview-row{% if 'amount-income' in row.amount_class %} mapping-preview-row--income{% elif 'amount-expense' in row.amount_class %} mapping-preview-row--expense{% endif %}">
+                <div class="mapping-preview-row__topline">
+                  <div class="mapping-preview-row__meta">
+                    <span>#{{ row.source_row_number }}</span>
+                    <span>{{ row.operation_date }}</span>
+                    <span class="badge {{ row.status_badge_class }}">{{ row.status_label }}</span>
+                    {% if row.posting_date %}
+                      <span>проводка {{ row.posting_date }}</span>
+                    {% endif %}
+                  </div>
+                  <strong class="mapping-preview-row__amount {{ row.amount_class }}">{{ row.amount }} <small>{{ row.currency }}</small></strong>
+                </div>
+                <div class="mapping-preview-row__description">{{ row.description }}</div>
+                {% if row.error %}
+                  <div class="review-flags mapping-preview-row__error">
+                    <span>{{ row.error }}</span>
+                  </div>
+                {% endif %}
+              </article>
+            {% endfor %}
           </div>
         {% else %}
           <div class="empty-state">
