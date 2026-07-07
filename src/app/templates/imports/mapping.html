@@ -224,7 +224,7 @@
         {% endif %}
 
         <h2 class="status">Предпросмотр транзакций</h2>
-        {% if preview.rows %}
+        {% if mapping_preview_rows %}
           <div class="form-panel form-panel-embedded">
             <div class="field form-field-wide">
               <label for="save_template_name">Сохранить как шаблон</label>
@@ -254,15 +254,15 @@
                 </tr>
               </thead>
               <tbody>
-                {% for row in preview.rows %}
+                {% for row in mapping_preview_rows %}
                   <tr>
                     <td>{{ row.source_row_number }}</td>
-                    <td><span class="badge badge-{{ row.status }}">{{ row.status | ru }}</span></td>
-                    <td>{{ row.operation_date | date_ru or row.operation_date_raw }}</td>
-                    <td>{{ row.posting_date | date_ru or row.posting_date_raw }}</td>
-                    <td class="amount {% if row.amount and row.amount > 0 %}amount-income{% elif row.amount and row.amount < 0 %}amount-expense{% endif %}">{{ row.amount or row.amount_raw }}</td>
+                    <td><span class="badge {{ row.status_badge_class }}">{{ row.status_label }}</span></td>
+                    <td>{{ row.operation_date }}</td>
+                    <td>{{ row.posting_date }}</td>
+                    <td class="{{ row.amount_class }}">{{ row.amount }}</td>
                     <td>{{ row.currency }}</td>
-                    <td>{{ row.description or row.description_raw }}</td>
+                    <td>{{ row.description }}</td>
                     <td>{{ row.error }}</td>
                   </tr>
                 {% endfor %}

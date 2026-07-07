@@ -27,6 +27,7 @@ from app.features.imports.presentation.mapping import (
     MappingNextStepVM,
     build_mapping_page_context,
     mapping_import_action,
+    mapping_preview_rows,
     mapping_preview_summary,
     mapping_selected_table,
     mapping_table_options,
@@ -441,6 +442,7 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
             compatible_table_count=14,
         ),
         mapping_preview_summary=mapping_preview_summary(preview),
+        mapping_preview_rows=mapping_preview_rows(preview),
         selected_table=table,
         selected_table_vm=mapping_selected_table(table, compatible_table_count=14),
         table_options=[table],
@@ -602,6 +604,62 @@ def test_mapping_preview_summary_presentation_counts_rows() -> None:
     assert mapping_preview_summary(None) is None
 
 
+def test_mapping_preview_rows_prepare_display_values() -> None:
+    preview = UnknownStatementMappingPreview(
+        rows=[
+            UnknownStatementMappedRow(
+                page_number=1,
+                table_index=0,
+                source_row_number=1,
+                operation_date_raw="12.05.2026 15:42:10",
+                operation_date=date(2026, 5, 12),
+                posting_date_raw="13.05.2026",
+                posting_date=None,
+                description_raw="raw description",
+                description="clean description",
+                amount_raw="-842,00 ₽",
+                amount=Decimal("-842.00"),
+                currency_raw="RUB",
+                currency="RUB",
+                status="valid",
+                error="",
+            ),
+            UnknownStatementMappedRow(
+                page_number=1,
+                table_index=0,
+                source_row_number=2,
+                operation_date_raw="bad date",
+                operation_date=None,
+                description_raw="raw only",
+                description=None,
+                amount_raw="not parsed",
+                amount=None,
+                currency_raw="RUB",
+                currency="RUB",
+                status="error",
+                error="missing amount",
+            ),
+        ]
+    )
+
+    rows = mapping_preview_rows(preview)
+
+    assert rows[0].source_row_number == 1
+    assert rows[0].status_label == "корректно"
+    assert rows[0].status_badge_class == "badge-valid"
+    assert rows[0].operation_date == "12.05.2026"
+    assert rows[0].posting_date == "13.05.2026"
+    assert rows[0].amount == "-842.00"
+    assert rows[0].amount_class == "amount amount-expense"
+    assert rows[0].description == "clean description"
+    assert rows[1].status_label == "ошибка"
+    assert rows[1].operation_date == "bad date"
+    assert rows[1].amount == "not parsed"
+    assert rows[1].amount_class == "amount"
+    assert rows[1].description == "raw only"
+    assert mapping_preview_rows(None) == []
+
+
 def test_mapping_page_context_prepares_document_contract() -> None:
     document_id = uuid4()
     view = ImportDocumentDetailView(
@@ -640,3 +698,4 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     assert values["mapping_warnings"] == page_context.warnings
     assert values["mapping_import_action"] == page_context.import_action
     assert values["mapping_preview_summary"] == page_context.preview_summary
+    assert values["mapping_preview_rows"] == page_context.preview_rows

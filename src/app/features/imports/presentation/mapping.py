@@ -1,8 +1,11 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date, datetime
+from decimal import Decimal
 
 from app.features.imports.application.documents.detail_view import ImportDocumentDetailView
 from app.features.imports.application.unknown_statement_mappings.dto import (
+    UnknownStatementMappedRow,
     UnknownStatementMappingCommand,
     UnknownStatementMappingPreview,
     UnknownStatementMappingWarning,
@@ -97,6 +100,21 @@ class MappingPreviewSummaryVM:
 
 
 @dataclass(frozen=True)
+class MappingPreviewRowVM:
+    source_row_number: int
+    status: str
+    status_label: str
+    status_badge_class: str
+    operation_date: str
+    posting_date: str
+    amount: str
+    amount_class: str
+    currency: str
+    description: str
+    error: str
+
+
+@dataclass(frozen=True)
 class MappingPageContext:
     document: MappingDocumentVM
     next_step: MappingNextStepVM
@@ -109,6 +127,7 @@ class MappingPageContext:
     warnings: list[MappingWarningVM]
     import_action: MappingImportActionVM | None
     preview_summary: MappingPreviewSummaryVM | None
+    preview_rows: list[MappingPreviewRowVM]
     compatible_table_count: int
     mapping_templates: list[ImportMappingTemplate]
 
@@ -131,6 +150,7 @@ class MappingPageContext:
             "mapping_warnings": self.warnings,
             "mapping_import_action": self.import_action,
             "mapping_preview_summary": self.preview_summary,
+            "mapping_preview_rows": self.preview_rows,
             "compatible_table_count": self.compatible_table_count,
             "mapping_templates": self.mapping_templates,
             "workspace": workspace,
@@ -228,6 +248,7 @@ def mapping_page_context_from_command(
             compatible_table_count=compatible_table_count,
         ),
         preview_summary=mapping_preview_summary(preview),
+        preview_rows=mapping_preview_rows(preview),
         compatible_table_count=compatible_table_count,
         mapping_templates=mapping_templates,
     )
@@ -334,6 +355,72 @@ def mapping_preview_summary(
             ),
         ]
     )
+
+
+def mapping_preview_rows(
+    preview: UnknownStatementMappingPreview | None,
+) -> list[MappingPreviewRowVM]:
+    if preview is None:
+        return []
+    return [mapping_preview_row(row) for row in preview.rows]
+
+
+def mapping_preview_row(row: UnknownStatementMappedRow) -> MappingPreviewRowVM:
+    amount = row.amount
+    description = row.description or row.description_raw
+    return MappingPreviewRowVM(
+        source_row_number=row.source_row_number,
+        status=row.status,
+        status_label=mapping_status_label(row.status),
+        status_badge_class=f"badge-{row.status}",
+        operation_date=mapping_date_label(
+            row.operation_date,
+            row.operation_date_raw,
+        ),
+        posting_date=mapping_date_label(
+            row.posting_date,
+            row.posting_date_raw,
+        ),
+        amount=str(amount or row.amount_raw),
+        amount_class=mapping_amount_class(amount),
+        currency=row.currency,
+        description=str(description),
+        error=row.error,
+    )
+
+
+def mapping_date_label(value: object, raw_value: object) -> str:
+    formatted = mapping_date_ru(value)
+    return formatted or str(raw_value)
+
+
+def mapping_date_ru(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (datetime, date)):
+        return value.strftime("%d.%m.%Y")
+    raw_value = str(value)
+    try:
+        return date.fromisoformat(raw_value).strftime("%d.%m.%Y")
+    except ValueError:
+        return raw_value
+
+
+def mapping_amount_class(amount: object) -> str:
+    if isinstance(amount, Decimal):
+        if amount > 0:
+            return "amount amount-income"
+        if amount < 0:
+            return "amount amount-expense"
+    return "amount"
+
+
+def mapping_status_label(status: str) -> str:
+    labels = {
+        "valid": "корректно",
+        "error": "ошибка",
+    }
+    return labels.get(status, status)
 
 
 def mapping_table_options(
