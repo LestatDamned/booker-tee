@@ -1,0 +1,27 @@
+{% macro import_page_hero(status_label, title, next_step, back_href="/imports", back_label="назад", class_name="") %}
+  <header class="import-page-hero {{ class_name }}">
+    <div class="import-page-hero__main">
+      <div class="import-page-title">
+        <p class="eyebrow">{{ status_label }}</p>
+        <h1>{{ title }}</h1>
+      </div>
+
+      {{ caller("main") }}
+    </div>
+
+    <aside class="import-page-hero__actions">
+      <div class="import-page-next-step">
+        <p class="eyebrow">следующий шаг</p>
+        <strong>{{ next_step.title }}</strong>
+        <span>{{ next_step.message }}</span>
+        <a class="button button-small primary-action" href="{{ next_step.primary_href }}">{{ icon(next_step.primary_icon) }} {{ next_step.primary_label }}</a>
+        {% if next_step.secondary_href and next_step.secondary_label %}
+          <a class="button button-small" href="{{ next_step.secondary_href }}">{{ icon(next_step.secondary_icon) }} {{ next_step.secondary_label }}</a>
+        {% endif %}
+      </div>
+      <a class="button" href="{{ back_href }}">{{ icon("arrow-left") }} {{ back_label }}</a>
+
+      {{ caller("actions") }}
+    </aside>
+  </header>
+{% endmacro %}

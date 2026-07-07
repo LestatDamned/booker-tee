@@ -279,8 +279,7 @@ p {
   gap: 16px;
 }
 
-.import-document-hero,
-.import-mapping-hero {
+.import-page-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
   gap: 16px;
@@ -289,36 +288,31 @@ p {
   padding-bottom: 16px;
 }
 
-.import-document-hero__main,
-.import-mapping-hero__main {
+.import-page-hero__main {
   min-width: 0;
   display: grid;
   gap: 14px;
 }
 
-.import-document-hero__actions,
-.import-mapping-hero__actions {
+.import-page-hero__actions {
   min-width: 0;
   display: grid;
   gap: 8px;
 }
 
-.import-document-hero__actions .button,
-.import-document-hero__actions details,
-.import-document-hero__actions details summary,
-.import-mapping-hero__actions .button,
-.import-mapping-hero__actions details,
-.import-mapping-hero__actions details summary {
+.import-page-hero__actions .button,
+.import-page-hero__actions details,
+.import-page-hero__actions details summary {
   width: 100%;
 }
 
-.import-document-hero__actions .import-more-actions {
+.import-page-hero__actions .import-more-actions {
   border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
   border-radius: 6px;
   background: color-mix(in srgb, var(--surface-strong) 42%, transparent);
 }
 
-.import-document-hero__actions .import-more-actions summary {
+.import-page-hero__actions .import-more-actions summary {
   min-height: 42px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -328,22 +322,22 @@ p {
   padding: 0 11px;
 }
 
-.import-document-hero__actions .import-more-actions summary::after,
-.import-document-hero__actions .import-more-actions[open] summary::after {
+.import-page-hero__actions .import-more-actions summary::after,
+.import-page-hero__actions .import-more-actions[open] summary::after {
   content: none;
 }
 
-.import-document-hero__actions .import-more-actions[open] summary {
+.import-page-hero__actions .import-more-actions[open] summary {
   border-bottom: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
 }
 
-.import-document-hero__actions .action-menu {
+.import-page-hero__actions .action-menu {
   position: static;
   width: 100%;
   margin-top: 6px;
 }
 
-.import-document-next-step {
+.import-page-next-step {
   min-width: 0;
   display: grid;
   gap: 8px;
@@ -354,21 +348,21 @@ p {
   padding: 12px;
 }
 
-.import-document-next-step .eyebrow {
+.import-page-next-step .eyebrow {
   margin: 0;
 }
 
-.import-document-next-step strong {
+.import-page-next-step strong {
   color: var(--text);
   font-size: 0.98rem;
 }
 
-.import-document-next-step span {
+.import-page-next-step span {
   color: var(--muted);
   line-height: 1.4;
 }
 
-.import-document-next-step .button {
+.import-page-next-step .button {
   margin-top: 2px;
   justify-content: center;
 }
@@ -4890,8 +4884,7 @@ pre {
     grid-template-columns: 1fr;
   }
 
-  .import-document-hero,
-  .import-mapping-hero {
+  .import-page-hero {
     grid-template-columns: 1fr;
   }
 

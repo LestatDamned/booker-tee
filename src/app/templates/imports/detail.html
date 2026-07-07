@@ -1,16 +1,13 @@
 {% extends "base.html" %}
+{% from "imports/_page_hero.html" import import_page_hero %}
 {% from "imports/_workflow_steps.html" import workflow_steps %}
 
 {% block title %}{{ page.document_name }} · {{ app_name }}{% endblock %}
 
 {% block content %}
   <section class="panel stack import-workflow import-document-page">
-    <header class="import-document-hero">
-      <div class="import-document-hero__main">
-        <div class="import-page-title">
-          <p class="eyebrow">{{ page.status_label }}</p>
-          <h1>{{ page.title }}</h1>
-        </div>
+    {% call(slot) import_page_hero(page.status_label, page.title, page.next_step, class_name="import-document-hero") %}
+      {% if slot == "main" %}
         <div class="import-document-summary">
           <div class="import-document-summary__file">
             <span>Файл</span>
@@ -32,15 +29,7 @@
           review=page.workflow.review,
           ledger=page.workflow.ledger
         ) }}
-      </div>
-      <aside class="import-document-hero__actions">
-        <div class="import-document-next-step">
-          <p class="eyebrow">следующий шаг</p>
-          <strong>{{ page.next_step.title }}</strong>
-          <span>{{ page.next_step.message }}</span>
-          <a class="button button-small primary-action" href="{{ page.next_step.primary_href }}">{{ icon(page.next_step.primary_icon) }} {{ page.next_step.primary_label }}</a>
-        </div>
-        <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
+      {% elif slot == "actions" %}
         {% if page.actions %}
           <details class="action-details action-accordion import-more-actions">
             <summary>
@@ -61,8 +50,8 @@
             </div>
           </details>
         {% endif %}
-      </aside>
-    </header>
+      {% endif %}
+    {% endcall %}
 
     {% if page.validation and page.validation.needs_mapping %}
       <div class="notice">

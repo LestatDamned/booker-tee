@@ -1,16 +1,13 @@
 {% extends "base.html" %}
+{% from "imports/_page_hero.html" import import_page_hero %}
 {% from "imports/_workflow_steps.html" import workflow_steps %}
 
 {% block title %}Настройка импорта · {{ page.document.filename }} · {{ app_name }}{% endblock %}
 
 {% block content %}
   <section class="panel stack import-workflow import-mapping-page">
-    <header class="import-mapping-hero">
-      <div class="import-mapping-hero__main">
-        <div class="import-page-title">
-          <p class="eyebrow">{{ page.document.status_label }}</p>
-          <h1>Настройка импорта</h1>
-        </div>
+    {% call(slot) import_page_hero(page.document.status_label, "Настройка импорта", page.next_step, class_name="import-mapping-hero") %}
+      {% if slot == "main" %}
         <div class="import-document-summary">
           <div class="import-document-summary__file">
             <span>Файл</span>
@@ -24,21 +21,8 @@
         </div>
 
         {{ workflow_steps(upload="done", extract="done", mapping="current", review="pending", ledger="pending") }}
-      </div>
-
-      <aside class="import-mapping-hero__actions">
-        <div class="import-document-next-step">
-          <p class="eyebrow">следующий шаг</p>
-          <strong>{{ page.next_step.title }}</strong>
-          <span>{{ page.next_step.message }}</span>
-          <a class="button button-small primary-action" href="{{ page.next_step.primary_href }}">{{ icon(page.next_step.primary_icon) }} {{ page.next_step.primary_label }}</a>
-          {% if page.next_step.secondary_href and page.next_step.secondary_label %}
-            <a class="button button-small" href="{{ page.next_step.secondary_href }}">{{ icon(page.next_step.secondary_icon) }} {{ page.next_step.secondary_label }}</a>
-          {% endif %}
-        </div>
-        <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
-      </aside>
-    </header>
+      {% endif %}
+    {% endcall %}
 
     <div class="notice import-mapping-note">
       <strong>Настройка не влияет на учет.</strong>
