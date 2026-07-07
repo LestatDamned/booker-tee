@@ -12,7 +12,7 @@ from app.features.imports.presentation.document_page.presenter import (
 
 
 @dataclass(frozen=True)
-class ImportIndexNextStepVM:
+class ImportPageNextStepVM:
     title: str
     message: str
     primary_href: str
@@ -43,7 +43,7 @@ class ImportIndexDocumentVM:
 class ImportIndexPageVM:
     workspace_name: str
     title: str
-    next_step: ImportIndexNextStepVM | None
+    next_step: ImportPageNextStepVM | None
     documents: list[ImportIndexDocumentVM]
     can_import: bool
 
@@ -99,7 +99,7 @@ class ImportIndexPresenter:
         documents: list[ImportIndexDocumentVM],
         *,
         can_import: bool,
-    ) -> ImportIndexNextStepVM | None:
+    ) -> ImportPageNextStepVM | None:
         if not can_import:
             return None
         attention_document = next(
@@ -116,7 +116,7 @@ class ImportIndexPresenter:
             None,
         )
         if attention_document is not None:
-            return ImportIndexNextStepVM(
+            return ImportPageNextStepVM(
                 title="Проверьте выписку",
                 message="Этот документ требует решения перед тем, как строки попадут в учет.",
                 primary_href=attention_document.review_url,
@@ -124,7 +124,7 @@ class ImportIndexPresenter:
                 primary_icon="clipboard-check",
             )
         if documents:
-            return ImportIndexNextStepVM(
+            return ImportPageNextStepVM(
                 title="Загрузите выписку",
                 message=(
                     "Перед следующей загрузкой можно обновить правила: они ускорят "
@@ -170,15 +170,82 @@ class ImportIndexPageContext:
 
 
 @dataclass(frozen=True)
+class UploadAccountVM:
+    id: UUID
+    name: str
+    currency: str
+
+
+@dataclass(frozen=True)
+class UploadPageVM:
+    workspace_name: str
+    title: str
+    next_step: ImportPageNextStepVM
+    accounts: list[UploadAccountVM]
+    error: str | None
+    has_accounts: bool
+
+
+class UploadPagePresenter:
+    def build(
+        self,
+        *,
+        accounts: Sequence[object],
+        workspace: object,
+        error: str | None = None,
+    ) -> UploadPageVM:
+        account_vms = [self.account(account) for account in accounts]
+        return UploadPageVM(
+            workspace_name=str(getattr(workspace, "name", "")),
+            title="Загрузить выписку",
+            next_step=self.next_step(has_accounts=bool(account_vms)),
+            accounts=account_vms,
+            error=error,
+            has_accounts=bool(account_vms),
+        )
+
+    def account(self, account: Any) -> UploadAccountVM:
+        return UploadAccountVM(
+            id=account.id,
+            name=str(account.name),
+            currency=str(account.currency),
+        )
+
+    def next_step(self, *, has_accounts: bool) -> ImportPageNextStepVM:
+        if has_accounts:
+            return ImportPageNextStepVM(
+                title="Выберите счет и файл",
+                message=(
+                    "Загрузите PDF или XLSX выписку. После извлечения строки попадут "
+                    "в проверяемый импорт."
+                ),
+                primary_href="#upload-form",
+                primary_label="к загрузке",
+                primary_icon="upload",
+            )
+        return ImportPageNextStepVM(
+            title="Создайте счет",
+            message="Выписка всегда привязана к счету, чтобы проводки считались корректно.",
+            primary_href="/accounts",
+            primary_label="создать счет",
+            primary_icon="plus",
+        )
+
+
+@dataclass(frozen=True)
 class UploadPageContext:
     accounts: Sequence[object]
     error: str | None = None
 
     def template_values(self, *, app_name: str, workspace: object) -> dict[str, object]:
+        page = UploadPagePresenter().build(
+            accounts=self.accounts,
+            workspace=workspace,
+            error=self.error,
+        )
         return {
-            "accounts": self.accounts,
             "app_name": app_name,
-            "error": self.error,
+            "page": page,
             "workspace": workspace,
         }
 

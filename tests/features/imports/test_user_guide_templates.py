@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.presentation.document_page.presenter import DocumentDetailPresenter
-from app.features.imports.presentation.documents import ImportIndexPresenter
+from app.features.imports.presentation.documents import ImportIndexPresenter, UploadPagePresenter
 from app.features.imports.presentation.mapping.models import MappingDocumentVM, MappingNextStepVM
 from app.features.imports.presentation.review.page import build_review_page_context
 from app.features.workspaces.models import WorkspaceType
@@ -65,6 +65,20 @@ def render_import_index_template(*, documents: list[object], can_import: bool = 
     )
 
 
+def render_upload_template(*, accounts: list[object], error: str | None = None) -> str:
+    workspace = SimpleNamespace(name="Personal")
+    return render_template(
+        "imports/upload.html",
+        app_name="Booker Tee",
+        page=UploadPagePresenter().build(
+            accounts=accounts,
+            workspace=workspace,
+            error=error,
+        ),
+        workspace=workspace,
+    )
+
+
 def test_import_index_guides_to_review_when_document_needs_attention() -> None:
     document_id = uuid4()
     html = render_import_index_template(
@@ -94,27 +108,17 @@ def test_import_index_guides_to_upload_when_no_documents_exist() -> None:
 
 
 def test_upload_page_guides_to_account_before_upload() -> None:
-    html = render_template(
-        "imports/upload.html",
-        app_name="Booker Tee",
-        workspace=SimpleNamespace(name="Personal"),
-        accounts=[],
-        error=None,
-    )
+    html = render_upload_template(accounts=[])
 
     assert "Сначала нужен счет" in html
     assert "empty-state-copy" in html
-    assert "следующий шаг" not in html
+    assert "следующий шаг" in html
     assert "/accounts" in html
 
 
 def test_upload_page_guides_to_file_when_accounts_exist() -> None:
-    html = render_template(
-        "imports/upload.html",
-        app_name="Booker Tee",
-        workspace=SimpleNamespace(name="Personal"),
+    html = render_upload_template(
         accounts=[SimpleNamespace(id=uuid4(), name="Карта", currency="RUB")],
-        error=None,
     )
 
     assert "Выберите счет и файл" in html
@@ -132,7 +136,8 @@ def test_upload_page_guides_to_file_when_accounts_exist() -> None:
     assert "ВТБ" in html
     assert "Экспобанк" in html
     assert "настроить колонки вручную" in html
-    assert "следующий шаг" not in html
+    assert "следующий шаг" in html
+    assert "#upload-form" in html
 
 
 def test_document_detail_guides_to_mapping_when_columns_are_unknown() -> None:
