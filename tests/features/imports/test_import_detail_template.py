@@ -4,17 +4,17 @@ from typing import Any, cast
 from uuid import uuid4
 
 from app.features.accounts.models import AccountType
+from app.features.imports.application.documents.detail_view import (
+    ImportAccountRef,
+    ImportDocumentDetailView,
+    ImportParseAttemptView,
+    ImportRawTransactionRow,
+)
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappedRow,
     UnknownStatementMappingCommand,
     UnknownStatementMappingPreview,
     UnknownStatementMappingWarning,
-)
-from app.features.imports.mapping.dto import (
-    ImportAccountRef,
-    ImportDocumentDetailView,
-    ImportParseAttemptView,
-    ImportRawTransactionRow,
 )
 from app.features.imports.models import (
     ParseAttemptStatus,

@@ -1,7 +1,7 @@
 from collections.abc import Mapping, Sequence
 from typing import cast
 
-from app.features.imports.mapping.dto import (
+from app.features.imports.application.documents.detail_view import (
     ImportDocumentDetailView,
     ImportParseAttemptView,
     ImportRawTransactionRow,

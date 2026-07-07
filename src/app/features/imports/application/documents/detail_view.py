@@ -73,9 +73,9 @@ class ImportDocumentDetailView:
     parse_attempts: list[ImportParseAttemptView]
 
 
-class ImportViewMapper:
+class ImportDocumentDetailViewMapper:
     @staticmethod
-    def document_detail_from_uploaded_document(
+    def from_uploaded_document(
         document: UploadedDocument,
     ) -> ImportDocumentDetailView:
         parse_attempts = sorted(
@@ -83,7 +83,9 @@ class ImportViewMapper:
             key=lambda attempt: attempt.started_at,
             reverse=True,
         )
-        attempts = [ImportViewMapper.parse_attempt(attempt) for attempt in parse_attempts]
+        attempts = [
+            ImportDocumentDetailViewMapper.parse_attempt(attempt) for attempt in parse_attempts
+        ]
         latest_attempt = attempts[0] if attempts else None
         return ImportDocumentDetailView(
             id=document.id,
@@ -93,10 +95,11 @@ class ImportViewMapper:
             storage_key=document.storage_key,
             bank_name=document.bank_name,
             statement_type=document.statement_type,
-            account=ImportViewMapper.account_ref(document),
+            account=ImportDocumentDetailViewMapper.account_ref(document),
             validation=latest_attempt.validation_report if latest_attempt else None,
             raw_transactions=[
-                ImportViewMapper.raw_transaction_row(row) for row in document.raw_transactions
+                ImportDocumentDetailViewMapper.raw_transaction_row(row)
+                for row in document.raw_transactions
             ],
             parse_attempts=attempts,
         )

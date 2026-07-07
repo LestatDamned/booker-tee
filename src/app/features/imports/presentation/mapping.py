@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from app.features.imports.application.documents.detail_view import ImportDocumentDetailView
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
     UnknownStatementMappingPreview,
@@ -17,7 +18,6 @@ from app.features.imports.application.unknown_statement_mappings.ui_defaults imp
     default_mapping_command,
     preview_table_options,
 )
-from app.features.imports.mapping.dto import ImportDocumentDetailView
 from app.features.imports.models import ImportMappingTemplate
 
 

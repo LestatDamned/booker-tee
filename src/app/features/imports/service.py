@@ -2,7 +2,10 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.imports.mapping.dto import ImportDocumentDetailView, ImportViewMapper
+from app.features.imports.application.documents.detail_view import (
+    ImportDocumentDetailView,
+    ImportDocumentDetailViewMapper,
+)
 from app.features.imports.models import (
     UploadedDocument,
 )
@@ -27,4 +30,4 @@ class ImportService:
         document = await self.queries.get_document_for_workspace(workspace_id, document_id)
         if document is None:
             return None
-        return ImportViewMapper.document_detail_from_uploaded_document(document)
+        return ImportDocumentDetailViewMapper.from_uploaded_document(document)

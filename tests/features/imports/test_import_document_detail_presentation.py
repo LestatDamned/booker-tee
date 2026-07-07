@@ -3,7 +3,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 from app.features.accounts.models import AccountType
-from app.features.imports.mapping.dto import (
+from app.features.imports.application.documents.detail_view import (
     ImportAccountRef,
     ImportDocumentDetailView,
     ImportParseAttemptView,

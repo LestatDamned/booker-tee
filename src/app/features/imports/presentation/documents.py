@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from app.features.imports.mapping.dto import ImportDocumentDetailView
+from app.features.imports.application.documents.detail_view import ImportDocumentDetailView
 from app.features.imports.presentation.document_page.presenter import (
     DocumentDetailPresenter,
 )
