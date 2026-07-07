@@ -1299,6 +1299,11 @@ input[type="checkbox"] {
   margin-top: 2px;
 }
 
+.mapping-selected-table__cards,
+.mapping-preview-card__cards {
+  display: none;
+}
+
 .mapping-preview-card {
   min-width: 0;
   display: grid;
@@ -1319,6 +1324,58 @@ input[type="checkbox"] {
 
 .mapping-preview-card__table {
   margin-top: 2px;
+}
+
+.import-table-cards {
+  display: none;
+}
+
+.import-table-card {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--accent) 72%, var(--border));
+  background: color-mix(in srgb, var(--surface-strong) 44%, transparent);
+  padding: 10px;
+}
+
+.import-table-card__index {
+  color: var(--accent);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.import-table-card__cells {
+  display: grid;
+  gap: 6px;
+}
+
+.import-table-card__cells div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  border-left: 2px solid color-mix(in srgb, var(--border) 74%, transparent);
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  padding: 7px 9px;
+}
+
+.import-table-card__cells span {
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.import-table-card__cells strong {
+  min-width: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  line-height: 1.35;
 }
 
 .mapping-preview-table {
@@ -3001,6 +3058,13 @@ pre {
   border-color: color-mix(in srgb, var(--border) 82%, transparent);
   border-left-color: color-mix(in srgb, var(--accent) 72%, var(--border));
   background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.import-mapping-empty,
+.import-mapping-notice {
+  border-color: color-mix(in srgb, var(--border) 82%, transparent);
+  border-left-color: color-mix(in srgb, var(--help) 72%, var(--border));
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
 }
 
 .import-parse-attempt {
@@ -5301,6 +5365,15 @@ pre {
 
   .raw-transaction-head {
     grid-template-columns: 1fr auto;
+  }
+
+  .import-table-viewport--responsive {
+    display: none;
+  }
+
+  .import-table-cards {
+    display: grid;
+    gap: 8px;
   }
 
   .import-raw-row__topline {

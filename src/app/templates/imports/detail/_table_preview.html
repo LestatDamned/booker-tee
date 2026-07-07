@@ -29,7 +29,7 @@
           {% set candidates = preview.column_candidates %}
           {% include "imports/_mapping_candidates.html" %}
         {% endif %}
-        <div class="table-scroll mapping-preview-card__table">
+        <div class="table-scroll import-table-viewport import-table-viewport--responsive mapping-preview-card__table">
           <table class="table mapping-preview-table">
             <tbody>
               {% for row in preview.rows %}
@@ -41,6 +41,21 @@
               {% endfor %}
             </tbody>
           </table>
+        </div>
+        <div class="import-table-cards mapping-preview-card__cards" aria-label="Первые строки таблицы">
+          {% for row in preview.rows %}
+            <article class="import-table-card">
+              <div class="import-table-card__index">строка {{ loop.index }}</div>
+              <div class="import-table-card__cells">
+                {% for cell in row %}
+                  <div>
+                    <span>колонка {{ loop.index }}</span>
+                    <strong>{{ cell }}</strong>
+                  </div>
+                {% endfor %}
+              </div>
+            </article>
+          {% endfor %}
         </div>
       </article>
     {% endfor %}

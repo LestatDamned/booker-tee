@@ -18,7 +18,7 @@
       </div>
     {% endif %}
 
-    <div class="table-scroll mapping-selected-table__table">
+    <div class="table-scroll import-table-viewport import-table-viewport--responsive mapping-selected-table__table">
       <table class="table">
         <tbody>
           {% for row in page.selected_table_vm.rows %}
@@ -30,6 +30,21 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+    <div class="import-table-cards mapping-selected-table__cards" aria-label="Строки выбранной таблицы">
+      {% for row in page.selected_table_vm.rows %}
+        <article class="import-table-card">
+          <div class="import-table-card__index">строка {{ loop.index }}</div>
+          <div class="import-table-card__cells">
+            {% for cell in row.cells %}
+              <div>
+                <span>колонка {{ loop.index }}</span>
+                <strong>{{ cell }}</strong>
+              </div>
+            {% endfor %}
+          </div>
+        </article>
+      {% endfor %}
     </div>
   </section>
 {% endif %}

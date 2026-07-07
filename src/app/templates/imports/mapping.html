@@ -27,7 +27,7 @@
     </div>
 
     {% if page.template_notice %}
-      <div class="notice">
+      <div class="notice import-mapping-notice">
         <strong>{{ page.template_notice.title }}:</strong>
         {{ page.template_notice.message }}
       </div>
@@ -38,7 +38,7 @@
       {% include "imports/mapping/_selected_table.html" %}
       {% include "imports/mapping/_preview.html" %}
     {% else %}
-      <div class="empty-state">
+      <div class="empty-state import-mapping-empty">
         <strong>Таблицы не найдены</strong>
         <span>Для этой выписки нет таблиц-кандидатов. Возможно, нужен OCR или отдельный парсер.</span>
       </div>
