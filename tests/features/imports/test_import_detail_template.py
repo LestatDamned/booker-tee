@@ -22,17 +22,21 @@ from app.features.imports.models import (
     UploadedDocumentStatus,
 )
 from app.features.imports.presentation.document_page.presenter import DocumentDetailPresenter
-from app.features.imports.presentation.mapping import (
+from app.features.imports.presentation.mapping.form import mapping_form
+from app.features.imports.presentation.mapping.models import (
     MappingDocumentVM,
     MappingNextStepVM,
-    build_mapping_page_context,
-    mapping_form,
+)
+from app.features.imports.presentation.mapping.page import build_mapping_page_context
+from app.features.imports.presentation.mapping.preview import (
     mapping_import_action,
     mapping_preview_rows,
     mapping_preview_summary,
+    mapping_warnings,
+)
+from app.features.imports.presentation.mapping.tables import (
     mapping_selected_table,
     mapping_table_options,
-    mapping_warnings,
 )
 from app.templating import create_templates
 

@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.presentation.document_page.presenter import DocumentDetailPresenter
-from app.features.imports.presentation.mapping import MappingDocumentVM, MappingNextStepVM
+from app.features.imports.presentation.mapping.models import MappingDocumentVM, MappingNextStepVM
 from app.features.imports.presentation.review.page import build_review_page_context
 from app.features.workspaces.models import WorkspaceType
 from app.templating import create_templates

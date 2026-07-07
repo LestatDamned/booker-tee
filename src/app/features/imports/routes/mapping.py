@@ -18,8 +18,8 @@ from app.features.imports.application.unknown_statement_mappings.template_use_ca
     UnknownStatementMappingTemplateUseCase,
 )
 from app.features.imports.errors import UnknownStatementMappingError
-from app.features.imports.presentation.mapping import (
-    MappingPresentationError,
+from app.features.imports.presentation.mapping.models import MappingPresentationError
+from app.features.imports.presentation.mapping.page import (
     build_mapping_page_context,
     parse_table_ref,
     preview_mapping_page_context,
