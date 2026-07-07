@@ -30,6 +30,8 @@ class RawTransactionTotals:
     extracted_count: int
     calculated_total_inflow: Decimal
     calculated_total_outflow: Decimal
+    ignored_total_inflow: Decimal
+    ignored_total_outflow: Decimal
     needs_review_count: int
     currency: str | None
 
@@ -46,6 +48,8 @@ class StatementValidationReport:
     balance_chain: "BalanceChainValidationReport"
     inflow_difference: Decimal | None
     outflow_difference: Decimal | None
+    unexplained_inflow_difference: Decimal | None
+    unexplained_outflow_difference: Decimal | None
     message: str
 
     def as_json(self) -> dict[str, object]:
@@ -59,6 +63,8 @@ class StatementValidationReport:
             "needs_review_count": self.totals.needs_review_count,
             "calculated_total_inflow": _decimal_as_string(self.totals.calculated_total_inflow),
             "calculated_total_outflow": _decimal_as_string(self.totals.calculated_total_outflow),
+            "ignored_total_inflow": _decimal_as_string(self.totals.ignored_total_inflow),
+            "ignored_total_outflow": _decimal_as_string(self.totals.ignored_total_outflow),
             "statement_total_inflow": _decimal_as_string(
                 self.control_totals.total_inflow if self.control_totals else None
             ),
@@ -74,6 +80,10 @@ class StatementValidationReport:
             "balance_chain": self.balance_chain.as_json(),
             "inflow_difference": _decimal_as_string(self.inflow_difference),
             "outflow_difference": _decimal_as_string(self.outflow_difference),
+            "unexplained_inflow_difference": _decimal_as_string(self.unexplained_inflow_difference),
+            "unexplained_outflow_difference": _decimal_as_string(
+                self.unexplained_outflow_difference
+            ),
         }
 
 
@@ -129,18 +139,26 @@ def calculate_raw_transaction_totals(
 ) -> RawTransactionTotals:
     inflow = MONEY_ZERO
     outflow = MONEY_ZERO
+    ignored_inflow = MONEY_ZERO
+    ignored_outflow = MONEY_ZERO
     needs_review_count = 0
     currency: str | None = None
 
     for row in rows:
+        if row.currency and currency is None:
+            currency = row.currency
+        if row.status == RawTransactionStatus.IGNORED:
+            if row.amount is not None:
+                if row.amount > MONEY_ZERO:
+                    ignored_inflow += row.amount
+                elif row.amount < MONEY_ZERO:
+                    ignored_outflow += abs(row.amount)
+            continue
         if row.status in {
-            RawTransactionStatus.IGNORED,
             RawTransactionStatus.DUPLICATE,
             RawTransactionStatus.FAILED,
         }:
             continue
-        if row.currency and currency is None:
-            currency = row.currency
         if (
             row.status
             in {RawTransactionStatus.NEEDS_REVIEW, RawTransactionStatus.POSSIBLE_DUPLICATE}
@@ -157,6 +175,8 @@ def calculate_raw_transaction_totals(
         extracted_count=len(rows),
         calculated_total_inflow=inflow.quantize(MONEY_TOLERANCE),
         calculated_total_outflow=outflow.quantize(MONEY_TOLERANCE),
+        ignored_total_inflow=ignored_inflow.quantize(MONEY_TOLERANCE),
+        ignored_total_outflow=ignored_outflow.quantize(MONEY_TOLERANCE),
         needs_review_count=needs_review_count,
         currency=currency,
     )
@@ -177,6 +197,8 @@ def validate_statement_totals(
             balance_chain=balance_chain,
             inflow_difference=None,
             outflow_difference=None,
+            unexplained_inflow_difference=None,
+            unexplained_outflow_difference=None,
             message="Некоторые строки транзакций требуют ручной проверки.",
         )
 
@@ -188,6 +210,8 @@ def validate_statement_totals(
             balance_chain=balance_chain,
             inflow_difference=None,
             outflow_difference=None,
+            unexplained_inflow_difference=None,
+            unexplained_outflow_difference=None,
             message="Остатки после операций не совпадают с суммами строк.",
         )
 
@@ -201,6 +225,8 @@ def validate_statement_totals(
             balance_chain=balance_chain,
             inflow_difference=None,
             outflow_difference=None,
+            unexplained_inflow_difference=None,
+            unexplained_outflow_difference=None,
             message="Контрольные итоги выписки недоступны.",
         )
 
@@ -212,6 +238,14 @@ def validate_statement_totals(
         totals.calculated_total_outflow,
         control_totals.total_outflow,
     )
+    unexplained_inflow_difference = _difference(
+        totals.calculated_total_inflow + totals.ignored_total_inflow,
+        control_totals.total_inflow,
+    )
+    unexplained_outflow_difference = _difference(
+        totals.calculated_total_outflow + totals.ignored_total_outflow,
+        control_totals.total_outflow,
+    )
     if _is_mismatch(inflow_difference) or _is_mismatch(outflow_difference):
         return StatementValidationReport(
             status=StatementValidationStatus.MISMATCH,
@@ -220,6 +254,8 @@ def validate_statement_totals(
             balance_chain=balance_chain,
             inflow_difference=inflow_difference,
             outflow_difference=outflow_difference,
+            unexplained_inflow_difference=unexplained_inflow_difference,
+            unexplained_outflow_difference=unexplained_outflow_difference,
             message="Итоги по строкам не совпадают с итогами выписки.",
         )
 
@@ -230,6 +266,8 @@ def validate_statement_totals(
         balance_chain=balance_chain,
         inflow_difference=inflow_difference,
         outflow_difference=outflow_difference,
+        unexplained_inflow_difference=unexplained_inflow_difference,
+        unexplained_outflow_difference=unexplained_outflow_difference,
         message="Итоги по строкам совпадают с итогами выписки.",
     )
 

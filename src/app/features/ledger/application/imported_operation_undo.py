@@ -2,6 +2,9 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.imports.application.review.validation_refresh import (
+    refresh_document_validation,
+)
 from app.features.imports.models import UploadedDocumentStatus
 from app.features.imports.repository import ImportRepository
 from app.features.ledger.domain.raw_transactions import restored_raw_status_after_unlink
@@ -51,6 +54,7 @@ class ImportedOperationUndoUseCase:
                 document_id,
             )
             if document is not None:
+                await refresh_document_validation(self.imports, document)
                 await self.imports.mark_document_status(
                     document,
                     UploadedDocumentStatus.REQUIRES_REVIEW,
@@ -76,6 +80,7 @@ class ImportedOperationUndoUseCase:
                 affected_document_id,
             )
             if document is not None:
+                await refresh_document_validation(self.imports, document)
                 await self.imports.mark_document_status(
                     document,
                     UploadedDocumentStatus.REQUIRES_REVIEW,

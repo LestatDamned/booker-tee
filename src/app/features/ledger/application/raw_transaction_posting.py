@@ -5,6 +5,9 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.accounts.models import Account
+from app.features.imports.application.review.validation_refresh import (
+    refresh_document_validation,
+)
 from app.features.imports.models import RawTransaction
 from app.features.imports.repository import ImportRepository
 from app.features.ledger.application.imported_document_status import ImportedDocumentStatusUpdater
@@ -141,19 +144,22 @@ class RawTransactionPostingUseCase:
                 raw_transaction,
                 operation_id=operation.id,
             )
+            affected_document_ids = {document_id}
             if counterparty.raw_transaction is not None:
                 await self.imports.link_raw_transaction_to_operation(
                     counterparty.raw_transaction,
                     operation_id=operation.id,
                 )
+                affected_document_ids.add(counterparty.raw_transaction.uploaded_document_id)
+            for affected_document_id in affected_document_ids:
+                await self._refresh_document_validation(
+                    context.workspace.id,
+                    affected_document_id,
+                )
                 await self.document_status.mark_imported_if_complete(
                     workspace_id=context.workspace.id,
-                    document_id=counterparty.raw_transaction.uploaded_document_id,
+                    document_id=affected_document_id,
                 )
-            await self.document_status.mark_imported_if_complete(
-                workspace_id=context.workspace.id,
-                document_id=document_id,
-            )
             await self.session.commit()
             return operation
         except Exception:
@@ -193,6 +199,7 @@ class RawTransactionPostingUseCase:
                 raw_transaction,
                 operation_id=operation.id,
             )
+            await self._refresh_document_validation(context.workspace.id, document_id)
             await self.document_status.mark_imported_if_complete(
                 workspace_id=context.workspace.id,
                 document_id=document_id,
@@ -283,11 +290,21 @@ class RawTransactionPostingUseCase:
             raw_transaction,
             operation_id=operation.id,
         )
+        await self._refresh_document_validation(context.workspace.id, document_id)
         await self.document_status.mark_imported_if_complete(
             workspace_id=context.workspace.id,
             document_id=document_id,
         )
         return operation
+
+    async def _refresh_document_validation(
+        self,
+        workspace_id: UUID,
+        document_id: UUID,
+    ) -> None:
+        document = await self.imports.get_document_for_workspace(workspace_id, document_id)
+        if document is not None:
+            await refresh_document_validation(self.imports, document)
 
     async def _resolve_matched_transfer_row(
         self,

@@ -314,10 +314,14 @@ def test_review_validation_presenter_prepares_summary_and_warning() -> None:
             "currency": "RUB",
             "calculated_total_inflow": "100.00",
             "calculated_total_outflow": "30.00",
+            "ignored_total_inflow": "10.00",
+            "ignored_total_outflow": "5.00",
             "statement_total_inflow": None,
             "statement_total_outflow": None,
             "inflow_difference": None,
             "outflow_difference": "10.00",
+            "unexplained_inflow_difference": "0.00",
+            "unexplained_outflow_difference": "10.00",
         }
     )
 
@@ -327,6 +331,10 @@ def test_review_validation_presenter_prepares_summary_and_warning() -> None:
     assert summary.statement_total_outflow == "нет"
     assert summary.inflow_difference == "нет"
     assert summary.outflow_difference == "10.00"
+    assert summary.ignored_total_inflow == "10.00"
+    assert summary.ignored_total_outflow == "5.00"
+    assert summary.unexplained_inflow_difference == "0.00"
+    assert summary.unexplained_outflow_difference == "10.00"
     assert summary.warning_message is not None
     assert [(metric.label, metric.value) for metric in summary.metrics] == [
         ("проверка", "mismatch"),
@@ -336,10 +344,52 @@ def test_review_validation_presenter_prepares_summary_and_warning() -> None:
     ]
     assert [row.kind for row in summary.control_total_rows] == ["Приход", "Расход"]
     assert [cell.label for cell in summary.control_total_rows[0].cells] == [
-        "строки",
+        "к учету",
+        "исключено",
         "выписка",
-        "разница",
+        "не объяснено",
     ]
     assert summary.control_total_rows[0].cells[0].tone == "income"
+    assert summary.control_total_rows[0].cells[1].tone == "excluded"
+    assert summary.control_total_rows[0].cells[3].tone == "balanced"
     assert summary.control_total_rows[1].cells[0].tone == "expense"
+    assert summary.control_total_rows[1].cells[1].tone == "excluded"
+    assert summary.control_total_rows[1].cells[3].tone == "unexplained"
     assert "суммы или остатки не сходятся" in summary.warning_message
+
+
+def test_review_validation_presenter_treats_ignored_rows_as_explained() -> None:
+    summary = ReviewValidationPresenter().build(
+        {
+            "status": "mismatch",
+            "message": "Итоги по строкам не совпадают с итогами выписки.",
+            "extracted_count": 4,
+            "needs_review_count": 0,
+            "currency": "RUB",
+            "calculated_total_inflow": "50.00",
+            "calculated_total_outflow": "20.00",
+            "ignored_total_inflow": "50.00",
+            "ignored_total_outflow": "30.00",
+            "statement_total_inflow": "100.00",
+            "statement_total_outflow": "50.00",
+            "inflow_difference": "-50.00",
+            "outflow_difference": "-30.00",
+            "unexplained_inflow_difference": "0.00",
+            "unexplained_outflow_difference": "0.00",
+        }
+    )
+
+    assert summary is not None
+    assert summary.warning_message is None
+    assert [cell.value for cell in summary.control_total_rows[0].cells] == [
+        "50.00",
+        "50.00",
+        "100.00",
+        "0.00",
+    ]
+    assert [cell.value for cell in summary.control_total_rows[1].cells] == [
+        "20.00",
+        "30.00",
+        "50.00",
+        "0.00",
+    ]

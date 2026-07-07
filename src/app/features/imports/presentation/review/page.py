@@ -315,10 +315,22 @@ class ReviewValidationPresenter:
         currency = validation.get("currency") or ""
         calculated_total_inflow = validation.get("calculated_total_inflow", "")
         calculated_total_outflow = validation.get("calculated_total_outflow", "")
+        ignored_total_inflow = validation.get("ignored_total_inflow") or "0.00"
+        ignored_total_outflow = validation.get("ignored_total_outflow") or "0.00"
         statement_total_inflow = validation.get("statement_total_inflow") or "нет"
         statement_total_outflow = validation.get("statement_total_outflow") or "нет"
         inflow_difference = validation.get("inflow_difference") or "нет"
         outflow_difference = validation.get("outflow_difference") or "нет"
+        unexplained_inflow_difference = (
+            validation.get("unexplained_inflow_difference")
+            or validation.get("inflow_difference")
+            or "нет"
+        )
+        unexplained_outflow_difference = (
+            validation.get("unexplained_outflow_difference")
+            or validation.get("outflow_difference")
+            or "нет"
+        )
         return ReviewValidationSummaryVM(
             status_label=str(validation.get("status", "")),
             message=str(validation.get("message", "")),
@@ -333,25 +345,47 @@ class ReviewValidationPresenter:
             currency=currency,
             calculated_total_inflow=calculated_total_inflow,
             calculated_total_outflow=calculated_total_outflow,
+            ignored_total_inflow=ignored_total_inflow,
+            ignored_total_outflow=ignored_total_outflow,
             statement_total_inflow=statement_total_inflow,
             statement_total_outflow=statement_total_outflow,
             inflow_difference=inflow_difference,
             outflow_difference=outflow_difference,
+            unexplained_inflow_difference=unexplained_inflow_difference,
+            unexplained_outflow_difference=unexplained_outflow_difference,
             control_total_rows=[
                 ReviewControlTotalRowVM(
                     "Приход",
                     [
-                        ReviewControlTotalCellVM("строки", calculated_total_inflow, "income"),
+                        ReviewControlTotalCellVM("к учету", calculated_total_inflow, "income"),
+                        ReviewControlTotalCellVM(
+                            "исключено",
+                            ignored_total_inflow,
+                            "excluded",
+                        ),
                         ReviewControlTotalCellVM("выписка", statement_total_inflow, "income"),
-                        ReviewControlTotalCellVM("разница", inflow_difference),
+                        ReviewControlTotalCellVM(
+                            "не объяснено",
+                            unexplained_inflow_difference,
+                            self._unexplained_tone(unexplained_inflow_difference),
+                        ),
                     ],
                 ),
                 ReviewControlTotalRowVM(
                     "Расход",
                     [
-                        ReviewControlTotalCellVM("строки", calculated_total_outflow, "expense"),
+                        ReviewControlTotalCellVM("к учету", calculated_total_outflow, "expense"),
+                        ReviewControlTotalCellVM(
+                            "исключено",
+                            ignored_total_outflow,
+                            "excluded",
+                        ),
                         ReviewControlTotalCellVM("выписка", statement_total_outflow, "expense"),
-                        ReviewControlTotalCellVM("разница", outflow_difference),
+                        ReviewControlTotalCellVM(
+                            "не объяснено",
+                            unexplained_outflow_difference,
+                            self._unexplained_tone(unexplained_outflow_difference),
+                        ),
                     ],
                 ),
             ],
@@ -359,11 +393,29 @@ class ReviewValidationPresenter:
         )
 
     def _warning_message(self, validation: dict[str, object]) -> str | None:
+        unexplained_inflow = validation.get("unexplained_inflow_difference")
+        unexplained_outflow = validation.get("unexplained_outflow_difference")
+        if unexplained_inflow is not None or unexplained_outflow is not None:
+            if self._has_unexplained_difference(unexplained_inflow) or (
+                self._has_unexplained_difference(unexplained_outflow)
+            ):
+                return self._mismatch_warning()
+            return None
         if validation.get("status") in {"mismatch", "failed", "failed_to_parse"}:
             return self._mismatch_warning()
         if validation.get("inflow_difference") or validation.get("outflow_difference"):
             return self._mismatch_warning()
         return None
+
+    def _unexplained_tone(self, value: object) -> str | None:
+        if value in {"0.00", "0", 0}:
+            return "balanced"
+        if value in {None, "нет"}:
+            return None
+        return "unexplained"
+
+    def _has_unexplained_difference(self, value: object) -> bool:
+        return value not in {None, "нет", "0", "0.00", 0}
 
     def _mismatch_warning(self) -> str:
         return (

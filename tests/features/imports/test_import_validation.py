@@ -51,6 +51,33 @@ def test_statement_validation_report_detects_mismatched_totals() -> None:
     assert report.as_json()["inflow_difference"] == "-1.00"
 
 
+def test_statement_validation_report_explains_ignored_rows_separately() -> None:
+    report = validate_statement_totals(
+        rows=[
+            RowStub(status=RawTransactionStatus.CONFIRMED, amount=Decimal("50.00")),
+            RowStub(status=RawTransactionStatus.IGNORED, amount=Decimal("50.00")),
+            RowStub(status=RawTransactionStatus.CONFIRMED, amount=Decimal("-20.00")),
+            RowStub(status=RawTransactionStatus.IGNORED, amount=Decimal("-30.00")),
+        ],
+        control_totals=StatementControlTotals(
+            currency="RUB",
+            total_inflow=Decimal("100.00"),
+            total_outflow=Decimal("50.00"),
+        ),
+    )
+
+    payload = report.as_json()
+    assert report.status == StatementValidationStatus.MISMATCH
+    assert payload["calculated_total_inflow"] == "50.00"
+    assert payload["ignored_total_inflow"] == "50.00"
+    assert payload["inflow_difference"] == "-50.00"
+    assert payload["unexplained_inflow_difference"] == "0.00"
+    assert payload["calculated_total_outflow"] == "20.00"
+    assert payload["ignored_total_outflow"] == "30.00"
+    assert payload["outflow_difference"] == "-30.00"
+    assert payload["unexplained_outflow_difference"] == "0.00"
+
+
 def test_statement_validation_report_is_unavailable_without_control_totals() -> None:
     report = validate_statement_totals(
         rows=[RowStub(status=RawTransactionStatus.NORMALIZED, amount=Decimal("99.00"))],
