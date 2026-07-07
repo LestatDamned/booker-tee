@@ -870,7 +870,7 @@ src/app/features/imports/presentation/review/state.py
 - `badges`: status, visual state, direction, source/suggestion when useful.
 - `problems`: `normalization_error` + `balance_chain_problems[row_index]`.
 - `technical`: row id, operation id, rule id, row index.
-- `css_classes`: `review-item`, `review-status-*`, `review-item-next`,
+- `css_classes`: `review-item`, `review-item--status-*`, `review-item--next`,
   `hx-swap-oob` flag when needed.
 
 Данные, которые уже приходят в `ReviewPageContext` и нужны для item presenter:
@@ -899,7 +899,7 @@ presenter:
 - выбор `selected_category_id`;
 - поиск предложенной категории и объекта через циклы по `categories` и
   `properties`;
-- вычисление первой строки очереди / `review-item-next`;
+- вычисление первой строки очереди / `review-item--next`;
 - вычисление route для linked operation: from/to entry;
 - построение summary для transfer/non-transfer linked operation;
 - определение ветки UI по `row.status.value`, `linked_operation_id`,
@@ -1467,9 +1467,9 @@ review-actions__danger
 | 15 | Closed | `ReviewConfirmabilityPolicy` rejects income/expense without a real category, including uncategorized fallback. |
 | 16 | Closed | `ReviewConfirmabilityPolicy` requires source account, counterparty account, and different accounts for transfer. |
 | 17 | Closed | `TransferPanelPayload.transfer_preview` exposes a server-built route label. Positive raw rows preview as `выбери счет -> счет выписки`; negative rows preview as `счет выписки -> выбери счет`. |
-| 18 | Closed | Date is in the top line via `review-date-chip`; covered by template assertions around `review-topline`. |
+| 18 | Closed | Date is in the top line via `review-item__date`; covered by template assertions around `review-item__topline`. |
 | 19 | Closed | Row index is small meta; raw id is not surfaced as primary content; technical details do not compete with money/date/description in the current item layout. |
-| 20 | Accepted debt | Stabilized new parts use `review-item__*`, `review-panel__*`, `review-actions__*`, and `review-item--vm`. Older inner classes (`review-main`, `review-meta`, `review-topline`, `review-state-*`, `review-ledger-*`) remain as an explicit compatibility layer until a dedicated CSS cleanup. |
+| 20 | Accepted debt | Stabilized new parts use `review-item__*`, `review-panel__*`, `review-actions__*`, and `review-item--vm`. The item partial no longer emits older inner classes; `app.css` still keeps fallback selectors for shared/legacy templates until a dedicated CSS cleanup. |
 | 21 | Closed | New active rendering path uses `imports/review/_item.html` and `ReviewItemVM`; old raw-transaction review item fallback was removed after stabilization. |
 | 22 | Superseded | Initial rollback criterion was useful during the feature-flag phase. After stabilization, the old partial and `use_review_item_vm` were removed by decision; rollback would now be a normal git revert, not a runtime switch. |
 
@@ -1499,10 +1499,11 @@ review-actions__danger
 - `review-panel__*`;
 - `review-actions__*`.
 
-Старые классы `review-main`, `review-meta`, `review-topline`,
-`review-state-*`, `review-signal-*` и `review-ledger-*` остаются как
-compatibility layer. Новые изменения должны опираться на `review-item__*`, а
-старый слой удаляется только после отдельного аудита шаблонов и CSS.
+`imports/review/_item.html` больше не смешивает старые item-only classes с
+`review-item__*`. Старые селекторы `review-main`, `review-meta`,
+`review-topline`, `review-state-*`, `review-signal-*` и `review-ledger-*`
+остаются в `app.css` как compatibility layer для shared/legacy templates и
+удаляются только после отдельного аудита шаблонов и CSS.
 
 Шаги:
 

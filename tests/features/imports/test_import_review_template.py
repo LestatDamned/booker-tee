@@ -388,25 +388,23 @@ def test_review_template_prefills_suggested_rule_category() -> None:
         categories=categories,
     )
 
-    assert "review-signal-proposal" in html
     assert "review-item__signal--proposal" in html
     assert "правило:" in html
     assert "KRASNOE" in html
     assert "BELOE" in html
     assert "категория: Продукты" in html
-    assert "review-ledger-summary-suggested" in html
     assert "review-item__ledger-summary--suggested" in html
     assert "review-item__ledger-meta" in html
     assert "review-item__ledger-type" in html
     assert "review-item__ledger-status" in html
     assert "review-item__ledger-title" in html
-    assert "review-ledger-type review-item__ledger-type tone-expense" in html
-    assert "review-ledger-status" in html
-    assert "review-ledger-title" in html
-    assert "review-state-summary" not in html
+    assert "review-item__ledger-type tone-expense" in html
+    assert "review-item__state" not in html
     assert "Продукты" in html
-    assert html.index("review-signal-proposal") < html.index("review-actions")
-    assert html.index("review-ledger-summary-suggested") < html.index("Подтвердить предложение")
+    assert html.index("review-item__signal--proposal") < html.index("review-item__actions")
+    assert html.index("review-item__ledger-summary--suggested") < html.index(
+        "Подтвердить предложение"
+    )
     assert "Подтвердить предложение" in html
     assert "review-queue-bar" in html
     assert "review-queue-status" in html
@@ -416,10 +414,10 @@ def test_review_template_prefills_suggested_rule_category() -> None:
     assert "review-workflow-card" in html
     assert "import-hidden-technical-details" in html
     assert "Технические детали документа" not in html
-    assert "review-item-next" in html
+    assert "review-item--next" in html
     assert "Продолжайте проверку" in html
     assert "к следующей" in html
-    assert "review-money review-item__amount money-value" in html
+    assert "review-item__amount money-value" in html
     assert "KRASNOE&amp;BELOE" in html
     assert f'id="raw-{row_id}"' in html
     assert 'hx-boost="true"' in html
@@ -486,33 +484,27 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
 
     assert "review-item--vm" in html
     assert "review-item__main" in html
-    assert "review-status-ready_to_confirm" in html
+    assert "review-item--status-ready_to_confirm" in html
     assert "готово" in html
     assert "Подтвердить" in html
     assert "Сохранить и подтвердить" in html
     assert "Игнорировать" in html
     assert "hx-confirm=" in html
     assert html.index("29.05.2026") < html.index("Veesp hosting")
-    assert "review-topline" in html
     assert "review-item__topline" in html
     assert "review-item__meta" in html
     assert "review-item__row-index" in html
-    assert "review-date-chip" in html
     assert "review-item__date" in html
     assert "review-item__date-label" in html
     assert "review-item__account" in html
     assert "review-item__amount" in html
     assert "review-item__description" in html
-    assert "review-state-summary" in html
     assert "review-item__state" in html
-    assert "review-state-primary" in html
     assert "review-item__state-primary" in html
-    assert "review-state-secondary" in html
     assert "review-item__state-secondary" in html
     assert "review-item__state-token" in html
     assert "по сумме" in html
     assert "предложено операция связана" not in html
-    assert "review-panels" in html
     assert "review-item__actions" in html
     assert "review-item__panels" in html
     assert "review-panel__tab--primary" in html
@@ -531,8 +523,8 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
     assert "Открыть" in html
     assert "Закрыть" in html
     assert "review-panel-body" in html
-    assert html.index("review-topline") < html.index("review-description")
-    assert html.index("review-actions") < html.index("review-panels")
+    assert html.index("review-item__topline") < html.index("review-item__description")
+    assert html.index("review-item__actions") < html.index("review-item__panels")
 
 
 def test_review_item_vm_omits_empty_badge_flag_and_panel_regions() -> None:
@@ -563,9 +555,9 @@ def test_review_item_vm_omits_empty_badge_flag_and_panel_regions() -> None:
     html = create_templates().env.get_template("imports/review/_item.html").render(item=item)
 
     assert "review-item--vm" in html
-    assert "review-state-summary" not in html
-    assert "review-flags" not in html
-    assert "review-panels" not in html
+    assert "review-item__state" not in html
+    assert "review-item__signals" not in html
+    assert "review-item__panels" not in html
 
 
 def test_review_template_shows_transfer_route_for_linked_operation() -> None:
@@ -616,17 +608,13 @@ def test_review_template_shows_transfer_route_for_linked_operation() -> None:
     )
 
     assert "перевод:" in html
-    assert "review-signal-operation" not in html
-    assert "review-action-status" in html
-    assert "review-ledger-summary" in html
+    assert "review-item__signal--operation" not in html
     assert "review-item__ledger-summary" in html
-    assert "review-ledger-summary-confirmed" in html
     assert "review-item__ledger-summary--confirmed" in html
-    assert "review-ledger-title" in html
     assert "review-item__ledger-title" in html
     assert f"ID {operation_id}" not in html
-    assert "review-status-confirmed" in html
-    assert "review-ledger-type review-item__ledger-type tone-transfer" in html
+    assert "review-item--status-confirmed" in html
+    assert "review-item__ledger-type tone-transfer" in html
     assert "Вклад ВТБ" in html
     assert "Карта Экспобанк" in html
     assert "из" in html
@@ -686,29 +674,24 @@ def test_review_template_shows_expense_category_for_linked_operation() -> None:
         categories=[],
     )
 
-    assert "review-ledger-summary" in html
     assert "review-item__ledger-summary" in html
-    assert "review-ledger-summary-confirmed" in html
     assert "review-item__ledger-summary--confirmed" in html
-    assert "review-ledger-type review-item__ledger-type tone-expense" in html
-    assert "review-ledger-status" in html
+    assert "review-item__ledger-type tone-expense" in html
     assert "review-item__ledger-status" in html
-    assert "review-ledger-title" in html
     assert "review-item__ledger-title" in html
-    assert "review-action-status" in html
     assert "Продукты" in html
     assert "с Экспобанк карта" not in html
     assert "со счета: Экспобанк карта" not in html
     assert "автоприменено правило" not in html
     assert "автоправило: KRASNOE&amp;BELOE" not in html
     assert "строка уже в финальном состоянии" not in html
-    assert "review-flags" not in html
+    assert "review-item__signals" not in html
     assert "review-actions__correction" in html
     assert "Исправить" in html
     assert "Отменить проведение" in html
     assert "Открыть операцию" not in html
     assert "Еще действия" not in html
-    assert "review-panels" not in html
+    assert "review-item__panels" not in html
     assert "основной разбор строки" not in html
     assert "если это перемещение между счетами" not in html
 
@@ -1499,9 +1482,8 @@ def test_suggested_review_item_keeps_rule_proposal_when_new_category_is_selected
     )
 
     assert "автоправило: Veesp" in html
-    assert "review-signal-proposal" in html
     assert "review-item__signal--proposal" in html
-    assert "review-signal-problem" not in html
+    assert "review-item__signal--problem" not in html
     assert "категория: Сервисы" in html
     assert "категория: TTTEST" not in html
     assert "объект: без объекта" not in html
@@ -1619,6 +1601,5 @@ def test_review_template_shows_balance_chain_problem_on_row() -> None:
     assert "review-validation-message" in html
     assert "review-control-totals" in html
     assert "суммы или остатки не сходятся с выпиской" in html
-    assert "review-signal-problem" in html
     assert "review-item__signal--problem" in html
     assert "остаток не сходится: ожидалось 1070.00, в строке 1060.00" in html

@@ -3658,22 +3658,32 @@ pre {
   scroll-margin-top: var(--review-anchor-offset);
 }
 
+.review-item--status-confirmed,
+.review-item--status-matched,
+.review-item--status-ready_to_confirm,
 .review-item.review-status-confirmed,
 .review-item.review-status-matched,
 .review-item.review-status-ready_to_confirm {
   border-left-color: var(--green);
 }
 
+.review-item--status-suggested,
+.review-item--status-normalized,
 .review-item.review-status-suggested,
 .review-item.review-status-normalized {
   border-left-color: var(--accent);
 }
 
+.review-item--status-needs_review,
+.review-item--status-possible_duplicate,
 .review-item.review-status-needs_review,
 .review-item.review-status-possible_duplicate {
   border-left-color: var(--warning);
 }
 
+.review-item--status-ignored,
+.review-item--status-duplicate,
+.review-item--status-failed,
 .review-item.review-status-ignored,
 .review-item.review-status-duplicate,
 .review-item.review-status-failed {
@@ -3685,6 +3695,7 @@ pre {
   background: color-mix(in srgb, var(--surface-strong) 88%, var(--accent));
 }
 
+.review-item--next,
 .review-item-next {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--surface) 88%, var(--accent));
@@ -4532,12 +4543,15 @@ pre {
   gap: 8px;
 }
 
+.review-item__actions select,
+.review-item__actions input:not([type="checkbox"]),
 .review-actions select,
 .review-actions input:not([type="checkbox"]) {
   width: 100%;
   min-width: 0;
 }
 
+.review-item__actions .button,
 .review-actions .button {
   width: 100%;
   max-width: 100%;
@@ -4550,17 +4564,20 @@ pre {
   text-align: left;
 }
 
+.review-item__actions .action-button svg,
 .review-actions .action-button svg {
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
 }
 
+.review-item__actions .action-label,
 .review-actions .action-label {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
+.review-item__actions .action-primary,
 .review-actions .action-primary {
   border-color: color-mix(in srgb, var(--green) 76%, var(--border));
   background: color-mix(in srgb, var(--green) 13%, var(--surface-strong));
@@ -4568,32 +4585,31 @@ pre {
   font-weight: 760;
 }
 
+.review-item__actions .action-primary:hover,
 .review-actions .action-primary:hover {
   border-color: var(--green);
   background: color-mix(in srgb, var(--green) 18%, var(--surface-strong));
   color: var(--text);
 }
 
+.review-item__actions .action-secondary,
 .review-actions .action-secondary {
   border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
   background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
   color: var(--muted);
 }
 
+.review-item__actions .action-secondary:hover,
 .review-actions .action-secondary:hover {
   border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
   color: var(--text);
 }
 
+.review-item__actions .action-danger,
 .review-actions .action-danger {
   border-color: color-mix(in srgb, var(--danger) 68%, var(--border));
   background: color-mix(in srgb, var(--danger) 7%, transparent);
   color: var(--danger);
-}
-
-.review-action-status {
-  border-color: color-mix(in srgb, var(--green) 40%, var(--border));
-  border-left-color: var(--green);
 }
 
 .review-item__ledger-summary,
