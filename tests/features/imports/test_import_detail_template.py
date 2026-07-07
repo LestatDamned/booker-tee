@@ -34,7 +34,6 @@ def render_import_detail(view: ImportDocumentDetailView, *, can_manage_imports: 
             view,
             can_manage_imports=can_manage_imports,
         ),
-        view=view,
     )
 
 

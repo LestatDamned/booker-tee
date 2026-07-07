@@ -2,10 +2,9 @@
 {% from "components/next_step.html" import next_step %}
 {% from "imports/_workflow_steps.html" import workflow_steps %}
 
-{% block title %}{{ view.original_filename }} · {{ app_name }}{% endblock %}
+{% block title %}{{ page.document_name }} · {{ app_name }}{% endblock %}
 
 {% block content %}
-  {% set validation = view.validation %}
   <section class="panel stack import-workflow">
     <header class="import-page-header">
       <div class="import-page-title">
@@ -69,67 +68,37 @@
           </div>
         {% endfor %}
       </div>
-      {% if validation.table_previews %}
+      {% if page.validation.table_previews %}
         <h2 class="status">Предпросмотр таблиц</h2>
         <div class="raw-transaction-list">
-          {% for preview in validation.table_previews %}
+          {% for preview in page.validation.table_previews %}
             <article class="raw-transaction-card">
               <div class="preview-meta">
-                <span>страница {{ preview.page_number }}</span>
-                {% if preview.source_type == "text_candidate" %}
-                  <span>из текста</span>
-                {% else %}
-                  <span>таблица {{ preview.table_index + 1 }}</span>
-                {% endif %}
-                {% if preview.preview_row_count is defined and preview.preview_row_count < preview.row_count %}
-                  <span>показано {{ preview.preview_row_count }} из {{ preview.row_count }} строк</span>
-                {% else %}
-                  <span>{{ preview.row_count }} строк</span>
-                {% endif %}
-                <span>{{ preview.column_count }} колонок</span>
+                {% for meta_item in preview.meta %}
+                  <span>{{ meta_item }}</span>
+                {% endfor %}
               </div>
               {% if preview.is_continuation %}
                 <div class="mapping-suggestion">
-                  <strong>
-                    Продолжение таблицы · страница {{ preview.continued_from_page_number }} · таблица {{ preview.continued_from_table_index + 1 }}
-                  </strong>
-                  {% if preview.continuation_mapping_fields %}
+                  <strong>{{ preview.continuation_summary }}</strong>
+                  {% if preview.continuation_fields %}
                     <ul>
-                      {% for mapping_field in preview.continuation_mapping_fields %}
+                      {% for mapping_field in preview.continuation_fields %}
                         <li>
-                          {% if mapping_field.field == "operation_date" %}
-                            {% set field_label = "дата" %}
-                          {% elif mapping_field.field == "posting_date" %}
-                            {% set field_label = "дата проводки" %}
-                          {% elif mapping_field.field == "description" %}
-                            {% set field_label = "описание" %}
-                          {% elif mapping_field.field == "amount" %}
-                            {% set field_label = "сумма" %}
-                          {% elif mapping_field.field == "debit_amount" %}
-                            {% set field_label = "списание" %}
-                          {% elif mapping_field.field == "credit_amount" %}
-                            {% set field_label = "зачисление" %}
-                          {% elif mapping_field.field == "currency" %}
-                            {% set field_label = "валюта" %}
-                          {% elif mapping_field.field == "balance_after" %}
-                            {% set field_label = "остаток после операции" %}
-                          {% else %}
-                            {% set field_label = mapping_field.field %}
-                          {% endif %}
-                          {{ field_label }}: колонка {{ mapping_field.column_index + 1 }}
+                          {{ mapping_field.label }}: колонка {{ mapping_field.column_number }}
                         </li>
                       {% endfor %}
                     </ul>
                   {% endif %}
                 </div>
-              {% elif preview.mapping_suggestions %}
-                {% set suggestion = preview.mapping_suggestions[0] %}
+              {% elif preview.primary_mapping_suggestion %}
+                {% set suggestion = preview.primary_mapping_suggestion %}
                 {% include "imports/_mapping_suggestion.html" %}
               {% endif %}
-              {% if preview.column_candidates and not preview.is_continuation %}
+              {% if preview.column_candidates %}
                 <div class="review-flags">
                   {% for candidate in preview.column_candidates %}
-                    <span>{{ candidate.field }}: колонка {{ candidate.column_index + 1 }} · {{ candidate.header }}</span>
+                    <span>{{ candidate.field }}: колонка {{ candidate.column_number }} · {{ candidate.header }}</span>
                   {% endfor %}
                 </div>
               {% endif %}
@@ -150,7 +119,7 @@
           {% endfor %}
         </div>
       {% endif %}
-      <div class="notice">{{ validation.message }}</div>
+      <div class="notice">{{ page.validation.message }}</div>
     {% elif page.validation %}
       <div class="summary-grid">
         {% for metric in page.validation.metrics %}
@@ -167,14 +136,14 @@
       <div class="notice">Отчет проверки для этого документа пока недоступен.</div>
     {% endif %}
 
-    {% if view.account %}
+    {% if page.account %}
       <div class="document-detail-grid">
         <div class="document-detail-card document-detail-card-wide">
           <span>Счет</span>
-          <a class="account-ref" href="/accounts/{{ view.account.id }}">
-            <strong>{{ view.account.name }}</strong>
-            <span>{{ view.account.type | ru }}</span>
-            <span>{{ view.account.currency }}</span>
+          <a class="account-ref" href="/accounts/{{ page.account.id }}">
+            <strong>{{ page.account.name }}</strong>
+            <span>{{ page.account.type_label }}</span>
+            <span>{{ page.account.currency }}</span>
           </a>
         </div>
       </div>
@@ -182,23 +151,20 @@
 
     <details class="debug-details document-debug-details">
       <summary>Отладочные данные документа</summary>
-      <span>ID {{ view.id }}</span>
-      <span>SHA-256 {{ view.sha256_hash }}</span>
-      <span>Ключ хранения {{ view.storage_key }}</span>
-      {% if view.account %}
-        <span>ID счета {{ view.account.id }}</span>
-      {% endif %}
+      {% for item in page.technical_details.document_items %}
+        <span>{{ item.label }} {{ item.value }}</span>
+      {% endfor %}
     </details>
 
-    {% if view.raw_transactions %}
+    {% if page.raw_transactions %}
       <h2 class="status">Сырые транзакции</h2>
       <div class="raw-transaction-list">
-        {% for row in view.raw_transactions %}
+        {% for row in page.raw_transactions %}
           <article class="raw-transaction-card">
             <div class="raw-transaction-head">
-              <strong class="raw-transaction-amount {% if row.amount and row.amount > 0 %}amount-income{% elif row.amount and row.amount < 0 %}amount-expense{% endif %}">{{ row.amount or row.amount_raw or "" }} <small>{{ row.currency or "" }}</small></strong>
+              <strong class="raw-transaction-amount{% if row.amount_tone %} amount-{{ row.amount_tone }}{% endif %}">{{ row.amount_label }} <small>{{ row.currency }}</small></strong>
               <span class="raw-transaction-date">{{ row.display_date | date_ru }}</span>
-              <span class="badge badge-{{ row.status.value }}">{{ row.status | ru }}</span>
+              <span class="badge {{ row.status_css_class }}">{{ row.status_label }}</span>
               <span class="raw-transaction-index">#{{ row.row_index }}</span>
             </div>
             <div class="entry-description">{{ row.description }}</div>
@@ -221,14 +187,14 @@
       </div>
     {% endif %}
 
-    {% if view.parse_attempts %}
+    {% if page.parse_attempts %}
       <h2 class="status">История парсинга</h2>
       <div class="parse-attempt-list">
-        {% for attempt in view.parse_attempts %}
+        {% for attempt in page.parse_attempts %}
           <article class="parse-attempt-card">
             <div class="parse-attempt-head">
-              <strong>{{ attempt.status | ru }}</strong>
-              <span>{{ attempt.parser_name }} {{ attempt.parser_version or "" }}</span>
+              <strong>{{ attempt.status_label }}</strong>
+              <span>{{ attempt.parser_label }}</span>
             </div>
             <div class="parse-attempt-times">
               <span>старт {{ attempt.started_at | date_ru }}</span>
@@ -248,12 +214,12 @@
       </div>
     {% endif %}
 
-    {% for attempt in view.parse_attempts %}
+    {% for attempt in page.technical_details.parse_attempts %}
       <details class="debug-details">
-        <summary>Отладочные данные парсинга {{ attempt.status | ru }}</summary>
+        <summary>Отладочные данные парсинга {{ attempt.status_label }}</summary>
         <article class="parse-debug stack">
           <div class="parse-debug-header">
-            <h2 class="status">Попытка парсинга {{ attempt.status | ru }}</h2>
+            <h2 class="status">{{ attempt.title }}</h2>
             <details class="technical-details">
               <summary>ID</summary>
               <span>ID {{ attempt.id }}</span>
@@ -270,7 +236,7 @@
           <div class="document-detail-grid compact">
             <div class="document-detail-card">
               <span>Парсер</span>
-              <strong>{{ attempt.parser_name }} {{ attempt.parser_version or "" }}</strong>
+              <strong>{{ attempt.parser_label }}</strong>
             </div>
             <div class="document-detail-card">
               <span>Старт</span>

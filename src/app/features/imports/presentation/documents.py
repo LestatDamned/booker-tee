@@ -46,6 +46,5 @@ class DocumentDetailPageContext:
         return {
             "app_name": app_name,
             "page": page,
-            "view": self.view,
             "workspace": workspace,
         }

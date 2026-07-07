@@ -46,7 +46,6 @@ def render_document_detail_template(*, view: object) -> str:
             cast(Any, view),
             can_manage_imports=True,
         ),
-        view=view,
     )
 
 
@@ -595,6 +594,7 @@ def raw_row(status: RawTransactionStatus) -> SimpleNamespace:
         id=uuid4(),
         row_index=1,
         status=status,
+        parse_attempt_id=uuid4(),
         operation_date="2026-06-24",
         operation_date_raw=None,
         display_date="24.06.2026",
