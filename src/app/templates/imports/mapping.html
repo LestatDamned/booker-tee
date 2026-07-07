@@ -72,92 +72,36 @@
           </div>
         </div>
 
+        {% for field in mapping_form.select_fields %}
+          <div class="field">
+            <label for="{{ field.field_id }}">{{ field.label }}</label>
+            <select id="{{ field.field_id }}" name="{{ field.name }}">
+              {% for option in field.options %}
+                <option value="{{ option.value }}" {% if option.is_selected %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endfor %}
+
         <div class="field">
-          <label for="operation_date_column">Дата</label>
-          <select id="operation_date_column" name="operation_date_column">
-            {% for option in selected_table_vm.column_options %}
-              <option value="{{ option.index }}" {% if command.operation_date_column == option.index %}selected{% endif %}>{{ option.label }}</option>
-            {% endfor %}
-          </select>
+          <label for="{{ mapping_form.first_data_row.field_id }}">{{ mapping_form.first_data_row.label }}</label>
+          <input
+            id="{{ mapping_form.first_data_row.field_id }}"
+            name="{{ mapping_form.first_data_row.name }}"
+            type="{{ mapping_form.first_data_row.input_type }}"
+            min="{{ mapping_form.first_data_row.min_value }}"
+            value="{{ mapping_form.first_data_row.value }}"
+          >
         </div>
 
         <div class="field">
-          <label for="posting_date_column">Дата проводки</label>
-          <select id="posting_date_column" name="posting_date_column">
-            <option value="-1" {% if command.posting_date_column is none %}selected{% endif %}>не используется</option>
-            {% for option in selected_table_vm.column_options %}
-              <option value="{{ option.index }}" {% if command.posting_date_column == option.index %}selected{% endif %}>{{ option.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="description_column">Описание</label>
-          <select id="description_column" name="description_column">
-            {% for option in selected_table_vm.column_options %}
-              <option value="{{ option.index }}" {% if command.description_column == option.index %}selected{% endif %}>{{ option.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="amount_column">Сумма</label>
-          <select id="amount_column" name="amount_column">
-            <option value="-1" {% if command.amount_column is none %}selected{% endif %}>нет единой колонки</option>
-            {% for option in selected_table_vm.column_options %}
-              <option value="{{ option.index }}" {% if command.amount_column == option.index %}selected{% endif %}>{{ option.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="debit_amount_column">Списание</label>
-          <select id="debit_amount_column" name="debit_amount_column">
-            <option value="-1" {% if command.debit_amount_column is none %}selected{% endif %}>не используется</option>
-            {% for option in selected_table_vm.column_options %}
-              <option value="{{ option.index }}" {% if command.debit_amount_column == option.index %}selected{% endif %}>{{ option.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="credit_amount_column">Зачисление</label>
-          <select id="credit_amount_column" name="credit_amount_column">
-            <option value="-1" {% if command.credit_amount_column is none %}selected{% endif %}>не используется</option>
-            {% for option in selected_table_vm.column_options %}
-              <option value="{{ option.index }}" {% if command.credit_amount_column == option.index %}selected{% endif %}>{{ option.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="currency_column">Валюта</label>
-          <select id="currency_column" name="currency_column">
-            <option value="-1" {% if command.currency_column is none %}selected{% endif %}>по умолчанию</option>
-            {% for option in selected_table_vm.column_options %}
-              <option value="{{ option.index }}" {% if command.currency_column == option.index %}selected{% endif %}>{{ option.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="balance_after_column">Остаток после</label>
-          <select id="balance_after_column" name="balance_after_column">
-            <option value="-1" {% if command.balance_after_column is none %}selected{% endif %}>не используется</option>
-            {% for option in selected_table_vm.column_options %}
-              <option value="{{ option.index }}" {% if command.balance_after_column == option.index %}selected{% endif %}>{{ option.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="first_data_row">Первая строка данных</label>
-          <input id="first_data_row" name="first_data_row" type="number" min="0" value="{{ command.first_data_row }}">
-        </div>
-
-        <div class="field">
-          <label for="default_currency">Валюта по умолчанию</label>
-          <input id="default_currency" name="default_currency" value="{{ command.default_currency }}">
+          <label for="{{ mapping_form.default_currency.field_id }}">{{ mapping_form.default_currency.label }}</label>
+          <input
+            id="{{ mapping_form.default_currency.field_id }}"
+            name="{{ mapping_form.default_currency.name }}"
+            type="{{ mapping_form.default_currency.input_type }}"
+            value="{{ mapping_form.default_currency.value }}"
+          >
         </div>
 
         <div id="mapping-import-actions" class="mapping-action-row">

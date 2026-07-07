@@ -146,10 +146,42 @@ class MappingPreviewRowVM:
 
 
 @dataclass(frozen=True)
+class MappingFormOptionVM:
+    value: str
+    label: str
+    is_selected: bool
+
+
+@dataclass(frozen=True)
+class MappingFormSelectFieldVM:
+    field_id: str
+    name: str
+    label: str
+    options: list[MappingFormOptionVM]
+
+
+@dataclass(frozen=True)
+class MappingFormInputFieldVM:
+    field_id: str
+    name: str
+    label: str
+    value: str
+    input_type: str
+    min_value: str | None = None
+
+
+@dataclass(frozen=True)
+class MappingFormVM:
+    select_fields: list[MappingFormSelectFieldVM]
+    first_data_row: MappingFormInputFieldVM
+    default_currency: MappingFormInputFieldVM
+
+
+@dataclass(frozen=True)
 class MappingPageContext:
     document: MappingDocumentVM
     next_step: MappingNextStepVM
-    command: UnknownStatementMappingCommand
+    form: MappingFormVM
     selected_table_vm: MappingSelectedTableVM
     table_picker_options: list[MappingTableOptionVM]
     has_preview: bool
@@ -167,9 +199,9 @@ class MappingPageContext:
     ) -> dict[str, object]:
         return {
             "app_name": app_name,
-            "command": self.command,
             "document": self.document,
             "mapping_next_step": self.next_step,
+            "mapping_form": self.form,
             "selected_table_vm": self.selected_table_vm,
             "table_picker_options": self.table_picker_options,
             "mapping_has_preview": self.has_preview,
@@ -250,6 +282,10 @@ def mapping_page_context_from_command(
     selected_table = selected_mapping_table(table_options, command)
     compatible_table_count = compatible_mapping_table_count(raw_tables, command)
     document = mapping_document(view)
+    selected_table_vm = mapping_selected_table(
+        selected_table,
+        compatible_table_count=compatible_table_count,
+    )
     return MappingPageContext(
         document=document,
         next_step=mapping_next_step(
@@ -257,11 +293,8 @@ def mapping_page_context_from_command(
             preview=preview,
             table_options=table_options,
         ),
-        command=command,
-        selected_table_vm=mapping_selected_table(
-            selected_table,
-            compatible_table_count=compatible_table_count,
-        ),
+        form=mapping_form(command, selected_table_vm.column_options),
+        selected_table_vm=selected_table_vm,
         table_picker_options=mapping_table_options(table_options, command),
         has_preview=preview is not None,
         warnings=mapping_warnings(preview),
@@ -274,6 +307,125 @@ def mapping_page_context_from_command(
         preview_rows=mapping_preview_rows(preview),
         mapping_templates=mapping_templates,
     )
+
+
+def mapping_form(
+    command: UnknownStatementMappingCommand,
+    column_options: list[MappingColumnOptionVM],
+) -> MappingFormVM:
+    return MappingFormVM(
+        select_fields=[
+            mapping_select_field(
+                field_id="operation_date_column",
+                label="Дата",
+                column_options=column_options,
+                selected_index=command.operation_date_column,
+            ),
+            mapping_select_field(
+                field_id="posting_date_column",
+                label="Дата проводки",
+                column_options=column_options,
+                selected_index=command.posting_date_column,
+                empty_label="не используется",
+            ),
+            mapping_select_field(
+                field_id="description_column",
+                label="Описание",
+                column_options=column_options,
+                selected_index=command.description_column,
+            ),
+            mapping_select_field(
+                field_id="amount_column",
+                label="Сумма",
+                column_options=column_options,
+                selected_index=command.amount_column,
+                empty_label="нет единой колонки",
+            ),
+            mapping_select_field(
+                field_id="debit_amount_column",
+                label="Списание",
+                column_options=column_options,
+                selected_index=command.debit_amount_column,
+                empty_label="не используется",
+            ),
+            mapping_select_field(
+                field_id="credit_amount_column",
+                label="Зачисление",
+                column_options=column_options,
+                selected_index=command.credit_amount_column,
+                empty_label="не используется",
+            ),
+            mapping_select_field(
+                field_id="currency_column",
+                label="Валюта",
+                column_options=column_options,
+                selected_index=command.currency_column,
+                empty_label="по умолчанию",
+            ),
+            mapping_select_field(
+                field_id="balance_after_column",
+                label="Остаток после",
+                column_options=column_options,
+                selected_index=command.balance_after_column,
+                empty_label="не используется",
+            ),
+        ],
+        first_data_row=MappingFormInputFieldVM(
+            field_id="first_data_row",
+            name="first_data_row",
+            label="Первая строка данных",
+            value=str(command.first_data_row),
+            input_type="number",
+            min_value="0",
+        ),
+        default_currency=MappingFormInputFieldVM(
+            field_id="default_currency",
+            name="default_currency",
+            label="Валюта по умолчанию",
+            value=command.default_currency,
+            input_type="text",
+        ),
+    )
+
+
+def mapping_select_field(
+    *,
+    field_id: str,
+    label: str,
+    column_options: list[MappingColumnOptionVM],
+    selected_index: int | None,
+    empty_label: str | None = None,
+) -> MappingFormSelectFieldVM:
+    options: list[MappingFormOptionVM] = []
+    if empty_label is not None:
+        options.append(
+            MappingFormOptionVM(
+                value="-1",
+                label=empty_label,
+                is_selected=selected_index is None,
+            )
+        )
+    options.extend(mapping_form_column_options(column_options, selected_index))
+    return MappingFormSelectFieldVM(
+        field_id=field_id,
+        name=field_id,
+        label=label,
+        options=options,
+    )
+
+
+def mapping_form_column_options(
+    column_options: list[MappingColumnOptionVM],
+    selected_index: int | None,
+) -> list[MappingFormOptionVM]:
+    return [
+        MappingFormOptionVM(
+            value=str(option.index),
+            label=option.label,
+            is_selected=selected_index == option.index,
+        )
+        for option in column_options
+    ]
 
 
 def mapping_next_step(

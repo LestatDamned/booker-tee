@@ -26,6 +26,7 @@ from app.features.imports.presentation.mapping import (
     MappingDocumentVM,
     MappingNextStepVM,
     build_mapping_page_context,
+    mapping_form,
     mapping_import_action,
     mapping_preview_rows,
     mapping_preview_summary,
@@ -419,10 +420,10 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
         preview_url=f"/imports/documents/{view.id}/mapping",
         import_url=f"/imports/documents/{view.id}/mapping/import",
     )
+    selected_table_vm = mapping_selected_table(table, compatible_table_count=14)
 
     html = templates.env.get_template("imports/mapping.html").render(
         app_name="Booker Tee",
-        command=command,
         document=document,
         mapping_next_step=MappingNextStepVM(
             title="Импортируйте строки",
@@ -434,6 +435,7 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
             primary_label="к импорту строк",
             primary_icon="import",
         ),
+        mapping_form=mapping_form(command, selected_table_vm.column_options),
         mapping_has_preview=True,
         mapping_warnings=mapping_warnings(preview),
         mapping_import_action=mapping_import_action(
@@ -443,7 +445,7 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
         ),
         mapping_preview_summary=mapping_preview_summary(preview),
         mapping_preview_rows=mapping_preview_rows(preview),
-        selected_table_vm=mapping_selected_table(table, compatible_table_count=14),
+        selected_table_vm=selected_table_vm,
         table_picker_options=mapping_table_options([table], command),
         mapping_templates=[],
     )
@@ -723,6 +725,61 @@ def test_mapping_selected_table_prepares_suggestions_and_candidates() -> None:
     ]
 
 
+def test_mapping_form_prepares_selected_fields() -> None:
+    column_options = mapping_selected_table(
+        {
+            "page_number": 1,
+            "table_index": 0,
+            "row_count": 2,
+            "column_count": 4,
+            "rows": [
+                ["Дата операции", "Описание", "Документ", "Сумма операции"],
+                ["12.05.2026", "Оплата товаров", "1", "-842,00 ₽"],
+            ],
+        },
+        compatible_table_count=1,
+    ).column_options
+    command = UnknownStatementMappingCommand(
+        page_number=1,
+        table_index=0,
+        operation_date_column=0,
+        posting_date_column=None,
+        description_column=1,
+        amount_column=3,
+        debit_amount_column=None,
+        credit_amount_column=None,
+        currency_column=None,
+        balance_after_column=None,
+        first_data_row=1,
+        default_currency="RUB",
+    )
+
+    form = mapping_form(command, column_options)
+    fields = {field.name: field for field in form.select_fields}
+
+    assert [field.name for field in form.select_fields] == [
+        "operation_date_column",
+        "posting_date_column",
+        "description_column",
+        "amount_column",
+        "debit_amount_column",
+        "credit_amount_column",
+        "currency_column",
+        "balance_after_column",
+    ]
+    assert fields["operation_date_column"].options[0].is_selected is True
+    assert fields["posting_date_column"].options[0].value == "-1"
+    assert fields["posting_date_column"].options[0].is_selected is True
+    assert fields["amount_column"].options[0].label == "нет единой колонки"
+    assert fields["amount_column"].options[0].is_selected is False
+    assert [option.value for option in fields["amount_column"].options if option.is_selected] == [
+        "3"
+    ]
+    assert form.first_data_row.value == "1"
+    assert form.first_data_row.min_value == "0"
+    assert form.default_currency.value == "RUB"
+
+
 def test_mapping_page_context_prepares_document_contract() -> None:
     document_id = uuid4()
     view = ImportDocumentDetailView(
@@ -747,6 +804,7 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     values = page_context.template_values(app_name="Booker Tee", workspace=object())
 
     assert "view" not in values
+    assert "command" not in values
     assert "preview" not in values
     assert "selected_table" not in values
     assert "table_options" not in values
@@ -760,6 +818,7 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     assert page_context.next_step.primary_href == f"/imports/documents/{document_id}"
     assert page_context.next_step.secondary_href == "/imports/upload"
     assert values["mapping_next_step"] == page_context.next_step
+    assert values["mapping_form"] == page_context.form
     assert values["selected_table_vm"] == page_context.selected_table_vm
     assert values["table_picker_options"] == page_context.table_picker_options
     assert values["mapping_has_preview"] == page_context.has_preview
