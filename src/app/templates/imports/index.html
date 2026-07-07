@@ -49,9 +49,9 @@
               </details>
             </div>
             <div class="import-document-card__actions">
-              <a class="button button-small{% if document.primary_tone == 'primary' %} primary-action{% endif %}" href="{{ document.primary_href }}">{{ icon(document.primary_icon) }} {{ document.primary_label }}</a>
+              <a class="button button-small import-document-card__action import-document-card__action--primary{% if document.primary_tone == 'primary' %} primary-action{% endif %}" href="{{ document.primary_href }}">{{ icon(document.primary_icon) }} {{ document.primary_label }}</a>
               {% if document.secondary_href != document.primary_href %}
-                <a class="button button-small" href="{{ document.secondary_href }}">{{ icon(document.secondary_icon) }} {{ document.secondary_label }}</a>
+                <a class="button button-small import-document-card__action import-document-card__action--secondary" href="{{ document.secondary_href }}">{{ icon(document.secondary_icon) }} {{ document.secondary_label }}</a>
               {% endif %}
             </div>
           </article>

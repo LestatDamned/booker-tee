@@ -86,6 +86,7 @@ def test_import_detail_template_shows_readable_account_reference() -> None:
     assert "депозит" in html
     assert "RUB" in html
     assert "import-more-actions" in html
+    assert "import-action-details__summary" in html
     assert "details-toggle-open" in html
     assert "details-toggle-close" in html
     assert "Отладочные данные документа" in html

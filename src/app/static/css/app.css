@@ -395,6 +395,7 @@ p {
   line-height: 1.4;
 }
 
+.import-page-next-step__action,
 .import-page-next-step .button {
   margin-top: 2px;
   justify-content: center;
@@ -574,6 +575,7 @@ p {
   font-size: 0.78rem;
 }
 
+.import-document-card__action,
 .import-document-card__actions .button {
   width: 100%;
 }
@@ -988,7 +990,7 @@ input[type="checkbox"] {
 
 .file-upload-button {
   border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
-  border-radius: 0;
+  border-radius: 6px 0 0 6px;
   border-top: 0;
   border-bottom: 0;
   border-left: 0;
@@ -999,6 +1001,7 @@ input[type="checkbox"] {
 }
 
 .file-upload-input:focus-visible + .file-upload-button,
+.import-upload-form__file-button:hover,
 .file-upload-button:hover {
   border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
   background: color-mix(in srgb, var(--surface-strong) 84%, var(--accent));
@@ -5261,6 +5264,7 @@ pre {
     margin-top: 6px;
   }
 
+  .import-page-actions .import-action-details__summary,
   .import-page-actions .import-more-actions summary {
     justify-content: stretch;
   }

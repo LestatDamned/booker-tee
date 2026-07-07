@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "imports/_action_details.html" import import_action_details %}
 {% from "imports/_document_summary.html" import import_document_summary %}
 {% from "imports/_page_hero.html" import import_page_hero %}
 {% from "imports/_workflow_steps.html" import workflow_steps %}
@@ -24,24 +25,14 @@
         ) }}
       {% elif slot == "actions" %}
         {% if page.actions %}
-          <details class="action-details action-accordion import-more-actions import-action-details">
-            <summary class="import-action-details__summary">
-              {{ icon("settings") }}
-              <span>Еще</span>
-              <span class="details-toggle-label import-action-details__toggle" aria-hidden="true">
-                <span class="details-toggle-open">Открыть</span>
-                <span class="details-toggle-close">Закрыть</span>
-              </span>
-            </summary>
-            <div class="action-menu import-action-details__menu">
-              {% for action in page.actions %}
-                <form method="post" action="{{ action.action_url }}">
-                  {{ csrf_input() }}
-                  <button class="button button-small{% if action.tone == 'danger' %} button-danger{% endif %}" type="submit">{{ icon(action.icon) }} {{ action.label }}</button>
-                </form>
-              {% endfor %}
-            </div>
-          </details>
+          {% call import_action_details("Еще") %}
+            {% for action in page.actions %}
+              <form method="post" action="{{ action.action_url }}">
+                {{ csrf_input() }}
+                <button class="button button-small{% if action.tone == 'danger' %} button-danger{% endif %}" type="submit">{{ icon(action.icon) }} {{ action.label }}</button>
+              </form>
+            {% endfor %}
+          {% endcall %}
         {% endif %}
       {% endif %}
     {% endcall %}

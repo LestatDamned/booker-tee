@@ -71,13 +71,13 @@
               required
               @change="fileName = $event.target.files[0]?.name || ''"
             >
-            <label class="button file-upload-button" for="statement_pdf">{{ icon("upload") }} выбрать файл</label>
+            <label class="button file-upload-button import-upload-form__file-button" for="statement_pdf">{{ icon("upload") }} выбрать файл</label>
             <span class="file-upload-name" x-text="fileName || 'файл не выбран'">файл не выбран</span>
           </div>
         </div>
 
         <div class="form-actions">
-          <button class="button" type="submit">{{ icon("import") }} извлечь данные</button>
+          <button class="button primary-action import-upload-form__submit" type="submit">{{ icon("import") }} извлечь данные</button>
         </div>
       </form>
     {% else %}

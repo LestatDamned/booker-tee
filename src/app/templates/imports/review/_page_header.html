@@ -1,30 +1,22 @@
+{% from "imports/_action_details.html" import import_action_details %}
+
 <div class="toolbar">
   <div>
     <p class="eyebrow">{{ review_page.header.status_label }}</p>
     <h1>{{ review_page.header.title }}</h1>
   </div>
   <div class="import-page-actions">
-    <details class="action-details action-accordion import-more-actions import-action-details">
-      <summary class="import-action-details__summary">
-        {{ icon("settings") }}
-        <span>{{ review_page.header.actions_label }}</span>
-        <span class="details-toggle-label import-action-details__toggle" aria-hidden="true">
-          <span class="details-toggle-open">Открыть</span>
-          <span class="details-toggle-close">Закрыть</span>
-        </span>
-      </summary>
-      <div class="action-menu import-action-details__menu">
-        {% set action = review_page.header.apply_rules_action %}
+    {% call import_action_details(review_page.header.actions_label) %}
+      {% set action = review_page.header.apply_rules_action %}
+      {% include "ui/_action.html" %}
+      {% set action = review_page.header.back_action %}
+      {% include "ui/_action.html" %}
+      <details class="technical-details import-hidden-technical-details">
+        <summary>{{ review_page.header.technical_title }}</summary>
+        <span>{{ review_page.header.document_id_label }}</span>
+        {% set action = review_page.header.open_document_action %}
         {% include "ui/_action.html" %}
-        {% set action = review_page.header.back_action %}
-        {% include "ui/_action.html" %}
-        <details class="technical-details import-hidden-technical-details">
-          <summary>{{ review_page.header.technical_title }}</summary>
-          <span>{{ review_page.header.document_id_label }}</span>
-          {% set action = review_page.header.open_document_action %}
-          {% include "ui/_action.html" %}
-        </details>
-      </div>
-    </details>
+      </details>
+    {% endcall %}
   </div>
 </div>

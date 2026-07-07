@@ -1615,8 +1615,15 @@ imports flow.
 - upload/detail/mapping/index начали двигаться к review-inspired geometry через
   общий imports hero, document summary, workflow steps and next-step pattern;
 - видимые technical/debug детали перенесены ниже и скрыты по умолчанию;
+- mapping form actions получили presenter-backed hierarchy: preview/import
+  buttons are prepared as action VMs, import is visible immediately, and the
+  primary action changes only after preview is ready;
+- imports page/detail/review action-details use a local
+  `imports/_action_details.html` shell with `import-action-details__*` owner
+  classes;
 - новые или затронутые controls мигрируют к BEM-like owner naming, например
-  `site-header__*` и `mapping-table-picker__*`.
+  `site-header__*`, `mapping-table-picker__*`, `import-page-next-step__*`,
+  `import-document-card__action*` and `import-upload-form__*`.
 
 ### Цель текущего slice
 
@@ -1698,15 +1705,15 @@ repair/migration task, а не смешивать с UI/SSR refactor.
 
 ### Active Follow-Ups
 
-1. Mapping action hierarchy:
-   - make "показать предпросмотр" clearly secondary;
-   - make "импортировать строки" primary only when preview/import is actually
-     available;
-   - avoid equal-looking buttons for actions with different risk/importance.
-2. `action-details` cleanup:
-   - keep current shared behavior for now;
-   - when touched, decide whether it becomes a shared component contract or a
-     local owner-specific BEM block.
+1. Imports visual consistency audit:
+   - continue checking upload/detail/mapping/index/review for old square
+     controls, unclear primary/secondary hierarchy and accidental layout drift;
+   - prefer owner BEM classes on touched controls instead of adding another
+     generic local class.
+2. Shared action components:
+   - import pages now have a local `import-action-details` shell;
+   - before applying it outside imports, decide whether the app needs a broader
+     shared action-details contract.
 3. Document detail / mapping audit scenario:
    - `realistic` covers these pages today;
    - add a dedicated scenario only if realistic stops catching important

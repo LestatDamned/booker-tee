@@ -94,8 +94,10 @@ def test_import_index_guides_to_review_when_document_needs_attention() -> None:
     )
 
     assert "следующий шаг" in html
+    assert "import-page-next-step__action--primary" in html
     assert "Проверьте выписку" in html
     assert f"/imports/documents/{document_id}/review" in html
+    assert "import-document-card__action--primary" in html
 
 
 def test_import_index_guides_to_upload_when_no_documents_exist() -> None:
@@ -125,6 +127,8 @@ def test_upload_page_guides_to_file_when_accounts_exist() -> None:
     assert "загрузить базовые правила" in html
     assert "inline-hint" in html
     assert "file-upload-control" in html
+    assert "import-upload-form__file-button" in html
+    assert "import-upload-form__submit" in html
     assert "выбрать файл" in html
     assert "файл не выбран" in html
     assert "Поддержка в альфе" in html
