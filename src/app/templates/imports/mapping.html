@@ -177,14 +177,29 @@
 
       {% if selected_table %}
         <h2 class="status">{{ selected_table_vm.title }}</h2>
-        {% if selected_table.mapping_suggestions %}
-          {% set suggestion = selected_table.mapping_suggestions[0] %}
-          {% include "imports/_mapping_suggestion.html" %}
+        {% if selected_table_vm.mapping_suggestion %}
+          <div class="mapping-suggestion">
+            <strong>{{ selected_table_vm.mapping_suggestion.title }}</strong>
+            {% if selected_table_vm.mapping_suggestion.reasons %}
+              <ul>
+                {% for reason in selected_table_vm.mapping_suggestion.reasons %}
+                  <li>{{ reason.message }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+            {% if selected_table_vm.mapping_suggestion.warnings %}
+              <div class="review-flags">
+                {% for warning in selected_table_vm.mapping_suggestion.warnings %}
+                  <span>{{ warning.message }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
         {% endif %}
-        {% if selected_table.column_candidates %}
+        {% if selected_table_vm.column_candidates %}
           <div class="review-flags">
-            {% for candidate in selected_table.column_candidates %}
-              <span>{{ candidate.field }}: колонка {{ candidate.column_index + 1 }} · {{ candidate.header }}</span>
+            {% for candidate in selected_table_vm.column_candidates %}
+              <span>{{ candidate.message }}</span>
             {% endfor %}
           </div>
         {% endif %}

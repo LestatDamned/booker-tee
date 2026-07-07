@@ -660,6 +660,68 @@ def test_mapping_preview_rows_prepare_display_values() -> None:
     assert mapping_preview_rows(None) == []
 
 
+def test_mapping_selected_table_prepares_suggestions_and_candidates() -> None:
+    table = {
+        "page_number": 1,
+        "table_index": 0,
+        "row_count": 2,
+        "column_count": 4,
+        "rows": [
+            ["Дата операции", "Описание", "Документ", "Сумма операции"],
+            ["12.05.2026", "Оплата товаров", "1", "-842,00 ₽"],
+        ],
+        "column_candidates": [
+            {
+                "field": "operation_date",
+                "column_index": 0,
+                "header": "Дата операции",
+                "confidence": 0.95,
+            }
+        ],
+        "mapping_suggestions": [
+            {
+                "confidence": 0.91,
+                "reasons": [
+                    {
+                        "field": "operation_date",
+                        "column_index": 0,
+                        "header": "Дата операции",
+                        "evidence": "header_match",
+                    },
+                    {
+                        "field": "amount",
+                        "column_index": 3,
+                        "evidence": "money_like_values",
+                        "matched_count": 2,
+                        "sample_count": 3,
+                    },
+                ],
+                "warnings": [
+                    {
+                        "code": "partial_debit_credit_columns",
+                        "fields": ["debit_amount"],
+                    }
+                ],
+            }
+        ],
+    }
+
+    selected_table = mapping_selected_table(table, compatible_table_count=1)
+
+    assert selected_table.mapping_suggestion is not None
+    assert selected_table.mapping_suggestion.title == "Предложение маппинга · 91%"
+    assert [reason.message for reason in selected_table.mapping_suggestion.reasons] == [
+        "дата: колонка 1 выбрана по заголовку «Дата операции».",
+        "сумма: колонка 4 содержит 2/3 значений, похожих на суммы.",
+    ]
+    assert [warning.message for warning in selected_table.mapping_suggestion.warnings] == [
+        "Найдена только одна колонка списания/зачисления. Проверьте знак суммы перед импортом."
+    ]
+    assert [candidate.message for candidate in selected_table.column_candidates] == [
+        "operation_date: колонка 1 · Дата операции"
+    ]
+
+
 def test_mapping_page_context_prepares_document_contract() -> None:
     document_id = uuid4()
     view = ImportDocumentDetailView(

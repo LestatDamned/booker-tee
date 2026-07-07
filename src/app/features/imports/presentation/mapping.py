@@ -2,6 +2,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from typing import cast
 
 from app.features.imports.application.documents.detail_view import ImportDocumentDetailView
 from app.features.imports.application.unknown_statement_mappings.dto import (
@@ -66,12 +67,36 @@ class MappingColumnOptionVM:
 
 
 @dataclass(frozen=True)
+class MappingSuggestionReasonVM:
+    message: str
+
+
+@dataclass(frozen=True)
+class MappingSuggestionWarningVM:
+    message: str
+
+
+@dataclass(frozen=True)
+class MappingSuggestionVM:
+    title: str
+    reasons: list[MappingSuggestionReasonVM]
+    warnings: list[MappingSuggestionWarningVM]
+
+
+@dataclass(frozen=True)
+class MappingColumnCandidateVM:
+    message: str
+
+
+@dataclass(frozen=True)
 class MappingSelectedTableVM:
     title: str
     picker_meta: str
     size_meta: str
     import_scope_meta: str
     column_options: list[MappingColumnOptionVM]
+    mapping_suggestion: MappingSuggestionVM | None
+    column_candidates: list[MappingColumnCandidateVM]
 
 
 @dataclass(frozen=True)
@@ -456,6 +481,8 @@ def mapping_selected_table(
             size_meta="",
             import_scope_meta="",
             column_options=[],
+            mapping_suggestion=None,
+            column_candidates=[],
         )
 
     page_number = int_table_value(table, "page_number", default=1)
@@ -481,6 +508,126 @@ def mapping_selected_table(
         size_meta=f"{row_count} строк · {column_count} колонок",
         import_scope_meta=import_scope_meta,
         column_options=mapping_column_options(table),
+        mapping_suggestion=mapping_table_suggestion(table),
+        column_candidates=mapping_column_candidates(table),
+    )
+
+
+def mapping_table_suggestion(table: Mapping[str, object]) -> MappingSuggestionVM | None:
+    suggestions = table.get("mapping_suggestions")
+    if not isinstance(suggestions, list) or not suggestions:
+        return None
+    suggestion = string_key_mapping(suggestions[0])
+    if suggestion is None:
+        return None
+    return mapping_suggestion(suggestion)
+
+
+def mapping_suggestion(suggestion: Mapping[str, object]) -> MappingSuggestionVM:
+    confidence = float_table_value(suggestion, "confidence", default=0)
+    return MappingSuggestionVM(
+        title=f"Предложение маппинга · {int(round(confidence * 100))}%",
+        reasons=mapping_suggestion_reasons(suggestion),
+        warnings=mapping_suggestion_warnings(suggestion),
+    )
+
+
+def mapping_suggestion_reasons(
+    suggestion: Mapping[str, object],
+) -> list[MappingSuggestionReasonVM]:
+    reasons = suggestion.get("reasons")
+    if not isinstance(reasons, list):
+        return []
+    return [
+        MappingSuggestionReasonVM(mapping_suggestion_reason_message(reason)) for reason in reasons
+    ]
+
+
+def mapping_suggestion_reason_message(reason: object) -> str:
+    reason_mapping = string_key_mapping(reason)
+    if reason_mapping is None or "field" not in reason_mapping:
+        return str(reason)
+
+    field_label = mapping_field_label(reason_mapping.get("field"))
+    column_number = int_table_value(reason_mapping, "column_index", default=0) + 1
+    evidence = string_table_value(reason_mapping, "evidence")
+
+    if evidence == "header_match":
+        return (
+            f"{field_label}: колонка {column_number} выбрана по заголовку "
+            f"«{string_table_value(reason_mapping, 'header')}»."
+        )
+    if evidence == "date_like_values":
+        return mapping_profile_reason_message(field_label, column_number, reason_mapping, "дату")
+    if evidence == "money_like_values":
+        return mapping_profile_reason_message(field_label, column_number, reason_mapping, "суммы")
+    if evidence == "currency_like_values":
+        return mapping_profile_reason_message(field_label, column_number, reason_mapping, "валюту")
+    if evidence == "description_like_values":
+        return (
+            f"{field_label}: колонка {column_number} содержит "
+            f"{string_table_value(reason_mapping, 'matched_count')}/"
+            f"{string_table_value(reason_mapping, 'sample_count')} текстовых значений."
+        )
+    return f"{field_label}: колонка {column_number}."
+
+
+def mapping_profile_reason_message(
+    field_label: str,
+    column_number: int,
+    reason: Mapping[str, object],
+    value_label: str,
+) -> str:
+    return (
+        f"{field_label}: колонка {column_number} содержит "
+        f"{string_table_value(reason, 'matched_count')}/"
+        f"{string_table_value(reason, 'sample_count')} значений, похожих на {value_label}."
+    )
+
+
+def mapping_suggestion_warnings(
+    suggestion: Mapping[str, object],
+) -> list[MappingSuggestionWarningVM]:
+    warnings = suggestion.get("warnings")
+    if not isinstance(warnings, list):
+        return []
+    return [
+        MappingSuggestionWarningVM(mapping_suggestion_warning_message(warning))
+        for warning in warnings
+    ]
+
+
+def mapping_suggestion_warning_message(warning: object) -> str:
+    warning_mapping = string_key_mapping(warning)
+    if warning_mapping is None:
+        return str(warning)
+    code = string_table_value(warning_mapping, "code")
+    if code == "partial_debit_credit_columns":
+        return (
+            "Найдена только одна колонка списания/зачисления. Проверьте знак суммы перед импортом."
+        )
+    return code
+
+
+def mapping_column_candidates(table: Mapping[str, object]) -> list[MappingColumnCandidateVM]:
+    candidates = table.get("column_candidates")
+    if not isinstance(candidates, list):
+        return []
+    candidate_vms: list[MappingColumnCandidateVM] = []
+    for candidate in candidates:
+        candidate_mapping = string_key_mapping(candidate)
+        if candidate_mapping is not None:
+            candidate_vms.append(
+                MappingColumnCandidateVM(mapping_column_candidate_message(candidate_mapping))
+            )
+    return candidate_vms
+
+
+def mapping_column_candidate_message(candidate: Mapping[str, object]) -> str:
+    column_number = int_table_value(candidate, "column_index", default=0) + 1
+    return (
+        f"{string_table_value(candidate, 'field')}: колонка {column_number} · "
+        f"{string_table_value(candidate, 'header')}"
     )
 
 
@@ -512,6 +659,44 @@ def int_table_value(table: Mapping[str, object], key: str, *, default: int) -> i
         except ValueError:
             return default
     return default
+
+
+def float_table_value(table: Mapping[str, object], key: str, *, default: float) -> float:
+    value = table.get(key)
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return default
+    return default
+
+
+def string_table_value(table: Mapping[str, object], key: str) -> str:
+    value = table.get(key)
+    return "" if value is None else str(value)
+
+
+def string_key_mapping(value: object) -> Mapping[str, object] | None:
+    if isinstance(value, Mapping):
+        return cast(Mapping[str, object], value)
+    return None
+
+
+def mapping_field_label(value: object) -> str:
+    labels = {
+        "operation_date": "дата",
+        "posting_date": "дата проводки",
+        "description": "описание",
+        "amount": "сумма",
+        "debit_amount": "списание",
+        "credit_amount": "зачисление",
+        "currency": "валюта",
+        "balance_after": "остаток после операции",
+    }
+    field = "" if value is None else str(value)
+    return labels.get(field, field)
 
 
 def latest_raw_tables(view: ImportDocumentDetailView) -> list[dict[str, object]] | None:
