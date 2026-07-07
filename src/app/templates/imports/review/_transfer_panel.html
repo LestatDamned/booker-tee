@@ -1,8 +1,8 @@
 {% set payload = panel.payload %}
 
-<div class="review-panel-body review-transfer-panel-body">
+<div class="review-panel-body review-transfer-panel-body review-transfer-panel">
   <form
-    class="review-panel-form transfer-form review-transfer-form"
+    class="review-panel-form transfer-form review-transfer-form review-transfer-panel__form"
     method="post"
     action="{{ payload.action_url }}"
     x-data="{ selectedAccount: '', transferMatch: 'new' }"
@@ -19,12 +19,12 @@
       name="matched_operation_id"
       :value="transferMatch.startsWith('operation:') ? transferMatch.slice(10) : ''"
     >
-    <div class="review-transfer-preview">
-      <span class="review-transfer-preview__label">{{ payload.transfer_preview.title }}</span>
-      <strong class="review-transfer-preview__route">{{ payload.transfer_preview.route_label }}</strong>
+    <div class="review-transfer-preview review-transfer-panel__preview">
+      <span class="review-transfer-preview__label review-transfer-panel__preview-label">{{ payload.transfer_preview.title }}</span>
+      <strong class="review-transfer-preview__route review-transfer-panel__preview-route">{{ payload.transfer_preview.route_label }}</strong>
     </div>
-    <div class="review-panel-grid review-transfer-grid">
-      <label class="field">
+    <div class="review-panel-grid review-transfer-grid review-transfer-panel__grid">
+      <label class="field review-transfer-panel__field review-transfer-panel__field--account">
         <span>Счет перевода</span>
         <select
           name="counterparty_account_id"
@@ -38,7 +38,7 @@
           {% endfor %}
         </select>
       </label>
-      <label class="field review-transfer-match-field">
+      <label class="field review-transfer-match-field review-transfer-panel__field review-transfer-panel__field--match">
         <span>Связать с</span>
         <select
           aria-label="Связать перевод"
@@ -62,12 +62,12 @@
       </label>
     </div>
     {% if payload.manual_operation_note %}
-      <div class="transfer-empty-state">
+      <div class="transfer-empty-state review-transfer-panel__note">
         {{ payload.manual_operation_note }}
       </div>
     {% endif %}
-    <div class="review-panel-footer">
-      <button class="button button-small primary-action" type="submit">{{ icon("refresh") }} Это перевод</button>
+    <div class="review-panel-footer review-transfer-panel__actions">
+      <button class="button button-small primary-action review-transfer-panel__submit" type="submit">{{ icon("refresh") }} Это перевод</button>
     </div>
   </form>
 </div>

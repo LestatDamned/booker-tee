@@ -1621,6 +1621,11 @@ imports flow.
 - imports page/detail/review action-details use a local
   `imports/_action_details.html` shell with `import-action-details__*` owner
   classes;
+- import review actions, category panel, category dialog, transfer panel and
+  panel tabs/drawers now have owner-class contracts such as
+  `review-actions__*`, `review-category-panel__*`,
+  `review-category-dialog__*`, `review-transfer-panel__*` and
+  `review-panel__*`;
 - новые или затронутые controls мигрируют к BEM-like owner naming, например
   `site-header__*`, `mapping-table-picker__*`, `import-page-next-step__*`,
   `import-document-card__action*` and `import-upload-form__*`.
@@ -1720,4 +1725,6 @@ repair/migration task, а не смешивать с UI/SSR refactor.
      document/mapping regressions.
 4. Continue gradual BEM migration:
    - migrate old generic classes only at natural UI/refactor touch points;
+   - keep older review inner classes as compatibility layer until the next
+     product-facing touch point replaces them;
    - do not rename stable code without product or maintainability benefit.

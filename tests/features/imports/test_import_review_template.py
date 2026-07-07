@@ -501,6 +501,8 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
     assert "review-panel__tabs" in html
     assert "review-panel__drawers" in html
     assert "review-panel__tab" in html
+    assert "review-panel__tab-toggle" in html
+    assert "review-panel__drawer" in html
     assert "togglePanel(" in html
     assert 'x-show="activePanel ===' in html
     assert "Открыть" in html
@@ -734,6 +736,16 @@ def test_review_template_shows_readable_transfer_candidate_labels() -> None:
     assert "счет выписки -&gt; выбери счет" in html
     assert "создать новый перевод на выбранный счет" in html
     assert "review-transfer-panel-body" in html
+    assert "review-transfer-panel" in html
+    assert "review-transfer-panel__form" in html
+    assert "review-transfer-panel__preview" in html
+    assert "review-transfer-panel__preview-label" in html
+    assert "review-transfer-panel__preview-route" in html
+    assert "review-transfer-panel__grid" in html
+    assert "review-transfer-panel__field--account" in html
+    assert "review-transfer-panel__field--match" in html
+    assert "review-transfer-panel__actions" in html
+    assert "review-transfer-panel__submit" in html
     assert "review-transfer-preview" in html
     assert "review-transfer-grid" in html
     assert "review-panel-footer" in html

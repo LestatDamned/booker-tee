@@ -4067,6 +4067,10 @@ pre {
   text-transform: none;
 }
 
+.review-panel__tab-toggle {
+  justify-self: end;
+}
+
 .danger-zone,
 .review-actions__danger-zone {
   display: grid;
@@ -4288,6 +4292,7 @@ pre {
   box-sizing: border-box;
 }
 
+.review-panel__drawer,
 .secondary-action-panel {
   position: relative;
   width: 100%;
@@ -4303,6 +4308,7 @@ pre {
   overflow: hidden;
 }
 
+.review-panel__drawer::before,
 .secondary-action-panel::before {
   content: "";
   position: absolute;
@@ -4383,6 +4389,7 @@ pre {
   align-items: end;
 }
 
+.review-transfer-panel__preview,
 .review-transfer-preview {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
@@ -4395,6 +4402,7 @@ pre {
   padding: 8px 10px;
 }
 
+.review-transfer-panel__preview-label,
 .review-transfer-preview__label {
   color: var(--accent);
   font-family:
@@ -4403,6 +4411,7 @@ pre {
   text-transform: uppercase;
 }
 
+.review-transfer-panel__preview-route,
 .review-transfer-preview__route {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -4427,10 +4436,12 @@ pre {
   padding-top: 10px;
 }
 
+.review-transfer-panel .inline-hint,
 .review-transfer-panel-body .inline-hint {
   margin: 0;
 }
 
+.review-transfer-panel__note,
 .transfer-empty-state {
   border: 1px solid color-mix(in srgb, var(--help) 30%, var(--border));
   border-left: 2px solid color-mix(in srgb, var(--help) 72%, var(--border));
@@ -4700,6 +4711,7 @@ pre {
   font-size: 0.78rem;
 }
 
+.review-transfer-panel__form,
 .transfer-form {
   display: grid;
   gap: 8px;
@@ -5463,6 +5475,7 @@ pre {
   .review-category-panel__primary,
   .review-category-panel__grid,
   .review-category-panel__rule,
+  .review-transfer-panel__grid,
   .review-category-primary,
   .review-panel-grid,
   .review-panel-rule-row,

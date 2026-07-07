@@ -9,7 +9,7 @@
 >
   <span class="review-panel__tab-title">{{ panel.title }}</span>
   <span class="review-panel__tab-note">{{ panel.summary_note }}</span>
-  <span class="details-toggle-label" aria-hidden="true">
+  <span class="details-toggle-label review-panel__tab-toggle" aria-hidden="true">
     <span class="details-toggle-open" x-show="activePanel !== '{{ panel.id }}'">Открыть</span>
     <span class="details-toggle-close" x-show="activePanel === '{{ panel.id }}'">Закрыть</span>
   </span>
