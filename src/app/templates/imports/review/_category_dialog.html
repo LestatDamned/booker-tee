@@ -1,29 +1,29 @@
 {% set payload = panel.payload %}
 
 <dialog
-  class="review-dialog"
+  class="review-dialog review-category-dialog"
   x-ref="categoryDialog"
   {% if payload.create_category_error %}x-init="$nextTick(() => { if (!$el.open) $el.showModal() })"{% endif %}
 >
   <form
-    class="review-dialog-panel"
+    class="review-dialog-panel review-category-dialog__panel"
     method="post"
     action="{{ payload.create_category_url }}"
   >
     {{ csrf_input() }}
-    <div class="review-dialog-header">
-      <div class="action-title">Новая категория</div>
-      <button class="button button-small review-dialog-close" type="button" aria-label="Закрыть" @click="$refs.categoryDialog.close()">{{ icon("x") }}</button>
+    <div class="review-dialog-header review-category-dialog__header">
+      <div class="action-title review-category-dialog__title">Новая категория</div>
+      <button class="button button-small review-dialog-close review-category-dialog__close" type="button" aria-label="Закрыть" @click="$refs.categoryDialog.close()">{{ icon("x") }}</button>
     </div>
-    <div class="review-dialog-body">
+    <div class="review-dialog-body review-category-dialog__body">
       {% if payload.create_category_error %}
-        <div class="form-error" role="alert">{{ payload.create_category_error }}</div>
+        <div class="form-error review-category-dialog__error" role="alert">{{ payload.create_category_error }}</div>
       {% endif %}
-      <label class="field">
+      <label class="field review-category-dialog__field">
         <span>Название</span>
         <input name="name" value="{{ payload.create_category_initial_name }}" placeholder="например, Здоровье" required autofocus>
       </label>
-      <label class="field">
+      <label class="field review-category-dialog__field">
         <span>Тип</span>
         <select name="kind">
           {% for option in payload.category_kind_options %}
@@ -32,9 +32,9 @@
         </select>
       </label>
     </div>
-    <div class="review-dialog-footer">
-      <button class="button button-small review-dialog-cancel" type="button" @click="$refs.categoryDialog.close()">Отмена</button>
-      <button class="button button-small primary-action" type="submit">{{ icon("plus") }} Создать</button>
+    <div class="review-dialog-footer review-category-dialog__actions">
+      <button class="button button-small review-dialog-cancel review-category-dialog__cancel" type="button" @click="$refs.categoryDialog.close()">Отмена</button>
+      <button class="button button-small primary-action review-category-dialog__submit" type="submit">{{ icon("plus") }} Создать</button>
     </div>
   </form>
 </dialog>

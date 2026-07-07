@@ -4333,6 +4333,7 @@ pre {
   align-items: end;
 }
 
+.review-category-panel__primary,
 .review-category-primary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 42px;
@@ -4340,6 +4341,7 @@ pre {
   align-items: end;
 }
 
+.review-category-panel__create,
 .review-inline-create {
   width: 42px;
   min-height: 42px;
@@ -4349,6 +4351,7 @@ pre {
   padding: 0;
 }
 
+.review-category-panel__rule,
 .review-rule-strip {
   display: grid;
   grid-template-columns: max-content minmax(160px, 1fr);
@@ -4359,11 +4362,14 @@ pre {
   opacity: 0.82;
 }
 
+.review-category-panel__rule:focus-within,
+.review-category-panel__rule:hover,
 .review-rule-strip:focus-within,
 .review-rule-strip:hover {
   opacity: 1;
 }
 
+.review-category-panel__rule-input,
 .review-rule-strip input[name="rule_pattern"] {
   min-height: 34px;
   border-color: color-mix(in srgb, var(--border) 66%, transparent);
@@ -4592,6 +4598,7 @@ pre {
   line-height: 1.35;
 }
 
+.review-category-dialog,
 .review-dialog {
   width: min(420px, calc(100vw - 28px));
   position: fixed;
@@ -4605,16 +4612,20 @@ pre {
   padding: 0;
 }
 
+.review-category-dialog::backdrop,
 .review-dialog::backdrop {
   background: rgba(17, 17, 27, 0.76);
   backdrop-filter: blur(3px);
 }
 
+.review-category-dialog__panel,
 .review-dialog-panel {
   display: grid;
   gap: 0;
 }
 
+.review-category-dialog__header,
+.review-category-dialog__actions,
 .review-dialog-header,
 .review-dialog-footer {
   display: flex;
@@ -4624,22 +4635,26 @@ pre {
   padding: 12px;
 }
 
+.review-category-dialog__header,
 .review-dialog-header {
   border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
 }
 
+.review-category-dialog__body,
 .review-dialog-body {
   display: grid;
   gap: 12px;
   padding: 12px;
 }
 
+.review-category-dialog__actions,
 .review-dialog-footer {
   border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
   background: color-mix(in srgb, var(--surface-strong) 30%, transparent);
   justify-content: flex-end;
 }
 
+.review-category-dialog__field,
 .review-dialog .field {
   display: grid;
   gap: 6px;
@@ -4655,10 +4670,12 @@ pre {
   font-size: 0.82rem;
 }
 
+.review-category-dialog .button,
 .review-dialog .button {
   white-space: normal;
 }
 
+.review-category-dialog__close,
 .review-dialog-close {
   width: 36px;
   min-height: 36px;
@@ -4666,10 +4683,12 @@ pre {
   padding: 0;
 }
 
+.review-category-dialog__cancel,
 .review-dialog-cancel {
   color: var(--muted);
 }
 
+.review-category-panel__rule-toggle,
 .remember-rule {
   min-height: 32px;
   display: inline-flex;
@@ -5441,6 +5460,9 @@ pre {
   }
 
   .action-fields,
+  .review-category-panel__primary,
+  .review-category-panel__grid,
+  .review-category-panel__rule,
   .review-category-primary,
   .review-panel-grid,
   .review-panel-rule-row,

@@ -1370,6 +1370,16 @@ def test_review_item_selects_newly_created_category() -> None:
 
     assert "review-item--vm" in html
     assert "review-panel__tab--category" in html
+    assert "review-category-panel" in html
+    assert "review-category-panel__form" in html
+    assert "review-category-panel__grid" in html
+    assert "review-category-panel__primary" in html
+    assert "review-category-panel__field--category" in html
+    assert "review-category-panel__field--property" in html
+    assert "review-category-panel__create" in html
+    assert "review-category-panel__rule" in html
+    assert "review-category-panel__actions" in html
+    assert "review-category-panel__submit" in html
     assert "review-category-panel-body" in html
     assert "review-category-grid" in html
     assert "review-category-primary" in html
@@ -1382,6 +1392,12 @@ def test_review_item_selects_newly_created_category() -> None:
     assert f'<option value="{created_category_id}" selected>' in html
     assert f'<option value="{uncategorized_category_id}" selected>' not in html
     assert "Новая категория" in html
+    assert "review-category-dialog" in html
+    assert "review-category-dialog__panel" in html
+    assert "review-category-dialog__header" in html
+    assert "review-category-dialog__body" in html
+    assert "review-category-dialog__actions" in html
+    assert "review-category-dialog__submit" in html
     assert "review-dialog-header" in html
     assert "review-dialog-body" in html
     assert "review-dialog-footer" in html
