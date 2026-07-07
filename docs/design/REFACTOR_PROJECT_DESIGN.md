@@ -1436,9 +1436,8 @@ review-actions__danger
     - `review-item__*`;
     - `review-panel__*`;
     - `review-actions__*`.
-    Root нового item помечен как `review-item--vm`. Старые CSS-классы
-    `review-main`, `review-topline`, `review-state-*` и `review-ledger-*`
-    пока остаются как совместимость.
+    Root нового item помечен как `review-item--vm`. Старые item-only CSS
+    fallback-селекторы удалены после `review_interactions` audit.
 21. Новый partial можно включить точечно вместо старого review item без
     переписывания всего модуля импорта.
 22. Если что-то ломается, старый partial можно временно вернуть без миграций БД
@@ -1503,10 +1502,10 @@ review-actions__danger
 `review-item__*`. Shared legacy leaks уже разобраны: warning/signal lists в
 imports/mapping используют `ui-signal-list`, account detail использует
 `account-entry__meta`, а root `review-actions` больше не нужен как CSS
-container. Оставшиеся fallback-селекторы в `app.css` относятся к более старым
-review item именам (`review-main`, `review-topline`, `review-state-*`,
-`review-signal-*`, `review-ledger-*`) и удаляются только после отдельного
-CSS-аудита.
+container. Старые item fallback-селекторы (`review-status-*`, `review-main`,
+`review-topline`, `review-state-*`, `review-signal-*`, `review-ledger-*`,
+`review-panels`, `review-dialog-*`) удалены из `app.css` после
+`review_interactions` audit.
 
 Шаги:
 

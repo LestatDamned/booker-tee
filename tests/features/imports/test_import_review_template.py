@@ -1423,9 +1423,9 @@ def test_review_item_selects_newly_created_category() -> None:
     assert "review-category-dialog__body" in html
     assert "review-category-dialog__actions" in html
     assert "review-category-dialog__submit" in html
-    assert "review-dialog-header" in html
-    assert "review-dialog-body" in html
-    assert "review-dialog-footer" in html
+    assert "review-dialog-header" not in html
+    assert "review-dialog-body" not in html
+    assert "review-dialog-footer" not in html
     assert 'aria-label="Закрыть"' in html
     assert "расход" in html
     assert '<option value="expense" selected>расход</option>' in html
