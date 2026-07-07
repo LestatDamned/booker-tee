@@ -15,11 +15,11 @@
     {% endif %}
 
     {% if not item.primary_action and not item.visible_secondary_action and not item.menu_actions and item.danger_actions|length == 1 %}
-      <details class="action-details action-accordion review-actions__secondary review-actions__correction">
-        <summary>
+      <details class="action-details action-accordion review-actions__secondary review-actions__details review-actions__correction">
+        <summary class="review-actions__summary">
           {{ icon("settings") }}
           <span>Исправить</span>
-          <span class="details-toggle-label" aria-hidden="true">
+          <span class="details-toggle-label review-actions__toggle" aria-hidden="true">
             <span class="details-toggle-open">Открыть</span>
             <span class="details-toggle-close">Закрыть</span>
           </span>
@@ -30,11 +30,11 @@
         </div>
       </details>
     {% elif item.menu_actions or item.danger_actions %}
-      <details class="action-details action-accordion review-actions__secondary review-actions__menu">
-        <summary>
+      <details class="action-details action-accordion review-actions__secondary review-actions__details review-actions__menu">
+        <summary class="review-actions__summary">
           {{ icon("list-check") }}
           <span>Еще действия</span>
-          <span class="details-toggle-label" aria-hidden="true">
+          <span class="details-toggle-label review-actions__toggle" aria-hidden="true">
             <span class="details-toggle-open">Открыть</span>
             <span class="details-toggle-close">Закрыть</span>
           </span>
@@ -47,8 +47,8 @@
           </div>
         {% endif %}
         {% if item.danger_actions %}
-          <div class="danger-zone review-actions__menu-section">
-            <div class="action-title">Опасная зона</div>
+          <div class="danger-zone review-actions__menu-section review-actions__danger-zone">
+            <div class="action-title review-actions__menu-title">Опасная зона</div>
             {% for action in item.danger_actions %}
               {% include "ui/_action.html" %}
             {% endfor %}

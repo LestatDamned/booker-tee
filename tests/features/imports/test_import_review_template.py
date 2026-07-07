@@ -211,6 +211,9 @@ def test_action_set_partial_renders_primary_secondary_menu_and_danger_slots() ->
     assert "review-actions__row" in html
     assert "primary-actions" in html
     assert "secondary-actions" in html
+    assert "review-actions__details" in html
+    assert "review-actions__summary" in html
+    assert "review-actions__toggle" in html
     assert "review-actions__menu" in html
     assert "review-actions__menu-section" in html
     assert "review-action-heading" not in html
@@ -220,6 +223,8 @@ def test_action_set_partial_renders_primary_secondary_menu_and_danger_slots() ->
     assert "Открыть" in html
     assert "Закрыть" in html
     assert "danger-zone" in html
+    assert "review-actions__danger-zone" in html
+    assert "review-actions__menu-title" in html
     assert "Опасная зона" in html
     assert "Подтвердить" in html
     assert "Изменить" in html
@@ -251,6 +256,9 @@ def test_action_set_partial_hides_single_danger_action_behind_correction_toggle(
     html = render_action_set(item)
 
     assert "review-actions__correction" in html
+    assert "review-actions__details" in html
+    assert "review-actions__summary" in html
+    assert "review-actions__toggle" in html
     assert "Исправить" in html
     assert "Открыть" in html
     assert "Закрыть" in html

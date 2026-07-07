@@ -4067,7 +4067,8 @@ pre {
   text-transform: none;
 }
 
-.danger-zone {
+.danger-zone,
+.review-actions__danger-zone {
   display: grid;
   gap: 6px;
   border: 1px solid color-mix(in srgb, var(--danger) 42%, var(--border));
@@ -4090,6 +4091,7 @@ pre {
   padding-left: 10px;
 }
 
+.review-actions__menu-title,
 .action-title,
 .action-details summary {
   color: var(--accent);
@@ -4148,6 +4150,8 @@ pre {
   content: "-";
 }
 
+.review-actions__summary::after,
+.review-actions__details[open] > .review-actions__summary::after,
 .review-actions__menu > summary::after,
 .review-actions__menu[open] > summary::after,
 .review-actions__correction > summary::after,
@@ -4155,6 +4159,7 @@ pre {
   content: none;
 }
 
+.review-actions__toggle,
 .details-toggle-label {
   justify-self: end;
   color: color-mix(in srgb, var(--muted) 86%, var(--border));
@@ -4233,6 +4238,7 @@ pre {
   opacity: 1;
 }
 
+.review-actions__details > .review-actions__summary,
 .review-actions__secondary > summary {
   color: var(--muted);
 }
@@ -4243,11 +4249,13 @@ pre {
   background: transparent;
 }
 
+.review-actions__menu > .review-actions__summary,
 .review-actions__menu > summary {
   grid-template-columns: auto minmax(0, 1fr) auto;
   min-height: 38px;
 }
 
+.review-actions__correction > .review-actions__summary,
 .review-actions__correction > summary {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
