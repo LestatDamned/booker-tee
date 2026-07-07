@@ -5,6 +5,7 @@ from app.features.imports.application.documents.detail_view import ImportDocumen
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
     UnknownStatementMappingPreview,
+    UnknownStatementMappingWarning,
 )
 from app.features.imports.application.unknown_statement_mappings.preview import (
     preview_unknown_statement_mapping,
@@ -71,6 +72,12 @@ class MappingSelectedTableVM:
 
 
 @dataclass(frozen=True)
+class MappingWarningVM:
+    message: str
+    severity: str
+
+
+@dataclass(frozen=True)
 class MappingPageContext:
     document: MappingDocumentVM
     next_step: MappingNextStepVM
@@ -80,6 +87,7 @@ class MappingPageContext:
     selected_table_vm: MappingSelectedTableVM
     table_options: list[dict[str, object]]
     table_picker_options: list[MappingTableOptionVM]
+    warnings: list[MappingWarningVM]
     compatible_table_count: int
     mapping_templates: list[ImportMappingTemplate]
 
@@ -99,10 +107,29 @@ class MappingPageContext:
             "selected_table_vm": self.selected_table_vm,
             "table_options": self.table_options,
             "table_picker_options": self.table_picker_options,
+            "mapping_warnings": self.warnings,
             "compatible_table_count": self.compatible_table_count,
             "mapping_templates": self.mapping_templates,
             "workspace": workspace,
         }
+
+
+MAPPING_WARNING_MESSAGES = {
+    "amount_and_split_columns": (
+        "Выбрана единая сумма вместе со списанием/зачислением. Импорт использует единую сумму."
+    ),
+    "partial_debit_credit_columns": (
+        "Выбрана только одна колонка списания/зачисления. Проверьте знак суммы перед импортом."
+    ),
+    "high_error_rate": (
+        "В предпросмотре много строк с ошибками. "
+        "Проверьте таблицу, первую строку данных и выбранные колонки."
+    ),
+    "no_valid_rows": "Нет валидных строк для импорта. Проверьте таблицу и выбранные колонки.",
+    "balance_after_parse_errors": (
+        "Часть остатков после операции не распознана. Импорт сохранит строки для проверки."
+    ),
+}
 
 
 def build_mapping_page_context(
@@ -171,6 +198,7 @@ def mapping_page_context_from_command(
         ),
         table_options=table_options,
         table_picker_options=mapping_table_options(table_options, command),
+        warnings=mapping_warnings(preview),
         compatible_table_count=compatible_table_count,
         mapping_templates=mapping_templates,
     )
@@ -216,6 +244,25 @@ def mapping_next_step(
         secondary_label="загрузить заново",
         secondary_icon="upload",
     )
+
+
+def mapping_warnings(
+    preview: UnknownStatementMappingPreview | None,
+) -> list[MappingWarningVM]:
+    if preview is None:
+        return []
+    return [mapping_warning(warning) for warning in preview.warnings]
+
+
+def mapping_warning(warning: UnknownStatementMappingWarning) -> MappingWarningVM:
+    if warning.code == "duplicate_column_roles":
+        message = (
+            "Одна колонка выбрана для нескольких ролей. "
+            f"Проверьте поля: {', '.join(warning.fields)}."
+        )
+    else:
+        message = MAPPING_WARNING_MESSAGES.get(warning.code, warning.code)
+    return MappingWarningVM(message=message, severity=warning.severity)
 
 
 def mapping_table_options(

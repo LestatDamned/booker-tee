@@ -567,6 +567,7 @@ def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
             default_currency="RUB",
         ),
         preview=None,
+        mapping_warnings=[],
         selected_table={
             "column_count": 0,
             "rows": [],

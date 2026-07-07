@@ -208,24 +208,10 @@
       {% endif %}
 
       {% if preview %}
-        {% if preview.warnings %}
+        {% if mapping_warnings %}
           <div class="review-flags">
-            {% for warning in preview.warnings %}
-              {% if warning.code == "duplicate_column_roles" %}
-                <span>Одна колонка выбрана для нескольких ролей. Проверьте поля: {{ warning.fields | join(", ") }}.</span>
-              {% elif warning.code == "amount_and_split_columns" %}
-                <span>Выбрана единая сумма вместе со списанием/зачислением. Импорт использует единую сумму.</span>
-              {% elif warning.code == "partial_debit_credit_columns" %}
-                <span>Выбрана только одна колонка списания/зачисления. Проверьте знак суммы перед импортом.</span>
-              {% elif warning.code == "high_error_rate" %}
-                <span>В предпросмотре много строк с ошибками. Проверьте таблицу, первую строку данных и выбранные колонки.</span>
-              {% elif warning.code == "no_valid_rows" %}
-                <span>Нет валидных строк для импорта. Проверьте таблицу и выбранные колонки.</span>
-              {% elif warning.code == "balance_after_parse_errors" %}
-                <span>Часть остатков после операции не распознана. Импорт сохранит строки для проверки.</span>
-              {% else %}
-                <span>{{ warning.code }}</span>
-              {% endif %}
+            {% for warning in mapping_warnings %}
+              <span>{{ warning.message }}</span>
             {% endfor %}
           </div>
         {% endif %}

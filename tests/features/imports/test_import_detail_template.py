@@ -28,6 +28,7 @@ from app.features.imports.presentation.mapping import (
     build_mapping_page_context,
     mapping_selected_table,
     mapping_table_options,
+    mapping_warnings,
 )
 from app.templating import create_templates
 
@@ -430,6 +431,7 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
             primary_icon="import",
         ),
         preview=preview,
+        mapping_warnings=mapping_warnings(preview),
         selected_table=table,
         selected_table_vm=mapping_selected_table(table, compatible_table_count=14),
         table_options=[table],
@@ -461,6 +463,31 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
     assert "12.05.2026" in html
     assert "-842.00" in html
     assert "Оплата товаров по карте" in html
+
+
+def test_mapping_warning_presentation_handles_known_and_unknown_codes() -> None:
+    preview = UnknownStatementMappingPreview(
+        rows=[],
+        warnings=[
+            UnknownStatementMappingWarning(
+                code="duplicate_column_roles",
+                severity="warning",
+                fields=["operation_date", "amount"],
+            ),
+            UnknownStatementMappingWarning(
+                code="unknown_warning",
+                severity="warning",
+            ),
+        ],
+    )
+
+    warnings = mapping_warnings(preview)
+
+    assert warnings[0].message == (
+        "Одна колонка выбрана для нескольких ролей. Проверьте поля: operation_date, amount."
+    )
+    assert warnings[0].severity == "warning"
+    assert warnings[1].message == "unknown_warning"
 
 
 def test_mapping_page_context_prepares_document_contract() -> None:
@@ -498,3 +525,4 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     assert values["mapping_next_step"] == page_context.next_step
     assert values["selected_table_vm"] == page_context.selected_table_vm
     assert values["table_picker_options"] == page_context.table_picker_options
+    assert values["mapping_warnings"] == page_context.warnings
