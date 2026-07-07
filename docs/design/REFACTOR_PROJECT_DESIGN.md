@@ -1345,11 +1345,11 @@ review-actions__danger
 
 - Новые review partials используют BEM-like classes.
 - Старую верстку не трогать без необходимости.
-- Для текущего stabilized slice допустим root modifier `review-item--vm` и
-  старые внутренние классы `review-main` / `review-meta` как compatibility
-  layer.
-- При следующем UI touch point не смешивать старые классы `review-main` /
-  `review-meta` с новым `review-item__*` внутри одного изменяемого блока.
+- Для текущего stabilized slice используются `review-item--vm`,
+  `review-item__*`, `review-panel__*` и `review-actions__*`; старые внутренние
+  классы остаются как compatibility layer.
+- При следующем UI touch point опираться на новые owner-class контракты и не
+  добавлять новые правила только к старым `review-main` / `review-meta`.
 - Целевой state modifier строится из `visual_state`:
 
   ```jinja
@@ -1433,11 +1433,12 @@ review-actions__danger
 19. Row index / raw id / technical details не конкурируют визуально с суммой,
     датой, статусом и описанием.
 20. Новый CSS использует BEM-like naming для стабилизированных новых частей:
+    - `review-item__*`;
     - `review-panel__*`;
     - `review-actions__*`.
     Root нового item помечен как `review-item--vm`. Старые CSS-классы
-    `review-main`, `review-meta`, `review-topline` пока остаются как
-    совместимость и будут мигрировать только при следующем UI touch point.
+    `review-main`, `review-meta`, `review-topline`, `review-state-*` и
+    `review-ledger-*` пока остаются как совместимость.
 21. Новый partial можно включить точечно вместо старого review item без
     переписывания всего модуля импорта.
 22. Если что-то ломается, старый partial можно временно вернуть без миграций БД
@@ -1468,7 +1469,7 @@ review-actions__danger
 | 17 | Closed | `TransferPanelPayload.transfer_preview` exposes a server-built route label. Positive raw rows preview as `выбери счет -> счет выписки`; negative rows preview as `счет выписки -> выбери счет`. |
 | 18 | Closed | Date is in the top line via `review-date-chip`; covered by template assertions around `review-topline`. |
 | 19 | Closed | Row index is small meta; raw id is not surfaced as primary content; technical details do not compete with money/date/description in the current item layout. |
-| 20 | Accepted debt | Stabilized new parts use `review-panel__*`, `review-actions__*`, and `review-item--vm`. Older inner classes (`review-main`, `review-meta`, `review-topline`) remain as an explicit compatibility layer until the next UI touch point. |
+| 20 | Accepted debt | Stabilized new parts use `review-item__*`, `review-panel__*`, `review-actions__*`, and `review-item--vm`. Older inner classes (`review-main`, `review-meta`, `review-topline`, `review-state-*`, `review-ledger-*`) remain as an explicit compatibility layer until a dedicated CSS cleanup. |
 | 21 | Closed | New active rendering path uses `imports/review/_item.html` and `ReviewItemVM`; old raw-transaction review item fallback was removed after stabilization. |
 | 22 | Superseded | Initial rollback criterion was useful during the feature-flag phase. After stabilization, the old partial and `use_review_item_vm` were removed by decision; rollback would now be a normal git revert, not a runtime switch. |
 
@@ -1492,14 +1493,16 @@ review-actions__danger
 - `panel.actions` пока не вводится, потому что category и transfer panels имеют
   разные form contracts и не требуют общей action footer abstraction.
 
-Новый CSS для panel/action слоя мигрирует к BEM-like naming постепенно:
+Новый CSS для item/panel/action слоя мигрирует к BEM-like naming постепенно:
 
+- `review-item__*`;
 - `review-panel__*`;
 - `review-actions__*`.
 
-Старые классы `review-main`, `review-meta`, `review-topline` и соседние
-review-item классы будут мигрировать только при следующем естественном UI/refactor
-touch point, чтобы не делать массовый rename без продуктовой пользы.
+Старые классы `review-main`, `review-meta`, `review-topline`,
+`review-state-*`, `review-signal-*` и `review-ledger-*` остаются как
+compatibility layer. Новые изменения должны опираться на `review-item__*`, а
+старый слой удаляется только после отдельного аудита шаблонов и CSS.
 
 Шаги:
 
@@ -1622,8 +1625,8 @@ imports flow.
   `imports/_action_details.html` shell with `import-action-details__*` owner
   classes;
 - import review actions, category panel, category dialog, transfer panel and
-  panel tabs/drawers now have owner-class contracts such as
-  `review-actions__*`, `review-category-panel__*`,
+  item structure/panel tabs/drawers now have owner-class contracts such as
+  `review-item__*`, `review-actions__*`, `review-category-panel__*`,
   `review-category-dialog__*`, `review-transfer-panel__*` and
   `review-panel__*`;
 - новые или затронутые controls мигрируют к BEM-like owner naming, например

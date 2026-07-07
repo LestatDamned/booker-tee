@@ -389,12 +389,18 @@ def test_review_template_prefills_suggested_rule_category() -> None:
     )
 
     assert "review-signal-proposal" in html
+    assert "review-item__signal--proposal" in html
     assert "правило:" in html
     assert "KRASNOE" in html
     assert "BELOE" in html
     assert "категория: Продукты" in html
     assert "review-ledger-summary-suggested" in html
-    assert "review-ledger-type tone-expense" in html
+    assert "review-item__ledger-summary--suggested" in html
+    assert "review-item__ledger-meta" in html
+    assert "review-item__ledger-type" in html
+    assert "review-item__ledger-status" in html
+    assert "review-item__ledger-title" in html
+    assert "review-ledger-type review-item__ledger-type tone-expense" in html
     assert "review-ledger-status" in html
     assert "review-ledger-title" in html
     assert "review-state-summary" not in html
@@ -413,7 +419,7 @@ def test_review_template_prefills_suggested_rule_category() -> None:
     assert "review-item-next" in html
     assert "Продолжайте проверку" in html
     assert "к следующей" in html
-    assert "review-money money-value" in html
+    assert "review-money review-item__amount money-value" in html
     assert "KRASNOE&amp;BELOE" in html
     assert f'id="raw-{row_id}"' in html
     assert 'hx-boost="true"' in html
@@ -479,6 +485,7 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
     )
 
     assert "review-item--vm" in html
+    assert "review-item__main" in html
     assert "review-status-ready_to_confirm" in html
     assert "готово" in html
     assert "Подтвердить" in html
@@ -487,19 +494,35 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
     assert "hx-confirm=" in html
     assert html.index("29.05.2026") < html.index("Veesp hosting")
     assert "review-topline" in html
+    assert "review-item__topline" in html
+    assert "review-item__meta" in html
+    assert "review-item__row-index" in html
     assert "review-date-chip" in html
+    assert "review-item__date" in html
+    assert "review-item__date-label" in html
+    assert "review-item__account" in html
+    assert "review-item__amount" in html
+    assert "review-item__description" in html
     assert "review-state-summary" in html
+    assert "review-item__state" in html
     assert "review-state-primary" in html
+    assert "review-item__state-primary" in html
     assert "review-state-secondary" in html
+    assert "review-item__state-secondary" in html
+    assert "review-item__state-token" in html
     assert "по сумме" in html
     assert "предложено операция связана" not in html
     assert "review-panels" in html
+    assert "review-item__actions" in html
+    assert "review-item__panels" in html
     assert "review-panel__tab--primary" in html
     assert "review-panel__tab--alternative" in html
     assert "основной разбор строки" in html
     assert "если это перемещение между счетами" in html
     assert "review-panel__tabs" in html
+    assert "review-item__panel-tabs" in html
     assert "review-panel__drawers" in html
+    assert "review-item__panel-drawers" in html
     assert "review-panel__tab" in html
     assert "review-panel__tab-toggle" in html
     assert "review-panel__drawer" in html
@@ -596,11 +619,14 @@ def test_review_template_shows_transfer_route_for_linked_operation() -> None:
     assert "review-signal-operation" not in html
     assert "review-action-status" in html
     assert "review-ledger-summary" in html
+    assert "review-item__ledger-summary" in html
     assert "review-ledger-summary-confirmed" in html
+    assert "review-item__ledger-summary--confirmed" in html
     assert "review-ledger-title" in html
+    assert "review-item__ledger-title" in html
     assert f"ID {operation_id}" not in html
     assert "review-status-confirmed" in html
-    assert "review-ledger-type tone-transfer" in html
+    assert "review-ledger-type review-item__ledger-type tone-transfer" in html
     assert "Вклад ВТБ" in html
     assert "Карта Экспобанк" in html
     assert "из" in html
@@ -661,10 +687,14 @@ def test_review_template_shows_expense_category_for_linked_operation() -> None:
     )
 
     assert "review-ledger-summary" in html
+    assert "review-item__ledger-summary" in html
     assert "review-ledger-summary-confirmed" in html
-    assert "review-ledger-type tone-expense" in html
+    assert "review-item__ledger-summary--confirmed" in html
+    assert "review-ledger-type review-item__ledger-type tone-expense" in html
     assert "review-ledger-status" in html
+    assert "review-item__ledger-status" in html
     assert "review-ledger-title" in html
+    assert "review-item__ledger-title" in html
     assert "review-action-status" in html
     assert "Продукты" in html
     assert "с Экспобанк карта" not in html
@@ -1470,6 +1500,7 @@ def test_suggested_review_item_keeps_rule_proposal_when_new_category_is_selected
 
     assert "автоправило: Veesp" in html
     assert "review-signal-proposal" in html
+    assert "review-item__signal--proposal" in html
     assert "review-signal-problem" not in html
     assert "категория: Сервисы" in html
     assert "категория: TTTEST" not in html
@@ -1589,4 +1620,5 @@ def test_review_template_shows_balance_chain_problem_on_row() -> None:
     assert "review-control-totals" in html
     assert "суммы или остатки не сходятся с выпиской" in html
     assert "review-signal-problem" in html
+    assert "review-item__signal--problem" in html
     assert "остаток не сходится: ожидалось 1070.00, в строке 1060.00" in html

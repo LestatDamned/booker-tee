@@ -1,7 +1,7 @@
 {% set action_summary = item.operation_link or item.outcome_summary %}
 
 <article
-  class="review-item review-item--vm review-status-{{ item.visual_state }} {% if item.is_next %}review-item-next{% endif %}"
+  class="review-item review-item--vm review-item--status-{{ item.visual_state }} review-status-{{ item.visual_state }} {% if item.is_next %}review-item--next review-item-next{% endif %}"
   id="{{ item.anchor_id }}"
   hx-boost="true"
   hx-select="#{{ item.anchor_id }}"
@@ -23,33 +23,33 @@
   }"
   {% if item.oob or (review_item_oob is defined and review_item_oob) %}hx-swap-oob="true"{% endif %}
 >
-  <div class="review-main">
-    <div class="review-topline">
-      <div class="review-meta">
-        <span class="review-row-index"><strong>#</strong>{{ item.row_index }}</span>
-        <span class="review-date-chip">
-          <span class="review-date-label">дата</span>
+  <div class="review-main review-item__main">
+    <div class="review-topline review-item__topline">
+      <div class="review-meta review-item__meta">
+        <span class="review-row-index review-item__row-index"><strong>#</strong>{{ item.row_index }}</span>
+        <span class="review-date-chip review-item__date">
+          <span class="review-date-label review-item__date-label">дата</span>
           <strong>{{ item.date_label | date_ru }}</strong>
         </span>
-        <span class="review-account-chip">{{ item.account_label }}</span>
+        <span class="review-account-chip review-item__account">{{ item.account_label }}</span>
       </div>
-      <span class="review-money money-value {{ item.money_tone }}">{{ item.amount_label }} <small>{{ item.currency }}</small></span>
+      <span class="review-money review-item__amount money-value {{ item.money_tone }}">{{ item.amount_label }} <small>{{ item.currency }}</small></span>
     </div>
 
-    <div class="review-description">{{ item.description }}</div>
+    <div class="review-description review-item__description">{{ item.description }}</div>
 
     {% if not action_summary and (item.state_badge or item.classification_badge or item.classification_source_badge) %}
-      <div class="review-state-summary">
-        <div class="review-state-primary">
+      <div class="review-state-summary review-item__state">
+        <div class="review-state-primary review-item__state-primary">
           {% if item.state_badge %}
-            <span class="review-state-token tone-{{ item.state_badge.tone }}">{{ item.state_badge.label }}</span>
+            <span class="review-state-token review-item__state-token tone-{{ item.state_badge.tone }}">{{ item.state_badge.label }}</span>
           {% endif %}
           {% if item.classification_badge %}
-            <span class="review-state-token tone-{{ item.classification_badge.tone }}">{{ item.classification_badge.label }}</span>
+            <span class="review-state-token review-item__state-token tone-{{ item.classification_badge.tone }}">{{ item.classification_badge.label }}</span>
           {% endif %}
         </div>
         {% if item.classification_source_badge %}
-          <div class="review-state-secondary">
+          <div class="review-state-secondary review-item__state-secondary">
             {% if item.classification_source_badge %}
               <span>{{ item.classification_source_badge.label }}</span>
             {% endif %}
@@ -59,30 +59,30 @@
     {% endif %}
 
     {% if item.proposal_summary or item.problems %}
-      <div class="review-flags">
+      <div class="review-flags review-item__signals">
         {% if item.proposal_summary %}
-          <span class="review-signal review-signal-proposal">{{ item.proposal_summary }}</span>
+          <span class="review-signal review-signal-proposal review-item__signal review-item__signal--proposal">{{ item.proposal_summary }}</span>
         {% endif %}
         {% for problem in item.problems %}
-          <span class="review-signal review-signal-problem problem-{{ problem.tone }}">{{ problem.message }}</span>
+          <span class="review-signal review-signal-problem review-item__signal review-item__signal--problem problem-{{ problem.tone }}">{{ problem.message }}</span>
         {% endfor %}
       </div>
     {% endif %}
   </div>
 
-  <div class="review-actions">
+  <div class="review-actions review-item__actions">
     {% if action_summary %}
       <div
-        class="review-ledger-summary review-action-status review-ledger-summary-{{ action_summary.tone }}"
+        class="review-ledger-summary review-action-status review-item__ledger-summary review-ledger-summary-{{ action_summary.tone }} review-item__ledger-summary--{{ action_summary.tone }}"
         {% if item.operation_link %}title="operation {{ item.operation_link.operation_id }}"{% endif %}
       >
-        <div class="review-ledger-summary-meta">
+        <div class="review-ledger-summary-meta review-item__ledger-meta">
           {% if action_summary.type_value %}
-            <span class="review-ledger-type tone-{{ action_summary.type_value }}">{{ action_summary.type_label }}</span>
+            <span class="review-ledger-type review-item__ledger-type tone-{{ action_summary.type_value }}">{{ action_summary.type_label }}</span>
           {% endif %}
-          <span class="review-ledger-status">{{ action_summary.title }}</span>
+          <span class="review-ledger-status review-item__ledger-status">{{ action_summary.title }}</span>
         </div>
-        <div class="review-ledger-title">{{ action_summary.detail }}</div>
+        <div class="review-ledger-title review-item__ledger-title">{{ action_summary.detail }}</div>
       </div>
     {% endif %}
 
@@ -90,13 +90,13 @@
   </div>
 
   {% if item.panels %}
-    <div class="review-panels">
-      <div class="review-panel__tabs">
+    <div class="review-panels review-item__panels">
+      <div class="review-panel__tabs review-item__panel-tabs">
         {% for panel in item.panels %}
           {% include "imports/review/_panel_tab.html" %}
         {% endfor %}
       </div>
-      <div class="review-panel__drawers">
+      <div class="review-panel__drawers review-item__panel-drawers">
         {% for panel in item.panels %}
           {% include "imports/review/_panel_drawer.html" %}
         {% endfor %}
