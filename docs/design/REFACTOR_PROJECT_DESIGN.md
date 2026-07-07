@@ -1581,3 +1581,226 @@ DB-миграций, изменения URL endpoints и отката бизне
 - Границы изменений в backend, routers, presenters, templates и CSS.
 - ViewModel/API strategy для будущей миграции frontend.
 - Acceptance criteria.
+
+---------------
+
+## Текущий рабочий план: Import Document Detail Refactor
+
+Этот раздел является временным рабочим планом текущего refactor slice. После
+завершения страницы `/imports/documents/{document_id}` его можно удалить или
+заменить короткой implementation note.
+
+### Цель
+
+Превратить страницу import document detail в понятную страницу состояния
+документа:
+
+```text
+загруженный документ
+  -> что распознано
+  -> насколько проверка надежна
+  -> какие действия доступны сейчас
+  -> куда идти дальше
+```
+
+Страница должна быть мостом между upload/import pipeline и import review, а не
+техническим дампом parser attempt.
+
+### Почему эта страница следующая
+
+- Она находится рядом с уже переработанной import review page.
+- Она использует те же import concepts: document, parse attempts, validation,
+  raw rows, review status.
+- Пользователь попадает сюда до review или возвращается сюда после review.
+- Сейчас есть риск, что новая review page ведет на старую, менее понятную
+  document detail page.
+
+### UX Intent
+
+Пользователь за несколько секунд должен понять:
+
+- какой документ открыт;
+- каков текущий статус импорта;
+- сколько строк извлечено и сколько еще требует внимания;
+- сошлись ли контрольные итоги;
+- какое главное действие нужно сделать сейчас;
+- где открыть технические детали, если они действительно нужны.
+
+Технические детали должны быть доступны, но не доминировать:
+
+- raw JSON;
+- extracted text/tables;
+- parser metadata;
+- parse attempt internals;
+- mapping/debug information.
+
+### Scope
+
+В рамках refactor разрешено:
+
+- добавить `DocumentDetailPageVM` или близкий page-level VM;
+- добавить typed VM для header/status/actions/parse attempts/validation;
+- перенести status labels, action policy и validation display decisions из Jinja
+  в presenter;
+- переиспользовать или адаптировать `ReviewValidationPresenter` concepts там,
+  где они подходят;
+- скрыть technical details по умолчанию;
+- улучшить SSR layout и CSS страницы;
+- обновить focused template/presenter tests.
+
+### Out Of Scope
+
+Не делать в этом slice:
+
+- менять URL endpoints;
+- менять parser behavior;
+- менять DB models/enums;
+- менять ledger posting rules;
+- удалять raw source/debug данные;
+- переписывать unknown statement mapping целиком;
+- делать глобальный UI redesign всего imports section.
+
+### Architecture Direction
+
+Желаемый поток:
+
+```text
+Router
+  -> Application/page data loader
+  -> Presentation presenter/ViewModel
+  -> Jinja templates
+```
+
+Jinja не должна решать:
+
+- какой label у document status;
+- какая primary action доступна;
+- является ли validation warning/error/success;
+- какие parse attempt details считать technical;
+- какой next step показывать пользователю.
+
+Допустимо на первом slice оставить ORM objects внутри data loader, но template
+contract должен получать подготовленные VM или простые typed structures.
+
+### Candidate Files
+
+Начальный анализ:
+
+```text
+src/app/features/imports/routes/documents.py
+src/app/templates/imports/detail.html
+src/app/features/imports/mapping/dto.py
+src/app/features/imports/query_repository.py
+tests/features/imports/test_import_detail_template.py
+```
+
+Вероятные новые или изменяемые файлы:
+
+```text
+src/app/features/imports/presentation/document_detail.py
+src/app/templates/imports/detail.html
+src/app/templates/imports/detail/
+tests/features/imports/test_import_detail_template.py
+tests/features/imports/test_import_detail_presentation.py
+```
+
+Имена можно скорректировать после чтения текущего кода. Не создавать папку
+ради папки, если первый slice помещается в один небольшой presenter file.
+
+### Proposed ViewModel Shape
+
+Ориентировочно:
+
+```text
+DocumentDetailPageVM
+  header: DocumentDetailHeaderVM
+  status: DocumentStatusVM
+  primary_action: ActionVM | None
+  secondary_actions: list[ActionVM]
+  validation: DocumentValidationVM | None
+  parse_attempts: list[ParseAttemptSummaryVM]
+  technical_details: TechnicalDetailsVM
+```
+
+`ActionVM` можно переиспользовать из existing UI/action layer только если это не
+создаст преждевременную зависимость. Если contracts отличаются, лучше начать с
+локального VM и позже унифицировать.
+
+### First Slice
+
+Минимальный безопасный первый slice:
+
+1. Прочитать текущий route/template/tests и выписать, какие решения сейчас
+   принимает Jinja.
+2. Добавить page-level presenter для document detail.
+3. Вынести в VM:
+   - title/subtitle;
+   - document status label/tone;
+   - primary action;
+   - short validation summary;
+   - parse attempt summary labels.
+4. Подключить VM к `detail.html`, оставив общий layout максимально похожим.
+5. Не трогать technical/raw details, кроме явного hidden/collapsed state.
+6. Обновить focused tests.
+
+Цель первого slice: не финальный дизайн, а честный template contract.
+
+### UI Pass After First Slice
+
+После VM split сделать UI pass:
+
+- сделать header страницы похожим по плотности и иерархии на import review;
+- выделить главный next action;
+- сделать document status и validation status визуально разными понятиями;
+- parse attempts показывать как timeline или compact history;
+- technical details убрать ниже и свернуть;
+- проверить desktop/mobile через UI audit.
+
+### Validation And Repair Note
+
+После изменения validation report semantics для ignored rows старые документы
+могут хранить stale `validation_report_json`.
+
+Для document detail page нужно решить, как показывать или исправлять это:
+
+- вариант A: добавить явное действие `пересчитать проверку`;
+- вариант B: автоматически пересчитывать при открытии detail/review, если report
+  старого формата;
+- вариант C: одноразовый repair script/management command.
+
+Первый implementation slice не обязан решать repair полностью, но страница не
+должна маскировать stale validation как надежную проверку.
+
+### Acceptance Criteria
+
+Первый slice считается готовым, если:
+
+- route endpoints не изменились;
+- `detail.html` не вычисляет document status/action policy;
+- primary action понятна из VM;
+- validation summary подготовлен presenter-слоем;
+- technical details не доминируют первый экран;
+- existing detail template tests адаптированы, а не удалены;
+- добавлен presenter/unit test для ключевых состояний:
+  - parsed/requires review;
+  - imported/done;
+  - failed parse;
+  - missing validation report;
+  - stale or unavailable validation, если это уже видно в UI;
+- relevant pytest/ruff/ty проходят;
+- при UI изменениях запущен `scripts/ui_audit.py --scenario review_interactions`
+  или добавлен отдельный scenario для document detail.
+
+### Open Questions For Implementation
+
+- Должен ли document detail автоматически пересчитывать stale validation report?
+- Нужен ли отдельный `document_detail` UI audit scenario?
+- Нужно ли показывать parse attempts history в первом экране или только
+  последний attempt?
+- Какие actions считать primary:
+  - open review;
+  - open reports;
+  - reparse;
+  - configure mapping;
+  - upload another file?
+- Где провести границу между document detail и unknown mapping UI?
