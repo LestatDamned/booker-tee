@@ -5,6 +5,7 @@ from typing import Any, cast
 from uuid import uuid4
 
 from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
+from app.features.imports.presentation.document_detail import DocumentDetailPresenter
 from app.features.imports.presentation.review.page import build_review_page_context
 from app.features.workspaces.models import WorkspaceType
 from app.templating import create_templates
@@ -34,6 +35,18 @@ def render_review_template(*, document: object) -> str:
             workspace=SimpleNamespace(id=uuid4(), name="Personal"),
         ),
         css_version="test-css-version",
+    )
+
+
+def render_document_detail_template(*, view: object) -> str:
+    return render_template(
+        "imports/detail.html",
+        app_name="Booker Tee",
+        page=DocumentDetailPresenter().build(
+            cast(Any, view),
+            can_manage_imports=True,
+        ),
+        view=view,
     )
 
 
@@ -117,9 +130,7 @@ def test_upload_page_guides_to_file_when_accounts_exist() -> None:
 
 def test_document_detail_guides_to_mapping_when_columns_are_unknown() -> None:
     document_id = uuid4()
-    html = render_template(
-        "imports/detail.html",
-        app_name="Booker Tee",
+    html = render_document_detail_template(
         view=document_view(
             document_id=document_id,
             status=UploadedDocumentStatus.REQUIRES_REVIEW,
@@ -143,9 +154,7 @@ def test_document_detail_guides_to_mapping_when_columns_are_unknown() -> None:
 
 def test_document_detail_guides_to_review_when_rows_exist() -> None:
     document_id = uuid4()
-    html = render_template(
-        "imports/detail.html",
-        app_name="Booker Tee",
+    html = render_document_detail_template(
         view=document_view(
             document_id=document_id,
             status=UploadedDocumentStatus.REQUIRES_REVIEW,

@@ -1,6 +1,11 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from app.features.imports.mapping.dto import ImportDocumentDetailView
+from app.features.imports.presentation.document_detail import (
+    DocumentDetailPresenter,
+)
+
 
 @dataclass(frozen=True)
 class ImportIndexPageContext:
@@ -30,11 +35,17 @@ class UploadPageContext:
 
 @dataclass(frozen=True)
 class DocumentDetailPageContext:
-    view: object
+    view: ImportDocumentDetailView
+    can_manage_imports: bool
 
     def template_values(self, *, app_name: str, workspace: object) -> dict[str, object]:
+        page = DocumentDetailPresenter().build(
+            self.view,
+            can_manage_imports=self.can_manage_imports,
+        )
         return {
             "app_name": app_name,
+            "page": page,
             "view": self.view,
             "workspace": workspace,
         }

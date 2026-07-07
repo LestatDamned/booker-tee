@@ -21,7 +21,21 @@ from app.features.imports.models import (
     RawTransactionStatus,
     UploadedDocumentStatus,
 )
+from app.features.imports.presentation.document_detail import DocumentDetailPresenter
 from app.templating import create_templates
+
+
+def render_import_detail(view: ImportDocumentDetailView, *, can_manage_imports: bool = True) -> str:
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+    return templates.env.get_template("imports/detail.html").render(
+        app_name="Booker Tee",
+        page=DocumentDetailPresenter().build(
+            view,
+            can_manage_imports=can_manage_imports,
+        ),
+        view=view,
+    )
 
 
 def test_import_detail_template_shows_readable_account_reference() -> None:
@@ -44,13 +58,7 @@ def test_import_detail_template_shows_readable_account_reference() -> None:
         parse_attempts=[],
         raw_transactions=[],
     )
-    templates = create_templates()
-    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
-
-    html = templates.env.get_template("imports/detail.html").render(
-        app_name="Booker Tee",
-        view=view,
-    )
+    html = render_import_detail(view)
 
     assert "ВТБ вклад" in html
     assert "депозит" in html
@@ -91,13 +99,7 @@ def test_import_detail_template_keeps_failed_parse_page_compact() -> None:
         ],
         validation=None,
     )
-    templates = create_templates()
-    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
-
-    html = templates.env.get_template("imports/detail.html").render(
-        app_name="Booker Tee",
-        view=view,
-    )
+    html = render_import_detail(view)
 
     assert "document-detail-grid" in html
     assert "empty-state" in html
@@ -138,13 +140,7 @@ def test_import_detail_raw_transactions_are_money_first_and_use_ru_date() -> Non
             ),
         ],
     )
-    templates = create_templates()
-    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
-
-    html = templates.env.get_template("imports/detail.html").render(
-        app_name="Booker Tee",
-        view=view,
-    )
+    html = render_import_detail(view)
 
     assert "raw-transaction-head" in html
     assert "26.05.2026" in html
@@ -281,13 +277,7 @@ def test_import_detail_template_shows_unknown_statement_mapping_preview() -> Non
         ],
         validation=validation,
     )
-    templates = create_templates()
-    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
-
-    html = templates.env.get_template("imports/detail.html").render(
-        app_name="Booker Tee",
-        view=view,
-    )
+    html = render_import_detail(view)
 
     assert "Нужна настройка импорта" in html
     assert "Ozon Bank" in html

@@ -29,6 +29,7 @@ from app.features.workspaces.dependencies import (
     get_current_workspace_context,
     require_import_management_context,
 )
+from app.features.workspaces.permissions import can_manage_imports
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
 
@@ -123,7 +124,10 @@ async def document_detail(
     if view is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
-    page_context = DocumentDetailPageContext(view=view)
+    page_context = DocumentDetailPageContext(
+        view=view,
+        can_manage_imports=can_manage_imports(context.membership),
+    )
     return templates.TemplateResponse(
         request,
         "imports/detail.html",

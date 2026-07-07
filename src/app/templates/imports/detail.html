@@ -5,17 +5,16 @@
 {% block title %}{{ view.original_filename }} · {{ app_name }}{% endblock %}
 
 {% block content %}
-  {% set can_import = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_manage_imports %}
   {% set validation = view.validation %}
   <section class="panel stack import-workflow">
     <header class="import-page-header">
       <div class="import-page-title">
-        <p class="eyebrow">{{ view.status | ru }}</p>
-        <h1>Документ</h1>
+        <p class="eyebrow">{{ page.status_label }}</p>
+        <h1>{{ page.title }}</h1>
       </div>
       <div class="import-page-actions">
         <a class="button" href="/imports">{{ icon("arrow-left") }} назад</a>
-        {% if can_import %}
+        {% if page.actions %}
           <details class="action-details action-accordion import-more-actions">
             <summary>
               {{ icon("settings") }}
@@ -26,95 +25,49 @@
               </span>
             </summary>
             <div class="action-menu">
-              <form method="post" action="/imports/documents/{{ view.id }}/reparse">
-                {{ csrf_input() }}
-                <button class="button button-small" type="submit">{{ icon("refresh") }} перепарсить</button>
-              </form>
-              <form method="post" action="/imports/documents/{{ view.id }}/ignore">
-                {{ csrf_input() }}
-                <button class="button button-small" type="submit">{{ icon("ignore") }} игнорировать</button>
-              </form>
-              <form method="post" action="/imports/documents/{{ view.id }}/delete">
-                {{ csrf_input() }}
-                <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
-              </form>
+              {% for action in page.actions %}
+                <form method="post" action="{{ action.action_url }}">
+                  {{ csrf_input() }}
+                  <button class="button button-small{% if action.tone == 'danger' %} button-danger{% endif %}" type="submit">{{ icon(action.icon) }} {{ action.label }}</button>
+                </form>
+              {% endfor %}
             </div>
           </details>
         {% endif %}
       </div>
     </header>
-    <p class="import-document-name" title="{{ view.original_filename }}">
-      {{ view.original_filename }}
+    <p class="import-document-name" title="{{ page.document_name }}">
+      {{ page.document_name }}
     </p>
 
-    {% if view.status.value == "imported" %}
-      {{ workflow_steps(upload="done", extract="done", mapping="skipped", review="done", ledger="done") }}
-    {% elif validation and validation.status == "needs_mapping" %}
-      {{ workflow_steps(upload="done", extract="done", mapping="current", review="pending", ledger="pending") }}
-    {% elif view.raw_transactions %}
-      {{ workflow_steps(upload="done", extract="done", mapping="skipped", review="current", ledger="pending") }}
-    {% elif view.status.value == "failed_to_parse" %}
-      {{ workflow_steps(upload="done", extract="blocked", mapping="pending", review="pending", ledger="pending") }}
-    {% else %}
-      {{ workflow_steps(upload="done", extract="current", mapping="pending", review="pending", ledger="pending") }}
-    {% endif %}
+    {{ workflow_steps(
+      upload=page.workflow.upload,
+      extract=page.workflow.extract,
+      mapping=page.workflow.mapping,
+      review=page.workflow.review,
+      ledger=page.workflow.ledger
+    ) }}
 
-    {% if validation and validation.status == "needs_mapping" and can_import %}
-      {{ next_step(
-        "Настройте колонки",
-        "Файл выписки прочитан, но системе нужно понять, где дата, описание и сумма.",
-        "/imports/documents/" ~ view.id ~ "/mapping",
-        "настроить колонки",
-        "settings"
-      ) }}
-    {% elif view.raw_transactions and can_import %}
-      {{ next_step(
-        "Проверьте строки",
-        "Сырые строки извлечены. Подтвердите операции, отметьте переводы и игнорируйте дубли.",
-        "/imports/documents/" ~ view.id ~ "/review",
-        "открыть проверку",
-        "clipboard-check"
-      ) }}
-    {% elif view.status.value == "failed_to_parse" and can_import %}
-      {{ next_step(
-        "Загрузите другую выписку",
-        "Этот файл не удалось разобрать. Исходный документ сохранен, можно попробовать другой файл.",
-        "/imports/upload",
-        "загрузить заново",
-        "upload"
-      ) }}
-    {% else %}
-      {{ next_step(
-        "Дождитесь извлечения",
-        "Когда строки появятся, Booker Tee предложит перейти к проверке.",
-        "/imports",
-        "к списку импортов",
-        "import"
-      ) }}
-    {% endif %}
+    {{ next_step(
+      page.next_step.title,
+      page.next_step.message,
+      page.next_step.primary_href,
+      page.next_step.primary_label,
+      page.next_step.primary_icon
+    ) }}
 
-    {% if validation and validation.status == "needs_mapping" %}
+    {% if page.validation and page.validation.needs_mapping %}
       <div class="notice">
         <strong>Нужна настройка импорта.</strong>
         Файл выписки прочитан, но подходящего парсера для этой выписки пока нет.
       </div>
       <div class="summary-grid">
-        <div class="metric">
-          <span>банк</span>
-          <strong>{{ validation.detected_bank_name or "не определен" }}</strong>
-        </div>
-        <div class="metric">
-          <span>тип</span>
-          <strong>{{ validation.detected_statement_type | ru }}</strong>
-        </div>
-        <div class="metric">
-          <span>извлечение</span>
-          <strong>{% if validation.text_based %}текстовый{% else %}нужен OCR{% endif %}</strong>
-        </div>
-        <div class="metric">
-          <span>таблицы</span>
-          <strong>{{ validation.table_count }}</strong>
-        </div>
+        {% for metric in page.validation.metrics %}
+          <div class="metric{% if metric.tone %} metric-{{ metric.tone }}{% endif %}">
+            <span>{{ metric.label }}</span>
+            <strong>{{ metric.value }}</strong>
+          </div>
+        {% endfor %}
       </div>
       {% if validation.table_previews %}
         <h2 class="status">Предпросмотр таблиц</h2>
@@ -198,27 +151,17 @@
         </div>
       {% endif %}
       <div class="notice">{{ validation.message }}</div>
-    {% elif validation %}
+    {% elif page.validation %}
       <div class="summary-grid">
-        <div class="metric">
-          <span>строки</span>
-          <strong>{{ validation.extracted_count }}</strong>
-        </div>
-        <div class="metric metric-income">
-          <span>приход</span>
-          <strong class="amount-income">{{ validation.calculated_total_inflow }} {{ validation.currency or "" }}</strong>
-        </div>
-        <div class="metric metric-expense">
-          <span>расход</span>
-          <strong class="amount-expense">{{ validation.calculated_total_outflow }} {{ validation.currency or "" }}</strong>
-        </div>
-        <div class="metric">
-          <span>проверка</span>
-          <strong>{{ validation.status | ru }}</strong>
-        </div>
+        {% for metric in page.validation.metrics %}
+          <div class="metric{% if metric.tone %} metric-{{ metric.tone }}{% endif %}">
+            <span>{{ metric.label }}</span>
+            <strong{% if metric.tone %} class="amount-{{ metric.tone }}"{% endif %}>{{ metric.value }}</strong>
+          </div>
+        {% endfor %}
       </div>
-      {% if validation.message %}
-        <div class="notice">{{ validation.message }}</div>
+      {% if page.validation.message %}
+        <div class="notice">{{ page.validation.message }}</div>
       {% endif %}
     {% else %}
       <div class="notice">Отчет проверки для этого документа пока недоступен.</div>
