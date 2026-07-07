@@ -434,7 +434,7 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
             primary_label="к импорту строк",
             primary_icon="import",
         ),
-        preview=preview,
+        mapping_has_preview=True,
         mapping_warnings=mapping_warnings(preview),
         mapping_import_action=mapping_import_action(
             document=document,
@@ -444,9 +444,7 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
         mapping_preview_summary=mapping_preview_summary(preview),
         mapping_preview_rows=mapping_preview_rows(preview),
         selected_table_vm=mapping_selected_table(table, compatible_table_count=14),
-        table_options=[table],
         table_picker_options=mapping_table_options([table], command),
-        compatible_table_count=14,
         mapping_templates=[],
     )
 
@@ -749,7 +747,10 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     values = page_context.template_values(app_name="Booker Tee", workspace=object())
 
     assert "view" not in values
+    assert "preview" not in values
     assert "selected_table" not in values
+    assert "table_options" not in values
+    assert "compatible_table_count" not in values
     assert page_context.document.status_label == "требует проверки"
     assert page_context.document.filename == "ozonbank_card_statement.pdf"
     assert page_context.document.detail_url == f"/imports/documents/{document_id}"
@@ -761,6 +762,7 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     assert values["mapping_next_step"] == page_context.next_step
     assert values["selected_table_vm"] == page_context.selected_table_vm
     assert values["table_picker_options"] == page_context.table_picker_options
+    assert values["mapping_has_preview"] == page_context.has_preview
     assert values["mapping_warnings"] == page_context.warnings
     assert values["mapping_import_action"] == page_context.import_action
     assert values["mapping_preview_summary"] == page_context.preview_summary

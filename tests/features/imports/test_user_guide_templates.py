@@ -566,21 +566,12 @@ def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
             first_data_row=1,
             default_currency="RUB",
         ),
-        preview=None,
+        mapping_has_preview=False,
         mapping_warnings=[],
         mapping_import_action=None,
         mapping_preview_summary=None,
         mapping_preview_rows=[],
-        selected_table={
-            "column_count": 0,
-            "rows": [],
-            "row_count": 0,
-            "page_number": 1,
-            "table_index": 0,
-        },
-        table_options=[],
         table_picker_options=[],
-        compatible_table_count=0,
         mapping_templates=[],
     )
 

@@ -150,15 +150,13 @@ class MappingPageContext:
     document: MappingDocumentVM
     next_step: MappingNextStepVM
     command: UnknownStatementMappingCommand
-    preview: UnknownStatementMappingPreview | None
     selected_table_vm: MappingSelectedTableVM
-    table_options: list[dict[str, object]]
     table_picker_options: list[MappingTableOptionVM]
+    has_preview: bool
     warnings: list[MappingWarningVM]
     import_action: MappingImportActionVM | None
     preview_summary: MappingPreviewSummaryVM | None
     preview_rows: list[MappingPreviewRowVM]
-    compatible_table_count: int
     mapping_templates: list[ImportMappingTemplate]
 
     def template_values(
@@ -172,15 +170,13 @@ class MappingPageContext:
             "command": self.command,
             "document": self.document,
             "mapping_next_step": self.next_step,
-            "preview": self.preview,
             "selected_table_vm": self.selected_table_vm,
-            "table_options": self.table_options,
             "table_picker_options": self.table_picker_options,
+            "mapping_has_preview": self.has_preview,
             "mapping_warnings": self.warnings,
             "mapping_import_action": self.import_action,
             "mapping_preview_summary": self.preview_summary,
             "mapping_preview_rows": self.preview_rows,
-            "compatible_table_count": self.compatible_table_count,
             "mapping_templates": self.mapping_templates,
             "workspace": workspace,
         }
@@ -262,13 +258,12 @@ def mapping_page_context_from_command(
             table_options=table_options,
         ),
         command=command,
-        preview=preview,
         selected_table_vm=mapping_selected_table(
             selected_table,
             compatible_table_count=compatible_table_count,
         ),
-        table_options=table_options,
         table_picker_options=mapping_table_options(table_options, command),
+        has_preview=preview is not None,
         warnings=mapping_warnings(preview),
         import_action=mapping_import_action(
             document=document,
@@ -277,7 +272,6 @@ def mapping_page_context_from_command(
         ),
         preview_summary=mapping_preview_summary(preview),
         preview_rows=mapping_preview_rows(preview),
-        compatible_table_count=compatible_table_count,
         mapping_templates=mapping_templates,
     )
 
