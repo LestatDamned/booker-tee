@@ -45,7 +45,10 @@ async def import_index(
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
     documents = await ImportService(session).list_documents(context.workspace.id)
-    page_context = ImportIndexPageContext(documents=documents)
+    page_context = ImportIndexPageContext(
+        documents=documents,
+        can_import=can_manage_imports(context.membership),
+    )
     return templates.TemplateResponse(
         request,
         "imports/index.html",

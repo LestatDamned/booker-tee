@@ -19,7 +19,9 @@
           <a class="button button-small" href="{{ next_step.secondary_href }}">{{ icon(next_step.secondary_icon) }} {{ next_step.secondary_label }}</a>
         {% endif %}
       </div>
-      <a class="button" href="{{ back_href }}">{{ icon("arrow-left") }} {{ back_label }}</a>
+      {% if back_href %}
+        <a class="button" href="{{ back_href }}">{{ icon("arrow-left") }} {{ back_label }}</a>
+      {% endif %}
 
       {{ caller("actions") }}
     </aside>

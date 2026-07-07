@@ -1,66 +1,58 @@
 {% extends "base.html" %}
-{% from "components/next_step.html" import next_step %}
 {% from "components/empty_state.html" import empty_state %}
+{% from "imports/_page_hero.html" import import_page_hero %}
 
 {% block title %}Импорт · {{ app_name }}{% endblock %}
 
 {% block content %}
-  {% set can_import = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_manage_imports %}
-  <section class="panel stack">
-    <div class="toolbar">
-      <div>
-        <p class="eyebrow">{{ workspace.name }}</p>
-        <h1>Импорт выписок</h1>
-      </div>
-    </div>
-
-    {% set review = namespace(document=none) %}
-    {% for document in documents %}
-      {% if review.document is none and document.status.value in ["requires_review", "failed_to_parse", "pending_parse"] %}
-        {% set review.document = document %}
-      {% endif %}
-    {% endfor %}
-    {% if review.document and can_import %}
-      {{ next_step(
-        "Проверьте выписку",
-        "Этот документ требует решения перед тем, как строки попадут в учет.",
-        "/imports/documents/" ~ review.document.id ~ "/review",
-        "открыть проверку",
-        "clipboard-check"
-      ) }}
-    {% elif documents and can_import %}
-      {{ next_step(
-        "Загрузите выписку",
-        "Перед первой загрузкой советуем подгрузить базовые правила: они ускорят проверку строк и дадут стартовые подсказки по категориям.",
-        "/imports/upload",
-        "загрузить выписку",
-        "upload"
-      ) }}
+  <section class="panel stack import-workflow import-index-page">
+    {% if page.next_step %}
+      {% call(slot) import_page_hero(page.workspace_name, page.title, page.next_step, back_href=none, class_name="import-index-hero") %}
+        {% if slot == "main" %}
+          <div class="import-index-summary">
+            <div>
+              <span>Документы</span>
+              <strong>{{ page.documents|length }}</strong>
+            </div>
+            <div>
+              <span>Назначение</span>
+              <strong>путь от выписки к проверке</strong>
+            </div>
+          </div>
+        {% endif %}
+      {% endcall %}
+    {% else %}
+      <header class="import-page-header">
+        <div class="import-page-title">
+          <p class="eyebrow">{{ page.workspace_name }}</p>
+          <h1>{{ page.title }}</h1>
+        </div>
+      </header>
     {% endif %}
 
-    {% if documents %}
-      <div class="entity-card-list">
-        {% for document in documents %}
-          <article class="entity-card">
-            <div class="entity-card-main">
-              <div class="entity-card-title">
-                <strong class="truncate-label" title="{{ document.original_filename }}">{{ document.original_filename }}</strong>
-                <span class="badge badge-{{ document.status.value }}">{{ document.status | ru }}</span>
+    {% if page.documents %}
+      <div class="import-document-list">
+        {% for document in page.documents %}
+          <article class="import-document-card import-document-card--{{ document.status_value }}">
+            <div class="import-document-card__main">
+              <div class="import-document-card__title">
+                <strong class="truncate-label" title="{{ document.filename }}">{{ document.filename }}</strong>
+                <span class="badge badge-{{ document.status_value }}">{{ document.status_label }}</span>
               </div>
-              <div class="entity-card-meta">
+              <div class="import-document-card__meta">
                 <span>загружено {{ document.created_at | date_ru }}</span>
+                <span>{{ document.file_size_bytes }} байт</span>
               </div>
               <details class="technical-details">
                 <summary>ID</summary>
                 <span>ID {{ document.id }}</span>
-                <span>{{ document.file_size_bytes or 0 }} байт</span>
               </details>
             </div>
-            <div class="entity-card-actions">
-              {% if can_import and document.status.value in ["requires_review", "imported"] %}
-                <a class="button button-small primary-action" href="/imports/documents/{{ document.id }}/review">{{ icon("clipboard-check") }} проверка</a>
+            <div class="import-document-card__actions">
+              <a class="button button-small{% if document.primary_tone == 'primary' %} primary-action{% endif %}" href="{{ document.primary_href }}">{{ icon(document.primary_icon) }} {{ document.primary_label }}</a>
+              {% if document.secondary_href != document.primary_href %}
+                <a class="button button-small" href="{{ document.secondary_href }}">{{ icon(document.secondary_icon) }} {{ document.secondary_label }}</a>
               {% endif %}
-              <a class="button button-small" href="/imports/documents/{{ document.id }}">{{ icon("file-text") }} детали</a>
             </div>
           </article>
         {% endfor %}
@@ -69,8 +61,8 @@
       {{ empty_state(
         "Выписки еще не загружены",
         "Начните с файла выписки в PDF или XLSX по одному из счетов. Для быстрой проверки сначала можно загрузить базовые правила в разделе Правила.",
-        "/imports/upload" if can_import else none,
-        "загрузить выписку" if can_import else none,
+        "/imports/upload" if page.can_import else none,
+        "загрузить выписку" if page.can_import else none,
         "upload"
       ) }}
     {% endif %}
