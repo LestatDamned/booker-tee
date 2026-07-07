@@ -27,7 +27,7 @@ from app.features.imports.presentation.mapping.models import (
     MappingDocumentVM,
     MappingNextStepVM,
 )
-from app.features.imports.presentation.mapping.page import build_mapping_page_context
+from app.features.imports.presentation.mapping.page import MappingPagePresenter
 from app.features.imports.presentation.mapping.preview import (
     mapping_import_action,
     mapping_preview_rows,
@@ -800,7 +800,7 @@ def test_mapping_page_context_prepares_document_contract() -> None:
         validation={"status": "needs_mapping", "table_previews": []},
     )
 
-    page_context = build_mapping_page_context(
+    page_context = MappingPagePresenter().build(
         view=view,
         default_currency="RUB",
         mapping_templates=[],

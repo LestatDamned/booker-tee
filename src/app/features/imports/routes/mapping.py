@@ -20,9 +20,8 @@ from app.features.imports.application.unknown_statement_mappings.template_use_ca
 from app.features.imports.errors import UnknownStatementMappingError
 from app.features.imports.presentation.mapping.models import MappingPresentationError
 from app.features.imports.presentation.mapping.page import (
-    build_mapping_page_context,
+    MappingPagePresenter,
     parse_table_ref,
-    preview_mapping_page_context,
 )
 from app.features.imports.service import ImportService
 from app.features.workspaces.dependencies import require_import_management_context
@@ -52,7 +51,7 @@ async def document_mapping_form(
         bank_name=view.bank_name,
         statement_type=view.statement_type,
     )
-    page_context = build_mapping_page_context(
+    page_context = MappingPagePresenter().build(
         view=view,
         default_currency=view.account.currency
         if view.account
@@ -114,7 +113,7 @@ async def preview_document_mapping(
         bank_name=view.bank_name,
         statement_type=view.statement_type,
     )
-    page_context = preview_mapping_page_context(
+    page_context = MappingPagePresenter().preview(
         view=view,
         command=command,
         mapping_templates=mapping_templates,

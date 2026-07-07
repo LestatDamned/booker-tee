@@ -36,84 +36,86 @@ from app.features.imports.presentation.mapping.tables import (
 )
 
 
-def build_mapping_page_context(
-    *,
-    view: ImportDocumentDetailView,
-    default_currency: str,
-    mapping_templates: list[ImportMappingTemplate],
-) -> MappingPageContext:
-    raw_tables = latest_raw_tables(view)
-    compatible_templates = compatible_mapping_templates(mapping_templates, raw_tables)
-    command = default_mapping_command(
-        view.validation,
-        default_currency=default_currency,
-        templates=compatible_templates,
-    )
-    return mapping_page_context_from_command(
-        view=view,
-        command=command,
-        preview=None,
-        mapping_templates=compatible_templates,
-    )
+class MappingPagePresenter:
+    def build(
+        self,
+        *,
+        view: ImportDocumentDetailView,
+        default_currency: str,
+        mapping_templates: list[ImportMappingTemplate],
+    ) -> MappingPageContext:
+        raw_tables = _latest_raw_tables(view)
+        compatible_templates = compatible_mapping_templates(mapping_templates, raw_tables)
+        command = default_mapping_command(
+            view.validation,
+            default_currency=default_currency,
+            templates=compatible_templates,
+        )
+        return self._from_command(
+            view=view,
+            command=command,
+            preview=None,
+            mapping_templates=compatible_templates,
+        )
 
-
-def preview_mapping_page_context(
-    *,
-    view: ImportDocumentDetailView,
-    command: UnknownStatementMappingCommand,
-    mapping_templates: list[ImportMappingTemplate],
-) -> MappingPageContext:
-    raw_tables = latest_raw_tables(view)
-    preview = preview_unknown_statement_mapping(raw_tables, command)
-    compatible_templates = compatible_mapping_templates(mapping_templates, raw_tables)
-    return mapping_page_context_from_command(
-        view=view,
-        command=command,
-        preview=preview,
-        mapping_templates=compatible_templates,
-    )
-
-
-def mapping_page_context_from_command(
-    *,
-    view: ImportDocumentDetailView,
-    command: UnknownStatementMappingCommand,
-    preview: UnknownStatementMappingPreview | None,
-    mapping_templates: list[ImportMappingTemplate],
-) -> MappingPageContext:
-    raw_tables = latest_raw_tables(view)
-    table_options = preview_table_options(view.validation)
-    selected_table = selected_mapping_table(table_options, command)
-    compatible_table_count = compatible_mapping_table_count(raw_tables, command)
-    document = mapping_document(view)
-    selected_table_vm = mapping_selected_table_vm(
-        selected_table,
-        compatible_table_count=compatible_table_count,
-    )
-    return MappingPageContext(
-        document=document,
-        next_step=mapping_next_step(
-            document=document,
+    def preview(
+        self,
+        *,
+        view: ImportDocumentDetailView,
+        command: UnknownStatementMappingCommand,
+        mapping_templates: list[ImportMappingTemplate],
+    ) -> MappingPageContext:
+        raw_tables = _latest_raw_tables(view)
+        preview = preview_unknown_statement_mapping(raw_tables, command)
+        compatible_templates = compatible_mapping_templates(mapping_templates, raw_tables)
+        return self._from_command(
+            view=view,
+            command=command,
             preview=preview,
-            table_options=table_options,
-        ),
-        form=mapping_form(command, selected_table_vm.column_options),
-        selected_table_vm=selected_table_vm,
-        table_picker_options=mapping_table_picker_options(table_options, command),
-        has_preview=preview is not None,
-        warnings=mapping_warnings(preview),
-        import_action=mapping_import_action(
-            document=document,
-            preview=preview,
+            mapping_templates=compatible_templates,
+        )
+
+    def _from_command(
+        self,
+        *,
+        view: ImportDocumentDetailView,
+        command: UnknownStatementMappingCommand,
+        preview: UnknownStatementMappingPreview | None,
+        mapping_templates: list[ImportMappingTemplate],
+    ) -> MappingPageContext:
+        raw_tables = _latest_raw_tables(view)
+        table_options = preview_table_options(view.validation)
+        selected_table = _selected_mapping_table(table_options, command)
+        compatible_table_count = compatible_mapping_table_count(raw_tables, command)
+        document = _mapping_document(view)
+        selected_table_vm = mapping_selected_table_vm(
+            selected_table,
             compatible_table_count=compatible_table_count,
-        ),
-        preview_summary=mapping_preview_summary(preview),
-        preview_rows=mapping_preview_rows(preview),
-        mapping_templates=mapping_templates,
-    )
+        )
+        return MappingPageContext(
+            document=document,
+            next_step=_mapping_next_step(
+                document=document,
+                preview=preview,
+                table_options=table_options,
+            ),
+            form=mapping_form(command, selected_table_vm.column_options),
+            selected_table_vm=selected_table_vm,
+            table_picker_options=mapping_table_picker_options(table_options, command),
+            has_preview=preview is not None,
+            warnings=mapping_warnings(preview),
+            import_action=mapping_import_action(
+                document=document,
+                preview=preview,
+                compatible_table_count=compatible_table_count,
+            ),
+            preview_summary=mapping_preview_summary(preview),
+            preview_rows=mapping_preview_rows(preview),
+            mapping_templates=mapping_templates,
+        )
 
 
-def mapping_next_step(
+def _mapping_next_step(
     *,
     document: MappingDocumentVM,
     preview: UnknownStatementMappingPreview | None,
@@ -155,15 +157,15 @@ def mapping_next_step(
     )
 
 
-def latest_raw_tables(view: ImportDocumentDetailView) -> list[dict[str, object]] | None:
+def _latest_raw_tables(view: ImportDocumentDetailView) -> list[dict[str, object]] | None:
     latest_attempt = view.parse_attempts[0] if view.parse_attempts else None
     return latest_attempt.raw_tables if latest_attempt else None
 
 
-def mapping_document(view: ImportDocumentDetailView) -> MappingDocumentVM:
+def _mapping_document(view: ImportDocumentDetailView) -> MappingDocumentVM:
     document_url = f"/imports/documents/{view.id}"
     return MappingDocumentVM(
-        status_label=mapping_document_status_label(view.status),
+        status_label=_mapping_document_status_label(view.status),
         filename=view.original_filename,
         detail_url=document_url,
         preview_url=f"{document_url}/mapping",
@@ -171,7 +173,7 @@ def mapping_document(view: ImportDocumentDetailView) -> MappingDocumentVM:
     )
 
 
-def mapping_document_status_label(status: UploadedDocumentStatus) -> str:
+def _mapping_document_status_label(status: UploadedDocumentStatus) -> str:
     labels = {
         UploadedDocumentStatus.UPLOADED: "загружено",
         UploadedDocumentStatus.PENDING_PARSE: "ожидает парсинга",
@@ -197,7 +199,7 @@ def parse_table_ref(value: str) -> tuple[int, int]:
         raise MappingPresentationError("Invalid table reference.") from exc
 
 
-def selected_mapping_table(
+def _selected_mapping_table(
     table_options: list[dict[str, object]],
     command: UnknownStatementMappingCommand,
 ) -> dict[str, object]:
