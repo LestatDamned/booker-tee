@@ -78,6 +78,13 @@ class MappingWarningVM:
 
 
 @dataclass(frozen=True)
+class MappingImportActionVM:
+    form_action: str
+    label: str
+    icon: str
+
+
+@dataclass(frozen=True)
 class MappingPageContext:
     document: MappingDocumentVM
     next_step: MappingNextStepVM
@@ -88,6 +95,7 @@ class MappingPageContext:
     table_options: list[dict[str, object]]
     table_picker_options: list[MappingTableOptionVM]
     warnings: list[MappingWarningVM]
+    import_action: MappingImportActionVM | None
     compatible_table_count: int
     mapping_templates: list[ImportMappingTemplate]
 
@@ -108,6 +116,7 @@ class MappingPageContext:
             "table_options": self.table_options,
             "table_picker_options": self.table_picker_options,
             "mapping_warnings": self.warnings,
+            "mapping_import_action": self.import_action,
             "compatible_table_count": self.compatible_table_count,
             "mapping_templates": self.mapping_templates,
             "workspace": workspace,
@@ -199,6 +208,11 @@ def mapping_page_context_from_command(
         table_options=table_options,
         table_picker_options=mapping_table_options(table_options, command),
         warnings=mapping_warnings(preview),
+        import_action=mapping_import_action(
+            document=document,
+            preview=preview,
+            compatible_table_count=compatible_table_count,
+        ),
         compatible_table_count=compatible_table_count,
         mapping_templates=mapping_templates,
     )
@@ -263,6 +277,22 @@ def mapping_warning(warning: UnknownStatementMappingWarning) -> MappingWarningVM
     else:
         message = MAPPING_WARNING_MESSAGES.get(warning.code, warning.code)
     return MappingWarningVM(message=message, severity=warning.severity)
+
+
+def mapping_import_action(
+    *,
+    document: MappingDocumentVM,
+    preview: UnknownStatementMappingPreview | None,
+    compatible_table_count: int,
+) -> MappingImportActionVM | None:
+    if preview is None or not preview.rows:
+        return None
+    label = "импортировать все страницы" if compatible_table_count > 1 else "импортировать строки"
+    return MappingImportActionVM(
+        form_action=document.import_url,
+        label=label,
+        icon="import",
+    )
 
 
 def mapping_table_options(

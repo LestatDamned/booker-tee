@@ -26,6 +26,7 @@ from app.features.imports.presentation.mapping import (
     MappingDocumentVM,
     MappingNextStepVM,
     build_mapping_page_context,
+    mapping_import_action,
     mapping_selected_table,
     mapping_table_options,
     mapping_warnings,
@@ -409,17 +410,18 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
     )
     templates = create_templates()
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+    document = MappingDocumentVM(
+        status_label="требует проверки",
+        filename=view.original_filename,
+        detail_url=f"/imports/documents/{view.id}",
+        preview_url=f"/imports/documents/{view.id}/mapping",
+        import_url=f"/imports/documents/{view.id}/mapping/import",
+    )
 
     html = templates.env.get_template("imports/mapping.html").render(
         app_name="Booker Tee",
         command=command,
-        document=MappingDocumentVM(
-            status_label="требует проверки",
-            filename=view.original_filename,
-            detail_url=f"/imports/documents/{view.id}",
-            preview_url=f"/imports/documents/{view.id}/mapping",
-            import_url=f"/imports/documents/{view.id}/mapping/import",
-        ),
+        document=document,
         mapping_next_step=MappingNextStepVM(
             title="Импортируйте строки",
             message=(
@@ -432,6 +434,11 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
         ),
         preview=preview,
         mapping_warnings=mapping_warnings(preview),
+        mapping_import_action=mapping_import_action(
+            document=document,
+            preview=preview,
+            compatible_table_count=14,
+        ),
         selected_table=table,
         selected_table_vm=mapping_selected_table(table, compatible_table_count=14),
         table_options=[table],
@@ -490,6 +497,60 @@ def test_mapping_warning_presentation_handles_known_and_unknown_codes() -> None:
     assert warnings[1].message == "unknown_warning"
 
 
+def test_mapping_import_action_presentation_matches_preview_scope() -> None:
+    document = MappingDocumentVM(
+        status_label="требует проверки",
+        filename="statement.pdf",
+        detail_url="/imports/documents/document-id",
+        preview_url="/imports/documents/document-id/mapping",
+        import_url="/imports/documents/document-id/mapping/import",
+    )
+    preview = UnknownStatementMappingPreview(
+        rows=[
+            UnknownStatementMappedRow(
+                page_number=1,
+                table_index=0,
+                source_row_number=1,
+                operation_date_raw="12.05.2026",
+                operation_date=date(2026, 5, 12),
+                description_raw="Оплата товаров",
+                description="Оплата товаров",
+                amount_raw="-842,00",
+                amount=Decimal("-842.00"),
+                currency_raw="RUB",
+                currency="RUB",
+                status="valid",
+                error="",
+            )
+        ]
+    )
+
+    single_table_action = mapping_import_action(
+        document=document,
+        preview=preview,
+        compatible_table_count=1,
+    )
+    multi_table_action = mapping_import_action(
+        document=document,
+        preview=preview,
+        compatible_table_count=14,
+    )
+
+    assert (
+        mapping_import_action(
+            document=document,
+            preview=None,
+            compatible_table_count=14,
+        )
+        is None
+    )
+    assert single_table_action is not None
+    assert single_table_action.label == "импортировать строки"
+    assert single_table_action.form_action == "/imports/documents/document-id/mapping/import"
+    assert multi_table_action is not None
+    assert multi_table_action.label == "импортировать все страницы"
+
+
 def test_mapping_page_context_prepares_document_contract() -> None:
     document_id = uuid4()
     view = ImportDocumentDetailView(
@@ -526,3 +587,4 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     assert values["selected_table_vm"] == page_context.selected_table_vm
     assert values["table_picker_options"] == page_context.table_picker_options
     assert values["mapping_warnings"] == page_context.warnings
+    assert values["mapping_import_action"] == page_context.import_action

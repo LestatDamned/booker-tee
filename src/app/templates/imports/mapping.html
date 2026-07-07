@@ -162,18 +162,14 @@
 
         <div id="mapping-import-actions" class="mapping-action-row">
           <button class="button" type="submit">{{ icon("list-check") }} показать предпросмотр</button>
-          {% if preview and preview.rows %}
+          {% if mapping_import_action %}
             <button
               class="button"
               type="submit"
-              formaction="{{ document.import_url }}"
+              formaction="{{ mapping_import_action.form_action }}"
             >
-              {{ icon("import") }}
-              {% if compatible_table_count and compatible_table_count > 1 %}
-                импортировать все страницы
-              {% else %}
-                импортировать строки
-              {% endif %}
+              {{ icon(mapping_import_action.icon) }}
+              {{ mapping_import_action.label }}
             </button>
           {% endif %}
         </div>
