@@ -8,9 +8,9 @@
     <div class="field form-field-wide mapping-form__table-field">
       <label>Таблица</label>
       <span class="field-note">Выбор таблицы обновит предпросмотр ниже.</span>
-      <div class="table-picker">
+      <div class="mapping-table-picker">
         {% for table in page.table_picker_options %}
-          <label class="table-picker-option {% if table.is_selected %}is-selected{% endif %}">
+          <label class="mapping-table-picker__option {% if table.is_selected %}mapping-table-picker__option--selected{% endif %}">
             <input
               type="radio"
               name="table_ref"
@@ -25,7 +25,7 @@
           </label>
         {% endfor %}
       </div>
-      <div class="table-picker-meta">
+      <div class="mapping-table-picker__meta">
         <span>{{ page.selected_table_vm.picker_meta }}</span>
         <span>{{ page.selected_table_vm.size_meta }}</span>
         <span>{{ page.selected_table_vm.import_scope_meta }}</span>

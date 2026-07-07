@@ -114,7 +114,8 @@ a {
 }
 
 .brand,
-.status-pill,
+.site-header__action,
+.site-header__menu-toggle,
 .nav-link,
 .eyebrow,
 .health-row {
@@ -130,32 +131,58 @@ a {
   text-transform: uppercase;
 }
 
-.status-pill {
+.site-header__action {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--border);
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
   padding: 0 14px;
-  color: var(--green);
+  color: var(--accent);
   text-decoration: none;
   text-transform: uppercase;
 }
 
-.mobile-menu-toggle {
+.site-header__action:hover {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-strong));
+  color: var(--text);
+}
+
+.site-header__action--primary {
+  border-color: color-mix(in srgb, var(--green) 62%, var(--border));
+  background: color-mix(in srgb, var(--green) 9%, var(--surface-strong));
+  color: var(--green);
+}
+
+.site-header__action--primary:hover {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 15%, var(--surface-strong));
+  color: var(--text);
+}
+
+.site-header__menu-toggle {
   min-height: 44px;
   display: none;
   align-items: center;
   gap: 8px;
   border: 1px solid var(--border);
-  background: transparent;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
   color: var(--accent);
   padding: 0 12px;
   cursor: pointer;
   font: inherit;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   text-transform: uppercase;
+}
+
+.site-header__menu-toggle:hover {
+  border-color: color-mix(in srgb, var(--accent) 56%, var(--border));
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-strong));
+  color: var(--text);
 }
 
 .primary-action {
@@ -1104,13 +1131,13 @@ input[type="checkbox"] {
   font-size: 0.86rem;
 }
 
-.table-picker {
+.mapping-table-picker {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, max-content));
   gap: 6px;
 }
 
-.table-picker-option {
+.mapping-table-picker__option {
   position: relative;
   min-width: 120px;
   min-height: 44px;
@@ -1127,7 +1154,7 @@ input[type="checkbox"] {
   cursor: pointer;
 }
 
-.table-picker-option input {
+.mapping-table-picker__option input {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1137,26 +1164,26 @@ input[type="checkbox"] {
   cursor: pointer;
 }
 
-.table-picker-option small {
+.mapping-table-picker__option small {
   color: var(--muted);
   font-size: 0.64rem;
   text-transform: uppercase;
 }
 
-.table-picker-option.is-selected {
+.mapping-table-picker__option--selected {
   border-color: color-mix(in srgb, var(--accent) 72%, var(--border));
   background: color-mix(in srgb, var(--accent) 12%, var(--surface-strong));
   color: var(--text);
 }
 
-.table-picker-meta {
+.mapping-table-picker__meta {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
 }
 
-.table-picker-meta span {
+.mapping-table-picker__meta span {
   border: 1px solid var(--border);
   padding: 3px 7px;
   color: var(--muted);
@@ -5074,7 +5101,7 @@ pre {
     padding-block: 8px;
   }
 
-  .mobile-menu-toggle {
+  .site-header__menu-toggle {
     display: inline-flex;
     grid-column: 2;
     grid-row: 1;
@@ -5095,7 +5122,7 @@ pre {
     padding: 6px 8px;
   }
 
-  .status-pill {
+  .site-header__action {
     grid-column: 2;
     grid-row: 2;
     justify-self: stretch;
