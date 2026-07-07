@@ -2,13 +2,13 @@
 {% from "components/next_step.html" import next_step %}
 {% from "imports/_workflow_steps.html" import workflow_steps %}
 
-{% block title %}Настройка импорта · {{ view.original_filename }} · {{ app_name }}{% endblock %}
+{% block title %}Настройка импорта · {{ document.filename }} · {{ app_name }}{% endblock %}
 
 {% block content %}
   <section class="panel stack import-workflow">
     <header class="import-page-header">
       <div class="import-page-title">
-        <p class="eyebrow">{{ view.status | ru }}</p>
+        <p class="eyebrow">{{ document.status_label }}</p>
         <h1>Настройка импорта</h1>
       </div>
       <div class="import-page-actions">
@@ -38,7 +38,7 @@
       {{ next_step(
         "Вернитесь к документу",
         "Таблицы для настройки не найдены. Проверьте детали парсинга или загрузите выписку заново.",
-        "/imports/documents/" ~ view.id,
+        document.detail_url,
         "открыть документ",
         "file-text",
         "/imports/upload",
@@ -61,7 +61,7 @@
     {% endif %}
 
     {% if table_options %}
-      <form id="mapping-form" class="form-panel mapping-form" method="post" action="/imports/documents/{{ view.id }}/mapping">
+      <form id="mapping-form" class="form-panel mapping-form" method="post" action="{{ document.preview_url }}">
         {{ csrf_input() }}
         <div class="field form-field-wide">
           <label>Таблица</label>
@@ -202,7 +202,7 @@
             <button
               class="button"
               type="submit"
-              formaction="/imports/documents/{{ view.id }}/mapping/import"
+              formaction="{{ document.import_url }}"
             >
               {{ icon("import") }}
               {% if compatible_table_count and compatible_table_count > 1 %}

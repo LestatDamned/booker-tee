@@ -22,6 +22,7 @@ from app.features.imports.models import (
     UploadedDocumentStatus,
 )
 from app.features.imports.presentation.document_page.presenter import DocumentDetailPresenter
+from app.features.imports.presentation.mapping import MappingDocumentVM, build_mapping_page_context
 from app.templating import create_templates
 
 
@@ -405,12 +406,18 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
     html = templates.env.get_template("imports/mapping.html").render(
         app_name="Booker Tee",
         command=command,
+        document=MappingDocumentVM(
+            status_label="требует проверки",
+            filename=view.original_filename,
+            detail_url=f"/imports/documents/{view.id}",
+            preview_url=f"/imports/documents/{view.id}/mapping",
+            import_url=f"/imports/documents/{view.id}/mapping/import",
+        ),
         preview=preview,
         selected_table=table,
         table_options=[table],
         compatible_table_count=14,
         mapping_templates=[],
-        view=view,
     )
 
     assert "Настройка импорта" in html
@@ -436,3 +443,34 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
     assert "12.05.2026" in html
     assert "-842.00" in html
     assert "Оплата товаров по карте" in html
+
+
+def test_mapping_page_context_prepares_document_contract() -> None:
+    document_id = uuid4()
+    view = ImportDocumentDetailView(
+        id=document_id,
+        original_filename="ozonbank_card_statement.pdf",
+        status=UploadedDocumentStatus.REQUIRES_REVIEW,
+        sha256_hash="a" * 64,
+        storage_key=f"workspace/{document_id}/ozonbank_card_statement.pdf",
+        bank_name="Ozon Bank",
+        statement_type="card_statement",
+        account=None,
+        raw_transactions=[],
+        parse_attempts=[],
+        validation={"status": "needs_mapping", "table_previews": []},
+    )
+
+    page_context = build_mapping_page_context(
+        view=view,
+        default_currency="RUB",
+        mapping_templates=[],
+    )
+    values = page_context.template_values(app_name="Booker Tee", workspace=object())
+
+    assert "view" not in values
+    assert page_context.document.status_label == "требует проверки"
+    assert page_context.document.filename == "ozonbank_card_statement.pdf"
+    assert page_context.document.detail_url == f"/imports/documents/{document_id}"
+    assert page_context.document.preview_url == f"/imports/documents/{document_id}/mapping"
+    assert page_context.document.import_url == f"/imports/documents/{document_id}/mapping/import"

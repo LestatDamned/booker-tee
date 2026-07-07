@@ -64,7 +64,6 @@ async def document_mapping_form(
         "imports/mapping.html",
         page_context.template_values(
             app_name=settings.app_name,
-            view=view,
             workspace=context.workspace,
         ),
     )
@@ -125,7 +124,6 @@ async def preview_document_mapping(
         "imports/mapping.html",
         page_context.template_values(
             app_name=settings.app_name,
-            view=view,
             workspace=context.workspace,
         ),
     )

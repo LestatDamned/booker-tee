@@ -18,7 +18,7 @@ from app.features.imports.application.unknown_statement_mappings.ui_defaults imp
     default_mapping_command,
     preview_table_options,
 )
-from app.features.imports.models import ImportMappingTemplate
+from app.features.imports.models import ImportMappingTemplate, UploadedDocumentStatus
 
 
 class MappingPresentationError(ValueError):
@@ -26,7 +26,17 @@ class MappingPresentationError(ValueError):
 
 
 @dataclass(frozen=True)
+class MappingDocumentVM:
+    status_label: str
+    filename: str
+    detail_url: str
+    preview_url: str
+    import_url: str
+
+
+@dataclass(frozen=True)
 class MappingPageContext:
+    document: MappingDocumentVM
     command: UnknownStatementMappingCommand
     preview: UnknownStatementMappingPreview | None
     selected_table: dict[str, object]
@@ -38,18 +48,17 @@ class MappingPageContext:
         self,
         *,
         app_name: str,
-        view: ImportDocumentDetailView,
         workspace: object,
     ) -> dict[str, object]:
         return {
             "app_name": app_name,
             "command": self.command,
+            "document": self.document,
             "preview": self.preview,
             "selected_table": self.selected_table,
             "table_options": self.table_options,
             "compatible_table_count": self.compatible_table_count,
             "mapping_templates": self.mapping_templates,
-            "view": view,
             "workspace": workspace,
         }
 
@@ -102,6 +111,7 @@ def mapping_page_context_from_command(
     raw_tables = latest_raw_tables(view)
     table_options = preview_table_options(view.validation)
     return MappingPageContext(
+        document=mapping_document(view),
         command=command,
         preview=preview,
         selected_table=selected_mapping_table(table_options, command),
@@ -114,6 +124,31 @@ def mapping_page_context_from_command(
 def latest_raw_tables(view: ImportDocumentDetailView) -> list[dict[str, object]] | None:
     latest_attempt = view.parse_attempts[0] if view.parse_attempts else None
     return latest_attempt.raw_tables if latest_attempt else None
+
+
+def mapping_document(view: ImportDocumentDetailView) -> MappingDocumentVM:
+    document_url = f"/imports/documents/{view.id}"
+    return MappingDocumentVM(
+        status_label=mapping_document_status_label(view.status),
+        filename=view.original_filename,
+        detail_url=document_url,
+        preview_url=f"{document_url}/mapping",
+        import_url=f"{document_url}/mapping/import",
+    )
+
+
+def mapping_document_status_label(status: UploadedDocumentStatus) -> str:
+    labels = {
+        UploadedDocumentStatus.UPLOADED: "загружено",
+        UploadedDocumentStatus.PENDING_PARSE: "ожидает парсинга",
+        UploadedDocumentStatus.PARSING: "парсинг",
+        UploadedDocumentStatus.PARSED: "распознано",
+        UploadedDocumentStatus.REQUIRES_REVIEW: "требует проверки",
+        UploadedDocumentStatus.FAILED_TO_PARSE: "ошибка парсинга",
+        UploadedDocumentStatus.IMPORTED: "импортировано",
+        UploadedDocumentStatus.IGNORED: "игнорируется",
+    }
+    return labels.get(status, status.value)
 
 
 def parse_table_ref(value: str) -> tuple[int, int]:
