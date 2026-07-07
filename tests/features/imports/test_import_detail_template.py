@@ -134,7 +134,7 @@ def test_import_detail_template_keeps_failed_parse_page_compact() -> None:
     assert f'<td class="status">{attempt_id}</td>' not in html
 
 
-def test_import_detail_raw_transactions_are_money_first_and_use_ru_date() -> None:
+def test_import_detail_raw_transactions_use_review_like_topline_and_ru_date() -> None:
     parse_attempt_id = uuid4()
     view = ImportDocumentDetailView(
         id=uuid4(),
@@ -164,12 +164,15 @@ def test_import_detail_raw_transactions_are_money_first_and_use_ru_date() -> Non
     html = render_import_detail(view)
 
     assert "raw-transaction-head" in html
+    assert "import-raw-row__topline" in html
+    assert "import-raw-row__amount" in html
     assert "26.05.2026" in html
     assert "2026-05-26" not in html
     assert "Технические детали</summary>" not in html
     assert "ID строки" in html
-    assert html.index("-2509.00") < html.index("26.05.2026")
-    assert html.index("-2509.00") < html.index("нормализовано")
+    assert html.index("#0") < html.index("26.05.2026")
+    assert html.index("26.05.2026") < html.index("-2509.00")
+    assert html.index("нормализовано") < html.index("-2509.00")
 
 
 def test_import_detail_template_shows_unknown_statement_mapping_preview() -> None:

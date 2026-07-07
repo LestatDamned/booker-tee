@@ -278,10 +278,92 @@ p {
   gap: 16px;
 }
 
-.import-document-page .import-page-header {
-  align-items: center;
+.import-document-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: 16px;
+  align-items: start;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  padding-bottom: 14px;
+  padding-bottom: 16px;
+}
+
+.import-document-hero__main {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.import-document-hero__actions {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.import-document-hero__actions .button,
+.import-document-hero__actions details,
+.import-document-hero__actions details summary {
+  width: 100%;
+}
+
+.import-document-hero__actions .import-more-actions {
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-strong) 42%, transparent);
+}
+
+.import-document-hero__actions .import-more-actions summary {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 0 11px;
+}
+
+.import-document-hero__actions .import-more-actions summary::after,
+.import-document-hero__actions .import-more-actions[open] summary::after {
+  content: none;
+}
+
+.import-document-hero__actions .import-more-actions[open] summary {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+}
+
+.import-document-hero__actions .action-menu {
+  position: static;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.import-document-next-step {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--green) 48%, var(--border));
+  border-left: 3px solid var(--green);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--green) 10%, var(--surface-strong));
+  padding: 12px;
+}
+
+.import-document-next-step .eyebrow {
+  margin: 0;
+}
+
+.import-document-next-step strong {
+  color: var(--text);
+  font-size: 0.98rem;
+}
+
+.import-document-next-step span {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.import-document-next-step .button {
+  margin-top: 2px;
+  justify-content: center;
 }
 
 .import-page-title {
@@ -1976,13 +2058,6 @@ input[type="checkbox"] {
   background: color-mix(in srgb, var(--accent) 10%, var(--surface-strong));
 }
 
-.import-document-page .next-step-panel {
-  border-left-width: 3px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--help) 9%, var(--surface));
-  padding: 14px 16px;
-}
-
 .review-control-totals {
   border-top: 1px solid var(--border);
   padding-top: 10px;
@@ -2739,13 +2814,13 @@ pre {
 }
 
 .import-raw-row {
-  grid-template-columns: minmax(170px, 0.28fr) minmax(0, 1fr);
-  gap: 0;
-  border-left-width: 0;
+  display: grid;
+  gap: 10px;
+  border-left-width: 3px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 86%, transparent);
   overflow: hidden;
-  padding: 0;
+  padding: 12px;
 }
 
 .import-raw-row--income {
@@ -2756,30 +2831,46 @@ pre {
   border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
 }
 
-.import-raw-row__facts {
+.import-raw-row__topline {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 7px;
-  align-content: start;
-  border-right: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
-  background: color-mix(in srgb, var(--surface-strong) 56%, transparent);
-  padding: 12px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 12px;
+  align-items: center;
+  justify-content: stretch;
+}
+
+.import-raw-row__meta {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 .import-raw-row__amount {
-  width: 100%;
-  justify-content: space-between;
+  min-height: 36px;
+  justify-self: end;
+  justify-content: flex-end;
+  border-radius: 6px;
   background: color-mix(in srgb, currentColor 5%, transparent);
+  white-space: nowrap;
 }
 
 .import-raw-row__date,
 .import-raw-row__status,
 .import-raw-row__index {
-  min-height: 28px;
+  min-height: auto;
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
 }
 
 .import-raw-row__body {
@@ -2787,14 +2878,14 @@ pre {
   display: grid;
   gap: 9px;
   align-content: start;
-  padding: 13px 14px;
 }
 
 .import-raw-row__description {
   max-width: none;
   margin: 0;
   color: var(--text);
-  font-size: 0.98rem;
+  font-size: 1.02rem;
+  font-weight: 640;
   line-height: 1.45;
 }
 
@@ -4707,6 +4798,10 @@ pre {
     grid-template-columns: 1fr;
   }
 
+  .import-document-hero {
+    grid-template-columns: 1fr;
+  }
+
   .import-document-summary {
     grid-template-columns: 1fr;
   }
@@ -4913,14 +5008,8 @@ pre {
     grid-template-columns: 1fr auto;
   }
 
-  .import-raw-row {
+  .import-raw-row__topline {
     grid-template-columns: 1fr;
-  }
-
-  .import-raw-row__facts {
-    grid-template-columns: minmax(0, 1fr) auto;
-    border-right: 0;
-    border-bottom: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
   }
 
   .raw-transaction-amount {
