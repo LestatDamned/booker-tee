@@ -42,52 +42,41 @@
       </div>
     {% endif %}
 
-    {% if table_options %}
+    {% if table_picker_options %}
       <form id="mapping-form" class="form-panel mapping-form" method="post" action="{{ document.preview_url }}">
         {{ csrf_input() }}
         <div class="field form-field-wide">
           <label>Таблица</label>
           <span class="field-note">Выбор таблицы обновит предпросмотр ниже.</span>
           <div class="table-picker">
-            {% for table in table_options %}
-              {% set table_ref = table.page_number ~ ":" ~ table.table_index %}
-              {% set selected_ref = command.page_number ~ ":" ~ command.table_index %}
-              <label class="table-picker-option {% if table_ref == selected_ref %}is-selected{% endif %}">
+            {% for table in table_picker_options %}
+              <label class="table-picker-option {% if table.is_selected %}is-selected{% endif %}">
                 <input
                   type="radio"
                   name="table_ref"
-                  value="{{ table_ref }}"
-                  {% if table_ref == selected_ref %}checked{% endif %}
+                  value="{{ table.value }}"
+                  {% if table.is_selected %}checked{% endif %}
                   onchange="this.form.submit()"
                 >
-                <span>{{ table.page_number }}</span>
-                {% if table.table_index %}
-                  <small>{{ table.table_index + 1 }}</small>
+                <span>{{ table.page_label }}</span>
+                {% if table.table_label %}
+                  <small>{{ table.table_label }}</small>
                 {% endif %}
               </label>
             {% endfor %}
           </div>
           <div class="table-picker-meta">
-            {% if selected_table.source_type == "text_candidate" %}
-              <span>выбрана страница {{ selected_table.page_number }} · строки из текста</span>
-            {% else %}
-              <span>выбрана страница {{ selected_table.page_number }} · таблица {{ selected_table.table_index + 1 }}</span>
-            {% endif %}
-            <span>{{ selected_table.row_count }} строк · {{ selected_table.column_count }} колонок</span>
-            {% if compatible_table_count and compatible_table_count > 1 %}
-              <span>импорт: {{ compatible_table_count }} таблиц по этой схеме</span>
-            {% else %}
-              <span>импорт: только выбранная таблица</span>
-            {% endif %}
+            <span>{{ selected_table_vm.picker_meta }}</span>
+            <span>{{ selected_table_vm.size_meta }}</span>
+            <span>{{ selected_table_vm.import_scope_meta }}</span>
           </div>
         </div>
 
         <div class="field">
           <label for="operation_date_column">Дата</label>
           <select id="operation_date_column" name="operation_date_column">
-            {% for index in range(selected_table.column_count or 0) %}
-              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
-              <option value="{{ index }}" {% if command.operation_date_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% for option in selected_table_vm.column_options %}
+              <option value="{{ option.index }}" {% if command.operation_date_column == option.index %}selected{% endif %}>{{ option.label }}</option>
             {% endfor %}
           </select>
         </div>
@@ -96,9 +85,8 @@
           <label for="posting_date_column">Дата проводки</label>
           <select id="posting_date_column" name="posting_date_column">
             <option value="-1" {% if command.posting_date_column is none %}selected{% endif %}>не используется</option>
-            {% for index in range(selected_table.column_count or 0) %}
-              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
-              <option value="{{ index }}" {% if command.posting_date_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% for option in selected_table_vm.column_options %}
+              <option value="{{ option.index }}" {% if command.posting_date_column == option.index %}selected{% endif %}>{{ option.label }}</option>
             {% endfor %}
           </select>
         </div>
@@ -106,9 +94,8 @@
         <div class="field">
           <label for="description_column">Описание</label>
           <select id="description_column" name="description_column">
-            {% for index in range(selected_table.column_count or 0) %}
-              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
-              <option value="{{ index }}" {% if command.description_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% for option in selected_table_vm.column_options %}
+              <option value="{{ option.index }}" {% if command.description_column == option.index %}selected{% endif %}>{{ option.label }}</option>
             {% endfor %}
           </select>
         </div>
@@ -117,9 +104,8 @@
           <label for="amount_column">Сумма</label>
           <select id="amount_column" name="amount_column">
             <option value="-1" {% if command.amount_column is none %}selected{% endif %}>нет единой колонки</option>
-            {% for index in range(selected_table.column_count or 0) %}
-              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
-              <option value="{{ index }}" {% if command.amount_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% for option in selected_table_vm.column_options %}
+              <option value="{{ option.index }}" {% if command.amount_column == option.index %}selected{% endif %}>{{ option.label }}</option>
             {% endfor %}
           </select>
         </div>
@@ -128,9 +114,8 @@
           <label for="debit_amount_column">Списание</label>
           <select id="debit_amount_column" name="debit_amount_column">
             <option value="-1" {% if command.debit_amount_column is none %}selected{% endif %}>не используется</option>
-            {% for index in range(selected_table.column_count or 0) %}
-              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
-              <option value="{{ index }}" {% if command.debit_amount_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% for option in selected_table_vm.column_options %}
+              <option value="{{ option.index }}" {% if command.debit_amount_column == option.index %}selected{% endif %}>{{ option.label }}</option>
             {% endfor %}
           </select>
         </div>
@@ -139,9 +124,8 @@
           <label for="credit_amount_column">Зачисление</label>
           <select id="credit_amount_column" name="credit_amount_column">
             <option value="-1" {% if command.credit_amount_column is none %}selected{% endif %}>не используется</option>
-            {% for index in range(selected_table.column_count or 0) %}
-              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
-              <option value="{{ index }}" {% if command.credit_amount_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% for option in selected_table_vm.column_options %}
+              <option value="{{ option.index }}" {% if command.credit_amount_column == option.index %}selected{% endif %}>{{ option.label }}</option>
             {% endfor %}
           </select>
         </div>
@@ -150,9 +134,8 @@
           <label for="currency_column">Валюта</label>
           <select id="currency_column" name="currency_column">
             <option value="-1" {% if command.currency_column is none %}selected{% endif %}>по умолчанию</option>
-            {% for index in range(selected_table.column_count or 0) %}
-              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
-              <option value="{{ index }}" {% if command.currency_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% for option in selected_table_vm.column_options %}
+              <option value="{{ option.index }}" {% if command.currency_column == option.index %}selected{% endif %}>{{ option.label }}</option>
             {% endfor %}
           </select>
         </div>
@@ -161,9 +144,8 @@
           <label for="balance_after_column">Остаток после</label>
           <select id="balance_after_column" name="balance_after_column">
             <option value="-1" {% if command.balance_after_column is none %}selected{% endif %}>не используется</option>
-            {% for index in range(selected_table.column_count or 0) %}
-              {% set header = selected_table.rows[0][index] if selected_table.rows and selected_table.rows[0]|length > index else "Колонка " ~ (index + 1) %}
-              <option value="{{ index }}" {% if command.balance_after_column == index %}selected{% endif %}>{{ index + 1 }} · {{ header }}</option>
+            {% for option in selected_table_vm.column_options %}
+              <option value="{{ option.index }}" {% if command.balance_after_column == option.index %}selected{% endif %}>{{ option.label }}</option>
             {% endfor %}
           </select>
         </div>
@@ -198,11 +180,7 @@
       </form>
 
       {% if selected_table %}
-        {% if selected_table.source_type == "text_candidate" %}
-          <h2 class="status">Выбранные строки из текста: страница {{ selected_table.page_number }}</h2>
-        {% else %}
-          <h2 class="status">Выбранная таблица: страница {{ selected_table.page_number }} · таблица {{ selected_table.table_index + 1 }}</h2>
-        {% endif %}
+        <h2 class="status">{{ selected_table_vm.title }}</h2>
         {% if selected_table.mapping_suggestions %}
           {% set suggestion = selected_table.mapping_suggestions[0] %}
           {% include "imports/_mapping_suggestion.html" %}

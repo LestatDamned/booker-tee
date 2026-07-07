@@ -575,6 +575,7 @@ def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
             "table_index": 0,
         },
         table_options=[],
+        table_picker_options=[],
         compatible_table_count=0,
         mapping_templates=[],
     )

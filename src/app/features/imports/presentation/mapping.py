@@ -1,3 +1,4 @@
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from app.features.imports.application.documents.detail_view import ImportDocumentDetailView
@@ -47,13 +48,38 @@ class MappingNextStepVM:
 
 
 @dataclass(frozen=True)
+class MappingTableOptionVM:
+    value: str
+    page_label: str
+    table_label: str | None
+    is_selected: bool
+
+
+@dataclass(frozen=True)
+class MappingColumnOptionVM:
+    index: int
+    label: str
+
+
+@dataclass(frozen=True)
+class MappingSelectedTableVM:
+    title: str
+    picker_meta: str
+    size_meta: str
+    import_scope_meta: str
+    column_options: list[MappingColumnOptionVM]
+
+
+@dataclass(frozen=True)
 class MappingPageContext:
     document: MappingDocumentVM
     next_step: MappingNextStepVM
     command: UnknownStatementMappingCommand
     preview: UnknownStatementMappingPreview | None
     selected_table: dict[str, object]
+    selected_table_vm: MappingSelectedTableVM
     table_options: list[dict[str, object]]
+    table_picker_options: list[MappingTableOptionVM]
     compatible_table_count: int
     mapping_templates: list[ImportMappingTemplate]
 
@@ -70,7 +96,9 @@ class MappingPageContext:
             "mapping_next_step": self.next_step,
             "preview": self.preview,
             "selected_table": self.selected_table,
+            "selected_table_vm": self.selected_table_vm,
             "table_options": self.table_options,
+            "table_picker_options": self.table_picker_options,
             "compatible_table_count": self.compatible_table_count,
             "mapping_templates": self.mapping_templates,
             "workspace": workspace,
@@ -124,6 +152,8 @@ def mapping_page_context_from_command(
 ) -> MappingPageContext:
     raw_tables = latest_raw_tables(view)
     table_options = preview_table_options(view.validation)
+    selected_table = selected_mapping_table(table_options, command)
+    compatible_table_count = compatible_mapping_table_count(raw_tables, command)
     document = mapping_document(view)
     return MappingPageContext(
         document=document,
@@ -134,9 +164,14 @@ def mapping_page_context_from_command(
         ),
         command=command,
         preview=preview,
-        selected_table=selected_mapping_table(table_options, command),
+        selected_table=selected_table,
+        selected_table_vm=mapping_selected_table(
+            selected_table,
+            compatible_table_count=compatible_table_count,
+        ),
         table_options=table_options,
-        compatible_table_count=compatible_mapping_table_count(raw_tables, command),
+        table_picker_options=mapping_table_options(table_options, command),
+        compatible_table_count=compatible_table_count,
         mapping_templates=mapping_templates,
     )
 
@@ -181,6 +216,97 @@ def mapping_next_step(
         secondary_label="загрузить заново",
         secondary_icon="upload",
     )
+
+
+def mapping_table_options(
+    table_options: Sequence[Mapping[str, object]],
+    command: UnknownStatementMappingCommand,
+) -> list[MappingTableOptionVM]:
+    return [mapping_table_option(table, command) for table in table_options]
+
+
+def mapping_table_option(
+    table: Mapping[str, object],
+    command: UnknownStatementMappingCommand,
+) -> MappingTableOptionVM:
+    page_number = int_table_value(table, "page_number", default=1)
+    table_index = int_table_value(table, "table_index", default=0)
+    return MappingTableOptionVM(
+        value=f"{page_number}:{table_index}",
+        page_label=str(page_number),
+        table_label=str(table_index + 1) if table_index else None,
+        is_selected=page_number == command.page_number and table_index == command.table_index,
+    )
+
+
+def mapping_selected_table(
+    table: Mapping[str, object],
+    *,
+    compatible_table_count: int,
+) -> MappingSelectedTableVM:
+    if not table:
+        return MappingSelectedTableVM(
+            title="",
+            picker_meta="",
+            size_meta="",
+            import_scope_meta="",
+            column_options=[],
+        )
+
+    page_number = int_table_value(table, "page_number", default=1)
+    table_index = int_table_value(table, "table_index", default=0)
+    row_count = int_table_value(table, "row_count", default=0)
+    column_count = int_table_value(table, "column_count", default=0)
+
+    if table.get("source_type") == "text_candidate":
+        title = f"Выбранные строки из текста: страница {page_number}"
+        picker_meta = f"выбрана страница {page_number} · строки из текста"
+    else:
+        title = f"Выбранная таблица: страница {page_number} · таблица {table_index + 1}"
+        picker_meta = f"выбрана страница {page_number} · таблица {table_index + 1}"
+
+    import_scope_meta = (
+        f"импорт: {compatible_table_count} таблиц по этой схеме"
+        if compatible_table_count > 1
+        else "импорт: только выбранная таблица"
+    )
+    return MappingSelectedTableVM(
+        title=title,
+        picker_meta=picker_meta,
+        size_meta=f"{row_count} строк · {column_count} колонок",
+        import_scope_meta=import_scope_meta,
+        column_options=mapping_column_options(table),
+    )
+
+
+def mapping_column_options(table: Mapping[str, object]) -> list[MappingColumnOptionVM]:
+    column_count = int_table_value(table, "column_count", default=0)
+    return [
+        MappingColumnOptionVM(
+            index=index,
+            label=f"{index + 1} · {mapping_column_header(table, index)}",
+        )
+        for index in range(column_count)
+    ]
+
+
+def mapping_column_header(table: Mapping[str, object], index: int) -> str:
+    rows = table.get("rows")
+    if isinstance(rows, list) and rows and isinstance(rows[0], list) and len(rows[0]) > index:
+        return str(rows[0][index])
+    return f"Колонка {index + 1}"
+
+
+def int_table_value(table: Mapping[str, object], key: str, *, default: int) -> int:
+    value = table.get(key)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return default
+    return default
 
 
 def latest_raw_tables(view: ImportDocumentDetailView) -> list[dict[str, object]] | None:

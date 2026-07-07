@@ -26,6 +26,8 @@ from app.features.imports.presentation.mapping import (
     MappingDocumentVM,
     MappingNextStepVM,
     build_mapping_page_context,
+    mapping_selected_table,
+    mapping_table_options,
 )
 from app.templating import create_templates
 
@@ -429,7 +431,9 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
         ),
         preview=preview,
         selected_table=table,
+        selected_table_vm=mapping_selected_table(table, compatible_table_count=14),
         table_options=[table],
+        table_picker_options=mapping_table_options([table], command),
         compatible_table_count=14,
         mapping_templates=[],
     )
@@ -492,3 +496,5 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     assert page_context.next_step.primary_href == f"/imports/documents/{document_id}"
     assert page_context.next_step.secondary_href == "/imports/upload"
     assert values["mapping_next_step"] == page_context.next_step
+    assert values["selected_table_vm"] == page_context.selected_table_vm
+    assert values["table_picker_options"] == page_context.table_picker_options
