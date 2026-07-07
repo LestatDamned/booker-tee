@@ -1460,12 +1460,12 @@ review-actions__danger
 | 9 | Mostly covered | HTMX response renderer and template tests cover row/OOB refresh and category-create refresh. `scripts/ui_audit.py --scenario review_interactions` covers panel opening/category refresh and one visible drawer. Full browser coverage for every listed action, especially transfer submit, should remain a follow-up. |
 | 10 | Closed | Alpine state uses one `activePanel` per item; UI audit checks that opening a panel leaves exactly one visible drawer. |
 | 11 | Closed | Existing review template tests were adapted and expanded around VM rendering and action response values. |
-| 12 | Partial | Unit/template tests cover visual state, confirmability, action policy, operation type source labels and panel behavior. Dedicated tests for a named `transfer_preview` VM field are not applicable yet because `TransferPanelPayload` does not expose that field explicitly. |
+| 12 | Closed | Unit/template tests cover visual state, confirmability, action policy, operation type source labels, panel behavior and `transfer_preview` rendering. |
 | 13 | Closed | First slice changed presentation/templates/routes composition only; no DB enum/model/posting URL behavior was intentionally changed. |
 | 14 | Closed | `ready_to_confirm` is produced by `ReviewStateResolver`; `RawTransaction.status` remains unchanged. Covered by `test_ready_to_confirm_is_presentation_only_state`. |
 | 15 | Closed | `ReviewConfirmabilityPolicy` rejects income/expense without a real category, including uncategorized fallback. |
 | 16 | Closed | `ReviewConfirmabilityPolicy` requires source account, counterparty account, and different accounts for transfer. |
-| 17 | Partial | Linked transfer summaries show route direction (`source -> counterparty`). The transfer edit panel does not yet expose a first-class `transfer_preview` field as described in the aspirational payload sketch. |
+| 17 | Closed | `TransferPanelPayload.transfer_preview` exposes a server-built route label. Positive raw rows preview as `выбери счет -> счет выписки`; negative rows preview as `счет выписки -> выбери счет`. |
 | 18 | Closed | Date is in the top line via `review-date-chip`; covered by template assertions around `review-topline`. |
 | 19 | Closed | Row index is small meta; raw id is not surfaced as primary content; technical details do not compete with money/date/description in the current item layout. |
 | 20 | Accepted debt | Stabilized new parts use `review-panel__*`, `review-actions__*`, and `review-item--vm`. Older inner classes (`review-main`, `review-meta`, `review-topline`) remain as an explicit compatibility layer until the next UI touch point. |

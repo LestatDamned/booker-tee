@@ -76,6 +76,14 @@ class TransferMatchOptionVM:
 
 
 @dataclass(frozen=True)
+class TransferPreviewVM:
+    title: str
+    route_label: str
+    source_account_label: str
+    destination_account_label: str
+
+
+@dataclass(frozen=True)
 class CategoryPanelPayload:
     action_url: str
     create_category_url: str
@@ -92,6 +100,7 @@ class CategoryPanelPayload:
 @dataclass(frozen=True)
 class TransferPanelPayload:
     action_url: str
+    transfer_preview: TransferPreviewVM
     account_options: Sequence[TransferAccountOptionVM]
     match_options: Sequence[TransferMatchOptionVM]
     empty_match_message: str | None
@@ -223,10 +232,14 @@ class ReviewValidationSummaryVM:
     currency: object
     calculated_total_inflow: object
     calculated_total_outflow: object
+    ignored_total_inflow: object
+    ignored_total_outflow: object
     statement_total_inflow: object
     statement_total_outflow: object
     inflow_difference: object
     outflow_difference: object
+    unexplained_inflow_difference: object
+    unexplained_outflow_difference: object
     control_total_rows: Sequence[ReviewControlTotalRowVM]
     warning_message: str | None
 

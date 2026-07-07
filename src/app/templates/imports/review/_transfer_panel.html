@@ -19,6 +19,10 @@
       name="matched_operation_id"
       :value="transferMatch.startsWith('operation:') ? transferMatch.slice(10) : ''"
     >
+    <div class="review-transfer-preview">
+      <span class="review-transfer-preview__label">{{ payload.transfer_preview.title }}</span>
+      <strong class="review-transfer-preview__route">{{ payload.transfer_preview.route_label }}</strong>
+    </div>
     <div class="review-panel-grid review-transfer-grid">
       <label class="field">
         <span>Счет перевода</span>

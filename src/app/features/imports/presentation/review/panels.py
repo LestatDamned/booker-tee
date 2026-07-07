@@ -12,6 +12,7 @@ from app.features.imports.presentation.review.models import (
     TransferAccountOptionVM,
     TransferMatchOptionVM,
     TransferPanelPayload,
+    TransferPreviewVM,
 )
 from app.features.imports.presentation.review.references import ReviewReferenceResolver
 
@@ -122,6 +123,7 @@ class ReviewPanelPresenter:
                 f"/imports/documents/{ReviewReferenceResolver.required_id(self.document)}"
                 f"/raw-transactions/{row_id}/status"
             ),
+            transfer_preview=self.transfer_preview(row, source_account_id),
             account_options=[
                 TransferAccountOptionVM(
                     id=ReviewReferenceResolver.required_id(account),
@@ -141,6 +143,41 @@ class ReviewPanelPresenter:
             empty_match_message=self.empty_transfer_match_message(match_options),
             manual_operation_note=self.manual_operation_note(match_options),
         )
+
+    def transfer_preview(
+        self,
+        row: object,
+        statement_account_id: UUID | None,
+    ) -> TransferPreviewVM:
+        statement_account_label = self.account_label_by_id(statement_account_id)
+        counterparty_placeholder = "выбери счет"
+        amount = getattr(row, "amount", None)
+        if isinstance(amount, Decimal) and amount > 0:
+            source_label = counterparty_placeholder
+            destination_label = statement_account_label
+        else:
+            source_label = statement_account_label
+            destination_label = counterparty_placeholder
+        return TransferPreviewVM(
+            title="Направление",
+            route_label=f"{source_label} -> {destination_label}",
+            source_account_label=source_label,
+            destination_account_label=destination_label,
+        )
+
+    def account_label_by_id(self, account_id: UUID | None) -> str:
+        if account_id is None:
+            return "счет выписки"
+        account = next(
+            (item for item in self.accounts if getattr(item, "id", None) == account_id),
+            None,
+        )
+        if account is not None:
+            return str(getattr(account, "name", "счет выписки"))
+        document_account = getattr(self.document, "account", None)
+        if getattr(document_account, "id", None) == account_id:
+            return str(getattr(document_account, "name", "счет выписки"))
+        return "счет выписки"
 
     def empty_transfer_match_message(
         self,

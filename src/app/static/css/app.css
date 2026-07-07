@@ -1938,7 +1938,7 @@ input[type="checkbox"] {
 
 .review-control-total-row {
   display: grid;
-  grid-template-columns: minmax(74px, 0.42fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(74px, 0.42fr) repeat(4, minmax(0, 1fr));
   gap: 6px;
   align-items: stretch;
 }
@@ -1980,6 +1980,18 @@ input[type="checkbox"] {
   overflow-wrap: anywhere;
   font-size: 0.86rem;
   line-height: 1.15;
+}
+
+.amount-excluded {
+  color: var(--muted);
+}
+
+.amount-balanced {
+  color: var(--green);
+}
+
+.amount-unexplained {
+  color: var(--warning);
 }
 
 .review-validation-message {
@@ -3612,6 +3624,33 @@ pre {
   grid-template-columns: minmax(0, 1fr) max-content;
   gap: 8px;
   align-items: end;
+}
+
+.review-transfer-preview {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-left: 2px solid color-mix(in srgb, var(--accent) 72%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  padding: 8px 10px;
+}
+
+.review-transfer-preview__label {
+  color: var(--accent);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.review-transfer-preview__route {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-weight: 720;
 }
 
 .review-panel-rule-row {

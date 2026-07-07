@@ -722,8 +722,11 @@ def test_review_template_shows_readable_transfer_candidate_labels() -> None:
 
     assert "Счет перевода" in html
     assert "Связать с" in html
+    assert "Направление" in html
+    assert "счет выписки -&gt; выбери счет" in html
     assert "создать новый перевод на выбранный счет" in html
     assert "review-transfer-panel-body" in html
+    assert "review-transfer-preview" in html
     assert "review-transfer-grid" in html
     assert "review-panel-footer" in html
     assert "строка выписки" in html
@@ -777,6 +780,7 @@ def test_review_transfer_panel_does_not_offer_source_account_as_counterparty() -
 
     assert f'<option value="{source_account_id}">Основная карта</option>' not in html
     assert f'<option value="{counterparty_account_id}">Накопительный счет</option>' in html
+    assert "Основная карта -&gt; выбери счет" in html
     assert "Подходящих строк выписки или ручных переводов не найдено." in html
     assert "Нет подходящих строк выписки или ручных переводов." in html
     assert "Ручной доход или расход сначала нужно исправить на перевод." in html
@@ -841,6 +845,7 @@ def test_review_transfer_panel_shows_candidate_with_document_account() -> None:
 
     assert f'<option value="{expobank_account_id}">Экспобанк карта</option>' not in html
     assert f'<option value="{vtb_account_id}">ВТБ вклад</option>' in html
+    assert "выбери счет -&gt; Экспобанк карта" in html
     assert f'data-account-id="{vtb_account_id}"' in html
     assert "строка выписки" in html
     assert "ВТБ вклад" in html
