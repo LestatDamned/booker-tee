@@ -14,7 +14,7 @@ from app.features.imports.models import (
     RawTransactionStatus,
     UploadedDocumentStatus,
 )
-from app.features.imports.presentation.document_detail import DocumentDetailPresenter
+from app.features.imports.presentation.document_page.presenter import DocumentDetailPresenter
 
 
 def document_view(

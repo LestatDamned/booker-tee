@@ -1,160 +1,47 @@
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from datetime import datetime
-from decimal import Decimal
 from typing import cast
-from uuid import UUID
 
-from app.features.accounts.models import AccountType
 from app.features.imports.mapping.dto import (
     ImportDocumentDetailView,
     ImportParseAttemptView,
     ImportRawTransactionRow,
 )
-from app.features.imports.models import (
-    ParseAttemptStatus,
-    RawTransactionStatus,
-    UploadedDocumentStatus,
+from app.features.imports.models import UploadedDocumentStatus
+from app.features.imports.presentation.document_page.formatting import (
+    account_type_label,
+    document_status_label,
+    int_value,
+    mapping_field_label,
+    money_tone,
+    money_value,
+    optional_int_value,
+    parse_attempt_status_label,
+    parser_label,
+    raw_transaction_status_label,
+    statement_type_label,
+    string_value,
+    table_row_count_label,
+    table_rows,
+    table_source_label,
+    validation_status_label,
 )
-
-
-@dataclass(frozen=True)
-class DocumentDetailWorkflowVM:
-    upload: str
-    extract: str
-    mapping: str
-    review: str
-    ledger: str
-
-
-@dataclass(frozen=True)
-class DocumentDetailNextStepVM:
-    title: str
-    message: str
-    primary_href: str
-    primary_label: str
-    primary_icon: str
-
-
-@dataclass(frozen=True)
-class DocumentDetailActionVM:
-    label: str
-    icon: str
-    action_url: str
-    tone: str | None = None
-
-
-@dataclass(frozen=True)
-class DocumentDetailMetricVM:
-    label: str
-    value: object
-    tone: str | None = None
-
-
-@dataclass(frozen=True)
-class DocumentDetailContinuationFieldVM:
-    label: str
-    column_number: int
-
-
-@dataclass(frozen=True)
-class DocumentDetailColumnCandidateVM:
-    field: str
-    column_number: int
-    header: str
-
-
-@dataclass(frozen=True)
-class DocumentDetailTablePreviewVM:
-    meta: Sequence[str]
-    rows: Sequence[Sequence[object]]
-    is_continuation: bool
-    continuation_summary: str
-    continuation_fields: Sequence[DocumentDetailContinuationFieldVM]
-    primary_mapping_suggestion: object | None
-    column_candidates: Sequence[DocumentDetailColumnCandidateVM]
-
-
-@dataclass(frozen=True)
-class DocumentDetailValidationVM:
-    status: str
-    message: str
-    metrics: Sequence[DocumentDetailMetricVM]
-    needs_mapping: bool
-    table_previews: Sequence[DocumentDetailTablePreviewVM]
-
-
-@dataclass(frozen=True)
-class DocumentDetailAccountVM:
-    id: UUID
-    name: str
-    type_label: str
-    currency: str
-
-
-@dataclass(frozen=True)
-class DocumentDetailParseAttemptVM:
-    id: UUID
-    status_label: str
-    parser_label: str
-    started_at: datetime
-    finished_at: datetime | None
-    message: str
-
-
-@dataclass(frozen=True)
-class DocumentDetailRawTransactionVM:
-    row_index: int
-    status_label: str
-    status_css_class: str
-    parse_attempt_id: UUID
-    display_date: object
-    amount_label: object
-    amount_tone: str | None
-    currency: str
-    description: str
-    normalization_error: str
-
-
-@dataclass(frozen=True)
-class DocumentDetailValueVM:
-    label: str
-    value: object
-
-
-@dataclass(frozen=True)
-class DocumentDetailParseAttemptDebugVM:
-    id: UUID
-    title: str
-    status_label: str
-    parser_label: str
-    started_at: datetime
-    finished_at: datetime | None
-    error_message: str | None
-    validation_report: dict[str, object] | None
-    raw_tables: list[dict[str, object]] | None
-    raw_text_by_page: list[str] | None
-
-
-@dataclass(frozen=True)
-class DocumentDetailTechnicalVM:
-    document_items: Sequence[DocumentDetailValueVM]
-    parse_attempts: Sequence[DocumentDetailParseAttemptDebugVM]
-
-
-@dataclass(frozen=True)
-class DocumentDetailPageVM:
-    title: str
-    status_label: str
-    document_name: str
-    workflow: DocumentDetailWorkflowVM
-    next_step: DocumentDetailNextStepVM
-    actions: Sequence[DocumentDetailActionVM]
-    validation: DocumentDetailValidationVM | None
-    account: DocumentDetailAccountVM | None
-    raw_transactions: Sequence[DocumentDetailRawTransactionVM]
-    parse_attempts: Sequence[DocumentDetailParseAttemptVM]
-    technical_details: DocumentDetailTechnicalVM
+from app.features.imports.presentation.document_page.models import (
+    DocumentDetailAccountVM,
+    DocumentDetailActionVM,
+    DocumentDetailColumnCandidateVM,
+    DocumentDetailContinuationFieldVM,
+    DocumentDetailMetricVM,
+    DocumentDetailNextStepVM,
+    DocumentDetailPageVM,
+    DocumentDetailParseAttemptDebugVM,
+    DocumentDetailParseAttemptVM,
+    DocumentDetailRawTransactionVM,
+    DocumentDetailTablePreviewVM,
+    DocumentDetailTechnicalVM,
+    DocumentDetailValidationVM,
+    DocumentDetailValueVM,
+    DocumentDetailWorkflowVM,
+)
 
 
 class DocumentDetailPresenter:
@@ -499,157 +386,3 @@ class DocumentDetailPresenter:
             raw_tables=attempt.raw_tables,
             raw_text_by_page=attempt.raw_text_by_page,
         )
-
-
-def document_status_label(status: UploadedDocumentStatus) -> str:
-    labels = {
-        UploadedDocumentStatus.UPLOADED: "загружен",
-        UploadedDocumentStatus.PENDING_PARSE: "ожидает парсинга",
-        UploadedDocumentStatus.PARSING: "парсится",
-        UploadedDocumentStatus.PARSED: "распознан",
-        UploadedDocumentStatus.REQUIRES_REVIEW: "нужна проверка",
-        UploadedDocumentStatus.FAILED_TO_PARSE: "ошибка парсинга",
-        UploadedDocumentStatus.IMPORTED: "импортирован",
-        UploadedDocumentStatus.IGNORED: "игнорируется",
-    }
-    return labels.get(status, status.value)
-
-
-def validation_status_label(status: str) -> str:
-    labels = {
-        "valid": "сошлось",
-        "mismatch": "не совпадает",
-        "unavailable": "нет итогов",
-        "needs_review": "нужна проверка",
-        "needs_mapping": "нужна настройка",
-        "failed": "ошибка",
-        "failed_to_parse": "ошибка парсинга",
-    }
-    return labels.get(status, status)
-
-
-def parse_attempt_status_label(status: ParseAttemptStatus) -> str:
-    labels = {
-        ParseAttemptStatus.RUNNING: "в процессе",
-        ParseAttemptStatus.SUCCESS: "успешно",
-        ParseAttemptStatus.REQUIRES_REVIEW: "нужна проверка",
-        ParseAttemptStatus.FAILED: "ошибка",
-    }
-    return labels.get(status, status.value)
-
-
-def raw_transaction_status_label(status: RawTransactionStatus) -> str:
-    labels = {
-        RawTransactionStatus.EXTRACTED: "извлечено",
-        RawTransactionStatus.NORMALIZED: "нормализовано",
-        RawTransactionStatus.SUGGESTED: "предложено",
-        RawTransactionStatus.NEEDS_REVIEW: "нужна проверка",
-        RawTransactionStatus.MATCHED: "связано",
-        RawTransactionStatus.IGNORED: "игнор",
-        RawTransactionStatus.DUPLICATE: "дубликат",
-        RawTransactionStatus.POSSIBLE_DUPLICATE: "возможный дубль",
-        RawTransactionStatus.FAILED: "ошибка",
-        RawTransactionStatus.CONFIRMED: "подтверждено",
-    }
-    return labels.get(status, status.value)
-
-
-def account_type_label(account_type: AccountType) -> str:
-    labels = {
-        AccountType.CASH: "наличные",
-        AccountType.CARD: "карта",
-        AccountType.DEPOSIT: "депозит",
-        AccountType.CHECKING: "расчетный счет",
-        AccountType.OTHER: "другое",
-    }
-    return labels.get(account_type, account_type.value)
-
-
-def statement_type_label(value: object) -> str:
-    labels = {
-        "card_statement": "карточная выписка",
-        "account_statement": "выписка по счету",
-        "deposit_statement": "выписка по вкладу",
-    }
-    status = string_value(value)
-    return labels.get(status, status)
-
-
-def parser_label(parser_name: str, parser_version: str | None) -> str:
-    if not parser_version:
-        return parser_name
-    return f"{parser_name} {parser_version}"
-
-
-def table_source_label(source_type: object, table_index: int) -> str:
-    if source_type == "text_candidate":
-        return "из текста"
-    return f"таблица {table_index + 1}"
-
-
-def table_row_count_label(*, row_count: int, preview_row_count: int | None) -> str:
-    if preview_row_count is not None and preview_row_count < row_count:
-        return f"показано {preview_row_count} из {row_count} строк"
-    return f"{row_count} строк"
-
-
-def mapping_field_label(value: object) -> str:
-    labels = {
-        "operation_date": "дата",
-        "posting_date": "дата проводки",
-        "description": "описание",
-        "amount": "сумма",
-        "debit_amount": "списание",
-        "credit_amount": "зачисление",
-        "currency": "валюта",
-        "balance_after": "остаток после операции",
-    }
-    field = string_value(value)
-    return labels.get(field, field)
-
-
-def table_rows(value: object) -> Sequence[Sequence[object]]:
-    if not isinstance(value, list):
-        return []
-    return cast(Sequence[Sequence[object]], value)
-
-
-def int_value(value: object) -> int:
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str) and value.isdecimal():
-        return int(value)
-    return 0
-
-
-def optional_int_value(value: object) -> int | None:
-    if value is None:
-        return None
-    return int_value(value)
-
-
-def money_value(value: object, currency: object) -> str:
-    if value in {None, ""}:
-        return ""
-    currency_label = string_value(currency)
-    if not currency_label:
-        return str(value)
-    return f"{value} {currency_label}"
-
-
-def money_tone(value: Decimal | None) -> str | None:
-    if value is None:
-        return None
-    if value > 0:
-        return "income"
-    if value < 0:
-        return "expense"
-    return None
-
-
-def string_value(value: object, *, fallback: str = "") -> str:
-    if isinstance(value, str):
-        return value
-    if value is None:
-        return fallback
-    return str(value)

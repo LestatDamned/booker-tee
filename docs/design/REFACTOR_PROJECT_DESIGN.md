@@ -1697,7 +1697,7 @@ tests/features/imports/test_import_detail_template.py
 Вероятные новые или изменяемые файлы:
 
 ```text
-src/app/features/imports/presentation/document_detail.py
+src/app/features/imports/presentation/document_page/
 src/app/templates/imports/detail.html
 src/app/templates/imports/detail/
 tests/features/imports/test_import_detail_template.py
@@ -1794,7 +1794,7 @@ DocumentDetailPageVM
 ### Open Questions For Implementation
 
 - Должен ли document detail автоматически пересчитывать stale validation report?
-- Нужен ли отдельный `document_detail` UI audit scenario?
+- Нужен ли отдельный `document_page` UI audit scenario?
 - Нужно ли показывать parse attempts history в первом экране или только
   последний attempt?
 - Какие actions считать primary:
