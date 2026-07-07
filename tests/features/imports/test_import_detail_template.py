@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
@@ -16,7 +17,11 @@ from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingPreview,
     UnknownStatementMappingWarning,
 )
+from app.features.imports.application.unknown_statement_mappings.template_commands import (
+    mapping_command_as_json,
+)
 from app.features.imports.models import (
+    ImportMappingTemplate,
     ParseAttemptStatus,
     RawTransactionStatus,
     UploadedDocumentStatus,
@@ -26,6 +31,7 @@ from app.features.imports.presentation.mapping.form import mapping_form
 from app.features.imports.presentation.mapping.models import (
     MappingDocumentVM,
     MappingNextStepVM,
+    MappingTemplateNoticeVM,
 )
 from app.features.imports.presentation.mapping.page import MappingPagePresenter
 from app.features.imports.presentation.mapping.preview import (
@@ -428,30 +434,32 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
 
     html = templates.env.get_template("imports/mapping.html").render(
         app_name="Booker Tee",
-        document=document,
-        mapping_next_step=MappingNextStepVM(
-            title="Импортируйте строки",
-            message=(
-                "Предпросмотр готов. После импорта строки попадут в проверку, "
-                "но еще не станут подтвержденным учетом."
-            ),
-            primary_href="#mapping-import-actions",
-            primary_label="к импорту строк",
-            primary_icon="import",
-        ),
-        mapping_form=mapping_form(command, selected_table_vm.column_options),
-        mapping_has_preview=True,
-        mapping_warnings=mapping_warnings(preview),
-        mapping_import_action=mapping_import_action(
+        page=SimpleNamespace(
             document=document,
-            preview=preview,
-            compatible_table_count=14,
+            next_step=MappingNextStepVM(
+                title="Импортируйте строки",
+                message=(
+                    "Предпросмотр готов. После импорта строки попадут в проверку, "
+                    "но еще не станут подтвержденным учетом."
+                ),
+                primary_href="#mapping-import-actions",
+                primary_label="к импорту строк",
+                primary_icon="import",
+            ),
+            template_notice=None,
+            form=mapping_form(command, selected_table_vm.column_options),
+            has_preview=True,
+            warnings=mapping_warnings(preview),
+            import_action=mapping_import_action(
+                document=document,
+                preview=preview,
+                compatible_table_count=14,
+            ),
+            preview_summary=mapping_preview_summary(preview),
+            preview_rows=mapping_preview_rows(preview),
+            selected_table_vm=selected_table_vm,
+            table_picker_options=mapping_table_picker_options([table], command),
         ),
-        mapping_preview_summary=mapping_preview_summary(preview),
-        mapping_preview_rows=mapping_preview_rows(preview),
-        selected_table_vm=selected_table_vm,
-        table_picker_options=mapping_table_picker_options([table], command),
-        mapping_templates=[],
     )
 
     assert "Настройка импорта" in html
@@ -813,6 +821,9 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     assert "selected_table" not in values
     assert "table_options" not in values
     assert "compatible_table_count" not in values
+    assert "mapping_next_step" not in values
+    assert "mapping_form" not in values
+    assert "mapping_templates" not in values
     assert page_context.document.status_label == "требует проверки"
     assert page_context.document.filename == "ozonbank_card_statement.pdf"
     assert page_context.document.detail_url == f"/imports/documents/{document_id}"
@@ -821,12 +832,81 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     assert page_context.next_step.title == "Вернитесь к документу"
     assert page_context.next_step.primary_href == f"/imports/documents/{document_id}"
     assert page_context.next_step.secondary_href == "/imports/upload"
-    assert values["mapping_next_step"] == page_context.next_step
-    assert values["mapping_form"] == page_context.form
-    assert values["selected_table_vm"] == page_context.selected_table_vm
-    assert values["table_picker_options"] == page_context.table_picker_options
-    assert values["mapping_has_preview"] == page_context.has_preview
-    assert values["mapping_warnings"] == page_context.warnings
-    assert values["mapping_import_action"] == page_context.import_action
-    assert values["mapping_preview_summary"] == page_context.preview_summary
-    assert values["mapping_preview_rows"] == page_context.preview_rows
+    assert values["page"] == page_context
+
+
+def test_mapping_template_notice_hides_template_model_from_template() -> None:
+    document_id = uuid4()
+    command = UnknownStatementMappingCommand(
+        page_number=1,
+        table_index=0,
+        operation_date_column=0,
+        posting_date_column=None,
+        description_column=2,
+        amount_column=3,
+        debit_amount_column=None,
+        credit_amount_column=None,
+        currency_column=4,
+        balance_after_column=None,
+        first_data_row=1,
+        default_currency="RUB",
+    )
+    raw_tables: list[dict[str, object]] = [
+        {
+            "page_number": 1,
+            "tables": [
+                [
+                    ["Дата операции", "Документ", "Описание", "Сумма операции", "Валюта"],
+                    ["12.05.2026 15:42:10", "1", "Оплата товаров", "-842,00 ₽", "RUB"],
+                ]
+            ],
+        }
+    ]
+    view = ImportDocumentDetailView(
+        id=document_id,
+        original_filename="ozonbank_card_statement.pdf",
+        status=UploadedDocumentStatus.REQUIRES_REVIEW,
+        sha256_hash="a" * 64,
+        storage_key=f"workspace/{document_id}/ozonbank_card_statement.pdf",
+        bank_name="Ozon Bank",
+        statement_type="card_statement",
+        account=None,
+        raw_transactions=[],
+        parse_attempts=[
+            ImportParseAttemptView(
+                id=uuid4(),
+                status=ParseAttemptStatus.SUCCESS,
+                parser_name="unknown_statement",
+                parser_version=None,
+                started_at=datetime(2026, 5, 12, 10, 0),
+                finished_at=datetime(2026, 5, 12, 10, 1),
+                error_message=None,
+                validation_report=None,
+                raw_tables=raw_tables,
+                raw_text_by_page=None,
+            )
+        ],
+        validation={"status": "needs_mapping", "table_previews": []},
+    )
+
+    page_context = MappingPagePresenter().build(
+        view=view,
+        default_currency="RUB",
+        mapping_templates=[
+            ImportMappingTemplate(
+                name="Ozon Bank карта",
+                bank_name="Ozon Bank",
+                statement_type="card_statement",
+                default_currency="RUB",
+                column_mapping_json=mapping_command_as_json(command, raw_tables=raw_tables),
+            )
+        ],
+    )
+
+    assert page_context.template_notice == MappingTemplateNoticeVM(
+        title="Найден шаблон",
+        message=(
+            "Ozon Bank карта. Поля ниже уже заполнены из последнего подходящего "
+            "шаблона для этого банка и типа выписки."
+        ),
+    )

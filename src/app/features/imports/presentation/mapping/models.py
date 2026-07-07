@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 
-from app.features.imports.models import ImportMappingTemplate
-
 
 class MappingPresentationError(ValueError):
     pass
@@ -26,6 +24,12 @@ class MappingNextStepVM:
     secondary_href: str | None = None
     secondary_label: str | None = None
     secondary_icon: str | None = None
+
+
+@dataclass(frozen=True)
+class MappingTemplateNoticeVM:
+    title: str
+    message: str
 
 
 @dataclass(frozen=True)
@@ -157,6 +161,7 @@ class MappingFormVM:
 class MappingPageContext:
     document: MappingDocumentVM
     next_step: MappingNextStepVM
+    template_notice: MappingTemplateNoticeVM | None
     form: MappingFormVM
     selected_table_vm: MappingSelectedTableVM
     table_picker_options: list[MappingTableOptionVM]
@@ -165,7 +170,6 @@ class MappingPageContext:
     import_action: MappingImportActionVM | None
     preview_summary: MappingPreviewSummaryVM | None
     preview_rows: list[MappingPreviewRowVM]
-    mapping_templates: list[ImportMappingTemplate]
 
     def template_values(
         self,
@@ -175,16 +179,6 @@ class MappingPageContext:
     ) -> dict[str, object]:
         return {
             "app_name": app_name,
-            "document": self.document,
-            "mapping_next_step": self.next_step,
-            "mapping_form": self.form,
-            "selected_table_vm": self.selected_table_vm,
-            "table_picker_options": self.table_picker_options,
-            "mapping_has_preview": self.has_preview,
-            "mapping_warnings": self.warnings,
-            "mapping_import_action": self.import_action,
-            "mapping_preview_summary": self.preview_summary,
-            "mapping_preview_rows": self.preview_rows,
-            "mapping_templates": self.mapping_templates,
+            "page": self,
             "workspace": workspace,
         }

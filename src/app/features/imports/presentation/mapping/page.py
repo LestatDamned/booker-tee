@@ -23,6 +23,7 @@ from app.features.imports.presentation.mapping.models import (
     MappingNextStepVM,
     MappingPageContext,
     MappingPresentationError,
+    MappingTemplateNoticeVM,
 )
 from app.features.imports.presentation.mapping.preview import (
     mapping_import_action,
@@ -99,6 +100,7 @@ class MappingPagePresenter:
                 preview=preview,
                 table_options=table_options,
             ),
+            template_notice=_mapping_template_notice(mapping_templates),
             form=mapping_form(command, selected_table_vm.column_options),
             selected_table_vm=selected_table_vm,
             table_picker_options=mapping_table_picker_options(table_options, command),
@@ -111,8 +113,22 @@ class MappingPagePresenter:
             ),
             preview_summary=mapping_preview_summary(preview),
             preview_rows=mapping_preview_rows(preview),
-            mapping_templates=mapping_templates,
         )
+
+
+def _mapping_template_notice(
+    mapping_templates: list[ImportMappingTemplate],
+) -> MappingTemplateNoticeVM | None:
+    if not mapping_templates:
+        return None
+    template = mapping_templates[0]
+    return MappingTemplateNoticeVM(
+        title="Найден шаблон",
+        message=(
+            f"{template.name}. Поля ниже уже заполнены из последнего подходящего "
+            "шаблона для этого банка и типа выписки."
+        ),
+    )
 
 
 def _mapping_next_step(

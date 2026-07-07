@@ -2,13 +2,13 @@
 {% from "components/next_step.html" import next_step %}
 {% from "imports/_workflow_steps.html" import workflow_steps %}
 
-{% block title %}Настройка импорта · {{ document.filename }} · {{ app_name }}{% endblock %}
+{% block title %}Настройка импорта · {{ page.document.filename }} · {{ app_name }}{% endblock %}
 
 {% block content %}
   <section class="panel stack import-workflow">
     <header class="import-page-header">
       <div class="import-page-title">
-        <p class="eyebrow">{{ document.status_label }}</p>
+        <p class="eyebrow">{{ page.document.status_label }}</p>
         <h1>Настройка импорта</h1>
       </div>
       <div class="import-page-actions">
@@ -19,14 +19,14 @@
     {{ workflow_steps(upload="done", extract="done", mapping="current", review="pending", ledger="pending") }}
 
     {{ next_step(
-      mapping_next_step.title,
-      mapping_next_step.message,
-      mapping_next_step.primary_href,
-      mapping_next_step.primary_label,
-      mapping_next_step.primary_icon,
-      mapping_next_step.secondary_href,
-      mapping_next_step.secondary_label,
-      mapping_next_step.secondary_icon
+      page.next_step.title,
+      page.next_step.message,
+      page.next_step.primary_href,
+      page.next_step.primary_label,
+      page.next_step.primary_icon,
+      page.next_step.secondary_href,
+      page.next_step.secondary_label,
+      page.next_step.secondary_icon
     ) }}
 
     <div class="notice">
@@ -34,22 +34,21 @@
       На этом шаге данные в учет не записываются.
     </div>
 
-    {% if mapping_templates %}
+    {% if page.template_notice %}
       <div class="notice">
-        <strong>Найден шаблон:</strong>
-        {{ mapping_templates[0].name }}.
-        Поля ниже уже заполнены из последнего подходящего шаблона для этого банка и типа выписки.
+        <strong>{{ page.template_notice.title }}:</strong>
+        {{ page.template_notice.message }}
       </div>
     {% endif %}
 
-    {% if table_picker_options %}
-      <form id="mapping-form" class="form-panel mapping-form" method="post" action="{{ document.preview_url }}">
+    {% if page.table_picker_options %}
+      <form id="mapping-form" class="form-panel mapping-form" method="post" action="{{ page.document.preview_url }}">
         {{ csrf_input() }}
         <div class="field form-field-wide">
           <label>Таблица</label>
           <span class="field-note">Выбор таблицы обновит предпросмотр ниже.</span>
           <div class="table-picker">
-            {% for table in table_picker_options %}
+            {% for table in page.table_picker_options %}
               <label class="table-picker-option {% if table.is_selected %}is-selected{% endif %}">
                 <input
                   type="radio"
@@ -66,13 +65,13 @@
             {% endfor %}
           </div>
           <div class="table-picker-meta">
-            <span>{{ selected_table_vm.picker_meta }}</span>
-            <span>{{ selected_table_vm.size_meta }}</span>
-            <span>{{ selected_table_vm.import_scope_meta }}</span>
+            <span>{{ page.selected_table_vm.picker_meta }}</span>
+            <span>{{ page.selected_table_vm.size_meta }}</span>
+            <span>{{ page.selected_table_vm.import_scope_meta }}</span>
           </div>
         </div>
 
-        {% for field in mapping_form.select_fields %}
+        {% for field in page.form.select_fields %}
           <div class="field">
             <label for="{{ field.field_id }}">{{ field.label }}</label>
             <select id="{{ field.field_id }}" name="{{ field.name }}">
@@ -84,65 +83,65 @@
         {% endfor %}
 
         <div class="field">
-          <label for="{{ mapping_form.first_data_row.field_id }}">{{ mapping_form.first_data_row.label }}</label>
+          <label for="{{ page.form.first_data_row.field_id }}">{{ page.form.first_data_row.label }}</label>
           <input
-            id="{{ mapping_form.first_data_row.field_id }}"
-            name="{{ mapping_form.first_data_row.name }}"
-            type="{{ mapping_form.first_data_row.input_type }}"
-            min="{{ mapping_form.first_data_row.min_value }}"
-            value="{{ mapping_form.first_data_row.value }}"
+            id="{{ page.form.first_data_row.field_id }}"
+            name="{{ page.form.first_data_row.name }}"
+            type="{{ page.form.first_data_row.input_type }}"
+            min="{{ page.form.first_data_row.min_value }}"
+            value="{{ page.form.first_data_row.value }}"
           >
         </div>
 
         <div class="field">
-          <label for="{{ mapping_form.default_currency.field_id }}">{{ mapping_form.default_currency.label }}</label>
+          <label for="{{ page.form.default_currency.field_id }}">{{ page.form.default_currency.label }}</label>
           <input
-            id="{{ mapping_form.default_currency.field_id }}"
-            name="{{ mapping_form.default_currency.name }}"
-            type="{{ mapping_form.default_currency.input_type }}"
-            value="{{ mapping_form.default_currency.value }}"
+            id="{{ page.form.default_currency.field_id }}"
+            name="{{ page.form.default_currency.name }}"
+            type="{{ page.form.default_currency.input_type }}"
+            value="{{ page.form.default_currency.value }}"
           >
         </div>
 
         <div id="mapping-import-actions" class="mapping-action-row">
           <button class="button" type="submit">{{ icon("list-check") }} показать предпросмотр</button>
-          {% if mapping_import_action %}
+          {% if page.import_action %}
             <button
               class="button"
               type="submit"
-              formaction="{{ mapping_import_action.form_action }}"
+              formaction="{{ page.import_action.form_action }}"
             >
-              {{ icon(mapping_import_action.icon) }}
-              {{ mapping_import_action.label }}
+              {{ icon(page.import_action.icon) }}
+              {{ page.import_action.label }}
             </button>
           {% endif %}
         </div>
       </form>
 
-      {% if selected_table_vm.title %}
-        <h2 class="status">{{ selected_table_vm.title }}</h2>
-        {% if selected_table_vm.mapping_suggestion %}
+      {% if page.selected_table_vm.title %}
+        <h2 class="status">{{ page.selected_table_vm.title }}</h2>
+        {% if page.selected_table_vm.mapping_suggestion %}
           <div class="mapping-suggestion">
-            <strong>{{ selected_table_vm.mapping_suggestion.title }}</strong>
-            {% if selected_table_vm.mapping_suggestion.reasons %}
+            <strong>{{ page.selected_table_vm.mapping_suggestion.title }}</strong>
+            {% if page.selected_table_vm.mapping_suggestion.reasons %}
               <ul>
-                {% for reason in selected_table_vm.mapping_suggestion.reasons %}
+                {% for reason in page.selected_table_vm.mapping_suggestion.reasons %}
                   <li>{{ reason.message }}</li>
                 {% endfor %}
               </ul>
             {% endif %}
-            {% if selected_table_vm.mapping_suggestion.warnings %}
+            {% if page.selected_table_vm.mapping_suggestion.warnings %}
               <div class="review-flags">
-                {% for warning in selected_table_vm.mapping_suggestion.warnings %}
+                {% for warning in page.selected_table_vm.mapping_suggestion.warnings %}
                   <span>{{ warning.message }}</span>
                 {% endfor %}
               </div>
             {% endif %}
           </div>
         {% endif %}
-        {% if selected_table_vm.column_candidates %}
+        {% if page.selected_table_vm.column_candidates %}
           <div class="review-flags">
-            {% for candidate in selected_table_vm.column_candidates %}
+            {% for candidate in page.selected_table_vm.column_candidates %}
               <span>{{ candidate.message }}</span>
             {% endfor %}
           </div>
@@ -150,7 +149,7 @@
         <div class="table-scroll">
           <table class="table">
             <tbody>
-              {% for row in selected_table_vm.rows %}
+              {% for row in page.selected_table_vm.rows %}
                 <tr>
                   {% for cell in row.cells %}
                     <td>{{ cell }}</td>
@@ -162,18 +161,18 @@
         </div>
       {% endif %}
 
-      {% if mapping_has_preview %}
-        {% if mapping_warnings %}
+      {% if page.has_preview %}
+        {% if page.warnings %}
           <div class="review-flags">
-            {% for warning in mapping_warnings %}
+            {% for warning in page.warnings %}
               <span>{{ warning.message }}</span>
             {% endfor %}
           </div>
         {% endif %}
 
-        {% if mapping_preview_summary %}
+        {% if page.preview_summary %}
           <div class="summary-grid">
-            {% for metric in mapping_preview_summary.metrics %}
+            {% for metric in page.preview_summary.metrics %}
               <div class="{{ metric.class_name }}">
                 <span>{{ metric.label }}</span>
                 <strong>{{ metric.value }}</strong>
@@ -183,7 +182,7 @@
         {% endif %}
 
         <h2 class="status">Предпросмотр транзакций</h2>
-        {% if mapping_preview_rows %}
+        {% if page.preview_rows %}
           <div class="form-panel form-panel-embedded">
             <div class="field form-field-wide">
               <label for="save_template_name">Сохранить как шаблон</label>
@@ -213,7 +212,7 @@
                 </tr>
               </thead>
               <tbody>
-                {% for row in mapping_preview_rows %}
+                {% for row in page.preview_rows %}
                   <tr>
                     <td>{{ row.source_row_number }}</td>
                     <td><span class="badge {{ row.status_badge_class }}">{{ row.status_label }}</span></td>

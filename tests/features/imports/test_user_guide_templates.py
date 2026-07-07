@@ -532,33 +532,30 @@ def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
     html = render_template(
         "imports/mapping.html",
         app_name="Booker Tee",
-        document=MappingDocumentVM(
-            status_label="требует проверки",
-            filename="statement.pdf",
-            detail_url=f"/imports/documents/{document_id}",
-            preview_url=f"/imports/documents/{document_id}/mapping",
-            import_url=f"/imports/documents/{document_id}/mapping/import",
-        ),
-        mapping_next_step=MappingNextStepVM(
-            title="Вернитесь к документу",
-            message=(
-                "Таблицы для настройки не найдены. Проверьте детали парсинга "
-                "или загрузите выписку заново."
+        page=SimpleNamespace(
+            document=MappingDocumentVM(
+                status_label="требует проверки",
+                filename="statement.pdf",
+                detail_url=f"/imports/documents/{document_id}",
+                preview_url=f"/imports/documents/{document_id}/mapping",
+                import_url=f"/imports/documents/{document_id}/mapping/import",
             ),
-            primary_href=f"/imports/documents/{document_id}",
-            primary_label="открыть документ",
-            primary_icon="file-text",
-            secondary_href="/imports/upload",
-            secondary_label="загрузить заново",
-            secondary_icon="upload",
+            next_step=MappingNextStepVM(
+                title="Вернитесь к документу",
+                message=(
+                    "Таблицы для настройки не найдены. Проверьте детали парсинга "
+                    "или загрузите выписку заново."
+                ),
+                primary_href=f"/imports/documents/{document_id}",
+                primary_label="открыть документ",
+                primary_icon="file-text",
+                secondary_href="/imports/upload",
+                secondary_label="загрузить заново",
+                secondary_icon="upload",
+            ),
+            template_notice=None,
+            table_picker_options=[],
         ),
-        mapping_has_preview=False,
-        mapping_warnings=[],
-        mapping_import_action=None,
-        mapping_preview_summary=None,
-        mapping_preview_rows=[],
-        table_picker_options=[],
-        mapping_templates=[],
     )
 
     assert "workflow-step-current" in html
