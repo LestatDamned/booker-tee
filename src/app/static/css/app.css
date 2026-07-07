@@ -2996,6 +2996,43 @@ pre {
   overflow-wrap: anywhere;
 }
 
+.import-detail-empty {
+  grid-template-columns: 1fr;
+  border-color: color-mix(in srgb, var(--border) 82%, transparent);
+  border-left-color: color-mix(in srgb, var(--accent) 72%, var(--border));
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.import-parse-attempt {
+  gap: 10px;
+  border-color: color-mix(in srgb, var(--border) 82%, transparent);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+}
+
+.import-parse-attempt__head {
+  justify-content: space-between;
+}
+
+.import-parse-attempt__title {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.import-parse-attempt__id {
+  margin-left: auto;
+}
+
+.import-parse-attempt__times {
+  padding-top: 2px;
+}
+
+.import-detail-debug {
+  opacity: 0.84;
+}
+
 .parse-debug {
   min-width: 0;
   border-top: 1px solid var(--border);

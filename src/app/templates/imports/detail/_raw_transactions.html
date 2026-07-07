@@ -6,8 +6,10 @@
     {% endfor %}
   </div>
 {% else %}
-  <div class="empty-state">
-    <strong>Сырых строк пока нет</strong>
-    <span>Перепарсите документ или загрузите выписку заново.</span>
+  <div class="empty-state import-detail-empty">
+    <div class="empty-state-copy">
+      <strong>Сырых строк пока нет</strong>
+      <span>Перепарсите документ или загрузите выписку заново.</span>
+    </div>
   </div>
 {% endif %}
