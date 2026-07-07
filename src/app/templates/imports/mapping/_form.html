@@ -1,0 +1,75 @@
+<form id="mapping-form" class="form-panel mapping-form" method="post" action="{{ page.document.preview_url }}">
+  {{ csrf_input() }}
+  <div class="field form-field-wide">
+    <label>Таблица</label>
+    <span class="field-note">Выбор таблицы обновит предпросмотр ниже.</span>
+    <div class="table-picker">
+      {% for table in page.table_picker_options %}
+        <label class="table-picker-option {% if table.is_selected %}is-selected{% endif %}">
+          <input
+            type="radio"
+            name="table_ref"
+            value="{{ table.value }}"
+            {% if table.is_selected %}checked{% endif %}
+            onchange="this.form.submit()"
+          >
+          <span>{{ table.page_label }}</span>
+          {% if table.table_label %}
+            <small>{{ table.table_label }}</small>
+          {% endif %}
+        </label>
+      {% endfor %}
+    </div>
+    <div class="table-picker-meta">
+      <span>{{ page.selected_table_vm.picker_meta }}</span>
+      <span>{{ page.selected_table_vm.size_meta }}</span>
+      <span>{{ page.selected_table_vm.import_scope_meta }}</span>
+    </div>
+  </div>
+
+  {% for field in page.form.select_fields %}
+    <div class="field">
+      <label for="{{ field.field_id }}">{{ field.label }}</label>
+      <select id="{{ field.field_id }}" name="{{ field.name }}">
+        {% for option in field.options %}
+          <option value="{{ option.value }}" {% if option.is_selected %}selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  {% endfor %}
+
+  <div class="field">
+    <label for="{{ page.form.first_data_row.field_id }}">{{ page.form.first_data_row.label }}</label>
+    <input
+      id="{{ page.form.first_data_row.field_id }}"
+      name="{{ page.form.first_data_row.name }}"
+      type="{{ page.form.first_data_row.input_type }}"
+      min="{{ page.form.first_data_row.min_value }}"
+      value="{{ page.form.first_data_row.value }}"
+    >
+  </div>
+
+  <div class="field">
+    <label for="{{ page.form.default_currency.field_id }}">{{ page.form.default_currency.label }}</label>
+    <input
+      id="{{ page.form.default_currency.field_id }}"
+      name="{{ page.form.default_currency.name }}"
+      type="{{ page.form.default_currency.input_type }}"
+      value="{{ page.form.default_currency.value }}"
+    >
+  </div>
+
+  <div id="mapping-import-actions" class="mapping-action-row">
+    <button class="button" type="submit">{{ icon("list-check") }} показать предпросмотр</button>
+    {% if page.import_action %}
+      <button
+        class="button"
+        type="submit"
+        formaction="{{ page.import_action.form_action }}"
+      >
+        {{ icon(page.import_action.icon) }}
+        {{ page.import_action.label }}
+      </button>
+    {% endif %}
+  </div>
+</form>

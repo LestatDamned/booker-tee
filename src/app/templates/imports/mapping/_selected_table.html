@@ -1,0 +1,24 @@
+{% if page.selected_table_vm.title %}
+  <h2 class="status">{{ page.selected_table_vm.title }}</h2>
+  {% if page.selected_table_vm.mapping_suggestion %}
+    {% set suggestion = page.selected_table_vm.mapping_suggestion %}
+    {% include "imports/_mapping_suggestion.html" %}
+  {% endif %}
+  {% if page.selected_table_vm.column_candidates %}
+    {% set candidates = page.selected_table_vm.column_candidates %}
+    {% include "imports/_mapping_candidates.html" %}
+  {% endif %}
+  <div class="table-scroll">
+    <table class="table">
+      <tbody>
+        {% for row in page.selected_table_vm.rows %}
+          <tr>
+            {% for cell in row.cells %}
+              <td>{{ cell }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
