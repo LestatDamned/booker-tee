@@ -558,6 +558,14 @@ Already achieved:
   categories, properties, users, and workspaces;
 - import review made denser and more review-focused without changing business
   logic;
+- `ReviewItemVM`-based import review slice stabilized; active review rendering
+  no longer uses the legacy `RawTransaction` partial fallback;
+- document detail and unknown mapping pages moved to presenter/ViewModel-backed
+  template contracts;
+- imports flow pages started moving toward one shared review-inspired geometry:
+  page context, next step, primary action, technical details last;
+- new and touched imports controls are migrating toward BEM-like naming by
+  owner, for example `site-header__*` and `mapping-table-picker__*`;
 - technical/debug details hidden more consistently;
 - Playwright `ui_audit`, `button_audit`, and `design_audit` added;
 - current design audit findings for categories and mobile import review cleaned
@@ -565,8 +573,9 @@ Already achieved:
 
 Still active:
 
-- ReviewItemVM-based import review refactor.
-- Stronger shared action policy and component partials.
+- Stronger shared action policy and component partials beyond import review.
+- Imports flow convergence: keep upload, document detail, mapping, import list,
+  and review aligned with the same geometry and action hierarchy.
 - Better financial rows for account detail/manual operations/reports.
 - Style evolution toward modern financial workbench with restrained rebellious
   creativity.

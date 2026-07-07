@@ -1584,71 +1584,74 @@ DB-миграций, изменения URL endpoints и отката бизне
 
 ---------------
 
-## Текущий рабочий план: Import Document Detail Refactor
+## Текущий рабочий план: Imports Flow UI/UX Convergence
 
-Этот раздел является временным рабочим планом текущего refactor slice. После
-завершения страницы `/imports/documents/{document_id}` его можно удалить или
-заменить короткой implementation note.
+Этот раздел является временным рабочим планом текущего refactor slice. Его можно
+удалить или заменить короткой implementation note после стабилизации всего
+imports flow.
 
-### Цель
+### Текущее состояние
 
-Превратить страницу import document detail в понятную страницу состояния
-документа:
+Первый эталонный slice `Import review + ReviewItemVM + action system`
+стабилизирован:
+
+- active rendering идет через `imports/review/_item.html` и подготовленный
+  `ReviewItemVM`;
+- legacy `RawTransaction` partial fallback и `use_review_item_vm` удалены;
+- action policy, confirmability, badges, problems, proposal summary и panels
+  собираются в presenter/ViewModel слое;
+- `ReviewPanelVM + _panel_tab.html + _panel_drawer.html` закреплен как легкий
+  shell для category/transfer drawers;
+- `CategoryPanelPayload` и `TransferPanelPayload` остаются typed payload;
+- DB enum, models, URL endpoints и ledger posting не менялись.
+
+После этого refactor расширился на соседние страницы imports flow:
+
+- document detail получил `presentation/document_page/` presenter и page-level
+  VM contract;
+- unknown mapping получил `presentation/mapping/` package, page/form/table/
+  preview models and partials;
+- `imports/detail.html` и `imports/mapping.html` разбиты на dumb partials;
+- upload/detail/mapping/index начали двигаться к review-inspired geometry через
+  общий imports hero, document summary, workflow steps and next-step pattern;
+- видимые technical/debug детали перенесены ниже и скрыты по умолчанию;
+- новые или затронутые controls мигрируют к BEM-like owner naming, например
+  `site-header__*` и `mapping-table-picker__*`.
+
+### Цель текущего slice
+
+Привести imports flow к одному визуальному и архитектурному языку:
 
 ```text
-загруженный документ
-  -> что распознано
-  -> насколько проверка надежна
-  -> какие действия доступны сейчас
-  -> куда идти дальше
+upload
+  -> document detail
+  -> mapping, если выписка неизвестного формата
+  -> review
+  -> ledger/report context
 ```
 
-Страница должна быть мостом между upload/import pipeline и import review, а не
-техническим дампом parser attempt.
+Пользователь должен узнавать один и тот же рабочий паттерн:
 
-### Почему эта страница следующая
+```text
+контекст / статус / финансовые факты        next step / actions
+основное содержимое                         technical details collapsed
+```
 
-- Она находится рядом с уже переработанной import review page.
-- Она использует те же import concepts: document, parse attempts, validation,
-  raw rows, review status.
-- Пользователь попадает сюда до review или возвращается сюда после review.
-- Сейчас есть риск, что новая review page ведет на старую, менее понятную
-  document detail page.
+Страницы могут отличаться по задаче, но не должны создавать третий или
+четвертый layout language внутри imports.
 
-### UX Intent
+### Current Scope
 
-Пользователь за несколько секунд должен понять:
+Разрешено:
 
-- какой документ открыт;
-- каков текущий статус импорта;
-- сколько строк извлечено и сколько еще требует внимания;
-- сошлись ли контрольные итоги;
-- какое главное действие нужно сделать сейчас;
-- где открыть технические детали, если они действительно нужны.
-
-Технические детали должны быть доступны, но не доминировать:
-
-- raw JSON;
-- extracted text/tables;
-- parser metadata;
-- parse attempt internals;
-- mapping/debug information.
-
-### Scope
-
-В рамках refactor разрешено:
-
-- добавить `DocumentDetailPageVM` или близкий page-level VM;
-- добавить typed VM для header/status/actions/parse attempts/validation;
-- перенести status labels, action policy и validation display decisions из Jinja
-  в presenter;
-- переиспользовать или адаптировать `ReviewValidationPresenter` concepts там,
-  где они подходят;
-- скрыть technical details по умолчанию;
-- улучшить SSR layout и CSS страницы;
-- обновить focused template/presenter tests.
-
-### Out Of Scope
+- продолжать BEM-like migration только в трогаемых imports/app-shell controls;
+- держать CSS рядом с владельцем компонента, а не раздувать старые generic
+  классы;
+- улучшать action hierarchy на mapping/detail/upload/index;
+- улучшать mobile rendering таблиц и preview данных;
+- обновлять focused template/presenter tests;
+- использовать `scripts/ui_audit.py --scenario realistic` как базовый браузерный
+  smoke/audit для imports flow.
 
 Не делать в этом slice:
 
@@ -1657,164 +1660,57 @@ DB-миграций, изменения URL endpoints и отката бизне
 - менять DB models/enums;
 - менять ledger posting rules;
 - удалять raw source/debug данные;
-- переписывать unknown statement mapping целиком;
-- делать глобальный UI redesign всего imports section.
-
-### Architecture Direction
-
-Желаемый поток:
-
-```text
-Router
-  -> Application/page data loader
-  -> Presentation presenter/ViewModel
-  -> Jinja templates
-```
-
-Jinja не должна решать:
-
-- какой label у document status;
-- какая primary action доступна;
-- является ли validation warning/error/success;
-- какие parse attempt details считать technical;
-- какой next step показывать пользователю.
-
-Допустимо на первом slice оставить ORM objects внутри data loader, но template
-contract должен получать подготовленные VM или простые typed structures.
-
-### Candidate Files
-
-Начальный анализ:
-
-```text
-src/app/features/imports/routes/documents.py
-src/app/templates/imports/detail.html
-src/app/features/imports/mapping/dto.py
-src/app/features/imports/query_repository.py
-tests/features/imports/test_import_detail_template.py
-```
-
-Вероятные новые или изменяемые файлы:
-
-```text
-src/app/features/imports/presentation/document_page/
-src/app/templates/imports/detail.html
-src/app/templates/imports/detail/
-tests/features/imports/test_import_detail_template.py
-tests/features/imports/test_import_detail_presentation.py
-```
-
-Имена можно скорректировать после чтения текущего кода. Не создавать папку
-ради папки, если первый slice помещается в один небольшой presenter file.
-
-### Proposed ViewModel Shape
-
-Ориентировочно:
-
-```text
-DocumentDetailPageVM
-  header: DocumentDetailHeaderVM
-  status: DocumentStatusVM
-  primary_action: ActionVM | None
-  secondary_actions: list[ActionVM]
-  validation: DocumentValidationVM | None
-  parse_attempts: list[ParseAttemptSummaryVM]
-  technical_details: TechnicalDetailsVM
-```
-
-`ActionVM` можно переиспользовать из existing UI/action layer только если это не
-создаст преждевременную зависимость. Если contracts отличаются, лучше начать с
-локального VM и позже унифицировать.
-
-### First Slice
-
-Минимальный безопасный первый slice:
-
-1. Прочитать текущий route/template/tests и выписать, какие решения сейчас
-   принимает Jinja.
-2. Добавить page-level presenter для document detail.
-3. Вынести в VM:
-   - title/subtitle;
-   - document status label/tone;
-   - primary action;
-   - short validation summary;
-   - parse attempt summary labels.
-4. Подключить VM к `detail.html`, оставив общий layout максимально похожим.
-5. Не трогать technical/raw details, кроме явного hidden/collapsed state.
-6. Обновить focused tests.
-
-Цель первого slice: не финальный дизайн, а честный template contract.
-
-### UI Pass After First Slice
-
-После VM split сделать UI pass:
-
-- сделать header страницы похожим по плотности и иерархии на import review;
-- выделить главный next action;
-- сделать document status и validation status визуально разными понятиями;
-- parse attempts показывать как timeline или compact history;
-- technical details убрать ниже и свернуть;
-- проверить desktop/mobile через UI audit.
-
-Важно: этот UI pass не должен создавать отдельный визуальный язык для document
-detail. `import/review` остается reference screen для геометрии imports flow:
-
-- контекст и финансовые факты слева;
-- главный next/action блок справа или в предсказуемом action area;
-- деньги, дата, status и badges стоят в узнаваемых местах;
-- raw rows выглядят как близкие родственники review rows, но могут быть
-  компактнее, потому что здесь нет полноценной review-разборки;
-- debug/technical details не конкурируют с финансовыми решениями.
-
-Если document detail или mapping намеренно отступают от review geometry, причина
-должна быть записана в плане или рядом с изменением. Простое "так красивее на
-этой странице" не считается достаточной причиной.
+- переписывать весь CSS проекта ради naming cleanup;
+- вводить новый frontend framework или SPA/API-first архитектуру.
 
 ### Validation And Repair Note
 
-После изменения validation report semantics для ignored rows старые документы
-могут хранить stale `validation_report_json`.
+Resolved for the current imports flow.
 
-Для document detail page нужно решить, как показывать или исправлять это:
+`validation_report_json` пересчитывается через review/status update flow: когда
+статус raw transaction меняется, validation report документа обновляется и
+сохраняется заново. Поэтому stale `validation_report_json` не является активным
+UI refactor blocker для текущего slice.
 
-- вариант A: добавить явное действие `пересчитать проверку`;
-- вариант B: автоматически пересчитывать при открытии detail/review, если report
-  старого формата;
-- вариант C: одноразовый repair script/management command.
+Если позже появятся документы, которые вообще не проходили через review/status
+updates после изменения validation semantics, это нужно решать отдельным
+repair/migration task, а не смешивать с UI/SSR refactor.
 
-Первый implementation slice не обязан решать repair полностью, но страница не
-должна маскировать stale validation как надежную проверку.
+### Current Acceptance Checklist
 
-### Acceptance Criteria
+Текущий imports-flow slice считается здоровым, если:
 
-Первый slice считается готовым, если:
+- `detail.html` и `mapping.html` получают page-level VM/presenter contracts and
+  do not decide status/action policy directly in Jinja;
+- visible technical/debug data does not dominate the first screen;
+- upload, document detail, mapping, import list and review use the same broad
+  geometry: context left/main, next step/actions right or in a predictable
+  action area;
+- primary actions are visually stronger than secondary actions;
+- dangerous actions are separated and destructive actions require confirmation;
+- mobile screenshots do not show accidental horizontal page overflow;
+- wide table data uses explicit scroll regions or mobile-friendly card
+  rendering;
+- newly touched CSS uses BEM-like owner naming instead of adding another generic
+  local variant;
+- existing tests are adapted, not deleted;
+- relevant `pytest`, `ruff`, `ty`, and UI audit commands pass.
 
-- route endpoints не изменились;
-- `detail.html` не вычисляет document status/action policy;
-- primary action понятна из VM;
-- validation summary подготовлен presenter-слоем;
-- technical details не доминируют первый экран;
-- existing detail template tests адаптированы, а не удалены;
-- добавлен presenter/unit test для ключевых состояний:
-  - parsed/requires review;
-  - imported/done;
-  - failed parse;
-  - missing validation report;
-  - stale or unavailable validation, если это уже видно в UI;
-- relevant pytest/ruff/ty проходят;
-- при UI изменениях запущен `scripts/ui_audit.py --scenario review_interactions`
-  или добавлен отдельный scenario для document detail.
+### Active Follow-Ups
 
-### Open Questions For Implementation
-
-- Должен ли document detail автоматически пересчитывать stale validation report?
-- Нужен ли отдельный `document_page` UI audit scenario?
-- Нужно ли показывать parse attempts history в первом экране или только
-  последний attempt?
-- Какие actions считать primary:
-  - open review;
-  - open reports;
-  - reparse;
-  - configure mapping;
-  - upload another file?
-- Где провести границу между document detail и unknown mapping UI?
+1. Mapping action hierarchy:
+   - make "показать предпросмотр" clearly secondary;
+   - make "импортировать строки" primary only when preview/import is actually
+     available;
+   - avoid equal-looking buttons for actions with different risk/importance.
+2. `action-details` cleanup:
+   - keep current shared behavior for now;
+   - when touched, decide whether it becomes a shared component contract or a
+     local owner-specific BEM block.
+3. Document detail / mapping audit scenario:
+   - `realistic` covers these pages today;
+   - add a dedicated scenario only if realistic stops catching important
+     document/mapping regressions.
+4. Continue gradual BEM migration:
+   - migrate old generic classes only at natural UI/refactor touch points;
+   - do not rename stable code without product or maintainability benefit.
