@@ -1756,6 +1756,20 @@ DocumentDetailPageVM
 - technical details убрать ниже и свернуть;
 - проверить desktop/mobile через UI audit.
 
+Важно: этот UI pass не должен создавать отдельный визуальный язык для document
+detail. `import/review` остается reference screen для геометрии imports flow:
+
+- контекст и финансовые факты слева;
+- главный next/action блок справа или в предсказуемом action area;
+- деньги, дата, status и badges стоят в узнаваемых местах;
+- raw rows выглядят как близкие родственники review rows, но могут быть
+  компактнее, потому что здесь нет полноценной review-разборки;
+- debug/technical details не конкурируют с финансовыми решениями.
+
+Если document detail или mapping намеренно отступают от review geometry, причина
+должна быть записана в плане или рядом с изменением. Простое "так красивее на
+этой странице" не считается достаточной причиной.
+
 ### Validation And Repair Note
 
 После изменения validation report semantics для ignored rows старые документы

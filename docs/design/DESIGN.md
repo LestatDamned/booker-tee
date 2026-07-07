@@ -199,6 +199,44 @@ shared partials where the UX concept is actually the same.
 
 ---
 
+## 6.1 Visual Geometry Contract
+
+Different pages may have different jobs, but they should not surprise the user
+with a different information geometry.
+
+When refactoring an existing workflow, first identify the nearest reference
+screen and follow its layout rhythm:
+
+- page context on the left, page actions on the right;
+- money/date/status in stable positions across related rows;
+- primary action visually stronger than secondary actions;
+- dangerous actions separated from normal actions;
+- technical details collapsed and visually secondary;
+- repeated entities use the same density, border radius, badge language, and
+  action placement unless the workflow genuinely requires a different shape.
+
+For the imports flow, the current visual reference is the stabilized
+`import/review` screen. Document detail, mapping, upload result, and import list
+pages should move toward the same geometry:
+
+```text
+context / status / financial facts        actions / next step
+main content rows                         secondary details collapsed
+```
+
+A page may intentionally differ from `import/review`, but the reason should be
+explicit:
+
+- it has no row-level decisions;
+- it is a setup/configuration screen rather than a review screen;
+- it is a report optimized for comparison;
+- it uses a shared app-level component with an established shape.
+
+Local visual improvements are not enough if they create a third or fourth
+layout language inside the same workflow.
+
+---
+
 ## 7. Status And Badge Language
 
 Use one semantic language for statuses and operation types:

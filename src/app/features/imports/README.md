@@ -638,6 +638,23 @@ import path easy to test.
 - `parsing/support/` - shared parser helpers such as normalization and draft building.
 - `parsing/parsers/` - bank and statement-type parser plugins.
 
+## Imports UI geometry
+
+The stabilized import review screen is the visual reference for the imports
+flow. Other imports pages may have different content, but should reuse the same
+geometry where the concept matches:
+
+- context/status/financial facts on the left;
+- primary action or next step in a predictable action area;
+- money, date, status, and badges in stable positions;
+- row lists shaped like close relatives of review rows;
+- technical/debug details collapsed and visually secondary.
+
+Document detail is an overview page, not a full review screen, so it can be
+more compact. Mapping is a setup page, so it can use form/table geometry. Both
+should still feel like they belong to the same import workflow rather than a
+separate screen family.
+
 ## Import style
 
 Prefer explicit imports from concrete modules over package-level re-export
