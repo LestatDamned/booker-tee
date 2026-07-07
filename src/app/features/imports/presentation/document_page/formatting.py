@@ -84,6 +84,42 @@ def statement_type_label(value: object) -> str:
     return labels.get(status, status)
 
 
+def document_message_label(value: object) -> str:
+    message = string_value(value)
+    labels = {
+        (
+            "Parser is not available for this statement yet, but transaction-like tables "
+            "were extracted. Configure column mapping to import it."
+        ): (
+            "Для этой выписки пока нет готового парсера, но найдены таблицы, похожие "
+            "на операции. Настройте колонки, чтобы импортировать строки."
+        ),
+        (
+            "Parser is not available for this statement yet. No transaction table was "
+            "detected, but transaction-like text lines were converted into a reviewable "
+            "table. Check the mapping before importing."
+        ): (
+            "Для этой выписки пока нет готового парсера. Таблица операций не найдена, "
+            "но похожие на операции строки текста собраны в таблицу для проверки."
+        ),
+        (
+            "Parser is not available for this statement yet. Text was extracted, but no "
+            "transaction table or transaction-like text lines were detected."
+        ): (
+            "Для этой выписки пока нет готового парсера. Текст извлечен, но таблица "
+            "операций или похожие на операции строки не найдены."
+        ),
+        (
+            "Parser is not available for this statement yet, and no readable text was "
+            "extracted. OCR may be required before import."
+        ): (
+            "Для этой выписки пока нет готового парсера, и читаемый текст не извлечен. "
+            "Перед импортом может понадобиться OCR."
+        ),
+    }
+    return labels.get(message, message)
+
+
 def parser_label(parser_name: str, parser_version: str | None) -> str:
     if not parser_version:
         return parser_name

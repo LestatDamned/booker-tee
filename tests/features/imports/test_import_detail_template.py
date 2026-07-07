@@ -177,7 +177,10 @@ def test_import_detail_template_shows_unknown_statement_mapping_preview() -> Non
     attempt_id = uuid4()
     validation: dict[str, object] = {
         "status": "needs_mapping",
-        "message": "Configure column mapping to import it.",
+        "message": (
+            "Parser is not available for this statement yet, but transaction-like tables "
+            "were extracted. Configure column mapping to import it."
+        ),
         "detected_bank_name": "Ozon Bank",
         "detected_statement_type": "card_statement",
         "text_based": True,
@@ -305,11 +308,13 @@ def test_import_detail_template_shows_unknown_statement_mapping_preview() -> Non
     assert "карточная выписка" in html
     assert "текстовый" in html
     assert "Предпросмотр таблиц" in html
-    assert "preview-meta" in html
+    assert "mapping-preview-card" in html
+    assert "mapping-preview-table" in html
     assert "Предложение маппинга · 91%" in html
     assert "дата: колонка 1 выбрана по заголовку" in html
     assert "дата: колонка 1 · Дата операции" in html
     assert "сумма: колонка 4 · Сумма операции" in html
+    assert "Для этой выписки пока нет готового парсера" in html
     assert "показано 5 из 8 строк" in html
     assert "Продолжение таблицы · страница 1 · таблица 1" in html
     assert "дата: колонка 1" in html

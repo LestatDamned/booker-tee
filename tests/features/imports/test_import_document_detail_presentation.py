@@ -76,7 +76,10 @@ def test_document_detail_presenter_routes_unknown_statement_to_mapping() -> None
         document_view(
             validation={
                 "status": "needs_mapping",
-                "message": "Configure column mapping to import it.",
+                "message": (
+                    "Parser is not available for this statement yet, but transaction-like tables "
+                    "were extracted. Configure column mapping to import it."
+                ),
                 "detected_bank_name": "Ozon Bank",
                 "detected_statement_type": "card_statement",
                 "text_based": True,
@@ -90,6 +93,10 @@ def test_document_detail_presenter_routes_unknown_statement_to_mapping() -> None
     assert page.next_step.title == "Настройте колонки"
     assert page.validation is not None
     assert page.validation.needs_mapping is True
+    assert page.validation.message == (
+        "Для этой выписки пока нет готового парсера, но найдены таблицы, похожие "
+        "на операции. Настройте колонки, чтобы импортировать строки."
+    )
     assert [(metric.label, metric.value) for metric in page.validation.metrics] == [
         ("банк", "Ozon Bank"),
         ("тип", "карточная выписка"),
@@ -236,6 +243,11 @@ def test_document_detail_presenter_builds_unknown_statement_table_previews() -> 
     )
 
     assert page.validation is not None
+    assert [(metric.label, metric.value) for metric in page.validation.metrics] == [
+        ("банк", "не определен"),
+        ("извлечение", "текстовый"),
+        ("таблицы", 1),
+    ]
     preview = page.validation.table_previews[0]
     assert preview.meta == [
         "страница 2",

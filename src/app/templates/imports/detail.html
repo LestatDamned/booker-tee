@@ -70,10 +70,10 @@
       </div>
       {% if page.validation.table_previews %}
         <h2 class="status">Предпросмотр таблиц</h2>
-        <div class="raw-transaction-list">
+        <div class="mapping-preview-list">
           {% for preview in page.validation.table_previews %}
-            <article class="raw-transaction-card">
-              <div class="preview-meta">
+            <article class="mapping-preview-card">
+              <div class="preview-meta mapping-preview-card__meta">
                 {% for meta_item in preview.meta %}
                   <span>{{ meta_item }}</span>
                 {% endfor %}
@@ -99,8 +99,8 @@
                 {% set candidates = preview.column_candidates %}
                 {% include "imports/_mapping_candidates.html" %}
               {% endif %}
-              <div class="table-scroll">
-                <table class="table">
+              <div class="table-scroll mapping-preview-card__table">
+                <table class="table mapping-preview-table">
                   <tbody>
                     {% for row in preview.rows %}
                       <tr>

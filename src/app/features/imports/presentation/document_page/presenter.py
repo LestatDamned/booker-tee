@@ -9,6 +9,7 @@ from app.features.imports.application.documents.detail_view import (
 from app.features.imports.models import UploadedDocumentStatus
 from app.features.imports.presentation.document_page.formatting import (
     account_type_label,
+    document_message_label,
     document_status_label,
     int_value,
     money_tone,
@@ -170,28 +171,14 @@ class DocumentDetailPresenter:
         if status == "needs_mapping":
             return DocumentDetailValidationVM(
                 status=status,
-                message=string_value(validation.get("message")),
-                metrics=[
-                    DocumentDetailMetricVM(
-                        "банк",
-                        string_value(validation.get("detected_bank_name"), fallback="не определен"),
-                    ),
-                    DocumentDetailMetricVM(
-                        "тип",
-                        statement_type_label(validation.get("detected_statement_type")),
-                    ),
-                    DocumentDetailMetricVM(
-                        "извлечение",
-                        "текстовый" if validation.get("text_based") else "нужен OCR",
-                    ),
-                    DocumentDetailMetricVM("таблицы", validation.get("table_count", "")),
-                ],
+                message=document_message_label(validation.get("message")),
+                metrics=self.needs_mapping_metrics(validation),
                 needs_mapping=True,
                 table_previews=self.table_previews(validation),
             )
         return DocumentDetailValidationVM(
             status=status,
-            message=string_value(validation.get("message")),
+            message=document_message_label(validation.get("message")),
             metrics=[
                 DocumentDetailMetricVM("строки", validation.get("extracted_count", "")),
                 DocumentDetailMetricVM(
@@ -215,6 +202,30 @@ class DocumentDetailPresenter:
             needs_mapping=False,
             table_previews=[],
         )
+
+    def needs_mapping_metrics(
+        self,
+        validation: Mapping[str, object],
+    ) -> list[DocumentDetailMetricVM]:
+        metrics = [
+            DocumentDetailMetricVM(
+                "банк",
+                string_value(validation.get("detected_bank_name"), fallback="не определен"),
+            )
+        ]
+        statement_type = statement_type_label(validation.get("detected_statement_type"))
+        if statement_type:
+            metrics.append(DocumentDetailMetricVM("тип", statement_type))
+        metrics.extend(
+            [
+                DocumentDetailMetricVM(
+                    "извлечение",
+                    "текстовый" if validation.get("text_based") else "нужен OCR",
+                ),
+                DocumentDetailMetricVM("таблицы", validation.get("table_count", "")),
+            ]
+        )
+        return metrics
 
     def table_previews(
         self,
@@ -345,7 +356,7 @@ class DocumentDetailPresenter:
             parser_label=parser_label(attempt.parser_name, attempt.parser_version),
             started_at=attempt.started_at,
             finished_at=attempt.finished_at,
-            message=attempt.message,
+            message=document_message_label(attempt.message),
         )
 
     def raw_transactions(
