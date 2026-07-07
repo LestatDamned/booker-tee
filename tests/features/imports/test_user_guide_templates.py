@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.presentation.document_page.presenter import DocumentDetailPresenter
-from app.features.imports.presentation.mapping import MappingDocumentVM
+from app.features.imports.presentation.mapping import MappingDocumentVM, MappingNextStepVM
 from app.features.imports.presentation.review.page import build_review_page_context
 from app.features.workspaces.models import WorkspaceType
 from app.templating import create_templates
@@ -538,6 +538,19 @@ def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
             detail_url=f"/imports/documents/{document_id}",
             preview_url=f"/imports/documents/{document_id}/mapping",
             import_url=f"/imports/documents/{document_id}/mapping/import",
+        ),
+        mapping_next_step=MappingNextStepVM(
+            title="Вернитесь к документу",
+            message=(
+                "Таблицы для настройки не найдены. Проверьте детали парсинга "
+                "или загрузите выписку заново."
+            ),
+            primary_href=f"/imports/documents/{document_id}",
+            primary_label="открыть документ",
+            primary_icon="file-text",
+            secondary_href="/imports/upload",
+            secondary_label="загрузить заново",
+            secondary_icon="upload",
         ),
         command=SimpleNamespace(
             page_number=1,

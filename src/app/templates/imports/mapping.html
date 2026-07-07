@@ -18,34 +18,16 @@
 
     {{ workflow_steps(upload="done", extract="done", mapping="current", review="pending", ledger="pending") }}
 
-    {% if preview and preview.rows %}
-      {{ next_step(
-        "Импортируйте строки",
-        "Предпросмотр готов. После импорта строки попадут в проверку, но еще не станут подтвержденным учетом.",
-        "#mapping-import-actions",
-        "к импорту строк",
-        "import"
-      ) }}
-    {% elif table_options %}
-      {{ next_step(
-        "Настройте колонки",
-        "Выберите дату, описание и сумму, затем посмотрите предпросмотр перед импортом.",
-        "#mapping-form",
-        "к настройке",
-        "settings"
-      ) }}
-    {% else %}
-      {{ next_step(
-        "Вернитесь к документу",
-        "Таблицы для настройки не найдены. Проверьте детали парсинга или загрузите выписку заново.",
-        document.detail_url,
-        "открыть документ",
-        "file-text",
-        "/imports/upload",
-        "загрузить заново",
-        "upload"
-      ) }}
-    {% endif %}
+    {{ next_step(
+      mapping_next_step.title,
+      mapping_next_step.message,
+      mapping_next_step.primary_href,
+      mapping_next_step.primary_label,
+      mapping_next_step.primary_icon,
+      mapping_next_step.secondary_href,
+      mapping_next_step.secondary_label,
+      mapping_next_step.secondary_icon
+    ) }}
 
     <div class="notice">
       Выберите таблицу и колонки, чтобы проверить, как неизвестная выписка превратится в транзакции.

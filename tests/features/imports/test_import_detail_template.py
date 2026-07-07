@@ -22,7 +22,11 @@ from app.features.imports.models import (
     UploadedDocumentStatus,
 )
 from app.features.imports.presentation.document_page.presenter import DocumentDetailPresenter
-from app.features.imports.presentation.mapping import MappingDocumentVM, build_mapping_page_context
+from app.features.imports.presentation.mapping import (
+    MappingDocumentVM,
+    MappingNextStepVM,
+    build_mapping_page_context,
+)
 from app.templating import create_templates
 
 
@@ -413,6 +417,16 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
             preview_url=f"/imports/documents/{view.id}/mapping",
             import_url=f"/imports/documents/{view.id}/mapping/import",
         ),
+        mapping_next_step=MappingNextStepVM(
+            title="Импортируйте строки",
+            message=(
+                "Предпросмотр готов. После импорта строки попадут в проверку, "
+                "но еще не станут подтвержденным учетом."
+            ),
+            primary_href="#mapping-import-actions",
+            primary_label="к импорту строк",
+            primary_icon="import",
+        ),
         preview=preview,
         selected_table=table,
         table_options=[table],
@@ -474,3 +488,7 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     assert page_context.document.detail_url == f"/imports/documents/{document_id}"
     assert page_context.document.preview_url == f"/imports/documents/{document_id}/mapping"
     assert page_context.document.import_url == f"/imports/documents/{document_id}/mapping/import"
+    assert page_context.next_step.title == "Вернитесь к документу"
+    assert page_context.next_step.primary_href == f"/imports/documents/{document_id}"
+    assert page_context.next_step.secondary_href == "/imports/upload"
+    assert values["mapping_next_step"] == page_context.next_step

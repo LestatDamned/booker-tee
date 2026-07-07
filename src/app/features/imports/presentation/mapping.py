@@ -35,8 +35,21 @@ class MappingDocumentVM:
 
 
 @dataclass(frozen=True)
+class MappingNextStepVM:
+    title: str
+    message: str
+    primary_href: str
+    primary_label: str
+    primary_icon: str
+    secondary_href: str | None = None
+    secondary_label: str | None = None
+    secondary_icon: str | None = None
+
+
+@dataclass(frozen=True)
 class MappingPageContext:
     document: MappingDocumentVM
+    next_step: MappingNextStepVM
     command: UnknownStatementMappingCommand
     preview: UnknownStatementMappingPreview | None
     selected_table: dict[str, object]
@@ -54,6 +67,7 @@ class MappingPageContext:
             "app_name": app_name,
             "command": self.command,
             "document": self.document,
+            "mapping_next_step": self.next_step,
             "preview": self.preview,
             "selected_table": self.selected_table,
             "table_options": self.table_options,
@@ -110,14 +124,62 @@ def mapping_page_context_from_command(
 ) -> MappingPageContext:
     raw_tables = latest_raw_tables(view)
     table_options = preview_table_options(view.validation)
+    document = mapping_document(view)
     return MappingPageContext(
-        document=mapping_document(view),
+        document=document,
+        next_step=mapping_next_step(
+            document=document,
+            preview=preview,
+            table_options=table_options,
+        ),
         command=command,
         preview=preview,
         selected_table=selected_mapping_table(table_options, command),
         table_options=table_options,
         compatible_table_count=compatible_mapping_table_count(raw_tables, command),
         mapping_templates=mapping_templates,
+    )
+
+
+def mapping_next_step(
+    *,
+    document: MappingDocumentVM,
+    preview: UnknownStatementMappingPreview | None,
+    table_options: list[dict[str, object]],
+) -> MappingNextStepVM:
+    if preview is not None and preview.rows:
+        return MappingNextStepVM(
+            title="Импортируйте строки",
+            message=(
+                "Предпросмотр готов. После импорта строки попадут в проверку, "
+                "но еще не станут подтвержденным учетом."
+            ),
+            primary_href="#mapping-import-actions",
+            primary_label="к импорту строк",
+            primary_icon="import",
+        )
+    if table_options:
+        return MappingNextStepVM(
+            title="Настройте колонки",
+            message=(
+                "Выберите дату, описание и сумму, затем посмотрите предпросмотр перед импортом."
+            ),
+            primary_href="#mapping-form",
+            primary_label="к настройке",
+            primary_icon="settings",
+        )
+    return MappingNextStepVM(
+        title="Вернитесь к документу",
+        message=(
+            "Таблицы для настройки не найдены. Проверьте детали парсинга "
+            "или загрузите выписку заново."
+        ),
+        primary_href=document.detail_url,
+        primary_label="открыть документ",
+        primary_icon="file-text",
+        secondary_href="/imports/upload",
+        secondary_label="загрузить заново",
+        secondary_icon="upload",
     )
 
 
