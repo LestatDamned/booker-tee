@@ -71,7 +71,7 @@
               required
               @change="fileName = $event.target.files[0]?.name || ''"
             >
-            <label class="file-upload-button" for="statement_pdf">{{ icon("upload") }} выбрать файл</label>
+            <label class="button file-upload-button" for="statement_pdf">{{ icon("upload") }} выбрать файл</label>
             <span class="file-upload-name" x-text="fileName || 'файл не выбран'">файл не выбран</span>
           </div>
         </div>

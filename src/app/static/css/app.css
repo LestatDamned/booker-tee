@@ -943,24 +943,19 @@ input[type="checkbox"] {
 }
 
 .file-upload-button {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 0;
   border-right: 1px solid var(--border);
-  background: var(--surface-strong);
-  padding: 0 14px;
-  color: var(--accent);
+  background: color-mix(in srgb, var(--surface-strong) 82%, var(--bg));
   cursor: pointer;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.84rem;
-  text-transform: uppercase;
 }
 
 .file-upload-input:focus-visible + .file-upload-button,
 .file-upload-button:hover {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
   background: color-mix(in srgb, var(--surface-strong) 84%, var(--accent));
   color: var(--text);
 }
