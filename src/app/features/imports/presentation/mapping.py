@@ -89,6 +89,11 @@ class MappingColumnCandidateVM:
 
 
 @dataclass(frozen=True)
+class MappingSelectedTableRowVM:
+    cells: list[str]
+
+
+@dataclass(frozen=True)
 class MappingSelectedTableVM:
     title: str
     picker_meta: str
@@ -97,6 +102,7 @@ class MappingSelectedTableVM:
     column_options: list[MappingColumnOptionVM]
     mapping_suggestion: MappingSuggestionVM | None
     column_candidates: list[MappingColumnCandidateVM]
+    rows: list[MappingSelectedTableRowVM]
 
 
 @dataclass(frozen=True)
@@ -145,7 +151,6 @@ class MappingPageContext:
     next_step: MappingNextStepVM
     command: UnknownStatementMappingCommand
     preview: UnknownStatementMappingPreview | None
-    selected_table: dict[str, object]
     selected_table_vm: MappingSelectedTableVM
     table_options: list[dict[str, object]]
     table_picker_options: list[MappingTableOptionVM]
@@ -168,7 +173,6 @@ class MappingPageContext:
             "document": self.document,
             "mapping_next_step": self.next_step,
             "preview": self.preview,
-            "selected_table": self.selected_table,
             "selected_table_vm": self.selected_table_vm,
             "table_options": self.table_options,
             "table_picker_options": self.table_picker_options,
@@ -259,7 +263,6 @@ def mapping_page_context_from_command(
         ),
         command=command,
         preview=preview,
-        selected_table=selected_table,
         selected_table_vm=mapping_selected_table(
             selected_table,
             compatible_table_count=compatible_table_count,
@@ -483,6 +486,7 @@ def mapping_selected_table(
             column_options=[],
             mapping_suggestion=None,
             column_candidates=[],
+            rows=[],
         )
 
     page_number = int_table_value(table, "page_number", default=1)
@@ -510,6 +514,7 @@ def mapping_selected_table(
         column_options=mapping_column_options(table),
         mapping_suggestion=mapping_table_suggestion(table),
         column_candidates=mapping_column_candidates(table),
+        rows=mapping_table_rows(table),
     )
 
 
@@ -629,6 +634,19 @@ def mapping_column_candidate_message(candidate: Mapping[str, object]) -> str:
         f"{string_table_value(candidate, 'field')}: колонка {column_number} · "
         f"{string_table_value(candidate, 'header')}"
     )
+
+
+def mapping_table_rows(table: Mapping[str, object]) -> list[MappingSelectedTableRowVM]:
+    rows = table.get("rows")
+    if not isinstance(rows, list):
+        return []
+    return [MappingSelectedTableRowVM(cells=mapping_table_row_cells(row)) for row in rows]
+
+
+def mapping_table_row_cells(row: object) -> list[str]:
+    if isinstance(row, list):
+        return [str(cell) for cell in row]
+    return [str(row)]
 
 
 def mapping_column_options(table: Mapping[str, object]) -> list[MappingColumnOptionVM]:

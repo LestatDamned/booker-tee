@@ -175,7 +175,7 @@
         </div>
       </form>
 
-      {% if selected_table %}
+      {% if selected_table_vm.title %}
         <h2 class="status">{{ selected_table_vm.title }}</h2>
         {% if selected_table_vm.mapping_suggestion %}
           <div class="mapping-suggestion">
@@ -206,9 +206,9 @@
         <div class="table-scroll">
           <table class="table">
             <tbody>
-              {% for row in selected_table.rows %}
+              {% for row in selected_table_vm.rows %}
                 <tr>
-                  {% for cell in row %}
+                  {% for cell in row.cells %}
                     <td>{{ cell }}</td>
                   {% endfor %}
                 </tr>

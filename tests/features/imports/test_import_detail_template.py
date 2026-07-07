@@ -443,7 +443,6 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
         ),
         mapping_preview_summary=mapping_preview_summary(preview),
         mapping_preview_rows=mapping_preview_rows(preview),
-        selected_table=table,
         selected_table_vm=mapping_selected_table(table, compatible_table_count=14),
         table_options=[table],
         table_picker_options=mapping_table_options([table], command),
@@ -720,6 +719,10 @@ def test_mapping_selected_table_prepares_suggestions_and_candidates() -> None:
     assert [candidate.message for candidate in selected_table.column_candidates] == [
         "operation_date: колонка 1 · Дата операции"
     ]
+    assert [row.cells for row in selected_table.rows] == [
+        ["Дата операции", "Описание", "Документ", "Сумма операции"],
+        ["12.05.2026", "Оплата товаров", "1", "-842,00 ₽"],
+    ]
 
 
 def test_mapping_page_context_prepares_document_contract() -> None:
@@ -746,6 +749,7 @@ def test_mapping_page_context_prepares_document_contract() -> None:
     values = page_context.template_values(app_name="Booker Tee", workspace=object())
 
     assert "view" not in values
+    assert "selected_table" not in values
     assert page_context.document.status_label == "требует проверки"
     assert page_context.document.filename == "ozonbank_card_statement.pdf"
     assert page_context.document.detail_url == f"/imports/documents/{document_id}"
