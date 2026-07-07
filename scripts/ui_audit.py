@@ -366,7 +366,7 @@ def prepare_review_interaction_scenario(
         detail_url = page.url
         if "/imports/documents/" not in detail_url:
             page.goto(build_url(base_url, "/imports"), wait_until="domcontentloaded")
-            document_card = page.locator(".entity-card").filter(
+            document_card = page.locator(".import-document-card, .entity-card").filter(
                 has_text=scenario_state["document_name"]
             )
             document_card.wait_for(timeout=PAGE_TIMEOUT_MS)
@@ -1078,12 +1078,12 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
     if not row_id:
         errors.append("first review row has no stable id")
         return errors
-    if row.locator(".review-ledger-summary-suggested").count() == 0:
+    if row.locator(".review-item__ledger-summary--suggested").count() == 0:
         errors.append("suggested review row does not show proposed outcome summary")
     else:
-        suggested_summary = row.locator(".review-ledger-summary-suggested").first.inner_text(
-            timeout=PAGE_TIMEOUT_MS
-        )
+        suggested_summary = row.locator(
+            ".review-item__ledger-summary--suggested"
+        ).first.inner_text(timeout=PAGE_TIMEOUT_MS)
         if "предложено" not in suggested_summary.casefold():
             errors.append("proposed outcome summary does not show suggested state")
         rule_category_name = scenario_state.get("rule_category_name")
@@ -1209,7 +1209,7 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
             errors.append(
                 f"review row jumped {abs(after_top - before_top):.0f}px after HTMX confirm"
             )
-    if confirmed_row.locator(".review-ledger-summary").count() == 0:
+    if confirmed_row.locator(".review-item__ledger-summary").count() == 0:
         errors.append("confirmed review row does not show operation reference")
     correction_action = confirmed_row.locator(".review-actions__correction").first
     if correction_action.count() == 0:
@@ -1223,7 +1223,7 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
             page.once("dialog", lambda dialog: dialog.dismiss())
             undo_button.click()
             page.wait_for_timeout(500)
-            if confirmed_row.locator(".review-ledger-summary-confirmed").count() == 0:
+            if confirmed_row.locator(".review-item__ledger-summary--confirmed").count() == 0:
                 errors.append("undo posting continued after canceling confirmation dialog")
     next_step_text = page.locator("#review-next-step").inner_text(timeout=PAGE_TIMEOUT_MS)
     if "Осталось обработать 2 из 3 строк." not in next_step_text:

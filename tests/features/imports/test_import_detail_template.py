@@ -484,6 +484,8 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
     assert "страница 1 · таблица 1" in html
     assert "mapping-selected-table" in html
     assert "mapping-selected-table__signals" in html
+    assert "ui-signal-list" in html
+    assert "review-flags" not in html
     assert "Дата операции" in html
     assert "Предложение маппинга · 91%" in html
     assert "сумма: колонка 4 выбрана по заголовку" in html
@@ -501,6 +503,7 @@ def test_unknown_statement_mapping_template_shows_form_and_preview() -> None:
     assert "импорт: 14 таблиц по этой схеме" in html
     assert 'form="mapping-form"' in html
     assert "mapping-preview-row__topline" in html
+    assert "mapping-preview-row__error" not in html
     assert f"/imports/documents/{document_id}/mapping/import" in html
     assert "12.05.2026" in html
     assert "-842.00" in html

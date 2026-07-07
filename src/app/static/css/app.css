@@ -3729,8 +3729,7 @@ pre {
   align-items: center;
 }
 
-.review-item__meta,
-.review-meta {
+.review-item__meta {
   display: grid;
   grid-template-columns: auto auto auto minmax(max-content, 1fr);
   gap: 6px;
@@ -3739,8 +3738,7 @@ pre {
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
-.review-item__meta > span:not(.badge):not(.review-item__amount):not(.review-money),
-.review-meta > span:not(.badge):not(.review-money) {
+.review-item__meta > span:not(.badge):not(.review-item__amount):not(.review-money) {
   min-height: 28px;
   display: inline-flex;
   align-items: center;
@@ -3749,22 +3747,19 @@ pre {
   color: var(--muted);
 }
 
-.review-item__meta .badge,
-.review-meta .badge {
+.review-item__meta .badge {
   min-height: 32px;
   gap: 6px;
 }
 
-.review-item--vm .review-item__meta,
-.review-item--vm .review-meta {
+.review-item--vm .review-item__meta {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 10px;
   min-width: 0;
 }
 
-.review-item--vm .review-item__meta > span,
-.review-item--vm .review-meta > span {
+.review-item--vm .review-item__meta > span {
   min-height: auto;
   border: 0;
   background: transparent;
@@ -3967,8 +3962,8 @@ pre {
   color: var(--warning);
 }
 
-.review-item__signals,
-.review-flags {
+.ui-signal-list,
+.review-item__signals {
   display: grid;
   gap: 5px;
   min-height: 0;
@@ -4010,8 +4005,7 @@ pre {
   color: var(--danger) !important;
 }
 
-.review-item__actions,
-.review-actions {
+.review-item__actions {
   display: grid;
   gap: 8px;
   min-width: 0;
@@ -4021,8 +4015,7 @@ pre {
   padding-left: 10px;
 }
 
-.review-item__actions form,
-.review-actions form {
+.review-item__actions form {
   min-width: 0;
 }
 
@@ -4038,8 +4031,7 @@ pre {
   align-items: flex-start;
 }
 
-.review-item--vm .review-item__actions,
-.review-item--vm .review-actions {
+.review-item--vm .review-item__actions {
   gap: 8px;
 }
 
@@ -4544,15 +4536,12 @@ pre {
 }
 
 .review-item__actions select,
-.review-item__actions input:not([type="checkbox"]),
-.review-actions select,
-.review-actions input:not([type="checkbox"]) {
+.review-item__actions input:not([type="checkbox"]) {
   width: 100%;
   min-width: 0;
 }
 
-.review-item__actions .button,
-.review-actions .button {
+.review-item__actions .button {
   width: 100%;
   max-width: 100%;
   min-height: 40px;
@@ -4564,49 +4553,42 @@ pre {
   text-align: left;
 }
 
-.review-item__actions .action-button svg,
-.review-actions .action-button svg {
+.review-item__actions .action-button svg {
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
 }
 
-.review-item__actions .action-label,
-.review-actions .action-label {
+.review-item__actions .action-label {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.review-item__actions .action-primary,
-.review-actions .action-primary {
+.review-item__actions .action-primary {
   border-color: color-mix(in srgb, var(--green) 76%, var(--border));
   background: color-mix(in srgb, var(--green) 13%, var(--surface-strong));
   color: var(--green);
   font-weight: 760;
 }
 
-.review-item__actions .action-primary:hover,
-.review-actions .action-primary:hover {
+.review-item__actions .action-primary:hover {
   border-color: var(--green);
   background: color-mix(in srgb, var(--green) 18%, var(--surface-strong));
   color: var(--text);
 }
 
-.review-item__actions .action-secondary,
-.review-actions .action-secondary {
+.review-item__actions .action-secondary {
   border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
   background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
   color: var(--muted);
 }
 
-.review-item__actions .action-secondary:hover,
-.review-actions .action-secondary:hover {
+.review-item__actions .action-secondary:hover {
   border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
   color: var(--text);
 }
 
-.review-item__actions .action-danger,
-.review-actions .action-danger {
+.review-item__actions .action-danger {
   border-color: color-mix(in srgb, var(--danger) 68%, var(--border));
   background: color-mix(in srgb, var(--danger) 7%, transparent);
   color: var(--danger);
@@ -4833,6 +4815,29 @@ pre {
   display: grid;
   align-content: start;
   gap: 10px;
+}
+
+.account-entry__meta {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(max-content, 1fr);
+  gap: 6px;
+  align-items: center;
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.account-entry__meta > span:not(.badge):not(.entry-money) {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.account-entry__meta .badge {
+  min-height: 32px;
+  gap: 6px;
 }
 
 .entry-description {
@@ -5186,8 +5191,7 @@ pre {
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
   }
 
-  .review-item__actions,
-  .review-actions {
+  .review-item__actions {
     border-left: 0;
     border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
     padding: 10px 0 0;
@@ -5590,20 +5594,19 @@ pre {
     justify-content: space-between;
   }
 
+  .account-entry__meta > span,
   .review-item__meta > span,
-  .review-meta > span,
-  .review-item__actions .button,
-  .review-actions .button {
+  .review-item__actions .button {
     width: 100%;
   }
 
-  .review-item__meta,
-  .review-meta {
+  .account-entry__meta,
+  .review-item__meta {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .review-item__meta .badge,
-  .review-meta .badge {
+  .account-entry__meta .badge,
+  .review-item__meta .badge {
     width: 100%;
     justify-content: center;
     overflow-wrap: anywhere;

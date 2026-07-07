@@ -98,6 +98,8 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
 
     assert "entry-list" in html
     assert "entry-item" in html
+    assert "account-entry__meta" in html
+    assert "review-meta" not in html
     assert "account-detail-title" in html
     assert "account-settings-details" in html
     assert "фильтры проводок" in html

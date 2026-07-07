@@ -1334,7 +1334,7 @@ review-panel__hint
 Action area:
 
 ```text
-review-actions
+review-actions__system
 review-actions__primary
 review-actions__secondary
 review-actions__menu
@@ -1349,7 +1349,7 @@ review-actions__danger
   `review-item__*`, `review-panel__*` и `review-actions__*`; старые внутренние
   классы остаются как compatibility layer.
 - При следующем UI touch point опираться на новые owner-class контракты и не
-  добавлять новые правила только к старым `review-main` / `review-meta`.
+  добавлять новые правила только к старым review item fallback-селекторам.
 - Целевой state modifier строится из `visual_state`:
 
   ```jinja
@@ -1437,8 +1437,8 @@ review-actions__danger
     - `review-panel__*`;
     - `review-actions__*`.
     Root нового item помечен как `review-item--vm`. Старые CSS-классы
-    `review-main`, `review-meta`, `review-topline`, `review-state-*` и
-    `review-ledger-*` пока остаются как совместимость.
+    `review-main`, `review-topline`, `review-state-*` и `review-ledger-*`
+    пока остаются как совместимость.
 21. Новый partial можно включить точечно вместо старого review item без
     переписывания всего модуля импорта.
 22. Если что-то ломается, старый partial можно временно вернуть без миграций БД
@@ -1500,10 +1500,13 @@ review-actions__danger
 - `review-actions__*`.
 
 `imports/review/_item.html` больше не смешивает старые item-only classes с
-`review-item__*`. Старые селекторы `review-main`, `review-meta`,
-`review-topline`, `review-state-*`, `review-signal-*` и `review-ledger-*`
-остаются в `app.css` как compatibility layer для shared/legacy templates и
-удаляются только после отдельного аудита шаблонов и CSS.
+`review-item__*`. Shared legacy leaks уже разобраны: warning/signal lists в
+imports/mapping используют `ui-signal-list`, account detail использует
+`account-entry__meta`, а root `review-actions` больше не нужен как CSS
+container. Оставшиеся fallback-селекторы в `app.css` относятся к более старым
+review item именам (`review-main`, `review-topline`, `review-state-*`,
+`review-signal-*`, `review-ledger-*`) и удаляются только после отдельного
+CSS-аудита.
 
 Шаги:
 

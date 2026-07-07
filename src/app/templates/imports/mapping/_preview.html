@@ -1,6 +1,6 @@
 {% if page.has_preview %}
   {% if page.warnings %}
-    <div class="review-flags">
+    <div class="ui-signal-list import-mapping-preview__warnings">
       {% for warning in page.warnings %}
         <span>{{ warning.message }}</span>
       {% endfor %}

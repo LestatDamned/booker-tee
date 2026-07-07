@@ -8,7 +8,7 @@
     </ul>
   {% endif %}
   {% if suggestion.warnings %}
-    <div class="review-flags mapping-suggestion__warnings">
+    <div class="ui-signal-list mapping-suggestion__warnings">
       {% for warning in suggestion.warnings %}
         <span class="mapping-suggestion__warning">{{ warning.message }}</span>
       {% endfor %}
