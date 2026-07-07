@@ -818,17 +818,54 @@ input[type="checkbox"] {
 }
 
 .mapping-form {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: 1fr;
+  align-items: stretch;
 }
 
-.mapping-form .field,
-.mapping-form .form-field-wide,
+.mapping-form .mapping-form__section,
 .mapping-form .mapping-action-row {
-  grid-column: auto !important;
+  grid-column: 1 / -1 !important;
 }
 
-.mapping-form .form-field-wide,
-.mapping-form .mapping-action-row {
+.mapping-form__section {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--surface) 42%, transparent);
+  padding: 12px;
+}
+
+.mapping-form__section-head {
+  grid-column: 1 / -1 !important;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 54%, transparent);
+  padding-bottom: 8px;
+}
+
+.mapping-form__section-head span {
+  color: var(--accent);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.mapping-form__section-head strong {
+  color: var(--text);
+  font-size: 0.94rem;
+}
+
+.mapping-form__section .field {
+  grid-column: span 3;
+}
+
+.mapping-form .mapping-form__table-field {
   grid-column: 1 / -1 !important;
 }
 
