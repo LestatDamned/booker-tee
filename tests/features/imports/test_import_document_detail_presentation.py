@@ -248,3 +248,67 @@ def test_document_detail_presenter_builds_unknown_statement_table_previews() -> 
         ("дата", 1),
         ("сумма", 3),
     ]
+
+
+def test_document_detail_presenter_builds_mapping_suggestion_vm() -> None:
+    page = DocumentDetailPresenter().build(
+        document_view(
+            validation={
+                "status": "needs_mapping",
+                "message": "Configure columns.",
+                "detected_bank_name": None,
+                "detected_statement_type": None,
+                "text_based": True,
+                "table_count": 1,
+                "table_previews": [
+                    {
+                        "page_number": 1,
+                        "table_index": 0,
+                        "row_count": 2,
+                        "preview_row_count": 2,
+                        "column_count": 4,
+                        "rows": [["Дата операции", "Описание", "Документ", "Сумма операции"]],
+                        "mapping_suggestions": [
+                            {
+                                "confidence": 0.91,
+                                "reasons": [
+                                    {
+                                        "field": "operation_date",
+                                        "column_index": 0,
+                                        "header": "Дата операции",
+                                        "evidence": "header_match",
+                                    },
+                                    {
+                                        "field": "amount",
+                                        "column_index": 3,
+                                        "evidence": "money_like_values",
+                                        "matched_count": 2,
+                                        "sample_count": 3,
+                                    },
+                                ],
+                                "warnings": [
+                                    {
+                                        "code": "partial_debit_credit_columns",
+                                        "fields": ["debit_amount"],
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            }
+        ),
+        can_manage_imports=True,
+    )
+
+    assert page.validation is not None
+    suggestion = page.validation.table_previews[0].primary_mapping_suggestion
+    assert suggestion is not None
+    assert suggestion.title == "Предложение маппинга · 91%"
+    assert [reason.message for reason in suggestion.reasons] == [
+        "дата: колонка 1 выбрана по заголовку «Дата операции».",
+        "сумма: колонка 4 содержит 2/3 значений, похожих на суммы.",
+    ]
+    assert [warning.message for warning in suggestion.warnings] == [
+        "Найдена только одна колонка списания/зачисления. Проверьте знак суммы перед импортом."
+    ]

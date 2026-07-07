@@ -4,16 +4,16 @@ from typing import cast
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
 )
-from app.features.imports.presentation.field_labels import mapping_field_label
 from app.features.imports.presentation.mapping.models import (
     MappingColumnCandidateVM,
     MappingColumnOptionVM,
     MappingSelectedTableRowVM,
     MappingSelectedTableVM,
-    MappingSuggestionReasonVM,
-    MappingSuggestionVM,
-    MappingSuggestionWarningVM,
     MappingTableOptionVM,
+)
+from app.features.imports.presentation.mapping_suggestions import (
+    MappingSuggestionVM,
+    first_mapping_suggestion_from_raw,
 )
 
 
@@ -85,99 +85,7 @@ def mapping_selected_table_vm(
 
 
 def _mapping_table_suggestion(table: Mapping[str, object]) -> MappingSuggestionVM | None:
-    suggestions = table.get("mapping_suggestions")
-    if not isinstance(suggestions, list) or not suggestions:
-        return None
-    suggestion = _string_key_mapping(suggestions[0])
-    if suggestion is None:
-        return None
-    return _mapping_suggestion(suggestion)
-
-
-def _mapping_suggestion(suggestion: Mapping[str, object]) -> MappingSuggestionVM:
-    confidence = _float_table_value(suggestion, "confidence", default=0)
-    return MappingSuggestionVM(
-        title=f"Предложение маппинга · {int(round(confidence * 100))}%",
-        reasons=_mapping_suggestion_reasons(suggestion),
-        warnings=_mapping_suggestion_warnings(suggestion),
-    )
-
-
-def _mapping_suggestion_reasons(
-    suggestion: Mapping[str, object],
-) -> list[MappingSuggestionReasonVM]:
-    reasons = suggestion.get("reasons")
-    if not isinstance(reasons, list):
-        return []
-    return [
-        MappingSuggestionReasonVM(_mapping_suggestion_reason_message(reason)) for reason in reasons
-    ]
-
-
-def _mapping_suggestion_reason_message(reason: object) -> str:
-    reason_mapping = _string_key_mapping(reason)
-    if reason_mapping is None or "field" not in reason_mapping:
-        return str(reason)
-
-    field_label = mapping_field_label(reason_mapping.get("field"))
-    column_number = _int_table_value(reason_mapping, "column_index", default=0) + 1
-    evidence = _string_table_value(reason_mapping, "evidence")
-
-    if evidence == "header_match":
-        return (
-            f"{field_label}: колонка {column_number} выбрана по заголовку "
-            f"«{_string_table_value(reason_mapping, 'header')}»."
-        )
-    if evidence == "date_like_values":
-        return _mapping_profile_reason_message(field_label, column_number, reason_mapping, "дату")
-    if evidence == "money_like_values":
-        return _mapping_profile_reason_message(field_label, column_number, reason_mapping, "суммы")
-    if evidence == "currency_like_values":
-        return _mapping_profile_reason_message(field_label, column_number, reason_mapping, "валюту")
-    if evidence == "description_like_values":
-        return (
-            f"{field_label}: колонка {column_number} содержит "
-            f"{_string_table_value(reason_mapping, 'matched_count')}/"
-            f"{_string_table_value(reason_mapping, 'sample_count')} текстовых значений."
-        )
-    return f"{field_label}: колонка {column_number}."
-
-
-def _mapping_profile_reason_message(
-    field_label: str,
-    column_number: int,
-    reason: Mapping[str, object],
-    value_label: str,
-) -> str:
-    return (
-        f"{field_label}: колонка {column_number} содержит "
-        f"{_string_table_value(reason, 'matched_count')}/"
-        f"{_string_table_value(reason, 'sample_count')} значений, похожих на {value_label}."
-    )
-
-
-def _mapping_suggestion_warnings(
-    suggestion: Mapping[str, object],
-) -> list[MappingSuggestionWarningVM]:
-    warnings = suggestion.get("warnings")
-    if not isinstance(warnings, list):
-        return []
-    return [
-        MappingSuggestionWarningVM(_mapping_suggestion_warning_message(warning))
-        for warning in warnings
-    ]
-
-
-def _mapping_suggestion_warning_message(warning: object) -> str:
-    warning_mapping = _string_key_mapping(warning)
-    if warning_mapping is None:
-        return str(warning)
-    code = _string_table_value(warning_mapping, "code")
-    if code == "partial_debit_credit_columns":
-        return (
-            "Найдена только одна колонка списания/зачисления. Проверьте знак суммы перед импортом."
-        )
-    return code
+    return first_mapping_suggestion_from_raw(table.get("mapping_suggestions"))
 
 
 def _mapping_column_candidates(table: Mapping[str, object]) -> list[MappingColumnCandidateVM]:
@@ -240,18 +148,6 @@ def _int_table_value(table: Mapping[str, object], key: str, *, default: int) -> 
     if isinstance(value, str):
         try:
             return int(value)
-        except ValueError:
-            return default
-    return default
-
-
-def _float_table_value(table: Mapping[str, object], key: str, *, default: float) -> float:
-    value = table.get(key)
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
-        try:
-            return float(value)
         except ValueError:
             return default
     return default

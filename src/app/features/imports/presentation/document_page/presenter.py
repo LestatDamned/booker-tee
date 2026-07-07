@@ -42,6 +42,10 @@ from app.features.imports.presentation.document_page.models import (
     DocumentDetailWorkflowVM,
 )
 from app.features.imports.presentation.field_labels import mapping_field_label
+from app.features.imports.presentation.mapping_suggestions import (
+    MappingSuggestionVM,
+    first_mapping_suggestion_from_raw,
+)
 
 
 class DocumentDetailPresenter:
@@ -278,11 +282,11 @@ class DocumentDetailPresenter:
             )
         return result
 
-    def primary_mapping_suggestion(self, preview: Mapping[str, object]) -> object | None:
-        suggestions = preview.get("mapping_suggestions")
-        if not isinstance(suggestions, list) or not suggestions:
-            return None
-        return suggestions[0]
+    def primary_mapping_suggestion(
+        self,
+        preview: Mapping[str, object],
+    ) -> MappingSuggestionVM | None:
+        return first_mapping_suggestion_from_raw(preview.get("mapping_suggestions"))
 
     def column_candidates(
         self,

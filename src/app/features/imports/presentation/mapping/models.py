@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from app.features.imports.presentation.mapping_suggestions import MappingSuggestionVM
+
 
 class MappingPresentationError(ValueError):
     pass
@@ -44,23 +46,6 @@ class MappingTableOptionVM:
 class MappingColumnOptionVM:
     index: int
     label: str
-
-
-@dataclass(frozen=True)
-class MappingSuggestionReasonVM:
-    message: str
-
-
-@dataclass(frozen=True)
-class MappingSuggestionWarningVM:
-    message: str
-
-
-@dataclass(frozen=True)
-class MappingSuggestionVM:
-    title: str
-    reasons: list[MappingSuggestionReasonVM]
-    warnings: list[MappingSuggestionWarningVM]
 
 
 @dataclass(frozen=True)

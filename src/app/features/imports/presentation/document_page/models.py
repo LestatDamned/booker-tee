@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from app.features.imports.presentation.mapping_suggestions import MappingSuggestionVM
+
 
 @dataclass(frozen=True)
 class DocumentDetailWorkflowVM:
@@ -57,7 +59,7 @@ class DocumentDetailTablePreviewVM:
     is_continuation: bool
     continuation_summary: str
     continuation_fields: Sequence[DocumentDetailContinuationFieldVM]
-    primary_mapping_suggestion: object | None
+    primary_mapping_suggestion: MappingSuggestionVM | None
     column_candidates: Sequence[DocumentDetailColumnCandidateVM]
 
 
