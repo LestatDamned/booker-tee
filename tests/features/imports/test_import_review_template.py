@@ -491,6 +491,9 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
     assert "Игнорировать" in html
     assert "hx-confirm=" in html
     assert html.index("29.05.2026") < html.index("Veesp hosting")
+    assert "financial-row review-item review-item--vm" in html
+    assert "financial-row__topline review-item__topline" in html
+    assert "financial-row__date review-item__date" in html
     assert "review-item__topline" in html
     assert "review-item__meta" in html
     assert "review-item__row-index" in html
@@ -499,6 +502,7 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
     assert "review-item__account" in html
     assert "review-item__amount" in html
     assert "review-item__description" in html
+    assert "financial-row__side review-item__actions" in html
     assert "review-item__state" in html
     assert "review-item__state-primary" in html
     assert "review-item__state-secondary" in html

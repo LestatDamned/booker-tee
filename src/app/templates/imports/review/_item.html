@@ -1,7 +1,7 @@
 {% set action_summary = item.operation_link or item.outcome_summary %}
 
 <article
-  class="review-item review-item--vm review-item--status-{{ item.visual_state }} {% if item.is_next %}review-item--next{% endif %}"
+  class="financial-row review-item review-item--vm review-item--status-{{ item.visual_state }} {% if item.is_next %}review-item--next{% endif %}"
   id="{{ item.anchor_id }}"
   hx-boost="true"
   hx-select="#{{ item.anchor_id }}"
@@ -23,20 +23,20 @@
   }"
   {% if item.oob or (review_item_oob is defined and review_item_oob) %}hx-swap-oob="true"{% endif %}
 >
-  <div class="review-item__main">
-    <div class="review-item__topline">
-      <div class="review-item__meta">
+  <div class="financial-row__main review-item__main">
+    <div class="financial-row__topline review-item__topline">
+      <div class="financial-row__meta review-item__meta">
         <span class="review-item__row-index"><strong>#</strong>{{ item.row_index }}</span>
-        <span class="review-item__date">
-          <span class="review-item__date-label">дата</span>
+        <span class="financial-row__date review-item__date">
+          <span class="review-item__date-label"></span>
           <strong>{{ item.date_label | date_ru }}</strong>
         </span>
         <span class="review-item__account">{{ item.account_label }}</span>
       </div>
-      <span class="review-item__amount money-value {{ item.money_tone }}">{{ item.amount_label }} <small>{{ item.currency }}</small></span>
+      <span class="financial-row__amount review-item__amount money-value {{ item.money_tone }}">{{ item.amount_label }} <small>{{ item.currency }}</small></span>
     </div>
 
-    <div class="review-item__description">{{ item.description }}</div>
+    <div class="financial-row__description review-item__description">{{ item.description }}</div>
 
     {% if not action_summary and (item.state_badge or item.classification_badge or item.classification_source_badge) %}
       <div class="review-item__state">
@@ -70,10 +70,10 @@
     {% endif %}
   </div>
 
-  <div class="review-item__actions">
+  <div class="financial-row__side review-item__actions">
     {% if action_summary %}
       <div
-        class="review-item__ledger-summary review-item__ledger-summary--{{ action_summary.tone }}"
+        class="financial-row__result-card review-item__ledger-summary review-item__ledger-summary--{{ action_summary.tone }}"
         {% if item.operation_link %}title="operation {{ item.operation_link.operation_id }}"{% endif %}
       >
         <div class="review-item__ledger-meta">
@@ -90,7 +90,7 @@
   </div>
 
   {% if item.panels %}
-    <div class="review-item__panels">
+    <div class="financial-row__drawer review-item__panels">
       <div class="review-panel__tabs review-item__panel-tabs">
         {% for panel in item.panels %}
           {% include "imports/review/_panel_tab.html" %}

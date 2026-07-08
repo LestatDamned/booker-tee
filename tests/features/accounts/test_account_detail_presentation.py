@@ -45,6 +45,12 @@ def test_presenter_builds_imported_expense_movement_with_drawer() -> None:
 
     assert movement.amount_direction == "expense"
     assert movement.date_label == "30.06.2026"
+    assert movement.badges == []
+    assert [item.label for item in movement.meta] == [
+        "Продукты",
+        "Экспобанк карта",
+        "подтверждено",
+    ]
     assert movement.result.eyebrow == "расход · подтверждено"
     assert movement.result.title == "Продукты"
     assert movement.primary_action is not None
@@ -95,6 +101,8 @@ def test_presenter_summarizes_transfer_route() -> None:
     assert movement.result.title == "ВТБ вклад -> Экспобанк карта"
     assert movement.result.detail == "не влияет на прибыль"
     assert movement.meta[0].label == "ВТБ вклад -> Экспобанк карта"
+    assert movement.meta[1].label == "Экспобанк карта"
+    assert movement.meta[2].label == "подтверждено"
 
 
 def test_presenter_keeps_manual_operation_as_link_action_for_first_slice() -> None:
@@ -123,7 +131,34 @@ def test_presenter_keeps_manual_operation_as_link_action_for_first_slice() -> No
     assert movement.primary_action.href == (
         f"/ledger/manual?operation_id={operation.id}#operation-{operation.id}"
     )
-    assert movement.meta[-1].label == "ручная операция"
+    assert movement.meta[-1].label == "подтверждено"
+
+
+def test_presenter_promotes_review_status_to_badge() -> None:
+    account = account_view("Экспобанк карта")
+    operation = operation_view(
+        operation_type=OperationType.EXPENSE,
+        source=OperationSource.BANK_PDF,
+        status=OperationStatus.NEEDS_REVIEW,
+        category=None,
+    )
+    entry = AccountLedgerEntryView(
+        operation=operation,
+        operation_id=operation.id,
+        amount=Decimal("-100.00"),
+        currency="RUB",
+    )
+
+    page = AccountDetailPresenter.build(
+        detail_view(account=account, entries=[entry]),
+        presenter_input(can_write=True),
+    )
+
+    movement = page.movements[0]
+
+    assert [badge.label for badge in movement.badges] == ["нужна проверка", "без категории"]
+    assert [badge.tone for badge in movement.badges] == ["needs_review", "warning"]
+    assert movement.meta[-1].label == "нужна проверка"
 
 
 def test_presenter_detects_active_filters() -> None:
@@ -153,6 +188,7 @@ def operation_view(
     *,
     operation_type: OperationType,
     source: OperationSource,
+    status: OperationStatus = OperationStatus.CONFIRMED,
     description: str = "Операция",
     category: CategoryView | None = None,
     money_entries: list[OperationRefMoneyEntryView] | None = None,
@@ -161,7 +197,7 @@ def operation_view(
     return OperationRefView(
         id=uuid4(),
         type=operation_type,
-        status=OperationStatus.CONFIRMED,
+        status=status,
         source=source,
         operation_date=date(2026, 6, 30),
         description=description,

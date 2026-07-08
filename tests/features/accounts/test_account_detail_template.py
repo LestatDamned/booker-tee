@@ -8,7 +8,6 @@ from app.features.accounts.presentation.detail.models import (
     AccountDetailMetricVM,
     AccountDetailPageVM,
     AccountMovementActionVM,
-    AccountMovementBadgeVM,
     AccountMovementDrawerVM,
     AccountMovementMetaVM,
     AccountMovementVM,
@@ -108,15 +107,12 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
                     amount_direction="expense",
                     currency="RUB",
                     date_label="05.06.2026",
-                    badges=[
-                        AccountMovementBadgeVM("расход", "expense"),
-                        AccountMovementBadgeVM("импорт", "source-bank_pdf"),
-                        AccountMovementBadgeVM("подтверждено", "confirmed"),
-                    ],
+                    badges=[],
                     description='Списание средств по платежу СБП | ООО "ЛЕНТА"',
                     meta=[
                         AccountMovementMetaVM("Продукты", "expense"),
-                        AccountMovementMetaVM("из выписки"),
+                        AccountMovementMetaVM("Экспобанк карта"),
+                        AccountMovementMetaVM("подтверждено", "confirmed"),
                     ],
                     result=OperationResultVM(
                         eyebrow="расход · подтверждено",
@@ -145,7 +141,7 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
                         property_id=None,
                         source_url=f"/imports/documents/{document_id}/review#raw-{raw_transaction_id}",
                     ),
-                    technical_label=f"ID {operation_id}",
+                    technical_label=f"ID {operation_id} · из выписки",
                 )
             ],
             filters_active=False,
@@ -168,16 +164,21 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     )
 
     assert "account-movement-list" in html
-    assert "account-movement account-movement--expense" in html
+    assert "financial-row account-movement account-movement--expense" in html
     assert "account-movement__topline" in html
+    assert "financial-row__description account-movement__description" in html
+    row_html = html[html.index("financial-row account-movement") :]
+    assert row_html.index("05.06.2026") < row_html.index("-2438.87")
+    assert row_html.index("-2438.87") < row_html.index("Списание средств по платежу")
+    assert row_html.index("Списание средств по платежу") < row_html.index("Продукты")
+    assert row_html.index("Продукты") < row_html.index("Экспобанк карта")
+    assert row_html.index("Экспобанк карта") < row_html.index("подтверждено")
     assert "review-meta" not in html
     assert "operation-ref" not in html
     assert "account-detail-title" in html
     assert "account-settings-details" in html
     assert "фильтры проводок" in html
-    assert "account-movement__amount money-value money-expense" in html
-    assert "badge-expense" in html
-    assert "badge-source-bank_pdf" in html
+    assert "financial-row__amount account-movement__amount money-value money-expense" in html
     assert "импорт" in html
     assert "Действия с операцией" not in html
     assert "Исправить операцию" in html

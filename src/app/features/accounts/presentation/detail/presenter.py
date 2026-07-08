@@ -16,6 +16,7 @@ from app.features.accounts.presentation.detail.models import (
 from app.features.ledger.mapping.dto import (
     AccountLedgerDetailView,
     AccountLedgerEntryView,
+    AccountView,
     OperationRefMoneyEntryView,
     OperationRefView,
     RawTransactionLinkView,
@@ -24,6 +25,12 @@ from app.features.ledger.models import OperationSource, OperationStatus, Operati
 from app.templating import date_ru, ru_label
 
 DEFAULT_STATUS_FILTER: Final = OperationStatus.CONFIRMED
+IMPORTANT_STATUSES: Final = {
+    OperationStatus.DRAFT,
+    OperationStatus.NEEDS_REVIEW,
+    OperationStatus.IGNORED,
+    OperationStatus.DUPLICATE,
+}
 
 
 class AccountDetailPresenter:
@@ -37,7 +44,7 @@ class AccountDetailPresenter:
             balance=detail.balance,
             metrics=AccountDetailPresenter._metrics(detail),
             movements=[
-                AccountDetailPresenter._movement(detail.account.id, entry, presenter_input)
+                AccountDetailPresenter._movement(detail.account, entry, presenter_input)
                 for entry in detail.entries
             ],
             filters_active=AccountDetailPresenter._filters_active(presenter_input),
@@ -69,12 +76,12 @@ class AccountDetailPresenter:
 
     @staticmethod
     def _movement(
-        account_id: object,
+        account: AccountView,
         entry: AccountLedgerEntryView,
         presenter_input: AccountDetailPresenterInput,
     ) -> AccountMovementVM:
         source_url = AccountDetailPresenter._source_url(entry.operation)
-        drawer = AccountDetailPresenter._drawer(account_id, entry, source_url, presenter_input)
+        drawer = AccountDetailPresenter._drawer(account.id, entry, source_url, presenter_input)
         primary_action = AccountDetailPresenter._primary_action(entry, drawer, presenter_input)
         secondary_actions = AccountDetailPresenter._secondary_actions(entry, source_url)
         return AccountMovementVM(
@@ -87,30 +94,43 @@ class AccountDetailPresenter:
             date_label=date_ru(entry.operation.operation_date),
             badges=AccountDetailPresenter._badges(entry.operation),
             description=entry.operation.description or "Без описания",
-            meta=AccountDetailPresenter._meta(entry.operation),
+            meta=AccountDetailPresenter._meta(entry.operation, account.name),
             result=AccountDetailPresenter._result(entry.operation),
             primary_action=primary_action,
             secondary_actions=secondary_actions,
             drawer=drawer,
-            technical_label=f"ID {entry.operation_id}",
+            technical_label=(
+                f"ID {entry.operation_id} · "
+                f"{source_context_label(entry.operation.source)}"
+            ),
         )
 
     @staticmethod
     def _badges(operation: OperationRefView) -> list[AccountMovementBadgeVM]:
-        return [
-            AccountMovementBadgeVM(ru_label(operation.type), operation.type.value),
-            AccountMovementBadgeVM(ru_label(operation.source), f"source-{operation.source.value}"),
-            AccountMovementBadgeVM(ru_label(operation.status), operation.status.value),
-        ]
+        badges: list[AccountMovementBadgeVM] = []
+        if operation.status in IMPORTANT_STATUSES:
+            badges.append(
+                AccountMovementBadgeVM(
+                    ru_label(operation.status),
+                    operation.status.value,
+                )
+            )
+        if (
+            operation.type in {OperationType.INCOME, OperationType.EXPENSE}
+            and operation.category is None
+        ):
+            badges.append(AccountMovementBadgeVM("без категории", "warning"))
+        return badges
 
     @staticmethod
-    def _meta(operation: OperationRefView) -> list[AccountMovementMetaVM]:
+    def _meta(operation: OperationRefView, account_name: str) -> list[AccountMovementMetaVM]:
         if operation.type == OperationType.TRANSFER:
             route = transfer_route(operation)
             return [
                 AccountMovementMetaVM(route or "маршрут перевода не определен", "transfer"),
+                AccountMovementMetaVM(account_name),
+                AccountMovementMetaVM(ru_label(operation.status), operation.status.value),
                 AccountMovementMetaVM("не влияет на прибыль", "transfer"),
-                AccountMovementMetaVM(source_context_label(operation.source)),
             ]
 
         meta: list[AccountMovementMetaVM] = []
@@ -122,7 +142,8 @@ class AccountDetailPresenter:
             meta.append(AccountMovementMetaVM("Без категории", "warning"))
         if operation.property is not None:
             meta.append(AccountMovementMetaVM(operation.property.name))
-        meta.append(AccountMovementMetaVM(source_context_label(operation.source)))
+        meta.append(AccountMovementMetaVM(account_name))
+        meta.append(AccountMovementMetaVM(ru_label(operation.status), operation.status.value))
         return meta
 
     @staticmethod

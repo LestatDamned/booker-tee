@@ -3700,16 +3700,102 @@ pre {
   font-size: 0.74rem;
 }
 
-.review-item {
+.financial-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
   gap: 16px;
   border: 1px solid var(--border);
   border-left-width: 4px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 92%, var(--surface-strong));
-  overflow-anchor: none;
   padding: 12px;
+}
+
+.financial-row__main {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.financial-row__topline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 12px;
+  align-items: center;
+}
+
+.financial-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+  align-items: center;
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.financial-row__amount {
+  justify-self: end;
+  border: 1px solid color-mix(in srgb, currentcolor 72%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-strong) 72%, transparent);
+  padding: 4px 10px;
+  font-size: 1.4rem;
+}
+
+.financial-row__date {
+  color: var(--text);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.financial-row__date strong {
+  font-size: inherit;
+}
+
+.financial-row__description {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 1.02rem;
+  font-weight: 680;
+  line-height: 1.45;
+}
+
+.financial-row__side {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-left: 10px;
+}
+
+.financial-row__result-card {
+  display: grid;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-left: 2px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-strong) 36%, transparent);
+  padding: 8px;
+}
+
+.financial-row__actions {
+  display: grid;
+  gap: 8px;
+}
+
+.financial-row__drawer {
+  grid-column: 1 / -1;
+}
+
+.review-item {
+  overflow-anchor: none;
   scroll-margin-top: var(--review-anchor-offset);
 }
 
@@ -3745,13 +3831,6 @@ pre {
   background: color-mix(in srgb, var(--surface) 88%, var(--accent));
 }
 
-.review-item__main {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-}
-
 .review-item--vm {
   grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
   gap: 12px 16px;
@@ -3761,22 +3840,6 @@ pre {
 
 .review-item--vm .review-item__main {
   gap: 10px;
-}
-
-.review-item__topline {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  gap: 12px;
-  align-items: center;
-}
-
-.review-item__meta {
-  display: grid;
-  grid-template-columns: auto auto auto minmax(max-content, 1fr);
-  gap: 6px;
-  align-items: center;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 .review-item__meta > span:not(.badge):not(.review-item__amount) {
@@ -3791,13 +3854,6 @@ pre {
 .review-item__meta .badge {
   min-height: 32px;
   gap: 6px;
-}
-
-.review-item--vm .review-item__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  min-width: 0;
 }
 
 .review-item--vm .review-item__meta > span {
@@ -3823,6 +3879,10 @@ pre {
   padding: 0 10px 0 8px;
 }
 
+.review-item--vm .review-item__meta > .financial-row__date {
+  font-size: 1.4rem;
+}
+
 .review-item--vm .review-item__date-label {
   color: color-mix(in srgb, var(--accent) 86%, var(--muted));
   font-size: 0.66rem;
@@ -3833,7 +3893,7 @@ pre {
 
 .review-item--vm .review-item__date strong {
   color: var(--text);
-  font-size: 0.86rem;
+  font-size: inherit;
   font-weight: 860;
 }
 
@@ -3843,15 +3903,6 @@ pre {
 
 .review-item--vm .review-item__account {
   overflow-wrap: anywhere;
-}
-
-.review-item__amount {
-  justify-self: end;
-  border: 1px solid color-mix(in srgb, currentcolor 72%, var(--border));
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--surface-strong) 72%, transparent);
-  padding: 4px 10px;
-  font-size: 1.08rem;
 }
 
 .review-item__row-index strong {
@@ -3868,17 +3919,10 @@ pre {
 }
 
 .review-item__description {
-  overflow-wrap: anywhere;
-  color: var(--text);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  line-height: 1.45;
 }
 
 .review-item--vm .review-item__description {
   max-width: 74ch;
-  font-size: 1.02rem;
-  font-weight: 680;
   letter-spacing: 0;
 }
 
@@ -3993,13 +4037,7 @@ pre {
 }
 
 .review-item__actions {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  align-content: start;
-  border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   background: transparent;
-  padding-left: 10px;
 }
 
 .review-item__actions form {
@@ -4739,13 +4777,7 @@ pre {
 }
 
 .account-movement {
-  display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
-  gap: 16px;
-  border: 1px solid var(--border);
-  border-left-width: 4px;
-  background: var(--surface);
-  padding: 12px;
 }
 
 .account-movement--income {
@@ -4764,49 +4796,28 @@ pre {
   border-left-color: var(--warning);
 }
 
-.account-movement__main {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: 10px;
+.account-movement__amount {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  white-space: nowrap;
 }
 
 .account-movement__topline {
-  display: grid;
-  grid-template-columns: minmax(150px, max-content) max-content minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-}
-
-.account-movement__amount {
-  justify-self: start;
-}
-
-.account-movement__date {
-  color: var(--text);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-weight: 700;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: 8px 12px;
 }
 
 .account-movement__badges {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
 }
 
-.account-movement__description {
-  color: var(--text);
-  overflow-wrap: anywhere;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  line-height: 1.45;
-}
-
 .account-movement__meta {
-  display: flex;
-  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -4842,22 +4853,8 @@ pre {
 }
 
 .account-movement__result {
-  min-width: 0;
-  display: grid;
   gap: 10px;
-  align-content: start;
-  border-left: 1px solid var(--border);
   padding-left: 16px;
-}
-
-.account-movement__result-card {
-  display: grid;
-  gap: 6px;
-  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  border-left: 2px solid var(--border);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--surface-strong) 36%, transparent);
-  padding: 8px;
 }
 
 .account-movement__result-card--income {
@@ -4890,11 +4887,6 @@ pre {
   font-size: 1rem;
 }
 
-.account-movement__actions {
-  display: grid;
-  gap: 8px;
-}
-
 .account-movement__action {
   width: 100%;
 }
@@ -4915,7 +4907,6 @@ pre {
 }
 
 .account-movement__drawer {
-  grid-column: 1 / -1;
   display: grid;
   gap: 12px;
   border: 1px solid color-mix(in srgb, var(--accent) 64%, var(--border));
@@ -5038,13 +5029,12 @@ pre {
     grid-column: span 6 !important;
   }
 
-  .review-item,
-  .account-movement,
+  .financial-row,
   .rule-card {
     grid-template-columns: 1fr;
   }
 
-  .review-item__topline {
+  .financial-row__topline {
     grid-template-columns: 1fr;
   }
 
@@ -5103,7 +5093,7 @@ pre {
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
   }
 
-  .review-item__actions {
+  .financial-row__side {
     border-left: 0;
     border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
     padding: 10px 0 0;
@@ -5128,13 +5118,6 @@ pre {
 
   .review-panel__tabs {
     display: none;
-  }
-
-  .account-movement__result {
-    border-left: 0;
-    border-top: 1px solid var(--border);
-    padding-left: 0;
-    padding-top: 12px;
   }
 
   .rule-card-actions {
@@ -5546,13 +5529,7 @@ pre {
     width: 100%;
   }
 
-  .account-movement__topline,
-  .review-item__meta {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .account-movement__badges {
-    grid-column: 1 / -1;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
