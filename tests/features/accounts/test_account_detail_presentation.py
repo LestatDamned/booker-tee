@@ -102,7 +102,8 @@ def test_presenter_summarizes_transfer_route() -> None:
     assert movement.result.detail == "не влияет на прибыль"
     assert movement.meta[0].label == "ВТБ вклад -> Экспобанк карта"
     assert movement.meta[1].label == "Экспобанк карта"
-    assert movement.meta[2].label == "подтверждено"
+    assert movement.meta[2].label == "не влияет на прибыль"
+    assert movement.meta[3].label == "подтверждено"
 
 
 def test_presenter_keeps_manual_operation_as_link_action_for_first_slice() -> None:

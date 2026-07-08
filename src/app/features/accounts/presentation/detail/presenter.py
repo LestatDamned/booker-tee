@@ -100,8 +100,7 @@ class AccountDetailPresenter:
             secondary_actions=secondary_actions,
             drawer=drawer,
             technical_label=(
-                f"ID {entry.operation_id} · "
-                f"{source_context_label(entry.operation.source)}"
+                f"ID {entry.operation_id} · {source_context_label(entry.operation.source)}"
             ),
         )
 
@@ -129,8 +128,8 @@ class AccountDetailPresenter:
             return [
                 AccountMovementMetaVM(route or "маршрут перевода не определен", "transfer"),
                 AccountMovementMetaVM(account_name),
-                AccountMovementMetaVM(ru_label(operation.status), operation.status.value),
                 AccountMovementMetaVM("не влияет на прибыль", "transfer"),
+                AccountMovementMetaVM(ru_label(operation.status), operation.status.value),
             ]
 
         meta: list[AccountMovementMetaVM] = []

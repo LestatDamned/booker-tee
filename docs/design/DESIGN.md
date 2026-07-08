@@ -218,6 +218,48 @@ Important statuses and problems become visible signals:
 needs review / error / duplicate? / unrecognized / missing category
 ```
 
+Financial row meta chips have a semantic order. They are not arbitrary tags.
+The first chip should answer what the operation means.
+
+For income and expense rows:
+
+```text
+category -> property/object if present -> account/context -> status
+```
+
+Examples:
+
+```text
+Продукты -> Экспобанк карта -> подтверждено
+Прочий доход -> Наличка -> подтверждено
+Без категории -> Экспобанк карта -> нужна проверка
+```
+
+For transfer rows:
+
+```text
+source account -> destination account -> impact/context if useful -> status
+```
+
+Examples:
+
+```text
+ВТБ вклад -> Экспобанк карта -> не влияет на прибыль -> подтверждено
+ВТБ вклад -> Экспобанк карта -> Экспобанк карта -> не влияет на прибыль -> подтверждено
+```
+
+The account/context chip may appear on account detail pages because the user is
+viewing a single account timeline. It should not be added just to repeat the
+route on a generic list.
+
+Status placement:
+
+- calm statuses such as `подтверждено` are last and visually secondary;
+- important statuses and repair problems may also appear as top-row signals;
+- `доход`, `расход`, and `перевод` should not be repeated in meta chips when
+  the row tone, amount direction, category, or transfer route already makes the
+  operation type clear.
+
 ### Row Actions And Drawers
 
 Financial rows may have an action rail and a row-level drawer.

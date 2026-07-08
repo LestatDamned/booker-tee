@@ -94,7 +94,7 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert 'name="operation_id"' in html
     assert "financial-row manual-operation-row manual-operation-row--expense" in html
     assert "row-drawer manual-operation-row__drawer" in html
-    assert "badge badge-expense" in html
+    assert "financial-row__meta-item financial-row__meta-item--expense" in html
     assert "подтверждено" in html
     assert "financial-row__amount manual-operation-row__amount money-value money-expense" in html
     assert "<small>RUB</small>" in html

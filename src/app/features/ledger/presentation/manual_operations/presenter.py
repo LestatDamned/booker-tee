@@ -70,23 +70,23 @@ class ManualOperationsPresenter:
         if operation.type == OperationType.TRANSFER:
             meta.extend(
                 [
-                    ManualOperationMetaVM(f"из {self._account_name(operation.source_entry)}"),
-                    ManualOperationMetaVM(f"в {self._account_name(operation.destination_entry)}"),
+                    ManualOperationMetaVM(self._transfer_route(operation), "transfer"),
+                    ManualOperationMetaVM("не влияет на прибыль", "transfer"),
                 ]
             )
-        elif operation.primary_entry is not None:
-            direction = "на счет" if operation.primary_entry.amount > 0 else "со счета"
-            meta.append(
-                ManualOperationMetaVM(f"{direction} {self._account_name(operation.primary_entry)}")
-            )
+        else:
+            if operation.category is not None:
+                meta.append(
+                    ManualOperationMetaVM(operation.category.name, operation.category.kind.value)
+                )
+            else:
+                meta.append(ManualOperationMetaVM("без категории", "warning"))
+            if operation.property is not None:
+                meta.append(ManualOperationMetaVM(operation.property.name))
+            if operation.primary_entry is not None:
+                meta.append(ManualOperationMetaVM(self._account_name(operation.primary_entry)))
 
-        if operation.category is not None:
-            meta.append(
-                ManualOperationMetaVM(operation.category.name, operation.category.kind.value)
-            )
-        if operation.property is not None:
-            meta.append(ManualOperationMetaVM(operation.property.name))
-        meta.append(ManualOperationMetaVM(ru_label(operation.status)))
+        meta.append(ManualOperationMetaVM(ru_label(operation.status), operation.status.value))
         return meta
 
     def _drawer(self, operation: ManualOperationView) -> ManualOperationDrawerVM:
@@ -238,3 +238,8 @@ class ManualOperationsPresenter:
         if entry is None or entry.account is None:
             return "счет не найден"
         return entry.account.name
+
+    def _transfer_route(self, operation: ManualOperationView) -> str:
+        source = self._account_name(operation.source_entry)
+        destination = self._account_name(operation.destination_entry)
+        return f"{source} -> {destination}"

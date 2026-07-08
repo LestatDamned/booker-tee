@@ -21,11 +21,7 @@
 
     <div class="financial-row__meta manual-operation-row__meta">
       {% for meta in row.meta %}
-        {% if meta.tone %}
-          <span class="badge badge-{{ meta.tone }}">{{ meta.label }}</span>
-        {% else %}
-          <span>{{ meta.label }}</span>
-        {% endif %}
+        <span {% if meta.tone %}class="financial-row__meta-item financial-row__meta-item--{{ meta.tone }}"{% else %}class="financial-row__meta-item"{% endif %}>{{ meta.label }}</span>
       {% endfor %}
     </div>
   </div>

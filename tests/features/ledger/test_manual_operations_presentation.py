@@ -65,8 +65,8 @@ def test_manual_operations_presenter_builds_expense_row() -> None:
     assert row.currency == "RUB"
     assert row.drawer.account_id == account_id
     assert [item.label for item in row.meta] == [
-        "со счета Карта",
         "Кафе",
+        "Карта",
         "подтверждено",
     ]
     assert row.primary_action is not None
@@ -136,8 +136,8 @@ def test_manual_operations_presenter_builds_transfer_row() -> None:
     assert row.drawer.account_id == source_account_id
     assert row.drawer.destination_account_id == destination_account_id
     assert [item.label for item in row.meta] == [
-        "из Вклад",
-        "в Карта",
+        "Вклад -> Карта",
+        "не влияет на прибыль",
         "подтверждено",
     ]
     assert row.lifecycle_actions == []

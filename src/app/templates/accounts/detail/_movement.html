@@ -14,7 +14,7 @@
     <div class="financial-row__description account-movement__description">{{ movement.description }}</div>
     <div class="financial-row__meta account-movement__meta">
       {% for item in movement.meta %}
-        <span {% if item.tone %}class="account-movement__meta-item account-movement__meta-item--{{ item.tone }}"{% else %}class="account-movement__meta-item"{% endif %}>{{ item.label }}</span>
+        <span {% if item.tone %}class="financial-row__meta-item account-movement__meta-item financial-row__meta-item--{{ item.tone }} account-movement__meta-item--{{ item.tone }}"{% else %}class="financial-row__meta-item account-movement__meta-item"{% endif %}>{{ item.label }}</span>
       {% endfor %}
     </div>
   </div>
