@@ -4429,8 +4429,127 @@ pre {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
-.account-detail-tool > .account-detail-tool__summary::after {
+.account-detail-tool > .account-detail-tool__summary::after,
+.account-detail-tool[open] > .account-detail-tool__summary::after {
   content: none;
+  display: none;
+}
+
+.account-tool-form {
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-items: stretch;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
+  border-radius: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-strong) 30%, transparent),
+    color-mix(in srgb, var(--surface) 14%, transparent)
+  );
+  padding: 12px;
+}
+
+.account-tool-form .inline-hint {
+  border-color: color-mix(in srgb, var(--help) 24%, var(--border));
+  background: color-mix(in srgb, var(--help) 7%, transparent);
+  padding: 9px 11px;
+  font-size: 0.84rem;
+}
+
+.account-tool-form__group {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-strong) 48%, transparent);
+  padding: 10px;
+}
+
+.account-tool-form__group--primary {
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface-strong));
+}
+
+.account-tool-form__fields {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px 10px;
+  align-items: end;
+}
+
+.account-tool-form__fields--primary-filter {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.account-tool-form__fields--classification {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.account-tool-form__fields--display {
+  grid-template-columns: minmax(140px, 220px);
+}
+
+.account-tool-form__field {
+  min-width: 0;
+  gap: 6px;
+}
+
+.form-panel .account-tool-form__field {
+  grid-column: auto;
+}
+
+.account-tool-form__field--search {
+  grid-column: auto;
+}
+
+.account-tool-form input,
+.account-tool-form select {
+  min-height: 42px;
+  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  border-left-width: 1px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-strong) 64%, var(--bg));
+}
+
+.account-tool-form input:hover,
+.account-tool-form select:hover {
+  background: color-mix(in srgb, var(--surface-strong) 76%, var(--accent));
+}
+
+.account-tool-form .field > span {
+  font-size: 0.68rem;
+  color: color-mix(in srgb, var(--accent) 74%, var(--muted));
+}
+
+.account-tool-form__footer {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) minmax(180px, 280px);
+  gap: 10px;
+  justify-content: space-between;
+  border-top: 1px solid color-mix(in srgb, var(--border) 46%, transparent);
+  padding-top: 12px;
+}
+
+.account-tool-form__footer--filters {
+  justify-content: end;
+}
+
+.account-tool-form__footer .button {
+  width: 100%;
+}
+
+.account-tool-form .account-tool-form__secondary-action {
+  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 62%, var(--bg));
+  color: var(--muted);
+}
+
+.account-tool-form .account-tool-form__secondary-action:hover {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+  background: color-mix(in srgb, var(--surface-strong) 72%, var(--accent));
+  color: var(--text);
 }
 
 .review-actions__secondary {
@@ -5170,6 +5289,13 @@ pre {
     display: none;
   }
 
+  .account-tool-form__fields,
+  .account-tool-form__fields--primary-filter,
+  .account-tool-form__fields--classification,
+  .account-tool-form__fields--display {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .rule-card-actions {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     border-left: 0;
@@ -5392,6 +5518,18 @@ pre {
 
   .summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .account-tool-form__fields,
+  .account-tool-form__fields--primary-filter,
+  .account-tool-form__fields--classification,
+  .account-tool-form__fields--display,
+  .account-tool-form__footer {
+    grid-template-columns: 1fr;
+  }
+
+  .account-tool-form__field--search {
+    grid-column: auto;
   }
 
   .import-review-page .summary-grid {

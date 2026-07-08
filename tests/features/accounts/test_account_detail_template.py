@@ -182,9 +182,25 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "account-detail-tools" in html
     assert "account-detail-tool__summary" in html
     assert "account-detail-tool__toggle" in html
+    assert "account-tool-form account-settings-form" in html
+    assert "account-tool-form account-filter-form" in html
+    assert "inline-hint inline-hint-info" in html
+    assert "account-tool-form__group" in html
+    assert "account-tool-form__fields" in html
+    assert "account-tool-form__fields--primary-filter" in html
+    assert "account-tool-form__fields--classification" in html
+    assert "account-tool-form__fields--display" in html
+    assert "account-tool-form__fields--filters" not in html
+    assert "account-tool-form__footer" in html
+    assert "account-tool-form__danger-action" in html
+    assert "account-tool-form__field--search" in html
     assert "account-detail-title" in html
     assert "account-settings-details" in html
     assert "фильтры проводок" in html
+    assert "Основное" not in html
+    assert "Быстрый фильтр" not in html
+    assert "Уточнение" not in html
+    assert "Показ" not in html
     assert "Открыть" in html
     assert "Закрыть" in html
     assert "financial-row__amount account-movement__amount money-value money-expense" in html
