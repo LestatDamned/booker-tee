@@ -175,9 +175,18 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert row_html.index("Экспобанк карта") < row_html.index("подтверждено")
     assert "review-meta" not in html
     assert "operation-ref" not in html
+    assert "account-detail-hero" in html
+    assert "account-detail-hero__main" in html
+    assert "account-detail-hero__actions" in html
+    assert "account-detail-metrics" in html
+    assert "account-detail-tools" in html
+    assert "account-detail-tool__summary" in html
+    assert "account-detail-tool__toggle" in html
     assert "account-detail-title" in html
     assert "account-settings-details" in html
     assert "фильтры проводок" in html
+    assert "Открыть" in html
+    assert "Закрыть" in html
     assert "financial-row__amount account-movement__amount money-value money-expense" in html
     assert "financial-row__actions row-actions account-movement__actions" in html
     assert "row-actions__primary account-movement__action" in html

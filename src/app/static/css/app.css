@@ -243,6 +243,39 @@ h1 {
   max-width: 860px;
 }
 
+.account-detail-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
+  gap: 16px;
+  align-items: start;
+}
+
+.account-detail-hero__main {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.account-detail-hero__actions {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.account-detail-hero__actions .button {
+  width: 100%;
+}
+
+.account-detail-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.account-detail-tools {
+  display: grid;
+  gap: 10px;
+}
+
 p {
   max-width: 680px;
   color: var(--muted);
@@ -4392,6 +4425,14 @@ pre {
   width: auto;
 }
 
+.account-detail-tool > .account-detail-tool__summary {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.account-detail-tool > .account-detail-tool__summary::after {
+  content: none;
+}
+
 .review-actions__secondary {
   border-color: color-mix(in srgb, var(--border) 60%, transparent);
   background: color-mix(in srgb, var(--surface-strong) 16%, transparent);
@@ -4988,7 +5029,8 @@ pre {
 
 @media (max-width: 920px) {
   .header-grid,
-  .dashboard-grid {
+  .dashboard-grid,
+  .account-detail-hero {
     grid-template-columns: 1fr;
   }
 
