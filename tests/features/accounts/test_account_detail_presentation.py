@@ -55,6 +55,8 @@ def test_presenter_builds_imported_expense_movement_with_drawer() -> None:
     assert movement.result.title == "Продукты"
     assert movement.primary_action is not None
     assert movement.primary_action.label == "исправить"
+    assert movement.primary_action.action_type == "drawer_toggle"
+    assert movement.primary_action.placement == "primary"
     assert movement.drawer is not None
     assert movement.drawer.category_id == category.id
     assert movement.drawer.form_action == (
@@ -63,6 +65,8 @@ def test_presenter_builds_imported_expense_movement_with_drawer() -> None:
     assert movement.secondary_actions[0].href == (
         f"/imports/documents/{raw_link.uploaded_document_id}/review#raw-{raw_link.id}"
     )
+    assert movement.secondary_actions[0].action_type == "link"
+    assert movement.secondary_actions[0].placement == "secondary"
 
 
 def test_presenter_summarizes_transfer_route() -> None:
@@ -132,6 +136,8 @@ def test_presenter_keeps_manual_operation_as_link_action_for_first_slice() -> No
     assert movement.primary_action.href == (
         f"/ledger/manual?operation_id={operation.id}#operation-{operation.id}"
     )
+    assert movement.primary_action.action_type == "link"
+    assert movement.primary_action.placement == "primary"
     assert movement.meta[-1].label == "подтверждено"
 
 

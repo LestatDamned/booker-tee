@@ -44,6 +44,60 @@ class AccountMovementActionVM:
     href: str | None = None
     variant: str = "secondary"
 
+    @property
+    def action_type(self) -> str:
+        if self.variant == "drawer":
+            return "drawer_toggle"
+        if self.href is not None:
+            return "link"
+        return "readonly"
+
+    @property
+    def placement(self) -> str:
+        if self.variant in {"drawer", "primary"}:
+            return "primary"
+        return "secondary"
+
+    @property
+    def id(self) -> str:
+        if self.variant == "drawer":
+            return "edit"
+        if self.variant == "primary":
+            return "edit"
+        if self.href is not None:
+            return "source"
+        return "readonly"
+
+    @property
+    def url(self) -> str:
+        return self.href or ""
+
+    @property
+    def style(self) -> str:
+        return "default"
+
+    @property
+    def close_label(self) -> str | None:
+        if self.variant == "drawer":
+            return "закрыть"
+        return None
+
+    @property
+    def confirm_message(self) -> str | None:
+        return None
+
+    @property
+    def hidden_fields(self) -> dict[str, str]:
+        return {}
+
+    @property
+    def form_id(self) -> str | None:
+        return None
+
+    @property
+    def panel_id(self) -> str | None:
+        return None
+
 
 @dataclass(frozen=True)
 class OperationResultVM:
