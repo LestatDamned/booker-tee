@@ -94,23 +94,23 @@
             <span class="details-toggle-close">Закрыть</span>
           </span>
         </summary>
-        <form class="form-panel form-panel-embedded account-tool-form account-filter-form" method="get" action="/accounts/{{ detail.account.id }}">
+        <form class="filter-form account-filter-form" method="get" action="/accounts/{{ detail.account.id }}">
           {{ inline_hint("Фильтры помогают быстро найти нужные проводки. Начните с периода, поиска или статуса; остальные поля нужны для более точного отбора.", "info") }}
-          <div class="account-tool-form__group account-tool-form__group--primary">
-            <div class="account-tool-form__fields account-tool-form__fields--primary-filter">
-              <label class="field account-tool-form__field">
+          <div class="filter-form__group filter-form__group--primary">
+            <div class="filter-form__fields filter-form__fields--primary">
+              <label class="field filter-form__field">
                 <span>с даты</span>
                 <input name="date_from" type="date" value="{{ filters.date_from.isoformat() if filters is defined and filters.date_from else '' }}">
               </label>
-              <label class="field account-tool-form__field">
+              <label class="field filter-form__field">
                 <span>по дату</span>
                 <input name="date_to" type="date" value="{{ filters.date_to.isoformat() if filters is defined and filters.date_to else '' }}">
               </label>
-              <label class="field account-tool-form__field account-tool-form__field--search">
+              <label class="field filter-form__field filter-form__field--search">
                 <span>поиск</span>
                 <input name="search" value="{{ filters.search if filters is defined and filters.search else '' }}" placeholder="Описание">
               </label>
-              <label class="field account-tool-form__field">
+              <label class="field filter-form__field">
                 <span>статус</span>
                 <select name="status">
                   {% for status in operation_statuses | default([]) %}
@@ -121,9 +121,9 @@
             </div>
           </div>
 
-          <div class="account-tool-form__group account-tool-form__group--classification">
-            <div class="account-tool-form__fields account-tool-form__fields--classification">
-              <label class="field account-tool-form__field">
+          <div class="filter-form__group filter-form__group--classification">
+            <div class="filter-form__fields filter-form__fields--classification">
+              <label class="field filter-form__field">
                 <span>источник</span>
                 <select name="source">
                   <option value="">любой</option>
@@ -132,7 +132,7 @@
                   {% endfor %}
                 </select>
               </label>
-              <label class="field account-tool-form__field">
+              <label class="field filter-form__field">
                 <span>тип</span>
                 <select name="type">
                   <option value="">любой</option>
@@ -141,7 +141,7 @@
                   {% endfor %}
                 </select>
               </label>
-              <label class="field account-tool-form__field">
+              <label class="field filter-form__field">
                 <span>категория</span>
                 <select name="category_id">
                   <option value="">любая</option>
@@ -150,7 +150,7 @@
                   {% endfor %}
                 </select>
               </label>
-              <label class="field account-tool-form__field">
+              <label class="field filter-form__field">
                 <span>объект</span>
                 <select name="property_id">
                   <option value="">любой</option>
@@ -162,9 +162,9 @@
             </div>
           </div>
 
-          <div class="account-tool-form__group account-tool-form__group--display">
-            <div class="account-tool-form__fields account-tool-form__fields--display">
-              <label class="field account-tool-form__field">
+          <div class="filter-form__group filter-form__group--display">
+            <div class="filter-form__fields filter-form__fields--display">
+              <label class="field filter-form__field">
                 <span>на странице</span>
                 <select name="per_page">
                   {% for option in [25, 50, 100, 200] %}
@@ -174,8 +174,8 @@
               </label>
             </div>
           </div>
-          <div class="account-tool-form__footer account-tool-form__footer--filters">
-            <a class="button account-tool-form__secondary-action" href="/accounts/{{ detail.account.id }}">сбросить</a>
+          <div class="filter-form__footer filter-form__footer--filters">
+            <a class="button filter-form__secondary-action" href="/accounts/{{ detail.account.id }}">сбросить</a>
             <button class="button primary-action" type="submit">{{ icon("filter") }} применить</button>
           </div>
         </form>

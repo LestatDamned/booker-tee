@@ -84,7 +84,13 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "financial-row-list" in html
     assert "manual-operation-row--current" in html
     assert 'name="date_from" type="date"' in html
-    assert "фильтры списка" in html
+    assert "фильтры операций" in html
+    assert "фильтры списка" not in html
+    assert "filter-form manual-filter-form" in html
+    assert "filter-form__fields--primary" in html
+    assert "filter-form__fields--classification" in html
+    assert "filter-form__fields--display" in html
+    assert "form-panel form-panel-embedded" not in html
     assert 'name="operation_id"' in html
     assert "financial-row manual-operation-row manual-operation-row--expense" in html
     assert "row-drawer manual-operation-row__drawer" in html
