@@ -1640,3 +1640,49 @@ Completion gate for this slice:
 - desktop/mobile screenshots show no accidental horizontal overflow, no
   prominent technical/debug blocks on first screen, and consistent primary /
   secondary action hierarchy.
+
+## Account Detail Refactor Note
+
+Next UI/SSR slice after imports flow convergence: account detail.
+
+Decision:
+
+- account detail should not invent a separate transaction/timeline geometry;
+- it should reuse the shared financial row rhythm proven by import review;
+- the screen is a ledger movement list, not a review queue, so row actions have
+  a different meaning while keeping the same placement and hierarchy.
+
+Target row shape:
+
+```text
+amount + date + operation type + status       result/action zone
+description
+category/property or transfer route/source
+technical details collapsed
+```
+
+Right-side row zone:
+
+- always reserved for result summary and actions;
+- shows the operation result compactly, for example `расход · Продукты` or
+  `ВТБ вклад -> Экспобанк карта`;
+- should not duplicate the whole operation as a heavy nested card;
+- should keep primary action, secondary action and more/technical action in a
+  predictable order.
+
+Editing:
+
+- edit actions should open a row-level drawer/panel under the movement;
+- the drawer spans the row width instead of squeezing forms into the right
+  action column;
+- imported operations and manual operations may have different forms, but the
+  drawer shell should feel like the same interaction pattern.
+
+Architecture direction:
+
+- move account detail presentation decisions out of Jinja into a
+  presenter/ViewModel slice;
+- keep URL endpoints, ledger posting rules, DB models and operation lifecycle
+  unchanged;
+- migrate CSS toward owner BEM names when touching this screen, without a broad
+  naming-only rewrite.

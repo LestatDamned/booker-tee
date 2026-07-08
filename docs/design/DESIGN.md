@@ -197,6 +197,50 @@ This pattern should feel familiar across:
 Do not force one universal component for every entity. Reuse the pattern and
 shared partials where the UX concept is actually the same.
 
+### Financial Row Modes
+
+Use one financial row geometry with different modes, not a new geometry for
+each screen.
+
+```text
+Financial row
+-> review mode: user decides what an uncertain row should become
+-> ledger mode: user understands what already happened on an account
+-> manual-edit mode: user creates or corrects a manual operation
+```
+
+The base geometry stays stable:
+
+```text
+money / date / type / status           result + actions
+description
+financial meaning: category, property, accounts, source
+secondary details collapsed
+technical details hidden
+```
+
+The action area may change by mode, but its position and hierarchy should not:
+
+- review rows emphasize the decision: confirm, change, transfer, ignore;
+- account ledger rows emphasize the result and safe correction: summary,
+  edit/source/more actions;
+- manual operation rows emphasize editable fields and lifecycle actions.
+
+For account detail, do not invent a separate timeline geometry just because the
+screen is historical rather than review-oriented. It should render ledger
+movements using the same financial row rhythm as import review:
+
+```text
+amount + date + operation type + status       result/action zone
+description
+category/property or transfer route/source
+```
+
+The right side of an account movement row should be a compact result/action
+zone, not a heavy nested operation card. Editing should open a row-level drawer
+under the movement, across the row width, so forms have enough room and do not
+compete with the action column.
+
 ---
 
 ## 6.1 Visual Geometry Contract
