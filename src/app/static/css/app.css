@@ -4539,13 +4539,6 @@ pre {
   background: color-mix(in srgb, var(--surface-strong) 20%, transparent);
 }
 
-.review-transfer-primary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  gap: 8px;
-  align-items: end;
-}
-
 .review-transfer-panel__preview,
 .review-transfer-preview {
   display: grid;
@@ -4574,13 +4567,6 @@ pre {
   overflow-wrap: anywhere;
   color: var(--text);
   font-weight: 720;
-}
-
-.review-panel-rule-row {
-  display: grid;
-  grid-template-columns: max-content minmax(160px, 1fr);
-  gap: 8px;
-  align-items: center;
 }
 
 .review-panel-footer {
@@ -4623,21 +4609,6 @@ pre {
 .review-actions__row .primary-actions,
 .review-actions__row .secondary-actions {
   min-width: 0;
-}
-
-.review-action-heading {
-  color: color-mix(in srgb, var(--muted) 82%, var(--border));
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.68rem;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.action-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
 }
 
 .review-item__actions select,
@@ -5485,16 +5456,13 @@ pre {
     justify-content: stretch;
   }
 
-  .action-fields,
   .review-category-panel__primary,
   .review-category-panel__grid,
   .review-category-panel__rule,
   .review-transfer-panel__grid,
   .review-category-primary,
   .review-panel-grid,
-  .review-panel-rule-row,
   .review-rule-strip,
-  .review-transfer-primary,
   .rule-edit-grid,
   .rule-advanced-grid {
     grid-template-columns: 1fr;

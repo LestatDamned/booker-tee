@@ -254,6 +254,24 @@ row-drawer
 row-drawer__header / row-drawer__form / row-drawer__footer
 ```
 
+Use row-level drawers for transaction repair, review panels, and compact
+row-specific decisions. Do not style a row drawer as a full page form nested
+inside a card.
+
+`action-details`, `action-accordion`, and `form-panel-embedded` are still valid
+for page-level collapsible tools, filters, creation forms, and technical
+details. They should not be introduced for row-level transaction repair when
+`row-actions` / `row-drawer` can express the same interaction.
+
+Accepted row-level language:
+
+```text
+Исправить        opens a row repair drawer/panel
+Открыть операцию links to the operation screen
+строка импорта   links back to the source import row
+Еще действия     reveals secondary and dangerous actions
+```
+
 ### Financial Row Modes
 
 Use one financial row geometry with different modes, not a new geometry for
