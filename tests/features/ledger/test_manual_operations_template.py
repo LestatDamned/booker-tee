@@ -73,6 +73,13 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "Ручные операции нужны" in html
     assert "перевод только перемещает деньги между счетами" in html
     assert 'id="new-manual-operation"' in html
+    assert "manual-operation-hero" in html
+    assert "manual-operation-hero__actions" in html
+    assert "manual-create-form" in html
+    assert 'id="new-manual-operation" class="manual-create-form"' in html
+    assert "manual-create-form__fields--primary" in html
+    assert "manual-create-form__fields--classification" in html
+    assert "manual-create-form__bottom" in html
     assert "segmented-control" in html
     assert 'name="operation_type" type="radio" value="income"' in html
     assert 'name="operation_type" type="radio" value="expense"' in html

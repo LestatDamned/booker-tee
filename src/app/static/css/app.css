@@ -3742,6 +3742,108 @@ pre {
   border-left-width: 4px;
 }
 
+.manual-operation-page {
+  gap: 18px;
+}
+
+.manual-operation-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 16px;
+  align-items: start;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  padding-bottom: 16px;
+}
+
+.manual-operation-hero__main {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.manual-operation-hero__main h1 {
+  margin-bottom: 0;
+}
+
+.manual-operation-hero__main .inline-hint {
+  margin: 0;
+}
+
+.manual-operation-hero__actions {
+  display: grid;
+  min-width: 140px;
+}
+
+.manual-operation-hero__actions .button {
+  min-height: 48px;
+  width: 100%;
+}
+
+.manual-create-form {
+  display: grid;
+  gap: 12px;
+}
+
+.manual-create-form__fields,
+.manual-create-form__bottom {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 10px 12px;
+  align-items: end;
+}
+
+.manual-create-form__field {
+  min-width: 0;
+  gap: 6px;
+}
+
+.manual-create-form__field > span {
+  color: color-mix(in srgb, var(--accent) 74%, var(--muted));
+  font-size: 0.68rem;
+}
+
+.manual-create-form__field input,
+.manual-create-form__field select,
+.manual-create-form__submit {
+  min-height: 42px;
+  border-radius: 8px;
+}
+
+.manual-create-form__field input,
+.manual-create-form__field select {
+  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  border-left-width: 1px;
+  background: color-mix(in srgb, var(--surface-strong) 64%, var(--bg));
+}
+
+.manual-create-form__field input:hover,
+.manual-create-form__field select:hover {
+  background: color-mix(in srgb, var(--surface-strong) 76%, var(--accent));
+}
+
+.manual-create-form__field--type {
+  grid-column: span 6;
+}
+
+.manual-create-form__field--date,
+.manual-create-form__field--amount {
+  grid-column: span 3;
+}
+
+.manual-create-form__fields--classification .manual-create-form__field {
+  grid-column: span 3;
+}
+
+.manual-create-form__field--description {
+  grid-column: span 8;
+}
+
+.manual-create-form__submit {
+  grid-column: span 4;
+  width: 100%;
+}
+
 .manual-operation-income,
 .manual-operation-row--income {
   border-left-color: var(--green);
@@ -5369,6 +5471,23 @@ pre {
     grid-template-columns: 1fr;
   }
 
+  .manual-operation-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-operation-hero__actions {
+    min-width: 0;
+  }
+
+  .manual-create-form__field--type,
+  .manual-create-form__field--date,
+  .manual-create-form__field--amount,
+  .manual-create-form__fields--classification .manual-create-form__field,
+  .manual-create-form__field--description,
+  .manual-create-form__submit {
+    grid-column: span 6;
+  }
+
   .financial-row__topline {
     grid-template-columns: 1fr;
   }
@@ -5784,6 +5903,20 @@ pre {
 
   .form-panel {
     grid-template-columns: 1fr;
+  }
+
+  .manual-create-form__fields,
+  .manual-create-form__bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-create-form__field--type,
+  .manual-create-form__field--date,
+  .manual-create-form__field--amount,
+  .manual-create-form__fields--classification .manual-create-form__field,
+  .manual-create-form__field--description,
+  .manual-create-form__submit {
+    grid-column: 1 / -1;
   }
 
   .file-upload-control {

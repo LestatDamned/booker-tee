@@ -7,16 +7,19 @@
 {% block content %}
   {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
   {% set manual_filters_active = manual_page_vm.filters_active if manual_page_vm is defined else filters is defined and (filters.date_from or filters.date_to or filters.operation_type or filters.status or filters.account_id or filters.category_id or filters.property_id or filters.search or focused_operation_id is defined and focused_operation_id) %}
-  <section class="panel stack">
-    <div class="toolbar">
-      <div>
-        <p class="eyebrow">{{ workspace.name }}</p>
-        <h1>Ручная операция</h1>
+  <section class="panel stack manual-operation-page">
+    <header class="manual-operation-hero">
+      <div class="manual-operation-hero__main">
+        <div>
+          <p class="eyebrow">{{ workspace.name }}</p>
+          <h1>Ручная операция</h1>
+        </div>
+        {{ inline_hint("Ручные операции нужны для того, чего нет в выписке: наличные, корректировки или разовые записи. Доход и расход влияют на прибыль; перевод только перемещает деньги между счетами.", "critical") }}
       </div>
-      <a class="button" href="/accounts">{{ icon("wallet") }} счета</a>
-    </div>
-
-    {{ inline_hint("Ручные операции нужны для того, чего нет в выписке: наличные, корректировки или разовые записи. Доход и расход влияют на прибыль; перевод только перемещает деньги между счетами.", "critical") }}
+      <aside class="manual-operation-hero__actions">
+        <a class="button" href="/accounts">{{ icon("wallet") }} счета</a>
+      </aside>
+    </header>
 
     {% if accounts and can_write %}
       {% include "ledger/manual/_create_form.html" %}
