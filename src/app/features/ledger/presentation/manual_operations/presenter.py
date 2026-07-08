@@ -117,7 +117,6 @@ class ManualOperationsPresenter:
             icon="settings",
             placement="primary",
             action_type="drawer_toggle",
-            close_label="закрыть",
         )
 
     def _save_action(
@@ -130,7 +129,7 @@ class ManualOperationsPresenter:
             return None
         return ManualOperationActionVM(
             id="save",
-            label="сохранить",
+            label="сохранить изменения",
             icon="save",
             placement="primary",
             action_type="submit",

@@ -2,7 +2,7 @@
   {{ csrf_input() }}
   <div class="manual-create-form__fields manual-create-form__fields--primary operation-form__fields operation-form__fields--primary">
     <div class="field operation-type-field manual-create-form__field manual-create-form__field--type operation-form__field operation-form__field--type">
-      <span>тип</span>
+      <span>тип операции</span>
       <div class="segmented-control" role="radiogroup" aria-label="Тип операции">
         <label class="segmented-option segmented-income">
           <input name="operation_type" type="radio" value="income" required checked x-model="operationType">
@@ -18,13 +18,13 @@
         </label>
       </div>
     </div>
-    <label class="field manual-create-form__field manual-create-form__field--date operation-form__field operation-form__field--date">
-      <span>дата</span>
-      <input name="operation_date" inputmode="numeric" placeholder="дд.мм.гггг" pattern="\d{2}\.\d{2}\.\d{4}" required>
-    </label>
     <label class="field manual-create-form__field manual-create-form__field--amount operation-form__field operation-form__field--amount">
       <span>сумма</span>
       <input class="amount" name="amount" inputmode="decimal" placeholder="Сумма" required>
+    </label>
+    <label class="field manual-create-form__field manual-create-form__field--date operation-form__field operation-form__field--date">
+      <span>дата</span>
+      <input name="operation_date" inputmode="numeric" placeholder="дд.мм.гггг" pattern="\d{2}\.\d{2}\.\d{4}" required>
     </label>
   </div>
 

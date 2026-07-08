@@ -88,14 +88,17 @@
       <details class="action-details action-accordion account-detail-tool filter-details" {% if account_page.filters_active %}open{% endif %}>
         <summary class="account-detail-tool__summary">
           {{ icon("filter") }}
-          <span>фильтры проводок</span>
+          <span class="filter-details__title">фильтры проводок</span>
+          <span class="filter-details__state">
+            {% if account_page.filters_active %}применены{% else %}не применены{% endif %}
+          </span>
           <span class="details-toggle-label account-detail-tool__toggle" aria-hidden="true">
             <span class="details-toggle-open">Открыть</span>
             <span class="details-toggle-close">Закрыть</span>
           </span>
         </summary>
         <form class="filter-form account-filter-form" method="get" action="/accounts/{{ detail.account.id }}">
-          {{ inline_hint("Фильтры помогают быстро найти нужные проводки. Начните с периода, поиска или статуса; остальные поля нужны для более точного отбора.", "info") }}
+          {{ inline_hint("Начните с периода, поиска или статуса; остальные поля нужны для точного отбора.", "info") }}
           <div class="filter-form__group filter-form__group--primary">
             <div class="filter-form__fields filter-form__fields--primary">
               <label class="field filter-form__field">

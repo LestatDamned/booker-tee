@@ -1,7 +1,10 @@
 <details class="action-details action-accordion filter-details" {% if manual_filters_active %}open{% endif %}>
   <summary>
     {{ icon("filter") }}
-    <span>фильтры операций</span>
+    <span class="filter-details__title">фильтры операций</span>
+    <span class="filter-details__state">
+      {% if manual_filters_active %}применены{% else %}не применены{% endif %}
+    </span>
     <span class="details-toggle-label">
       <span class="details-toggle-open">открыть</span>
       <span class="details-toggle-close">закрыть</span>
@@ -12,7 +15,7 @@
       <input type="hidden" name="operation_id" value="{{ focused_operation_id }}">
     {% endif %}
 
-    {{ inline_hint("Фильтры помогают быстро найти нужные ручные операции. Начните с периода, поиска или статуса; остальные поля нужны для точного отбора.", "info") }}
+    {{ inline_hint("Начните с периода, поиска или статуса; остальные поля нужны для точного отбора.", "info") }}
 
     <div class="filter-form__group filter-form__group--primary">
       <div class="filter-form__fields filter-form__fields--primary">

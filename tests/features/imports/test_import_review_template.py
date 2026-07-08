@@ -175,8 +175,9 @@ def test_action_partial_renders_drawer_toggle_action() -> None:
     assert 'type="button"' in html
     assert 'x-on:click="drawerOpen = !drawerOpen"' in html
     assert 'x-bind:aria-expanded="drawerOpen.toString()"' in html
-    assert '<span class="action-label" x-show="!drawerOpen">Исправить</span>' in html
-    assert '<span class="action-label" x-show="drawerOpen" x-cloak>Закрыть</span>' in html
+    assert '<span class="action-label">Исправить</span>' in html
+    assert "x-show" not in html
+    assert "Закрыть" not in html
 
 
 def test_action_partial_renders_panel_toggle_without_mutation_fields() -> None:

@@ -45,9 +45,7 @@
       x-bind:aria-expanded="drawerOpen.toString()"
       aria-label="{{ action.label }}"
     >
-      {{ icon(action.icon) }}
-      <span class="action-label" x-show="!drawerOpen">{{ action.label }}</span>
-      <span class="action-label" x-show="drawerOpen" x-cloak>{{ action.close_label or "закрыть" }}</span>
+      {{ icon(action.icon) }} <span class="action-label">{{ action.label }}</span>
     </button>
   {% endif %}
 {% endif %}
