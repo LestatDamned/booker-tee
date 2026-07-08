@@ -19,76 +19,7 @@
     {{ inline_hint("Ручные операции нужны для того, чего нет в выписке: наличные, корректировки или разовые записи. Доход и расход влияют на прибыль; перевод только перемещает деньги между счетами.", "critical") }}
 
     {% if accounts and can_write %}
-    <form id="new-manual-operation" class="form-panel" method="post" action="/ledger/manual" x-data="{ operationType: 'income' }">
-      {{ csrf_input() }}
-      <div class="field operation-type-field form-field-half">
-        <span>тип</span>
-        <div class="segmented-control" role="radiogroup" aria-label="Тип операции">
-          <label class="segmented-option segmented-income">
-            <input name="operation_type" type="radio" value="income" required checked x-model="operationType">
-            <span>доход</span>
-          </label>
-          <label class="segmented-option segmented-expense">
-            <input name="operation_type" type="radio" value="expense" required x-model="operationType">
-            <span>расход</span>
-          </label>
-          <label class="segmented-option segmented-transfer">
-            <input name="operation_type" type="radio" value="transfer" required x-model="operationType">
-            <span>перевод</span>
-          </label>
-        </div>
-      </div>
-      <label class="field form-field-quarter">
-        <span>дата</span>
-        <input name="operation_date" inputmode="numeric" placeholder="дд.мм.гггг" pattern="\d{2}\.\d{2}\.\d{4}" required>
-      </label>
-      <label class="field form-field-quarter">
-        <span>сумма</span>
-        <input class="amount" name="amount" inputmode="decimal" placeholder="Сумма" required>
-      </label>
-      <label class="field form-field-quarter">
-        <span>счет</span>
-        <select name="account_id" required>
-          {% for account in accounts %}
-            <option value="{{ account.id }}">{{ account.name }} · {{ account.currency }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-quarter" x-show="operationType === 'transfer'" x-cloak>
-        <span>счет назначения</span>
-        <select name="destination_account_id" x-bind:disabled="operationType !== 'transfer'">
-          <option value="">счет назначения</option>
-          {% for account in accounts %}
-            <option value="{{ account.id }}">{{ account.name }} · {{ account.currency }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-quarter">
-        <span>категория</span>
-        <select name="category_id">
-          <option value="">без категории</option>
-          {% for category in categories %}
-            <option value="{{ category.id }}">{{ category.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-quarter">
-        <span>объект</span>
-        <select name="property_id">
-          <option value="">без объекта</option>
-          {% for property in properties %}
-            <option value="{{ property.id }}">{{ property.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-half">
-        <span>описание</span>
-        <input name="description" placeholder="Описание">
-      </label>
-      <div class="form-actions">
-        <button class="button" type="submit">{{ icon("plus") }} создать</button>
-      </div>
-    </form>
+      {% include "ledger/manual/_create_form.html" %}
     {% elif can_write %}
       {{ empty_state(
         "Сначала добавьте счет",
