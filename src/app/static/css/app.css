@@ -240,7 +240,9 @@ h1 {
 }
 
 .account-detail-title {
-  max-width: 860px;
+  max-width: 900px;
+  font-size: 2.35rem;
+  line-height: 1.08;
 }
 
 .account-detail-hero {
@@ -253,7 +255,29 @@ h1 {
 .account-detail-hero__main {
   min-width: 0;
   display: grid;
-  gap: 14px;
+  gap: 12px;
+}
+
+.account-detail-hero__context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  color: var(--accent);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.account-detail-hero__context span {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  padding: 0 8px;
 }
 
 .account-detail-hero__actions {
@@ -268,7 +292,34 @@ h1 {
 }
 
 .account-detail-metrics {
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.account-detail-metric {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--border) 66%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 72%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-strong) 42%, transparent);
+  padding: 11px 12px;
+}
+
+.account-detail-metric span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.account-detail-metric strong {
+  color: var(--text);
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
 }
 
 .account-detail-tools {
@@ -2923,12 +2974,16 @@ input[type="checkbox"] {
 
 .row-drawer {
   display: grid;
-  gap: 10px;
-  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--border));
-  border-top: 2px solid var(--accent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--surface-strong) 42%, transparent);
-  padding: 10px 12px 12px;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 66%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 72%, var(--border));
+  border-radius: 8px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-strong) 40%, transparent),
+    color-mix(in srgb, var(--surface) 14%, transparent)
+  );
+  padding: 12px;
 }
 
 .row-drawer__header {
@@ -2937,8 +2992,6 @@ input[type="checkbox"] {
   justify-content: space-between;
   gap: 8px;
   align-items: start;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  padding-bottom: 8px;
 }
 
 .row-drawer__heading {
@@ -2952,19 +3005,26 @@ input[type="checkbox"] {
 .row-drawer__title {
   margin: 0;
   color: var(--text);
-  font-size: 1rem;
+  font-size: 1.02rem;
 }
 
 .row-drawer__context {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
   color: var(--accent);
   font-family:
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.72rem;
+  padding: 0 7px;
   text-transform: uppercase;
 }
 
 .row-drawer__form {
-  gap: 9px 10px;
+  gap: 10px;
   border-top: 0;
   border-bottom: 0;
   padding: 0;
@@ -2972,7 +3032,7 @@ input[type="checkbox"] {
 
 .row-drawer__field {
   grid-column: auto;
-  gap: 5px;
+  gap: 6px;
 }
 
 .form-panel .row-drawer__field {
@@ -2986,7 +3046,8 @@ input[type="checkbox"] {
 .row-drawer__field input,
 .row-drawer__field select,
 .row-drawer__footer .button {
-  min-height: 38px;
+  min-height: 40px;
+  border-radius: 8px;
 }
 
 .row-drawer__field--description,
@@ -2997,6 +3058,8 @@ input[type="checkbox"] {
 .row-drawer__footer {
   display: flex;
   justify-content: flex-end;
+  border-top: 1px solid color-mix(in srgb, var(--border) 46%, transparent);
+  padding-top: 10px;
 }
 
 .row-drawer__footer .button {
@@ -5153,6 +5216,10 @@ pre {
     grid-template-columns: 1fr;
   }
 
+  .account-detail-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   h1,
   .import-page-title h1 {
     font-size: 2.25rem;
@@ -5394,6 +5461,11 @@ pre {
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+    font-size: 1.8rem;
+  }
+
+  .account-detail-metrics {
+    grid-template-columns: 1fr;
   }
 
   .panel {

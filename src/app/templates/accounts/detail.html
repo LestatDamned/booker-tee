@@ -1,18 +1,21 @@
 {% extends "base.html" %}
 {% from "components/inline_hint.html" import inline_hint %}
 
-{% block title %}{{ detail.account.name }} · {{ app_name }}{% endblock %}
+{% block title %}{{ account_page.account.name }} · {{ app_name }}{% endblock %}
 
 {% block content %}
   {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
   <section class="panel stack account-detail-page">
     <header class="account-detail-hero">
       <div class="account-detail-hero__main">
-        <p class="eyebrow">{{ detail.account.type | ru }} · {{ detail.account.currency }}</p>
-        <h1 class="account-detail-title" title="{{ detail.account.name }}">{{ detail.account.name }}</h1>
-        <div class="summary-grid account-detail-metrics">
+        <div class="account-detail-hero__context">
+          <span>{{ account_page.account.type_label }}</span>
+          <span>{{ account_page.account.currency }}</span>
+        </div>
+        <h1 class="account-detail-title" title="{{ account_page.account.name }}">{{ account_page.account.name }}</h1>
+        <div class="account-detail-metrics" aria-label="Сводка по счету">
           {% for metric in account_page.metrics %}
-            <div class="metric{% if metric.tone %} metric-{{ metric.tone }}{% endif %}">
+            <div class="account-detail-metric{% if metric.tone %} account-detail-metric--{{ metric.tone }}{% endif %}">
               <span>{{ metric.label }}</span>
               <strong>{{ metric.value }}</strong>
             </div>

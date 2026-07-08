@@ -177,8 +177,12 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "operation-ref" not in html
     assert "account-detail-hero" in html
     assert "account-detail-hero__main" in html
+    assert "account-detail-hero__context" in html
     assert "account-detail-hero__actions" in html
     assert "account-detail-metrics" in html
+    assert "account-detail-metric" in html
+    assert "карта" in html
+    assert "RUB" in html
     assert "account-detail-tools" in html
     assert "account-detail-tool__summary" in html
     assert "account-detail-tool__toggle" in html
