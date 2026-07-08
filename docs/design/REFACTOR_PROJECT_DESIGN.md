@@ -1686,3 +1686,107 @@ Architecture direction:
   unchanged;
 - migrate CSS toward owner BEM names when touching this screen, without a broad
   naming-only rewrite.
+
+### Account Detail Implementation Plan
+
+First safe vertical slice:
+
+1. Add an account detail presentation package:
+
+   ```text
+   src/app/features/accounts/presentation/detail/
+     models.py
+     presenter.py
+   ```
+
+   Target VMs:
+
+   - `AccountDetailPageVM`;
+   - `AccountMovementVM`;
+   - `OperationResultVM`;
+   - `AccountMovementActionVM`;
+   - optional small payloads for edit drawer state.
+
+2. Move presentation decisions out of `accounts/detail.html`:
+
+   - active filter state;
+   - amount direction and money CSS class;
+   - result summary text;
+   - transfer route text;
+   - source-specific actions;
+   - raw import source link;
+   - whether a movement has an edit drawer and which drawer type it uses.
+
+3. Introduce dumb account detail partials:
+
+   ```text
+   src/app/templates/accounts/detail/_movement.html
+   src/app/templates/accounts/detail/_movement_actions.html
+   src/app/templates/accounts/detail/_movement_drawer.html
+   ```
+
+   The partials should render prepared VM fields. They should not inspect
+   `entry.operation.source.value`, choose from `raw_transactions[0]`, compute
+   amount sign, or search money entries.
+
+4. Replace heavy nested operation rendering in movement rows:
+
+   - remove `operation_ref(...)` from the normal movement row path;
+   - keep a compact right-side result/action zone;
+   - preserve source links and technical operation IDs behind secondary or
+     technical details.
+
+5. Add row-level edit drawer shell:
+
+   - drawer opens from the right action zone;
+   - drawer spans the movement width under the row;
+   - imported operation drawer can edit description/status/category/property
+     and link back to the import row;
+   - manual operation may initially link to `/ledger/manual?...` instead of
+     duplicating the full manual edit form in this slice.
+
+6. Migrate touched CSS toward account-owned BEM names:
+
+   ```text
+   account-movement
+   account-movement__main
+   account-movement__topline
+   account-movement__amount
+   account-movement__meta
+   account-movement__result
+   account-movement__actions
+   account-movement__drawer
+   ```
+
+   Keep compatibility classes only where another screen still depends on them.
+   Do not rewrite unrelated `entity-card`, `manual-operation`, or import review
+   CSS just for naming consistency.
+
+7. Focused tests:
+
+   - presenter tests for income, expense, transfer, imported/manual/system
+     sources;
+   - template tests proving movement rows render prepared VM data;
+   - regression test that normal movement rows do not use the old heavy
+     `operation-ref` block;
+   - account detail template keeps technical IDs collapsed.
+
+8. Checks for this slice:
+
+   ```bash
+   uv run pytest tests/features/accounts/test_account_detail_template.py
+   uv run pytest tests/features/accounts/test_accounts_template.py
+   uv run ruff check .
+   uv run ty check .
+   git diff --check
+   uv run python scripts/ui_audit.py --authenticated --scenario realistic
+   ```
+
+Out of scope for the first account detail slice:
+
+- changing ledger posting behavior;
+- changing URL endpoints;
+- changing DB models/enums;
+- rebuilding manual operations inline editing completely;
+- designing a new timeline-only geometry;
+- broad CSS renaming outside the touched account detail surface.
