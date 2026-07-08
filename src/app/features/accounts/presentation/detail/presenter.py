@@ -189,7 +189,7 @@ class AccountDetailPresenter:
         if not presenter_input.can_write or entry.operation.source != OperationSource.BANK_PDF:
             return None
         return AccountMovementDrawerVM(
-            kind="imported",
+            kind="импорт",
             title="Исправить операцию",
             form_action=f"/accounts/{account_id}/operations/{entry.operation_id}/review-fields",
             description=entry.operation.description or "",

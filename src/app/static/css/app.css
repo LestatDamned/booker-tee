@@ -3845,29 +3845,6 @@ pre {
   overflow-wrap: anywhere;
 }
 
-.entry-money {
-  justify-self: end;
-  border: 1px solid currentcolor;
-  background: var(--surface-strong);
-  padding: 6px 10px;
-  font-size: clamp(1.15rem, 2vw, 1.45rem);
-}
-
-.entry-money.money-income {
-  border-color: var(--green);
-  color: var(--green);
-}
-
-.entry-money.money-expense {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.entry-money.money-transfer {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
 .review-item__amount {
   justify-self: end;
   border: 1px solid color-mix(in srgb, currentcolor 72%, var(--border));
@@ -4756,11 +4733,6 @@ pre {
   gap: 8px;
 }
 
-.entry-list {
-  display: grid;
-  gap: 10px;
-}
-
 .account-movement-list {
   display: grid;
   gap: 10px;
@@ -4976,182 +4948,12 @@ pre {
   grid-column: 1 / -1 !important;
 }
 
-.entry-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
-  gap: 16px;
-  border: 1px solid var(--border);
-  border-left-width: 4px;
-  background: var(--surface);
-  padding: 12px;
-}
-
-.entry-item.tone-income,
-.entry-item.tone-expense,
-.entry-item.tone-transfer,
-.entry-item.tone-adjustment,
-.operation-ref.tone-income,
-.operation-ref.tone-expense,
-.operation-ref.tone-transfer,
-.operation-ref.tone-adjustment {
-  color: var(--text);
-}
-
-.entry-item.tone-income {
-  border-left-color: var(--green);
-}
-
-.entry-item.tone-expense {
-  border-left-color: var(--danger);
-}
-
-.entry-item.tone-transfer {
-  border-left-color: var(--accent);
-}
-
-.entry-item.tone-adjustment {
-  border-left-color: var(--warning);
-}
-
-.entry-main {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-}
-
-.account-entry__meta {
-  display: grid;
-  grid-template-columns: auto auto auto minmax(max-content, 1fr);
-  gap: 6px;
-  align-items: center;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-}
-
-.account-entry__meta > span:not(.badge):not(.entry-money) {
-  min-height: 28px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0;
-  color: var(--muted);
-}
-
-.account-entry__meta .badge {
-  min-height: 32px;
-  gap: 6px;
-}
-
 .entry-description {
   color: var(--text);
   overflow-wrap: anywhere;
   font-family:
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   line-height: 1.45;
-}
-
-.entry-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.entry-tags span {
-  border: 1px solid var(--border);
-  padding: 5px 8px;
-  color: var(--muted);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
-}
-
-.entry-operation {
-  min-width: 0;
-  border-left: 1px solid var(--border);
-  padding-left: 16px;
-}
-
-.operation-ref {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  border-left: 2px solid var(--border);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--surface-strong) 36%, transparent);
-  padding: 8px;
-}
-
-.operation-ref.tone-income {
-  border-left-color: var(--green);
-}
-
-.operation-ref.tone-expense {
-  border-left-color: var(--danger);
-}
-
-.operation-ref.tone-transfer {
-  border-left-color: var(--accent);
-}
-
-.operation-ref.tone-adjustment {
-  border-left-color: var(--warning);
-}
-
-.operation-ref-compact {
-  gap: 5px;
-}
-
-.operation-ref-title {
-  display: grid;
-  gap: 6px;
-  color: var(--text);
-  overflow-wrap: anywhere;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-}
-
-.operation-ref-title .badge {
-  justify-self: start;
-}
-
-.operation-ref-detail {
-  color: color-mix(in srgb, var(--text) 82%, var(--muted));
-  line-height: 1.35;
-}
-
-.entry-actions {
-  display: grid;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.entry-actions > .button,
-.entry-actions > .action-details {
-  width: 100%;
-}
-
-.operation-edit-details {
-  background: color-mix(in srgb, var(--surface-strong) 44%, transparent);
-}
-
-.operation-edit-details summary {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-}
-
-.operation-review-fields {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.operation-review-fields .field,
-.operation-review-submit {
-  grid-column: auto !important;
-}
-
-.operation-review-description,
-.operation-review-submit {
-  grid-column: 1 / -1 !important;
 }
 
 .badge-source-bank_pdf {
@@ -5183,98 +4985,6 @@ pre {
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.82rem;
   text-transform: uppercase;
-}
-
-.operation-route {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 5px 8px;
-  align-items: baseline;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-}
-
-.operation-route span {
-  color: var(--accent);
-  font-size: 0.78rem;
-  text-transform: uppercase;
-}
-
-.operation-route strong {
-  min-width: 0;
-  color: var(--text);
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.operation-ref-description {
-  max-width: 420px;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-  line-height: 1.4;
-}
-
-.operation-ref-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.operation-ref-meta span {
-  border: 1px solid var(--border);
-  padding: 4px 7px;
-  color: var(--muted);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
-}
-
-.account-ref {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  text-decoration: none;
-}
-
-.account-ref strong {
-  color: var(--text);
-  font-weight: 700;
-}
-
-.account-ref span {
-  border: 1px solid var(--border);
-  padding: 4px 7px;
-  color: var(--muted);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
-}
-
-.entry-tags span.tone-income,
-.operation-ref-meta span.tone-income {
-  border-color: var(--green);
-  color: var(--green);
-}
-
-.entry-tags span.tone-expense,
-.operation-ref-meta span.tone-expense {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.entry-tags span.tone-transfer,
-.operation-ref-meta span.tone-transfer {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.entry-tags span.tone-adjustment,
-.entry-tags span.tone-mixed,
-.operation-ref-meta span.tone-adjustment,
-.operation-ref-meta span.tone-mixed {
-  border-color: var(--warning);
-  color: var(--warning);
 }
 
 @media (max-width: 920px) {
@@ -5330,7 +5040,6 @@ pre {
 
   .review-item,
   .account-movement,
-  .entry-item,
   .rule-card {
     grid-template-columns: 1fr;
   }
@@ -5419,13 +5128,6 @@ pre {
 
   .review-panel__tabs {
     display: none;
-  }
-
-  .entry-operation {
-    border-left: 0;
-    border-top: 1px solid var(--border);
-    padding-left: 0;
-    padding-top: 12px;
   }
 
   .account-movement__result {
@@ -5839,13 +5541,11 @@ pre {
     justify-content: space-between;
   }
 
-  .account-entry__meta > span,
   .review-item__meta > span,
   .review-item__actions .button {
     width: 100%;
   }
 
-  .account-entry__meta,
   .account-movement__topline,
   .review-item__meta {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5866,26 +5566,19 @@ pre {
 
   .account-movement__amount {
     grid-column: 1 / -1;
-    justify-self: stretch;
-    justify-content: space-between;
+    justify-self: start;
+    justify-content: flex-start;
   }
 
   .account-movement__drawer-form {
     grid-template-columns: 1fr;
   }
 
-  .account-entry__meta .badge,
   .review-item__meta .badge {
     width: 100%;
     justify-content: center;
     overflow-wrap: anywhere;
     white-space: normal;
-  }
-
-  .entry-money {
-    grid-column: 1 / -1;
-    justify-self: stretch;
-    justify-content: space-between;
   }
 
   .review-item__amount {
