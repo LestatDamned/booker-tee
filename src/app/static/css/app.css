@@ -3831,7 +3831,6 @@ pre {
   scroll-margin-top: 16px;
 }
 
-.manual-operation-card,
 .manual-operation-row {
   border-left-width: 4px;
 }
@@ -3878,71 +3877,14 @@ pre {
   padding-top: 12px;
 }
 
-.manual-create-form__fields,
-.manual-create-form__bottom {
-  margin: 0;
-}
-
-.manual-create-form__field {
-  min-width: 0;
-}
-
-.manual-create-form__field input,
-.manual-create-form__field select,
-.manual-create-form__submit {
-  min-height: 42px;
-  border-radius: 8px;
-}
-
-.manual-create-form__field input,
-.manual-create-form__field select {
-  border-color: color-mix(in srgb, var(--border) 78%, transparent);
-  border-left-width: 1px;
-  background: color-mix(in srgb, var(--surface-strong) 64%, var(--bg));
-}
-
-.manual-create-form__field input:hover,
-.manual-create-form__field select:hover {
-  background: color-mix(in srgb, var(--surface-strong) 76%, var(--accent));
-}
-
-.manual-create-form__field--type {
-  grid-column: span 6;
-}
-
-.manual-create-form__field--date,
-.manual-create-form__field--amount {
-  grid-column: span 3;
-}
-
-.manual-create-form__fields--classification .manual-create-form__field {
-  grid-column: span 3;
-}
-
-.manual-create-form__field--description {
-  grid-column: span 8;
-}
-
-.manual-create-form__submit {
-  grid-column: span 4;
-  width: 100%;
-}
-
-.manual-operation-row__drawer-form .operation-form__field--description {
-  grid-column: span 8;
-}
-
-.manual-operation-income,
 .manual-operation-row--income {
   border-left-color: var(--green);
 }
 
-.manual-operation-expense,
 .manual-operation-row--expense {
   border-left-color: var(--danger);
 }
 
-.manual-operation-transfer,
 .manual-operation-row--transfer {
   border-left-color: var(--accent);
 }
@@ -3954,14 +3896,6 @@ pre {
 
 .manual-operation-row--inactive {
   opacity: 0.72;
-}
-
-.manual-operation-money {
-  margin-left: auto;
-  border: 1px solid currentcolor;
-  background: var(--surface-strong);
-  padding: 4px 8px;
-  font-size: clamp(1rem, 1.8vw, 1.3rem);
 }
 
 .rule-card:target {
@@ -5500,40 +5434,6 @@ pre {
   padding-left: 16px;
 }
 
-.account-movement__result-card--income {
-  border-left-color: var(--green);
-}
-
-.account-movement__result-card--expense {
-  border-left-color: var(--danger);
-}
-
-.account-movement__result-card--transfer {
-  border-left-color: var(--accent);
-}
-
-.account-movement__result-card--adjustment {
-  border-left-color: var(--warning);
-}
-
-.account-movement__result-card span,
-.account-movement__result-card small {
-  color: var(--muted);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
-}
-
-.account-movement__result-card strong {
-  color: var(--text);
-  overflow-wrap: anywhere;
-  font-size: 1rem;
-}
-
-.account-movement__action {
-  width: 100%;
-}
-
 .account-movement__drawer-form {
   grid-template-columns: 1fr;
 }
@@ -5665,15 +5565,6 @@ pre {
   .operation-form__footer .button,
   .operation-form__footer--actions .operation-form__submit,
   .operation-form__footer--actions .button {
-    grid-column: span 6;
-  }
-
-  .manual-create-form__field--type,
-  .manual-create-form__field--date,
-  .manual-create-form__field--amount,
-  .manual-create-form__fields--classification .manual-create-form__field,
-  .manual-create-form__field--description,
-  .manual-create-form__submit {
     grid-column: span 6;
   }
 
@@ -6111,20 +6002,6 @@ pre {
 
   .form-panel {
     grid-template-columns: 1fr;
-  }
-
-  .manual-create-form__fields,
-  .manual-create-form__bottom {
-    grid-template-columns: 1fr;
-  }
-
-  .manual-create-form__field--type,
-  .manual-create-form__field--date,
-  .manual-create-form__field--amount,
-  .manual-create-form__fields--classification .manual-create-form__field,
-  .manual-create-form__field--description,
-  .manual-create-form__submit {
-    grid-column: 1 / -1;
   }
 
   .file-upload-control {
