@@ -11,6 +11,8 @@ from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.accounts.models import AccountType
+from app.features.accounts.presentation.detail.models import AccountDetailPresenterInput
+from app.features.accounts.presentation.detail.presenter import AccountDetailPresenter
 from app.features.accounts.service import AccountError, AccountService
 from app.features.categories.service import CategoryService
 from app.features.ledger.application.commands import UpdateImportedOperationReviewFieldsCommand
@@ -26,6 +28,7 @@ from app.features.workspaces.dependencies import (
     get_current_workspace_context,
     require_financial_write_context,
 )
+from app.features.workspaces.permissions import permission_flags_for
 from app.features.workspaces.service import WorkspaceContext
 from app.shared.query_params import (
     clean_optional_query_text,
@@ -112,11 +115,26 @@ async def account_detail(
         include_inactive=True,
     )
     properties = await PropertyService(session).list_all(context.workspace.id)
+    account_page = AccountDetailPresenter.build(
+        detail,
+        AccountDetailPresenterInput(
+            can_write=permission_flags_for(context.membership).can_write_financial_data,
+            filters_date_from=filters.date_from,
+            filters_date_to=filters.date_to,
+            filters_source=filters.source,
+            filters_operation_type=filters.operation_type,
+            filters_status=filters.status,
+            filters_category_id=filters.category_id,
+            filters_property_id=filters.property_id,
+            filters_search=filters.search,
+        ),
+    )
 
     return templates.TemplateResponse(
         request,
         "accounts/detail.html",
         {
+            "account_page": account_page,
             "app_name": settings.app_name,
             "account_types": list(AccountType),
             "categories": categories,

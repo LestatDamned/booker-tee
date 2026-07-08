@@ -1,0 +1,34 @@
+<article id="{{ movement.id }}" class="account-movement account-movement--{{ movement.tone }}" x-data="{ drawerOpen: false }">
+  <div class="account-movement__main">
+    <div class="account-movement__topline">
+      <strong class="account-movement__amount money-value money-{{ movement.amount_direction }}">
+        {{ movement.amount }} <small>{{ movement.currency }}</small>
+      </strong>
+      <span class="account-movement__date">{{ movement.date_label }}</span>
+      <div class="account-movement__badges">
+        {% for badge in movement.badges %}
+          <span class="badge badge-{{ badge.tone }}">{{ badge.label }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="account-movement__description">{{ movement.description }}</div>
+    <div class="account-movement__meta">
+      {% for item in movement.meta %}
+        <span {% if item.tone %}class="account-movement__meta-item account-movement__meta-item--{{ item.tone }}"{% else %}class="account-movement__meta-item"{% endif %}>{{ item.label }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <aside class="account-movement__result">
+    <div class="account-movement__result-card account-movement__result-card--{{ movement.result.tone }}">
+      <span>{{ movement.result.eyebrow }}</span>
+      <strong>{{ movement.result.title }}</strong>
+      {% if movement.result.detail %}
+        <small>{{ movement.result.detail }}</small>
+      {% endif %}
+    </div>
+    {% include "accounts/detail/_movement_actions.html" %}
+  </aside>
+
+  {% include "accounts/detail/_movement_drawer.html" %}
+</article>

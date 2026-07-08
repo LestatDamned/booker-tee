@@ -4761,6 +4761,221 @@ pre {
   gap: 10px;
 }
 
+.account-movement-list {
+  display: grid;
+  gap: 10px;
+}
+
+.account-movement {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  gap: 16px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  background: var(--surface);
+  padding: 12px;
+}
+
+.account-movement--income {
+  border-left-color: var(--green);
+}
+
+.account-movement--expense {
+  border-left-color: var(--danger);
+}
+
+.account-movement--transfer {
+  border-left-color: var(--accent);
+}
+
+.account-movement--adjustment {
+  border-left-color: var(--warning);
+}
+
+.account-movement__main {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.account-movement__topline {
+  display: grid;
+  grid-template-columns: minmax(150px, max-content) max-content minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.account-movement__amount {
+  justify-self: start;
+}
+
+.account-movement__date {
+  color: var(--text);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-weight: 700;
+}
+
+.account-movement__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.account-movement__description {
+  color: var(--text);
+  overflow-wrap: anywhere;
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  line-height: 1.45;
+}
+
+.account-movement__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.account-movement__meta-item {
+  border: 1px solid var(--border);
+  padding: 5px 8px;
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+}
+
+.account-movement__meta-item--income {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.account-movement__meta-item--expense {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.account-movement__meta-item--transfer {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.account-movement__meta-item--warning,
+.account-movement__meta-item--adjustment,
+.account-movement__meta-item--mixed {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.account-movement__result {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  border-left: 1px solid var(--border);
+  padding-left: 16px;
+}
+
+.account-movement__result-card {
+  display: grid;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-left: 2px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-strong) 36%, transparent);
+  padding: 8px;
+}
+
+.account-movement__result-card--income {
+  border-left-color: var(--green);
+}
+
+.account-movement__result-card--expense {
+  border-left-color: var(--danger);
+}
+
+.account-movement__result-card--transfer {
+  border-left-color: var(--accent);
+}
+
+.account-movement__result-card--adjustment {
+  border-left-color: var(--warning);
+}
+
+.account-movement__result-card span,
+.account-movement__result-card small {
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+}
+
+.account-movement__result-card strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+.account-movement__actions {
+  display: grid;
+  gap: 8px;
+}
+
+.account-movement__action {
+  width: 100%;
+}
+
+.account-movement__action--secondary {
+  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  color: var(--muted);
+}
+
+.account-movement__readonly {
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-movement__technical {
+  justify-self: start;
+}
+
+.account-movement__drawer {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 64%, var(--border));
+  border-top: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--surface-strong) 46%, transparent);
+  padding: 12px;
+}
+
+.account-movement__drawer-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: start;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+
+.account-movement__drawer-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.account-movement__drawer-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.account-movement__description-field,
+.account-movement__drawer-submit {
+  grid-column: 1 / -1 !important;
+}
+
 .entry-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
@@ -5114,6 +5329,7 @@ pre {
   }
 
   .review-item,
+  .account-movement,
   .entry-item,
   .rule-card {
     grid-template-columns: 1fr;
@@ -5206,6 +5422,13 @@ pre {
   }
 
   .entry-operation {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    padding-left: 0;
+    padding-top: 12px;
+  }
+
+  .account-movement__result {
     border-left: 0;
     border-top: 1px solid var(--border);
     padding-left: 0;
@@ -5623,8 +5846,32 @@ pre {
   }
 
   .account-entry__meta,
+  .account-movement__topline,
   .review-item__meta {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .account-movement__badges {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .account-movement__badges .badge {
+    width: 100%;
+    justify-content: center;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .account-movement__amount {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    justify-content: space-between;
+  }
+
+  .account-movement__drawer-form {
+    grid-template-columns: 1fr;
   }
 
   .account-entry__meta .badge,

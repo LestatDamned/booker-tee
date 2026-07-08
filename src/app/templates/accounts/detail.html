@@ -1,11 +1,9 @@
 {% extends "base.html" %}
-{% from "components/operation_ref.html" import operation_ref %}
 
 {% block title %}{{ detail.account.name }} · {{ app_name }}{% endblock %}
 
 {% block content %}
   {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
-  {% set account_filters_active = filters is defined and (filters.date_from or filters.date_to or filters.source or filters.operation_type or (filters.status and filters.status.value != "confirmed") or filters.category_id or filters.property_id or filters.search) %}
   <section class="panel stack account-detail-page">
     <div class="toolbar">
       <div>
@@ -18,18 +16,12 @@
     </div>
 
     <div class="summary-grid">
-      <div class="metric">
-        <span>баланс</span>
-        <strong>{{ detail.balance }} {{ detail.account.currency }}</strong>
-      </div>
-      <div class="metric">
-        <span>начальный</span>
-        <strong>{{ detail.account.initial_balance }} {{ detail.account.currency }}</strong>
-      </div>
-      <div class="metric">
-        <span>проводки</span>
-        <strong>{{ detail.page.total if detail.page is defined else detail.entries | length }}</strong>
-      </div>
+      {% for metric in account_page.metrics %}
+        <div class="metric{% if metric.tone %} metric-{{ metric.tone }}{% endif %}">
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.value }}</strong>
+        </div>
+      {% endfor %}
     </div>
 
     {% if can_write %}
@@ -76,7 +68,7 @@
       </details>
     {% endif %}
 
-    <details class="action-details action-accordion filter-details" {% if account_filters_active %}open{% endif %}>
+    <details class="action-details action-accordion filter-details" {% if account_page.filters_active %}open{% endif %}>
       <summary>{{ icon("filter") }} фильтры проводок</summary>
       <form class="form-panel form-panel-embedded" method="get" action="/accounts/{{ detail.account.id }}">
         <label class="field form-field-quarter">
@@ -150,105 +142,20 @@
       </form>
     </details>
 
-    {% if detail.entries %}
-      <div class="entry-list">
-        {% for entry in detail.entries %}
-          {% set amount_direction = entry.amount_direction if entry.amount_direction is defined else ("income" if entry.amount > 0 else "expense" if entry.amount < 0 else "transfer") %}
-          <article id="operation-{{ entry.operation_id }}" class="entry-item tone-{{ entry.operation.type.value }}">
-            <div class="entry-main">
-              <div class="account-entry__meta">
-                <span>{{ entry.operation.operation_date | date_ru }}</span>
-                <span class="badge badge-{{ entry.operation.type.value }}">{{ entry.operation.type | ru }}</span>
-                {% if entry.operation.source is defined %}
-                  <span class="badge badge-source-{{ entry.operation.source.value }}">{{ entry.operation.source | ru }}</span>
-                {% endif %}
-                {% if entry.operation.status is defined %}
-                  <span class="badge badge-{{ entry.operation.status.value }}">{{ entry.operation.status | ru }}</span>
-                {% endif %}
-                <strong class="entry-money money-value money-{{ amount_direction }}">
-                  {{ entry.amount }} <small>{{ entry.currency }}</small>
-                </strong>
-              </div>
-              <div class="entry-description">{{ entry.operation.description or "Без описания" }}</div>
-              <div class="entry-tags">
-                {% if entry.operation.category %}<span class="tone-{{ entry.operation.category.kind.value if entry.operation.category.kind else entry.operation.type.value }}">{{ entry.operation.category.name }}</span>{% endif %}
-                {% if entry.operation.property %}<span>{{ entry.operation.property.name }}</span>{% endif %}
-              </div>
-            </div>
-            <div class="entry-operation">
-              {{ operation_ref(entry.operation, none, "Операция", false, true) }}
-              {% if can_write and entry.operation.source is defined %}
-                <div class="entry-actions">
-                  <div class="action-title">Действия с операцией</div>
-                  {% if entry.operation.source.value == "bank_pdf" %}
-                    <details class="action-details action-accordion operation-edit-details">
-                      <summary>{{ icon("tag") }} изменить описание и категорию</summary>
-                      <form class="form-panel form-panel-embedded operation-review-fields" method="post" action="/accounts/{{ detail.account.id }}/operations/{{ entry.operation_id }}/review-fields">
-                        {{ csrf_input() }}
-                        <label class="field operation-review-description">
-                          <span>описание</span>
-                          <input name="description" value="{{ entry.operation.description or '' }}" placeholder="Описание">
-                        </label>
-                        <label class="field">
-                          <span>статус</span>
-                          <select name="status">
-                            {% for status in operation_statuses | default([]) %}
-                              <option value="{{ status.value }}" {% if entry.operation.status == status %}selected{% endif %}>{{ status | ru }}</option>
-                            {% endfor %}
-                          </select>
-                        </label>
-                        <label class="field">
-                          <span>категория</span>
-                          <select name="category_id">
-                            <option value="">без категории</option>
-                            {% for category in categories | default([]) %}
-                              <option value="{{ category.id }}" {% if entry.operation.category and entry.operation.category.id == category.id %}selected{% endif %}>{{ category.name }}</option>
-                            {% endfor %}
-                          </select>
-                        </label>
-                        <label class="field">
-                          <span>объект</span>
-                          <select name="property_id">
-                            <option value="">без объекта</option>
-                            {% for property in properties | default([]) %}
-                              <option value="{{ property.id }}" {% if entry.operation.property and entry.operation.property.id == property.id %}selected{% endif %}>{{ property.name }}</option>
-                            {% endfor %}
-                          </select>
-                        </label>
-                        <div class="form-actions operation-review-submit">
-                          <button class="button button-small" type="submit">{{ icon("save") }} сохранить</button>
-                        </div>
-                      </form>
-                    </details>
-                    {% set raw_link = entry.operation.raw_transactions[0] if entry.operation.raw_transactions else none %}
-                    {% if raw_link %}
-                      <a class="button button-small" href="/imports/documents/{{ raw_link.uploaded_document_id }}/review#raw-{{ raw_link.id }}">{{ icon("refresh") }} изменить на перевод</a>
-                    {% else %}
-                      <a class="button button-small" href="/imports">{{ icon("refresh") }} найти строку импорта</a>
-                    {% endif %}
-                  {% elif entry.operation.source.value == "manual" %}
-                    <a class="button button-small" href="/ledger/manual?operation_id={{ entry.operation_id }}#operation-{{ entry.operation_id }}">{{ icon("plus") }} редактировать ручную операцию</a>
-                  {% elif entry.operation.source.value == "system" %}
-                    <span class="badge badge-muted">только чтение</span>
-                  {% endif %}
-                  <details class="technical-details inline-technical-details">
-                    <summary>ID операции</summary>
-                    <span>ID {{ entry.operation_id }}</span>
-                  </details>
-                </div>
-              {% endif %}
-            </div>
-          </article>
+    {% if account_page.movements %}
+      <div class="account-movement-list">
+        {% for movement in account_page.movements %}
+          {% include "accounts/detail/_movement.html" %}
         {% endfor %}
       </div>
-      {% if detail.page is defined and detail.page.total_pages > 1 %}
+      {% if account_page.page.total_pages > 1 %}
         <nav class="pagination-bar" aria-label="Страницы операций">
           {% if page_urls.previous %}
             <a class="button button-small" href="{{ page_urls.previous }}">{{ icon("arrow-left") }} назад</a>
           {% else %}
             <span class="button button-small button-disabled">назад</span>
           {% endif %}
-          <span class="pagination-status">страница {{ detail.page.page }} из {{ detail.page.total_pages }}</span>
+          <span class="pagination-status">страница {{ account_page.page.page }} из {{ account_page.page.total_pages }}</span>
           {% if page_urls.next %}
             <a class="button button-small" href="{{ page_urls.next }}">вперед</a>
           {% else %}
