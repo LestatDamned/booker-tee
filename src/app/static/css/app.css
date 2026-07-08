@@ -1168,6 +1168,8 @@ input[type="checkbox"] {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
   background: var(--surface);
 }
 
@@ -1195,15 +1197,15 @@ input[type="checkbox"] {
 }
 
 .segmented-option span {
-  min-height: 44px;
+  min-height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 10px;
+  padding: 0 9px;
   color: var(--muted);
   font-family:
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   text-align: center;
   text-transform: uppercase;
 }
@@ -3171,12 +3173,12 @@ input[type="checkbox"] {
   background: color-mix(in srgb, var(--surface-strong) 76%, var(--accent));
 }
 
-.operation-form__field--type {
-  grid-column: span 6;
+.operation-form__field--type,
+.operation-form__field--date,
+.operation-form__field--amount {
+  grid-column: span 4;
 }
 
-.operation-form__field--date,
-.operation-form__field--amount,
 .operation-form__field--status {
   grid-column: span 3;
 }
@@ -3202,12 +3204,14 @@ input[type="checkbox"] {
 }
 
 .operation-form__footer--actions {
+  grid-template-columns: minmax(190px, 280px);
   justify-content: end;
 }
 
 .operation-form__footer--actions .operation-form__submit,
+.operation-form__footer--actions .action-form,
 .operation-form__footer--actions .button {
-  grid-column: 9 / -1;
+  grid-column: auto;
 }
 
 .table-scroll {
@@ -4778,6 +4782,21 @@ pre {
   min-height: 44px;
 }
 
+.filter-details summary,
+.account-detail-tool.filter-details > .account-detail-tool__summary {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+
+.filter-details__title {
+  min-width: 0;
+}
+
+.filter-details__state {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: lowercase;
+}
+
 .account-create-details .form-panel,
 .account-settings-details .form-panel,
 .filter-details .form-panel {
@@ -4798,7 +4817,7 @@ pre {
 .account-tool-form,
 .filter-form {
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 8px;
   align-items: stretch;
   border: 0;
   border-top: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
@@ -4808,11 +4827,18 @@ pre {
     color-mix(in srgb, var(--surface-strong) 30%, transparent),
     color-mix(in srgb, var(--surface) 14%, transparent)
   );
-  padding: 12px;
+  padding: 10px;
 }
 
-.account-tool-form .inline-hint,
 .filter-form .inline-hint {
+  border: 0;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 52%, transparent);
+  background: transparent;
+  padding: 2px 0 2px 9px;
+  font-size: 0.78rem;
+}
+
+.account-tool-form .inline-hint {
   border-color: color-mix(in srgb, var(--help) 24%, var(--border));
   background: color-mix(in srgb, var(--help) 7%, transparent);
   padding: 9px 11px;
@@ -4823,16 +4849,16 @@ pre {
 .filter-form__group {
   min-width: 0;
   display: grid;
-  gap: 10px;
+  gap: 8px;
   border: 0;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-strong) 48%, transparent);
-  padding: 10px;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .account-tool-form__group--primary,
 .filter-form__group--primary {
-  background: color-mix(in srgb, var(--accent) 6%, var(--surface-strong));
+  background: transparent;
 }
 
 .account-tool-form__fields,
@@ -4840,7 +4866,7 @@ pre {
   min-width: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 9px 10px;
+  gap: 8px 10px;
   align-items: end;
 }
 
@@ -4877,7 +4903,7 @@ pre {
 .account-tool-form select,
 .filter-form input,
 .filter-form select {
-  min-height: 42px;
+  min-height: 38px;
   border-color: color-mix(in srgb, var(--border) 78%, transparent);
   border-left-width: 1px;
   border-radius: 8px;
@@ -4900,11 +4926,11 @@ pre {
 .account-tool-form__footer,
 .filter-form__footer {
   display: grid;
-  grid-template-columns: minmax(180px, 280px) minmax(180px, 280px);
-  gap: 10px;
+  grid-template-columns: minmax(120px, 180px) minmax(140px, 200px);
+  gap: 8px;
   justify-content: space-between;
   border-top: 1px solid color-mix(in srgb, var(--border) 46%, transparent);
-  padding-top: 12px;
+  padding-top: 9px;
 }
 
 .account-tool-form__footer--filters,
@@ -4914,7 +4940,9 @@ pre {
 
 .account-tool-form__footer .button,
 .filter-form__footer .button {
-  width: 100%;
+  width: auto;
+  min-height: 36px;
+  padding-inline: 14px;
 }
 
 .account-tool-form .account-tool-form__secondary-action,

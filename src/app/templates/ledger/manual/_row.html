@@ -42,7 +42,7 @@
       <div class="row-drawer__form manual-operation-row__drawer-form operation-form operation-form--drawer" x-data="{ operationType: '{{ row.drawer.operation_type.value }}' }">
         <div class="operation-form__fields operation-form__fields--primary">
           <div class="field row-drawer__field operation-type-field operation-form__field operation-form__field--type">
-            <span>тип</span>
+            <span>тип операции</span>
             <div class="segmented-control" role="radiogroup" aria-label="Тип операции">
               <label class="segmented-option segmented-income">
                 <input name="operation_type" type="radio" value="income" form="{{ row.drawer.form_id }}" required {% if row.drawer.operation_type.value == "income" %}checked{% endif %} x-model="operationType">
@@ -58,13 +58,13 @@
               </label>
             </div>
           </div>
-          <label class="field row-drawer__field operation-form__field operation-form__field--date">
-            <span>дата</span>
-            <input name="operation_date" inputmode="numeric" value="{{ row.drawer.operation_date }}" form="{{ row.drawer.form_id }}" placeholder="дд.мм.гггг" pattern="\d{2}\.\d{2}\.\d{4}" required>
-          </label>
           <label class="field row-drawer__field operation-form__field operation-form__field--amount">
             <span>сумма</span>
             <input class="amount" name="amount" inputmode="decimal" value="{{ row.drawer.amount or '' }}" form="{{ row.drawer.form_id }}" required>
+          </label>
+          <label class="field row-drawer__field operation-form__field operation-form__field--date">
+            <span>дата</span>
+            <input name="operation_date" inputmode="numeric" value="{{ row.drawer.operation_date }}" form="{{ row.drawer.form_id }}" placeholder="дд.мм.гггг" pattern="\d{2}\.\d{2}\.\d{4}" required>
           </label>
         </div>
 
@@ -110,11 +110,14 @@
           </label>
         </div>
 
-        <div class="row-drawer__footer operation-form__footer">
+        <div class="operation-form__fields operation-form__fields--description">
           <label class="field row-drawer__field row-drawer__field--description operation-form__field operation-form__field--description">
             <span>описание</span>
             <input name="description" value="{{ row.drawer.description }}" form="{{ row.drawer.form_id }}" placeholder="Описание">
           </label>
+        </div>
+
+        <div class="row-drawer__footer operation-form__footer operation-form__footer--actions">
           {% if row.save_action %}
             {% set action = row.save_action %}
             {% include "ui/_action.html" %}

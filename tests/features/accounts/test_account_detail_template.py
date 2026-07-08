@@ -188,6 +188,7 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "account-detail-tool__toggle" in html
     assert "account-tool-form account-settings-form" in html
     assert "filter-form account-filter-form" in html
+    assert "filter-details__state" in html
     assert "inline-hint inline-hint-info" in html
     assert "account-tool-form__group" in html
     assert "account-tool-form__fields" in html
@@ -225,6 +226,7 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "operation-form__fields--classification" in html
     assert "operation-form__footer--actions" in html
     assert "row-drawer__footer account-movement__drawer-submit" in html
+    assert "сохранить изменения" in html
     assert "импорт" in html
     assert "Действия с операцией" not in html
     assert "Исправить операцию" in html

@@ -99,6 +99,8 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "фильтры операций" in html
     assert "фильтры списка" not in html
     assert "filter-form manual-filter-form" in html
+    assert "filter-details__state" in html
+    assert "применены" in html
     assert "filter-form__fields--primary" in html
     assert "filter-form__fields--classification" in html
     assert "filter-form__fields--display" in html
@@ -107,6 +109,8 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "financial-row manual-operation-row manual-operation-row--expense" in html
     assert "row-drawer manual-operation-row__drawer" in html
     assert "manual-operation-row__drawer-form operation-form operation-form--drawer" in html
+    assert "тип операции" in html
+    assert "сохранить изменения" in html
     assert "financial-row__meta-item financial-row__meta-item--expense" in html
     assert "подтверждено" in html
     assert "financial-row__amount manual-operation-row__amount money-value money-expense" in html
