@@ -1790,3 +1790,168 @@ Out of scope for the first account detail slice:
 - rebuilding manual operations inline editing completely;
 - designing a new timeline-only geometry;
 - broad CSS renaming outside the touched account detail surface.
+
+## Manual Operations Refactor Note
+
+Next UI/SSR slice after account detail: manual operations.
+
+Decision:
+
+- manual operations should continue the same financial row/action/drawer
+  language used by import review and account detail;
+- the page is a creation and correction workflow, not a review queue;
+- manual operations have stronger edit powers than imported-operation review:
+  type, amount, account, date, category, property and description can change;
+- lifecycle actions (`cancel`, `restore`, `delete`) must stay explicit and
+  visually separated from ordinary edits.
+
+Main problems in the current screen:
+
+- `ledger/manual.html` owns too many presentation decisions directly in Jinja;
+- the page mixes create form, filters, operation rows, edit forms and lifecycle
+  actions in one long template;
+- operation rows still use old `entity-card` geometry instead of the shared
+  `financial-row` rhythm;
+- edit forms are always visible inside each operation card, which makes the
+  page feel heavy even before the user chooses to edit anything;
+- filter form duplicates account-detail filter concepts but uses older layout
+  and action hierarchy;
+- the template computes display currency, amount tone, transfer route/source
+  labels and action availability inline.
+
+Target page shape:
+
+```text
+Page header
+Create manual operation form
+Filter accordion
+Manual operation rows
+```
+
+Target manual operation row:
+
+```text
+date                                      amount
+description
+category/property or transfer route · account context · calm status
+right side: primary edit action, lifecycle actions, technical details collapsed
+drawer: edit form only when opened
+```
+
+Architecture direction:
+
+- add a small ledger presentation package for this page instead of growing
+  `ledger/router.py` or adding more template logic;
+- keep manual operation write use cases, URL endpoints, DB models/enums and
+  lifecycle behavior unchanged;
+- keep the first slice behavior-preserving and focused on ViewModel/template
+  boundaries;
+- do not create a generic universal row component before the account detail and
+  manual operation variants prove which fields are truly shared.
+
+### Manual Operations Implementation Plan
+
+First safe vertical slice:
+
+1. Add manual operations presentation files:
+
+   ```text
+   src/app/features/ledger/presentation/manual_operations/
+     models.py
+     presenter.py
+   ```
+
+   Target VMs:
+
+   - `ManualOperationsPageVM`;
+   - `ManualOperationRowVM`;
+   - `ManualOperationActionVM`;
+   - `ManualOperationDrawerVM` or an equivalent edit payload;
+   - optional small filter/create-form helper VMs if they reduce template
+     decisions without over-abstracting.
+
+2. Move row presentation decisions out of `ledger/manual.html`:
+
+   - display currency;
+   - amount direction / money tone;
+   - date label;
+   - description fallback;
+   - transfer route;
+   - account context label;
+   - category/property/status meta;
+   - current/focused row state;
+   - inactive/cancelled row state;
+   - available primary, lifecycle and danger actions.
+
+3. Keep the create form mostly stable in the first slice:
+
+   - preserve existing POST endpoint and form field names;
+   - preserve segmented operation type behavior;
+   - do not change transfer validation or posting rules;
+   - only add owner classes / small layout improvements if needed for the new
+     page structure.
+
+4. Introduce manual operation partials:
+
+   ```text
+   src/app/templates/ledger/manual/_row.html
+   src/app/templates/ledger/manual/_row_actions.html
+   src/app/templates/ledger/manual/_row_drawer.html
+   src/app/templates/ledger/manual/_filters.html
+   ```
+
+   Keep the partial count small. Add a partial only when it removes a real
+   repeated or noisy story from `manual.html`.
+
+5. Convert the operation list from old `entity-card` rendering to the shared
+   financial-row pattern:
+
+   - date and amount in the top line;
+   - description as the main human-readable text;
+   - category/account/status metadata below;
+   - technical ID collapsed;
+   - right-side actions in `row-actions`;
+   - edit form moved to a row drawer.
+
+6. Rework edit behavior:
+
+   - row shows a calm `редактировать` primary action;
+   - edit form appears only in the drawer;
+   - lifecycle actions stay visible but secondary;
+   - destructive delete remains danger and should keep explicit user intent.
+
+7. Bring filters closer to account detail:
+
+   - use the same compact accordion rhythm;
+   - use `inline_hint` only if the copy carries real guidance;
+   - keep primary `применить` and secondary `сбросить` hierarchy;
+   - preserve all query parameter names and pagination behavior.
+
+8. Focused tests:
+
+   - presenter tests for income, expense and transfer rows;
+   - presenter tests for confirmed vs ignored lifecycle actions;
+   - template tests proving rows render prepared VM fields;
+   - regression tests for create/edit/cancel/restore/delete form actions;
+   - URL helper tests for filters and focused operation anchors.
+
+9. Checks for this slice:
+
+   ```bash
+   uv run pytest tests/features/ledger/test_manual_operations_template.py
+   uv run pytest tests/features/ledger/test_ledger.py
+   uv run ruff check .
+   uv run ty check .
+   git diff --check
+   uv run python scripts/ui_audit.py --authenticated --scenario realistic
+   ```
+
+Out of scope for the first manual operations slice:
+
+- changing ledger posting behavior;
+- changing URL endpoints or form field names;
+- changing DB models/enums;
+- introducing JSON API or SPA behavior;
+- replacing the existing segmented operation type behavior;
+- broad CSS renaming outside touched manual operation UI;
+- making a universal shared financial-row partial for every feature.
