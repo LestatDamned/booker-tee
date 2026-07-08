@@ -1,8 +1,8 @@
-<div class="financial-row__actions account-movement__actions">
+<div class="financial-row__actions row-actions account-movement__actions">
   {% if movement.primary_action %}
     {% if movement.primary_action.variant == "drawer" and movement.drawer %}
       <button
-        class="button button-small account-movement__action"
+        class="button button-small row-actions__primary account-movement__action"
         type="button"
         x-on:click="drawerOpen = !drawerOpen"
         x-bind:aria-expanded="drawerOpen.toString()"
@@ -12,21 +12,21 @@
         <span x-show="drawerOpen" x-cloak>закрыть</span>
       </button>
     {% elif movement.primary_action.href %}
-      <a class="button button-small account-movement__action" href="{{ movement.primary_action.href }}">
+      <a class="button button-small row-actions__primary account-movement__action" href="{{ movement.primary_action.href }}">
         {{ icon(movement.primary_action.icon) }} {{ movement.primary_action.label }}
       </a>
     {% else %}
-      <span class="badge badge-muted account-movement__readonly">{{ movement.primary_action.label }}</span>
+      <span class="badge badge-muted row-actions__readonly account-movement__readonly">{{ movement.primary_action.label }}</span>
     {% endif %}
   {% endif %}
 
   {% for action in movement.secondary_actions %}
-    <a class="button button-small account-movement__action account-movement__action--secondary" href="{{ action.href }}">
+    <a class="button button-small row-actions__secondary account-movement__action account-movement__action--secondary" href="{{ action.href }}">
       {{ icon(action.icon) }} {{ action.label }}
     </a>
   {% endfor %}
 
-  <details class="technical-details inline-technical-details account-movement__technical">
+  <details class="technical-details inline-technical-details row-actions__technical account-movement__technical">
     <summary>ID операции</summary>
     <span>{{ movement.technical_label }}</span>
   </details>

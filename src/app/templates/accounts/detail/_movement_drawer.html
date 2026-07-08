@@ -1,21 +1,18 @@
 {% if movement.drawer %}
-  <div class="financial-row__drawer account-movement__drawer" x-show="drawerOpen" x-cloak>
-    <div class="account-movement__drawer-header">
-      <div>
-        <p class="eyebrow">{{ movement.drawer.kind }}</p>
-        <h3>{{ movement.drawer.title }}</h3>
+  <div class="financial-row__drawer row-drawer account-movement__drawer" x-show="drawerOpen" x-cloak>
+    <div class="row-drawer__header account-movement__drawer-header">
+      <div class="row-drawer__heading">
+        <h3 class="row-drawer__title">{{ movement.drawer.title }}</h3>
+        <span class="row-drawer__context">{{ movement.drawer.kind }}</span>
       </div>
-      {% if movement.drawer.source_url %}
-        <a class="button button-small" href="{{ movement.drawer.source_url }}">{{ icon("refresh") }} строка импорта</a>
-      {% endif %}
     </div>
-    <form class="form-panel form-panel-embedded account-movement__drawer-form" method="post" action="{{ movement.drawer.form_action }}">
+    <form class="form-panel form-panel-embedded row-drawer__form account-movement__drawer-form" method="post" action="{{ movement.drawer.form_action }}">
       {{ csrf_input() }}
-      <label class="field account-movement__description-field">
+      <label class="field row-drawer__field row-drawer__field--description account-movement__description-field">
         <span>описание</span>
         <input name="description" value="{{ movement.drawer.description }}" placeholder="Описание">
       </label>
-      <label class="field">
+      <label class="field row-drawer__field">
         <span>статус</span>
         <select name="status">
           {% for status in operation_statuses | default([]) %}
@@ -23,7 +20,7 @@
           {% endfor %}
         </select>
       </label>
-      <label class="field">
+      <label class="field row-drawer__field">
         <span>категория</span>
         <select name="category_id">
           <option value="">без категории</option>
@@ -32,7 +29,7 @@
           {% endfor %}
         </select>
       </label>
-      <label class="field">
+      <label class="field row-drawer__field">
         <span>объект</span>
         <select name="property_id">
           <option value="">без объекта</option>
@@ -41,7 +38,7 @@
           {% endfor %}
         </select>
       </label>
-      <div class="form-actions account-movement__drawer-submit">
+      <div class="form-actions row-drawer__footer account-movement__drawer-submit">
         <button class="button button-small" type="submit">{{ icon("save") }} сохранить</button>
       </div>
     </form>

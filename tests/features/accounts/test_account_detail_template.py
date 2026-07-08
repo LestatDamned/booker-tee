@@ -179,6 +179,16 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "account-settings-details" in html
     assert "фильтры проводок" in html
     assert "financial-row__amount account-movement__amount money-value money-expense" in html
+    assert "financial-row__actions row-actions account-movement__actions" in html
+    assert "row-actions__primary account-movement__action" in html
+    assert "row-actions__secondary account-movement__action" in html
+    assert "row-actions__technical account-movement__technical" in html
+    assert "financial-row__drawer row-drawer account-movement__drawer" in html
+    assert "row-drawer__header account-movement__drawer-header" in html
+    assert "row-drawer__heading" in html
+    assert "row-drawer__context" in html
+    assert "row-drawer__form account-movement__drawer-form" in html
+    assert "row-drawer__footer account-movement__drawer-submit" in html
     assert "импорт" in html
     assert "Действия с операцией" not in html
     assert "Исправить операцию" in html
@@ -189,3 +199,4 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert f"ID {operation_id}" in html
     assert f"/imports/documents/{document_id}/review#raw-{raw_transaction_id}" in html
     assert "<th>операция</th>" not in html
+    assert html.count("строка импорта") == 1

@@ -170,6 +170,10 @@ def test_import_detail_raw_transactions_use_review_like_topline_and_ru_date() ->
     )
     html = render_import_detail(view)
 
+    assert "financial-row financial-row--single raw-transaction-card import-raw-row" in html
+    assert "financial-row__date raw-transaction-date import-raw-row__date" in html
+    assert "financial-row__amount raw-transaction-amount import-raw-row__amount" in html
+    assert "financial-row__description entry-description import-raw-row__description" in html
     assert "raw-transaction-head" in html
     assert "import-raw-row__topline" in html
     assert "import-raw-row__amount" in html

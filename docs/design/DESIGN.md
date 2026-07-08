@@ -179,11 +179,11 @@ For review rows, manual operations, account movements, and similar lists, use a
 common pattern:
 
 ```text
-[amount] [direction] [date] [status badges]        [actions]
+Date                                      Amount
 Description
-Meta: account, category, property, row/source info
-Decision/result summary
-Technical details collapsed
+Human meta: category, account, calm status
+Important signals only when action is needed
+Actions / drawer / technical details secondary or collapsed
 ```
 
 This pattern should feel familiar across:
@@ -196,6 +196,63 @@ This pattern should feel familiar across:
 
 Do not force one universal component for every entity. Reuse the pattern and
 shared partials where the UX concept is actually the same.
+
+Base type scale:
+
+```text
+date:        financial-row__date        1.4rem
+amount:      financial-row__amount      1.4rem
+description: financial-row__description 1.02rem / 680
+meta:        financial-row__meta        compact, secondary
+```
+
+Normal statuses are calm metadata, not primary badges:
+
+```text
+confirmed / posted / imported / from statement
+```
+
+Important statuses and problems become visible signals:
+
+```text
+needs review / error / duplicate? / unrecognized / missing category
+```
+
+### Row Actions And Drawers
+
+Financial rows may have an action rail and a row-level drawer.
+
+Action rail rules:
+
+```text
+primary action
+secondary action
+technical details collapsed
+```
+
+- Primary action opens or performs the most useful row action.
+- Secondary actions link to source/context, for example import row.
+- Technical identifiers stay collapsed.
+- Do not duplicate the same secondary action inside the drawer if it already
+  exists in the action rail.
+
+Drawer rules:
+
+```text
+drawer header: short action title and context
+drawer body: compact fields
+drawer footer: final submit action, aligned right
+```
+
+Drawers should feel like an extension of the row, not a separate page nested
+inside the row. Use a compact shared structure:
+
+```text
+row-actions
+row-actions__primary / row-actions__secondary / row-actions__technical
+row-drawer
+row-drawer__header / row-drawer__form / row-drawer__footer
+```
 
 ### Financial Row Modes
 
@@ -212,9 +269,10 @@ Financial row
 The base geometry stays stable:
 
 ```text
-money / date / type / status           result + actions
+date                                  amount
 description
-financial meaning: category, property, accounts, source
+financial meaning: category, property, accounts, calm status
+important signals only when action is needed
 secondary details collapsed
 technical details hidden
 ```
@@ -231,9 +289,9 @@ screen is historical rather than review-oriented. It should render ledger
 movements using the same financial row rhythm as import review:
 
 ```text
-amount + date + operation type + status       result/action zone
+date                                      amount
 description
-category/property or transfer route/source
+category/property or transfer route/account/calm status
 ```
 
 The right side of an account movement row should be a compact result/action
