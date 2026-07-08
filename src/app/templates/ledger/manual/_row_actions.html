@@ -1,0 +1,23 @@
+{% if can_write %}
+  <div class="entity-card-actions">
+    <button class="button button-small" type="submit" form="{{ row.drawer.form_id }}">
+      {{ icon("save") }} сохранить
+    </button>
+    {% for action in row.lifecycle_actions %}
+      <form method="post" action="{{ action.form_action }}">
+        {{ csrf_input() }}
+        <button class="button button-small" type="submit">
+          {{ icon(action.icon) }} {{ action.label }}
+        </button>
+      </form>
+    {% endfor %}
+    {% for action in row.danger_actions %}
+      <form method="post" action="{{ action.form_action }}">
+        {{ csrf_input() }}
+        <button class="button button-small button-danger" type="submit">
+          {{ icon(action.icon) }} {{ action.label }}
+        </button>
+      </form>
+    {% endfor %}
+  </div>
+{% endif %}
