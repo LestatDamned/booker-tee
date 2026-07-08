@@ -81,16 +81,16 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "x-bind:disabled=\"operationType !== 'transfer'\"" in html
     assert f'id="operation-{operation_id}"' in html
     assert f'class="detached-form" id="manual-operation-form-{operation_id}"' in html
-    assert "entity-card-list" in html
-    assert "entity-card-current" in html
+    assert "financial-row-list" in html
+    assert "manual-operation-row--current" in html
     assert 'name="date_from" type="date"' in html
     assert "фильтры списка" in html
     assert 'name="operation_id"' in html
-    assert "entity-card manual-operation-card manual-operation-expense" in html
-    assert "form-panel form-panel-embedded" in html
+    assert "financial-row manual-operation-row manual-operation-row--expense" in html
+    assert "row-drawer manual-operation-row__drawer" in html
     assert "badge badge-expense" in html
-    assert "badge badge-confirmed" in html
-    assert "manual-operation-money money-value money-expense" in html
+    assert "подтверждено" in html
+    assert "financial-row__amount manual-operation-row__amount money-value money-expense" in html
     assert "<small>RUB</small>" in html
     assert f'action="/ledger/manual/{operation_id}"' in html
     assert f'action="/ledger/manual/{operation_id}/cancel"' in html
@@ -99,6 +99,8 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "15.06.2026" in html
     assert "дд.мм.гггг" in html
     assert "сохранить" in html
+    assert "action-save" in html
+    assert "action-edit" in html
     assert "отменить" in html
 
 

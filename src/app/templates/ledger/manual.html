@@ -45,7 +45,7 @@
     {% include "ledger/manual/_filters.html" %}
 
     {% if manual_page_vm.rows %}
-      <div class="entity-card-list">
+      <div class="financial-row-list manual-operation-list">
         {% for row in manual_page_vm.rows %}
           {% include "ledger/manual/_row.html" %}
         {% endfor %}

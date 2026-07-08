@@ -59,6 +59,8 @@ class ManualOperationsPresenter:
             is_current=focused_operation_id == operation.id,
             is_inactive=operation.status == OperationStatus.IGNORED,
             drawer=self._drawer(operation),
+            primary_action=self._primary_action(operation, can_write=can_write),
+            save_action=self._save_action(operation, can_write=can_write),
             lifecycle_actions=self._lifecycle_actions(operation, can_write=can_write),
             danger_actions=self._danger_actions(operation, can_write=can_write),
         )
@@ -101,6 +103,40 @@ class ManualOperationsPresenter:
             description=operation.description or "",
         )
 
+    def _primary_action(
+        self,
+        operation: ManualOperationView,
+        *,
+        can_write: bool,
+    ) -> ManualOperationActionVM | None:
+        if not can_write:
+            return None
+        return ManualOperationActionVM(
+            id="edit",
+            label="исправить",
+            icon="settings",
+            placement="primary",
+            action_type="drawer_toggle",
+            close_label="закрыть",
+        )
+
+    def _save_action(
+        self,
+        operation: ManualOperationView,
+        *,
+        can_write: bool,
+    ) -> ManualOperationActionVM | None:
+        if not can_write:
+            return None
+        return ManualOperationActionVM(
+            id="save",
+            label="сохранить",
+            icon="save",
+            placement="primary",
+            action_type="submit",
+            form_id=f"manual-operation-form-{operation.id}",
+        )
+
     def _lifecycle_actions(
         self,
         operation: ManualOperationView,
@@ -112,17 +148,23 @@ class ManualOperationsPresenter:
         if operation.status == OperationStatus.CONFIRMED:
             return [
                 ManualOperationActionVM(
+                    id="cancel",
                     label="отменить",
                     icon="rotate-ccw",
-                    form_action=f"/ledger/manual/{operation.id}/cancel",
+                    placement="secondary",
+                    action_type="post",
+                    url=f"/ledger/manual/{operation.id}/cancel",
                 )
             ]
         if operation.status == OperationStatus.IGNORED:
             return [
                 ManualOperationActionVM(
+                    id="restore",
                     label="восстановить",
                     icon="rotate-ccw",
-                    form_action=f"/ledger/manual/{operation.id}/restore",
+                    placement="primary",
+                    action_type="post",
+                    url=f"/ledger/manual/{operation.id}/restore",
                 )
             ]
         return []
@@ -137,10 +179,14 @@ class ManualOperationsPresenter:
             return []
         return [
             ManualOperationActionVM(
+                id="delete",
                 label="удалить",
                 icon="trash",
-                form_action=f"/ledger/manual/{operation.id}/delete",
-                variant="danger",
+                placement="danger",
+                action_type="post",
+                url=f"/ledger/manual/{operation.id}/delete",
+                style="danger",
+                confirm_message="Удалить ручную операцию?",
             )
         ]
 

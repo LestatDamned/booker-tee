@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
@@ -14,11 +15,22 @@ class ManualOperationMetaVM:
 
 @dataclass(frozen=True)
 class ManualOperationActionVM:
+    id: str
     label: str
     icon: str
-    form_action: str
-    variant: str = "secondary"
+    placement: str
+    action_type: str
+    url: str = ""
+    style: str = "default"
+    form_id: str | None = None
+    hidden_fields: Mapping[str, str] | None = None
+    panel_id: str | None = None
+    close_label: str | None = None
     confirm_message: str | None = None
+
+    @property
+    def form_action(self) -> str:
+        return self.url
 
 
 @dataclass(frozen=True)
@@ -51,6 +63,8 @@ class ManualOperationRowVM:
     is_current: bool
     is_inactive: bool
     drawer: ManualOperationDrawerVM
+    primary_action: ManualOperationActionVM | None
+    save_action: ManualOperationActionVM | None
     lifecycle_actions: list[ManualOperationActionVM]
     danger_actions: list[ManualOperationActionVM]
 

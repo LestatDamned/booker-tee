@@ -1,23 +1,18 @@
-{% if can_write %}
-  <div class="entity-card-actions">
-    <button class="button button-small" type="submit" form="{{ row.drawer.form_id }}">
-      {{ icon("save") }} сохранить
-    </button>
+<div class="financial-row__actions row-actions manual-operation-row__actions">
+  {% if can_write %}
+    {% if row.primary_action %}
+      {% set action = row.primary_action %}
+      {% include "ui/_action.html" %}
+    {% endif %}
     {% for action in row.lifecycle_actions %}
-      <form method="post" action="{{ action.form_action }}">
-        {{ csrf_input() }}
-        <button class="button button-small" type="submit">
-          {{ icon(action.icon) }} {{ action.label }}
-        </button>
-      </form>
+      {% include "ui/_action.html" %}
     {% endfor %}
     {% for action in row.danger_actions %}
-      <form method="post" action="{{ action.form_action }}">
-        {{ csrf_input() }}
-        <button class="button button-small button-danger" type="submit">
-          {{ icon(action.icon) }} {{ action.label }}
-        </button>
-      </form>
+      {% include "ui/_action.html" %}
     {% endfor %}
-  </div>
-{% endif %}
+  {% endif %}
+  <details class="technical-details inline-technical-details row-actions__technical manual-operation-row__technical">
+    <summary>ID операции</summary>
+    <span>{{ row.operation_id }}</span>
+  </details>
+</div>

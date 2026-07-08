@@ -138,6 +138,47 @@ def test_action_partial_renders_link_action_without_form_or_hidden_fields() -> N
     assert "Открыть операцию" in html
 
 
+def test_action_partial_renders_detached_submit_action() -> None:
+    html = render_action(
+        SimpleNamespace(
+            id="save",
+            label="Сохранить",
+            icon="save",
+            placement="primary",
+            action_type="submit",
+            form_id="operation-form-id",
+            style="default",
+        )
+    )
+
+    assert "<button" in html
+    assert 'type="submit"' in html
+    assert 'form="operation-form-id"' in html
+    assert "action-save" in html
+    assert "primary-action" in html
+    assert '<span class="action-label">Сохранить</span>' in html
+
+
+def test_action_partial_renders_drawer_toggle_action() -> None:
+    html = render_action(
+        SimpleNamespace(
+            id="edit",
+            label="Исправить",
+            icon="settings",
+            placement="primary",
+            action_type="drawer_toggle",
+            close_label="Закрыть",
+        )
+    )
+
+    assert "<button" in html
+    assert 'type="button"' in html
+    assert 'x-on:click="drawerOpen = !drawerOpen"' in html
+    assert 'x-bind:aria-expanded="drawerOpen.toString()"' in html
+    assert '<span class="action-label" x-show="!drawerOpen">Исправить</span>' in html
+    assert '<span class="action-label" x-show="drawerOpen" x-cloak>Закрыть</span>' in html
+
+
 def test_action_partial_renders_panel_toggle_without_mutation_fields() -> None:
     html = render_action(
         ActionVM(

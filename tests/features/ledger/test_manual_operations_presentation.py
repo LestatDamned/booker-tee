@@ -69,6 +69,11 @@ def test_manual_operations_presenter_builds_expense_row() -> None:
         "Кафе",
         "подтверждено",
     ]
+    assert row.primary_action is not None
+    assert row.primary_action.action_type == "drawer_toggle"
+    assert row.save_action is not None
+    assert row.save_action.action_type == "submit"
+    assert row.save_action.form_id == f"manual-operation-form-{operation_id}"
     assert row.lifecycle_actions[0].form_action == f"/ledger/manual/{operation_id}/cancel"
 
 
@@ -136,6 +141,8 @@ def test_manual_operations_presenter_builds_transfer_row() -> None:
         "подтверждено",
     ]
     assert row.lifecycle_actions == []
+    assert row.primary_action is None
+    assert row.save_action is None
 
 
 def test_manual_operations_presenter_builds_ignored_row_actions() -> None:

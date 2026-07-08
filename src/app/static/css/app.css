@@ -3024,14 +3024,17 @@ input[type="checkbox"] {
 }
 
 .row-drawer__form {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 10px;
+  align-items: end;
   border-top: 0;
   border-bottom: 0;
   padding: 0;
 }
 
 .row-drawer__field {
-  grid-column: auto;
+  grid-column: span 4;
   gap: 6px;
 }
 
@@ -3051,6 +3054,7 @@ input[type="checkbox"] {
 }
 
 .row-drawer__field--description,
+.operation-type-field.row-drawer__field,
 .row-drawer__footer {
   grid-column: 1 / -1 !important;
 }
@@ -3684,20 +3688,33 @@ pre {
   scroll-margin-top: 16px;
 }
 
-.manual-operation-card {
+.manual-operation-card,
+.manual-operation-row {
   border-left-width: 4px;
 }
 
-.manual-operation-income {
+.manual-operation-income,
+.manual-operation-row--income {
   border-left-color: var(--green);
 }
 
-.manual-operation-expense {
+.manual-operation-expense,
+.manual-operation-row--expense {
   border-left-color: var(--danger);
 }
 
-.manual-operation-transfer {
+.manual-operation-transfer,
+.manual-operation-row--transfer {
   border-left-color: var(--accent);
+}
+
+.manual-operation-row--current {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent));
+}
+
+.manual-operation-row--inactive {
+  opacity: 0.72;
 }
 
 .manual-operation-money {
@@ -3902,6 +3919,11 @@ pre {
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 92%, var(--surface-strong));
   padding: 12px;
+}
+
+.financial-row-list {
+  display: grid;
+  gap: 10px;
 }
 
 .financial-row--single {
