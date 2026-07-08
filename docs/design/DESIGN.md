@@ -314,6 +314,42 @@ Accepted row-level language:
 Еще действия     reveals secondary and dangerous actions
 ```
 
+### Financial Forms
+
+Creation and repair forms should share a calm, predictable structure without
+forcing every form into one Jinja macro too early.
+
+Use these form families:
+
+```text
+operation-form  creates or repairs a financial operation
+filter-form     narrows a list of operations or movements
+account-tool-form / entity-tool-form
+                changes the entity itself, not a movement
+row-drawer      hosts row-level repair forms under a financial row
+```
+
+`operation-form` fields should usually read in this order:
+
+```text
+primary:        type / date / amount
+classification: account(s) / category / property
+footer:         description and submit action
+```
+
+For imported operations where type/date/amount are not editable in the current
+flow, keep the same visual skeleton and only show the editable subset:
+
+```text
+primary:        description / status
+classification: category / property
+footer:         submit action
+```
+
+Do not build a universal operation form partial until the repeated shape is
+stable across at least a few screens. Prefer shared CSS classes and explicit
+feature-owned templates first.
+
 ### Financial Row Modes
 
 Use one financial row geometry with different modes, not a new geometry for

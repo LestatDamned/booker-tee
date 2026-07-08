@@ -804,9 +804,11 @@ def test_review_template_shows_readable_transfer_candidate_labels() -> None:
     assert "review-transfer-panel__preview-label" in html
     assert "review-transfer-panel__preview-route" in html
     assert "review-transfer-panel__grid" in html
+    assert "review-panel-form__fields review-transfer-grid review-transfer-panel__grid" in html
     assert "review-transfer-panel__field--account" in html
     assert "review-transfer-panel__field--match" in html
     assert "review-transfer-panel__actions" in html
+    assert "review-panel-form__footer review-transfer-panel__actions" in html
     assert "review-transfer-panel__submit" in html
     assert "review-transfer-preview" in html
     assert "review-transfer-grid" in html
@@ -1447,12 +1449,14 @@ def test_review_item_selects_newly_created_category() -> None:
     assert "review-category-panel" in html
     assert "review-category-panel__form" in html
     assert "review-category-panel__grid" in html
+    assert "review-panel-form__fields review-category-grid review-category-panel__grid" in html
     assert "review-category-panel__primary" in html
     assert "review-category-panel__field--category" in html
     assert "review-category-panel__field--property" in html
     assert "review-category-panel__create" in html
     assert "review-category-panel__rule" in html
     assert "review-category-panel__actions" in html
+    assert "review-panel-form__footer review-category-panel__actions" in html
     assert "review-category-panel__submit" in html
     assert "review-category-panel-body" in html
     assert "review-category-grid" in html
@@ -1467,11 +1471,16 @@ def test_review_item_selects_newly_created_category() -> None:
     assert f'<option value="{uncategorized_category_id}" selected>' not in html
     assert "Новая категория" in html
     assert "review-category-dialog" in html
-    assert "review-category-dialog__panel" in html
+    assert "review-category-dialog__panel review-category-dialog__form dialog-form" in html
     assert "review-category-dialog__header" in html
     assert "review-category-dialog__body" in html
+    assert "review-category-dialog__body dialog-form__body" in html
     assert "review-category-dialog__actions" in html
+    assert "review-category-dialog__actions dialog-form__footer" in html
     assert "review-category-dialog__submit" in html
+    assert "review-category-dialog__cancel" in html
+    assert '<path d="M18 6 6 18" />' in html
+    assert '<path d="m12 19-7-7 7-7" />' in html
     assert "review-dialog-header" not in html
     assert "review-dialog-body" not in html
     assert "review-dialog-footer" not in html

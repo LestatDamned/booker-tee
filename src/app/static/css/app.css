@@ -3102,8 +3102,6 @@ input[type="checkbox"] {
   border-radius: 8px;
 }
 
-.row-drawer__field--description,
-.operation-type-field.row-drawer__field,
 .row-drawer__footer {
   grid-column: 1 / -1 !important;
 }
@@ -3118,6 +3116,98 @@ input[type="checkbox"] {
 .row-drawer__footer .button {
   width: auto;
   min-width: 160px;
+}
+
+.operation-form {
+  display: grid;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.operation-form--drawer {
+  grid-template-columns: 1fr;
+}
+
+.operation-form--drawer > .operation-form__fields,
+.operation-form--drawer > .operation-form__footer {
+  grid-column: 1 / -1;
+}
+
+.operation-form__fields,
+.operation-form__footer {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 10px 12px;
+  align-items: end;
+}
+
+.operation-form__field {
+  min-width: 0;
+  gap: 6px;
+}
+
+.operation-form__field > span {
+  color: color-mix(in srgb, var(--accent) 74%, var(--muted));
+  font-size: 0.68rem;
+}
+
+.operation-form__field input,
+.operation-form__field select,
+.operation-form__submit {
+  min-height: 42px;
+  border-radius: 8px;
+}
+
+.operation-form__field input,
+.operation-form__field select {
+  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  border-left-width: 1px;
+  background: color-mix(in srgb, var(--surface-strong) 64%, var(--bg));
+}
+
+.operation-form__field input:hover,
+.operation-form__field select:hover {
+  background: color-mix(in srgb, var(--surface-strong) 76%, var(--accent));
+}
+
+.operation-form__field--type {
+  grid-column: span 6;
+}
+
+.operation-form__field--date,
+.operation-form__field--amount,
+.operation-form__field--status {
+  grid-column: span 3;
+}
+
+.operation-form__fields--classification .operation-form__field {
+  grid-column: span 3;
+}
+
+.operation-form__field--description {
+  grid-column: span 8;
+}
+
+.operation-form__footer {
+  border-top: 1px solid color-mix(in srgb, var(--border) 46%, transparent);
+  padding-top: 10px;
+}
+
+.operation-form__submit,
+.operation-form__footer .action-form,
+.operation-form__footer .button {
+  grid-column: span 4;
+  width: 100%;
+}
+
+.operation-form__footer--actions {
+  justify-content: end;
+}
+
+.operation-form__footer--actions .operation-form__submit,
+.operation-form__footer--actions .button {
+  grid-column: 9 / -1;
 }
 
 .table-scroll {
@@ -3780,27 +3870,17 @@ pre {
 }
 
 .manual-create-form {
-  display: grid;
-  gap: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 36%, transparent);
+  padding-top: 12px;
 }
 
 .manual-create-form__fields,
 .manual-create-form__bottom {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 10px 12px;
-  align-items: end;
+  margin: 0;
 }
 
 .manual-create-form__field {
   min-width: 0;
-  gap: 6px;
-}
-
-.manual-create-form__field > span {
-  color: color-mix(in srgb, var(--accent) 74%, var(--muted));
-  font-size: 0.68rem;
 }
 
 .manual-create-form__field input,
@@ -3842,6 +3922,10 @@ pre {
 .manual-create-form__submit {
   grid-column: span 4;
   width: 100%;
+}
+
+.manual-operation-row__drawer-form .operation-form__field--description {
+  grid-column: span 8;
 }
 
 .manual-operation-income,
@@ -4941,7 +5025,18 @@ pre {
 
 .review-panel-form {
   display: grid;
+  grid-template-columns: 1fr;
   gap: 10px;
+}
+
+.review-panel-form > .review-panel-form__section,
+.review-panel-form > .review-panel-form__fields,
+.review-panel-form > .review-panel-form__footer,
+.review-panel-form > .review-panel-grid,
+.review-panel-form > .review-rule-strip,
+.review-panel-form > .review-transfer-preview,
+.review-panel-form > .transfer-empty-state {
+  grid-column: 1 / -1;
 }
 
 .review-panel-grid {
@@ -4967,6 +5062,10 @@ pre {
   border: 1px dashed color-mix(in srgb, var(--accent) 58%, var(--border));
   border-radius: 6px;
   padding: 0;
+}
+
+.review-panel-form .row-drawer__field {
+  grid-column: auto;
 }
 
 .review-category-panel__rule,
@@ -5205,6 +5304,46 @@ pre {
   gap: 0;
 }
 
+.dialog-form__body {
+  display: grid;
+  gap: 10px;
+}
+
+.dialog-form__field {
+  min-width: 0;
+  gap: 6px;
+}
+
+.dialog-form__field > span {
+  color: color-mix(in srgb, var(--accent) 74%, var(--muted));
+  font-size: 0.68rem;
+}
+
+.dialog-form__field input,
+.dialog-form__field select {
+  min-height: 42px;
+  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  border-left-width: 1px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-strong) 64%, var(--bg));
+}
+
+.dialog-form__field input:hover,
+.dialog-form__field select:hover {
+  background: color-mix(in srgb, var(--surface-strong) 76%, var(--accent));
+}
+
+.dialog-form__footer {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr);
+  gap: 8px;
+}
+
+.dialog-form__footer .button {
+  width: 100%;
+  min-height: 42px;
+}
+
 .review-category-dialog__header,
 .review-category-dialog__actions {
   display: flex;
@@ -5220,7 +5359,6 @@ pre {
 
 .review-category-dialog__body {
   display: grid;
-  gap: 12px;
   padding: 12px;
 }
 
@@ -5232,7 +5370,6 @@ pre {
 
 .review-category-dialog__field {
   display: grid;
-  gap: 6px;
 }
 
 .form-error {
@@ -5257,6 +5394,8 @@ pre {
 }
 
 .review-category-dialog__cancel {
+  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 62%, var(--bg));
   color: var(--muted);
 }
 
@@ -5368,7 +5507,15 @@ pre {
 }
 
 .account-movement__drawer-form {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
+}
+
+.account-movement__drawer-form .operation-form__field--description {
+  grid-column: span 9;
+}
+
+.account-movement__drawer-form .operation-form__field--status {
+  grid-column: span 3;
 }
 
 .entry-description {
@@ -5477,6 +5624,20 @@ pre {
 
   .manual-operation-hero__actions {
     min-width: 0;
+  }
+
+  .operation-form__field--type,
+  .operation-form__field--date,
+  .operation-form__field--amount,
+  .operation-form__field--status,
+  .operation-form__fields--classification .operation-form__field,
+  .operation-form__field--description,
+  .operation-form__submit,
+  .operation-form__footer .action-form,
+  .operation-form__footer .button,
+  .operation-form__footer--actions .operation-form__submit,
+  .operation-form__footer--actions .button {
+    grid-column: span 6;
   }
 
   .manual-create-form__field--type,
@@ -5829,6 +5990,25 @@ pre {
   .filter-form__fields--display,
   .filter-form__footer {
     grid-template-columns: 1fr;
+  }
+
+  .operation-form__fields,
+  .operation-form__footer {
+    grid-template-columns: 1fr;
+  }
+
+  .operation-form__field--type,
+  .operation-form__field--date,
+  .operation-form__field--amount,
+  .operation-form__field--status,
+  .operation-form__fields--classification .operation-form__field,
+  .operation-form__field--description,
+  .operation-form__submit,
+  .operation-form__footer .action-form,
+  .operation-form__footer .button,
+  .operation-form__footer--actions .operation-form__submit,
+  .operation-form__footer--actions .button {
+    grid-column: auto;
   }
 
   .account-tool-form__field--search,

@@ -219,6 +219,10 @@ ICON_PATHS: dict[str, tuple[str, ...]] = {
         '<path d="m17 8-5-5-5 5" />',
         '<path d="M12 3v12" />',
     ),
+    "x": (
+        '<path d="M18 6 6 18" />',
+        '<path d="m6 6 12 12" />',
+    ),
     "user": (
         '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />',
         '<circle cx="12" cy="7" r="4" />',

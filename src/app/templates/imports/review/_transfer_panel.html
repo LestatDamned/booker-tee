@@ -19,11 +19,11 @@
       name="matched_operation_id"
       :value="transferMatch.startsWith('operation:') ? transferMatch.slice(10) : ''"
     >
-    <div class="review-transfer-preview review-transfer-panel__preview">
+    <div class="review-transfer-preview review-panel-form__section review-transfer-panel__preview">
       <span class="review-transfer-preview__label review-transfer-panel__preview-label">{{ payload.transfer_preview.title }}</span>
       <strong class="review-transfer-preview__route review-transfer-panel__preview-route">{{ payload.transfer_preview.route_label }}</strong>
     </div>
-    <div class="review-panel-grid review-transfer-grid review-transfer-panel__grid">
+    <div class="review-panel-grid review-panel-form__fields review-transfer-grid review-transfer-panel__grid">
       <label class="field row-drawer__field review-transfer-panel__field review-transfer-panel__field--account">
         <span>Счет перевода</span>
         <select
@@ -62,11 +62,11 @@
       </label>
     </div>
     {% if payload.manual_operation_note %}
-      <div class="transfer-empty-state review-transfer-panel__note">
+      <div class="transfer-empty-state review-panel-form__section review-transfer-panel__note">
         {{ payload.manual_operation_note }}
       </div>
     {% endif %}
-    <div class="row-drawer__footer review-panel-footer review-transfer-panel__actions">
+    <div class="row-drawer__footer review-panel-footer review-panel-form__footer review-transfer-panel__actions">
       <button class="button button-small primary-action review-transfer-panel__submit" type="submit">{{ icon("refresh") }} Это перевод</button>
     </div>
   </form>

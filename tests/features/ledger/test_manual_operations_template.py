@@ -76,10 +76,15 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "manual-operation-hero" in html
     assert "manual-operation-hero__actions" in html
     assert "manual-create-form" in html
-    assert 'id="new-manual-operation" class="manual-create-form"' in html
+    assert (
+        'id="new-manual-operation" class="manual-create-form operation-form operation-form--create"'
+    ) in html
     assert "manual-create-form__fields--primary" in html
     assert "manual-create-form__fields--classification" in html
     assert "manual-create-form__bottom" in html
+    assert "operation-form__fields--primary" in html
+    assert "operation-form__fields--classification" in html
+    assert "operation-form__footer" in html
     assert "segmented-control" in html
     assert 'name="operation_type" type="radio" value="income"' in html
     assert 'name="operation_type" type="radio" value="expense"' in html
@@ -101,6 +106,7 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert 'name="operation_id"' in html
     assert "financial-row manual-operation-row manual-operation-row--expense" in html
     assert "row-drawer manual-operation-row__drawer" in html
+    assert "manual-operation-row__drawer-form operation-form operation-form--drawer" in html
     assert "financial-row__meta-item financial-row__meta-item--expense" in html
     assert "подтверждено" in html
     assert "financial-row__amount manual-operation-row__amount money-value money-expense" in html

@@ -6,7 +6,7 @@
   {% if payload.create_category_error %}x-init="$nextTick(() => { if (!$el.open) $el.showModal() })"{% endif %}
 >
   <form
-    class="review-category-dialog__panel"
+    class="review-category-dialog__panel review-category-dialog__form dialog-form"
     method="post"
     action="{{ payload.create_category_url }}"
   >
@@ -15,15 +15,15 @@
       <div class="action-title review-category-dialog__title">Новая категория</div>
       <button class="button button-small review-category-dialog__close" type="button" aria-label="Закрыть" @click="$refs.categoryDialog.close()">{{ icon("x") }}</button>
     </div>
-    <div class="review-category-dialog__body">
+    <div class="review-category-dialog__body dialog-form__body">
       {% if payload.create_category_error %}
         <div class="form-error review-category-dialog__error" role="alert">{{ payload.create_category_error }}</div>
       {% endif %}
-      <label class="field review-category-dialog__field">
+      <label class="field review-category-dialog__field dialog-form__field">
         <span>Название</span>
         <input name="name" value="{{ payload.create_category_initial_name }}" placeholder="например, Здоровье" required autofocus>
       </label>
-      <label class="field review-category-dialog__field">
+      <label class="field review-category-dialog__field dialog-form__field">
         <span>Тип</span>
         <select name="kind">
           {% for option in payload.category_kind_options %}
@@ -32,8 +32,8 @@
         </select>
       </label>
     </div>
-    <div class="review-category-dialog__actions">
-      <button class="button button-small review-category-dialog__cancel" type="button" @click="$refs.categoryDialog.close()">Отмена</button>
+    <div class="review-category-dialog__actions dialog-form__footer">
+      <button class="button button-small review-category-dialog__cancel" type="button" @click="$refs.categoryDialog.close()">{{ icon("arrow-left") }} Отмена</button>
       <button class="button button-small primary-action review-category-dialog__submit" type="submit">{{ icon("plus") }} Создать</button>
     </div>
   </form>

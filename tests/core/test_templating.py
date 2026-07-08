@@ -11,6 +11,13 @@ def test_icon_helper_renders_accessible_inline_svg() -> None:
     assert 'viewBox="0 0 24 24"' in rendered
 
 
+def test_icon_helper_renders_close_icon() -> None:
+    rendered = str(icon("x"))
+
+    assert '<svg class="icon" aria-hidden="true"' in rendered
+    assert "M18 6 6 18" in rendered
+
+
 def test_templates_register_icon_helper() -> None:
     templates = create_templates()
 

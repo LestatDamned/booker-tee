@@ -6,40 +6,44 @@
         <span class="row-drawer__context">{{ movement.drawer.kind }}</span>
       </div>
     </div>
-    <form class="form-panel form-panel-embedded row-drawer__form account-movement__drawer-form" method="post" action="{{ movement.drawer.form_action }}">
+    <form class="row-drawer__form account-movement__drawer-form operation-form operation-form--drawer" method="post" action="{{ movement.drawer.form_action }}">
       {{ csrf_input() }}
-      <label class="field row-drawer__field row-drawer__field--description account-movement__description-field">
-        <span>описание</span>
-        <input name="description" value="{{ movement.drawer.description }}" placeholder="Описание">
-      </label>
-      <label class="field row-drawer__field">
-        <span>статус</span>
-        <select name="status">
-          {% for status in operation_statuses | default([]) %}
-            <option value="{{ status.value }}" {% if movement.drawer.status == status %}selected{% endif %}>{{ status | ru }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field row-drawer__field">
-        <span>категория</span>
-        <select name="category_id">
-          <option value="">без категории</option>
-          {% for category in categories | default([]) %}
-            <option value="{{ category.id }}" {% if movement.drawer.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field row-drawer__field">
-        <span>объект</span>
-        <select name="property_id">
-          <option value="">без объекта</option>
-          {% for property in properties | default([]) %}
-            <option value="{{ property.id }}" {% if movement.drawer.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <div class="form-actions row-drawer__footer account-movement__drawer-submit">
-        <button class="button button-small" type="submit">{{ icon("save") }} сохранить</button>
+      <div class="operation-form__fields operation-form__fields--primary">
+        <label class="field row-drawer__field row-drawer__field--description account-movement__description-field operation-form__field operation-form__field--description">
+          <span>описание</span>
+          <input name="description" value="{{ movement.drawer.description }}" placeholder="Описание">
+        </label>
+        <label class="field row-drawer__field operation-form__field operation-form__field--status">
+          <span>статус</span>
+          <select name="status">
+            {% for status in operation_statuses | default([]) %}
+              <option value="{{ status.value }}" {% if movement.drawer.status == status %}selected{% endif %}>{{ status | ru }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <div class="operation-form__fields operation-form__fields--classification">
+        <label class="field row-drawer__field operation-form__field">
+          <span>категория</span>
+          <select name="category_id">
+            <option value="">без категории</option>
+            {% for category in categories | default([]) %}
+              <option value="{{ category.id }}" {% if movement.drawer.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field row-drawer__field operation-form__field">
+          <span>объект</span>
+          <select name="property_id">
+            <option value="">без объекта</option>
+            {% for property in properties | default([]) %}
+              <option value="{{ property.id }}" {% if movement.drawer.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <div class="row-drawer__footer account-movement__drawer-submit operation-form__footer operation-form__footer--actions">
+        <button class="button button-small primary-action operation-form__submit" type="submit">{{ icon("save") }} сохранить</button>
       </div>
     </form>
   </div>

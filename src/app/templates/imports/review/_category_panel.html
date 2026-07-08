@@ -4,7 +4,7 @@
   <form class="row-drawer__form review-panel-form review-category-form review-category-panel__form" method="post" action="{{ payload.action_url }}">
     {{ csrf_input() }}
     <input type="hidden" name="action" value="confirm">
-    <div class="review-panel-grid review-category-grid review-category-panel__grid">
+    <div class="review-panel-grid review-panel-form__fields review-category-grid review-category-panel__grid">
       <div class="review-category-primary review-category-panel__primary">
         <label class="field row-drawer__field review-category-select review-category-panel__field review-category-panel__field--category">
           <span>Категория</span>
@@ -34,14 +34,14 @@
         </select>
       </label>
     </div>
-    <div class="review-rule-strip review-category-panel__rule">
+    <div class="review-rule-strip review-panel-form__section review-category-panel__rule">
       <label class="remember-rule review-category-panel__rule-toggle">
         <input type="checkbox" name="remember_rule" value="1">
         <span>Создать правило</span>
       </label>
       <input class="review-category-panel__rule-input" name="rule_pattern" placeholder="например, KRASNOE&BELOE">
     </div>
-    <div class="row-drawer__footer review-panel-footer review-category-panel__actions">
+    <div class="row-drawer__footer review-panel-footer review-panel-form__footer review-category-panel__actions">
       <button class="button button-small primary-action review-category-panel__submit" type="submit">{{ icon("check") }} Сохранить и подтвердить</button>
     </div>
   </form>

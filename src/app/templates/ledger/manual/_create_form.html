@@ -1,7 +1,7 @@
-<form id="new-manual-operation" class="manual-create-form" method="post" action="/ledger/manual" x-data="{ operationType: 'income' }">
+<form id="new-manual-operation" class="manual-create-form operation-form operation-form--create" method="post" action="/ledger/manual" x-data="{ operationType: 'income' }">
   {{ csrf_input() }}
-  <div class="manual-create-form__fields manual-create-form__fields--primary">
-    <div class="field operation-type-field manual-create-form__field manual-create-form__field--type">
+  <div class="manual-create-form__fields manual-create-form__fields--primary operation-form__fields operation-form__fields--primary">
+    <div class="field operation-type-field manual-create-form__field manual-create-form__field--type operation-form__field operation-form__field--type">
       <span>тип</span>
       <div class="segmented-control" role="radiogroup" aria-label="Тип операции">
         <label class="segmented-option segmented-income">
@@ -18,18 +18,18 @@
         </label>
       </div>
     </div>
-    <label class="field manual-create-form__field manual-create-form__field--date">
+    <label class="field manual-create-form__field manual-create-form__field--date operation-form__field operation-form__field--date">
       <span>дата</span>
       <input name="operation_date" inputmode="numeric" placeholder="дд.мм.гггг" pattern="\d{2}\.\d{2}\.\d{4}" required>
     </label>
-    <label class="field manual-create-form__field manual-create-form__field--amount">
+    <label class="field manual-create-form__field manual-create-form__field--amount operation-form__field operation-form__field--amount">
       <span>сумма</span>
       <input class="amount" name="amount" inputmode="decimal" placeholder="Сумма" required>
     </label>
   </div>
 
-  <div class="manual-create-form__fields manual-create-form__fields--classification">
-    <label class="field manual-create-form__field">
+  <div class="manual-create-form__fields manual-create-form__fields--classification operation-form__fields operation-form__fields--classification">
+    <label class="field manual-create-form__field operation-form__field">
       <span>счет</span>
       <select name="account_id" required>
         {% for account in accounts %}
@@ -37,7 +37,7 @@
         {% endfor %}
       </select>
     </label>
-    <label class="field manual-create-form__field" x-show="operationType === 'transfer'" x-cloak>
+    <label class="field manual-create-form__field operation-form__field" x-show="operationType === 'transfer'" x-cloak>
       <span>счет назначения</span>
       <select name="destination_account_id" x-bind:disabled="operationType !== 'transfer'">
         <option value="">счет назначения</option>
@@ -46,7 +46,7 @@
         {% endfor %}
       </select>
     </label>
-    <label class="field manual-create-form__field">
+    <label class="field manual-create-form__field operation-form__field">
       <span>категория</span>
       <select name="category_id">
         <option value="">без категории</option>
@@ -55,7 +55,7 @@
         {% endfor %}
       </select>
     </label>
-    <label class="field manual-create-form__field">
+    <label class="field manual-create-form__field operation-form__field">
       <span>объект</span>
       <select name="property_id">
         <option value="">без объекта</option>
@@ -66,11 +66,11 @@
     </label>
   </div>
 
-  <div class="manual-create-form__bottom">
-    <label class="field manual-create-form__field manual-create-form__field--description">
+  <div class="manual-create-form__bottom operation-form__footer">
+    <label class="field manual-create-form__field manual-create-form__field--description operation-form__field operation-form__field--description">
       <span>описание</span>
       <input name="description" placeholder="Описание">
     </label>
-    <button class="button primary-action manual-create-form__submit" type="submit">{{ icon("plus") }} создать</button>
+    <button class="button primary-action manual-create-form__submit operation-form__submit" type="submit">{{ icon("plus") }} создать</button>
   </div>
 </form>
