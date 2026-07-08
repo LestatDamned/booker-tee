@@ -25,7 +25,6 @@ class ManualOperationActionVM:
     form_id: str | None = None
     hidden_fields: Mapping[str, str] | None = None
     panel_id: str | None = None
-    close_label: str | None = None
     confirm_message: str | None = None
 
     @property

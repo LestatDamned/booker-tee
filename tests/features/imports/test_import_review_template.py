@@ -167,7 +167,6 @@ def test_action_partial_renders_drawer_toggle_action() -> None:
             icon="settings",
             placement="primary",
             action_type="drawer_toggle",
-            close_label="Закрыть",
         )
     )
 

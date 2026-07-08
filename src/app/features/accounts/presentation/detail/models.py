@@ -77,12 +77,6 @@ class AccountMovementActionVM:
         return "default"
 
     @property
-    def close_label(self) -> str | None:
-        if self.variant == "drawer":
-            return "закрыть"
-        return None
-
-    @property
     def confirm_message(self) -> str | None:
         return None
 

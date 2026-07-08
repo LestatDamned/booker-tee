@@ -300,6 +300,11 @@ Use row-level drawers for transaction repair, review panels, and compact
 row-specific decisions. Do not style a row drawer as a full page form nested
 inside a card.
 
+Drawer toggle buttons keep their action label while the drawer is open. For
+example, `Исправить` should stay `Исправить`; it should not turn into a green
+`Закрыть`. Closing is the behavior of the drawer/accordion itself, while the
+drawer footer should contain only the data-changing submit action.
+
 `action-details`, `action-accordion`, and `form-panel-embedded` are still valid
 for page-level collapsible tools, filters, creation forms, and technical
 details. They should not be introduced for row-level transaction repair when
@@ -332,7 +337,7 @@ row-drawer      hosts row-level repair forms under a financial row
 `operation-form` fields should usually read in this order:
 
 ```text
-primary:        type / date / amount
+primary:        type / amount / date
 classification: account(s) / category / property
 footer:         description and submit action
 ```
@@ -349,6 +354,20 @@ footer:         submit action
 Do not build a universal operation form partial until the repeated shape is
 stable across at least a few screens. Prefer shared CSS classes and explicit
 feature-owned templates first.
+
+`filter-form` is a secondary tool, not the main content of the page. It should
+stay compact:
+
+```text
+summary: filters title / applied state / open-close control
+hint:    one small line, not a large notice panel
+fields:  period / search / status first, then exact classification filters
+footer:  compact reset and apply actions
+```
+
+When filters are not active, keep the filter block collapsed by default. When
+filters are active, show that state in the summary and open the block where it
+helps the user understand the current list.
 
 ### Financial Row Modes
 
@@ -728,6 +747,11 @@ Use `--base-url` when the app is already running:
 ```bash
 uv run python scripts/ui_audit.py --base-url http://127.0.0.1:8000 --scenario realistic
 ```
+
+For everyday UI refactor checks, prefer `--scenario realistic`. It creates real
+financial/import data and checks desktop/mobile core pages without the expensive
+full button-click sweep. Reserve `button_audit` for deliberate action-system
+changes or a final broader pass; it is intentionally slow.
 
 Minimum checks:
 
