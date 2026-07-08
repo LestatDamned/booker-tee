@@ -25,12 +25,14 @@ from app.features.ledger.application.listing import (
 )
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.models import OperationStatus, OperationType
+from app.features.ledger.presentation.manual_operations.presenter import ManualOperationsPresenter
 from app.features.ledger.service import LedgerPostingService
 from app.features.properties.service import PropertyService
 from app.features.workspaces.dependencies import (
     get_current_workspace_context,
     require_financial_write_context,
 )
+from app.features.workspaces.permissions import permission_flags_for
 from app.features.workspaces.service import WorkspaceContext
 from app.shared.query_params import (
     clean_optional_query_text,
@@ -88,6 +90,14 @@ async def manual_operation_form(
         filters=filters,
         pagination=normalize_pagination(page, per_page),
     )
+    can_write = permission_flags_for(context.membership).can_write_financial_data
+    manual_page_vm = ManualOperationsPresenter().build_page(
+        operations=manual_operations,
+        page=manual_page,
+        filters=filters,
+        focused_operation_id=focused_operation_id,
+        can_write=can_write,
+    )
     return templates.TemplateResponse(
         request,
         "ledger/manual.html",
@@ -99,6 +109,7 @@ async def manual_operation_form(
             "focused_operation_id": focused_operation_id,
             "manual_operations": manual_operations,
             "manual_page": manual_page,
+            "manual_page_vm": manual_page_vm,
             "operation_statuses": list(OperationStatus),
             "operation_types": list(OperationType),
             "page_urls": manual_operation_page_urls(

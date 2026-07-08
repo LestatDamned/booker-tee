@@ -7,6 +7,7 @@ from uuid import uuid4
 from app.features.categories.models import CategoryKind
 from app.features.ledger.application.listing import LedgerPage, ManualOperationFilters
 from app.features.ledger.models import OperationStatus, OperationType
+from app.features.ledger.presentation.manual_operations.presenter import ManualOperationsPresenter
 from app.features.ledger.router import manual_operation_anchor_url, parse_manual_operation_date
 from app.templating import create_templates
 
@@ -55,6 +56,13 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
         focused_operation_id=operation_id,
         manual_operations=[operation],
         manual_page=LedgerPage(page=1, per_page=50, total=1),
+        manual_page_vm=ManualOperationsPresenter().build_page(
+            operations=[operation],
+            page=LedgerPage(page=1, per_page=50, total=1),
+            filters=ManualOperationFilters(),
+            focused_operation_id=operation_id,
+            can_write=True,
+        ),
         operation_statuses=list(OperationStatus),
         operation_types=list(OperationType),
         page_urls={"previous": None, "next": None},
@@ -105,6 +113,13 @@ def test_manual_operations_template_guides_empty_states() -> None:
         filters=ManualOperationFilters(),
         manual_operations=[],
         manual_page=LedgerPage(page=1, per_page=50, total=0),
+        manual_page_vm=ManualOperationsPresenter().build_page(
+            operations=[],
+            page=LedgerPage(page=1, per_page=50, total=0),
+            filters=ManualOperationFilters(),
+            focused_operation_id=None,
+            can_write=True,
+        ),
         operation_statuses=list(OperationStatus),
         operation_types=list(OperationType),
         page_urls={"previous": None, "next": None},
@@ -131,6 +146,13 @@ def test_manual_operations_template_guides_empty_states() -> None:
         filters=ManualOperationFilters(),
         manual_operations=[],
         manual_page=LedgerPage(page=1, per_page=50, total=0),
+        manual_page_vm=ManualOperationsPresenter().build_page(
+            operations=[],
+            page=LedgerPage(page=1, per_page=50, total=0),
+            filters=ManualOperationFilters(),
+            focused_operation_id=None,
+            can_write=True,
+        ),
         operation_statuses=list(OperationStatus),
         operation_types=list(OperationType),
         page_urls={"previous": None, "next": None},
@@ -184,6 +206,13 @@ def test_manual_operations_template_allows_restore_and_delete_cancelled_operatio
         filters=ManualOperationFilters(),
         manual_operations=[operation],
         manual_page=LedgerPage(page=1, per_page=50, total=1),
+        manual_page_vm=ManualOperationsPresenter().build_page(
+            operations=[operation],
+            page=LedgerPage(page=1, per_page=50, total=1),
+            filters=ManualOperationFilters(),
+            focused_operation_id=None,
+            can_write=True,
+        ),
         operation_statuses=list(OperationStatus),
         operation_types=list(OperationType),
         page_urls={"previous": None, "next": None},
