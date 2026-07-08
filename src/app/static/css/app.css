@@ -2951,19 +2951,68 @@ input[type="checkbox"] {
   align-content: start;
 }
 
+.row-actions .action-form,
+.row-actions .button,
 .row-actions__primary,
-.row-actions__secondary {
+.row-actions__secondary,
+.row-actions__readonly {
   width: 100%;
-  justify-content: flex-start;
 }
 
-.row-actions__secondary {
+.row-actions .action-form {
+  display: grid;
+}
+
+.row-actions .button {
+  min-height: 48px;
+  justify-content: center;
+  gap: 8px;
+  padding-inline: 12px;
+  text-align: center;
+}
+
+.row-actions .button svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.row-actions__primary,
+.row-actions .action-primary {
+  border-color: color-mix(in srgb, var(--green) 76%, var(--border));
+  background: color-mix(in srgb, var(--green) 13%, var(--surface-strong));
+  color: var(--green);
+  font-weight: 760;
+}
+
+.row-actions__primary:hover,
+.row-actions .action-primary:hover {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 18%, var(--surface-strong));
+  color: var(--text);
+}
+
+.row-actions__secondary,
+.row-actions .action-secondary {
   border-color: color-mix(in srgb, var(--border) 88%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
   color: var(--muted);
 }
 
+.row-actions__secondary:hover,
+.row-actions .action-secondary:hover {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+  color: var(--text);
+}
+
+.row-actions .action-danger {
+  border-color: color-mix(in srgb, var(--danger) 68%, var(--border));
+  background: color-mix(in srgb, var(--danger) 7%, transparent);
+  color: var(--danger);
+}
+
 .row-actions__readonly {
-  min-height: 36px;
+  min-height: 48px;
   align-items: center;
   justify-content: center;
 }

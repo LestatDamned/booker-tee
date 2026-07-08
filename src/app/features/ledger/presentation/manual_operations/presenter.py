@@ -109,7 +109,7 @@ class ManualOperationsPresenter:
         *,
         can_write: bool,
     ) -> ManualOperationActionVM | None:
-        if not can_write:
+        if not can_write or operation.status == OperationStatus.IGNORED:
             return None
         return ManualOperationActionVM(
             id="edit",

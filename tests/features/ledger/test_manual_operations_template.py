@@ -107,6 +107,8 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "сохранить" in html
     assert "action-save" in html
     assert "action-edit" in html
+    assert "action-form action-form-secondary action-form-cancel" in html
+    assert "action-button action-secondary action-cancel" in html
     assert "отменить" in html
 
 
@@ -232,6 +234,7 @@ def test_manual_operations_template_allows_restore_and_delete_cancelled_operatio
     assert f'action="/ledger/manual/{operation_id}/delete"' in html
     assert "восстановить" in html
     assert "удалить" in html
+    assert "action-edit" not in html
 
 
 def test_manual_operation_anchor_url_points_to_operation_card() -> None:

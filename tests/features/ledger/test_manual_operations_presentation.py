@@ -174,5 +174,6 @@ def test_manual_operations_presenter_builds_ignored_row_actions() -> None:
     row = page_vm.rows[0]
 
     assert row.is_inactive is True
+    assert row.primary_action is None
     assert row.lifecycle_actions[0].form_action == f"/ledger/manual/{operation_id}/restore"
     assert row.danger_actions[0].form_action == f"/ledger/manual/{operation_id}/delete"
