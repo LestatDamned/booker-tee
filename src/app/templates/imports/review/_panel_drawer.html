@@ -1,6 +1,6 @@
 <div
   id="{{ panel.id }}-drawer"
-  class="secondary-action-panel review-panel__drawer review-panel__drawer--{{ panel.panel_type }}"
+  class="row-drawer review-panel__drawer review-panel__drawer--{{ panel.panel_type }}"
   {% if item.initial_active_panel_id != panel.id %}style="display: none;"{% endif %}
   x-show="activePanel === '{{ panel.id }}'"
   x-cloak

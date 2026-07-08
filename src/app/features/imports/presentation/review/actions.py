@@ -177,7 +177,7 @@ class ReviewActionPolicy:
         primary = (
             ActionVM(
                 id="open_operation",
-                label="Открыть связанную операцию",
+                label="Открыть операцию",
                 icon="file-text",
                 placement="primary",
                 action_type="link",
@@ -236,7 +236,7 @@ class ReviewActionPolicy:
             ),
             visible_secondary=self._panel_action(
                 "category_panel",
-                "Изменить",
+                "Исправить",
                 category_panel_id,
             ),
             menu=[

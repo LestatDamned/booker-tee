@@ -175,7 +175,7 @@ def test_action_set_partial_renders_primary_secondary_menu_and_danger_slots() ->
         ),
         visible_secondary_action=ActionVM(
             id="category_panel",
-            label="Изменить",
+            label="Исправить",
             icon="settings",
             placement="secondary",
             action_type="panel_toggle",
@@ -227,7 +227,7 @@ def test_action_set_partial_renders_primary_secondary_menu_and_danger_slots() ->
     assert "review-actions__menu-title" in html
     assert "Опасная зона" in html
     assert "Подтвердить" in html
-    assert "Изменить" in html
+    assert "Исправить" in html
     assert "Сделать перевод" in html
     assert "Игнорировать" in html
     assert html.index("primary-actions") < html.index("secondary-actions")
@@ -522,6 +522,10 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
     assert "review-panel__tab" in html
     assert "review-panel__tab-toggle" in html
     assert "review-panel__drawer" in html
+    assert "row-drawer review-panel__drawer" in html
+    assert "row-drawer__form review-panel-form" in html
+    assert "row-drawer__field" in html
+    assert "row-drawer__footer review-panel-footer" in html
     assert "togglePanel(" in html
     assert 'x-show="activePanel ===' in html
     assert "Открыть" in html

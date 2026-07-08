@@ -4260,13 +4260,6 @@ pre {
   min-width: 0;
 }
 
-.action-group {
-  display: grid;
-  gap: 8px;
-  border-left: 2px solid var(--border);
-  padding-left: 10px;
-}
-
 .review-actions__menu-title,
 .action-title,
 .action-details summary {
@@ -4464,24 +4457,16 @@ pre {
   box-sizing: border-box;
 }
 
-.review-panel__drawer,
-.secondary-action-panel {
+.review-panel__drawer {
   position: relative;
   width: 100%;
   max-width: 100% !important;
   box-sizing: border-box;
-  display: grid;
-  gap: 10px;
   margin: 0 !important;
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--surface-strong) 38%, transparent);
-  padding: 12px;
   overflow: hidden;
 }
 
-.review-panel__drawer::before,
-.secondary-action-panel::before {
+.review-panel__drawer::before {
   content: "";
   position: absolute;
   inset: -1px auto auto 0;
@@ -4501,7 +4486,7 @@ pre {
 
 .review-panel-form {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .review-panel-grid {
@@ -4623,11 +4608,6 @@ pre {
   color: color-mix(in srgb, var(--text) 76%, var(--help));
   font-size: 0.82rem;
   line-height: 1.45;
-}
-
-.action-group-embedded {
-  border-left: 0;
-  padding-left: 0;
 }
 
 .primary-actions {
