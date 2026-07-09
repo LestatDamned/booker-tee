@@ -5361,6 +5361,15 @@ pre {
   gap: 12px;
 }
 
+.review-panel-body--placeholder {
+  min-height: 56px;
+  align-items: center;
+  color: var(--muted);
+  font-family:
+    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+}
+
 .review-panel-form {
   display: grid;
   grid-template-columns: 1fr;

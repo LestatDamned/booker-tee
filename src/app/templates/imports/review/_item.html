@@ -12,6 +12,28 @@
     activePanel: '{{ item.initial_active_panel_id }}',
     togglePanel(panelId) {
       this.activePanel = this.activePanel === panelId ? '' : panelId;
+      if (this.activePanel) {
+        this.$nextTick(() => {
+          const drawer = document.getElementById(`${panelId}-drawer`);
+          const loadUrl = drawer?.dataset.reviewPanelUrl;
+          if (
+            drawer &&
+            loadUrl &&
+            drawer.dataset.reviewPanelLoaded !== 'true' &&
+            drawer.dataset.reviewPanelLoaded !== 'loading' &&
+            window.htmx
+          ) {
+            drawer.dataset.reviewPanelLoaded = 'loading';
+            drawer.addEventListener('htmx:afterSwap', () => {
+              drawer.dataset.reviewPanelLoaded = 'true';
+            }, { once: true });
+            drawer.addEventListener('htmx:responseError', () => {
+              drawer.dataset.reviewPanelLoaded = 'false';
+            }, { once: true });
+            window.htmx.ajax('GET', loadUrl, { target: drawer, swap: 'innerHTML' });
+          }
+        });
+      }
     },
     openCategoryDialog(event) {
       this.$nextTick(() => {

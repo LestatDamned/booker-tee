@@ -102,8 +102,9 @@ class ReviewPanelVM:
     role: str
     panel_type: str
     template_name: str
+    load_url: str
     is_open: bool
-    payload: CategoryPanelPayload | TransferPanelPayload
+    payload: CategoryPanelPayload | TransferPanelPayload | None
 
 
 @dataclass(frozen=True)

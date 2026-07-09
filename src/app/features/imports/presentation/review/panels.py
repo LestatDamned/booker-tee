@@ -46,11 +46,8 @@ class ReviewPanelPresenter:
 
     def category_panel(self, row: object) -> CategoryPanelPayload:
         row_id = ReviewReferenceResolver.required_id(row)
-        selected_category_id = self.selected_category_id_by_row.get(
-            row_id,
-            getattr(row, "suggested_category_id", None),
-        )
-        selected_property_id = getattr(row, "suggested_property_id", None)
+        selected_category_id = self.selected_category_id(row)
+        selected_property_id = self.selected_property_id(row)
         return CategoryPanelPayload(
             action_url=(
                 f"/imports/documents/{ReviewReferenceResolver.required_id(self.document)}"
@@ -82,6 +79,27 @@ class ReviewPanelPresenter:
             open_category_editor=self.open_category_editor_by_row.get(row_id, False),
             create_category_error=self.create_category_error_by_row.get(row_id),
             create_category_initial_name=self.create_category_initial_name_by_row.get(row_id, ""),
+        )
+
+    def selected_category_id(self, row: object) -> UUID | None:
+        row_id = ReviewReferenceResolver.required_id(row)
+        return self.selected_category_id_by_row.get(
+            row_id,
+            getattr(row, "suggested_category_id", None),
+        )
+
+    def selected_property_id(self, row: object) -> UUID | None:
+        return getattr(row, "suggested_property_id", None)
+
+    def is_category_editor_open(self, row: object) -> bool:
+        row_id = ReviewReferenceResolver.required_id(row)
+        return self.open_category_editor_by_row.get(row_id, False)
+
+    def panel_load_url(self, row: object, panel_type: str) -> str:
+        return (
+            f"/imports/documents/{ReviewReferenceResolver.required_id(self.document)}"
+            f"/raw-transactions/{ReviewReferenceResolver.required_id(row)}"
+            f"/panels/{panel_type}"
         )
 
     def category_kind_options(self, row: object) -> list[CategoryKindOptionVM]:

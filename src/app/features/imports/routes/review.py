@@ -150,6 +150,59 @@ async def update_raw_transaction_status(
     )
 
 
+@router.get(
+    "/documents/{document_id}/raw-transactions/{raw_transaction_id}/panels/{panel_type}",
+    response_class=HTMLResponse,
+)
+async def review_raw_transaction_panel(
+    request: Request,
+    document_id: UUID,
+    raw_transaction_id: UUID,
+    panel_type: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
+) -> HTMLResponse:
+    if panel_type not in {"category", "transfer"}:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    review_data_loader = ImportReviewPageDataLoader(session)
+    document = await review_data_loader.load_document(
+        workspace_id=context.workspace.id,
+        document_id=document_id,
+    )
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    page_data = await review_data_loader.load_page_data(
+        context=context,
+        document=document,
+    )
+    page_context = build_review_page_context(
+        document=document,
+        accounts=page_data.accounts,
+        categories=page_data.categories,
+        properties=page_data.properties,
+        transfer_suggestions=page_data.transfer_suggestions,
+        existing_transfer_suggestions=page_data.existing_transfer_suggestions,
+        active_panel_type_by_row={raw_transaction_id: panel_type},
+    )
+    item = page_context.review_item_for(raw_transaction_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    panel = next((panel for panel in item.panels if panel.panel_type == panel_type), None)
+    if panel is None or panel.payload is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    return templates.TemplateResponse(
+        request,
+        "imports/review/_panel_content.html",
+        {
+            "item": item,
+            "panel": panel,
+        },
+    )
+
+
 def review_action_panel_type(action: str) -> str | None:
     if action == "confirm":
         return "category"

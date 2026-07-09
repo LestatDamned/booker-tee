@@ -1,9 +1,13 @@
 <div
   id="{{ panel.id }}-drawer"
   class="row-drawer review-panel__drawer review-panel__drawer--{{ panel.panel_type }}"
+  data-review-panel-loaded="{{ 'true' if panel.payload else 'false' }}"
+  {% if not panel.payload %}
+    data-review-panel-url="{{ panel.load_url }}"
+  {% endif %}
   {% if item.initial_active_panel_id != panel.id %}style="display: none;"{% endif %}
   x-show="activePanel === '{{ panel.id }}'"
   x-cloak
 >
-  {% include panel.template_name %}
+  {% include "imports/review/_panel_content.html" %}
 </div>

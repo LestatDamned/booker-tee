@@ -153,13 +153,13 @@ class ImportReviewPresenter:
 
     def build_item(self, row: object, *, is_next: bool, oob: bool = False) -> ReviewItemVM:
         classification = self.dependencies.classifier.resolve(row)
-        category_panel = self.dependencies.panel_presenter.category_panel(row)
-        transfer_panel = self.dependencies.panel_presenter.transfer_panel(row)
+        selected_category_id = self.dependencies.panel_presenter.selected_category_id(row)
+        selected_property_id = self.dependencies.panel_presenter.selected_property_id(row)
         confirmability_problems = self.dependencies.confirmability.check(
             row,
             document=self.document,
             classification=classification,
-            selected_category_id=category_panel.selected_category_id,
+            selected_category_id=selected_category_id,
         )
         is_confirmable = not confirmability_problems
         visual_state = self.dependencies.state_resolver.resolve(
@@ -168,6 +168,11 @@ class ImportReviewPresenter:
         )
         row_id = ReviewReferenceResolver.required_id(row)
         active_panel_type = self.dependencies.active_panel_type_by_row.get(row_id)
+        category_panel_is_open = (
+            active_panel_type == "category"
+            or self.dependencies.panel_presenter.is_category_editor_open(row)
+        )
+        transfer_panel_is_open = active_panel_type == "transfer"
         panels = [
             ReviewPanelVM(
                 id=f"category-panel-{row_id}",
@@ -176,8 +181,11 @@ class ImportReviewPresenter:
                 role="primary",
                 panel_type="category",
                 template_name="imports/review/_category_panel.html",
-                is_open=active_panel_type == "category" or category_panel.open_category_editor,
-                payload=category_panel,
+                load_url=self.dependencies.panel_presenter.panel_load_url(row, "category"),
+                is_open=category_panel_is_open,
+                payload=self.dependencies.panel_presenter.category_panel(row)
+                if category_panel_is_open
+                else None,
             ),
             ReviewPanelVM(
                 id=f"transfer-panel-{row_id}",
@@ -186,8 +194,11 @@ class ImportReviewPresenter:
                 role="alternative",
                 panel_type="transfer",
                 template_name="imports/review/_transfer_panel.html",
-                is_open=active_panel_type == "transfer",
-                payload=transfer_panel,
+                load_url=self.dependencies.panel_presenter.panel_load_url(row, "transfer"),
+                is_open=transfer_panel_is_open,
+                payload=self.dependencies.panel_presenter.transfer_panel(row)
+                if transfer_panel_is_open
+                else None,
             ),
         ]
         actions = self.dependencies.action_policy.actions_for(
@@ -196,8 +207,8 @@ class ImportReviewPresenter:
             is_confirmable=is_confirmable,
             category_panel_id=panels[0].id,
             transfer_panel_id=panels[1].id,
-            category_id=category_panel.selected_category_id,
-            property_id=getattr(row, "suggested_property_id", None),
+            category_id=selected_category_id,
+            property_id=selected_property_id,
         )
         proposed_category = ReviewReferenceResolver.category_by_id(
             self.categories,

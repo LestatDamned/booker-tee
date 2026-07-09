@@ -1123,6 +1123,14 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
         pass
     if row.locator(".review-panel__drawer:visible").count() != 1:
         errors.append("category panel opening did not leave exactly one visible drawer")
+    try:
+        row.locator(".inline-create-button").first.wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError:
+        errors.append("category panel content did not load")
+        return errors
 
     row.locator(".inline-create-button").first.click()
     dialog = row.locator("dialog.review-category-dialog")

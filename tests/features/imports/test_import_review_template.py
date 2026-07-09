@@ -68,7 +68,7 @@ def test_review_item_partial_keeps_review_item_vm_contract() -> None:
 
     assert re.search(r"\bitem\.row\b", source) is None
     assert "{% set row" not in source
-    assert "document." not in source
+    assert re.search(r"({{|{%)[^}\n%]*document\.", source) is None
     assert "use_review_item_vm" not in source
 
 
@@ -435,6 +435,7 @@ def test_review_template_prefills_suggested_rule_category() -> None:
         document=document,
         accounts=[SimpleNamespace(id=account_id, name="Экспобанк карта")],
         categories=categories,
+        active_panel_type_by_row={row_id: "category"},
     )
 
     assert "review-item__signal--proposal" in html
@@ -484,8 +485,9 @@ def test_review_template_prefills_suggested_rule_category() -> None:
 def test_review_template_can_render_review_item_vm_slice() -> None:
     account_id = uuid4()
     category_id = uuid4()
+    row_id = uuid4()
     row = SimpleNamespace(
-        id=uuid4(),
+        id=row_id,
         row_index=7,
         status=RawTransactionStatus.NORMALIZED,
         account_id=account_id,
@@ -536,7 +538,6 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
     assert "review-item--status-ready_to_confirm" in html
     assert "готово" in html
     assert "Подтвердить" in html
-    assert "Сохранить и подтвердить" in html
     assert "Игнорировать" in html
     assert "hx-confirm=" in html
     assert html.index("29.05.2026") < html.index("Veesp hosting")
@@ -574,14 +575,23 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
     assert "review-panel__tab-toggle" in html
     assert "review-panel__drawer" in html
     assert "row-drawer review-panel__drawer" in html
-    assert "row-drawer__form review-panel-form" in html
-    assert "row-drawer__field" in html
-    assert "row-drawer__footer review-panel-footer" in html
+    assert (
+        f'data-review-panel-url="/imports/documents/{document.id}/raw-transactions/'
+        f'{row_id}/panels/category"' in html
+    )
+    assert (
+        f'data-review-panel-url="/imports/documents/{document.id}/raw-transactions/'
+        f'{row_id}/panels/transfer"' in html
+    )
+    assert 'data-review-panel-loaded="false"' in html
+    assert "row-drawer__form review-panel-form" not in html
     assert "togglePanel(" in html
+    assert "window.htmx.ajax('GET', loadUrl" in html
     assert 'x-show="activePanel ===' in html
     assert "Открыть" in html
     assert "Закрыть" in html
     assert "review-panel-body" in html
+    assert "review-panel-body--placeholder" in html
     assert html.index("review-item__topline") < html.index("review-item__description")
     assert html.index("review-item__actions") < html.index("review-item__panels")
 
@@ -802,6 +812,7 @@ def test_review_template_shows_readable_transfer_candidate_labels() -> None:
         categories=[SimpleNamespace(id=uuid4(), name="Без категории", system_key="uncategorized")],
         accounts=[SimpleNamespace(id=account_id, name="Карта Экспобанк")],
         transfer_suggestions={row.id: [SimpleNamespace(raw_transaction=candidate, day_distance=0)]},
+        active_panel_type_by_row={row.id: "transfer"},
     )
 
     assert "Счет перевода" in html
@@ -872,6 +883,7 @@ def test_review_transfer_panel_does_not_offer_source_account_as_counterparty() -
             SimpleNamespace(id=source_account_id, name="Основная карта"),
             SimpleNamespace(id=counterparty_account_id, name="Накопительный счет"),
         ],
+        active_panel_type_by_row={row.id: "transfer"},
     )
 
     assert f'<option value="{source_account_id}">Основная карта</option>' not in html
@@ -937,6 +949,7 @@ def test_review_transfer_panel_shows_candidate_with_document_account() -> None:
             SimpleNamespace(id=vtb_account_id, name="ВТБ вклад"),
         ],
         transfer_suggestions={row.id: [SimpleNamespace(raw_transaction=candidate, day_distance=0)]},
+        active_panel_type_by_row={row.id: "transfer"},
     )
 
     assert f'<option value="{expobank_account_id}">Экспобанк карта</option>' not in html
@@ -1014,6 +1027,7 @@ def test_review_template_shows_existing_manual_transfer_candidates() -> None:
                 )
             ]
         },
+        active_panel_type_by_row={row.id: "transfer"},
     )
 
     assert "ручной перевод" in html
@@ -1055,6 +1069,7 @@ def test_review_transfer_form_includes_csrf_token_from_context() -> None:
         document=document,
         categories=[SimpleNamespace(id=uuid4(), name="Без категории", system_key="uncategorized")],
         accounts=[SimpleNamespace(id=uuid4(), name="ВТБ вклад")],
+        active_panel_type_by_row={row.id: "transfer"},
         extra_context={"csrf_token": "csrf-test-token"},
     )
 
@@ -1149,8 +1164,11 @@ def test_review_action_response_sends_sibling_rows_oob() -> None:
     assert html.count('hx-swap-oob="true"') == 2
     assert 'id="review-next-step" hx-swap-oob="true"' in html
     assert "Осталось обработать 2 из 2 строк." in html
-    assert f'value="{vpn_category_id}"' in html
-    assert "VPN" in html
+    assert (
+        f'data-review-panel-url="/imports/documents/{document.id}/raw-transactions/'
+        f'{sibling_row.id}/panels/category"' in html
+    )
+    assert "review-panel-body--placeholder" in html
 
 
 def test_review_action_response_renders_prepared_review_item_vms() -> None:
@@ -1701,7 +1719,7 @@ def test_review_item_action_error_keeps_transfer_panel_open() -> None:
 
     assert f"activePanel: 'transfer-panel-{row_id}'" in html
     assert "Для перевода выберите счет назначения." in html
-    assert 'style="display: none;"' in category_drawer[:250]
+    assert 'style="display: none;"' in category_drawer[:600]
     assert 'style="display: none;"' not in transfer_drawer[:250]
 
 
