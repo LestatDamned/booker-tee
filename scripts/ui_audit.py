@@ -326,9 +326,10 @@ def prepare_realistic_scenario(
         rule_form.locator('select[name="direction"]').select_option("outflow")
         rule_form.locator('select[name="application_mode"]').select_option("suggest")
         rule_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        page.get_by_text(f"OZON -> {rule_category_name}", exact=True).wait_for(
-            timeout=PAGE_TIMEOUT_MS
-        )
+        page.locator(".rule-card__title").get_by_text(
+            f"OZON -> {rule_category_name}",
+            exact=True,
+        ).first.wait_for(timeout=PAGE_TIMEOUT_MS)
 
         page.goto(build_url(base_url, "/imports/upload"), wait_until="domcontentloaded")
         page.locator('input[name="statement_pdf"]').set_input_files(str(workbook_path))
