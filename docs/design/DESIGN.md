@@ -427,6 +427,44 @@ that action-level HTMX is the stable abstraction. It is acceptable, and often
 cleaner, for the row/card root to own the local update behavior while the actions
 inside continue to use the shared `ui/_action.html` shape.
 
+### Created Entity Feedback Pattern
+
+When a user creates an entity inside a long reference/entity list, the UI should
+make the result easy to find without changing the whole list's sorting or
+scrolling unexpectedly.
+
+Use this pattern for transaction rules, categories, properties/objects, and
+similar reference data screens when the list can grow enough that a newly created
+item is not immediately visible.
+
+Default shape:
+
+```text
+short feedback above the list:
+  entity ready
+  human title
+  identifying condition / meaning
+  [Show in list]
+
+the created row:
+  calm recent-highlight
+```
+
+Rules:
+
+1. Do not reorder the whole list just to bring the new entity to the top.
+2. Do not force-scroll the page after creation. Let the user choose `Show in
+   list` when they want to jump to the row.
+3. Keep the feedback compact. It confirms the result; it is not a second card
+   editor.
+4. Use calm accent feedback, not a permanent green success state.
+5. Presenter/ViewModel prepares `recent_entity` / `recent_entity_id` state.
+   Templates only render that state.
+6. The list partial owns the feedback block and the row highlight.
+7. The link should target the created entity's stable anchor.
+8. HTMX create responses should pass the recent entity id into the list partial.
+   Non-HTMX fallback may still redirect to the entity anchor.
+
 ### Financial Forms
 
 Creation and repair forms should share a calm, predictable structure without
