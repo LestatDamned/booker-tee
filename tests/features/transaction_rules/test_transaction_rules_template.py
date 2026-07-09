@@ -70,6 +70,11 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert "rules-page-actions" in html
     assert "создать правило" in html
     assert 'id="rules-list-panel"' in html
+    assert "rule-filter-form" in html
+    assert 'name="q"' in html
+    assert 'name="category_id"' in html
+    assert 'name="status"' in html
+    assert "магазин, правило, категория" in html
     assert "правило готово" in html
     assert "Показать в списке" in html
     assert f'href="#rule-{rule_id}"' in html
@@ -130,6 +135,29 @@ def test_transaction_rules_template_empty_state_points_to_rule_form() -> None:
     assert "Правил транзакций пока нет" in html
     assert "минимальные подсказки для частых операций" in html
     assert 'href="#new-rule"' not in html
+
+
+def test_transaction_rules_template_filtered_empty_state_names_filters() -> None:
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("transaction_rules/index.html").render(
+        app_name="Booker Tee",
+        page=TransactionRulesPagePresenter.build(
+            [],
+            categories=[],
+            properties=[],
+            can_write=True,
+            all_rule_count=10,
+            filter_search="nope",
+        ),
+        workspace=SimpleNamespace(name="Personal"),
+    )
+
+    assert "Правила не найдены" in html
+    assert "найдено 0 из 10" in html
+    assert "сбросить" in html
+    assert "Правил транзакций пока нет" not in html
 
 
 def test_transaction_rules_template_read_only_keeps_rule_meaning_without_actions() -> None:
@@ -225,6 +253,8 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
     assert page.inactive_rule_count == 1
     assert page.rule_count_label == "1 правил · 0 активных · 1 выключенных"
     assert page.recent_rule is None
+    assert page.filters.is_active is False
+    assert page.filters.result_label is None
     assert page.seed_defaults_action.url == "/rules/seed-defaults"
     assert page.seed_defaults_action.confirm_message is not None
     assert "Ваши правила не будут изменены" in page.seed_defaults_action.confirm_message
@@ -256,6 +286,26 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
     assert row.delete_action.style == "danger"
     assert row.delete_action.confirm_message is not None
     assert "YANDEX GO -> Такси" in row.delete_action.confirm_message
+
+
+def test_transaction_rules_presenter_prepares_filter_state() -> None:
+    category_id = uuid4()
+    page = TransactionRulesPagePresenter.build(
+        [],
+        categories=cast(Any, [SimpleNamespace(id=category_id, name="Такси")]),
+        properties=[],
+        can_write=True,
+        all_rule_count=7,
+        filter_search="alibi",
+        filter_category_id=category_id,
+        filter_status="inactive",
+    )
+
+    assert page.filters.is_active is True
+    assert page.filters.search == "alibi"
+    assert page.filters.result_label == "найдено 0 из 7"
+    assert selected_values(page.filters.category_options) == [str(category_id)]
+    assert selected_values(page.filters.status_options) == ["inactive"]
 
 
 def test_transaction_rules_presenter_marks_recent_rule() -> None:

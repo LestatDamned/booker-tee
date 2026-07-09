@@ -14,6 +14,7 @@ from app.features.transaction_rules.models import (
 from app.features.transaction_rules.presentation.models import (
     RuleFormOptionVM,
     RuleFormVM,
+    RuleListFilterVM,
     RuleRowVM,
     RulesPageVM,
 )
@@ -35,6 +36,10 @@ class TransactionRulesPagePresenter:
         properties: Sequence[Property],
         can_write: bool,
         recent_rule_id: UUID | None = None,
+        all_rule_count: int | None = None,
+        filter_search: str = "",
+        filter_category_id: UUID | None = None,
+        filter_status: str = "all",
     ) -> RulesPageVM:
         rows = [
             TransactionRulesPagePresenter.build_row(
@@ -47,6 +52,7 @@ class TransactionRulesPagePresenter:
         ]
         active_count = sum(1 for rule in rules if rule.is_active)
         recent_rule = next((row for row in rows if row.is_recent), None)
+        total_count = len(rows) if all_rule_count is None else all_rule_count
         return RulesPageVM(
             rules=rows,
             create_form=rule_form(
@@ -87,9 +93,17 @@ class TransactionRulesPagePresenter:
                 active=active_count,
                 inactive=len(rows) - active_count,
             ),
+            filters=rule_filter_vm(
+                categories=categories,
+                search=filter_search,
+                selected_category_id=filter_category_id,
+                selected_status=filter_status,
+                filtered_count=len(rows),
+                total_count=total_count,
+            ),
             recent_rule=recent_rule,
             can_write=can_write,
-            total_rule_count=len(rows),
+            total_rule_count=total_count,
             active_rule_count=active_count,
             inactive_rule_count=len(rows) - active_count,
         )
@@ -176,6 +190,43 @@ class TransactionRulesPagePresenter:
 
 def rule_count_label(*, total: int, active: int, inactive: int) -> str:
     return f"{total} правил · {active} активных · {inactive} выключенных"
+
+
+def rule_filter_vm(
+    *,
+    categories: Sequence[Category],
+    search: str,
+    selected_category_id: UUID | None,
+    selected_status: str,
+    filtered_count: int,
+    total_count: int,
+) -> RuleListFilterVM:
+    normalized_status = (
+        selected_status if selected_status in {"all", "active", "inactive"} else "all"
+    )
+    normalized_search = search.strip()
+    is_active = (
+        bool(normalized_search)
+        or selected_category_id is not None
+        or normalized_status != "all"
+    )
+    result_label = f"найдено {filtered_count} из {total_count}" if is_active else None
+    return RuleListFilterVM(
+        action="/rules",
+        search=normalized_search,
+        category_options=[
+            RuleFormOptionVM("", "любая категория", selected_category_id is None),
+            *entity_options(categories, selected_category_id),
+        ],
+        status_options=[
+            RuleFormOptionVM("all", "все статусы", normalized_status == "all"),
+            RuleFormOptionVM("active", "активные", normalized_status == "active"),
+            RuleFormOptionVM("inactive", "выключенные", normalized_status == "inactive"),
+        ],
+        is_active=is_active,
+        result_label=result_label,
+        reset_url="/rules",
+    )
 
 
 def rule_form(

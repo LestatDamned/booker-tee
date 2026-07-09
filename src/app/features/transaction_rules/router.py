@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,11 +46,17 @@ async def rules_index(
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    q: Annotated[str | None, Query()] = None,
+    category_id: Annotated[str | None, Query()] = None,
+    rule_status: Annotated[str, Query(alias="status")] = "all",
 ) -> HTMLResponse:
     page = await build_rules_page(
         session=session,
         context=context,
         can_write=permission_flags_for(context.membership).can_write_financial_data,
+        filter_search=q or "",
+        filter_category_id=parse_optional_filter_uuid(category_id),
+        filter_status=rule_status,
     )
     return templates.TemplateResponse(
         request,
@@ -277,21 +283,45 @@ async def build_rules_page(
     context: WorkspaceContext,
     can_write: bool,
     recent_rule_id: UUID | None = None,
+    filter_search: str = "",
+    filter_category_id: UUID | None = None,
+    filter_status: str = "all",
 ) -> RulesPageVM:
     categories = await CategoryService(session).list_or_seed_defaults(
         context.workspace.id,
         context.workspace.type,
     )
     properties = await PropertyService(session).list_active(context.workspace.id)
-    rules = await TransactionRuleQueryUseCase(session).list_rules(context.workspace.id)
+    result = await TransactionRuleQueryUseCase(session).list_rules_for_page(
+        workspace_id=context.workspace.id,
+        search=filter_search,
+        category_id=filter_category_id,
+        status=filter_status,
+    )
     return TransactionRulesPagePresenter.build(
-        rules,
+        result.rules,
         categories=categories,
         properties=properties,
         can_write=can_write,
         recent_rule_id=recent_rule_id,
+        all_rule_count=result.total_count,
+        filter_search=filter_search,
+        filter_category_id=filter_category_id,
+        filter_status=filter_status,
     )
 
 
 def is_htmx_request(request: Request) -> bool:
     return request.headers.get("hx-request") == "true"
+
+
+def parse_optional_filter_uuid(raw_value: str | None) -> UUID | None:
+    if not raw_value:
+        return None
+    try:
+        return UUID(raw_value)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid category_id",
+        ) from exc

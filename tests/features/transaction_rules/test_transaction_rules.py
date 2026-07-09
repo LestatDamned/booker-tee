@@ -12,6 +12,7 @@ from app.features.transaction_rules.application.fixture_seeding import (
     DEFAULT_MERCHANT_RULE_SEEDS,
 )
 from app.features.transaction_rules.application.rule_application import select_best_matching_rule
+from app.features.transaction_rules.application.rule_queries import filter_rules
 from app.features.transaction_rules.domain.matching import rule_matches_raw_transaction
 from app.features.transaction_rules.domain.patterns import infer_rule_pattern
 from app.features.transaction_rules.domain.suggestions import (
@@ -211,6 +212,33 @@ def test_default_merchant_rule_patterns_are_normalized_unique() -> None:
     normalized_patterns = [normalized_text(seed.pattern) for seed in DEFAULT_MERCHANT_RULE_SEEDS]
 
     assert len(normalized_patterns) == len(set(normalized_patterns))
+
+
+def test_rule_list_filters_by_search_category_and_status() -> None:
+    workspace_id = uuid4()
+    cafe_category_id = uuid4()
+    products_category_id = uuid4()
+    cafe_rule = transaction_rule(
+        workspace_id=workspace_id,
+        category_id=cafe_category_id,
+        pattern="AKADEMIYA KOFE",
+    )
+    inactive_products_rule = transaction_rule(
+        workspace_id=workspace_id,
+        category_id=products_category_id,
+        pattern="ALIBI",
+    )
+    inactive_products_rule.is_active = False
+
+    assert filter_rules([cafe_rule, inactive_products_rule], search="kofe") == [cafe_rule]
+    assert filter_rules(
+        [cafe_rule, inactive_products_rule],
+        category_id=products_category_id,
+    ) == [inactive_products_rule]
+    assert filter_rules(
+        [cafe_rule, inactive_products_rule],
+        status="inactive",
+    ) == [inactive_products_rule]
 
 
 def transaction_rule(

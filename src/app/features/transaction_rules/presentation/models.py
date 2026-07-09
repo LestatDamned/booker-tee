@@ -12,6 +12,17 @@ class RuleFormOptionVM:
 
 
 @dataclass(frozen=True)
+class RuleListFilterVM:
+    action: str
+    search: str
+    category_options: list[RuleFormOptionVM]
+    status_options: list[RuleFormOptionVM]
+    is_active: bool
+    result_label: str | None
+    reset_url: str
+
+
+@dataclass(frozen=True)
 class RuleFormVM:
     id: str
     action: str
@@ -56,6 +67,7 @@ class RulesPageVM:
     seed_defaults_action: ActionVM
     create_rule_label: str
     rule_count_label: str
+    filters: RuleListFilterVM
     recent_rule: RuleRowVM | None
     can_write: bool
     total_rule_count: int

@@ -4004,6 +4004,34 @@ pre {
   white-space: nowrap;
 }
 
+.rule-filter-form {
+  border-top: 1px solid color-mix(in srgb, var(--border) 32%, transparent);
+}
+
+.rule-filter-form__fields {
+  grid-template-columns: minmax(220px, 1.4fr) minmax(180px, 0.9fr) minmax(150px, 0.7fr);
+}
+
+.rule-filter-form__footer {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+}
+
+.rule-filter-form__result {
+  justify-self: start;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.rule-filter-form__footer .primary-action {
+  grid-column: -2 / -1;
+  justify-self: end;
+}
+
+.rule-filter-form__footer .filter-form__secondary-action {
+  justify-self: end;
+}
+
 .rule-card__main {
   display: grid;
   gap: 12px;
