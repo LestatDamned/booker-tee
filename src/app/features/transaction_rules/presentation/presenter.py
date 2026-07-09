@@ -86,12 +86,8 @@ class TransactionRulesPagePresenter:
     ) -> RuleRowVM:
         form_id = f"rule-form-{rule.id}"
         return RuleRowVM(
-            id=rule.id,
             anchor_id=f"rule-{rule.id}",
-            form_id=form_id,
-            form_action=f"/rules/{rule.id}",
             title=rule_title(rule),
-            pattern=rule.pattern,
             status_label="активно" if rule.is_active else "выключено",
             status_tone="confirmed" if rule.is_active else "muted",
             is_inactive=not rule.is_active,

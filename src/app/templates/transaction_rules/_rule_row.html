@@ -20,7 +20,7 @@
 
     {% if can_write %}
       <details class="action-details action-accordion rule-card__edit">
-        <summary class="primary-action">{{ icon("settings") }} изменить правило</summary>
+        <summary>{{ icon("settings") }} изменить правило</summary>
         {% set form = rule.form %}
         {% set form_class = "rule-edit-form" %}
         {% include "transaction_rules/_rule_form.html" %}

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from decimal import Decimal
-from uuid import UUID
 
 from app.shared.ui.actions import ActionVM
 
@@ -38,12 +37,8 @@ class RuleMetaVM:
 
 @dataclass(frozen=True)
 class RuleRowVM:
-    id: UUID
     anchor_id: str
-    form_id: str
-    form_action: str
     title: str
-    pattern: str
     status_label: str
     status_tone: str
     is_inactive: bool
