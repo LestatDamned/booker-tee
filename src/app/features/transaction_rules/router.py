@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
-from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
 from app.features.ledger.models import OperationType
 from app.features.properties.service import PropertyService
@@ -24,6 +23,7 @@ from app.features.transaction_rules.models import (
     TransactionRuleApplicationMode,
     TransactionRuleMatchType,
 )
+from app.features.transaction_rules.presentation.presenter import TransactionRulesPagePresenter
 from app.features.transaction_rules.router_forms import (
     build_create_rule_command,
     build_update_rule_command,
@@ -32,6 +32,7 @@ from app.features.workspaces.dependencies import (
     get_current_workspace_context,
     require_financial_write_context,
 )
+from app.features.workspaces.permissions import permission_flags_for
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
 
@@ -46,26 +47,28 @@ async def rules_index(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
-    accounts = await AccountService(session).list_active_accounts(context.workspace.id)
     categories = await CategoryService(session).list_or_seed_defaults(
         context.workspace.id,
         context.workspace.type,
     )
     properties = await PropertyService(session).list_active(context.workspace.id)
     rules = await TransactionRuleQueryUseCase(session).list_rules(context.workspace.id)
+    page = TransactionRulesPagePresenter.build(
+        rules,
+        can_write=permission_flags_for(context.membership).can_write_financial_data,
+    )
     return templates.TemplateResponse(
         request,
         "transaction_rules/index.html",
         {
-            "accounts": accounts,
             "application_modes": list(TransactionRuleApplicationMode),
             "app_name": settings.app_name,
             "categories": categories,
             "directions": list(MoneyDirection),
             "match_types": list(TransactionRuleMatchType),
             "operation_types": list(OperationType),
+            "page": page,
             "properties": properties,
-            "rules": rules,
             "workspace": context.workspace,
         },
     )
