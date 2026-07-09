@@ -99,9 +99,13 @@ class TransactionRulesPagePresenter:
         properties: Sequence[Property],
     ) -> RuleRowVM:
         form_id = f"rule-form-{rule.id}"
+        edit_summary_id = f"rule-edit-toggle-{rule.id}"
+        title = rule_title(rule)
         return RuleRowVM(
             anchor_id=f"rule-{rule.id}",
-            title=rule_title(rule),
+            title=title,
+            condition_label=rule_condition_label(rule),
+            secondary_label=rule_secondary_label(rule),
             status_label="активно" if rule.is_active else "выключено",
             status_tone="confirmed" if rule.is_active else "muted",
             is_inactive=not rule.is_active,
@@ -119,7 +123,8 @@ class TransactionRulesPagePresenter:
                     action_type="submit",
                     form_id=form_id,
                 ),
-                show_name=False,
+                show_name=True,
+                name=getattr(rule, "name", title),
                 pattern=rule.pattern,
                 selected_operation_type=rule.target_operation_type,
                 selected_category_id=rule.category_id,
@@ -130,11 +135,20 @@ class TransactionRulesPagePresenter:
                 amount_min=rule.amount_min,
                 amount_max=rule.amount_max,
             ),
+            edit_summary_id=edit_summary_id,
+            edit_toggle_action=ActionVM(
+                id="edit-rule",
+                label="изменить правило",
+                icon="settings",
+                placement="primary",
+                action_type="panel_toggle",
+                panel_id=edit_summary_id,
+            ),
             technical_label=f"ID {rule.id}",
             toggle_action=ActionVM(
                 id="toggle-rule",
                 label="выключить" if rule.is_active else "включить",
-                icon="settings",
+                icon="x" if rule.is_active else "check",
                 placement="secondary",
                 action_type="post",
                 url=f"/rules/{rule.id}/toggle",
@@ -148,7 +162,10 @@ class TransactionRulesPagePresenter:
                 action_type="post",
                 url=f"/rules/{rule.id}/delete",
                 style="danger",
-                confirm_message="Удалить правило транзакций?",
+                confirm_message=(
+                    f"Удалить правило “{title}”?\n"
+                    "Оно больше не будет применяться к новым выпискам."
+                ),
             ),
         )
 
@@ -256,6 +273,31 @@ def rule_title(rule: TransactionRule) -> str:
     else:
         target = "без категории"
     return f"{rule.pattern} -> {target}"
+
+
+def rule_condition_label(rule: TransactionRule) -> str:
+    return f"Если описание {ru_label(rule.match_type)} “{rule.pattern}”"
+
+
+def rule_secondary_label(rule: TransactionRule) -> str:
+    labels = [
+        application_mode_summary_label(rule.application_mode),
+        ru_label(rule.direction),
+    ]
+    if rule.target_operation_type is not None:
+        labels.append(ru_label(rule.target_operation_type))
+    if rule.property is not None:
+        labels.append(rule.property.name)
+    amount_label = amount_range_label(rule.amount_min, rule.amount_max)
+    if amount_label is not None:
+        labels.append(amount_label)
+    return " · ".join(labels)
+
+
+def application_mode_summary_label(mode: TransactionRuleApplicationMode) -> str:
+    if mode == TransactionRuleApplicationMode.AUTO_APPLY:
+        return "автоприменение"
+    return "предлагать"
 
 
 def rule_meta(rule: TransactionRule) -> list[RuleMetaVM]:

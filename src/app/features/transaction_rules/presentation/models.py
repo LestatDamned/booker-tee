@@ -41,11 +41,15 @@ class RuleMetaVM:
 class RuleRowVM:
     anchor_id: str
     title: str
+    condition_label: str
+    secondary_label: str
     status_label: str
     status_tone: str
     is_inactive: bool
     meta: list[RuleMetaVM]
     form: RuleFormVM
+    edit_summary_id: str
+    edit_toggle_action: ActionVM
     technical_label: str
     toggle_action: ActionVM
     delete_action: ActionVM

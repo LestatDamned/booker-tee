@@ -71,24 +71,28 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert "entity-card" in html
     assert "rule-card__edit" in html
     assert "изменить правило" in html
+    assert "Еще действия" in html
+    assert "Показать ID" in html
     assert "row-actions" in html
-    assert "badge badge-suggest" in html
-    assert "badge badge-outflow" in html
-    assert "badge badge-expense" in html
+    assert "review-actions__menu" in html
+    assert "badge badge-confirmed" in html
+    assert "Если описание содержит “SAMOKAT”" in html
+    assert "предлагать · списание · расход · Квартира · 100.00...5000.00" in html
     assert "списание" in html
     assert "расход" in html
     assert f'id="rule-{rule_id}"' in html
     assert f'id="rule-form-{rule_id}"' in html
     assert 'type="hidden" name="name"' not in html
-    assert "SAMOKAT -> Подписки и сервисы" not in html
+    assert "SAMOKAT -&gt; Подписки и сервисы" in html
     assert "SAMOKAT -&gt; Продукты" in html
     assert "Продукты" in html
     assert "SAMOKAT" in html
     assert "сохранить" in html
     assert "выключить" in html
-    assert "danger-zone" in html
-    assert "<summary>ID</summary>" in html
+    assert "danger-zone review-actions__menu-section review-actions__danger-zone" in html
+    assert "<summary>ID</summary>" not in html
     assert f"ID {rule_id}" in html
+    assert "Оно больше не будет применяться к новым выпискам" in html
     assert "<th>активно</th>" not in html
 
 
@@ -174,6 +178,8 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
     assert page.create_form.advanced_label == "Расширенные настройки"
     assert row.anchor_id == f"rule-{rule_id}"
     assert row.title == "YANDEX GO -> Такси"
+    assert row.condition_label == "Если описание содержит “YANDEX GO”"
+    assert row.secondary_label == "автоприменение · списание · расход · до 1000.00"
     assert row.status_label == "выключено"
     assert row.status_tone == "muted"
     assert [item.label for item in row.meta] == [
@@ -184,10 +190,18 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
         "до 1000.00",
     ]
     assert row.form.submit_action.form_id == f"rule-form-{rule_id}"
+    assert row.form.show_name is True
+    assert row.form.name == "YANDEX GO -> Такси"
     assert selected_values(row.form.category_options) == [str(category_id)]
     assert selected_values(row.form.property_options) == [""]
+    assert row.edit_toggle_action.action_type == "panel_toggle"
+    assert row.edit_toggle_action.panel_id == row.edit_summary_id
+    assert row.edit_toggle_action.icon == "settings"
+    assert row.toggle_action.icon == "check"
     assert row.toggle_action.hidden_fields == {"is_active": "true"}
     assert row.delete_action.style == "danger"
+    assert row.delete_action.confirm_message is not None
+    assert "YANDEX GO -> Такси" in row.delete_action.confirm_message
 
 
 def selected_values(options: list[Any]) -> list[str]:

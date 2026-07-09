@@ -1,48 +1,62 @@
-<article id="{{ rule.anchor_id }}" class="entity-card rule-card {% if rule.is_inactive %}entity-card-inactive{% endif %}">
-  <div class="entity-card-main rule-card__main">
-    <div class="entity-card-title rule-card__title">
-      <strong>{{ rule.title }}</strong>
-      <span class="badge badge-{{ rule.status_tone }}">{{ rule.status_label }}</span>
-    </div>
-    <div class="entity-card-meta rule-card__meta" aria-label="Условия правила">
-      {% for item in rule.meta %}
-        {% if item.tone %}
-          <span class="badge badge-{{ item.tone }}">{{ item.label }}</span>
-        {% else %}
-          <span>{{ item.label }}</span>
-        {% endif %}
-      {% endfor %}
-      <details class="technical-details">
-        <summary>ID</summary>
-        <span>{{ rule.technical_label }}</span>
-      </details>
+<article id="{{ rule.anchor_id }}" class="financial-row entity-card rule-card {% if rule.is_inactive %}entity-card-inactive{% endif %}">
+  <div class="financial-row__main entity-card-main rule-card__main">
+    <div class="rule-card__summary">
+      <div class="financial-row__topline rule-card__topline">
+        <div class="entity-card-title rule-card__title">
+          <strong>{{ rule.title }}</strong>
+        </div>
+        <span class="badge badge-{{ rule.status_tone }} rule-card__status">{{ rule.status_label }}</span>
+      </div>
+      <p class="rule-card__condition">{{ rule.condition_label }}</p>
+      <p class="entity-card-meta rule-card__secondary">{{ rule.secondary_label }}</p>
     </div>
 
-    {% if can_write %}
-      <details class="action-details action-accordion rule-card__edit">
-        <summary>
-          {{ icon("settings") }}
-          <span>изменить правило</span>
-          <span class="details-toggle-label" aria-hidden="true">
+  </div>
+
+  {% if can_write %}
+    <div class="financial-row__side entity-card-actions row-actions rule-card__actions">
+      {% set action = rule.edit_toggle_action %}
+      {% include "ui/_action.html" %}
+      {% set action = rule.toggle_action %}
+      {% include "ui/_action.html" %}
+      <details class="action-details action-accordion review-actions__secondary review-actions__details review-actions__menu rule-more-actions">
+        <summary class="review-actions__summary">
+          {{ icon("list-check") }}
+          <span>Еще действия</span>
+          <span class="details-toggle-label review-actions__toggle" aria-hidden="true">
             <span class="details-toggle-open">Открыть</span>
             <span class="details-toggle-close">Закрыть</span>
           </span>
         </summary>
+        <div class="review-actions__menu-section rule-more-actions__menu-section">
+          <div class="rule-more-actions__item rule-more-actions__technical">
+            <span>Показать ID</span>
+            <code>{{ rule.technical_label }}</code>
+          </div>
+        </div>
+        <div class="danger-zone review-actions__menu-section review-actions__danger-zone">
+          <div class="action-title review-actions__menu-title">Опасная зона</div>
+          {% set action = rule.delete_action %}
+          {% include "ui/_action.html" %}
+        </div>
+      </details>
+    </div>
+
+    <details class="rule-card__edit">
+      <summary id="{{ rule.edit_summary_id }}" class="rule-card__edit-summary">
+        <span>Изменить правило</span>
+      </summary>
+      <div class="financial-row__drawer row-drawer rule-card__edit-panel">
+        <div class="row-drawer__header">
+          <div class="row-drawer__heading">
+            <h3 class="row-drawer__title">Изменить правило</h3>
+            <span class="row-drawer__context">автоправило</span>
+          </div>
+        </div>
         {% set form = rule.form %}
         {% set form_class = "rule-edit-form" %}
         {% include "transaction_rules/_rule_form.html" %}
-      </details>
-    {% endif %}
-  </div>
-
-  {% if can_write %}
-    <div class="entity-card-actions row-actions rule-card__actions">
-      {% set action = rule.toggle_action %}
-      {% include "ui/_action.html" %}
-      <div class="danger-zone rule-card__danger">
-        {% set action = rule.delete_action %}
-        {% include "ui/_action.html" %}
       </div>
-    </div>
+    </details>
   {% endif %}
 </article>

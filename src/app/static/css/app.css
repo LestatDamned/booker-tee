@@ -3859,6 +3859,15 @@ pre {
   padding-bottom: 0;
 }
 
+.rule-form--edit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  border-top: 0;
+  border-bottom: 0;
+  padding: 0;
+}
+
 .rule-create-flow {
   grid-column: 1 / -1;
   width: 100%;
@@ -3903,12 +3912,16 @@ pre {
   min-width: 0;
 }
 
-.rule-create-condition .field {
+.rule-create-condition .field,
+.rule-edit-result .field {
   grid-column: auto !important;
+  min-width: 0;
 }
 
 .rule-form--create input,
-.rule-form--create select {
+.rule-form--create select,
+.rule-form--edit input,
+.rule-form--edit select {
   width: 100%;
 }
 
@@ -3920,8 +3933,33 @@ pre {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.rule-advanced-grid--create .field {
+.rule-advanced-grid--edit {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.rule-edit-fields--condition .rule-edit-field--match {
+  grid-column: span 3;
+}
+
+.rule-edit-fields--condition .rule-edit-field--pattern {
+  grid-column: span 9;
+}
+
+.rule-edit-fields--result .rule-edit-field--type {
+  grid-column: span 4;
+}
+
+.rule-edit-fields--result .rule-edit-field--category {
+  grid-column: span 8;
+}
+
+.rule-advanced-grid--create .field,
+.rule-advanced-grid--edit .field {
   grid-column: auto !important;
+}
+
+.rule-edit-name {
+  grid-column: 1 / -1 !important;
 }
 
 .rule-form__footer {
@@ -3930,6 +3968,14 @@ pre {
 
 .rule-form__footer .ui-action__button {
   min-height: 40px;
+}
+
+.rule-form--edit .rule-form__footer {
+  justify-content: flex-end;
+}
+
+.rule-form--edit .rule-form__footer .ui-action__form {
+  width: 100%;
 }
 
 .rule-create-submit {
@@ -3948,14 +3994,30 @@ pre {
 
 .rule-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(160px, 210px);
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
   gap: 16px;
   border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-left: 3px solid color-mix(in srgb, var(--accent) 48%, var(--border));
+  border-left: 4px solid color-mix(in srgb, var(--accent) 48%, var(--border));
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 94%, var(--surface-strong));
-  padding: 14px;
+  padding: 12px;
   scroll-margin-top: 16px;
+}
+
+.rule-card__main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.rule-card__summary {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rule-card__topline {
+  grid-template-columns: minmax(0, 1fr) max-content;
 }
 
 .rule-card:target {
@@ -3966,19 +4028,37 @@ pre {
 
 .rule-card__title strong {
   font-size: 1.02rem;
+  overflow-wrap: anywhere;
+}
+
+.rule-card__condition {
+  margin: 0;
+  color: var(--text);
+}
+
+.rule-card__secondary {
+  margin: 0;
+  color: var(--muted);
 }
 
 .rule-card__edit {
-  width: min(100%, 620px);
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-strong) 42%, transparent);
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
 }
 
-.rule-card__edit > summary {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  min-height: 40px;
-  color: var(--accent);
+.rule-card__edit-summary {
+  position: absolute;
+  width: 1px !important;
+  height: 1px;
+  min-height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  border: 0;
+  padding: 0;
+  white-space: nowrap;
+  list-style: none;
 }
 
 .rule-card__edit > summary::after,
@@ -3986,20 +4066,84 @@ pre {
   content: none;
 }
 
-.rule-card__edit[open] {
-  background: color-mix(in srgb, var(--surface-strong) 64%, var(--accent));
+.rule-card__edit-panel {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-top: 12px;
 }
 
 .rule-card__actions {
   min-width: 0;
 }
 
-.rule-card__danger {
-  margin-top: 2px;
+.rule-card__status {
+  min-height: 34px;
+  justify-self: end;
+  justify-content: center;
+  border-color: color-mix(in srgb, currentcolor 76%, var(--border));
+  background: color-mix(in srgb, var(--surface-strong) 56%, transparent);
+  padding-inline: 12px;
 }
 
-.rule-card__danger .ui-action__form,
-.rule-card__danger .ui-action__button {
+.rule-more-actions {
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.rule-more-actions > summary {
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  list-style: none;
+}
+
+.rule-more-actions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.rule-more-actions > summary::after,
+.rule-more-actions[open] > summary::after {
+  content: none;
+}
+
+.rule-more-actions[open] .details-toggle-open {
+  display: none;
+}
+
+.rule-more-actions[open] .details-toggle-close {
+  display: inline;
+}
+
+.rule-more-actions__summary {
+  display: inline-flex;
+  align-items: center;
+}
+
+.rule-more-actions__menu {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-strong) 50%, transparent);
+  padding: 8px;
+}
+
+.rule-more-actions__item {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.rule-more-actions__technical code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: color-mix(in srgb, var(--text) 82%, var(--muted));
+}
+
+.rule-more-actions__menu .ui-action__form,
+.rule-more-actions__menu .ui-action__button {
   width: 100%;
 }
 
@@ -5732,13 +5876,19 @@ pre {
 
   .rule-create-condition,
   .rule-create-flow,
-  .rule-advanced-grid--create {
+  .rule-edit-result,
+  .rule-advanced-grid--create,
+  .rule-advanced-grid--edit {
     grid-template-columns: 1fr;
   }
 
   .rule-create-block--compact,
   .rule-create-category {
     max-width: none;
+  }
+
+  .rule-form--edit .rule-form__footer .ui-action__form {
+    width: 100%;
   }
 
   .financial-row,
@@ -5760,6 +5910,10 @@ pre {
   .operation-form__field--status,
   .operation-form__fields--classification .operation-form__field,
   .operation-form__field--description,
+  .rule-edit-fields--condition .rule-edit-field--match,
+  .rule-edit-fields--condition .rule-edit-field--pattern,
+  .rule-edit-fields--result .rule-edit-field--type,
+  .rule-edit-fields--result .rule-edit-field--category,
   .operation-form__submit,
   .operation-form__footer .ui-action__form,
   .operation-form__footer .ui-action__button,
@@ -6125,6 +6279,10 @@ pre {
   .operation-form__field--status,
   .operation-form__fields--classification .operation-form__field,
   .operation-form__field--description,
+  .rule-edit-fields--condition .rule-edit-field--match,
+  .rule-edit-fields--condition .rule-edit-field--pattern,
+  .rule-edit-fields--result .rule-edit-field--type,
+  .rule-edit-fields--result .rule-edit-field--category,
   .operation-form__submit,
   .operation-form__footer .ui-action__form,
   .operation-form__footer .ui-action__button,
