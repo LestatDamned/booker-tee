@@ -206,6 +206,46 @@ def test_category_detail_template_shows_operations_and_rules() -> None:
     assert f"/rules#rule-{rule_id}" in html
 
 
+def test_category_detail_template_shows_edit_error_and_keeps_values() -> None:
+    category_id = uuid4()
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("categories/detail.html").render(
+        app_name="Booker Tee",
+        kinds=list(CategoryKind),
+        workspace=SimpleNamespace(name="Personal", default_currency="RUB"),
+        detail=SimpleNamespace(
+            category=SimpleNamespace(
+                id=category_id,
+                name="Кафе",
+                kind=CategoryKind.EXPENSE,
+                is_active=True,
+                is_system=False,
+                notes="Старое описание",
+            ),
+            summary=SimpleNamespace(
+                income=Decimal("0.00"),
+                expense=Decimal("0.00"),
+                profit=Decimal("0.00"),
+            ),
+            operations=[],
+            rules=[],
+        ),
+        edit_error="Категория с таким названием уже есть.",
+        edit_name="Продукты",
+        edit_kind=CategoryKind.INCOME,
+        edit_notes="Новое описание",
+    )
+
+    assert 'category-edit-details" open' in html
+    assert 'role="alert"' in html
+    assert "Категория с таким названием уже есть." in html
+    assert 'name="name" value="Продукты"' in html
+    assert f'<option value="{CategoryKind.INCOME.value}" selected>' in html
+    assert 'name="notes" value="Новое описание"' in html
+
+
 def test_properties_template_uses_inline_card_editing() -> None:
     property_id = uuid4()
     templates = create_templates()

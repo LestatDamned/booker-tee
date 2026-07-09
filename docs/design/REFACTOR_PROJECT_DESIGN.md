@@ -1689,6 +1689,8 @@ Current state:
   swap.
 - Categories create form now returns the categories page with inline
   user-facing feedback and preserved form values for expected creation errors.
+- Category detail edit form now returns the category detail page with inline
+  user-facing feedback and preserved form values for expected update errors.
 - Properties create form now returns the properties page with inline
   user-facing feedback and preserved form values for expected creation errors.
 - Properties edit rows now return the properties page with row-scoped inline

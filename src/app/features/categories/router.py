@@ -93,6 +93,28 @@ async def category_detail(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
+    return await category_detail_response(
+        category_id=category_id,
+        request=request,
+        session=session,
+        settings=settings,
+        context=context,
+    )
+
+
+async def category_detail_response(
+    *,
+    category_id: UUID,
+    request: Request,
+    session: AsyncSession,
+    settings: Settings,
+    context: WorkspaceContext,
+    edit_error: str | None = None,
+    edit_name: str | None = None,
+    edit_kind: CategoryKind | None = None,
+    edit_notes: str | None = None,
+    status_code: int = status.HTTP_200_OK,
+) -> HTMLResponse:
     try:
         detail = await CategoryService(session).get_detail(
             workspace_id=context.workspace.id,
@@ -108,7 +130,12 @@ async def category_detail(
             "detail": detail,
             "kinds": list(CategoryKind),
             "workspace": context.workspace,
+            "edit_error": edit_error,
+            "edit_name": edit_name,
+            "edit_kind": edit_kind,
+            "edit_notes": edit_notes,
         },
+        status_code=status_code,
     )
 
 
@@ -153,7 +180,9 @@ async def create_category(
 @router.post("/{category_id}")
 async def update_category(
     category_id: UUID,
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     name: Annotated[str, Form()],
     kind: Annotated[CategoryKind, Form()],
@@ -169,7 +198,18 @@ async def update_category(
             notes=notes,
         )
     except CategoryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return await category_detail_response(
+            category_id=category_id,
+            request=request,
+            session=session,
+            settings=settings,
+            context=context,
+            edit_error=category_form_error_message(exc),
+            edit_name=name,
+            edit_kind=kind,
+            edit_notes=notes or "",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     return RedirectResponse(
         url=categories_url(view),
