@@ -78,9 +78,13 @@ Booker Tee остается надежным финансовым инструм
      pattern; осталась точечная полировка, не новый архитектурный slice.
   4. Manual operations — переведен на `financial-row`, `operation-form`,
      `filter-form` и row drawer pattern; осталась точечная полировка.
-  5. Categories / Rules / Properties / Users / Workspace operations —
-     следующий кандидат на аккуратную унификацию CRUD/workspace screens.
-  6. Reports — отдельный будущий slice для финансовых итогов и таблиц.
+  5. Transaction rules — следующий reference CRUD slice. Это самый тяжелый
+     экран из rules/categories/properties, потому что он ближе всего к import
+     review: правила подсказывают категорию, объект и тип операции, но не должны
+     обходить пользовательскую проверку.
+  6. Categories / Properties / Users / Workspace operations — следующие
+     кандидаты на аккуратную унификацию CRUD/workspace screens после rules.
+  7. Reports — отдельный будущий slice для финансовых итогов и таблиц.
 - Первый эталонный vertical slice: Import review.
   - Причина: это самый сложный и нагруженный экран; если новый подход выдержит
     его состояния, действия и HTMX-обновления, остальные экраны будет проще
@@ -1579,9 +1583,10 @@ account detail and manual operations slices:
 
 1. Продолжать точечную CSS/BEM миграцию только при реальной работе с экраном:
    не переписывать naming ради naming.
-2. Довести вспомогательные CRUD/workspace screens до общего языка:
-   categories, rules, properties, users, workspaces. Перед началом каждого
-   slice сверяться с `DESIGN.md` / `Working Screen Contract`.
+2. Довести вспомогательные CRUD/workspace screens до общего языка. Первый
+   следующий slice: transaction rules (`/rules`), затем categories/properties,
+   позже users/workspaces. Перед началом каждого slice сверяться с `DESIGN.md` /
+   `Working Screen Contract`.
 3. Выделить reports как отдельный financial-summary/table slice.
 4. Shared action contract уже начат через `app.shared.ui.actions.ActionVM` and
    `ui-action__*` classes. Дальше усиливать только там, где несколько features
@@ -1589,6 +1594,51 @@ account detail and manual operations slices:
    бизнес-решения в общий UI слой.
 5. Не вводить универсальный financial-row partial, пока account/manual/import
    варианты не покажут стабильный повтор без потери смысла.
+
+## Reference CRUD Slice: Transaction Rules First
+
+Следующий frontend/SSR refactor slice начинается с `/rules`, а не с более
+простых categories/properties. Причина: transaction rules — самый нагруженный
+reference screen и одновременно часть review workflow. Если здесь получится
+убрать шум форм, выстроить action hierarchy и вынести presentation state из
+Jinja без потери ясности, остальные reference screens можно будет привести к
+тому же языку меньшими шагами.
+
+Цель первого rules slice:
+
+- список правил становится главным содержанием экрана;
+- создание правила становится page action / compact accordion, а не большой
+  формой, которая доминирует над списком;
+- редактирование правила открывается как действие на строке/card, а не
+  постоянно занимает место внутри каждого item;
+- в строке есть один primary action, спокойные secondary actions и отдельно
+  danger action;
+- шаблон получает подготовленные labels, title, meta chips, action state and
+  form ids, а не вычисляет category-vs-operation-type fallback сам;
+- правила остаются suggestion/autofill механизмом и не обходят import review или
+  ledger invariants.
+
+Первый implementation slice для `/rules` не должен:
+
+- менять DB schema, rule matching, fixture seeding или import review behavior;
+- вводить универсальный CRUD component для categories/properties/users;
+- удалять старые `entity-card` / `form-panel-embedded` classes глобально;
+- переписывать categories/properties в том же PR/turn;
+- превращать transaction rules в отдельный AI/automation flow.
+
+Ожидаемая архитектурная форма:
+
+```text
+router.py
+  -> application use cases / query use case
+  -> presentation RuleRowVM / RulesPageVM
+  -> feature-owned Jinja partials
+```
+
+`transaction_rules` уже имеет `application/` and `domain/`, поэтому новый слой
+должен быть маленьким `presentation/`, только для UI state. Если в процессе
+окажется, что достаточно локального presenter-free cleanup, это решение нужно
+зафиксировать перед кодом, а не создавать ViewModel ради симметрии.
 
 ---------------
 
