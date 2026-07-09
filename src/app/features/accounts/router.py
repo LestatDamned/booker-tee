@@ -230,6 +230,46 @@ async def restore_account(
     )
 
 
+@router.get(
+    "/{account_id}/operations/{operation_id}/review-fields/edit",
+    response_class=HTMLResponse,
+)
+async def imported_operation_review_fields_panel(
+    request: Request,
+    account_id: UUID,
+    operation_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
+) -> HTMLResponse:
+    operation = await LedgerPostingService(session).get_imported_operation_review(
+        workspace_id=context.workspace.id,
+        operation_id=operation_id,
+        account_id=account_id,
+    )
+    if operation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    categories = await CategoryService(session).list_or_seed_defaults(
+        context.workspace.id,
+        context.workspace.type,
+        include_inactive=True,
+    )
+    properties = await PropertyService(session).list_all(context.workspace.id)
+    edit_panel = AccountDetailPresenter.build_edit_panel(
+        account_id=account_id,
+        operation=operation,
+    )
+    return templates.TemplateResponse(
+        request,
+        "accounts/detail/_movement_edit_panel.html",
+        {
+            "categories": categories,
+            "edit_panel": edit_panel,
+            "operation_statuses": list(OperationStatus),
+            "properties": properties,
+        },
+    )
+
+
 @router.post("/{account_id}/operations/{operation_id}/review-fields")
 async def update_imported_operation_review_fields(
     account_id: UUID,
@@ -243,6 +283,13 @@ async def update_imported_operation_review_fields(
         OperationStatus.CONFIRMED
     ),
 ) -> Response:
+    account_operation = await LedgerPostingService(session).get_imported_operation_review(
+        workspace_id=context.workspace.id,
+        operation_id=operation_id,
+        account_id=account_id,
+    )
+    if account_operation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     try:
         operation = await LedgerPostingService(session).update_imported_operation_review_fields(
             context=context,

@@ -31,8 +31,9 @@ from app.features.ledger.mapping.dto import (
     AccountLedgerDetailView,
     LedgerViewMapper,
     ManualOperationView,
+    OperationRefView,
 )
-from app.features.ledger.models import Operation
+from app.features.ledger.models import Operation, OperationSource
 from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
 
@@ -124,6 +125,33 @@ class LedgerPostingService:
                 total=operation_count,
             ),
         )
+
+    async def get_manual_operation(
+        self,
+        *,
+        workspace_id: UUID,
+        operation_id: UUID,
+    ) -> ManualOperationView | None:
+        operation = await self.ledger.get_operation_for_workspace(workspace_id, operation_id)
+        if operation is None or operation.source != OperationSource.MANUAL:
+            return None
+        return LedgerViewMapper.manual_operation_from_model(operation)
+
+    async def get_imported_operation_review(
+        self,
+        *,
+        workspace_id: UUID,
+        operation_id: UUID,
+        account_id: UUID | None = None,
+    ) -> OperationRefView | None:
+        operation = await self.ledger.get_operation_for_workspace(workspace_id, operation_id)
+        if operation is None or operation.source != OperationSource.BANK_PDF:
+            return None
+        if account_id is not None and all(
+            entry.account_id != account_id for entry in operation.money_entries
+        ):
+            return None
+        return LedgerViewMapper.operation_ref_from_model(operation)
 
     async def undo_raw_transaction_posting(
         self,

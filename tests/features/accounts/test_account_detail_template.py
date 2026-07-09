@@ -9,6 +9,7 @@ from app.features.accounts.presentation.detail.models import (
     AccountDetailPageVM,
     AccountMovementActionVM,
     AccountMovementDrawerVM,
+    AccountMovementEditPanelVM,
     AccountMovementMetaVM,
     AccountMovementVM,
     OperationResultVM,
@@ -136,15 +137,9 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
                             url=f"/imports/documents/{document_id}/review#raw-{raw_transaction_id}",
                         )
                     ],
-                    drawer=AccountMovementDrawerVM(
-                        kind="imported",
-                        title="Исправить операцию",
-                        form_action=f"/accounts/{account_id}/operations/{operation_id}/review-fields",
-                        description='Списание средств по платежу СБП | ООО "ЛЕНТА"',
-                        status=OperationStatus.CONFIRMED,
-                        category_id=category_id,
-                        property_id=None,
-                        source_url=f"/imports/documents/{document_id}/review#raw-{raw_transaction_id}",
+                    edit_panel_id=f"account-movement-edit-panel-{operation_id}",
+                    edit_form_url=(
+                        f"/accounts/{account_id}/operations/{operation_id}/review-fields/edit"
                     ),
                     technical_label=f"ID {operation_id} · из выписки",
                 )
@@ -219,24 +214,22 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "financial-row__actions row-actions account-movement__actions" in html
     assert "action-button action-primary action-edit primary-action" in html
     assert "ui-action__button ui-action__button--primary ui-action__button--edit" in html
+    assert f'hx-get="/accounts/{account_id}/operations/{operation_id}/review-fields/edit"' in html
+    assert 'hx-select=".account-movement-edit-panel-content"' in html
+    assert f'id="account-movement-edit-panel-{operation_id}"' in html
     assert "action-button action-secondary action-source" in html
     assert "ui-action__button ui-action__button--secondary ui-action__button--source" in html
     assert "row-actions__technical account-movement__technical" in html
     assert "financial-row__drawer row-drawer account-movement__drawer" in html
-    assert "row-drawer__header account-movement__drawer-header" in html
-    assert "row-drawer__heading" in html
-    assert "row-drawer__context" in html
+    assert "Загружаем форму..." in html
     assert (
         "row-drawer__form account-movement__drawer-form operation-form operation-form--drawer"
-    ) in html
-    assert "operation-form__fields--primary" in html
-    assert "operation-form__fields--classification" in html
-    assert "operation-form__footer--actions" in html
-    assert "row-drawer__footer account-movement__drawer-submit" in html
-    assert "сохранить изменения" in html
-    assert "импорт" in html
+    ) not in html
+    assert "operation-form__footer--actions" not in row_html
+    assert "row-drawer__footer account-movement__drawer-submit" not in html
+    assert "сохранить изменения" not in html
     assert "Действия с операцией" not in html
-    assert "Исправить операцию" in html
+    assert "Исправить операцию" not in row_html
     assert "строка импорта" in html
     assert "разметка" not in html
     assert "Продукты" in html
@@ -245,3 +238,46 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert f"/imports/documents/{document_id}/review#raw-{raw_transaction_id}" in html
     assert "<th>операция</th>" not in html
     assert html.count('<span class="action-label ui-action__label">строка импорта</span>') == 1
+
+
+def test_account_movement_edit_panel_lazy_loads_review_form() -> None:
+    account_id = uuid4()
+    operation_id = uuid4()
+    category_id = uuid4()
+    property_id = uuid4()
+    templates = create_templates()
+    drawer = AccountMovementEditPanelVM(
+        drawer=AccountMovementDrawerVM(
+            kind="imported",
+            title="Исправить операцию",
+            form_action=f"/accounts/{account_id}/operations/{operation_id}/review-fields",
+            description='Списание средств по платежу СБП | ООО "ЛЕНТА"',
+            status=OperationStatus.CONFIRMED,
+            category_id=category_id,
+            property_id=property_id,
+            source_url=f"/imports/documents/{uuid4()}/review#raw-{uuid4()}",
+        )
+    )
+    html = templates.env.get_template("accounts/detail/_movement_edit_panel.html").render(
+        categories=[SimpleNamespace(id=category_id, name="Продукты")],
+        edit_panel=drawer,
+        operation_statuses=list(OperationStatus),
+        properties=[SimpleNamespace(id=property_id, name="Дом")],
+    )
+
+    assert "account-movement-edit-panel-content" in html
+    assert "row-drawer__header account-movement__drawer-header" in html
+    assert "row-drawer__heading" in html
+    assert "row-drawer__context" in html
+    assert (
+        "row-drawer__form account-movement__drawer-form operation-form operation-form--drawer"
+        in html
+    )
+    assert "operation-form__fields--primary" in html
+    assert "operation-form__fields--classification" in html
+    assert "operation-form__footer--actions" in html
+    assert "row-drawer__footer account-movement__drawer-submit" in html
+    assert "сохранить изменения" in html
+    assert "Исправить операцию" in html
+    assert "Продукты" in html
+    assert "Дом" in html

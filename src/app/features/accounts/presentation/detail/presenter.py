@@ -9,6 +9,7 @@ from app.features.accounts.presentation.detail.models import (
     AccountMovementActionVM,
     AccountMovementBadgeVM,
     AccountMovementDrawerVM,
+    AccountMovementEditPanelVM,
     AccountMovementMetaVM,
     AccountMovementVM,
     OperationResultVM,
@@ -81,8 +82,16 @@ class AccountDetailPresenter:
         presenter_input: AccountDetailPresenterInput,
     ) -> AccountMovementVM:
         source_url = AccountDetailPresenter._source_url(entry.operation)
-        drawer = AccountDetailPresenter._drawer(account.id, entry, source_url, presenter_input)
-        primary_action = AccountDetailPresenter._primary_action(entry, drawer, presenter_input)
+        edit_form_url = AccountDetailPresenter._edit_form_url(
+            account.id,
+            entry.operation,
+            presenter_input,
+        )
+        primary_action = AccountDetailPresenter._primary_action(
+            entry,
+            edit_form_url,
+            presenter_input,
+        )
         secondary_actions = AccountDetailPresenter._secondary_actions(entry, source_url)
         return AccountMovementVM(
             id=f"operation-{entry.operation_id}",
@@ -98,10 +107,29 @@ class AccountDetailPresenter:
             result=AccountDetailPresenter._result(entry.operation),
             primary_action=primary_action,
             secondary_actions=secondary_actions,
-            drawer=drawer,
+            edit_panel_id=(
+                f"account-movement-edit-panel-{entry.operation_id}"
+                if edit_form_url is not None
+                else None
+            ),
+            edit_form_url=edit_form_url,
             technical_label=(
                 f"ID {entry.operation_id} · {source_context_label(entry.operation.source)}"
             ),
+        )
+
+    @staticmethod
+    def build_edit_panel(
+        *,
+        account_id: object,
+        operation: OperationRefView,
+    ) -> AccountMovementEditPanelVM:
+        return AccountMovementEditPanelVM(
+            drawer=AccountDetailPresenter._drawer(
+                account_id=account_id,
+                operation=operation,
+                source_url=AccountDetailPresenter._source_url(operation),
+            )
         )
 
     @staticmethod
@@ -170,12 +198,12 @@ class AccountDetailPresenter:
     @staticmethod
     def _primary_action(
         entry: AccountLedgerEntryView,
-        drawer: AccountMovementDrawerVM | None,
+        edit_form_url: str | None,
         presenter_input: AccountDetailPresenterInput,
     ) -> AccountMovementActionVM | None:
         if not presenter_input.can_write:
             return None
-        if drawer is not None:
+        if edit_form_url is not None:
             return AccountMovementActionVM(
                 id="edit",
                 label="исправить",
@@ -233,23 +261,31 @@ class AccountDetailPresenter:
 
     @staticmethod
     def _drawer(
+        *,
         account_id: object,
-        entry: AccountLedgerEntryView,
+        operation: OperationRefView,
         source_url: str | None,
-        presenter_input: AccountDetailPresenterInput,
-    ) -> AccountMovementDrawerVM | None:
-        if not presenter_input.can_write or entry.operation.source != OperationSource.BANK_PDF:
-            return None
+    ) -> AccountMovementDrawerVM:
         return AccountMovementDrawerVM(
             kind="импорт",
             title="Исправить операцию",
-            form_action=f"/accounts/{account_id}/operations/{entry.operation_id}/review-fields",
-            description=entry.operation.description or "",
-            status=entry.operation.status,
-            category_id=entry.operation.category.id if entry.operation.category else None,
-            property_id=entry.operation.property.id if entry.operation.property else None,
+            form_action=f"/accounts/{account_id}/operations/{operation.id}/review-fields",
+            description=operation.description or "",
+            status=operation.status,
+            category_id=operation.category.id if operation.category else None,
+            property_id=operation.property.id if operation.property else None,
             source_url=source_url,
         )
+
+    @staticmethod
+    def _edit_form_url(
+        account_id: object,
+        operation: OperationRefView,
+        presenter_input: AccountDetailPresenterInput,
+    ) -> str | None:
+        if not presenter_input.can_write or operation.source != OperationSource.BANK_PDF:
+            return None
+        return f"/accounts/{account_id}/operations/{operation.id}/review-fields/edit"
 
     @staticmethod
     def _source_url(operation: OperationRefView) -> str | None:

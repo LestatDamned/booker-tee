@@ -92,7 +92,10 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "x-show=\"operationType === 'transfer'\"" in html
     assert "x-bind:disabled=\"operationType !== 'transfer'\"" in html
     assert f'id="operation-{operation_id}"' in html
-    assert f'class="detached-form" id="manual-operation-form-{operation_id}"' in html
+    assert f'hx-get="/ledger/manual/{operation_id}/edit"' in html
+    assert 'hx-select=".manual-operation-edit-panel-content"' in html
+    assert f'id="manual-operation-edit-panel-{operation_id}"' in html
+    assert f'id="manual-operation-form-{operation_id}"' not in html
     assert "financial-row-list" in html
     assert "manual-operation-row--current" in html
     assert 'name="date_from" type="date"' in html
@@ -108,27 +111,85 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert 'name="operation_id"' in html
     assert "financial-row manual-operation-row manual-operation-row--expense" in html
     assert "row-drawer manual-operation-row__drawer" in html
-    assert "manual-operation-row__drawer-form operation-form operation-form--drawer" in html
+    assert "Загружаем форму..." in html
+    assert "manual-operation-row__drawer-form operation-form operation-form--drawer" not in html
     assert "тип операции" in html
-    assert "сохранить изменения" in html
+    assert "сохранить изменения" not in html
     assert "financial-row__meta-item financial-row__meta-item--expense" in html
     assert "подтверждено" in html
     assert "financial-row__amount manual-operation-row__amount money-value money-expense" in html
     assert "<small>RUB</small>" in html
-    assert f'action="/ledger/manual/{operation_id}"' in html
+    assert f'action="/ledger/manual/{operation_id}"' not in html
     assert f'action="/ledger/manual/{operation_id}/cancel"' in html
     assert "Кофе" in html
     assert "Кафе" in html
     assert "15.06.2026" in html
-    assert "дд.мм.гггг" in html
-    assert "сохранить" in html
-    assert "action-save" in html
+    assert "action-save" not in html
     assert "action-edit" in html
     assert "action-form action-form-secondary action-form-cancel" in html
     assert "ui-action__form ui-action__form--secondary ui-action__form--cancel" in html
     assert "action-button action-secondary action-cancel" in html
     assert "ui-action__button ui-action__button--secondary ui-action__button--cancel" in html
     assert "отменить" in html
+
+
+def test_manual_operation_edit_panel_lazy_loads_form_options() -> None:
+    account_id = uuid4()
+    category_id = uuid4()
+    property_id = uuid4()
+    operation_id = uuid4()
+    account = SimpleNamespace(
+        id=account_id,
+        name="Карта",
+        currency="RUB",
+        type=None,
+        is_active=True,
+        initial_balance=Decimal("0.00"),
+    )
+    operation = SimpleNamespace(
+        id=operation_id,
+        type=OperationType.EXPENSE,
+        status=OperationStatus.CONFIRMED,
+        operation_date=date(2026, 6, 15),
+        description="Кофе",
+        category_id=category_id,
+        category=SimpleNamespace(id=category_id, name="Кафе", kind=CategoryKind.EXPENSE),
+        property_id=property_id,
+        property=SimpleNamespace(id=property_id, name="Дом"),
+        primary_entry=SimpleNamespace(
+            account_id=account_id,
+            account=account,
+            amount=Decimal("-350.00"),
+        ),
+        source_entry=None,
+        destination_entry=None,
+        edit_amount=Decimal("350.00"),
+    )
+    templates = create_templates()
+    edit_panel = ManualOperationsPresenter().build_edit_panel(
+        cast(Any, operation),
+        can_write=True,
+    )
+
+    html = templates.env.get_template("ledger/manual/_edit_panel.html").render(
+        accounts=[account],
+        categories=[operation.category],
+        edit_panel=edit_panel,
+        properties=[operation.property],
+    )
+
+    assert "manual-operation-edit-panel-content" in html
+    assert f'id="manual-operation-form-{operation_id}"' in html
+    assert f'action="/ledger/manual/{operation_id}"' in html
+    assert "Исправить операцию" in html
+    assert "manual-operation-row__drawer-form operation-form operation-form--drawer" in html
+    assert "тип операции" in html
+    assert "дд.мм.гггг" in html
+    assert "Карта · RUB" in html
+    assert "Кафе" in html
+    assert "Дом" in html
+    assert "сохранить изменения" in html
+    assert "action-save" in html
 
 
 def test_manual_operations_template_guides_empty_states() -> None:

@@ -63,7 +63,8 @@ def test_manual_operations_presenter_builds_expense_row() -> None:
     assert row.is_current is True
     assert row.amount_direction == "expense"
     assert row.currency == "RUB"
-    assert row.drawer.account_id == account_id
+    assert row.edit_panel_id == f"manual-operation-edit-panel-{operation_id}"
+    assert row.edit_form_url == f"/ledger/manual/{operation_id}/edit"
     assert [item.label for item in row.meta] == [
         "Кафе",
         "Карта",
@@ -71,10 +72,14 @@ def test_manual_operations_presenter_builds_expense_row() -> None:
     ]
     assert row.primary_action is not None
     assert row.primary_action.action_type == "drawer_toggle"
-    assert row.save_action is not None
-    assert row.save_action.action_type == "submit"
-    assert row.save_action.form_id == f"manual-operation-form-{operation_id}"
     assert row.lifecycle_actions[0].form_action == f"/ledger/manual/{operation_id}/cancel"
+
+    edit_panel = ManualOperationsPresenter().build_edit_panel(operation, can_write=True)
+
+    assert edit_panel.drawer.account_id == account_id
+    assert edit_panel.save_action is not None
+    assert edit_panel.save_action.action_type == "submit"
+    assert edit_panel.save_action.form_id == f"manual-operation-form-{operation_id}"
 
 
 def test_manual_operations_presenter_builds_transfer_row() -> None:
@@ -133,8 +138,10 @@ def test_manual_operations_presenter_builds_transfer_row() -> None:
     assert page_vm.filters_active is True
     assert row.description == "Без описания"
     assert row.amount_direction == "transfer"
-    assert row.drawer.account_id == source_account_id
-    assert row.drawer.destination_account_id == destination_account_id
+    edit_panel = ManualOperationsPresenter().build_edit_panel(operation, can_write=False)
+
+    assert edit_panel.drawer.account_id == source_account_id
+    assert edit_panel.drawer.destination_account_id == destination_account_id
     assert [item.label for item in row.meta] == [
         "Вклад -> Карта",
         "не влияет на прибыль",
@@ -142,7 +149,7 @@ def test_manual_operations_presenter_builds_transfer_row() -> None:
     ]
     assert row.lifecycle_actions == []
     assert row.primary_action is None
-    assert row.save_action is None
+    assert edit_panel.save_action is None
 
 
 def test_manual_operations_presenter_builds_ignored_row_actions() -> None:

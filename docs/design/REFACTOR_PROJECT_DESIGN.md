@@ -1740,8 +1740,11 @@ Current state:
   drawer/panel is closed.
 - Examples:
   - transaction rules now lazy-load edit drawer content via HTMX;
-  - manual operation rows include drawer form controls;
-  - account movement rows include correction drawers;
+  - manual operation rows now lazy-load edit drawer content via HTMX;
+  - account movement rows now lazy-load imported correction drawers via HTMX;
+  - import review still pre-renders review panels; treat lazy review panels as a
+    separate optimization slice because they are coupled to review actions and
+    panel state;
   - properties currently render edit fields directly inside each card.
 
 Why it matters:

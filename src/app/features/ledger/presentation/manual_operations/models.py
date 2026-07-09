@@ -44,11 +44,17 @@ class ManualOperationRowVM:
     meta: list[ManualOperationMetaVM]
     is_current: bool
     is_inactive: bool
-    drawer: ManualOperationDrawerVM
+    edit_panel_id: str
+    edit_form_url: str
     primary_action: ManualOperationActionVM | None
-    save_action: ManualOperationActionVM | None
     lifecycle_actions: list[ManualOperationActionVM]
     danger_actions: list[ManualOperationActionVM]
+
+
+@dataclass(frozen=True)
+class ManualOperationEditPanelVM:
+    drawer: ManualOperationDrawerVM
+    save_action: ManualOperationActionVM | None
 
 
 @dataclass(frozen=True)

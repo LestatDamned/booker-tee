@@ -61,6 +61,11 @@ class AccountMovementDrawerVM:
 
 
 @dataclass(frozen=True)
+class AccountMovementEditPanelVM:
+    drawer: AccountMovementDrawerVM
+
+
+@dataclass(frozen=True)
 class AccountMovementVM:
     id: str
     operation_id: UUID
@@ -75,7 +80,8 @@ class AccountMovementVM:
     result: OperationResultVM
     primary_action: AccountMovementActionVM | None
     secondary_actions: list[AccountMovementActionVM]
-    drawer: AccountMovementDrawerVM | None
+    edit_panel_id: str | None
+    edit_form_url: str | None
     technical_label: str
 
 

@@ -3,10 +3,6 @@
   class="financial-row manual-operation-row manual-operation-row--{{ row.tone }} {% if row.is_current %}manual-operation-row--current{% endif %} {% if row.is_inactive %}manual-operation-row--inactive{% endif %}"
   x-data="{ drawerOpen: false }"
 >
-  {% if can_write %}
-    <form class="detached-form" id="{{ row.drawer.form_id }}" method="post" action="{{ row.drawer.form_action }}">{{ csrf_input() }}</form>
-  {% endif %}
-
   <div class="financial-row__main manual-operation-row__main">
     <div class="financial-row__topline manual-operation-row__topline">
       <span class="financial-row__date manual-operation-row__date">{{ row.date_label }}</span>
@@ -32,97 +28,12 @@
 
   {% if can_write %}
     <div class="financial-row__drawer row-drawer manual-operation-row__drawer" x-show="drawerOpen" x-cloak>
-      <div class="row-drawer__header">
-        <div class="row-drawer__heading">
-          <h3 class="row-drawer__title">Исправить операцию</h3>
-          <span class="row-drawer__context">{{ row.operation_type | ru }}</span>
-        </div>
-      </div>
-
-      <div class="row-drawer__form manual-operation-row__drawer-form operation-form operation-form--drawer" x-data="{ operationType: '{{ row.drawer.operation_type.value }}' }">
-        <div class="operation-form__fields operation-form__fields--primary">
-          <div class="field row-drawer__field operation-type-field operation-form__field operation-form__field--type">
-            <span>тип операции</span>
-            <div class="segmented-control" role="radiogroup" aria-label="Тип операции">
-              <label class="segmented-option segmented-income">
-                <input name="operation_type" type="radio" value="income" form="{{ row.drawer.form_id }}" required {% if row.drawer.operation_type.value == "income" %}checked{% endif %} x-model="operationType">
-                <span>доход</span>
-              </label>
-              <label class="segmented-option segmented-expense">
-                <input name="operation_type" type="radio" value="expense" form="{{ row.drawer.form_id }}" required {% if row.drawer.operation_type.value == "expense" %}checked{% endif %} x-model="operationType">
-                <span>расход</span>
-              </label>
-              <label class="segmented-option segmented-transfer">
-                <input name="operation_type" type="radio" value="transfer" form="{{ row.drawer.form_id }}" required {% if row.drawer.operation_type.value == "transfer" %}checked{% endif %} x-model="operationType">
-                <span>перевод</span>
-              </label>
-            </div>
-          </div>
-          <label class="field row-drawer__field operation-form__field operation-form__field--amount">
-            <span>сумма</span>
-            <input class="amount" name="amount" inputmode="decimal" value="{{ row.drawer.amount or '' }}" form="{{ row.drawer.form_id }}" required>
-          </label>
-          <label class="field row-drawer__field operation-form__field operation-form__field--date">
-            <span>дата</span>
-            <input name="operation_date" inputmode="numeric" value="{{ row.drawer.operation_date }}" form="{{ row.drawer.form_id }}" placeholder="дд.мм.гггг" pattern="\d{2}\.\d{2}\.\d{4}" required>
-          </label>
-        </div>
-
-        <div class="operation-form__fields operation-form__fields--classification">
-          <label class="field row-drawer__field operation-form__field">
-            <span>счет</span>
-            <select name="account_id" form="{{ row.drawer.form_id }}" required>
-              {% for account in accounts %}
-                <option value="{{ account.id }}" {% if row.drawer.account_id == account.id %}selected{% endif %}>
-                  {{ account.name }} · {{ account.currency }}
-                </option>
-              {% endfor %}
-            </select>
-          </label>
-          <label class="field row-drawer__field operation-form__field" x-show="operationType === 'transfer'" x-cloak>
-            <span>счет назначения</span>
-            <select name="destination_account_id" form="{{ row.drawer.form_id }}" x-bind:disabled="operationType !== 'transfer'">
-              <option value="">счет назначения</option>
-              {% for account in accounts %}
-                <option value="{{ account.id }}" {% if row.drawer.destination_account_id == account.id %}selected{% endif %}>
-                  {{ account.name }} · {{ account.currency }}
-                </option>
-              {% endfor %}
-            </select>
-          </label>
-          <label class="field row-drawer__field operation-form__field">
-            <span>категория</span>
-            <select name="category_id" form="{{ row.drawer.form_id }}">
-              <option value="">без категории</option>
-              {% for category in categories %}
-                <option value="{{ category.id }}" {% if row.drawer.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label class="field row-drawer__field operation-form__field">
-            <span>объект</span>
-            <select name="property_id" form="{{ row.drawer.form_id }}">
-              <option value="">без объекта</option>
-              {% for property in properties %}
-                <option value="{{ property.id }}" {% if row.drawer.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
-              {% endfor %}
-            </select>
-          </label>
-        </div>
-
-        <div class="operation-form__fields operation-form__fields--description">
-          <label class="field row-drawer__field row-drawer__field--description operation-form__field operation-form__field--description">
-            <span>описание</span>
-            <input name="description" value="{{ row.drawer.description }}" form="{{ row.drawer.form_id }}" placeholder="Описание">
-          </label>
-        </div>
-
-        <div class="row-drawer__footer operation-form__footer operation-form__footer--actions">
-          {% if row.save_action %}
-            {% set action = row.save_action %}
-            {% include "ui/_action.html" %}
-          {% endif %}
-        </div>
+      <div
+        id="{{ row.edit_panel_id }}"
+        class="manual-operation-row__edit-panel"
+        aria-live="polite"
+      >
+        <p class="row-drawer__loading">Загружаем форму...</p>
       </div>
     </div>
   {% endif %}

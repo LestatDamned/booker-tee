@@ -6,6 +6,7 @@ from app.features.ledger.models import OperationStatus, OperationType
 from app.features.ledger.presentation.manual_operations.models import (
     ManualOperationActionVM,
     ManualOperationDrawerVM,
+    ManualOperationEditPanelVM,
     ManualOperationMetaVM,
     ManualOperationRowVM,
     ManualOperationsPageVM,
@@ -58,11 +59,22 @@ class ManualOperationsPresenter:
             meta=self._meta(operation),
             is_current=focused_operation_id == operation.id,
             is_inactive=operation.status == OperationStatus.IGNORED,
-            drawer=self._drawer(operation),
+            edit_panel_id=f"manual-operation-edit-panel-{operation.id}",
+            edit_form_url=f"/ledger/manual/{operation.id}/edit",
             primary_action=self._primary_action(operation, can_write=can_write),
-            save_action=self._save_action(operation, can_write=can_write),
             lifecycle_actions=self._lifecycle_actions(operation, can_write=can_write),
             danger_actions=self._danger_actions(operation, can_write=can_write),
+        )
+
+    def build_edit_panel(
+        self,
+        operation: ManualOperationView,
+        *,
+        can_write: bool,
+    ) -> ManualOperationEditPanelVM:
+        return ManualOperationEditPanelVM(
+            drawer=self._drawer(operation),
+            save_action=self._save_action(operation, can_write=can_write),
         )
 
     def _meta(self, operation: ManualOperationView) -> list[ManualOperationMetaVM]:

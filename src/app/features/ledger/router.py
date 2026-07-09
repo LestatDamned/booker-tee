@@ -175,6 +175,41 @@ async def create_manual_operation(
     )
 
 
+@router.get("/manual/{operation_id}/edit", response_class=HTMLResponse)
+async def manual_operation_edit_panel(
+    request: Request,
+    operation_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
+) -> HTMLResponse:
+    operation = await LedgerPostingService(session).get_manual_operation(
+        workspace_id=context.workspace.id,
+        operation_id=operation_id,
+    )
+    if operation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    accounts = await AccountService(session).list_active_accounts(context.workspace.id)
+    categories = await CategoryService(session).list_or_seed_defaults(
+        context.workspace.id,
+        context.workspace.type,
+    )
+    properties = await PropertyService(session).list_active(context.workspace.id)
+    edit_panel = ManualOperationsPresenter().build_edit_panel(
+        operation,
+        can_write=True,
+    )
+    return templates.TemplateResponse(
+        request,
+        "ledger/manual/_edit_panel.html",
+        {
+            "accounts": accounts,
+            "categories": categories,
+            "edit_panel": edit_panel,
+            "properties": properties,
+        },
+    )
+
+
 @router.post("/manual/{operation_id}")
 async def update_manual_operation(
     operation_id: UUID,

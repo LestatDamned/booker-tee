@@ -2,7 +2,26 @@
   {% if can_write %}
     {% if row.primary_action %}
       {% set action = row.primary_action %}
-      {% include "ui/_action.html" %}
+      {% if action.id == "edit" %}
+        <button
+          class="button button-small ui-action__button ui-action__button--{{ action.placement }} ui-action__button--{{ action.id }} action-button action-{{ action.placement }} action-{{ action.id }} primary-action"
+          type="button"
+          aria-controls="{{ row.edit_panel_id }}"
+          aria-label="{{ action.label }}"
+          hx-get="{{ row.edit_form_url }}"
+          hx-select=".manual-operation-edit-panel-content"
+          hx-target="#{{ row.edit_panel_id }}"
+          hx-swap="innerHTML show:none settle:300ms"
+          hx-trigger="click once"
+          hx-push-url="false"
+          x-on:click="drawerOpen = !drawerOpen"
+          x-bind:aria-expanded="drawerOpen.toString()"
+        >
+          {{ icon(action.icon) }} <span class="action-label ui-action__label">{{ action.label }}</span>
+        </button>
+      {% else %}
+        {% include "ui/_action.html" %}
+      {% endif %}
     {% endif %}
     {% for action in row.lifecycle_actions %}
       {% include "ui/_action.html" %}
