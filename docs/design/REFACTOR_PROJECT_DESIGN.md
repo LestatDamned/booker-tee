@@ -1640,6 +1640,248 @@ router.py
 окажется, что достаточно локального presenter-free cleanup, это решение нужно
 зафиксировать перед кодом, а не создавать ViewModel ради симметрии.
 
+## Known Scale UX Risks Before Release
+
+Этот раздел фиксирует риски, которые могут быть почти незаметны на небольших
+данных, но неожиданно ударить при реальном использовании. Это не список “сделать
+сразу”, а карта наблюдения и будущих optimization/refactor slices.
+
+### P1: Check Before Release
+
+#### Category Detail Can Become Heavy
+
+Current state:
+
+- `categories/detail.html` renders all confirmed operations for a category in a
+  single table.
+- There is no pagination or compact financial-row listing on the category detail
+  operation table.
+
+Why it matters:
+
+- Categories such as groceries, cafes, marketplace, transport or subscriptions
+  can collect hundreds or thousands of operations faster than rules/properties.
+- This page can become the first reference screen where SSR HTML size, table
+  rendering and browser scrolling feel slow.
+
+Before release:
+
+- test category detail with a large realistic category;
+- check desktop and mobile scroll/readability;
+- check whether the table still helps scanning or becomes noise.
+
+Preferred future direction:
+
+- add pagination/filtering or reuse a compact financial-row list;
+- keep technical details secondary;
+- avoid building a separate report-like mega table inside category detail.
+
+#### Form Error UX Outside Import Review
+
+Current state:
+
+- Import review has the strongest HTMX/partial feedback story.
+- Many CRUD/reference forms still raise plain `400` errors for validation or
+  duplicate-name cases.
+
+Why it matters:
+
+- Release users will make ordinary mistakes: duplicate category, empty name,
+  invalid date, invalid category/property id, archived entity action.
+- A raw error page feels like data loss or system failure even when the backend
+  correctly rejected the action.
+
+Before release:
+
+- manually test common bad inputs on `/rules`, `/categories`, `/properties`,
+  `/ledger/manual`, account detail correction, import review category creation;
+- decide which raw errors are acceptable for private MVP and which need inline
+  handling before release.
+
+Preferred future direction:
+
+- use feature-owned partial/form response for expected validation errors;
+- preserve non-HTMX redirect/error fallback;
+- keep domain/data safety errors explicit and boring.
+
+#### Redirect-Driven Row Actions Still Exist
+
+Current state:
+
+- Import review and transaction rules now have local HTMX updates for important
+  row/list actions.
+- Manual operations, account detail corrections, categories and properties still
+  mostly use full-page redirects after row-level changes.
+
+Why it matters:
+
+- The data remains correct, but the user can lose local context: drawer closes,
+  scroll jumps, filters reset or the row focus changes.
+- This is more noticeable during repeated cleanup work.
+
+Before release:
+
+- verify the main correction workflows are still understandable despite reloads;
+- do not start a broad rewrite unless a workflow is clearly painful.
+
+Preferred future direction:
+
+- apply the `Entity Feedback And Local Update Contract` from `DESIGN.md`;
+- convert one workflow at a time to row/list partial updates;
+- keep redirect fallback.
+
+### P2: Near-Term UX/Scale Debt
+
+#### Hidden Row Forms In Long Lists
+
+Current state:
+
+- Some list rows include edit forms and repeated select options even when the
+  drawer/panel is closed.
+- Examples:
+  - transaction rule rows include edit forms with category/property selects;
+  - manual operation rows include drawer form controls;
+  - account movement rows include correction drawers;
+  - properties currently render edit fields directly inside each card.
+
+Why it matters:
+
+- At 50-200 rows, repeated categories/properties/account selects can produce a
+  much larger DOM than the visible content suggests.
+- The page may feel slow even if the database query is fine.
+
+Preferred future optimization:
+
+- lazy-load row edit drawer via HTMX when the user clicks the edit action;
+- render only the information/action shell initially;
+- cache/reuse reference options where appropriate.
+
+Avoid as first response:
+
+- pagination only to hide repeated form weight. Pagination can hurt reference
+  workflows and does not fix heavy per-row markup.
+
+#### Properties Screen Is Still Admin-Heavy
+
+Current state:
+
+- `properties/index.html` renders edit fields directly in every property card.
+- Actions are not yet aligned with the Entity Work Row language.
+
+Why it matters:
+
+- Objects/properties may start small, but the screen will feel noisy as soon as
+  there are multiple properties/projects.
+- It is likely to inherit the same created-entity and local-update needs as
+  transaction rules.
+
+Preferred future direction:
+
+- convert to Entity Work Row geometry;
+- create form as a page action/compact accordion;
+- edit as row drawer;
+- use Created Entity Feedback Pattern;
+- keep archive/restore secondary and danger actions separated.
+
+#### Created Entity Feedback Should Spread To Reference Screens
+
+Current state:
+
+- Transaction rules now use a recent-created feedback pattern.
+- Categories/properties do not yet use it.
+
+Why it matters:
+
+- In a long reference list, “created successfully” is not enough; the user needs
+  to know what was created and how to find it.
+
+Preferred future direction:
+
+- for categories/properties/users/workspaces, pass `recent_entity_id` into the
+  list partial after create;
+- show compact feedback above the list;
+- highlight the created row calmly;
+- provide a stable anchor link.
+
+#### Filters After Mutating Actions
+
+Current state:
+
+- Transaction rules have list filters and local list replacement.
+- Mutating actions may still return the default list if the active filter state
+  is not carried through hidden fields/query parameters.
+
+Why it matters:
+
+- A user can filter a list, then create/delete/toggle and suddenly see a
+  different list context.
+
+Preferred future direction:
+
+- preserve active filter query state in list-level mutating actions;
+- for row-level updates, prefer replacing only the affected row when possible;
+- when an action removes a row from the current filter result, show a calm list
+  update rather than a surprising jump.
+
+### P3: Observe, Do Not Prematurely Build
+
+#### Transaction Rules Pagination
+
+Current stance:
+
+- Do not add pagination for ~69 rules.
+- Search/filter + created feedback is the better UX for this size.
+
+Watch for:
+
+- 300-500+ rules;
+- large category/property option sets;
+- browser audit showing slow initial render or sluggish interaction;
+- HTML response size becoming noticeably large.
+
+Preferred order if it becomes a problem:
+
+1. lazy-load edit drawers;
+2. keep server-side filtering;
+3. consider pagination only if the visible row count itself is the problem.
+
+#### Manual/Account Per-Page Upper Bound
+
+Current state:
+
+- Manual operations and account detail support pagination up to 200 rows.
+- Rows can include drawer/correction form controls and repeated select options.
+
+Watch for:
+
+- slow rendering at `per_page=200`;
+- mobile scroll fatigue;
+- correction drawer sluggishness.
+
+Preferred future direction:
+
+- keep default page size moderate;
+- lazy-load heavy drawers if needed;
+- keep filters compact and secondary.
+
+#### Template Presentation Logic In Legacy Reference Screens
+
+Current state:
+
+- Categories still group rows in Jinja with `selectattr` and local macro logic.
+- Category detail still computes some display choices in templates.
+
+Why it matters:
+
+- This is acceptable for a simple MVP screen, but it resists consistent action
+  hierarchy, created feedback and local updates.
+
+Preferred future direction:
+
+- when touching categories, introduce a small presenter/page VM;
+- do not create a universal CRUD component;
+- preserve existing backend/service behavior.
+
 ---------------
 
 ## Imports Flow UI/UX Convergence Note
