@@ -37,16 +37,17 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     )
     templates = create_templates()
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+    categories = [SimpleNamespace(id=category_id, name="Продукты")]
+    properties = [SimpleNamespace(id=property_id, name="Квартира")]
 
     html = templates.env.get_template("transaction_rules/index.html").render(
         app_name="Booker Tee",
-        application_modes=list(TransactionRuleApplicationMode),
-        categories=[SimpleNamespace(id=category_id, name="Продукты")],
-        directions=list(MoneyDirection),
-        match_types=list(TransactionRuleMatchType),
-        operation_types=list(OperationType),
-        page=TransactionRulesPagePresenter.build(cast(Any, [rule]), can_write=True),
-        properties=[SimpleNamespace(id=property_id, name="Квартира")],
+        page=TransactionRulesPagePresenter.build(
+            cast(Any, [rule]),
+            categories=cast(Any, categories),
+            properties=cast(Any, properties),
+            can_write=True,
+        ),
         workspace=SimpleNamespace(name="Personal"),
     )
 
@@ -90,13 +91,12 @@ def test_transaction_rules_template_empty_state_points_to_rule_form() -> None:
 
     html = templates.env.get_template("transaction_rules/index.html").render(
         app_name="Booker Tee",
-        application_modes=list(TransactionRuleApplicationMode),
-        categories=[],
-        directions=list(MoneyDirection),
-        match_types=list(TransactionRuleMatchType),
-        operation_types=list(OperationType),
-        page=TransactionRulesPagePresenter.build([], can_write=True),
-        properties=[],
+        page=TransactionRulesPagePresenter.build(
+            [],
+            categories=[],
+            properties=[],
+            can_write=True,
+        ),
         workspace=SimpleNamespace(name="Personal"),
     )
 
@@ -143,7 +143,12 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
         amount_max=Decimal("1000.00"),
     )
 
-    page = TransactionRulesPagePresenter.build(cast(Any, [rule]), can_write=True)
+    page = TransactionRulesPagePresenter.build(
+        cast(Any, [rule]),
+        categories=cast(Any, [SimpleNamespace(id=category_id, name="Такси")]),
+        properties=[],
+        can_write=True,
+    )
     row = page.rules[0]
 
     assert page.total_rule_count == 1
@@ -160,6 +165,12 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
         "расход",
         "до 1000.00",
     ]
-    assert row.save_action.form_id == f"rule-form-{rule_id}"
+    assert row.form.submit_action.form_id == f"rule-form-{rule_id}"
+    assert selected_values(row.form.category_options) == [str(category_id)]
+    assert selected_values(row.form.property_options) == [""]
     assert row.toggle_action.hidden_fields == {"is_active": "true"}
     assert row.delete_action.style == "danger"
+
+
+def selected_values(options: list[Any]) -> list[str]:
+    return [option.value for option in options if option.selected]

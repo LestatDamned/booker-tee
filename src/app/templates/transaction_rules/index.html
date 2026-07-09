@@ -25,84 +25,9 @@
     {% if can_write %}
       <details class="action-details action-accordion rule-create-details">
         <summary>{{ icon("plus") }} новое правило</summary>
-        <form id="new-rule" class="form-panel form-panel-embedded rule-form rule-create-form" method="post" action="/rules">
-          {{ csrf_input() }}
-          <label class="field form-field-half">
-            <span>название</span>
-            <input name="name" placeholder="Название правила" required>
-          </label>
-          <label class="field form-field-half">
-            <span>шаблон</span>
-            <input name="pattern" placeholder="например, KRASNOE&BELOE" required>
-          </label>
-          <label class="field form-field-quarter">
-            <span>операция</span>
-            <select name="target_operation_type">
-              <option value="">тип операции</option>
-              {% for operation_type in operation_types %}
-                <option value="{{ operation_type.value }}">{{ operation_type | ru }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label class="field form-field-half">
-            <span>категория</span>
-            <select name="category_id">
-              <option value="">без категории</option>
-              {% for category in categories %}
-                <option value="{{ category.id }}">{{ category.name }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <div class="form-actions">
-            <button class="button primary-action" type="submit">{{ icon("plus") }} создать правило</button>
-          </div>
-          <details class="rule-advanced-details form-field-full">
-            <summary>Условия применения</summary>
-            <div class="rule-advanced-grid">
-              <label class="field">
-                <span>поиск</span>
-                <select name="match_type" required>
-                  {% for match_type in match_types %}
-                    <option value="{{ match_type.value }}">{{ match_type | ru }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label class="field">
-                <span>режим</span>
-                <select name="application_mode" required>
-                  {% for application_mode in application_modes %}
-                    <option value="{{ application_mode.value }}">{{ application_mode | ru }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label class="field">
-                <span>направление</span>
-                <select name="direction" required>
-                  {% for direction in directions %}
-                    <option value="{{ direction.value }}">{{ direction | ru }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label class="field">
-                <span>объект</span>
-                <select name="property_id">
-                  <option value="">без объекта</option>
-                  {% for property in properties %}
-                    <option value="{{ property.id }}">{{ property.name }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label class="field">
-                <span>мин. сумма</span>
-                <input class="amount" name="amount_min" inputmode="decimal" placeholder="0.00">
-              </label>
-              <label class="field">
-                <span>макс. сумма</span>
-                <input class="amount" name="amount_max" inputmode="decimal" placeholder="0.00">
-              </label>
-            </div>
-          </details>
-        </form>
+        {% set form = page.create_form %}
+        {% set form_class = "rule-create-form" %}
+        {% include "transaction_rules/_rule_form.html" %}
       </details>
     {% endif %}
   </section>

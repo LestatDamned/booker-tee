@@ -12,6 +12,31 @@ from app.shared.ui.actions import ActionVM
 
 
 @dataclass(frozen=True)
+class RuleFormOptionVM:
+    value: str
+    label: str
+    selected: bool = False
+
+
+@dataclass(frozen=True)
+class RuleFormVM:
+    id: str
+    action: str
+    pattern: str
+    show_name: bool
+    name: str
+    operation_type_options: list[RuleFormOptionVM]
+    category_options: list[RuleFormOptionVM]
+    property_options: list[RuleFormOptionVM]
+    match_type_options: list[RuleFormOptionVM]
+    application_mode_options: list[RuleFormOptionVM]
+    direction_options: list[RuleFormOptionVM]
+    amount_min: Decimal | None
+    amount_max: Decimal | None
+    submit_action: ActionVM
+
+
+@dataclass(frozen=True)
 class RuleMetaVM:
     label: str
     tone: str | None = None
@@ -37,8 +62,8 @@ class RuleRowVM:
     amount_min: Decimal | None
     amount_max: Decimal | None
     meta: list[RuleMetaVM]
+    form: RuleFormVM
     technical_label: str
-    save_action: ActionVM
     toggle_action: ActionVM
     delete_action: ActionVM
 
@@ -46,6 +71,7 @@ class RuleRowVM:
 @dataclass(frozen=True)
 class RulesPageVM:
     rules: list[RuleRowVM]
+    create_form: RuleFormVM
     can_write: bool
     total_rule_count: int
     active_rule_count: int

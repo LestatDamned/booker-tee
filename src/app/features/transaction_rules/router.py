@@ -10,7 +10,6 @@ from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.categories.service import CategoryService
-from app.features.ledger.models import OperationType
 from app.features.properties.service import PropertyService
 from app.features.transaction_rules.application.fixture_seeding import DefaultMerchantRuleSeeder
 from app.features.transaction_rules.application.rule_management import (
@@ -55,20 +54,16 @@ async def rules_index(
     rules = await TransactionRuleQueryUseCase(session).list_rules(context.workspace.id)
     page = TransactionRulesPagePresenter.build(
         rules,
+        categories=categories,
+        properties=properties,
         can_write=permission_flags_for(context.membership).can_write_financial_data,
     )
     return templates.TemplateResponse(
         request,
         "transaction_rules/index.html",
         {
-            "application_modes": list(TransactionRuleApplicationMode),
             "app_name": settings.app_name,
-            "categories": categories,
-            "directions": list(MoneyDirection),
-            "match_types": list(TransactionRuleMatchType),
-            "operation_types": list(OperationType),
             "page": page,
-            "properties": properties,
             "workspace": context.workspace,
         },
     )

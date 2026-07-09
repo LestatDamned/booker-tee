@@ -21,89 +21,9 @@
     {% if can_write %}
       <details class="action-details action-accordion rule-card__edit">
         <summary class="primary-action">{{ icon("settings") }} изменить правило</summary>
-        <form id="{{ rule.form_id }}" class="form-panel form-panel-embedded rule-form rule-edit-form" method="post" action="{{ rule.form_action }}">
-          {{ csrf_input() }}
-          <label class="field form-field-half">
-            <span>шаблон</span>
-            <input name="pattern" value="{{ rule.pattern }}" required>
-          </label>
-          <label class="field form-field-quarter">
-            <span>операция</span>
-            <select name="target_operation_type">
-              <option value="">тип</option>
-              {% for operation_type in operation_types %}
-                <option value="{{ operation_type.value }}" {% if rule.target_operation_type == operation_type %}selected{% endif %}>
-                  {{ operation_type | ru }}
-                </option>
-              {% endfor %}
-            </select>
-          </label>
-          <label class="field form-field-half">
-            <span>категория</span>
-            <select name="category_id">
-              <option value="">без категории</option>
-              {% for category in categories %}
-                <option value="{{ category.id }}" {% if rule.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <details class="rule-advanced-details form-field-full">
-            <summary>Условия применения</summary>
-            <div class="rule-advanced-grid">
-              <label class="field">
-                <span>поиск</span>
-                <select name="match_type">
-                  {% for match_type in match_types %}
-                    <option value="{{ match_type.value }}" {% if rule.match_type == match_type %}selected{% endif %}>
-                      {{ match_type | ru }}
-                    </option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label class="field">
-                <span>режим</span>
-                <select name="application_mode">
-                  {% for application_mode in application_modes %}
-                    <option value="{{ application_mode.value }}" {% if rule.application_mode == application_mode %}selected{% endif %}>
-                      {{ application_mode | ru }}
-                    </option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label class="field">
-                <span>направление</span>
-                <select name="direction">
-                  {% for direction in directions %}
-                    <option value="{{ direction.value }}" {% if rule.direction == direction %}selected{% endif %}>
-                      {{ direction | ru }}
-                    </option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label class="field">
-                <span>объект</span>
-                <select name="property_id">
-                  <option value="">без объекта</option>
-                  {% for property in properties %}
-                    <option value="{{ property.id }}" {% if rule.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label class="field">
-                <span>мин.</span>
-                <input class="amount" name="amount_min" inputmode="decimal" value="{{ rule.amount_min or "" }}" placeholder="Мин.">
-              </label>
-              <label class="field">
-                <span>макс.</span>
-                <input class="amount" name="amount_max" inputmode="decimal" value="{{ rule.amount_max or "" }}" placeholder="Макс.">
-              </label>
-            </div>
-          </details>
-          <div class="form-actions rule-form__footer">
-            {% set action = rule.save_action %}
-            {% include "ui/_action.html" %}
-          </div>
-        </form>
+        {% set form = rule.form %}
+        {% set form_class = "rule-edit-form" %}
+        {% include "transaction_rules/_rule_form.html" %}
       </details>
     {% endif %}
   </div>
