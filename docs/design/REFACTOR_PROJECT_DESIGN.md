@@ -1691,6 +1691,8 @@ Current state:
   user-facing feedback and preserved form values for expected creation errors.
 - Properties create form now returns the properties page with inline
   user-facing feedback and preserved form values for expected creation errors.
+- Properties edit rows now return the properties page with row-scoped inline
+  feedback and preserved row form values for expected update errors.
 - Many CRUD/reference forms still raise plain `400` errors for validation or
   duplicate-name cases.
 

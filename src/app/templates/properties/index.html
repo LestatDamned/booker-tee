@@ -53,6 +53,8 @@
       <div class="entity-card-list">
         {% for property in properties %}
           {% set property_form_id = "property-form-" ~ property.id %}
+          {% set edit_error = edit_error_by_property_id[property.id] if edit_error_by_property_id is defined and property.id in edit_error_by_property_id else none %}
+          {% set edit_values = edit_values_by_property_id[property.id] if edit_values_by_property_id is defined and property.id in edit_values_by_property_id else none %}
           <article class="entity-card {% if property.status.value == "archived" %}entity-card-inactive{% endif %}">
             <div class="entity-card-main">
               <div class="entity-card-title">
@@ -66,17 +68,20 @@
               {% if can_write %}
                 <form class="detached-form" id="{{ property_form_id }}" method="post" action="/properties/{{ property.id }}">{{ csrf_input() }}</form>
                 <div class="form-panel form-panel-embedded">
+                  {% if edit_error %}
+                    <div class="form-error" role="alert">{{ edit_error }}</div>
+                  {% endif %}
                   <div class="field form-field-third">
                     <label for="name-{{ property.id }}">Название</label>
-                    <input id="name-{{ property.id }}" name="name" value="{{ property.name }}" form="{{ property_form_id }}" required>
+                    <input id="name-{{ property.id }}" name="name" value="{{ edit_values.name if edit_values else property.name }}" form="{{ property_form_id }}" required>
                   </div>
                   <div class="field form-field-third">
                     <label for="short-name-{{ property.id }}">Коротко</label>
-                    <input id="short-name-{{ property.id }}" name="short_name" value="{{ property.short_name or "" }}" placeholder="Коротко" form="{{ property_form_id }}">
+                    <input id="short-name-{{ property.id }}" name="short_name" value="{{ edit_values.short_name if edit_values else property.short_name or "" }}" placeholder="Коротко" form="{{ property_form_id }}">
                   </div>
                   <div class="field form-field-third">
                     <label for="address-{{ property.id }}">Адрес</label>
-                    <input id="address-{{ property.id }}" name="address" value="{{ property.address or "" }}" placeholder="Адрес" form="{{ property_form_id }}">
+                    <input id="address-{{ property.id }}" name="address" value="{{ edit_values.address if edit_values else property.address or "" }}" placeholder="Адрес" form="{{ property_form_id }}">
                   </div>
                 </div>
               {% endif %}

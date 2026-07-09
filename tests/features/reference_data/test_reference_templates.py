@@ -256,3 +256,46 @@ def test_properties_template_shows_create_error_and_keeps_values() -> None:
     assert 'value="Дом"' in html
     assert 'value="D"' in html
     assert 'value="Красноярск"' in html
+
+
+def test_properties_template_shows_edit_error_and_keeps_row_values() -> None:
+    property_id = uuid4()
+    other_property_id = uuid4()
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("properties/index.html").render(
+        app_name="Booker Tee",
+        workspace=SimpleNamespace(name="Personal"),
+        properties=[
+            SimpleNamespace(
+                id=property_id,
+                name="9 Maya 20",
+                short_name="9M20",
+                address="Krasnoyarsk",
+                status=PropertyStatus.ACTIVE,
+            ),
+            SimpleNamespace(
+                id=other_property_id,
+                name="Office",
+                short_name="OFF",
+                address="Moscow",
+                status=PropertyStatus.ACTIVE,
+            ),
+        ],
+        edit_error_by_property_id={property_id: "Название объекта обязательно."},
+        edit_values_by_property_id={
+            property_id: {
+                "name": "Дом",
+                "short_name": "D",
+                "address": "Красноярск",
+            },
+        },
+    )
+
+    assert html.count('role="alert"') == 1
+    assert "Название объекта обязательно." in html
+    assert f'id="name-{property_id}" name="name" value="Дом"' in html
+    assert f'id="short-name-{property_id}" name="short_name" value="D"' in html
+    assert f'id="address-{property_id}" name="address" value="Красноярск"' in html
+    assert f'id="name-{other_property_id}" name="name" value="Office"' in html

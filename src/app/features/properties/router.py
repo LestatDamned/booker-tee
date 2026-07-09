@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,6 +46,8 @@ async def property_index_response(
     create_name: str = "",
     create_short_name: str = "",
     create_address: str = "",
+    edit_error_by_property_id: dict[UUID, str] | None = None,
+    edit_values_by_property_id: dict[UUID, dict[str, str]] | None = None,
     status_code: int = status.HTTP_200_OK,
 ) -> HTMLResponse:
     properties = await PropertyService(session).list_all(context.workspace.id)
@@ -60,6 +62,8 @@ async def property_index_response(
             "create_name": create_name,
             "create_short_name": create_short_name,
             "create_address": create_address,
+            "edit_error_by_property_id": edit_error_by_property_id or {},
+            "edit_values_by_property_id": edit_values_by_property_id or {},
         },
         status_code=status_code,
     )
@@ -101,7 +105,9 @@ async def create_property(
 @router.post("/{property_id}")
 async def update_property(
     property_id: UUID,
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     name: Annotated[str, Form()],
     short_name: Annotated[str | None, Form()] = None,
@@ -116,7 +122,21 @@ async def update_property(
             address=address,
         )
     except PropertyError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return await property_index_response(
+            request=request,
+            session=session,
+            settings=settings,
+            context=context,
+            edit_error_by_property_id={property_id: str(exc)},
+            edit_values_by_property_id={
+                property_id: {
+                    "name": name,
+                    "short_name": short_name or "",
+                    "address": address or "",
+                },
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     return RedirectResponse(url="/properties", status_code=status.HTTP_303_SEE_OTHER)
 
