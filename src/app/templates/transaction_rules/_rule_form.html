@@ -3,6 +3,14 @@
   class="{% if form.layout == "create" %}form-panel form-panel-embedded{% else %}row-drawer__form operation-form operation-form--drawer{% endif %} rule-form rule-form--{{ form.layout }} {{ form_class }}"
   method="post"
   action="{{ form.action }}"
+  {% if form.layout == "create" %}
+    hx-boost="true"
+    hx-select="#rules-list-panel"
+    hx-target="#rules-list-panel"
+    hx-swap="outerHTML show:none settle:600ms"
+    hx-push-url="false"
+    hx-on::after-request="if (event.detail.successful) this.reset()"
+  {% endif %}
 >
   {{ csrf_input() }}
   {% if form.layout == "create" %}

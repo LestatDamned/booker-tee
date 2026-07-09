@@ -66,7 +66,12 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert "/rules/seed-defaults" in html
     assert "seed-expobank" not in html
     assert "загрузить базовые правила" in html
+    assert "rules-page-actions" in html
     assert "создать правило" in html
+    assert 'id="rules-list-panel"' in html
+    assert 'hx-target="#rules-list-panel"' in html
+    assert 'hx-select="#rules-list-panel"' in html
+    assert 'hx-on::after-request="if (event.detail.successful) this.reset()"' in html
     assert "entity-card-list" in html
     assert "entity-card" in html
     assert 'hx-boost="true"' in html
@@ -93,7 +98,6 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert "SAMOKAT" in html
     assert "сохранить" in html
     assert "выключить" in html
-    assert 'hx-boost="false"' in html
     assert "danger-zone review-actions__menu-section review-actions__danger-zone" in html
     assert "<summary>ID</summary>" not in html
     assert f"ID {rule_id}" in html
@@ -117,6 +121,7 @@ def test_transaction_rules_template_empty_state_points_to_rule_form() -> None:
     )
 
     assert 'id="new-rule"' in html
+    assert 'id="rules-list-panel"' in html
     assert "Правил транзакций пока нет" in html
     assert "минимальные подсказки для частых операций" in html
     assert 'href="#new-rule"' not in html

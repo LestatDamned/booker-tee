@@ -22,6 +22,7 @@ from app.features.transaction_rules.models import (
     TransactionRuleApplicationMode,
     TransactionRuleMatchType,
 )
+from app.features.transaction_rules.presentation.models import RulesPageVM
 from app.features.transaction_rules.presentation.presenter import TransactionRulesPagePresenter
 from app.features.transaction_rules.router_forms import (
     build_create_rule_command,
@@ -46,16 +47,9 @@ async def rules_index(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
-    categories = await CategoryService(session).list_or_seed_defaults(
-        context.workspace.id,
-        context.workspace.type,
-    )
-    properties = await PropertyService(session).list_active(context.workspace.id)
-    rules = await TransactionRuleQueryUseCase(session).list_rules(context.workspace.id)
-    page = TransactionRulesPagePresenter.build(
-        rules,
-        categories=categories,
-        properties=properties,
+    page = await build_rules_page(
+        session=session,
+        context=context,
         can_write=permission_flags_for(context.membership).can_write_financial_data,
     )
     return templates.TemplateResponse(
@@ -71,6 +65,7 @@ async def rules_index(
 
 @router.post("")
 async def create_rule(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     pattern: Annotated[str, Form()],
@@ -102,15 +97,28 @@ async def create_rule(
         )
     except (ValueError, TransactionRuleError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if is_htmx_request(request):
+        return await render_rules_list_response(
+            request=request,
+            session=session,
+            context=context,
+        )
     return RedirectResponse(url=rule_anchor_url(rule.id), status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/seed-defaults")
 async def seed_default_rules(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
     await DefaultMerchantRuleSeeder(session).seed(context)
+    if is_htmx_request(request):
+        return await render_rules_list_response(
+            request=request,
+            session=session,
+            context=context,
+        )
     return RedirectResponse(url="/rules", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -185,6 +193,7 @@ async def toggle_rule(
 
 @router.post("/{rule_id}/delete")
 async def delete_rule(
+    request: Request,
     rule_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
@@ -193,6 +202,12 @@ async def delete_rule(
         workspace_id=context.workspace.id,
         rule_id=rule_id,
     )
+    if is_htmx_request(request):
+        return await render_rules_list_response(
+            request=request,
+            session=session,
+            context=context,
+        )
     return RedirectResponse(url="/rules", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -230,6 +245,46 @@ async def render_rule_row_response(
             "rule": row,
             "can_write": True,
         },
+    )
+
+
+async def render_rules_list_response(
+    *,
+    request: Request,
+    session: AsyncSession,
+    context: WorkspaceContext,
+) -> HTMLResponse:
+    page = await build_rules_page(
+        session=session,
+        context=context,
+        can_write=True,
+    )
+    return templates.TemplateResponse(
+        request,
+        "transaction_rules/_rule_list_panel.html",
+        {
+            "page": page,
+        },
+    )
+
+
+async def build_rules_page(
+    *,
+    session: AsyncSession,
+    context: WorkspaceContext,
+    can_write: bool,
+) -> RulesPageVM:
+    categories = await CategoryService(session).list_or_seed_defaults(
+        context.workspace.id,
+        context.workspace.type,
+    )
+    properties = await PropertyService(session).list_active(context.workspace.id)
+    rules = await TransactionRuleQueryUseCase(session).list_rules(context.workspace.id)
+    return TransactionRulesPagePresenter.build(
+        rules,
+        categories=categories,
+        properties=properties,
+        can_write=can_write,
     )
 
 

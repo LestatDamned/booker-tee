@@ -1,0 +1,23 @@
+{% from "components/empty_state.html" import empty_state %}
+
+{% set can_write = page.can_write %}
+
+<section id="rules-list-panel" class="panel stack rules-list-panel">
+  <div>
+    <p class="eyebrow">{{ page.rule_count_label }}</p>
+    <h2>Правила</h2>
+  </div>
+
+  {% if page.rules %}
+    <div class="entity-card-list rule-card-list">
+      {% for rule in page.rules %}
+        {% include "transaction_rules/_rule_row.html" %}
+      {% endfor %}
+    </div>
+  {% else %}
+    {{ empty_state(
+      "Правил транзакций пока нет",
+      "Загрузите базовые правила в начале: они дадут минимальные подсказки для частых операций из выписки. Свои правила можно добавлять позже прямо во время проверки строк."
+    ) }}
+  {% endif %}
+</section>

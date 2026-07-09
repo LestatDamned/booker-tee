@@ -42,7 +42,13 @@
             <code>{{ rule.technical_label }}</code>
           </div>
         </div>
-        <div class="danger-zone review-actions__menu-section review-actions__danger-zone" hx-boost="false">
+        <div
+          class="danger-zone review-actions__menu-section review-actions__danger-zone"
+          hx-select="#rules-list-panel"
+          hx-target="#rules-list-panel"
+          hx-swap="outerHTML show:none settle:600ms"
+          hx-push-url="false"
+        >
           <div class="action-title review-actions__menu-title">Опасная зона</div>
           {% set action = rule.delete_action %}
           {% include "ui/_action.html" %}

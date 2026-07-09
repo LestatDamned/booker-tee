@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% from "components/empty_state.html" import empty_state %}
 {% from "components/inline_hint.html" import inline_hint %}
 
 {% block title %}Правила · {{ app_name }}{% endblock %}
@@ -13,8 +12,17 @@
         <h1>Правила транзакций</h1>
       </div>
       {% if can_write %}
-        {% set action = page.seed_defaults_action %}
-        {% include "ui/_action.html" %}
+        <div
+          class="rules-page-actions"
+          hx-boost="true"
+          hx-select="#rules-list-panel"
+          hx-target="#rules-list-panel"
+          hx-swap="outerHTML show:none settle:600ms"
+          hx-push-url="false"
+        >
+          {% set action = page.seed_defaults_action %}
+          {% include "ui/_action.html" %}
+        </div>
       {% endif %}
     </div>
 
@@ -36,23 +44,5 @@
     {% endif %}
   </section>
 
-  <section class="panel stack">
-    <div>
-      <p class="eyebrow">{{ page.rule_count_label }}</p>
-      <h2>Правила</h2>
-    </div>
-
-    {% if page.rules %}
-      <div class="entity-card-list rule-card-list">
-        {% for rule in page.rules %}
-          {% include "transaction_rules/_rule_row.html" %}
-        {% endfor %}
-      </div>
-    {% else %}
-      {{ empty_state(
-        "Правил транзакций пока нет",
-        "Загрузите базовые правила в начале: они дадут минимальные подсказки для частых операций из выписки. Свои правила можно добавлять позже прямо во время проверки строк."
-      ) }}
-    {% endif %}
-  </section>
+  {% include "transaction_rules/_rule_list_panel.html" %}
 {% endblock %}
