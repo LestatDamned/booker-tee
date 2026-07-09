@@ -21,6 +21,7 @@ class PropertyRowVM:
     edit_form: PropertyFormStateVM
     edit_panel_open: bool
     is_inactive: bool
+    is_recent: bool
     status_label: str
     status_tone: str
     short_name_label: str | None
@@ -34,6 +35,7 @@ class PropertyRowVM:
 @dataclass(frozen=True)
 class PropertiesPageVM:
     rows: list[PropertyRowVM]
+    recent_property: PropertyRowVM | None
     create_form: PropertyFormStateVM
     create_form_id: str
     create_label: str

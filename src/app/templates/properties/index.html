@@ -62,12 +62,31 @@
       <div class="form-error" role="alert">{{ page.lifecycle_error }}</div>
     {% endif %}
 
+    {% if page.recent_property %}
+      <div class="property-list-feedback">
+        <div>
+          <p class="eyebrow">объект готов</p>
+          <strong>{{ page.recent_property.property.name }}</strong>
+          <span>
+            {% if page.recent_property.address_label %}
+              {{ page.recent_property.address_label }}
+            {% elif page.recent_property.short_name_label %}
+              {{ page.recent_property.short_name_label }}
+            {% else %}
+              можно использовать в операциях и правилах
+            {% endif %}
+          </span>
+        </div>
+        <a class="meta-link property-list-feedback__link" href="#{{ page.recent_property.anchor_id }}">Показать в списке</a>
+      </div>
+    {% endif %}
+
     {% if page.rows %}
       <div class="entity-card-list">
         {% for row in page.rows %}
           {% set property = row.property %}
           {% set edit_form = row.edit_form %}
-          <article id="{{ row.anchor_id }}" class="financial-row entity-card property-card {% if row.is_inactive %}entity-card-inactive{% endif %}">
+          <article id="{{ row.anchor_id }}" class="financial-row entity-card property-card {% if row.is_inactive %}entity-card-inactive{% endif %} {% if row.is_recent %}property-card--recent{% endif %}">
             <div class="financial-row__main entity-card-main property-card__main">
               <div class="financial-row__topline property-card__topline">
                 <div class="entity-card-title property-card__title">

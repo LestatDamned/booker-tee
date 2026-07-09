@@ -4235,6 +4235,41 @@ pre {
   border-left-color: color-mix(in srgb, var(--muted) 48%, var(--border));
 }
 
+.property-card--recent {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent));
+}
+
+.property-list-feedback {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-left: 3px solid color-mix(in srgb, var(--accent) 70%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 86%, var(--accent));
+  padding: 10px 12px;
+}
+
+.property-list-feedback > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.property-list-feedback strong {
+  overflow-wrap: anywhere;
+}
+
+.property-list-feedback span {
+  color: var(--muted);
+}
+
+.property-list-feedback__link {
+  white-space: nowrap;
+}
+
 .property-create-details {
   border-color: color-mix(in srgb, var(--border) 76%, transparent);
   border-radius: 8px;

@@ -333,6 +333,7 @@ def test_properties_template_uses_row_drawer_editing() -> None:
     assert "property-create-details" in html
     assert 'property-create-details" open' not in html
     assert "создать объект" in html
+    assert "объект готов" not in html
     assert "к чему относится операция" in html
     assert "квартира" in html
     assert "семейная цель" in html
@@ -347,6 +348,39 @@ def test_properties_template_uses_row_drawer_editing() -> None:
     assert "Еще действия" in html
     assert f"ID {property_id}" in html
     assert f'id="property-{property_id}"' in html
+
+
+def test_properties_template_shows_recent_created_feedback() -> None:
+    property_id = uuid4()
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("properties/index.html").render(
+        app_name="Booker Tee",
+        workspace=SimpleNamespace(name="Personal"),
+        property_page=PropertiesPagePresenter.build_index(
+            cast(
+                Any,
+                [
+                    SimpleNamespace(
+                        id=property_id,
+                        name="9 Maya 20",
+                        short_name="9M20",
+                        address="Krasnoyarsk",
+                        status=PropertyStatus.ACTIVE,
+                    )
+                ],
+            ),
+            recent_property_id=property_id,
+        ),
+    )
+
+    assert "объект готов" in html
+    assert "9 Maya 20" in html
+    assert "Krasnoyarsk" in html
+    assert "Показать в списке" in html
+    assert f'href="#property-{property_id}"' in html
+    assert "property-card--recent" in html
 
 
 def test_properties_template_shows_create_error_and_keeps_values() -> None:

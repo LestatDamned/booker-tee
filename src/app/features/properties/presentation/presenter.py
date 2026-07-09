@@ -18,17 +18,21 @@ class PropertiesPagePresenter:
         create_form: PropertyFormStateVM | None = None,
         edit_forms_by_property_id: dict[UUID, PropertyFormStateVM] | None = None,
         lifecycle_error: str | None = None,
+        recent_property_id: UUID | None = None,
     ) -> PropertiesPageVM:
         edit_forms = edit_forms_by_property_id or {}
         resolved_create_form = create_form or default_property_form_state()
+        rows = [
+            property_row_vm(
+                property_,
+                edit_form=edit_forms.get(property_.id),
+                is_recent=property_.id == recent_property_id,
+            )
+            for property_ in properties
+        ]
         return PropertiesPageVM(
-            rows=[
-                property_row_vm(
-                    property_,
-                    edit_form=edit_forms.get(property_.id),
-                )
-                for property_ in properties
-            ],
+            rows=rows,
+            recent_property=next((row for row in rows if row.is_recent), None),
             create_form=resolved_create_form,
             create_form_id="property-create-form",
             create_label="создать объект",
@@ -73,6 +77,7 @@ def property_row_vm(
     property_: Property,
     *,
     edit_form: PropertyFormStateVM | None = None,
+    is_recent: bool = False,
 ) -> PropertyRowVM:
     form_id = f"property-form-{property_.id}"
     edit_summary_id = f"property-edit-toggle-{property_.id}"
@@ -91,6 +96,7 @@ def property_row_vm(
         edit_form=resolved_edit_form,
         edit_panel_open=bool(resolved_edit_form.error),
         is_inactive=is_archived,
+        is_recent=is_recent,
         status_label=ru_label(property_.status),
         status_tone="archived" if is_archived else "active",
         short_name_label=property_.short_name,

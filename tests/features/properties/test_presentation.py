@@ -7,6 +7,7 @@ from app.features.properties.presentation.presenter import (
     PropertiesPagePresenter,
     property_form_state,
 )
+from app.features.properties.router import property_recent_url
 
 
 def test_properties_presenter_builds_create_and_row_edit_state() -> None:
@@ -49,6 +50,7 @@ def test_properties_presenter_builds_create_and_row_edit_state() -> None:
             )
         },
         lifecycle_error="Объект не найден в этом workspace.",
+        recent_property_id=property_id,
     )
 
     assert page.create_form.name == "Дом"
@@ -57,9 +59,11 @@ def test_properties_presenter_builds_create_and_row_edit_state() -> None:
     assert page.create_panel_open
     assert page.create_submit_action.form_id == "property-create-form"
     assert page.lifecycle_error == "Объект не найден в этом workspace."
+    assert page.recent_property is page.rows[0]
     assert page.rows[0].form_id == f"property-form-{property_id}"
     assert page.rows[0].anchor_id == f"property-{property_id}"
     assert page.rows[0].edit_panel_open
+    assert page.rows[0].is_recent
     assert page.rows[0].edit_form.name == "Дом"
     assert page.rows[0].edit_toggle_action.action_type == "panel_toggle"
     assert page.rows[0].lifecycle_action.label == "в архив"
@@ -88,3 +92,11 @@ def test_properties_presenter_keeps_create_panel_closed_for_existing_clean_list(
     )
 
     assert not page.create_panel_open
+
+
+def test_property_recent_url_targets_created_property_anchor() -> None:
+    property_id = uuid4()
+
+    assert property_recent_url(property_id) == (
+        f"/properties?recent_property_id={property_id}#property-{property_id}"
+    )

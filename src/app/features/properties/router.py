@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Form, Request, status
+from fastapi import APIRouter, Depends, Form, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,10 +31,14 @@ async def property_index(
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    recent_property_id: Annotated[UUID | None, Query()] = None,
 ) -> HTMLResponse:
     property_service = PropertyService(session)
     properties = await property_service.list_all(context.workspace.id)
-    property_page = PropertiesPagePresenter.build_index(properties)
+    property_page = PropertiesPagePresenter.build_index(
+        properties,
+        recent_property_id=recent_property_id,
+    )
     return templates.TemplateResponse(
         request,
         "properties/index.html",
@@ -58,7 +62,7 @@ async def create_property(
 ) -> Response:
     property_service = PropertyService(session)
     try:
-        await property_service.create(
+        property_ = await property_service.create(
             workspace_id=context.workspace.id,
             name=name,
             short_name=short_name,
@@ -86,7 +90,10 @@ async def create_property(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    return RedirectResponse(url="/properties", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(
+        url=property_recent_url(property_.id),
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
 
 
 @router.post("/{property_id}")
@@ -140,6 +147,15 @@ async def update_property(
         )
 
     return RedirectResponse(url="/properties", status_code=status.HTTP_303_SEE_OTHER)
+
+
+def property_anchor_id(property_id: UUID) -> str:
+    return f"property-{property_id}"
+
+
+def property_recent_url(property_id: UUID) -> str:
+    anchor_id = property_anchor_id(property_id)
+    return f"/properties?recent_property_id={property_id}#{anchor_id}"
 
 
 @router.post("/{property_id}/archive")
