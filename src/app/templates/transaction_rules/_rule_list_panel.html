@@ -8,6 +8,17 @@
     <h2>Правила</h2>
   </div>
 
+  {% if page.recent_rule %}
+    <div class="rule-list-feedback">
+      <div>
+        <p class="eyebrow">правило готово</p>
+        <strong>{{ page.recent_rule.title }}</strong>
+        <span>{{ page.recent_rule.condition_label }}</span>
+      </div>
+      <a class="meta-link rule-list-feedback__link" href="#{{ page.recent_rule.anchor_id }}">Показать в списке</a>
+    </div>
+  {% endif %}
+
   {% if page.rules %}
     <div class="entity-card-list rule-card-list">
       {% for rule in page.rules %}

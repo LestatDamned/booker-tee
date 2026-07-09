@@ -34,16 +34,19 @@ class TransactionRulesPagePresenter:
         categories: Sequence[Category],
         properties: Sequence[Property],
         can_write: bool,
+        recent_rule_id: UUID | None = None,
     ) -> RulesPageVM:
         rows = [
             TransactionRulesPagePresenter.build_row(
                 rule,
                 categories=categories,
                 properties=properties,
+                is_recent=getattr(rule, "id", None) == recent_rule_id,
             )
             for rule in rules
         ]
         active_count = sum(1 for rule in rules if rule.is_active)
+        recent_rule = next((row for row in rows if row.is_recent), None)
         return RulesPageVM(
             rules=rows,
             create_form=rule_form(
@@ -84,6 +87,7 @@ class TransactionRulesPagePresenter:
                 active=active_count,
                 inactive=len(rows) - active_count,
             ),
+            recent_rule=recent_rule,
             can_write=can_write,
             total_rule_count=len(rows),
             active_rule_count=active_count,
@@ -96,6 +100,7 @@ class TransactionRulesPagePresenter:
         *,
         categories: Sequence[Category],
         properties: Sequence[Property],
+        is_recent: bool = False,
     ) -> RuleRowVM:
         form_id = f"rule-form-{rule.id}"
         edit_summary_id = f"rule-edit-toggle-{rule.id}"
@@ -108,6 +113,7 @@ class TransactionRulesPagePresenter:
             status_label="активно" if rule.is_active else "выключено",
             status_tone="confirmed" if rule.is_active else "muted",
             is_inactive=not rule.is_active,
+            is_recent=is_recent,
             form=rule_form(
                 form_id=form_id,
                 action=f"/rules/{rule.id}",

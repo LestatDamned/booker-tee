@@ -47,6 +47,7 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
             categories=cast(Any, categories),
             properties=cast(Any, properties),
             can_write=True,
+            recent_rule_id=rule_id,
         ),
         workspace=SimpleNamespace(name="Personal"),
     )
@@ -69,6 +70,10 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert "rules-page-actions" in html
     assert "создать правило" in html
     assert 'id="rules-list-panel"' in html
+    assert "правило готово" in html
+    assert "Показать в списке" in html
+    assert f'href="#rule-{rule_id}"' in html
+    assert "rule-card--recent" in html
     assert 'hx-target="#rules-list-panel"' in html
     assert 'hx-select="#rules-list-panel"' in html
     assert 'hx-on::after-request="if (event.detail.successful) this.reset()"' in html
@@ -219,6 +224,7 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
     assert page.active_rule_count == 0
     assert page.inactive_rule_count == 1
     assert page.rule_count_label == "1 правил · 0 активных · 1 выключенных"
+    assert page.recent_rule is None
     assert page.seed_defaults_action.url == "/rules/seed-defaults"
     assert page.seed_defaults_action.confirm_message is not None
     assert "Ваши правила не будут изменены" in page.seed_defaults_action.confirm_message
@@ -230,6 +236,7 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
     assert selected_values(page.create_form.operation_type_options) == ["expense"]
     assert page.create_form.advanced_label == "Расширенные настройки"
     assert row.anchor_id == f"rule-{rule_id}"
+    assert row.is_recent is False
     assert row.title == "YANDEX GO -> Такси"
     assert row.condition_label == "Если описание содержит “YANDEX GO”"
     assert row.secondary_label == "автоприменение · списание · расход · до 1000.00"
@@ -249,6 +256,37 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
     assert row.delete_action.style == "danger"
     assert row.delete_action.confirm_message is not None
     assert "YANDEX GO -> Такси" in row.delete_action.confirm_message
+
+
+def test_transaction_rules_presenter_marks_recent_rule() -> None:
+    rule_id = uuid4()
+    rule = SimpleNamespace(
+        id=rule_id,
+        is_active=True,
+        pattern="ALIBI",
+        match_type=TransactionRuleMatchType.CONTAINS,
+        application_mode=TransactionRuleApplicationMode.SUGGEST,
+        direction=MoneyDirection.OUTFLOW,
+        target_operation_type=OperationType.EXPENSE,
+        category_id=None,
+        category=None,
+        property_id=None,
+        property=None,
+        amount_min=None,
+        amount_max=None,
+    )
+
+    page = TransactionRulesPagePresenter.build(
+        cast(Any, [rule]),
+        categories=[],
+        properties=[],
+        can_write=True,
+        recent_rule_id=rule_id,
+    )
+
+    assert page.recent_rule is page.rules[0]
+    assert page.recent_rule.is_recent is True
+    assert page.recent_rule.anchor_id == f"rule-{rule_id}"
 
 
 def selected_values(options: list[Any]) -> list[str]:

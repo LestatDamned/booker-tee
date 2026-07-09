@@ -3974,6 +3974,36 @@ pre {
   scroll-margin-top: 16px;
 }
 
+.rule-list-feedback {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-left: 3px solid color-mix(in srgb, var(--accent) 70%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 86%, var(--accent));
+  padding: 10px 12px;
+}
+
+.rule-list-feedback > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rule-list-feedback strong {
+  overflow-wrap: anywhere;
+}
+
+.rule-list-feedback span {
+  color: var(--muted);
+}
+
+.rule-list-feedback__link {
+  white-space: nowrap;
+}
+
 .rule-card__main {
   display: grid;
   gap: 12px;
@@ -3998,6 +4028,11 @@ pre {
 
 .rule-card.htmx-added {
   animation: entity-row-updated 600ms ease-out;
+}
+
+.rule-card--recent {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent));
 }
 
 @keyframes entity-row-updated {

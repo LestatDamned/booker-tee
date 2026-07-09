@@ -102,6 +102,7 @@ async def create_rule(
             request=request,
             session=session,
             context=context,
+            recent_rule_id=rule.id,
         )
     return RedirectResponse(url=rule_anchor_url(rule.id), status_code=status.HTTP_303_SEE_OTHER)
 
@@ -253,11 +254,13 @@ async def render_rules_list_response(
     request: Request,
     session: AsyncSession,
     context: WorkspaceContext,
+    recent_rule_id: UUID | None = None,
 ) -> HTMLResponse:
     page = await build_rules_page(
         session=session,
         context=context,
         can_write=True,
+        recent_rule_id=recent_rule_id,
     )
     return templates.TemplateResponse(
         request,
@@ -273,6 +276,7 @@ async def build_rules_page(
     session: AsyncSession,
     context: WorkspaceContext,
     can_write: bool,
+    recent_rule_id: UUID | None = None,
 ) -> RulesPageVM:
     categories = await CategoryService(session).list_or_seed_defaults(
         context.workspace.id,
@@ -285,6 +289,7 @@ async def build_rules_page(
         categories=categories,
         properties=properties,
         can_write=can_write,
+        recent_rule_id=recent_rule_id,
     )
 
 

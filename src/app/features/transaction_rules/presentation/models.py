@@ -40,6 +40,7 @@ class RuleRowVM:
     status_label: str
     status_tone: str
     is_inactive: bool
+    is_recent: bool
     form: RuleFormVM
     edit_summary_id: str
     edit_toggle_action: ActionVM
@@ -55,6 +56,7 @@ class RulesPageVM:
     seed_defaults_action: ActionVM
     create_rule_label: str
     rule_count_label: str
+    recent_rule: RuleRowVM | None
     can_write: bool
     total_rule_count: int
     active_rule_count: int
