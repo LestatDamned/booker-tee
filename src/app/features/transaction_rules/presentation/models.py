@@ -15,9 +15,11 @@ class RuleFormOptionVM:
 class RuleFormVM:
     id: str
     action: str
+    layout: str
     pattern: str
     show_name: bool
     name: str
+    advanced_label: str
     operation_type_options: list[RuleFormOptionVM]
     category_options: list[RuleFormOptionVM]
     property_options: list[RuleFormOptionVM]

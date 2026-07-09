@@ -3801,13 +3801,17 @@ pre {
   display: none;
 }
 
-.rule-advanced-details > summary::after {
-  content: "+";
-  color: var(--muted);
+.rule-advanced-details > summary::after,
+.rule-advanced-details[open] > summary::after {
+  content: none;
 }
 
-.rule-advanced-details[open] > summary::after {
-  content: "-";
+.rule-advanced-details[open] .details-toggle-open {
+  display: none;
+}
+
+.rule-advanced-details[open] .details-toggle-close {
+  display: inline;
 }
 
 .rule-advanced-grid {
@@ -3828,8 +3832,13 @@ pre {
 }
 
 .rule-create-details > summary {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   min-height: 42px;
+}
+
+.rule-create-details > summary::after,
+.rule-create-details[open] > summary::after {
+  content: none;
 }
 
 .rule-form {
@@ -3839,6 +3848,80 @@ pre {
     color-mix(in srgb, var(--surface-strong) 32%, transparent),
     color-mix(in srgb, var(--surface) 18%, transparent)
   );
+}
+
+.rule-form--create {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  border-bottom: 0;
+  padding-top: 14px;
+  padding-bottom: 0;
+}
+
+.rule-create-flow {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: 14px;
+  align-items: start;
+}
+
+.rule-create-flow > .rule-create-block:first-child,
+.rule-create-flow > .rule-advanced-details,
+.rule-create-flow > .rule-form__footer {
+  grid-column: 1 / -1;
+}
+
+.rule-create-block {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rule-create-block--compact {
+  max-width: 320px;
+}
+
+.rule-create-block__title {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.rule-create-condition {
+  display: grid;
+  grid-template-columns: minmax(130px, 180px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.rule-form--create .field {
+  min-width: 0;
+}
+
+.rule-create-condition .field {
+  grid-column: auto !important;
+}
+
+.rule-form--create input,
+.rule-form--create select {
+  width: 100%;
+}
+
+.rule-create-category {
+  max-width: 560px;
+}
+
+.rule-advanced-grid--create {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rule-advanced-grid--create .field {
+  grid-column: auto !important;
 }
 
 .rule-form__footer {
@@ -3896,6 +3979,11 @@ pre {
   grid-template-columns: auto minmax(0, 1fr) auto;
   min-height: 40px;
   color: var(--accent);
+}
+
+.rule-card__edit > summary::after,
+.rule-card__edit[open] > summary::after {
+  content: none;
 }
 
 .rule-card__edit[open] {
@@ -4675,7 +4763,7 @@ pre {
 
 .review-actions__menu-title,
 .action-title,
-.action-details summary {
+.action-details > summary {
   color: var(--accent);
   font-family:
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -4708,7 +4796,7 @@ pre {
   border-bottom-color: var(--green);
 }
 
-.action-details summary {
+.action-details > summary {
   min-height: 44px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -4718,18 +4806,25 @@ pre {
   cursor: pointer;
 }
 
-.action-details summary::-webkit-details-marker {
+.action-details > summary::-webkit-details-marker {
   display: none;
 }
 
-.action-details summary::after {
+.action-details > summary::after {
   content: "+";
   justify-self: end;
   color: var(--muted);
 }
 
-.action-details[open] summary::after {
+.action-details[open] > summary::after {
   content: "-";
+}
+
+.rule-create-details > summary::after,
+.rule-create-details[open] > summary::after,
+.rule-card__edit > summary::after,
+.rule-card__edit[open] > summary::after {
+  content: none;
 }
 
 .review-actions__summary::after,
@@ -4753,11 +4848,11 @@ pre {
 }
 
 .details-toggle-close,
-.action-details[open] .details-toggle-open {
+.action-details[open] > summary .details-toggle-open {
   display: none;
 }
 
-.action-details[open] .details-toggle-close {
+.action-details[open] > summary .details-toggle-close {
   display: inline;
 }
 
@@ -5633,6 +5728,17 @@ pre {
   .form-actions-inline,
   .form-submit {
     grid-column: span 6 !important;
+  }
+
+  .rule-create-condition,
+  .rule-create-flow,
+  .rule-advanced-grid--create {
+    grid-template-columns: 1fr;
+  }
+
+  .rule-create-block--compact,
+  .rule-create-category {
+    max-width: none;
   }
 
   .financial-row,

@@ -52,14 +52,21 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     )
 
     assert "form-panel" in html
-    assert "Правила сильно ускоряют проверку выписок" in html
-    assert "советуем загрузить базовые правила" in html
+    assert "Правила помогают распознавать операции из выписок" in html
+    assert "KRASNOE&amp;BELOE" in html
+    assert "предложить категорию" in html
     assert "rule-advanced-details" in html
-    assert "Условия применения" in html
+    assert "Если описание операции" in html
+    assert "что искать в описании" in html
+    assert "Тогда предложить" in html
+    assert "Расширенные настройки" in html
+    assert "Открыть" in html
+    assert "Закрыть" in html
+    assert "создадим автоматически" in html
     assert "/rules/seed-defaults" in html
     assert "seed-expobank" not in html
     assert "загрузить базовые правила" in html
-    assert "новое правило" in html
+    assert "создать правило" in html
     assert "entity-card-list" in html
     assert "entity-card" in html
     assert "rule-card__edit" in html
@@ -156,7 +163,15 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
     assert page.inactive_rule_count == 1
     assert page.rule_count_label == "1 правил · 0 активных · 1 выключенных"
     assert page.seed_defaults_action.url == "/rules/seed-defaults"
-    assert page.create_rule_label == "новое правило"
+    assert page.seed_defaults_action.confirm_message is not None
+    assert "Ваши правила не будут изменены" in page.seed_defaults_action.confirm_message
+    assert page.create_rule_label == "создать правило"
+    assert page.create_form.layout == "create"
+    assert selected_values(page.create_form.match_type_options) == ["contains"]
+    assert selected_values(page.create_form.application_mode_options) == ["suggest"]
+    assert selected_values(page.create_form.direction_options) == ["any"]
+    assert selected_values(page.create_form.operation_type_options) == ["expense"]
+    assert page.create_form.advanced_label == "Расширенные настройки"
     assert row.anchor_id == f"rule-{rule_id}"
     assert row.title == "YANDEX GO -> Такси"
     assert row.status_label == "выключено"

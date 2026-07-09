@@ -1,78 +1,185 @@
-<form id="{{ form.id }}" class="form-panel form-panel-embedded rule-form {{ form_class }}" method="post" action="{{ form.action }}">
+<form id="{{ form.id }}" class="form-panel form-panel-embedded rule-form rule-form--{{ form.layout }} {{ form_class }}" method="post" action="{{ form.action }}">
   {{ csrf_input() }}
-  {% if form.show_name %}
-    <label class="field form-field-half">
-      <span>название</span>
-      <input name="name" value="{{ form.name }}" placeholder="Название правила" required>
-    </label>
-  {% endif %}
-  <label class="field form-field-half">
-    <span>шаблон</span>
-    <input name="pattern" value="{{ form.pattern }}" placeholder="например, KRASNOE&BELOE" required>
-  </label>
-  <label class="field form-field-quarter">
-    <span>операция</span>
-    <select name="target_operation_type">
-      {% for option in form.operation_type_options %}
-        <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <label class="field form-field-half">
-    <span>категория</span>
-    <select name="category_id">
-      {% for option in form.category_options %}
-        <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <details class="rule-advanced-details form-field-full">
-    <summary>Условия применения</summary>
-    <div class="rule-advanced-grid">
-      <label class="field">
-        <span>поиск</span>
-        <select name="match_type" required>
-          {% for option in form.match_type_options %}
-            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field">
-        <span>режим</span>
-        <select name="application_mode" required>
-          {% for option in form.application_mode_options %}
-            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field">
-        <span>направление</span>
-        <select name="direction" required>
-          {% for option in form.direction_options %}
-            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field">
-        <span>объект</span>
-        <select name="property_id">
-          {% for option in form.property_options %}
-            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field">
-        <span>мин. сумма</span>
-        <input class="amount" name="amount_min" inputmode="decimal" value="{{ form.amount_min or "" }}" placeholder="0.00">
-      </label>
-      <label class="field">
-        <span>макс. сумма</span>
-        <input class="amount" name="amount_max" inputmode="decimal" value="{{ form.amount_max or "" }}" placeholder="0.00">
-      </label>
+  {% if form.layout == "create" %}
+    <div class="rule-create-flow">
+      <div class="rule-create-block">
+        <p class="rule-create-block__title">Если описание операции</p>
+        <div class="rule-create-condition">
+          <label class="field rule-create-match">
+            <span>поиск</span>
+            <select name="match_type" required>
+              {% for option in form.match_type_options %}
+                <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field rule-create-pattern">
+            <span>что искать в описании</span>
+            <input name="pattern" value="{{ form.pattern }}" placeholder="например, KRASNOE&BELOE" required>
+          </label>
+        </div>
+      </div>
+
+      <div class="rule-create-block rule-create-block--compact">
+        <p class="rule-create-block__title">Для операций</p>
+        <label class="field">
+          <span>тип</span>
+          <select name="target_operation_type">
+            {% for option in form.operation_type_options %}
+              <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div class="rule-create-block">
+        <p class="rule-create-block__title">Тогда предложить</p>
+        <label class="field rule-create-category">
+          <span>категория</span>
+          <select name="category_id">
+            {% for option in form.category_options %}
+              <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <details class="rule-advanced-details rule-advanced-details--create">
+        <summary>
+          <span>{{ form.advanced_label }}</span>
+          <span class="details-toggle-label" aria-hidden="true">
+            <span class="details-toggle-open">Открыть</span>
+            <span class="details-toggle-close">Закрыть</span>
+          </span>
+        </summary>
+        <div class="rule-advanced-grid rule-advanced-grid--create">
+          <label class="field">
+            <span>режим</span>
+            <select name="application_mode" required>
+              {% for option in form.application_mode_options %}
+                <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field">
+            <span>направление</span>
+            <select name="direction" required>
+              {% for option in form.direction_options %}
+                <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field">
+            <span>сумма от</span>
+            <input class="amount" name="amount_min" inputmode="decimal" value="{{ form.amount_min or "" }}" placeholder="0.00">
+          </label>
+          <label class="field">
+            <span>сумма до</span>
+            <input class="amount" name="amount_max" inputmode="decimal" value="{{ form.amount_max or "" }}" placeholder="0.00">
+          </label>
+          <label class="field">
+            <span>объект</span>
+            <select name="property_id">
+              {% for option in form.property_options %}
+                <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          {% if form.show_name %}
+            <label class="field">
+              <span>название правила</span>
+              <input name="name" value="{{ form.name }}" placeholder="создадим автоматически">
+            </label>
+          {% endif %}
+        </div>
+      </details>
+
+      <div class="form-actions rule-form__footer">
+        {% set action = form.submit_action %}
+        {% include "ui/_action.html" %}
+      </div>
     </div>
-  </details>
-  <div class="form-actions rule-form__footer">
-    {% set action = form.submit_action %}
-    {% include "ui/_action.html" %}
-  </div>
+  {% else %}
+    {% if form.show_name %}
+      <label class="field form-field-half">
+        <span>название</span>
+        <input name="name" value="{{ form.name }}" placeholder="Название правила">
+      </label>
+    {% endif %}
+    <label class="field form-field-half">
+      <span>что искать</span>
+      <input name="pattern" value="{{ form.pattern }}" placeholder="например, KRASNOE&BELOE" required>
+    </label>
+    <label class="field form-field-quarter">
+      <span>операция</span>
+      <select name="target_operation_type">
+        {% for option in form.operation_type_options %}
+          <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="field form-field-half">
+      <span>категория</span>
+      <select name="category_id">
+        {% for option in form.category_options %}
+          <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <details class="rule-advanced-details form-field-full">
+      <summary>
+        <span>{{ form.advanced_label }}</span>
+        <span class="details-toggle-label" aria-hidden="true">
+          <span class="details-toggle-open">Открыть</span>
+          <span class="details-toggle-close">Закрыть</span>
+        </span>
+      </summary>
+      <div class="rule-advanced-grid">
+        <label class="field">
+          <span>поиск</span>
+          <select name="match_type" required>
+            {% for option in form.match_type_options %}
+              <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span>режим</span>
+          <select name="application_mode" required>
+            {% for option in form.application_mode_options %}
+              <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span>направление</span>
+          <select name="direction" required>
+            {% for option in form.direction_options %}
+              <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span>объект</span>
+          <select name="property_id">
+            {% for option in form.property_options %}
+              <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span>мин. сумма</span>
+          <input class="amount" name="amount_min" inputmode="decimal" value="{{ form.amount_min or "" }}" placeholder="0.00">
+        </label>
+        <label class="field">
+          <span>макс. сумма</span>
+          <input class="amount" name="amount_max" inputmode="decimal" value="{{ form.amount_max or "" }}" placeholder="0.00">
+        </label>
+      </div>
+    </details>
+    <div class="form-actions rule-form__footer">
+      {% set action = form.submit_action %}
+      {% include "ui/_action.html" %}
+    </div>
+  {% endif %}
 </form>

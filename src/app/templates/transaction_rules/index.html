@@ -18,11 +18,17 @@
       {% endif %}
     </div>
 
-    {{ inline_hint("Правила сильно ускоряют проверку выписок: они подставляют категорию, объект и тип операции по описанию строки. В начале советуем загрузить базовые правила, а потом добавлять свои для повторяющихся платежей.", "info") }}
+    {{ inline_hint("Правила помогают распознавать операции из выписок. Например: если описание содержит “KRASNOE&BELOE” — предложить категорию “Продукты”.", "info") }}
 
     {% if can_write %}
       <details class="action-details action-accordion rule-create-details">
-        <summary>{{ page.create_rule_label }}</summary>
+        <summary>
+          <span>{{ page.create_rule_label }}</span>
+          <span class="details-toggle-label" aria-hidden="true">
+            <span class="details-toggle-open">Открыть</span>
+            <span class="details-toggle-close">Закрыть</span>
+          </span>
+        </summary>
         {% set form = page.create_form %}
         {% set form_class = "rule-create-form" %}
         {% include "transaction_rules/_rule_form.html" %}

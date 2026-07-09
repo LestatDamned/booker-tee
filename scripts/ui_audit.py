@@ -319,7 +319,6 @@ def prepare_realistic_scenario(
         page.goto(build_url(base_url, "/rules"), wait_until="domcontentloaded")
         page.locator("details.rule-create-details > summary").click(timeout=PAGE_TIMEOUT_MS)
         rule_form = page.locator("form#new-rule")
-        rule_form.locator('input[name="name"]').fill(f"OZON -> {rule_category_name}")
         rule_form.locator('input[name="pattern"]').fill("OZON")
         rule_form.locator('select[name="target_operation_type"]').select_option("expense")
         rule_form.locator('select[name="category_id"]').select_option(label=rule_category_name)
@@ -1082,9 +1081,9 @@ def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) ->
     if row.locator(".review-item__ledger-summary--suggested").count() == 0:
         errors.append("suggested review row does not show proposed outcome summary")
     else:
-        suggested_summary = row.locator(
-            ".review-item__ledger-summary--suggested"
-        ).first.inner_text(timeout=PAGE_TIMEOUT_MS)
+        suggested_summary = row.locator(".review-item__ledger-summary--suggested").first.inner_text(
+            timeout=PAGE_TIMEOUT_MS
+        )
         if "предложено" not in suggested_summary.casefold():
             errors.append("proposed outcome summary does not show suggested state")
         rule_category_name = scenario_state.get("rule_category_name")

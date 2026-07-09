@@ -21,6 +21,11 @@ from app.features.transaction_rules.presentation.models import (
 from app.shared.ui.actions import ActionVM
 from app.templating import ru_label
 
+DEFAULT_CREATE_MATCH_TYPE = TransactionRuleMatchType.CONTAINS
+DEFAULT_CREATE_APPLICATION_MODE = TransactionRuleApplicationMode.SUGGEST
+DEFAULT_CREATE_DIRECTION = MoneyDirection.ANY
+DEFAULT_CREATE_OPERATION_TYPE = OperationType.EXPENSE
+
 
 class TransactionRulesPagePresenter:
     @staticmethod
@@ -56,6 +61,11 @@ class TransactionRulesPagePresenter:
                     form_id="new-rule",
                 ),
                 show_name=True,
+                layout="create",
+                selected_operation_type=DEFAULT_CREATE_OPERATION_TYPE,
+                selected_match_type=DEFAULT_CREATE_MATCH_TYPE,
+                selected_application_mode=DEFAULT_CREATE_APPLICATION_MODE,
+                selected_direction=DEFAULT_CREATE_DIRECTION,
             ),
             seed_defaults_action=ActionVM(
                 id="seed-default-rules",
@@ -64,8 +74,12 @@ class TransactionRulesPagePresenter:
                 placement="secondary",
                 action_type="post",
                 url="/rules/seed-defaults",
+                confirm_message=(
+                    "Будут добавлены базовые правила для популярных операций: продукты, "
+                    "аптеки, кафе, транспорт, связь. Ваши правила не будут изменены."
+                ),
             ),
-            create_rule_label="новое правило",
+            create_rule_label="создать правило",
             rule_count_label=rule_count_label(
                 total=len(rows),
                 active=active_count,
@@ -151,6 +165,7 @@ def rule_form(
     properties: Sequence[Property],
     submit_action: ActionVM,
     show_name: bool,
+    layout: str = "edit",
     pattern: str = "",
     name: str = "",
     selected_operation_type: OperationType | None = None,
@@ -165,9 +180,11 @@ def rule_form(
     return RuleFormVM(
         id=form_id,
         action=action,
+        layout=layout,
         pattern=pattern,
         show_name=show_name,
         name=name,
+        advanced_label="Расширенные настройки" if layout == "create" else "Условия применения",
         operation_type_options=[
             RuleFormOptionVM("", "тип операции", selected_operation_type is None),
             *enum_options(list(OperationType), selected_operation_type),
@@ -185,7 +202,7 @@ def rule_form(
             list(TransactionRuleApplicationMode),
             selected_application_mode,
         ),
-        direction_options=enum_options(list(MoneyDirection), selected_direction),
+        direction_options=money_direction_options(selected_direction),
         amount_min=amount_min,
         amount_max=amount_max,
         submit_action=submit_action,
@@ -202,6 +219,17 @@ def enum_options(
             selected=value == selected_value,
         )
         for value in enum_values
+    ]
+
+
+def money_direction_options(selected_value: MoneyDirection | None) -> list[RuleFormOptionVM]:
+    return [
+        RuleFormOptionVM(
+            value=value.value,
+            label="любое направление" if value == MoneyDirection.ANY else ru_label(value),
+            selected=value == selected_value,
+        )
+        for value in MoneyDirection
     ]
 
 
