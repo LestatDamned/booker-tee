@@ -9,7 +9,6 @@ from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.categories.models import CategoryKind
-from app.features.categories.presentation.models import CategoryFormStateVM
 from app.features.categories.presentation.presenter import (
     CategoryPagePresenter,
     categories_url,
@@ -38,33 +37,14 @@ async def category_index(
     view: Annotated[str, Query()] = "active",
 ) -> HTMLResponse:
     category_view = normalize_category_view(view)
-    return await category_index_response(
-        request=request,
-        session=session,
-        settings=settings,
-        context=context,
-        category_view=category_view,
-    )
-
-
-async def category_index_response(
-    *,
-    request: Request,
-    session: AsyncSession,
-    settings: Settings,
-    context: WorkspaceContext,
-    category_view: str,
-    create_form: CategoryFormStateVM | None = None,
-    status_code: int = status.HTTP_200_OK,
-) -> HTMLResponse:
-    category_rows = await CategoryService(session).list_management_rows(
+    category_service = CategoryService(session)
+    category_rows = await category_service.list_management_rows(
         context.workspace.id,
         context.workspace.type,
     )
     category_page = CategoryPagePresenter.build_index(
         category_rows,
         category_view=category_view,
-        create_form=create_form,
     )
     return templates.TemplateResponse(
         request,
@@ -74,7 +54,6 @@ async def category_index_response(
             "category_page": category_page,
             "workspace": context.workspace,
         },
-        status_code=status_code,
     )
 
 
@@ -86,50 +65,15 @@ async def category_detail(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
-    return await category_detail_response(
-        category_id=category_id,
-        request=request,
-        session=session,
-        settings=settings,
-        context=context,
-    )
-
-
-async def category_detail_response(
-    *,
-    category_id: UUID,
-    request: Request,
-    session: AsyncSession,
-    settings: Settings,
-    context: WorkspaceContext,
-    edit_error: str | None = None,
-    edit_name: str | None = None,
-    edit_kind: CategoryKind | None = None,
-    edit_notes: str | None = None,
-    lifecycle_error: str | None = None,
-    status_code: int = status.HTTP_200_OK,
-) -> HTMLResponse:
+    category_service = CategoryService(session)
     try:
-        detail = await CategoryService(session).get_detail(
+        detail = await category_service.get_detail(
             workspace_id=context.workspace.id,
             category_id=category_id,
         )
     except CategoryError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    category_page = CategoryPagePresenter.build_detail(
-        detail,
-        edit_form=(
-            category_form_state(
-                error=edit_error,
-                name=edit_name,
-                kind=edit_kind or detail.category.kind,
-                notes=edit_notes,
-            )
-            if edit_error is not None and edit_name is not None
-            else None
-        ),
-        lifecycle_error=lifecycle_error,
-    )
+    category_page = CategoryPagePresenter.build_detail(detail)
     return templates.TemplateResponse(
         request,
         "categories/detail.html",
@@ -138,7 +82,6 @@ async def category_detail_response(
             "category_page": category_page,
             "workspace": context.workspace,
         },
-        status_code=status_code,
     )
 
 
@@ -153,19 +96,21 @@ async def create_category(
     notes: Annotated[str | None, Form()] = None,
     view: Annotated[str | None, Form()] = None,
 ) -> Response:
+    category_service = CategoryService(session)
     try:
-        await CategoryService(session).create_custom(
+        await category_service.create_custom(
             workspace_id=context.workspace.id,
             name=name,
             kind=kind,
             notes=notes,
         )
     except CategoryError as exc:
-        return await category_index_response(
-            request=request,
-            session=session,
-            settings=settings,
-            context=context,
+        category_rows = await category_service.list_management_rows(
+            context.workspace.id,
+            context.workspace.type,
+        )
+        category_page = CategoryPagePresenter.build_index(
+            category_rows,
             category_view=normalize_category_view(view),
             create_form=category_form_state(
                 error=category_form_error_message(exc),
@@ -173,6 +118,15 @@ async def create_category(
                 kind=kind,
                 notes=notes,
             ),
+        )
+        return templates.TemplateResponse(
+            request,
+            "categories/index.html",
+            {
+                "app_name": settings.app_name,
+                "category_page": category_page,
+                "workspace": context.workspace,
+            },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -194,8 +148,9 @@ async def update_category(
     notes: Annotated[str | None, Form()] = None,
     view: Annotated[str | None, Form()] = None,
 ) -> Response:
+    category_service = CategoryService(session)
     try:
-        await CategoryService(session).update_custom(
+        await category_service.update_custom(
             workspace_id=context.workspace.id,
             category_id=category_id,
             name=name,
@@ -203,16 +158,33 @@ async def update_category(
             notes=notes,
         )
     except CategoryError as exc:
-        return await category_detail_response(
-            category_id=category_id,
-            request=request,
-            session=session,
-            settings=settings,
-            context=context,
-            edit_error=category_form_error_message(exc),
-            edit_name=name,
-            edit_kind=kind,
-            edit_notes=notes or "",
+        try:
+            detail = await category_service.get_detail(
+                workspace_id=context.workspace.id,
+                category_id=category_id,
+            )
+        except CategoryError as detail_exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(detail_exc),
+            ) from detail_exc
+        category_page = CategoryPagePresenter.build_detail(
+            detail,
+            edit_form=category_form_state(
+                error=category_form_error_message(exc),
+                name=name,
+                kind=kind,
+                notes=notes,
+            ),
+        )
+        return templates.TemplateResponse(
+            request,
+            "categories/detail.html",
+            {
+                "app_name": settings.app_name,
+                "category_page": category_page,
+                "workspace": context.workspace,
+            },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -231,20 +203,36 @@ async def archive_category(
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     view: Annotated[str | None, Form()] = None,
 ) -> Response:
+    category_service = CategoryService(session)
     try:
-        await CategoryService(session).set_active(
+        await category_service.set_active(
             workspace_id=context.workspace.id,
             category_id=category_id,
             is_active=False,
         )
     except CategoryError as exc:
-        return await category_detail_response(
-            category_id=category_id,
-            request=request,
-            session=session,
-            settings=settings,
-            context=context,
+        try:
+            detail = await category_service.get_detail(
+                workspace_id=context.workspace.id,
+                category_id=category_id,
+            )
+        except CategoryError as detail_exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(detail_exc),
+            ) from detail_exc
+        category_page = CategoryPagePresenter.build_detail(
+            detail,
             lifecycle_error=str(exc),
+        )
+        return templates.TemplateResponse(
+            request,
+            "categories/detail.html",
+            {
+                "app_name": settings.app_name,
+                "category_page": category_page,
+                "workspace": context.workspace,
+            },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -263,20 +251,36 @@ async def restore_category(
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     view: Annotated[str | None, Form()] = None,
 ) -> Response:
+    category_service = CategoryService(session)
     try:
-        await CategoryService(session).set_active(
+        await category_service.set_active(
             workspace_id=context.workspace.id,
             category_id=category_id,
             is_active=True,
         )
     except CategoryError as exc:
-        return await category_detail_response(
-            category_id=category_id,
-            request=request,
-            session=session,
-            settings=settings,
-            context=context,
+        try:
+            detail = await category_service.get_detail(
+                workspace_id=context.workspace.id,
+                category_id=category_id,
+            )
+        except CategoryError as detail_exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(detail_exc),
+            ) from detail_exc
+        category_page = CategoryPagePresenter.build_detail(
+            detail,
             lifecycle_error=str(exc),
+        )
+        return templates.TemplateResponse(
+            request,
+            "categories/detail.html",
+            {
+                "app_name": settings.app_name,
+                "category_page": category_page,
+                "workspace": context.workspace,
+            },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -295,19 +299,35 @@ async def delete_category(
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     view: Annotated[str | None, Form()] = None,
 ) -> Response:
+    category_service = CategoryService(session)
     try:
-        await CategoryService(session).delete_archived_custom(
+        await category_service.delete_archived_custom(
             workspace_id=context.workspace.id,
             category_id=category_id,
         )
     except CategoryError as exc:
-        return await category_detail_response(
-            category_id=category_id,
-            request=request,
-            session=session,
-            settings=settings,
-            context=context,
+        try:
+            detail = await category_service.get_detail(
+                workspace_id=context.workspace.id,
+                category_id=category_id,
+            )
+        except CategoryError as detail_exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(detail_exc),
+            ) from detail_exc
+        category_page = CategoryPagePresenter.build_detail(
+            detail,
             lifecycle_error=str(exc),
+        )
+        return templates.TemplateResponse(
+            request,
+            "categories/detail.html",
+            {
+                "app_name": settings.app_name,
+                "category_page": category_page,
+                "workspace": context.workspace,
+            },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 

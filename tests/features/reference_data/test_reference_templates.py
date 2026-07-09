@@ -11,6 +11,10 @@ from app.features.categories.presentation.presenter import (
 )
 from app.features.ledger.models import OperationType
 from app.features.properties.models import PropertyStatus
+from app.features.properties.presentation.presenter import (
+    PropertiesPagePresenter,
+    property_form_state,
+)
 from app.features.transaction_rules.models import (
     MoneyDirection,
     TransactionRuleApplicationMode,
@@ -309,15 +313,20 @@ def test_properties_template_uses_inline_card_editing() -> None:
     html = templates.env.get_template("properties/index.html").render(
         app_name="Booker Tee",
         workspace=SimpleNamespace(name="Personal"),
-        properties=[
-            SimpleNamespace(
-                id=property_id,
-                name="9 Maya 20",
-                short_name="9M20",
-                address="Krasnoyarsk",
-                status=PropertyStatus.ACTIVE,
+        property_page=PropertiesPagePresenter.build_index(
+            cast(
+                Any,
+                [
+                    SimpleNamespace(
+                        id=property_id,
+                        name="9 Maya 20",
+                        short_name="9M20",
+                        address="Krasnoyarsk",
+                        status=PropertyStatus.ACTIVE,
+                    )
+                ],
             )
-        ],
+        ),
     )
 
     assert "form-panel" in html
@@ -339,11 +348,15 @@ def test_properties_template_shows_create_error_and_keeps_values() -> None:
     html = templates.env.get_template("properties/index.html").render(
         app_name="Booker Tee",
         workspace=SimpleNamespace(name="Personal"),
-        properties=[],
-        create_error="Название объекта обязательно.",
-        create_name="Дом",
-        create_short_name="D",
-        create_address="Красноярск",
+        property_page=PropertiesPagePresenter.build_index(
+            [],
+            create_form=property_form_state(
+                error="Название объекта обязательно.",
+                name="Дом",
+                short_name="D",
+                address="Красноярск",
+            ),
+        ),
     )
 
     assert 'role="alert"' in html
@@ -362,30 +375,35 @@ def test_properties_template_shows_edit_error_and_keeps_row_values() -> None:
     html = templates.env.get_template("properties/index.html").render(
         app_name="Booker Tee",
         workspace=SimpleNamespace(name="Personal"),
-        properties=[
-            SimpleNamespace(
-                id=property_id,
-                name="9 Maya 20",
-                short_name="9M20",
-                address="Krasnoyarsk",
-                status=PropertyStatus.ACTIVE,
+        property_page=PropertiesPagePresenter.build_index(
+            cast(
+                Any,
+                [
+                    SimpleNamespace(
+                        id=property_id,
+                        name="9 Maya 20",
+                        short_name="9M20",
+                        address="Krasnoyarsk",
+                        status=PropertyStatus.ACTIVE,
+                    ),
+                    SimpleNamespace(
+                        id=other_property_id,
+                        name="Office",
+                        short_name="OFF",
+                        address="Moscow",
+                        status=PropertyStatus.ACTIVE,
+                    ),
+                ],
             ),
-            SimpleNamespace(
-                id=other_property_id,
-                name="Office",
-                short_name="OFF",
-                address="Moscow",
-                status=PropertyStatus.ACTIVE,
-            ),
-        ],
-        edit_error_by_property_id={property_id: "Название объекта обязательно."},
-        edit_values_by_property_id={
-            property_id: {
-                "name": "Дом",
-                "short_name": "D",
-                "address": "Красноярск",
+            edit_forms_by_property_id={
+                property_id: property_form_state(
+                    error="Название объекта обязательно.",
+                    name="Дом",
+                    short_name="D",
+                    address="Красноярск",
+                ),
             },
-        },
+        ),
     )
 
     assert html.count('role="alert"') == 1
@@ -403,8 +421,10 @@ def test_properties_template_shows_lifecycle_error() -> None:
     html = templates.env.get_template("properties/index.html").render(
         app_name="Booker Tee",
         workspace=SimpleNamespace(name="Personal"),
-        properties=[],
-        lifecycle_error="Объект не найден в этом workspace.",
+        property_page=PropertiesPagePresenter.build_index(
+            [],
+            lifecycle_error="Объект не найден в этом workspace.",
+        ),
     )
 
     assert 'role="alert"' in html

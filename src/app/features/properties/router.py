@@ -9,6 +9,10 @@ from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.properties.models import PropertyStatus
+from app.features.properties.presentation.presenter import (
+    PropertiesPagePresenter,
+    property_form_state,
+)
 from app.features.properties.service import PropertyError, PropertyService
 from app.features.workspaces.dependencies import (
     get_current_workspace_context,
@@ -28,46 +32,17 @@ async def property_index(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
-    return await property_index_response(
-        request=request,
-        session=session,
-        settings=settings,
-        context=context,
-    )
-
-
-async def property_index_response(
-    *,
-    request: Request,
-    session: AsyncSession,
-    settings: Settings,
-    context: WorkspaceContext,
-    create_error: str | None = None,
-    create_name: str = "",
-    create_short_name: str = "",
-    create_address: str = "",
-    edit_error_by_property_id: dict[UUID, str] | None = None,
-    edit_values_by_property_id: dict[UUID, dict[str, str]] | None = None,
-    lifecycle_error: str | None = None,
-    status_code: int = status.HTTP_200_OK,
-) -> HTMLResponse:
-    properties = await PropertyService(session).list_all(context.workspace.id)
+    property_service = PropertyService(session)
+    properties = await property_service.list_all(context.workspace.id)
+    property_page = PropertiesPagePresenter.build_index(properties)
     return templates.TemplateResponse(
         request,
         "properties/index.html",
         {
             "app_name": settings.app_name,
-            "properties": properties,
+            "property_page": property_page,
             "workspace": context.workspace,
-            "create_error": create_error,
-            "create_name": create_name,
-            "create_short_name": create_short_name,
-            "create_address": create_address,
-            "edit_error_by_property_id": edit_error_by_property_id or {},
-            "edit_values_by_property_id": edit_values_by_property_id or {},
-            "lifecycle_error": lifecycle_error,
         },
-        status_code=status_code,
     )
 
 
@@ -81,23 +56,33 @@ async def create_property(
     short_name: Annotated[str | None, Form()] = None,
     address: Annotated[str | None, Form()] = None,
 ) -> Response:
+    property_service = PropertyService(session)
     try:
-        await PropertyService(session).create(
+        await property_service.create(
             workspace_id=context.workspace.id,
             name=name,
             short_name=short_name,
             address=address,
         )
     except PropertyError as exc:
-        return await property_index_response(
-            request=request,
-            session=session,
-            settings=settings,
-            context=context,
-            create_error=str(exc),
-            create_name=name,
-            create_short_name=short_name or "",
-            create_address=address or "",
+        properties = await property_service.list_all(context.workspace.id)
+        property_page = PropertiesPagePresenter.build_index(
+            properties,
+            create_form=property_form_state(
+                error=str(exc),
+                name=name,
+                short_name=short_name,
+                address=address,
+            ),
+        )
+        return templates.TemplateResponse(
+            request,
+            "properties/index.html",
+            {
+                "app_name": settings.app_name,
+                "property_page": property_page,
+                "workspace": context.workspace,
+            },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -115,8 +100,9 @@ async def update_property(
     short_name: Annotated[str | None, Form()] = None,
     address: Annotated[str | None, Form()] = None,
 ) -> Response:
+    property_service = PropertyService(session)
     try:
-        await PropertyService(session).update(
+        await property_service.update(
             workspace_id=context.workspace.id,
             property_id=property_id,
             name=name,
@@ -124,18 +110,25 @@ async def update_property(
             address=address,
         )
     except PropertyError as exc:
-        return await property_index_response(
-            request=request,
-            session=session,
-            settings=settings,
-            context=context,
-            edit_error_by_property_id={property_id: str(exc)},
-            edit_values_by_property_id={
-                property_id: {
-                    "name": name,
-                    "short_name": short_name or "",
-                    "address": address or "",
-                },
+        properties = await property_service.list_all(context.workspace.id)
+        property_page = PropertiesPagePresenter.build_index(
+            properties,
+            edit_forms_by_property_id={
+                property_id: property_form_state(
+                    error=str(exc),
+                    name=name,
+                    short_name=short_name,
+                    address=address,
+                )
+            },
+        )
+        return templates.TemplateResponse(
+            request,
+            "properties/index.html",
+            {
+                "app_name": settings.app_name,
+                "property_page": property_page,
+                "workspace": context.workspace,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
@@ -151,19 +144,27 @@ async def archive_property(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
+    property_service = PropertyService(session)
     try:
-        await PropertyService(session).set_status(
+        await property_service.set_status(
             workspace_id=context.workspace.id,
             property_id=property_id,
             status=PropertyStatus.ARCHIVED,
         )
     except PropertyError as exc:
-        return await property_index_response(
-            request=request,
-            session=session,
-            settings=settings,
-            context=context,
+        properties = await property_service.list_all(context.workspace.id)
+        property_page = PropertiesPagePresenter.build_index(
+            properties,
             lifecycle_error=str(exc),
+        )
+        return templates.TemplateResponse(
+            request,
+            "properties/index.html",
+            {
+                "app_name": settings.app_name,
+                "property_page": property_page,
+                "workspace": context.workspace,
+            },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
     return RedirectResponse(url="/properties", status_code=status.HTTP_303_SEE_OTHER)
@@ -177,19 +178,27 @@ async def restore_property(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
+    property_service = PropertyService(session)
     try:
-        await PropertyService(session).set_status(
+        await property_service.set_status(
             workspace_id=context.workspace.id,
             property_id=property_id,
             status=PropertyStatus.ACTIVE,
         )
     except PropertyError as exc:
-        return await property_index_response(
-            request=request,
-            session=session,
-            settings=settings,
-            context=context,
+        properties = await property_service.list_all(context.workspace.id)
+        property_page = PropertiesPagePresenter.build_index(
+            properties,
             lifecycle_error=str(exc),
+        )
+        return templates.TemplateResponse(
+            request,
+            "properties/index.html",
+            {
+                "app_name": settings.app_name,
+                "property_page": property_page,
+                "workspace": context.workspace,
+            },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
     return RedirectResponse(url="/properties", status_code=status.HTTP_303_SEE_OTHER)

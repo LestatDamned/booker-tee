@@ -4,6 +4,7 @@
 {% block title %}Объекты · {{ app_name }}{% endblock %}
 
 {% block content %}
+  {% set page = property_page %}
   {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
   <section class="panel stack">
     <div class="toolbar">
@@ -23,25 +24,23 @@
     </div>
 
     {% if can_write %}
-      {% set form_name = create_name | default("") %}
-      {% set form_short_name = create_short_name | default("") %}
-      {% set form_address = create_address | default("") %}
+      {% set create_form = page.create_form %}
       <form class="form-panel" method="post" action="/properties">
         {{ csrf_input() }}
-        {% if create_error is defined and create_error %}
-          <div class="form-error" role="alert">{{ create_error }}</div>
+        {% if create_form.error %}
+          <div class="form-error" role="alert">{{ create_form.error }}</div>
         {% endif %}
         <div class="field form-field-quarter">
           <label for="name">Название</label>
-          <input id="name" name="name" value="{{ form_name }}" placeholder="Название объекта" required>
+          <input id="name" name="name" value="{{ create_form.name }}" placeholder="Название объекта" required>
         </div>
         <div class="field form-field-quarter">
           <label for="short_name">Коротко</label>
-          <input id="short_name" name="short_name" value="{{ form_short_name }}" placeholder="Короткое название">
+          <input id="short_name" name="short_name" value="{{ create_form.short_name }}" placeholder="Короткое название">
         </div>
         <div class="field form-field-quarter">
           <label for="address">Адрес</label>
-          <input id="address" name="address" value="{{ form_address }}" placeholder="Адрес">
+          <input id="address" name="address" value="{{ create_form.address }}" placeholder="Адрес">
         </div>
         <div class="form-actions">
           <button class="button" type="submit">{{ icon("plus") }} добавить</button>
@@ -49,16 +48,15 @@
       </form>
     {% endif %}
 
-    {% if lifecycle_error is defined and lifecycle_error %}
-      <div class="form-error" role="alert">{{ lifecycle_error }}</div>
+    {% if page.lifecycle_error %}
+      <div class="form-error" role="alert">{{ page.lifecycle_error }}</div>
     {% endif %}
 
-    {% if properties %}
+    {% if page.rows %}
       <div class="entity-card-list">
-        {% for property in properties %}
-          {% set property_form_id = "property-form-" ~ property.id %}
-          {% set edit_error = edit_error_by_property_id[property.id] if edit_error_by_property_id is defined and property.id in edit_error_by_property_id else none %}
-          {% set edit_values = edit_values_by_property_id[property.id] if edit_values_by_property_id is defined and property.id in edit_values_by_property_id else none %}
+        {% for row in page.rows %}
+          {% set property = row.property %}
+          {% set edit_form = row.edit_form %}
           <article class="entity-card {% if property.status.value == "archived" %}entity-card-inactive{% endif %}">
             <div class="entity-card-main">
               <div class="entity-card-title">
@@ -70,29 +68,29 @@
                 <span>ID {{ property.id }}</span>
               </details>
               {% if can_write %}
-                <form class="detached-form" id="{{ property_form_id }}" method="post" action="/properties/{{ property.id }}">{{ csrf_input() }}</form>
+                <form class="detached-form" id="{{ row.form_id }}" method="post" action="/properties/{{ property.id }}">{{ csrf_input() }}</form>
                 <div class="form-panel form-panel-embedded">
-                  {% if edit_error %}
-                    <div class="form-error" role="alert">{{ edit_error }}</div>
+                  {% if edit_form.error %}
+                    <div class="form-error" role="alert">{{ edit_form.error }}</div>
                   {% endif %}
                   <div class="field form-field-third">
                     <label for="name-{{ property.id }}">Название</label>
-                    <input id="name-{{ property.id }}" name="name" value="{{ edit_values.name if edit_values else property.name }}" form="{{ property_form_id }}" required>
+                    <input id="name-{{ property.id }}" name="name" value="{{ edit_form.name }}" form="{{ row.form_id }}" required>
                   </div>
                   <div class="field form-field-third">
                     <label for="short-name-{{ property.id }}">Коротко</label>
-                    <input id="short-name-{{ property.id }}" name="short_name" value="{{ edit_values.short_name if edit_values else property.short_name or "" }}" placeholder="Коротко" form="{{ property_form_id }}">
+                    <input id="short-name-{{ property.id }}" name="short_name" value="{{ edit_form.short_name }}" placeholder="Коротко" form="{{ row.form_id }}">
                   </div>
                   <div class="field form-field-third">
                     <label for="address-{{ property.id }}">Адрес</label>
-                    <input id="address-{{ property.id }}" name="address" value="{{ edit_values.address if edit_values else property.address or "" }}" placeholder="Адрес" form="{{ property_form_id }}">
+                    <input id="address-{{ property.id }}" name="address" value="{{ edit_form.address }}" placeholder="Адрес" form="{{ row.form_id }}">
                   </div>
                 </div>
               {% endif %}
             </div>
             {% if can_write %}
               <div class="entity-card-actions">
-                <button class="button button-small" type="submit" form="{{ property_form_id }}">{{ icon("save") }} сохранить</button>
+                <button class="button button-small" type="submit" form="{{ row.form_id }}">{{ icon("save") }} сохранить</button>
                 {% if property.status.value == "archived" %}
                   <form method="post" action="/properties/{{ property.id }}/restore">
                     {{ csrf_input() }}

@@ -1940,12 +1940,23 @@ Why it matters:
 - Router helpers are no longer the owner of categories SSR state, which keeps
   the code closer to the Router -> Service -> Presenter/ViewModel -> Jinja
   contract.
+- Categories and properties should not hide page composition in broad
+  `*_response()` helper functions inside routers. Routes should make the flow
+  visible:
+
+  ```text
+  Service loads data -> Presenter builds page VM -> TemplateResponse renders VM
+  ```
+
+- Repeated UI state belongs in a feature-owned presenter/page VM, not in
+  ad-hoc router context dictionaries.
 - Remaining template logic is acceptable for the current simple screen, but it
   still resists consistent action hierarchy, created feedback and local updates.
 
 Preferred future direction:
 
 - when touching categories UI next, continue from `CategoryPagePresenter`;
+- when touching properties UI next, continue from `PropertiesPagePresenter`;
 - do not create a universal CRUD component;
 - preserve existing backend/service behavior.
 
