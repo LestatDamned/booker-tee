@@ -1,7 +1,8 @@
 from uuid import UUID
 
-from app.features.categories.models import CategoryKind
+from app.features.categories.models import Category, CategoryKind
 from app.features.categories.presentation.models import (
+    CategoryDetailHeaderVM,
     CategoryDetailPageVM,
     CategoryFormStateVM,
     CategoryIndexPageVM,
@@ -94,12 +95,54 @@ class CategoryPagePresenter:
             kind=detail.category.kind,
             notes=detail.category.notes or "",
         )
+        category = detail.category
+        form_id = f"category-form-{category.id}"
+        edit_summary_id = f"category-edit-toggle-{category.id}"
+        is_editable = not category.is_system
+        can_delete = (
+            is_editable and not category.is_active and not detail.operations and not detail.rules
+        )
         return CategoryDetailPageVM(
             detail=detail,
+            header=category_detail_header_vm(detail),
             kinds=list(CategoryKind),
             edit_form=resolved_edit_form,
+            edit_form_id=form_id,
+            edit_summary_id=edit_summary_id,
             lifecycle=CategoryLifecycleStateVM(error=lifecycle_error),
             edit_panel_open=bool(resolved_edit_form.error or lifecycle_error),
+            edit_toggle_action=ActionVM(
+                id="edit-category",
+                label="изменить категорию",
+                icon="settings",
+                placement="primary",
+                action_type="panel_toggle",
+                panel_id=edit_summary_id,
+            )
+            if is_editable
+            else None,
+            lifecycle_action=category_lifecycle_action(category) if is_editable else None,
+            delete_action=ActionVM(
+                id="delete-category",
+                label="удалить",
+                icon="trash",
+                placement="danger",
+                action_type="post",
+                url=f"/categories/{category.id}/delete",
+                style="danger",
+                hidden_fields={"view": "archived"},
+                confirm_message="Удалить архивную категорию безвозвратно?",
+            )
+            if can_delete
+            else None,
+            save_action=ActionVM(
+                id="save-category",
+                label="сохранить",
+                icon="save",
+                placement="primary",
+                action_type="submit",
+                form_id=form_id,
+            ),
         )
 
 
@@ -199,6 +242,56 @@ def category_row_vm(
             action_type="link",
             url=f"/reports?category_id={category.id}",
         ),
+    )
+
+
+def category_detail_header_vm(detail: CategoryDetailView) -> CategoryDetailHeaderVM:
+    category = detail.category
+    is_inactive = not category.is_active
+    status_label = None
+    status_tone = None
+    if category.is_system:
+        status_label = "системная"
+        status_tone = "muted"
+    if is_inactive:
+        status_label = "архив"
+        status_tone = "archived"
+    return CategoryDetailHeaderVM(
+        category=category,
+        anchor_id=category_anchor_id(category.id),
+        title=category.name,
+        kind_label=ru_label(category.kind),
+        kind_tone=category.kind.value,
+        status_label=status_label,
+        status_tone=status_tone,
+        is_inactive=is_inactive,
+        is_system=category.is_system,
+        operation_count_label=f"{len(detail.operations)} операций",
+        rule_count_label=f"{len(detail.rules)} правил",
+        notes_label=category.notes,
+        technical_label=f"ID {category.id}",
+        report_action=ActionVM(
+            id="category-report",
+            label="общий отчет",
+            icon="list-check",
+            placement="secondary",
+            action_type="link",
+            url=f"/reports?category_id={category.id}",
+        ),
+    )
+
+
+def category_lifecycle_action(category: Category) -> ActionVM:
+    is_active = category.is_active
+    return ActionVM(
+        id="archive-category" if is_active else "restore-category",
+        label="в архив" if is_active else "восстановить",
+        icon="archive" if is_active else "rotate-ccw",
+        placement="secondary",
+        action_type="post",
+        url=f"/categories/{category.id}/archive"
+        if is_active
+        else f"/categories/{category.id}/restore",
     )
 
 

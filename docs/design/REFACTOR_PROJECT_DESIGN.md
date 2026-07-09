@@ -1945,8 +1945,12 @@ Current state:
 - Categories index cards now follow the Entity Work Row contract: left-side
   category information, right-side actions, calm "Еще действия" for technical
   details.
+- Category detail top card now uses the same Entity Work Row/action contract:
+  edit is a drawer inside the card, lifecycle actions are prepared by the
+  presenter, and technical ID lives in "Еще действия".
 - Categories still group row VMs in Jinja with `selectattr`.
-- Category detail still computes some display choices in templates.
+- Category detail operations/rules sections still use older table/card
+  rendering and can be revisited only if they become a real workflow surface.
 
 Why it matters:
 

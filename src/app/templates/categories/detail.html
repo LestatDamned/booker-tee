@@ -5,6 +5,7 @@
 {% block content %}
   {% set page = category_page %}
   {% set detail = page.detail %}
+  {% set header = page.header %}
   {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
   <section class="panel stack">
     <div class="toolbar">
@@ -15,87 +16,106 @@
       <a class="button" href="/categories">{{ icon("tag") }} категории</a>
     </div>
 
-    <div class="entity-card entity-card-readonly {% if not detail.category.is_active %}entity-card-inactive{% endif %}">
-      <div class="entity-card-main">
-        <div class="entity-card-title">
-          <strong>{{ detail.category.name }}</strong>
-          <span class="badge badge-{{ detail.category.kind.value }}">{{ detail.category.kind | ru }}</span>
-          {% if detail.category.is_system %}
-            <span class="badge badge-muted">системная</span>
-          {% endif %}
-          {% if not detail.category.is_active %}
-            <span class="badge badge-archived">архив</span>
-          {% endif %}
+    <article id="{{ header.anchor_id }}" class="financial-row entity-card category-detail-card {% if header.is_system %}category-card--system{% endif %} {% if header.is_inactive %}entity-card-inactive{% endif %}">
+      <div class="financial-row__main entity-card-main category-detail-card__main">
+        <div class="financial-row__topline category-detail-card__topline">
+          <div class="entity-card-title category-detail-card__title">
+            <strong>{{ header.title }}</strong>
+          </div>
+          <span class="badge badge-{{ header.kind_tone }} category-card__kind category-detail-card__kind">{{ header.kind_label }}</span>
         </div>
-        <div class="entity-card-meta">
-          <span>{{ detail.operations|length }} операций</span>
-          <a class="meta-link" href="#rules">{{ detail.rules|length }} правил</a>
-          <a class="meta-link" href="/reports?category_id={{ detail.category.id }}">общий отчет</a>
+        <div class="financial-row__meta category-detail-card__meta">
+          {% if header.status_label %}
+            <span class="financial-row__meta-item financial-row__meta-item--{{ header.status_tone }}">{{ header.status_label }}</span>
+          {% endif %}
+          <span class="financial-row__meta-item">{{ header.operation_count_label }}</span>
+          <a class="meta-link category-card__meta-link" href="#rules">{{ header.rule_count_label }}</a>
         </div>
-        {% if detail.category.notes %}
-          <p class="muted-text">{{ detail.category.notes }}</p>
+        {% if header.notes_label %}
+          <p class="muted-text category-detail-card__notes">{{ header.notes_label }}</p>
         {% endif %}
       </div>
-    </div>
-
-    {% if can_write and not detail.category.is_system %}
-      {% set edit_form = page.edit_form %}
-      <details class="action-details action-accordion category-edit-details" {% if page.edit_panel_open %}open{% endif %}>
-        <summary>{{ icon("settings") }} управление категорией</summary>
-        <div class="category-edit-layout">
-          <form class="form-panel form-panel-embedded category-edit-form" method="post" action="/categories/{{ detail.category.id }}">
-            {{ csrf_input() }}
-            {% if edit_form.error %}
-              <div class="form-error" role="alert">{{ edit_form.error }}</div>
+      <div class="financial-row__side entity-card-actions row-actions category-detail-card__actions">
+        {% if can_write and page.edit_toggle_action %}
+          {% set action = page.edit_toggle_action %}
+          {% include "ui/_action.html" %}
+        {% endif %}
+        {% set action = header.report_action %}
+        {% include "ui/_action.html" %}
+        {% if can_write and page.lifecycle_action %}
+          {% set action = page.lifecycle_action %}
+          {% include "ui/_action.html" %}
+        {% endif %}
+        <details class="action-details action-accordion review-actions__secondary review-actions__details review-actions__menu category-more-actions">
+          <summary class="review-actions__summary">
+            {{ icon("list-check") }}
+            <span>Еще действия</span>
+            <span class="details-toggle-label review-actions__toggle" aria-hidden="true">
+              <span class="details-toggle-open">Открыть</span>
+              <span class="details-toggle-close">Закрыть</span>
+            </span>
+          </summary>
+          <div class="category-more-actions__menu">
+            {% if can_write and page.delete_action %}
+              {% set action = page.delete_action %}
+              {% include "ui/_action.html" %}
             {% endif %}
-            <label class="field category-name-field">
-              <span>название</span>
-              <input name="name" value="{{ edit_form.name }}" required>
-            </label>
-            <label class="field category-kind-field">
-              <span>тип</span>
-              <select name="kind">
-                {% for editable_kind in page.kinds %}
-                  <option value="{{ editable_kind.value }}" {% if edit_form.kind == editable_kind %}selected{% endif %}>
-                    {{ editable_kind | ru }}
-                  </option>
-                {% endfor %}
-              </select>
-            </label>
-            <label class="field category-notes-field">
-              <span>заметка</span>
-              <input name="notes" value="{{ edit_form.notes }}" placeholder="Когда использовать">
-            </label>
-            <div class="category-primary-action">
-              <button class="button button-small" type="submit">{{ icon("save") }} сохранить</button>
+            <div class="category-more-actions__item category-more-actions__technical">
+              <span>Показать ID</span>
+              <code>{{ header.technical_label }}</code>
             </div>
-          </form>
-          <div class="category-lifecycle-actions">
-            {% if page.lifecycle.error %}
-              <div class="form-error" role="alert">{{ page.lifecycle.error }}</div>
-            {% endif %}
-            {% if detail.category.is_active %}
-              <form method="post" action="/categories/{{ detail.category.id }}/archive">
-                {{ csrf_input() }}
-                <button class="button button-small" type="submit">{{ icon("archive") }} в архив</button>
-              </form>
-            {% else %}
-              <form method="post" action="/categories/{{ detail.category.id }}/restore">
-                {{ csrf_input() }}
-                <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
-              </form>
-              {% if not detail.operations and not detail.rules %}
-                <form method="post" action="/categories/{{ detail.category.id }}/delete" onsubmit="return confirm('Удалить архивную категорию безвозвратно?')">
-                  {{ csrf_input() }}
-                  <input type="hidden" name="view" value="archived">
-                  <button class="button button-small button-danger" type="submit">{{ icon("trash") }} удалить</button>
-                </form>
-              {% endif %}
-            {% endif %}
           </div>
-        </div>
-      </details>
-    {% endif %}
+        </details>
+      </div>
+
+      {% if can_write and page.edit_toggle_action %}
+        {% set edit_form = page.edit_form %}
+        <details class="category-detail-card__edit" {% if page.edit_panel_open %}open{% endif %}>
+          <summary id="{{ page.edit_summary_id }}" class="category-detail-card__edit-summary">
+            <span>Изменить категорию</span>
+          </summary>
+          <div class="financial-row__drawer row-drawer category-detail-card__edit-panel">
+            <div class="row-drawer__header">
+              <div class="row-drawer__heading">
+                <h3 class="row-drawer__title">Изменить категорию</h3>
+                <span class="row-drawer__context">{{ header.kind_label }}</span>
+              </div>
+            </div>
+            <form id="{{ page.edit_form_id }}" class="row-drawer__form operation-form operation-form--drawer category-form category-form--drawer" method="post" action="/categories/{{ detail.category.id }}">
+              {{ csrf_input() }}
+              {% if edit_form.error %}
+                <div class="form-error category-form__error" role="alert">{{ edit_form.error }}</div>
+              {% endif %}
+              {% if page.lifecycle.error %}
+                <div class="form-error category-form__error" role="alert">{{ page.lifecycle.error }}</div>
+              {% endif %}
+              <label class="field row-drawer__field operation-form__field category-form__field category-form__field--name">
+                <span>Название</span>
+                <input id="category-name-{{ detail.category.id }}" name="name" value="{{ edit_form.name }}" required>
+              </label>
+              <label class="field row-drawer__field operation-form__field category-form__field category-form__field--kind">
+                <span>Тип</span>
+                <select id="category-kind-{{ detail.category.id }}" name="kind">
+                  {% for editable_kind in page.kinds %}
+                    <option value="{{ editable_kind.value }}" {% if edit_form.kind == editable_kind %}selected{% endif %}>
+                      {{ editable_kind | ru }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label class="field row-drawer__field operation-form__field category-form__field category-form__field--notes">
+                <span>Заметка</span>
+                <input id="category-notes-{{ detail.category.id }}" name="notes" value="{{ edit_form.notes }}" placeholder="Когда использовать">
+              </label>
+              <div class="row-drawer__footer operation-form__footer operation-form__footer--actions category-form__footer">
+                {% set action = page.save_action %}
+                {% include "ui/_action.html" %}
+              </div>
+            </form>
+          </div>
+        </details>
+      {% endif %}
+    </article>
 
     <div class="summary-grid kpi-strip">
       <div>

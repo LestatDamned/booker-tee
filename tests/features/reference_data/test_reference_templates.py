@@ -244,7 +244,11 @@ def test_category_detail_template_shows_operations_and_rules() -> None:
     )
 
     assert "Кафе и рестораны" in html
-    assert "управление категорией" in html
+    assert "financial-row" in html
+    assert "row-actions" in html
+    assert "изменить категорию" in html
+    assert "Еще действия" in html
+    assert "Показать ID" in html
     assert f'action="/categories/{category_id}"' in html
     assert f'action="/categories/{category_id}/archive"' in html
     assert "GREEN HOUSE" in html
@@ -292,7 +296,7 @@ def test_category_detail_template_shows_edit_error_and_keeps_values() -> None:
         ),
     )
 
-    assert 'category-edit-details" open' in html
+    assert 'category-detail-card__edit" open' in html
     assert 'role="alert"' in html
     assert "Категория с таким названием уже есть." in html
     assert 'name="name" value="Продукты"' in html
@@ -350,7 +354,7 @@ def test_category_detail_template_shows_lifecycle_error() -> None:
         ),
     )
 
-    assert 'category-edit-details" open' in html
+    assert 'category-detail-card__edit" open' in html
     assert 'role="alert"' in html
     assert "Нельзя удалить категорию, у которой есть операции." in html
     assert f'action="/categories/{category_id}/restore"' in html

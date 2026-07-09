@@ -160,6 +160,66 @@ def test_category_presenter_marks_recent_category_when_visible() -> None:
     assert page.recent_category_id == active_user.category.id
 
 
+def test_category_presenter_builds_detail_action_policy() -> None:
+    category_id = uuid4()
+
+    page = CategoryPagePresenter.build_detail(
+        cast(
+            Any,
+            SimpleNamespace(
+                category=SimpleNamespace(
+                    id=category_id,
+                    name="Продукты",
+                    kind=CategoryKind.EXPENSE,
+                    is_active=False,
+                    is_system=False,
+                    notes="Супермаркеты",
+                ),
+                operations=[],
+                rules=[],
+            ),
+        )
+    )
+
+    assert page.header.title == "Продукты"
+    assert page.header.kind_label == "расход"
+    assert page.header.status_label == "архив"
+    assert page.header.operation_count_label == "0 операций"
+    assert page.header.rule_count_label == "0 правил"
+    assert page.edit_toggle_action is not None
+    assert page.edit_toggle_action.panel_id == f"category-edit-toggle-{category_id}"
+    assert page.lifecycle_action is not None
+    assert page.lifecycle_action.url == f"/categories/{category_id}/restore"
+    assert page.delete_action is not None
+    assert page.delete_action.url == f"/categories/{category_id}/delete"
+    assert page.save_action.form_id == f"category-form-{category_id}"
+
+
+def test_category_presenter_keeps_system_detail_readonly() -> None:
+    page = CategoryPagePresenter.build_detail(
+        cast(
+            Any,
+            SimpleNamespace(
+                category=SimpleNamespace(
+                    id=uuid4(),
+                    name="Прочий расход",
+                    kind=CategoryKind.EXPENSE,
+                    is_active=True,
+                    is_system=True,
+                    notes=None,
+                ),
+                operations=[],
+                rules=[],
+            ),
+        )
+    )
+
+    assert page.header.status_label == "системная"
+    assert page.edit_toggle_action is None
+    assert page.lifecycle_action is None
+    assert page.delete_action is None
+
+
 def test_categories_url_preserves_non_default_view() -> None:
     assert categories_url("active") == "/categories"
     assert categories_url("archived") == "/categories?view=archived"

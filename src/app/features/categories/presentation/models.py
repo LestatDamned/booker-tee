@@ -49,6 +49,24 @@ class CategoryRowVM:
 
 
 @dataclass(frozen=True)
+class CategoryDetailHeaderVM:
+    category: Category
+    anchor_id: str
+    title: str
+    kind_label: str
+    kind_tone: str
+    status_label: str | None
+    status_tone: str | None
+    is_inactive: bool
+    is_system: bool
+    operation_count_label: str
+    rule_count_label: str
+    notes_label: str | None
+    technical_label: str
+    report_action: ActionVM
+
+
+@dataclass(frozen=True)
 class CategoryIndexPageVM:
     view: str
     view_options: list[CategoryViewOptionVM]
@@ -67,7 +85,14 @@ class CategoryIndexPageVM:
 @dataclass(frozen=True)
 class CategoryDetailPageVM:
     detail: CategoryDetailView
+    header: CategoryDetailHeaderVM
     kinds: list[CategoryKind]
     edit_form: CategoryFormStateVM
+    edit_form_id: str
+    edit_summary_id: str
     lifecycle: CategoryLifecycleStateVM
     edit_panel_open: bool
+    edit_toggle_action: ActionVM | None
+    lifecycle_action: ActionVM | None
+    delete_action: ActionVM | None
+    save_action: ActionVM
