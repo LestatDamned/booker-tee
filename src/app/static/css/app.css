@@ -3991,9 +3991,25 @@ pre {
 }
 
 .rule-card:target {
-  border-color: color-mix(in srgb, var(--accent) 72%, var(--border));
-  border-left-color: var(--accent);
-  background: color-mix(in srgb, var(--surface-strong) 74%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background: color-mix(in srgb, var(--surface) 84%, var(--accent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.rule-card.htmx-added {
+  animation: entity-row-updated 600ms ease-out;
+}
+
+@keyframes entity-row-updated {
+  from {
+    border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+    background: color-mix(in srgb, var(--surface) 84%, var(--accent));
+  }
+
+  to {
+    border-color: color-mix(in srgb, var(--border) 82%, transparent);
+    background: color-mix(in srgb, var(--surface) 94%, var(--surface-strong));
+  }
 }
 
 .rule-card__title strong {
@@ -4182,11 +4198,6 @@ pre {
 
 .manual-operation-row--inactive {
   opacity: 0.72;
-}
-
-.rule-card:target {
-  border-color: var(--accent);
-  background: var(--surface-strong);
 }
 
 .rule-card-inactive {

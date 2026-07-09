@@ -36,7 +36,7 @@ class TransactionRulesPagePresenter:
         can_write: bool,
     ) -> RulesPageVM:
         rows = [
-            TransactionRulesPagePresenter._row(
+            TransactionRulesPagePresenter.build_row(
                 rule,
                 categories=categories,
                 properties=properties,
@@ -91,7 +91,7 @@ class TransactionRulesPagePresenter:
         )
 
     @staticmethod
-    def _row(
+    def build_row(
         rule: TransactionRule,
         *,
         categories: Sequence[Category],

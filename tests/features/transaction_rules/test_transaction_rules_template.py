@@ -69,6 +69,10 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert "создать правило" in html
     assert "entity-card-list" in html
     assert "entity-card" in html
+    assert 'hx-boost="true"' in html
+    assert 'hx-select="#rule-' in html
+    assert 'hx-swap="outerHTML show:none settle:600ms"' in html
+    assert 'hx-push-url="false"' in html
     assert "rule-card__edit" in html
     assert "изменить правило" in html
     assert "Еще действия" in html
@@ -89,6 +93,7 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert "SAMOKAT" in html
     assert "сохранить" in html
     assert "выключить" in html
+    assert 'hx-boost="false"' in html
     assert "danger-zone review-actions__menu-section review-actions__danger-zone" in html
     assert "<summary>ID</summary>" not in html
     assert f"ID {rule_id}" in html

@@ -116,6 +116,7 @@ async def seed_default_rules(
 
 @router.post("/{rule_id}")
 async def update_rule(
+    request: Request,
     rule_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
@@ -149,11 +150,19 @@ async def update_rule(
         )
     except (ValueError, TransactionRuleError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if is_htmx_request(request):
+        return await render_rule_row_response(
+            request=request,
+            session=session,
+            context=context,
+            rule_id=rule.id,
+        )
     return RedirectResponse(url=rule_anchor_url(rule.id), status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/{rule_id}/toggle")
 async def toggle_rule(
+    request: Request,
     rule_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
@@ -164,6 +173,13 @@ async def toggle_rule(
         rule_id=rule_id,
         is_active=is_active,
     )
+    if is_htmx_request(request):
+        return await render_rule_row_response(
+            request=request,
+            session=session,
+            context=context,
+            rule_id=rule.id,
+        )
     return RedirectResponse(url=rule_anchor_url(rule.id), status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -182,3 +198,40 @@ async def delete_rule(
 
 def rule_anchor_url(rule_id: UUID) -> str:
     return f"/rules#rule-{rule_id}"
+
+
+async def render_rule_row_response(
+    *,
+    request: Request,
+    session: AsyncSession,
+    context: WorkspaceContext,
+    rule_id: UUID,
+) -> HTMLResponse:
+    categories = await CategoryService(session).list_or_seed_defaults(
+        context.workspace.id,
+        context.workspace.type,
+    )
+    properties = await PropertyService(session).list_active(context.workspace.id)
+    rule = await TransactionRuleQueryUseCase(session).get_rule(
+        workspace_id=context.workspace.id,
+        rule_id=rule_id,
+    )
+    if rule is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    row = TransactionRulesPagePresenter.build_row(
+        rule,
+        categories=categories,
+        properties=properties,
+    )
+    return templates.TemplateResponse(
+        request,
+        "transaction_rules/_rule_row.html",
+        {
+            "rule": row,
+            "can_write": True,
+        },
+    )
+
+
+def is_htmx_request(request: Request) -> bool:
+    return request.headers.get("hx-request") == "true"

@@ -1,4 +1,12 @@
-<article id="{{ rule.anchor_id }}" class="financial-row entity-card rule-card {% if rule.is_inactive %}entity-card-inactive{% endif %}">
+<article
+  id="{{ rule.anchor_id }}"
+  class="financial-row entity-card rule-card {% if rule.is_inactive %}entity-card-inactive{% endif %}"
+  hx-boost="true"
+  hx-select="#{{ rule.anchor_id }}"
+  hx-target="#{{ rule.anchor_id }}"
+  hx-swap="outerHTML show:none settle:600ms"
+  hx-push-url="false"
+>
   <div class="financial-row__main entity-card-main rule-card__main">
     <div class="rule-card__summary">
       <div class="financial-row__topline rule-card__topline">
@@ -34,7 +42,7 @@
             <code>{{ rule.technical_label }}</code>
           </div>
         </div>
-        <div class="danger-zone review-actions__menu-section review-actions__danger-zone">
+        <div class="danger-zone review-actions__menu-section review-actions__danger-zone" hx-boost="false">
           <div class="action-title review-actions__menu-title">Опасная зона</div>
           {% set action = rule.delete_action %}
           {% include "ui/_action.html" %}

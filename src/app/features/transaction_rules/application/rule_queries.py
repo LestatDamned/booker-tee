@@ -12,3 +12,6 @@ class TransactionRuleQueryUseCase:
 
     async def list_rules(self, workspace_id: UUID) -> list[TransactionRule]:
         return await self.rules.list_for_workspace(workspace_id)
+
+    async def get_rule(self, *, workspace_id: UUID, rule_id: UUID) -> TransactionRule | None:
+        return await self.rules.get_for_workspace(workspace_id, rule_id)

@@ -62,7 +62,13 @@ class TransactionRuleRepository:
         rule_id: UUID,
     ) -> TransactionRule | None:
         result = await self.session.execute(
-            select(TransactionRule).where(
+            select(TransactionRule)
+            .options(
+                selectinload(TransactionRule.category),
+                selectinload(TransactionRule.property),
+                selectinload(TransactionRule.account),
+            )
+            .where(
                 TransactionRule.id == rule_id,
                 TransactionRule.workspace_id == workspace_id,
             )

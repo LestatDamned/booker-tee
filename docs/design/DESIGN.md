@@ -377,6 +377,56 @@ Prefer feature-owned templates that reuse the same CSS/action language. Extract
 a shared partial only after the same markup and behavior have stabilized across
 several screens.
 
+### Entity Feedback And Local Update Contract
+
+Entity/reference screens should preserve the user's working context after a
+row-level action. A save, toggle, restore, cancel, or similar action should not
+send the user to the top of the page or make the screen jump when the result can
+be represented by updating the affected row.
+
+Default behavior:
+
+```text
+HTMX request     -> replace the affected row/card in place
+non-HTMX request -> redirect fallback to the affected entity anchor
+```
+
+Use local HTMX updates for actions that only change:
+
+- the current row/card;
+- a small page summary or queue counter that can be updated out-of-band;
+- sibling rows directly affected by the same workflow.
+
+Use full-page redirects for actions that change the page context, route,
+workspace, filters, pagination, or a broad list state that has not yet been
+given a stable partial/OOB contract.
+
+Feedback and highlighting semantics:
+
+1. Persistent color belongs to meaning: money direction, problem/error states,
+   danger, or an explicit current workflow item.
+2. Calm statuses such as `активно`, `подтверждено`, or `импортировано` should be
+   readable but not compete with primary content.
+3. `:target` is navigation focus and fallback only. It should be subtle and
+   should not look like a permanent status or problem.
+4. "Just changed" feedback should be short-lived and calm. Prefer HTMX settling
+   or a temporary client-side state over a permanent ViewModel flag.
+5. Row update swaps should avoid automatic scrolling unless the action's purpose
+   is navigation. Use the import review pattern as the reference:
+
+```html
+hx-boost="true"
+hx-select="#row-id"
+hx-target="#row-id"
+hx-swap="outerHTML show:none"
+hx-push-url="false"
+```
+
+Do not move HTMX metadata into the shared `ActionVM` until repeated screens prove
+that action-level HTMX is the stable abstraction. It is acceptable, and often
+cleaner, for the row/card root to own the local update behavior while the actions
+inside continue to use the shared `ui/_action.html` shape.
+
 ### Financial Forms
 
 Creation and repair forms should share a calm, predictable structure without
