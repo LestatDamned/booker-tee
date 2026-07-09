@@ -5,6 +5,10 @@ from typing import Any, cast
 from uuid import uuid4
 
 from app.features.categories.models import CategoryKind
+from app.features.categories.presentation.presenter import (
+    CategoryPagePresenter,
+    category_form_state,
+)
 from app.features.ledger.models import OperationType
 from app.features.properties.models import PropertyStatus
 from app.features.transaction_rules.models import (
@@ -20,48 +24,42 @@ def test_categories_template_uses_compact_cards() -> None:
     custom_category_id = uuid4()
     templates = create_templates()
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+    category_rows = [
+        SimpleNamespace(
+            category=SimpleNamespace(
+                id=custom_category_id,
+                name="Продукты",
+                kind=CategoryKind.EXPENSE,
+                is_active=False,
+                is_system=False,
+                system_key=None,
+                notes="Супермаркеты и доставка",
+            ),
+            operation_count=10,
+            rule_count=4,
+        ),
+        SimpleNamespace(
+            category=SimpleNamespace(
+                id=system_category_id,
+                name="Прочий расход",
+                kind=CategoryKind.EXPENSE,
+                is_active=True,
+                is_system=True,
+                system_key="expense",
+                notes=None,
+            ),
+            operation_count=2,
+            rule_count=0,
+        ),
+    ]
 
     html = templates.env.get_template("categories/index.html").render(
         app_name="Booker Tee",
         workspace=SimpleNamespace(name="Personal"),
-        kinds=list(CategoryKind),
-        category_view="archived",
-        category_view_options=[
-            ("active", "активные"),
-            ("archived", "архив"),
-            ("system", "системные"),
-            ("all", "все"),
-        ],
-        user_category_rows=[
-            SimpleNamespace(
-                category=SimpleNamespace(
-                    id=custom_category_id,
-                    name="Продукты",
-                    kind=CategoryKind.EXPENSE,
-                    is_active=False,
-                    is_system=False,
-                    system_key=None,
-                    notes="Супермаркеты и доставка",
-                ),
-                operation_count=10,
-                rule_count=4,
-            ),
-        ],
-        system_category_rows=[
-            SimpleNamespace(
-                category=SimpleNamespace(
-                    id=system_category_id,
-                    name="Прочий расход",
-                    kind=CategoryKind.EXPENSE,
-                    is_active=True,
-                    is_system=True,
-                    system_key="expense",
-                    notes=None,
-                ),
-                operation_count=2,
-                rule_count=0,
-            ),
-        ],
+        category_page=CategoryPagePresenter.build_index(
+            cast(Any, category_rows),
+            category_view="all",
+        ),
     )
 
     assert "form-panel" in html
@@ -79,7 +77,7 @@ def test_categories_template_uses_compact_cards() -> None:
     assert "Супермаркеты и доставка" in html
     assert f'href="/categories/{custom_category_id}"' in html
     assert f'action="/categories/{custom_category_id}/restore"' not in html
-    assert '<input type="hidden" name="view" value="archived">' in html
+    assert '<input type="hidden" name="view" value="all">' in html
     assert "<summary>ID</summary>" in html
     assert f"ID {system_category_id}" in html
 
@@ -91,16 +89,7 @@ def test_categories_template_empty_state_points_to_creation_form() -> None:
     html = templates.env.get_template("categories/index.html").render(
         app_name="Booker Tee",
         workspace=SimpleNamespace(name="Personal"),
-        kinds=list(CategoryKind),
-        category_view="active",
-        category_view_options=[
-            ("active", "активные"),
-            ("archived", "архив"),
-            ("system", "системные"),
-            ("all", "все"),
-        ],
-        user_category_rows=[],
-        system_category_rows=[],
+        category_page=CategoryPagePresenter.build_index([], category_view="active"),
     )
 
     assert "Категорий не найдено" in html
@@ -115,20 +104,16 @@ def test_categories_template_shows_create_error_and_keeps_values() -> None:
     html = templates.env.get_template("categories/index.html").render(
         app_name="Booker Tee",
         workspace=SimpleNamespace(name="Personal"),
-        kinds=list(CategoryKind),
-        category_view="active",
-        category_view_options=[
-            ("active", "активные"),
-            ("archived", "архив"),
-            ("system", "системные"),
-            ("all", "все"),
-        ],
-        user_category_rows=[],
-        system_category_rows=[],
-        create_error="Категория с таким названием уже есть.",
-        create_name="Продукты",
-        create_kind=CategoryKind.EXPENSE,
-        create_notes="Супермаркеты",
+        category_page=CategoryPagePresenter.build_index(
+            [],
+            category_view="active",
+            create_form=category_form_state(
+                error="Категория с таким названием уже есть.",
+                name="Продукты",
+                kind=CategoryKind.EXPENSE,
+                notes="Супермаркеты",
+            ),
+        ),
     )
 
     assert 'role="alert"' in html
@@ -147,51 +132,58 @@ def test_category_detail_template_shows_operations_and_rules() -> None:
 
     html = templates.env.get_template("categories/detail.html").render(
         app_name="Booker Tee",
-        kinds=list(CategoryKind),
         workspace=SimpleNamespace(name="Personal", default_currency="RUB"),
-        detail=SimpleNamespace(
-            category=SimpleNamespace(
-                id=category_id,
-                name="Кафе и рестораны",
-                kind=CategoryKind.EXPENSE,
-                is_active=True,
-                is_system=False,
-                notes="Еда вне дома",
-            ),
-            summary=SimpleNamespace(
-                income=Decimal("0.00"),
-                expense=Decimal("12254.60"),
-                profit=Decimal("-12254.60"),
-            ),
-            operations=[
+        category_page=CategoryPagePresenter.build_detail(
+            cast(
+                Any,
                 SimpleNamespace(
-                    operation=SimpleNamespace(
-                        operation_date=date(2026, 6, 19),
-                        type=OperationType.EXPENSE,
-                        description="GREEN HOUSE",
-                        property=None,
-                        money_entries=[
-                            SimpleNamespace(
-                                account=SimpleNamespace(id=account_id, name="Экспобанк карта"),
-                                amount=Decimal("-890.00"),
-                                currency="RUB",
-                            )
-                        ],
+                    category=SimpleNamespace(
+                        id=category_id,
+                        name="Кафе и рестораны",
+                        kind=CategoryKind.EXPENSE,
+                        is_active=True,
+                        is_system=False,
+                        notes="Еда вне дома",
                     ),
-                    total=Decimal("-890.00"),
-                )
-            ],
-            rules=[
-                SimpleNamespace(
-                    id=rule_id,
-                    pattern="GREEN HOUSE",
-                    is_active=True,
-                    match_type=TransactionRuleMatchType.CONTAINS,
-                    application_mode=TransactionRuleApplicationMode.AUTO_APPLY,
-                    direction=MoneyDirection.OUTFLOW,
-                    target_operation_type=OperationType.EXPENSE,
-                )
-            ],
+                    summary=SimpleNamespace(
+                        income=Decimal("0.00"),
+                        expense=Decimal("12254.60"),
+                        profit=Decimal("-12254.60"),
+                    ),
+                    operations=[
+                        SimpleNamespace(
+                            operation=SimpleNamespace(
+                                operation_date=date(2026, 6, 19),
+                                type=OperationType.EXPENSE,
+                                description="GREEN HOUSE",
+                                property=None,
+                                money_entries=[
+                                    SimpleNamespace(
+                                        account=SimpleNamespace(
+                                            id=account_id,
+                                            name="Экспобанк карта",
+                                        ),
+                                        amount=Decimal("-890.00"),
+                                        currency="RUB",
+                                    )
+                                ],
+                            ),
+                            total=Decimal("-890.00"),
+                        )
+                    ],
+                    rules=[
+                        SimpleNamespace(
+                            id=rule_id,
+                            pattern="GREEN HOUSE",
+                            is_active=True,
+                            match_type=TransactionRuleMatchType.CONTAINS,
+                            application_mode=TransactionRuleApplicationMode.AUTO_APPLY,
+                            direction=MoneyDirection.OUTFLOW,
+                            target_operation_type=OperationType.EXPENSE,
+                        )
+                    ],
+                ),
+            )
         ),
     )
 
@@ -213,29 +205,35 @@ def test_category_detail_template_shows_edit_error_and_keeps_values() -> None:
 
     html = templates.env.get_template("categories/detail.html").render(
         app_name="Booker Tee",
-        kinds=list(CategoryKind),
         workspace=SimpleNamespace(name="Personal", default_currency="RUB"),
-        detail=SimpleNamespace(
-            category=SimpleNamespace(
-                id=category_id,
-                name="Кафе",
-                kind=CategoryKind.EXPENSE,
-                is_active=True,
-                is_system=False,
-                notes="Старое описание",
+        category_page=CategoryPagePresenter.build_detail(
+            cast(
+                Any,
+                SimpleNamespace(
+                    category=SimpleNamespace(
+                        id=category_id,
+                        name="Кафе",
+                        kind=CategoryKind.EXPENSE,
+                        is_active=True,
+                        is_system=False,
+                        notes="Старое описание",
+                    ),
+                    summary=SimpleNamespace(
+                        income=Decimal("0.00"),
+                        expense=Decimal("0.00"),
+                        profit=Decimal("0.00"),
+                    ),
+                    operations=[],
+                    rules=[],
+                ),
             ),
-            summary=SimpleNamespace(
-                income=Decimal("0.00"),
-                expense=Decimal("0.00"),
-                profit=Decimal("0.00"),
+            edit_form=category_form_state(
+                error="Категория с таким названием уже есть.",
+                name="Продукты",
+                kind=CategoryKind.INCOME,
+                notes="Новое описание",
             ),
-            operations=[],
-            rules=[],
         ),
-        edit_error="Категория с таким названием уже есть.",
-        edit_name="Продукты",
-        edit_kind=CategoryKind.INCOME,
-        edit_notes="Новое описание",
     )
 
     assert 'category-edit-details" open' in html
@@ -253,43 +251,47 @@ def test_category_detail_template_shows_lifecycle_error() -> None:
 
     html = templates.env.get_template("categories/detail.html").render(
         app_name="Booker Tee",
-        kinds=list(CategoryKind),
         workspace=SimpleNamespace(name="Personal", default_currency="RUB"),
-        detail=SimpleNamespace(
-            category=SimpleNamespace(
-                id=category_id,
-                name="Архивная категория",
-                kind=CategoryKind.EXPENSE,
-                is_active=False,
-                is_system=False,
-                notes=None,
-            ),
-            summary=SimpleNamespace(
-                income=Decimal("0.00"),
-                expense=Decimal("0.00"),
-                profit=Decimal("0.00"),
-            ),
-            operations=[
+        category_page=CategoryPagePresenter.build_detail(
+            cast(
+                Any,
                 SimpleNamespace(
-                    operation=SimpleNamespace(
-                        operation_date=date(2026, 6, 19),
-                        type=OperationType.EXPENSE,
-                        description="GREEN HOUSE",
-                        property=None,
-                        money_entries=[
-                            SimpleNamespace(
-                                account=SimpleNamespace(name="Экспобанк карта"),
-                                amount=Decimal("-890.00"),
-                                currency="RUB",
-                            )
-                        ],
+                    category=SimpleNamespace(
+                        id=category_id,
+                        name="Архивная категория",
+                        kind=CategoryKind.EXPENSE,
+                        is_active=False,
+                        is_system=False,
+                        notes=None,
                     ),
-                    total=Decimal("-890.00"),
-                )
-            ],
-            rules=[],
+                    summary=SimpleNamespace(
+                        income=Decimal("0.00"),
+                        expense=Decimal("0.00"),
+                        profit=Decimal("0.00"),
+                    ),
+                    operations=[
+                        SimpleNamespace(
+                            operation=SimpleNamespace(
+                                operation_date=date(2026, 6, 19),
+                                type=OperationType.EXPENSE,
+                                description="GREEN HOUSE",
+                                property=None,
+                                money_entries=[
+                                    SimpleNamespace(
+                                        account=SimpleNamespace(name="Экспобанк карта"),
+                                        amount=Decimal("-890.00"),
+                                        currency="RUB",
+                                    )
+                                ],
+                            ),
+                            total=Decimal("-890.00"),
+                        )
+                    ],
+                    rules=[],
+                ),
+            ),
+            lifecycle_error="Нельзя удалить категорию, у которой есть операции.",
         ),
-        lifecycle_error="Нельзя удалить категорию, у которой есть операции.",
     )
 
     assert 'category-edit-details" open' in html

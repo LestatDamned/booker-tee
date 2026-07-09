@@ -1923,17 +1923,29 @@ Preferred future direction:
 
 Current state:
 
+- Categories now have a small feature-owned `presentation/` package for page
+  and form state:
+
+  ```text
+  src/app/features/categories/presentation/
+  ```
+
+- `CategoryPagePresenter` owns category view normalization, tab URLs, row split
+  by current view, create/edit form values and lifecycle error state.
 - Categories still group rows in Jinja with `selectattr` and local macro logic.
 - Category detail still computes some display choices in templates.
 
 Why it matters:
 
-- This is acceptable for a simple MVP screen, but it resists consistent action
-  hierarchy, created feedback and local updates.
+- Router helpers are no longer the owner of categories SSR state, which keeps
+  the code closer to the Router -> Service -> Presenter/ViewModel -> Jinja
+  contract.
+- Remaining template logic is acceptable for the current simple screen, but it
+  still resists consistent action hierarchy, created feedback and local updates.
 
 Preferred future direction:
 
-- when touching categories, introduce a small presenter/page VM;
+- when touching categories UI next, continue from `CategoryPagePresenter`;
 - do not create a universal CRUD component;
 - preserve existing backend/service behavior.
 

@@ -57,6 +57,7 @@
 {% endmacro %}
 
 {% block content %}
+  {% set page = category_page %}
   {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
   <section class="panel stack">
     <div class="toolbar">
@@ -68,9 +69,9 @@
     </div>
 
     <nav class="filter-tabs" aria-label="Фильтр категорий">
-      {% for value, label in category_view_options %}
-        <a class="filter-tab {% if category_view == value %}filter-tab-active{% endif %}" href="/categories{% if value != "active" %}?view={{ value }}{% endif %}">
-          {{ label }}
+      {% for option in page.view_options %}
+        <a class="filter-tab {% if option.is_active %}filter-tab-active{% endif %}" href="{{ option.url }}">
+          {{ option.label }}
         </a>
       {% endfor %}
     </nav>
@@ -78,30 +79,28 @@
     {{ inline_hint("Категория отвечает на вопрос, почему деньги пришли или ушли. Она влияет на отчеты по доходам, расходам и прибыли.", "info") }}
 
     {% if can_write %}
-      {% set form_name = create_name | default("") %}
-      {% set form_kind = create_kind | default(kinds[-1]) %}
-      {% set form_notes = create_notes | default("") %}
+      {% set create_form = page.create_form %}
       <form class="form-panel" method="post" action="/categories">
         {{ csrf_input() }}
-        <input type="hidden" name="view" value="{{ category_view }}">
-        {% if create_error is defined and create_error %}
-          <div class="form-error" role="alert">{{ create_error }}</div>
+        <input type="hidden" name="view" value="{{ page.view }}">
+        {% if create_form.error %}
+          <div class="form-error" role="alert">{{ create_form.error }}</div>
         {% endif %}
         <div class="field form-field-half">
           <label for="name">Название</label>
-          <input id="name" name="name" value="{{ form_name }}" placeholder="Название категории" required>
+          <input id="name" name="name" value="{{ create_form.name }}" placeholder="Название категории" required>
         </div>
         <div class="field form-field-quarter">
           <label for="kind">Тип</label>
           <select id="kind" name="kind">
-            {% for kind in kinds %}
-              <option value="{{ kind.value }}" {% if kind == form_kind %}selected{% endif %}>{{ kind | ru }}</option>
+            {% for kind in page.kinds %}
+              <option value="{{ kind.value }}" {% if kind == create_form.kind %}selected{% endif %}>{{ kind | ru }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="field form-field-half">
           <label for="notes">Заметка</label>
-          <input id="notes" name="notes" value="{{ form_notes }}" placeholder="Когда использовать эту категорию">
+          <input id="notes" name="notes" value="{{ create_form.notes }}" placeholder="Когда использовать эту категорию">
         </div>
         <div class="form-actions">
           <button class="button" type="submit">{{ icon("plus") }} добавить</button>
@@ -109,15 +108,15 @@
       </form>
     {% endif %}
 
-    {% if user_category_rows or system_category_rows %}
-      {{ category_group("пользовательские", user_category_rows, kinds, category_view) }}
+    {% if page.user_category_rows or page.system_category_rows %}
+      {{ category_group("пользовательские", page.user_category_rows, page.kinds, page.view) }}
 
-      {% if system_category_rows %}
+      {% if page.system_category_rows %}
         <div class="section-heading">
-          <p class="eyebrow">{{ system_category_rows|length }} служебных категорий</p>
+          <p class="eyebrow">{{ page.system_category_rows|length }} служебных категорий</p>
           <h2>Системные</h2>
         </div>
-        {{ category_group("служебные", system_category_rows, kinds, category_view) }}
+        {{ category_group("служебные", page.system_category_rows, page.kinds, page.view) }}
       {% endif %}
     {% else %}
       {% if can_write %}

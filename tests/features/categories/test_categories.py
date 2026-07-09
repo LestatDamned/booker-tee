@@ -5,9 +5,11 @@ from uuid import uuid4
 import pytest
 
 from app.features.categories.models import CategoryKind
-from app.features.categories.router import (
+from app.features.categories.presentation.presenter import (
+    CategoryPagePresenter,
     categories_url,
     category_form_error_message,
+    category_form_state,
     split_category_rows,
 )
 from app.features.categories.service import (
@@ -92,6 +94,31 @@ def test_category_view_filter_splits_user_archive_and_system_rows() -> None:
         [active_user, archived_user],
         [system],
     )
+
+
+def test_category_presenter_builds_page_state_for_current_view() -> None:
+    active_user = category_row(is_active=True, is_system=False)
+    archived_user = category_row(is_active=False, is_system=False)
+    system = category_row(is_active=True, is_system=True)
+
+    page = CategoryPagePresenter.build_index(
+        [active_user, archived_user, system],
+        category_view="archived",
+        create_form=category_form_state(
+            error="Введите название категории.",
+            name="",
+            kind=CategoryKind.EXPENSE,
+            notes="Супермаркеты",
+        ),
+    )
+
+    assert page.view == "archived"
+    assert page.user_category_rows == [archived_user]
+    assert page.system_category_rows == []
+    assert page.create_form.error == "Введите название категории."
+    assert page.create_form.kind == CategoryKind.EXPENSE
+    assert page.view_options[0].url == "/categories"
+    assert [option.value for option in page.view_options if option.is_active] == ["archived"]
 
 
 def test_categories_url_preserves_non_default_view() -> None:

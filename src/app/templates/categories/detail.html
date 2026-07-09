@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}{{ detail.category.name }} · {{ app_name }}{% endblock %}
+{% block title %}{{ category_page.detail.category.name }} · {{ app_name }}{% endblock %}
 
 {% block content %}
+  {% set page = category_page %}
+  {% set detail = page.detail %}
   {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
   <section class="panel stack">
     <div class="toolbar">
@@ -37,26 +39,24 @@
     </div>
 
     {% if can_write and not detail.category.is_system %}
-      {% set form_name = edit_name if edit_name is defined and edit_name is not none else detail.category.name %}
-      {% set form_kind = edit_kind if edit_kind is defined and edit_kind is not none else detail.category.kind %}
-      {% set form_notes = edit_notes if edit_notes is defined and edit_notes is not none else detail.category.notes or "" %}
-      <details class="action-details action-accordion category-edit-details" {% if (edit_error is defined and edit_error) or (lifecycle_error is defined and lifecycle_error) %}open{% endif %}>
+      {% set edit_form = page.edit_form %}
+      <details class="action-details action-accordion category-edit-details" {% if page.edit_panel_open %}open{% endif %}>
         <summary>{{ icon("settings") }} управление категорией</summary>
         <div class="category-edit-layout">
           <form class="form-panel form-panel-embedded category-edit-form" method="post" action="/categories/{{ detail.category.id }}">
             {{ csrf_input() }}
-            {% if edit_error is defined and edit_error %}
-              <div class="form-error" role="alert">{{ edit_error }}</div>
+            {% if edit_form.error %}
+              <div class="form-error" role="alert">{{ edit_form.error }}</div>
             {% endif %}
             <label class="field category-name-field">
               <span>название</span>
-              <input name="name" value="{{ form_name }}" required>
+              <input name="name" value="{{ edit_form.name }}" required>
             </label>
             <label class="field category-kind-field">
               <span>тип</span>
               <select name="kind">
-                {% for editable_kind in kinds %}
-                  <option value="{{ editable_kind.value }}" {% if form_kind == editable_kind %}selected{% endif %}>
+                {% for editable_kind in page.kinds %}
+                  <option value="{{ editable_kind.value }}" {% if edit_form.kind == editable_kind %}selected{% endif %}>
                     {{ editable_kind | ru }}
                   </option>
                 {% endfor %}
@@ -64,15 +64,15 @@
             </label>
             <label class="field category-notes-field">
               <span>заметка</span>
-              <input name="notes" value="{{ form_notes }}" placeholder="Когда использовать">
+              <input name="notes" value="{{ edit_form.notes }}" placeholder="Когда использовать">
             </label>
             <div class="category-primary-action">
               <button class="button button-small" type="submit">{{ icon("save") }} сохранить</button>
             </div>
           </form>
           <div class="category-lifecycle-actions">
-            {% if lifecycle_error is defined and lifecycle_error %}
-              <div class="form-error" role="alert">{{ lifecycle_error }}</div>
+            {% if page.lifecycle.error %}
+              <div class="form-error" role="alert">{{ page.lifecycle.error }}</div>
             {% endif %}
             {% if detail.category.is_active %}
               <form method="post" action="/categories/{{ detail.category.id }}/archive">

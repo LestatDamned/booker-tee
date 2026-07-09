@@ -9,7 +9,15 @@ from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.categories.models import CategoryKind
-from app.features.categories.service import CategoryError, CategoryManagementRow, CategoryService
+from app.features.categories.presentation.models import CategoryFormStateVM
+from app.features.categories.presentation.presenter import (
+    CategoryPagePresenter,
+    categories_url,
+    category_form_error_message,
+    category_form_state,
+    normalize_category_view,
+)
+from app.features.categories.service import CategoryError, CategoryService
 from app.features.workspaces.dependencies import (
     get_current_workspace_context,
     require_financial_write_context,
@@ -19,14 +27,6 @@ from app.templating import create_templates
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 templates = create_templates()
-
-CATEGORY_VIEW_OPTIONS = [
-    ("active", "активные"),
-    ("archived", "архив"),
-    ("system", "системные"),
-    ("all", "все"),
-]
-CATEGORY_VIEW_VALUES = {value for value, _label in CATEGORY_VIEW_OPTIONS}
 
 
 @router.get("", response_class=HTMLResponse)
@@ -54,32 +54,25 @@ async def category_index_response(
     settings: Settings,
     context: WorkspaceContext,
     category_view: str,
-    create_error: str | None = None,
-    create_name: str = "",
-    create_kind: CategoryKind = CategoryKind.MIXED,
-    create_notes: str = "",
+    create_form: CategoryFormStateVM | None = None,
     status_code: int = status.HTTP_200_OK,
 ) -> HTMLResponse:
     category_rows = await CategoryService(session).list_management_rows(
         context.workspace.id,
         context.workspace.type,
     )
-    user_category_rows, system_category_rows = split_category_rows(category_rows, category_view)
+    category_page = CategoryPagePresenter.build_index(
+        category_rows,
+        category_view=category_view,
+        create_form=create_form,
+    )
     return templates.TemplateResponse(
         request,
         "categories/index.html",
         {
             "app_name": settings.app_name,
-            "category_view": category_view,
-            "category_view_options": CATEGORY_VIEW_OPTIONS,
-            "user_category_rows": user_category_rows,
-            "system_category_rows": system_category_rows,
-            "kinds": list(CategoryKind),
+            "category_page": category_page,
             "workspace": context.workspace,
-            "create_error": create_error,
-            "create_name": create_name,
-            "create_kind": create_kind,
-            "create_notes": create_notes,
         },
         status_code=status_code,
     )
@@ -123,19 +116,27 @@ async def category_detail_response(
         )
     except CategoryError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    category_page = CategoryPagePresenter.build_detail(
+        detail,
+        edit_form=(
+            category_form_state(
+                error=edit_error,
+                name=edit_name,
+                kind=edit_kind or detail.category.kind,
+                notes=edit_notes,
+            )
+            if edit_error is not None and edit_name is not None
+            else None
+        ),
+        lifecycle_error=lifecycle_error,
+    )
     return templates.TemplateResponse(
         request,
         "categories/detail.html",
         {
             "app_name": settings.app_name,
-            "detail": detail,
-            "kinds": list(CategoryKind),
+            "category_page": category_page,
             "workspace": context.workspace,
-            "edit_error": edit_error,
-            "edit_name": edit_name,
-            "edit_kind": edit_kind,
-            "edit_notes": edit_notes,
-            "lifecycle_error": lifecycle_error,
         },
         status_code=status_code,
     )
@@ -166,10 +167,12 @@ async def create_category(
             settings=settings,
             context=context,
             category_view=normalize_category_view(view),
-            create_error=category_form_error_message(exc),
-            create_name=name,
-            create_kind=kind,
-            create_notes=notes or "",
+            create_form=category_form_state(
+                error=category_form_error_message(exc),
+                name=name,
+                kind=kind,
+                notes=notes,
+            ),
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -311,50 +314,4 @@ async def delete_category(
     return RedirectResponse(
         url=categories_url(view),
         status_code=status.HTTP_303_SEE_OTHER,
-    )
-
-
-def normalize_category_view(raw_view: str | None) -> str:
-    if raw_view in CATEGORY_VIEW_VALUES:
-        return raw_view
-    return "active"
-
-
-def categories_url(raw_view: str | None) -> str:
-    category_view = normalize_category_view(raw_view)
-    if category_view == "active":
-        return "/categories"
-    return f"/categories?view={category_view}"
-
-
-def category_form_error_message(error: CategoryError) -> str:
-    message = str(error)
-    if message == "Category name is required.":
-        return "Введите название категории."
-    return message
-
-
-def split_category_rows(
-    category_rows: list[CategoryManagementRow],
-    category_view: str,
-) -> tuple[list[CategoryManagementRow], list[CategoryManagementRow]]:
-    if category_view == "active":
-        return (
-            [row for row in category_rows if not row.category.is_system and row.category.is_active],
-            [],
-        )
-    if category_view == "archived":
-        return (
-            [
-                row
-                for row in category_rows
-                if not row.category.is_system and not row.category.is_active
-            ],
-            [],
-        )
-    if category_view == "system":
-        return ([], [row for row in category_rows if row.category.is_system])
-    return (
-        [row for row in category_rows if not row.category.is_system],
-        [row for row in category_rows if row.category.is_system],
     )
