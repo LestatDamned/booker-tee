@@ -319,6 +319,64 @@ Accepted row-level language:
 Еще действия     reveals secondary and dangerous actions
 ```
 
+### Entity Work Row Contract
+
+The financial row pattern has grown into a broader entity row/card language.
+Use it for dense working lists of important entities, not only money
+movements. Good candidates include transaction rules, account movements,
+manual operations, import review items, categories, properties, and similar
+reference entities.
+
+Default geometry:
+
+```text
+left:  entity meaning, facts, status/result signals
+right: actions
+below: full-width drawer/form when editing or resolving the entity
+```
+
+Rules:
+
+1. The left side owns information: title, human description, route/meaning,
+   calm metadata, and compact status/result signals.
+2. The right side owns actions only. It should not become a save panel, a
+   duplicate status area, or a second data summary.
+3. The two zones should be separated by the same calm vertical divider rhythm
+   used by `financial-row__side`.
+4. Compact status/result anchors may live in the left side's right edge, like
+   an amount or `активно` badge. They are still information, not row actions.
+5. A row/card has one visible primary action. Secondary actions are visually
+   calmer. Rare actions go to `Еще действия`.
+6. `Еще действия` is an explicit text action, not an ellipsis icon. Its shape
+   should match the import review action menu language.
+7. Dangerous actions live inside the additional-actions/danger zone and require
+   confirmation when destructive. They should not sit next to save/edit/apply
+   actions as equal buttons.
+8. Editing opens a row drawer/panel under the row/card. The drawer spans the
+   full row/card width, has the same drawer header/body/footer rhythm, and keeps
+   the submit action inside the drawer footer.
+9. Opening the drawer should not replace the right-side action rail with a
+   different set of buttons. The action rail stays stable; the form owns save.
+10. Technical details, IDs, debug payloads, and rare administrative controls
+    stay collapsed or visually secondary.
+
+Implementation guidance:
+
+```text
+financial-row / entity-card root
+financial-row__main         left information zone
+financial-row__side         right action zone
+row-actions                 primary/secondary/more action rail
+row-drawer                  full-width edit/resolve drawer
+operation-form / feature form classes
+ui/_action.html + ActionVM  shared action shape
+```
+
+This is a design contract, not a command to extract a universal Jinja partial.
+Prefer feature-owned templates that reuse the same CSS/action language. Extract
+a shared partial only after the same markup and behavior have stabilized across
+several screens.
+
 ### Financial Forms
 
 Creation and repair forms should share a calm, predictable structure without
@@ -491,6 +549,8 @@ Rules:
     `operation-form`, and `filter-form` language where it fits. Prefer
     feature-owned templates with shared classes before extracting a universal
     macro or partial.
+11. Entity/reference screens should start from the Entity Work Row Contract
+    before inventing a local card shape, action menu, or edit form layout.
 
 This contract is intentionally smaller than a full design system. It is a
 review checklist for new or refactored screens: if a page breaks the contract,
@@ -553,6 +613,8 @@ Rules:
 5. The action set depends on entity state.
 6. Confirmed entities should show result and focused correction/open actions,
    not the full unresolved form again.
+7. `Еще действия` should use the shared text-button/menu rhythm. Avoid local
+   ellipsis-only controls or one-off icon menus for the same concept.
 
 For import review, the detailed action policy lives in
 [`REFACTOR_PROJECT_DESIGN.md`](REFACTOR_PROJECT_DESIGN.md).
@@ -595,6 +657,10 @@ Rules:
 6. Dangerous actions should not sit inside the same visual rhythm as save
    actions.
 7. After an action, the user should stay in the working context.
+8. Row/card edit forms should use the same drawer rhythm where possible:
+   header with short title and context, compact grouped body, and submit action
+   in the footer. A drawer edits the full entity and should span the full
+   row/card width.
 
 Suggested reusable classes:
 
