@@ -32,12 +32,6 @@ class RuleFormVM:
 
 
 @dataclass(frozen=True)
-class RuleMetaVM:
-    label: str
-    tone: str | None = None
-
-
-@dataclass(frozen=True)
 class RuleRowVM:
     anchor_id: str
     title: str
@@ -46,7 +40,6 @@ class RuleRowVM:
     status_label: str
     status_tone: str
     is_inactive: bool
-    meta: list[RuleMetaVM]
     form: RuleFormVM
     edit_summary_id: str
     edit_toggle_action: ActionVM

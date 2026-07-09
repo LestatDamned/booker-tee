@@ -10,7 +10,7 @@
       <div class="rule-create-block">
         <p class="rule-create-block__title">Если описание операции</p>
         <div class="rule-create-condition">
-          <label class="field rule-create-match">
+          <label class="field operation-form__field rule-create-field rule-create-match">
             <span>поиск</span>
             <select name="match_type" required>
               {% for option in form.match_type_options %}
@@ -18,7 +18,7 @@
               {% endfor %}
             </select>
           </label>
-          <label class="field rule-create-pattern">
+          <label class="field operation-form__field rule-create-field rule-create-pattern">
             <span>что искать в описании</span>
             <input name="pattern" value="{{ form.pattern }}" placeholder="например, KRASNOE&BELOE" required>
           </label>
@@ -27,7 +27,7 @@
 
       <div class="rule-create-block rule-create-block--compact">
         <p class="rule-create-block__title">Для операций</p>
-        <label class="field">
+        <label class="field operation-form__field rule-create-field">
           <span>тип</span>
           <select name="target_operation_type">
             {% for option in form.operation_type_options %}
@@ -39,7 +39,7 @@
 
       <div class="rule-create-block">
         <p class="rule-create-block__title">Тогда предложить</p>
-        <label class="field rule-create-category">
+        <label class="field operation-form__field rule-create-field rule-create-category">
           <span>категория</span>
           <select name="category_id">
             {% for option in form.category_options %}
@@ -58,7 +58,7 @@
           </span>
         </summary>
         <div class="rule-advanced-grid rule-advanced-grid--create">
-          <label class="field">
+          <label class="field operation-form__field rule-create-field">
             <span>режим</span>
             <select name="application_mode" required>
               {% for option in form.application_mode_options %}
@@ -66,7 +66,7 @@
               {% endfor %}
             </select>
           </label>
-          <label class="field">
+          <label class="field operation-form__field rule-create-field">
             <span>направление</span>
             <select name="direction" required>
               {% for option in form.direction_options %}
@@ -74,15 +74,15 @@
               {% endfor %}
             </select>
           </label>
-          <label class="field">
+          <label class="field operation-form__field rule-create-field">
             <span>сумма от</span>
             <input class="amount" name="amount_min" inputmode="decimal" value="{{ form.amount_min or "" }}" placeholder="0.00">
           </label>
-          <label class="field">
+          <label class="field operation-form__field rule-create-field">
             <span>сумма до</span>
             <input class="amount" name="amount_max" inputmode="decimal" value="{{ form.amount_max or "" }}" placeholder="0.00">
           </label>
-          <label class="field">
+          <label class="field operation-form__field rule-create-field">
             <span>объект</span>
             <select name="property_id">
               {% for option in form.property_options %}
@@ -91,7 +91,7 @@
             </select>
           </label>
           {% if form.show_name %}
-            <label class="field">
+            <label class="field operation-form__field rule-create-field">
               <span>название правила</span>
               <input name="name" value="{{ form.name }}" placeholder="создадим автоматически">
             </label>
@@ -140,53 +140,53 @@
     </div>
 
     <details class="rule-advanced-details rule-advanced-details--edit">
-        <summary>
-          <span>{{ form.advanced_label }}</span>
-          <span class="details-toggle-label" aria-hidden="true">
-            <span class="details-toggle-open">Открыть</span>
-            <span class="details-toggle-close">Закрыть</span>
-          </span>
-        </summary>
-        <div class="rule-advanced-grid rule-advanced-grid--edit">
-          <label class="field row-drawer__field operation-form__field">
-            <span>режим</span>
-            <select name="application_mode" required>
-              {% for option in form.application_mode_options %}
-                <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
-              {% endfor %}
-            </select>
+      <summary>
+        <span>{{ form.advanced_label }}</span>
+        <span class="details-toggle-label" aria-hidden="true">
+          <span class="details-toggle-open">Открыть</span>
+          <span class="details-toggle-close">Закрыть</span>
+        </span>
+      </summary>
+      <div class="rule-advanced-grid rule-advanced-grid--edit">
+        <label class="field row-drawer__field operation-form__field">
+          <span>режим</span>
+          <select name="application_mode" required>
+            {% for option in form.application_mode_options %}
+              <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field row-drawer__field operation-form__field">
+          <span>направление</span>
+          <select name="direction" required>
+            {% for option in form.direction_options %}
+              <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field row-drawer__field operation-form__field">
+          <span>объект</span>
+          <select name="property_id">
+            {% for option in form.property_options %}
+              <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field row-drawer__field operation-form__field">
+          <span>сумма от</span>
+          <input class="amount" name="amount_min" inputmode="decimal" value="{{ form.amount_min or "" }}" placeholder="0.00">
+        </label>
+        <label class="field row-drawer__field operation-form__field">
+          <span>сумма до</span>
+          <input class="amount" name="amount_max" inputmode="decimal" value="{{ form.amount_max or "" }}" placeholder="0.00">
+        </label>
+        {% if form.show_name %}
+          <label class="field row-drawer__field operation-form__field rule-edit-name">
+            <span>название правила</span>
+            <input name="name" value="{{ form.name }}" placeholder="создадим автоматически">
           </label>
-          <label class="field row-drawer__field operation-form__field">
-            <span>направление</span>
-            <select name="direction" required>
-              {% for option in form.direction_options %}
-                <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label class="field row-drawer__field operation-form__field">
-            <span>объект</span>
-            <select name="property_id">
-              {% for option in form.property_options %}
-                <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label class="field row-drawer__field operation-form__field">
-            <span>сумма от</span>
-            <input class="amount" name="amount_min" inputmode="decimal" value="{{ form.amount_min or "" }}" placeholder="0.00">
-          </label>
-          <label class="field row-drawer__field operation-form__field">
-            <span>сумма до</span>
-            <input class="amount" name="amount_max" inputmode="decimal" value="{{ form.amount_max or "" }}" placeholder="0.00">
-          </label>
-          {% if form.show_name %}
-            <label class="field row-drawer__field operation-form__field rule-edit-name">
-              <span>название правила</span>
-              <input name="name" value="{{ form.name }}" placeholder="создадим автоматически">
-            </label>
-          {% endif %}
-        </div>
+        {% endif %}
+      </div>
     </details>
 
     <div class="row-drawer__footer operation-form__footer operation-form__footer--actions rule-form__footer">

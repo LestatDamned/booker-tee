@@ -14,7 +14,6 @@ from app.features.transaction_rules.models import (
 from app.features.transaction_rules.presentation.models import (
     RuleFormOptionVM,
     RuleFormVM,
-    RuleMetaVM,
     RuleRowVM,
     RulesPageVM,
 )
@@ -109,7 +108,6 @@ class TransactionRulesPagePresenter:
             status_label="активно" if rule.is_active else "выключено",
             status_tone="confirmed" if rule.is_active else "muted",
             is_inactive=not rule.is_active,
-            meta=rule_meta(rule),
             form=rule_form(
                 form_id=form_id,
                 action=f"/rules/{rule.id}",
@@ -201,7 +199,7 @@ def rule_form(
         pattern=pattern,
         show_name=show_name,
         name=name,
-        advanced_label="Расширенные настройки" if layout == "create" else "Условия применения",
+        advanced_label="Расширенные настройки",
         operation_type_options=[
             RuleFormOptionVM("", "тип операции", selected_operation_type is None),
             *enum_options(list(OperationType), selected_operation_type),
@@ -298,24 +296,6 @@ def application_mode_summary_label(mode: TransactionRuleApplicationMode) -> str:
     if mode == TransactionRuleApplicationMode.AUTO_APPLY:
         return "автоприменение"
     return "предлагать"
-
-
-def rule_meta(rule: TransactionRule) -> list[RuleMetaVM]:
-    meta = [
-        RuleMetaVM(ru_label(rule.match_type)),
-        RuleMetaVM(ru_label(rule.application_mode), rule.application_mode.value),
-        RuleMetaVM(ru_label(rule.direction), rule.direction.value),
-    ]
-    if rule.target_operation_type is not None:
-        meta.append(
-            RuleMetaVM(ru_label(rule.target_operation_type), rule.target_operation_type.value)
-        )
-    if rule.property is not None:
-        meta.append(RuleMetaVM(rule.property.name))
-    amount_label = amount_range_label(rule.amount_min, rule.amount_max)
-    if amount_label is not None:
-        meta.append(RuleMetaVM(amount_label))
-    return meta
 
 
 def amount_range_label(amount_min: object | None, amount_max: object | None) -> str | None:

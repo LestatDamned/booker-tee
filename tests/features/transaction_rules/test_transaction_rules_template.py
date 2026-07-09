@@ -117,6 +117,49 @@ def test_transaction_rules_template_empty_state_points_to_rule_form() -> None:
     assert 'href="#new-rule"' not in html
 
 
+def test_transaction_rules_template_read_only_keeps_rule_meaning_without_actions() -> None:
+    category_id = uuid4()
+    rule_id = uuid4()
+    rule = SimpleNamespace(
+        id=rule_id,
+        name="OZON -> Продукты",
+        is_active=True,
+        pattern="OZON",
+        match_type=TransactionRuleMatchType.CONTAINS,
+        application_mode=TransactionRuleApplicationMode.SUGGEST,
+        direction=MoneyDirection.OUTFLOW,
+        target_operation_type=OperationType.EXPENSE,
+        category_id=category_id,
+        category=SimpleNamespace(name="Продукты"),
+        property_id=None,
+        property=None,
+        amount_min=None,
+        amount_max=None,
+    )
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("transaction_rules/index.html").render(
+        app_name="Booker Tee",
+        page=TransactionRulesPagePresenter.build(
+            cast(Any, [rule]),
+            categories=cast(Any, [SimpleNamespace(id=category_id, name="Продукты")]),
+            properties=[],
+            can_write=False,
+        ),
+        workspace=SimpleNamespace(name="Personal"),
+    )
+
+    assert "OZON -&gt; Продукты" in html
+    assert "Если описание содержит “OZON”" in html
+    assert "предлагать · списание · расход" in html
+    assert "badge badge-confirmed" in html
+    assert "изменить правило" not in html
+    assert "выключить" not in html
+    assert "Еще действия" not in html
+    assert f'id="rule-form-{rule_id}"' not in html
+
+
 def test_rule_anchor_url_points_to_rule_card() -> None:
     rule_id = uuid4()
 
@@ -182,14 +225,8 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
     assert row.secondary_label == "автоприменение · списание · расход · до 1000.00"
     assert row.status_label == "выключено"
     assert row.status_tone == "muted"
-    assert [item.label for item in row.meta] == [
-        "содержит",
-        "автоприменять",
-        "списание",
-        "расход",
-        "до 1000.00",
-    ]
     assert row.form.submit_action.form_id == f"rule-form-{rule_id}"
+    assert row.form.advanced_label == "Расширенные настройки"
     assert row.form.show_name is True
     assert row.form.name == "YANDEX GO -> Такси"
     assert selected_values(row.form.category_options) == [str(category_id)]
