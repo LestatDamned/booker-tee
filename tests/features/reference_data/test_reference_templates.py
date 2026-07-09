@@ -235,3 +235,24 @@ def test_properties_template_uses_inline_card_editing() -> None:
     assert "сохранить" in html
     assert "<summary>ID</summary>" in html
     assert f"ID {property_id}" in html
+
+
+def test_properties_template_shows_create_error_and_keeps_values() -> None:
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("properties/index.html").render(
+        app_name="Booker Tee",
+        workspace=SimpleNamespace(name="Personal"),
+        properties=[],
+        create_error="Название объекта обязательно.",
+        create_name="Дом",
+        create_short_name="D",
+        create_address="Красноярск",
+    )
+
+    assert 'role="alert"' in html
+    assert "Название объекта обязательно." in html
+    assert 'value="Дом"' in html
+    assert 'value="D"' in html
+    assert 'value="Красноярск"' in html

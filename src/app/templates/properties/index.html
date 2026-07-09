@@ -23,19 +23,25 @@
     </div>
 
     {% if can_write %}
+      {% set form_name = create_name | default("") %}
+      {% set form_short_name = create_short_name | default("") %}
+      {% set form_address = create_address | default("") %}
       <form class="form-panel" method="post" action="/properties">
         {{ csrf_input() }}
+        {% if create_error is defined and create_error %}
+          <div class="form-error" role="alert">{{ create_error }}</div>
+        {% endif %}
         <div class="field form-field-quarter">
           <label for="name">Название</label>
-          <input id="name" name="name" placeholder="Название объекта" required>
+          <input id="name" name="name" value="{{ form_name }}" placeholder="Название объекта" required>
         </div>
         <div class="field form-field-quarter">
           <label for="short_name">Коротко</label>
-          <input id="short_name" name="short_name" placeholder="Короткое название">
+          <input id="short_name" name="short_name" value="{{ form_short_name }}" placeholder="Короткое название">
         </div>
         <div class="field form-field-quarter">
           <label for="address">Адрес</label>
-          <input id="address" name="address" placeholder="Адрес">
+          <input id="address" name="address" value="{{ form_address }}" placeholder="Адрес">
         </div>
         <div class="form-actions">
           <button class="button" type="submit">{{ icon("plus") }} добавить</button>

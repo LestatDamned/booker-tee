@@ -1689,6 +1689,8 @@ Current state:
   swap.
 - Categories create form now returns the categories page with inline
   user-facing feedback and preserved form values for expected creation errors.
+- Properties create form now returns the properties page with inline
+  user-facing feedback and preserved form values for expected creation errors.
 - Many CRUD/reference forms still raise plain `400` errors for validation or
   duplicate-name cases.
 

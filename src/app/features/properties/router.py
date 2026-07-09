@@ -28,6 +28,26 @@ async def property_index(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
+    return await property_index_response(
+        request=request,
+        session=session,
+        settings=settings,
+        context=context,
+    )
+
+
+async def property_index_response(
+    *,
+    request: Request,
+    session: AsyncSession,
+    settings: Settings,
+    context: WorkspaceContext,
+    create_error: str | None = None,
+    create_name: str = "",
+    create_short_name: str = "",
+    create_address: str = "",
+    status_code: int = status.HTTP_200_OK,
+) -> HTMLResponse:
     properties = await PropertyService(session).list_all(context.workspace.id)
     return templates.TemplateResponse(
         request,
@@ -36,13 +56,20 @@ async def property_index(
             "app_name": settings.app_name,
             "properties": properties,
             "workspace": context.workspace,
+            "create_error": create_error,
+            "create_name": create_name,
+            "create_short_name": create_short_name,
+            "create_address": create_address,
         },
+        status_code=status_code,
     )
 
 
 @router.post("")
 async def create_property(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     name: Annotated[str, Form()],
     short_name: Annotated[str | None, Form()] = None,
@@ -56,7 +83,17 @@ async def create_property(
             address=address,
         )
     except PropertyError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return await property_index_response(
+            request=request,
+            session=session,
+            settings=settings,
+            context=context,
+            create_error=str(exc),
+            create_name=name,
+            create_short_name=short_name or "",
+            create_address=address or "",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     return RedirectResponse(url="/properties", status_code=status.HTTP_303_SEE_OTHER)
 
