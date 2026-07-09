@@ -63,6 +63,7 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert "entity-card" in html
     assert "rule-card__edit" in html
     assert "изменить правило" in html
+    assert "row-actions" in html
     assert "badge badge-suggest" in html
     assert "badge badge-outflow" in html
     assert "badge badge-expense" in html

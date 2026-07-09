@@ -3821,6 +3821,34 @@ pre {
   min-width: 0;
 }
 
+.rule-create-details {
+  border-color: color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-strong) 36%, transparent);
+}
+
+.rule-create-details > summary {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 42px;
+}
+
+.rule-form {
+  border-color: color-mix(in srgb, var(--border) 52%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-strong) 32%, transparent),
+    color-mix(in srgb, var(--surface) 18%, transparent)
+  );
+}
+
+.rule-form__footer {
+  justify-content: end;
+}
+
+.rule-form__footer .ui-action__button {
+  min-height: 40px;
+}
+
 .rule-create-submit {
   grid-column: span 3;
   width: 100%;
@@ -3837,12 +3865,54 @@ pre {
 
 .rule-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(140px, 180px);
-  gap: 14px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  padding: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 210px);
+  gap: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--accent) 48%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--surface-strong));
+  padding: 14px;
   scroll-margin-top: 16px;
+}
+
+.rule-card:target {
+  border-color: color-mix(in srgb, var(--accent) 72%, var(--border));
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--surface-strong) 74%, var(--surface));
+}
+
+.rule-card__title strong {
+  font-size: 1.02rem;
+}
+
+.rule-card__edit {
+  width: min(100%, 620px);
+  border-color: color-mix(in srgb, var(--green) 34%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--green) 4%, transparent);
+}
+
+.rule-card__edit > summary {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 40px;
+  color: var(--green);
+}
+
+.rule-card__edit[open] {
+  background: color-mix(in srgb, var(--surface-strong) 46%, var(--green));
+}
+
+.rule-card__actions {
+  min-width: 0;
+}
+
+.rule-card__danger {
+  margin-top: 2px;
+}
+
+.rule-card__danger .ui-action__form,
+.rule-card__danger .ui-action__button {
+  width: 100%;
 }
 
 .manual-operation-row {

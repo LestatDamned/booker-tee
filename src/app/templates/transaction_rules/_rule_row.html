@@ -4,7 +4,7 @@
       <strong>{{ rule.title }}</strong>
       <span class="badge badge-{{ rule.status_tone }}">{{ rule.status_label }}</span>
     </div>
-    <div class="entity-card-meta rule-card__meta">
+    <div class="entity-card-meta rule-card__meta" aria-label="Условия правила">
       {% for item in rule.meta %}
         {% if item.tone %}
           <span class="badge badge-{{ item.tone }}">{{ item.label }}</span>
@@ -109,7 +109,7 @@
   </div>
 
   {% if can_write %}
-    <div class="entity-card-actions rule-card__actions">
+    <div class="entity-card-actions row-actions rule-card__actions">
       {% set action = rule.toggle_action %}
       {% include "ui/_action.html" %}
       <div class="danger-zone rule-card__danger">
