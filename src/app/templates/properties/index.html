@@ -49,6 +49,10 @@
       </form>
     {% endif %}
 
+    {% if lifecycle_error is defined and lifecycle_error %}
+      <div class="form-error" role="alert">{{ lifecycle_error }}</div>
+    {% endif %}
+
     {% if properties %}
       <div class="entity-card-list">
         {% for property in properties %}

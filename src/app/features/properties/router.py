@@ -48,6 +48,7 @@ async def property_index_response(
     create_address: str = "",
     edit_error_by_property_id: dict[UUID, str] | None = None,
     edit_values_by_property_id: dict[UUID, dict[str, str]] | None = None,
+    lifecycle_error: str | None = None,
     status_code: int = status.HTTP_200_OK,
 ) -> HTMLResponse:
     properties = await PropertyService(session).list_all(context.workspace.id)
@@ -64,6 +65,7 @@ async def property_index_response(
             "create_address": create_address,
             "edit_error_by_property_id": edit_error_by_property_id or {},
             "edit_values_by_property_id": edit_values_by_property_id or {},
+            "lifecycle_error": lifecycle_error,
         },
         status_code=status_code,
     )
@@ -144,26 +146,50 @@ async def update_property(
 @router.post("/{property_id}/archive")
 async def archive_property(
     property_id: UUID,
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
-    await PropertyService(session).set_status(
-        workspace_id=context.workspace.id,
-        property_id=property_id,
-        status=PropertyStatus.ARCHIVED,
-    )
+    try:
+        await PropertyService(session).set_status(
+            workspace_id=context.workspace.id,
+            property_id=property_id,
+            status=PropertyStatus.ARCHIVED,
+        )
+    except PropertyError as exc:
+        return await property_index_response(
+            request=request,
+            session=session,
+            settings=settings,
+            context=context,
+            lifecycle_error=str(exc),
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
     return RedirectResponse(url="/properties", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/{property_id}/restore")
 async def restore_property(
     property_id: UUID,
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> Response:
-    await PropertyService(session).set_status(
-        workspace_id=context.workspace.id,
-        property_id=property_id,
-        status=PropertyStatus.ACTIVE,
-    )
+    try:
+        await PropertyService(session).set_status(
+            workspace_id=context.workspace.id,
+            property_id=property_id,
+            status=PropertyStatus.ACTIVE,
+        )
+    except PropertyError as exc:
+        return await property_index_response(
+            request=request,
+            session=session,
+            settings=settings,
+            context=context,
+            lifecycle_error=str(exc),
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
     return RedirectResponse(url="/properties", status_code=status.HTTP_303_SEE_OTHER)

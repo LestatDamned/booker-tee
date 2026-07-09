@@ -392,3 +392,18 @@ def test_properties_template_shows_edit_error_and_keeps_row_values() -> None:
     assert f'id="short-name-{property_id}" name="short_name" value="D"' in html
     assert f'id="address-{property_id}" name="address" value="Красноярск"' in html
     assert f'id="name-{other_property_id}" name="name" value="Office"' in html
+
+
+def test_properties_template_shows_lifecycle_error() -> None:
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("properties/index.html").render(
+        app_name="Booker Tee",
+        workspace=SimpleNamespace(name="Personal"),
+        properties=[],
+        lifecycle_error="Объект не найден в этом workspace.",
+    )
+
+    assert 'role="alert"' in html
+    assert "Объект не найден в этом workspace." in html
