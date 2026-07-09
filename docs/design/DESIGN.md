@@ -427,6 +427,31 @@ that action-level HTMX is the stable abstraction. It is acceptable, and often
 cleaner, for the row/card root to own the local update behavior while the actions
 inside continue to use the shared `ui/_action.html` shape.
 
+Lazy row drawer loading:
+
+1. Long entity lists should not render heavy closed edit drawers for every row.
+2. If a drawer contains repeated reference selects, account/category/property
+   options, or a complex correction form, load the drawer body only when the user
+   chooses the edit/correction action.
+3. The initial row/card HTML should contain the information shell, actions, and
+   an empty drawer target with a calm loading state.
+4. The feature owns a small partial endpoint for the drawer body. The endpoint
+   returns only the drawer content, not a second page.
+5. After saving, replace the affected row/card and let the drawer close as part
+   of the row refresh.
+
+Bounded long reference lists:
+
+1. Search/filter is the first response to a growing reference list.
+2. If the visible row count can grow enough to make SSR HTML heavy, render a
+   moderate initial slice and provide a calm `Show more` action.
+3. Avoid numbered pagination for reference cleanup screens unless the user is
+   truly navigating separate pages of results. `Show more` preserves scanning
+   flow better than page numbers.
+4. The list partial owns the visible count, total filtered count, and next URL.
+5. Mutating list-level actions should preserve the active query state when they
+   replace the list partial.
+
 ### Created Entity Feedback Pattern
 
 When a user creates an entity inside a long reference/entity list, the UI should

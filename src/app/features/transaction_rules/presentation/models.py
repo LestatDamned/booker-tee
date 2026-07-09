@@ -23,6 +23,15 @@ class RuleListFilterVM:
 
 
 @dataclass(frozen=True)
+class RuleListPaginationVM:
+    visible_count: int
+    filtered_count: int
+    has_more: bool
+    next_url: str | None
+    label: str
+
+
+@dataclass(frozen=True)
 class RuleFormVM:
     id: str
     action: str
@@ -52,8 +61,9 @@ class RuleRowVM:
     status_tone: str
     is_inactive: bool
     is_recent: bool
-    form: RuleFormVM
     edit_summary_id: str
+    edit_panel_id: str
+    edit_form_url: str
     edit_toggle_action: ActionVM
     technical_label: str
     toggle_action: ActionVM
@@ -68,6 +78,7 @@ class RulesPageVM:
     create_rule_label: str
     rule_count_label: str
     filters: RuleListFilterVM
+    pagination: RuleListPaginationVM
     recent_rule: RuleRowVM | None
     can_write: bool
     total_rule_count: int

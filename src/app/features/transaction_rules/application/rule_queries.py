@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.transaction_rules.listing import RULE_LIST_DEFAULT_LIMIT, normalize_limit
 from app.features.transaction_rules.models import TransactionRule
 from app.features.transaction_rules.repository import TransactionRuleRepository
 
@@ -20,6 +21,10 @@ RULE_LIST_STATUSES = {
 class TransactionRuleListResult:
     rules: list[TransactionRule]
     total_count: int
+    filtered_count: int
+    active_count: int
+    inactive_count: int
+    limit: int
 
 
 class TransactionRuleQueryUseCase:
@@ -36,16 +41,23 @@ class TransactionRuleQueryUseCase:
         search: str = "",
         category_id: UUID | None = None,
         status: str = RULE_LIST_STATUS_ALL,
+        limit: int = RULE_LIST_DEFAULT_LIMIT,
     ) -> TransactionRuleListResult:
         rules = await self.rules.list_for_workspace(workspace_id)
+        filtered_rules = filter_rules(
+            rules,
+            search=search,
+            category_id=category_id,
+            status=status,
+        )
+        normalized_limit = normalize_limit(limit)
         return TransactionRuleListResult(
-            rules=filter_rules(
-                rules,
-                search=search,
-                category_id=category_id,
-                status=status,
-            ),
+            rules=filtered_rules[:normalized_limit],
             total_count=len(rules),
+            filtered_count=len(filtered_rules),
+            active_count=sum(1 for rule in rules if rule.is_active),
+            inactive_count=sum(1 for rule in rules if not rule.is_active),
+            limit=normalized_limit,
         )
 
     async def get_rule(self, *, workspace_id: UUID, rule_id: UUID) -> TransactionRule | None:

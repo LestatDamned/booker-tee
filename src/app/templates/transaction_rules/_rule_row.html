@@ -24,7 +24,21 @@
   {% if can_write %}
     <div class="financial-row__side entity-card-actions row-actions rule-card__actions">
       {% set action = rule.edit_toggle_action %}
-      {% include "ui/_action.html" %}
+      <button
+        class="button button-small ui-action__button ui-action__button--{{ action.placement }} ui-action__button--{{ action.id }} action-button action-{{ action.placement }} action-{{ action.id }} primary-action"
+        type="button"
+        aria-controls="{{ rule.edit_summary_id }}"
+        aria-label="{{ action.label }}"
+        hx-get="{{ rule.edit_form_url }}"
+        hx-select=".rule-edit-panel-content"
+        hx-target="#{{ rule.edit_panel_id }}"
+        hx-swap="innerHTML show:none settle:300ms"
+        hx-trigger="click once"
+        hx-push-url="false"
+        onclick="document.getElementById('{{ rule.edit_summary_id }}')?.click()"
+      >
+        {{ icon(action.icon) }} <span class="action-label ui-action__label">{{ action.label }}</span>
+      </button>
       {% set action = rule.toggle_action %}
       {% include "ui/_action.html" %}
       <details class="action-details action-accordion review-actions__secondary review-actions__details review-actions__menu rule-more-actions">
@@ -60,16 +74,12 @@
       <summary id="{{ rule.edit_summary_id }}" class="rule-card__edit-summary">
         <span>Изменить правило</span>
       </summary>
-      <div class="financial-row__drawer row-drawer rule-card__edit-panel">
-        <div class="row-drawer__header">
-          <div class="row-drawer__heading">
-            <h3 class="row-drawer__title">Изменить правило</h3>
-            <span class="row-drawer__context">автоправило</span>
-          </div>
-        </div>
-        {% set form = rule.form %}
-        {% set form_class = "rule-edit-form" %}
-        {% include "transaction_rules/_rule_form.html" %}
+      <div
+        id="{{ rule.edit_panel_id }}"
+        class="financial-row__drawer row-drawer rule-card__edit-panel"
+        aria-live="polite"
+      >
+        <p class="row-drawer__loading">Загружаем форму...</p>
       </div>
     </details>
   {% endif %}

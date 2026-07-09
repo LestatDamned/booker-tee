@@ -20,6 +20,7 @@ from app.features.transaction_rules.domain.suggestions import (
     rule_suggestion_auto_applies,
 )
 from app.features.transaction_rules.domain.text import normalized_text
+from app.features.transaction_rules.listing import normalize_limit
 from app.features.transaction_rules.models import (
     MoneyDirection,
     TransactionRule,
@@ -239,6 +240,12 @@ def test_rule_list_filters_by_search_category_and_status() -> None:
         [cafe_rule, inactive_products_rule],
         status="inactive",
     ) == [inactive_products_rule]
+
+
+def test_rule_list_limit_is_bounded_for_reference_screen() -> None:
+    assert normalize_limit(0) == 1
+    assert normalize_limit(50) == 50
+    assert normalize_limit(5000) == 1000
 
 
 def transaction_rule(

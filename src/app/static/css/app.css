@@ -4043,6 +4043,15 @@ pre {
   justify-self: end;
 }
 
+.rule-list-pagination {
+  border-top: 1px solid color-mix(in srgb, var(--border) 28%, transparent);
+  padding-top: 10px;
+}
+
+.rule-list-pagination__more {
+  min-width: 160px;
+}
+
 .rule-card__main {
   display: grid;
   gap: 12px;
@@ -4131,6 +4140,12 @@ pre {
   gap: 12px;
   border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   padding-top: 12px;
+}
+
+.row-drawer__loading {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
 }
 
 .rule-card__actions {

@@ -1739,7 +1739,7 @@ Current state:
 - Some list rows include edit forms and repeated select options even when the
   drawer/panel is closed.
 - Examples:
-  - transaction rule rows include edit forms with category/property selects;
+  - transaction rules now lazy-load edit drawer content via HTMX;
   - manual operation rows include drawer form controls;
   - account movement rows include correction drawers;
   - properties currently render edit fields directly inside each card.
@@ -1752,7 +1752,8 @@ Why it matters:
 
 Preferred future optimization:
 
-- lazy-load row edit drawer via HTMX when the user clicks the edit action;
+- repeat the transaction rules lazy drawer pattern when a row carries heavy
+  closed form markup;
 - render only the information/action shell initially;
 - cache/reuse reference options where appropriate.
 
@@ -1808,8 +1809,10 @@ Preferred future direction:
 Current state:
 
 - Transaction rules have list filters and local list replacement.
-- Mutating actions may still return the default list if the active filter state
-  is not carried through hidden fields/query parameters.
+- Transaction rule delete/load-more actions preserve the active query state
+  through the list partial URL.
+- Other screens may still return the default list if the active filter state is
+  not carried through hidden fields/query parameters.
 
 Why it matters:
 
@@ -1829,8 +1832,9 @@ Preferred future direction:
 
 Current stance:
 
-- Do not add pagination for ~69 rules.
-- Search/filter + created feedback is the better UX for this size.
+- Do not use numbered pagination for ~69 rules.
+- Transaction rules use search/filter, created feedback, lazy edit drawers and a
+  bounded `Show more` list to avoid rendering an unbounded SSR list.
 
 Watch for:
 
@@ -1841,9 +1845,10 @@ Watch for:
 
 Preferred order if it becomes a problem:
 
-1. lazy-load edit drawers;
-2. keep server-side filtering;
-3. consider pagination only if the visible row count itself is the problem.
+1. keep lazy edit drawers;
+2. keep server-side filtering and bounded `Show more`;
+3. consider numbered pagination only if the visible row count itself becomes the
+   problem.
 
 #### Manual/Account Per-Page Upper Bound
 

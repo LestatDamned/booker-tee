@@ -79,6 +79,20 @@
         {% include "transaction_rules/_rule_row.html" %}
       {% endfor %}
     </div>
+    <div class="pagination-bar rule-list-pagination">
+      <span class="pagination-status">{{ page.pagination.label }}</span>
+      {% if page.pagination.has_more and page.pagination.next_url %}
+        <a
+          class="button primary-action rule-list-pagination__more"
+          href="{{ page.pagination.next_url }}"
+          hx-get="{{ page.pagination.next_url }}"
+          hx-select="#rules-list-panel"
+          hx-target="#rules-list-panel"
+          hx-swap="outerHTML show:none settle:600ms"
+          hx-push-url="true"
+        >показать еще</a>
+      {% endif %}
+    </div>
   {% else %}
     {% if page.filters.is_active %}
       {{ empty_state(
