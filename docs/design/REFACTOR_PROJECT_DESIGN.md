@@ -1938,11 +1938,14 @@ Current state:
   ```
 
 - `CategoryPagePresenter` owns category view normalization, tab URLs, row split
-  by current view, create accordion state, create/edit form values and lifecycle
-  error state.
+  by current view, category index row VMs/action policy, create accordion state,
+  create/edit form values and lifecycle error state.
 - `PropertiesPagePresenter` owns property row actions, edit drawer state and
   form values.
-- Categories still group rows in Jinja with `selectattr` and local macro logic.
+- Categories index cards now follow the Entity Work Row contract: left-side
+  category information, right-side actions, calm "Еще действия" for technical
+  details.
+- Categories still group row VMs in Jinja with `selectattr`.
 - Category detail still computes some display choices in templates.
 
 Why it matters:

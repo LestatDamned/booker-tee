@@ -74,7 +74,9 @@ def test_categories_template_uses_compact_cards() -> None:
     assert "влияет на отчеты" in html
     assert "filter-tab-active" in html
     assert "категория готова" not in html
-    assert "entity-card-readonly" in html
+    assert "financial-row" in html
+    assert "row-actions" in html
+    assert "category-card--system" in html
     assert "category-edit-details" not in html
     assert "badge-expense" in html
     assert "системная" in html
@@ -82,12 +84,14 @@ def test_categories_template_uses_compact_cards() -> None:
     assert "10 операций" in html
     assert "4 правил" in html
     assert "отчет" in html
+    assert "открыть категорию" in html
+    assert "Еще действия" in html
     assert "Супермаркеты и доставка" in html
     assert f'href="/categories/{custom_category_id}"' in html
     assert f'id="category-{custom_category_id}"' in html
     assert f'action="/categories/{custom_category_id}/restore"' not in html
     assert '<input type="hidden" name="view" value="all">' in html
-    assert "<summary>ID</summary>" in html
+    assert "Показать ID" in html
     assert f"ID {system_category_id}" in html
 
 

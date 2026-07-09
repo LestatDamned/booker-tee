@@ -4,40 +4,55 @@
 
 {% block title %}Категории · {{ app_name }}{% endblock %}
 
-{% macro category_card(row, kinds, category_view, recent_category_id=none) %}
-  {% set category = row.category %}
-  <article id="category-{{ category.id }}" class="entity-card category-card {% if category.is_system %}entity-card-readonly{% endif %} {% if not category.is_active %}entity-card-inactive{% endif %} {% if recent_category_id and category.id == recent_category_id %}category-card--recent{% endif %}">
-    <div class="entity-card-main">
-      <div class="entity-card-title">
-        <a href="/categories/{{ category.id }}"><strong>{{ category.name }}</strong></a>
-        <span class="badge badge-{{ category.kind.value }}">{{ category.kind | ru }}</span>
-        {% if category.is_system %}
-          <span class="badge badge-muted">системная</span>
-        {% endif %}
-        {% if not category.is_active %}
-          <span class="badge badge-archived">архив</span>
-        {% endif %}
+{% macro category_card(row) %}
+  <article id="{{ row.anchor_id }}" class="financial-row entity-card category-card {% if row.is_system %}category-card--system{% endif %} {% if row.is_inactive %}entity-card-inactive{% endif %} {% if row.is_recent %}category-card--recent{% endif %}">
+    <div class="financial-row__main entity-card-main category-card__main">
+      <div class="financial-row__topline category-card__topline">
+        <div class="entity-card-title category-card__title">
+          <strong>{{ row.title }}</strong>
+        </div>
+        <span class="badge badge-{{ row.kind_tone }} category-card__kind">{{ row.kind_label }}</span>
       </div>
-      <div class="entity-card-meta">
-        {% if category.system_key %}
-          <span>{{ category.system_key }}</span>
+      <div class="financial-row__meta category-card__meta">
+        {% if row.status_label %}
+          <span class="financial-row__meta-item financial-row__meta-item--{{ row.status_tone }}">{{ row.status_label }}</span>
         {% endif %}
-        <a class="meta-link" href="/categories/{{ category.id }}">{{ row.operation_count }} операций</a>
-        <a class="meta-link" href="/categories/{{ category.id }}#rules">{{ row.rule_count }} правил</a>
-        <a class="meta-link" href="/reports?category_id={{ category.id }}">отчет</a>
-        <details class="technical-details">
-          <summary>ID</summary>
-          <span>ID {{ category.id }}</span>
-        </details>
+        {% if row.system_key_label %}
+          <span class="financial-row__meta-item">{{ row.system_key_label }}</span>
+        {% endif %}
+        <a class="meta-link category-card__meta-link" href="/categories/{{ row.category.id }}">{{ row.operation_count_label }}</a>
+        <a class="meta-link category-card__meta-link" href="/categories/{{ row.category.id }}#rules">{{ row.rule_count_label }}</a>
       </div>
-      {% if category.notes %}
-        <p class="muted-text">{{ category.notes }}</p>
+      {% if row.notes_label %}
+        <p class="muted-text category-card__notes">{{ row.notes_label }}</p>
       {% endif %}
+    </div>
+    <div class="financial-row__side entity-card-actions row-actions category-card__actions">
+      {% set action = row.detail_action %}
+      {% include "ui/_action.html" %}
+      {% set action = row.report_action %}
+      {% include "ui/_action.html" %}
+      <details class="action-details action-accordion review-actions__secondary review-actions__details review-actions__menu category-more-actions">
+        <summary class="review-actions__summary">
+          {{ icon("list-check") }}
+          <span>Еще действия</span>
+          <span class="details-toggle-label review-actions__toggle" aria-hidden="true">
+            <span class="details-toggle-open">Открыть</span>
+            <span class="details-toggle-close">Закрыть</span>
+          </span>
+        </summary>
+        <div class="category-more-actions__menu">
+          <div class="category-more-actions__item category-more-actions__technical">
+            <span>Показать ID</span>
+            <code>{{ row.technical_label }}</code>
+          </div>
+        </div>
+      </details>
     </div>
   </article>
 {% endmacro %}
 
-{% macro category_group(title, rows, kinds, category_view, recent_category_id=none) %}
+{% macro category_group(title, rows, kinds) %}
   {% if rows %}
     {% for kind in kinds %}
       {% set kind_rows = rows | selectattr("category.kind", "equalto", kind) | list %}
@@ -48,7 +63,7 @@
         </div>
         <div class="entity-card-list">
           {% for row in kind_rows %}
-            {{ category_card(row, kinds, category_view, recent_category_id) }}
+            {{ category_card(row) }}
           {% endfor %}
         </div>
       {% endif %}
@@ -123,26 +138,26 @@
         <div class="category-list-feedback">
           <div>
             <p class="eyebrow">категория готова</p>
-            <strong>{{ page.recent_category.category.name }}</strong>
+            <strong>{{ page.recent_category.title }}</strong>
             <span>
-              {{ page.recent_category.category.kind | ru }}
-              {% if page.recent_category.category.notes %}
-                · {{ page.recent_category.category.notes }}
+              {{ page.recent_category.kind_label }}
+              {% if page.recent_category.notes_label %}
+                · {{ page.recent_category.notes_label }}
               {% endif %}
             </span>
           </div>
-          <a class="meta-link category-list-feedback__link" href="#category-{{ page.recent_category.category.id }}">Показать в списке</a>
+          <a class="meta-link category-list-feedback__link" href="#{{ page.recent_category.anchor_id }}">Показать в списке</a>
         </div>
       {% endif %}
 
-      {{ category_group("пользовательские", page.user_category_rows, page.kinds, page.view, page.recent_category_id) }}
+      {{ category_group("пользовательские", page.user_category_rows, page.kinds) }}
 
       {% if page.system_category_rows %}
         <div class="section-heading">
           <p class="eyebrow">{{ page.system_category_rows|length }} служебных категорий</p>
           <h2>Системные</h2>
         </div>
-        {{ category_group("служебные", page.system_category_rows, page.kinds, page.view, page.recent_category_id) }}
+        {{ category_group("служебные", page.system_category_rows, page.kinds) }}
       {% endif %}
     {% else %}
       {% if can_write %}

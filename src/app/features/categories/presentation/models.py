@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.features.categories.models import CategoryKind
-from app.features.categories.service import CategoryDetailView, CategoryManagementRow
+from app.features.categories.models import Category, CategoryKind
+from app.features.categories.service import CategoryDetailView
 from app.shared.ui.actions import ActionVM
 
 
@@ -28,12 +28,33 @@ class CategoryLifecycleStateVM:
 
 
 @dataclass(frozen=True)
+class CategoryRowVM:
+    category: Category
+    anchor_id: str
+    title: str
+    kind_label: str
+    kind_tone: str
+    status_label: str | None
+    status_tone: str | None
+    is_inactive: bool
+    is_system: bool
+    is_recent: bool
+    operation_count_label: str
+    rule_count_label: str
+    system_key_label: str | None
+    notes_label: str | None
+    technical_label: str
+    detail_action: ActionVM
+    report_action: ActionVM
+
+
+@dataclass(frozen=True)
 class CategoryIndexPageVM:
     view: str
     view_options: list[CategoryViewOptionVM]
-    user_category_rows: list[CategoryManagementRow]
-    system_category_rows: list[CategoryManagementRow]
-    recent_category: CategoryManagementRow | None
+    user_category_rows: list[CategoryRowVM]
+    system_category_rows: list[CategoryRowVM]
+    recent_category: CategoryRowVM | None
     recent_category_id: UUID | None
     kinds: list[CategoryKind]
     create_form: CategoryFormStateVM

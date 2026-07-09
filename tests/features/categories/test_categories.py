@@ -114,7 +114,7 @@ def test_category_presenter_builds_page_state_for_current_view() -> None:
     )
 
     assert page.view == "archived"
-    assert page.user_category_rows == [archived_user]
+    assert [row.category for row in page.user_category_rows] == [archived_user.category]
     assert page.system_category_rows == []
     assert page.create_form.error == "Введите название категории."
     assert page.create_form.kind == CategoryKind.EXPENSE
@@ -122,6 +122,14 @@ def test_category_presenter_builds_page_state_for_current_view() -> None:
     assert page.create_label == "создать категорию"
     assert page.create_panel_open
     assert page.create_submit_action.form_id == "category-create-form"
+    archived_vm = page.user_category_rows[0]
+    assert archived_vm.title == archived_user.category.name
+    assert archived_vm.kind_label == "расход"
+    assert archived_vm.status_label == "архив"
+    assert archived_vm.operation_count_label == "3 операций"
+    assert archived_vm.rule_count_label == "2 правил"
+    assert archived_vm.detail_action.url == f"/categories/{archived_user.category.id}"
+    assert archived_vm.report_action.url == f"/reports?category_id={archived_user.category.id}"
     assert page.view_options[0].url == "/categories"
     assert [option.value for option in page.view_options if option.is_active] == ["archived"]
 
@@ -146,7 +154,9 @@ def test_category_presenter_marks_recent_category_when_visible() -> None:
         recent_category_id=active_user.category.id,
     )
 
-    assert page.recent_category == active_user
+    assert page.recent_category is not None
+    assert page.recent_category.category == active_user.category
+    assert page.recent_category.is_recent
     assert page.recent_category_id == active_user.category.id
 
 
@@ -249,14 +259,21 @@ async def test_archived_category_with_operations_cannot_be_deleted() -> None:
 
 
 def category_row(*, is_active: bool, is_system: bool) -> CategoryManagementRow:
+    category_id = uuid4()
     return cast(
         CategoryManagementRow,
         SimpleNamespace(
             category=SimpleNamespace(
-                id=uuid4(),
+                id=category_id,
+                name="Продукты",
+                kind=CategoryKind.EXPENSE,
                 is_active=is_active,
                 is_system=is_system,
-            )
+                system_key="expense" if is_system else None,
+                notes="Супермаркеты",
+            ),
+            operation_count=3,
+            rule_count=2,
         ),
     )
 
