@@ -80,32 +80,42 @@
 
     {% if can_write %}
       {% set create_form = page.create_form %}
-      <form class="form-panel" method="post" action="/categories">
-        {{ csrf_input() }}
-        <input type="hidden" name="view" value="{{ page.view }}">
-        {% if create_form.error %}
-          <div class="form-error" role="alert">{{ create_form.error }}</div>
-        {% endif %}
-        <div class="field form-field-half">
-          <label for="name">Название</label>
-          <input id="name" name="name" value="{{ create_form.name }}" placeholder="Название категории" required>
-        </div>
-        <div class="field form-field-quarter">
-          <label for="kind">Тип</label>
-          <select id="kind" name="kind">
-            {% for kind in page.kinds %}
-              <option value="{{ kind.value }}" {% if kind == create_form.kind %}selected{% endif %}>{{ kind | ru }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="field form-field-half">
-          <label for="notes">Заметка</label>
-          <input id="notes" name="notes" value="{{ create_form.notes }}" placeholder="Когда использовать эту категорию">
-        </div>
-        <div class="form-actions">
-          <button class="button" type="submit">{{ icon("plus") }} добавить</button>
-        </div>
-      </form>
+      <details class="action-details action-accordion category-create-details" {% if page.create_panel_open %}open{% endif %}>
+        <summary>
+          <span>{{ page.create_label }}</span>
+          <span class="details-toggle-label" aria-hidden="true">
+            <span class="details-toggle-open">Открыть</span>
+            <span class="details-toggle-close">Закрыть</span>
+          </span>
+        </summary>
+        <form id="{{ page.create_form_id }}" class="form-panel form-panel-embedded category-create-form" method="post" action="/categories">
+          {{ csrf_input() }}
+          <input type="hidden" name="view" value="{{ page.view }}">
+          {% if create_form.error %}
+            <div class="form-error category-create-form__error" role="alert">{{ create_form.error }}</div>
+          {% endif %}
+          <div class="field category-create-form__field category-create-form__field--name">
+            <label for="name">Название</label>
+            <input id="name" name="name" value="{{ create_form.name }}" placeholder="Название категории" required>
+          </div>
+          <div class="field category-create-form__field category-create-form__field--kind">
+            <label for="kind">Тип</label>
+            <select id="kind" name="kind">
+              {% for kind in page.kinds %}
+                <option value="{{ kind.value }}" {% if kind == create_form.kind %}selected{% endif %}>{{ kind | ru }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field category-create-form__field category-create-form__field--notes">
+            <label for="notes">Заметка</label>
+            <input id="notes" name="notes" value="{{ create_form.notes }}" placeholder="Когда использовать эту категорию">
+          </div>
+          <div class="form-actions category-create-form__actions">
+            {% set action = page.create_submit_action %}
+            {% include "ui/_action.html" %}
+          </div>
+        </form>
+      </details>
     {% endif %}
 
     {% if page.user_category_rows or page.system_category_rows %}

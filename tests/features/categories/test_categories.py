@@ -118,8 +118,23 @@ def test_category_presenter_builds_page_state_for_current_view() -> None:
     assert page.system_category_rows == []
     assert page.create_form.error == "Введите название категории."
     assert page.create_form.kind == CategoryKind.EXPENSE
+    assert page.create_form_id == "category-create-form"
+    assert page.create_label == "создать категорию"
+    assert page.create_panel_open
+    assert page.create_submit_action.form_id == "category-create-form"
     assert page.view_options[0].url == "/categories"
     assert [option.value for option in page.view_options if option.is_active] == ["archived"]
+
+
+def test_category_presenter_keeps_create_panel_closed_for_existing_clean_list() -> None:
+    active_user = category_row(is_active=True, is_system=False)
+
+    page = CategoryPagePresenter.build_index(
+        [active_user],
+        category_view="active",
+    )
+
+    assert not page.create_panel_open
 
 
 def test_category_presenter_marks_recent_category_when_visible() -> None:

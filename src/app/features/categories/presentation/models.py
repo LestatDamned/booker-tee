@@ -3,6 +3,7 @@ from uuid import UUID
 
 from app.features.categories.models import CategoryKind
 from app.features.categories.service import CategoryDetailView, CategoryManagementRow
+from app.shared.ui.actions import ActionVM
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,10 @@ class CategoryIndexPageVM:
     recent_category_id: UUID | None
     kinds: list[CategoryKind]
     create_form: CategoryFormStateVM
+    create_form_id: str
+    create_label: str
+    create_panel_open: bool
+    create_submit_action: ActionVM
 
 
 @dataclass(frozen=True)

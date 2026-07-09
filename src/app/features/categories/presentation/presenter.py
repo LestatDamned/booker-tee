@@ -13,6 +13,7 @@ from app.features.categories.service import (
     CategoryError,
     CategoryManagementRow,
 )
+from app.shared.ui.actions import ActionVM
 
 CATEGORY_VIEW_OPTIONS = [
     ("active", "активные"),
@@ -38,6 +39,7 @@ class CategoryPagePresenter:
             normalized_view,
         )
         visible_rows = [*user_category_rows, *system_category_rows]
+        resolved_create_form = create_form or default_category_form_state()
         recent_category = next(
             (row for row in visible_rows if row.category.id == recent_category_id),
             None,
@@ -50,7 +52,18 @@ class CategoryPagePresenter:
             recent_category=recent_category,
             recent_category_id=recent_category_id if recent_category is not None else None,
             kinds=list(CategoryKind),
-            create_form=create_form or default_category_form_state(),
+            create_form=resolved_create_form,
+            create_form_id="category-create-form",
+            create_label="создать категорию",
+            create_panel_open=bool(resolved_create_form.error or not visible_rows),
+            create_submit_action=ActionVM(
+                id="create-category",
+                label="создать категорию",
+                icon="plus",
+                placement="primary",
+                action_type="submit",
+                form_id="category-create-form",
+            ),
         )
 
     @staticmethod

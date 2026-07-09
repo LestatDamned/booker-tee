@@ -4305,6 +4305,55 @@ pre {
   white-space: nowrap;
 }
 
+.category-create-details {
+  border-color: color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-strong) 36%, transparent);
+}
+
+.category-create-details > summary {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 42px;
+}
+
+.category-create-details > summary::after,
+.category-create-details[open] > summary::after {
+  content: none;
+}
+
+.category-create-form {
+  border-color: color-mix(in srgb, var(--border) 52%, transparent);
+  padding-top: 14px;
+}
+
+.category-create-form__error {
+  grid-column: 1 / -1;
+}
+
+.category-create-form__field--name {
+  grid-column: span 4;
+}
+
+.category-create-form__field--kind {
+  grid-column: span 3;
+}
+
+.category-create-form__field--notes {
+  grid-column: span 5;
+}
+
+.category-create-form__actions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  border-top: 1px solid color-mix(in srgb, var(--border) 46%, transparent);
+  padding-top: 10px;
+}
+
+.category-create-form__actions .button {
+  width: auto;
+  min-width: 180px;
+}
+
 .property-create-details {
   border-color: color-mix(in srgb, var(--border) 76%, transparent);
   border-radius: 8px;

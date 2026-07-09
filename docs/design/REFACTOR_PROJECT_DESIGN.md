@@ -1938,7 +1938,8 @@ Current state:
   ```
 
 - `CategoryPagePresenter` owns category view normalization, tab URLs, row split
-  by current view, create/edit form values and lifecycle error state.
+  by current view, create accordion state, create/edit form values and lifecycle
+  error state.
 - `PropertiesPagePresenter` owns property row actions, edit drawer state and
   form values.
 - Categories still group rows in Jinja with `selectattr` and local macro logic.

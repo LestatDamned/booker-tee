@@ -67,6 +67,9 @@ def test_categories_template_uses_compact_cards() -> None:
     )
 
     assert "form-panel" in html
+    assert "category-create-details" in html
+    assert 'category-create-details" open' not in html
+    assert "создать категорию" in html
     assert "почему деньги пришли или ушли" in html
     assert "влияет на отчеты" in html
     assert "filter-tab-active" in html
@@ -141,6 +144,7 @@ def test_categories_template_empty_state_points_to_creation_form() -> None:
 
     assert "Категорий не найдено" in html
     assert "добавьте категорию для будущих операций и правил" in html
+    assert 'category-create-details" open' in html
     assert 'href="#name"' in html
 
 
@@ -164,6 +168,7 @@ def test_categories_template_shows_create_error_and_keeps_values() -> None:
     )
 
     assert 'role="alert"' in html
+    assert 'category-create-details" open' in html
     assert "Категория с таким названием уже есть." in html
     assert 'value="Продукты"' in html
     assert f'<option value="{CategoryKind.EXPENSE.value}" selected>' in html
