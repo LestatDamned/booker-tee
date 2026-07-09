@@ -109,7 +109,7 @@ async def update_property(
 ) -> Response:
     property_service = PropertyService(session)
     try:
-        await property_service.update(
+        property_ = await property_service.update(
             workspace_id=context.workspace.id,
             property_id=property_id,
             name=name,
@@ -146,7 +146,10 @@ async def update_property(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    return RedirectResponse(url="/properties", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(
+        url=property_recent_url(property_.id),
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
 
 
 def property_anchor_id(property_id: UUID) -> str:
@@ -168,7 +171,7 @@ async def archive_property(
 ) -> Response:
     property_service = PropertyService(session)
     try:
-        await property_service.set_status(
+        property_ = await property_service.set_status(
             workspace_id=context.workspace.id,
             property_id=property_id,
             status=PropertyStatus.ARCHIVED,
@@ -189,7 +192,10 @@ async def archive_property(
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-    return RedirectResponse(url="/properties", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(
+        url=property_recent_url(property_.id),
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
 
 
 @router.post("/{property_id}/restore")
@@ -202,7 +208,7 @@ async def restore_property(
 ) -> Response:
     property_service = PropertyService(session)
     try:
-        await property_service.set_status(
+        property_ = await property_service.set_status(
             workspace_id=context.workspace.id,
             property_id=property_id,
             status=PropertyStatus.ACTIVE,
@@ -223,4 +229,7 @@ async def restore_property(
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
-    return RedirectResponse(url="/properties", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(
+        url=property_recent_url(property_.id),
+        status_code=status.HTTP_303_SEE_OTHER,
+    )

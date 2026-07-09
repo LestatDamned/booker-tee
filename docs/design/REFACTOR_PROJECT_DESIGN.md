@@ -1732,8 +1732,10 @@ Current state:
   restore, and remove the row locally after delete.
 - Account detail imported-operation corrections now replace the affected
   movement row locally after save.
-- Categories and properties still mostly use full-page redirects after
-  row-level changes.
+- Properties still use full-page redirects after row-level changes, but
+  successful create/edit/archive/restore redirects now preserve entity focus
+  through `recent_property_id` and a stable row anchor.
+- Categories still mostly use full-page redirects after row-level changes.
 
 Why it matters:
 
@@ -1824,13 +1826,15 @@ Current state:
   lists and opened for an empty list or create validation error.
 - `PropertiesPagePresenter` owns row action policy and form state.
 - `PropertiesPagePresenter` owns the create form state and submit action.
+- Successful property create/edit/archive/restore redirects keep the changed
+  object visible with `recent_property_id` and a stable row anchor.
 
 Why it matters:
 
 - Objects/properties may start small, but the screen will feel noisy as soon as
   there are multiple properties/projects.
-- It is likely to inherit the same created-entity and local-update needs as
-  transaction rules.
+- It is likely to inherit the same local-update needs as transaction rules if
+  repeated object cleanup becomes a common workflow.
 
 Preferred future direction:
 

@@ -2,6 +2,9 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
+import pytest
+
+import app.features.properties.router as properties_router
 from app.features.properties.models import PropertyStatus
 from app.features.properties.presentation.presenter import (
     PropertiesPagePresenter,
@@ -100,3 +103,71 @@ def test_property_recent_url_targets_created_property_anchor() -> None:
     assert property_recent_url(property_id) == (
         f"/properties?recent_property_id={property_id}#property-{property_id}"
     )
+
+
+@pytest.mark.asyncio
+async def test_property_update_redirect_keeps_row_focus(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    property_id = uuid4()
+    monkeypatch.setattr(properties_router, "PropertyService", fake_property_service(property_id))
+
+    response = await properties_router.update_property(
+        property_id=property_id,
+        request=cast(Any, SimpleNamespace()),
+        session=cast(Any, SimpleNamespace()),
+        settings=cast(Any, SimpleNamespace()),
+        context=workspace_context(),
+        name="Дом",
+        short_name=None,
+        address=None,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == property_recent_url(property_id)
+
+
+@pytest.mark.asyncio
+async def test_property_lifecycle_redirect_keeps_row_focus(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    property_id = uuid4()
+    monkeypatch.setattr(properties_router, "PropertyService", fake_property_service(property_id))
+
+    archive_response = await properties_router.archive_property(
+        property_id=property_id,
+        request=cast(Any, SimpleNamespace()),
+        session=cast(Any, SimpleNamespace()),
+        settings=cast(Any, SimpleNamespace()),
+        context=workspace_context(),
+    )
+    restore_response = await properties_router.restore_property(
+        property_id=property_id,
+        request=cast(Any, SimpleNamespace()),
+        session=cast(Any, SimpleNamespace()),
+        settings=cast(Any, SimpleNamespace()),
+        context=workspace_context(),
+    )
+
+    assert archive_response.status_code == 303
+    assert archive_response.headers["location"] == property_recent_url(property_id)
+    assert restore_response.status_code == 303
+    assert restore_response.headers["location"] == property_recent_url(property_id)
+
+
+def fake_property_service(property_id: object) -> type:
+    class FakePropertyService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def update(self, **_kwargs: object) -> object:
+            return SimpleNamespace(id=property_id)
+
+        async def set_status(self, **_kwargs: object) -> object:
+            return SimpleNamespace(id=property_id)
+
+    return FakePropertyService
+
+
+def workspace_context() -> Any:
+    return cast(Any, SimpleNamespace(workspace=SimpleNamespace(id=uuid4())))
