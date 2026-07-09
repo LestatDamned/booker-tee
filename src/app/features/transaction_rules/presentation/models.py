@@ -2,12 +2,6 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.ledger.models import OperationType
-from app.features.transaction_rules.models import (
-    MoneyDirection,
-    TransactionRuleApplicationMode,
-    TransactionRuleMatchType,
-)
 from app.shared.ui.actions import ActionVM
 
 
@@ -53,14 +47,6 @@ class RuleRowVM:
     status_label: str
     status_tone: str
     is_inactive: bool
-    match_type: TransactionRuleMatchType
-    application_mode: TransactionRuleApplicationMode
-    direction: MoneyDirection
-    target_operation_type: OperationType | None
-    category_id: UUID | None
-    property_id: UUID | None
-    amount_min: Decimal | None
-    amount_max: Decimal | None
     meta: list[RuleMetaVM]
     form: RuleFormVM
     technical_label: str
@@ -74,7 +60,6 @@ class RulesPageVM:
     create_form: RuleFormVM
     seed_defaults_action: ActionVM
     create_rule_label: str
-    create_rule_icon: str
     rule_count_label: str
     can_write: bool
     total_rule_count: int

@@ -317,6 +317,7 @@ def prepare_realistic_scenario(
         page.get_by_text(rule_category_name, exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
 
         page.goto(build_url(base_url, "/rules"), wait_until="domcontentloaded")
+        page.locator("details.rule-create-details > summary").click(timeout=PAGE_TIMEOUT_MS)
         rule_form = page.locator("form#new-rule")
         rule_form.locator('input[name="name"]').fill(f"OZON -> {rule_category_name}")
         rule_form.locator('input[name="pattern"]').fill("OZON")

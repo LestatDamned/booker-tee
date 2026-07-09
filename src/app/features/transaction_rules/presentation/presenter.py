@@ -66,7 +66,6 @@ class TransactionRulesPagePresenter:
                 url="/rules/seed-defaults",
             ),
             create_rule_label="новое правило",
-            create_rule_icon="plus",
             rule_count_label=rule_count_label(
                 total=len(rows),
                 active=active_count,
@@ -96,14 +95,6 @@ class TransactionRulesPagePresenter:
             status_label="активно" if rule.is_active else "выключено",
             status_tone="confirmed" if rule.is_active else "muted",
             is_inactive=not rule.is_active,
-            match_type=rule.match_type,
-            application_mode=rule.application_mode,
-            direction=rule.direction,
-            target_operation_type=rule.target_operation_type,
-            category_id=rule.category_id,
-            property_id=rule.property_id,
-            amount_min=rule.amount_min,
-            amount_max=rule.amount_max,
             meta=rule_meta(rule),
             form=rule_form(
                 form_id=form_id,

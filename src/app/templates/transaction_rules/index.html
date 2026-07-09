@@ -22,7 +22,7 @@
 
     {% if can_write %}
       <details class="action-details action-accordion rule-create-details">
-        <summary>{{ icon(page.create_rule_icon) }} {{ page.create_rule_label }}</summary>
+        <summary>{{ page.create_rule_label }}</summary>
         {% set form = page.create_form %}
         {% set form_class = "rule-create-form" %}
         {% include "transaction_rules/_rule_form.html" %}
