@@ -4505,16 +4505,21 @@ pre {
   grid-column: 1 / -1;
 }
 
+.category-form--drawer {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
 .category-form__field--name {
-  grid-column: span 4;
+  grid-column: span 7;
 }
 
 .category-form__field--kind {
-  grid-column: span 3;
+  grid-column: span 5;
 }
 
 .category-form__field--notes {
-  grid-column: span 5;
+  grid-column: 1 / -1;
 }
 
 .property-create-details {
@@ -4630,16 +4635,21 @@ pre {
   grid-column: 1 / -1;
 }
 
+.property-form--drawer {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
 .property-form__field--name {
-  grid-column: span 4;
+  grid-column: span 7;
 }
 
 .property-form__field--short-name {
-  grid-column: span 3;
+  grid-column: span 5;
 }
 
 .property-form__field--address {
-  grid-column: span 5;
+  grid-column: 1 / -1;
 }
 
 .property-more-actions {
@@ -6796,6 +6806,8 @@ pre {
   }
 
   .operation-form__fields,
+  .category-form--drawer,
+  .property-form--drawer,
   .operation-form__footer {
     grid-template-columns: 1fr;
   }
@@ -6804,6 +6816,12 @@ pre {
   .operation-form__field--date,
   .operation-form__field--amount,
   .operation-form__field--status,
+  .category-form__field--name,
+  .category-form__field--kind,
+  .category-form__field--notes,
+  .property-form__field--name,
+  .property-form__field--short-name,
+  .property-form__field--address,
   .operation-form__fields--classification .operation-form__field,
   .operation-form__field--description,
   .rule-edit-fields--condition .rule-edit-field--match,
