@@ -54,7 +54,13 @@ def test_properties_presenter_builds_create_and_row_edit_state() -> None:
     assert page.create_form.name == "Дом"
     assert page.lifecycle_error == "Объект не найден в этом workspace."
     assert page.rows[0].form_id == f"property-form-{property_id}"
+    assert page.rows[0].anchor_id == f"property-{property_id}"
     assert page.rows[0].edit_panel_open
     assert page.rows[0].edit_form.name == "Дом"
+    assert page.rows[0].edit_toggle_action.action_type == "panel_toggle"
+    assert page.rows[0].lifecycle_action.label == "в архив"
+    assert page.rows[0].save_action.form_id == f"property-form-{property_id}"
     assert page.rows[1].edit_form.name == "Office"
     assert page.rows[1].edit_form.short_name == ""
+    assert page.rows[1].is_inactive
+    assert page.rows[1].lifecycle_action.label == "восстановить"

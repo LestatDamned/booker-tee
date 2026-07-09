@@ -4227,6 +4227,141 @@ pre {
   width: 100%;
 }
 
+.property-card {
+  border-left-color: color-mix(in srgb, var(--help) 54%, var(--border));
+}
+
+.property-card.entity-card-inactive {
+  border-left-color: color-mix(in srgb, var(--muted) 48%, var(--border));
+}
+
+.property-card__main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.property-card__topline {
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
+
+.property-card__title strong {
+  font-size: 1.02rem;
+  overflow-wrap: anywhere;
+}
+
+.property-card__status {
+  min-height: 34px;
+  justify-self: end;
+  justify-content: center;
+  border-color: color-mix(in srgb, currentcolor 72%, var(--border));
+  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
+  padding-inline: 12px;
+}
+
+.property-card__actions {
+  min-width: 0;
+}
+
+.property-card__edit {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+
+.property-card__edit-summary {
+  position: absolute;
+  width: 1px !important;
+  height: 1px;
+  min-height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  border: 0;
+  padding: 0;
+  white-space: nowrap;
+  list-style: none;
+}
+
+.property-card__edit > summary::after,
+.property-card__edit[open] > summary::after {
+  content: none;
+}
+
+.property-card__edit-panel {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-top: 12px;
+}
+
+.property-form__error {
+  grid-column: 1 / -1;
+}
+
+.property-form__field--name {
+  grid-column: span 4;
+}
+
+.property-form__field--short-name {
+  grid-column: span 3;
+}
+
+.property-form__field--address {
+  grid-column: span 5;
+}
+
+.property-more-actions {
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.property-more-actions > summary {
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  list-style: none;
+}
+
+.property-more-actions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.property-more-actions > summary::after,
+.property-more-actions[open] > summary::after {
+  content: none;
+}
+
+.property-more-actions[open] .details-toggle-open {
+  display: none;
+}
+
+.property-more-actions[open] .details-toggle-close {
+  display: inline;
+}
+
+.property-more-actions__menu {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-strong) 50%, transparent);
+  padding: 8px;
+}
+
+.property-more-actions__item {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.property-more-actions__technical code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: color-mix(in srgb, var(--text) 82%, var(--muted));
+}
+
 .manual-operation-row {
   border-left-width: 4px;
 }

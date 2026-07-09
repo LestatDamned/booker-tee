@@ -111,16 +111,22 @@ async def update_property(
         )
     except PropertyError as exc:
         properties = await property_service.list_all(context.workspace.id)
+        target_property_exists = any(property_.id == property_id for property_ in properties)
         property_page = PropertiesPagePresenter.build_index(
             properties,
-            edit_forms_by_property_id={
-                property_id: property_form_state(
-                    error=str(exc),
-                    name=name,
-                    short_name=short_name,
-                    address=address,
-                )
-            },
+            edit_forms_by_property_id=(
+                {
+                    property_id: property_form_state(
+                        error=str(exc),
+                        name=name,
+                        short_name=short_name,
+                        address=address,
+                    )
+                }
+                if target_property_exists
+                else None
+            ),
+            lifecycle_error=None if target_property_exists else str(exc),
         )
         return templates.TemplateResponse(
             request,

@@ -334,11 +334,16 @@ def test_properties_template_uses_inline_card_editing() -> None:
     assert "квартира" in html
     assert "семейная цель" in html
     assert "entity-card" in html
-    assert "form-panel-embedded" in html
+    assert "financial-row" in html
+    assert "row-actions" in html
+    assert "row-drawer" in html
+    assert "property-card__edit" in html
     assert "badge-active" in html
+    assert "изменить объект" in html
     assert "сохранить" in html
-    assert "<summary>ID</summary>" in html
+    assert "Еще действия" in html
     assert f"ID {property_id}" in html
+    assert f'id="property-{property_id}"' in html
 
 
 def test_properties_template_shows_create_error_and_keeps_values() -> None:
@@ -407,6 +412,7 @@ def test_properties_template_shows_edit_error_and_keeps_row_values() -> None:
     )
 
     assert html.count('role="alert"') == 1
+    assert 'property-card__edit" open' in html
     assert "Название объекта обязательно." in html
     assert f'id="name-{property_id}" name="name" value="Дом"' in html
     assert f'id="short-name-{property_id}" name="short_name" value="D"' in html

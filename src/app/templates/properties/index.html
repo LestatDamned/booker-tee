@@ -57,52 +57,84 @@
         {% for row in page.rows %}
           {% set property = row.property %}
           {% set edit_form = row.edit_form %}
-          <article class="entity-card {% if property.status.value == "archived" %}entity-card-inactive{% endif %}">
-            <div class="entity-card-main">
-              <div class="entity-card-title">
-                <strong>{{ property.name }}</strong>
-                <span class="badge badge-{{ property.status.value }}">{{ property.status | ru }}</span>
+          <article id="{{ row.anchor_id }}" class="financial-row entity-card property-card {% if row.is_inactive %}entity-card-inactive{% endif %}">
+            <div class="financial-row__main entity-card-main property-card__main">
+              <div class="financial-row__topline property-card__topline">
+                <div class="entity-card-title property-card__title">
+                  <strong>{{ property.name }}</strong>
+                </div>
+                <span class="badge badge-{{ row.status_tone }} property-card__status">{{ row.status_label }}</span>
               </div>
-              <details class="technical-details">
-                <summary>ID</summary>
-                <span>ID {{ property.id }}</span>
-              </details>
-              {% if can_write %}
-                <form class="detached-form" id="{{ row.form_id }}" method="post" action="/properties/{{ property.id }}">{{ csrf_input() }}</form>
-                <div class="form-panel form-panel-embedded">
-                  {% if edit_form.error %}
-                    <div class="form-error" role="alert">{{ edit_form.error }}</div>
+              {% if row.short_name_label or row.address_label %}
+                <div class="financial-row__meta property-card__meta">
+                  {% if row.short_name_label %}
+                    <span class="financial-row__meta-item financial-row__meta-item--classification">{{ row.short_name_label }}</span>
                   {% endif %}
-                  <div class="field form-field-third">
-                    <label for="name-{{ property.id }}">Название</label>
-                    <input id="name-{{ property.id }}" name="name" value="{{ edit_form.name }}" form="{{ row.form_id }}" required>
-                  </div>
-                  <div class="field form-field-third">
-                    <label for="short-name-{{ property.id }}">Коротко</label>
-                    <input id="short-name-{{ property.id }}" name="short_name" value="{{ edit_form.short_name }}" placeholder="Коротко" form="{{ row.form_id }}">
-                  </div>
-                  <div class="field form-field-third">
-                    <label for="address-{{ property.id }}">Адрес</label>
-                    <input id="address-{{ property.id }}" name="address" value="{{ edit_form.address }}" placeholder="Адрес" form="{{ row.form_id }}">
-                  </div>
+                  {% if row.address_label %}
+                    <span class="financial-row__meta-item">{{ row.address_label }}</span>
+                  {% endif %}
                 </div>
               {% endif %}
             </div>
             {% if can_write %}
-              <div class="entity-card-actions">
-                <button class="button button-small" type="submit" form="{{ row.form_id }}">{{ icon("save") }} сохранить</button>
-                {% if property.status.value == "archived" %}
-                  <form method="post" action="/properties/{{ property.id }}/restore">
-                    {{ csrf_input() }}
-                    <button class="button button-small" type="submit">{{ icon("rotate-ccw") }} восстановить</button>
-                  </form>
-                {% else %}
-                  <form method="post" action="/properties/{{ property.id }}/archive">
-                    {{ csrf_input() }}
-                    <button class="button button-small" type="submit">{{ icon("archive") }} в архив</button>
-                  </form>
-                {% endif %}
+              <div class="financial-row__side entity-card-actions row-actions property-card__actions">
+                {% set action = row.edit_toggle_action %}
+                {% include "ui/_action.html" %}
+                {% set action = row.lifecycle_action %}
+                {% include "ui/_action.html" %}
+                <details class="action-details action-accordion review-actions__secondary review-actions__details review-actions__menu property-more-actions">
+                  <summary class="review-actions__summary">
+                    {{ icon("list-check") }}
+                    <span>Еще действия</span>
+                    <span class="details-toggle-label review-actions__toggle" aria-hidden="true">
+                      <span class="details-toggle-open">Открыть</span>
+                      <span class="details-toggle-close">Закрыть</span>
+                    </span>
+                  </summary>
+                  <div class="property-more-actions__menu">
+                    <div class="property-more-actions__item property-more-actions__technical">
+                      <span>Показать ID</span>
+                      <code>{{ row.technical_label }}</code>
+                    </div>
+                  </div>
+                </details>
               </div>
+
+              <details class="property-card__edit" {% if row.edit_panel_open %}open{% endif %}>
+                <summary id="{{ row.edit_summary_id }}" class="property-card__edit-summary">
+                  <span>Изменить объект</span>
+                </summary>
+                <div class="financial-row__drawer row-drawer property-card__edit-panel">
+                  <div class="row-drawer__header">
+                    <div class="row-drawer__heading">
+                      <h3 class="row-drawer__title">Изменить объект</h3>
+                      <span class="row-drawer__context">{{ row.status_label }}</span>
+                    </div>
+                  </div>
+                  <form id="{{ row.form_id }}" class="row-drawer__form operation-form operation-form--drawer property-form property-form--drawer" method="post" action="/properties/{{ property.id }}">
+                    {{ csrf_input() }}
+                    {% if edit_form.error %}
+                      <div class="form-error property-form__error" role="alert">{{ edit_form.error }}</div>
+                    {% endif %}
+                    <label class="field row-drawer__field operation-form__field property-form__field property-form__field--name">
+                      <span>Название</span>
+                      <input id="name-{{ property.id }}" name="name" value="{{ edit_form.name }}" required>
+                    </label>
+                    <label class="field row-drawer__field operation-form__field property-form__field property-form__field--short-name">
+                      <span>Коротко</span>
+                      <input id="short-name-{{ property.id }}" name="short_name" value="{{ edit_form.short_name }}" placeholder="Короткое название">
+                    </label>
+                    <label class="field row-drawer__field operation-form__field property-form__field property-form__field--address">
+                      <span>Адрес</span>
+                      <input id="address-{{ property.id }}" name="address" value="{{ edit_form.address }}" placeholder="Адрес">
+                    </label>
+                    <div class="row-drawer__footer operation-form__footer operation-form__footer--actions property-form__footer">
+                      {% set action = row.save_action %}
+                      {% include "ui/_action.html" %}
+                    </div>
+                  </form>
+                </div>
+              </details>
             {% endif %}
           </article>
         {% endfor %}

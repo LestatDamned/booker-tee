@@ -1792,7 +1792,8 @@ Current state:
   - account movement rows now lazy-load imported correction drawers via HTMX;
   - import review now renders lightweight review panel shells and lazy-loads
     category/transfer panel content via HTMX;
-  - properties currently render edit fields directly inside each card.
+  - properties now hide edit fields in a row drawer, but the drawer content is
+    still rendered with the row because the form is light.
 
 Why it matters:
 
@@ -1812,12 +1813,15 @@ Avoid as first response:
 - pagination only to hide repeated form weight. Pagination can hurt reference
   workflows and does not fix heavy per-row markup.
 
-#### Properties Screen Is Still Admin-Heavy
+#### Properties Screen Follow-Up
 
 Current state:
 
-- `properties/index.html` renders edit fields directly in every property card.
-- Actions are not yet aligned with the Entity Work Row language.
+- `properties/index.html` now uses Entity Work Row geometry:
+  left-side information, right-side `row-actions`, and a full-width row drawer
+  for editing.
+- `PropertiesPagePresenter` owns row action policy and form state.
+- Create form is still a visible page-level form.
 
 Why it matters:
 
@@ -1828,11 +1832,11 @@ Why it matters:
 
 Preferred future direction:
 
-- convert to Entity Work Row geometry;
 - create form as a page action/compact accordion;
-- edit as row drawer;
+- consider lazy-loading edit drawer only if property forms become heavier;
 - use Created Entity Feedback Pattern;
-- keep archive/restore secondary and danger actions separated.
+- add local HTMX row swaps for edit/archive/restore when the partial contract is
+  stable.
 
 #### Created Entity Feedback Should Spread To Reference Screens
 
@@ -1932,6 +1936,8 @@ Current state:
 
 - `CategoryPagePresenter` owns category view normalization, tab URLs, row split
   by current view, create/edit form values and lifecycle error state.
+- `PropertiesPagePresenter` owns property row actions, edit drawer state and
+  form values.
 - Categories still group rows in Jinja with `selectattr` and local macro logic.
 - Category detail still computes some display choices in templates.
 
