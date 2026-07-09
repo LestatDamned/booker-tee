@@ -72,6 +72,10 @@ class RuleRowVM:
 class RulesPageVM:
     rules: list[RuleRowVM]
     create_form: RuleFormVM
+    seed_defaults_action: ActionVM
+    create_rule_label: str
+    create_rule_icon: str
+    rule_count_label: str
     can_write: bool
     total_rule_count: int
     active_rule_count: int

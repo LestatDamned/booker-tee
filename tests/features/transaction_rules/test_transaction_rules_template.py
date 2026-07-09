@@ -154,6 +154,9 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
     assert page.total_rule_count == 1
     assert page.active_rule_count == 0
     assert page.inactive_rule_count == 1
+    assert page.rule_count_label == "1 правил · 0 активных · 1 выключенных"
+    assert page.seed_defaults_action.url == "/rules/seed-defaults"
+    assert page.create_rule_label == "новое правило"
     assert row.anchor_id == f"rule-{rule_id}"
     assert row.title == "YANDEX GO -> Такси"
     assert row.status_label == "выключено"

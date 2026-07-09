@@ -13,10 +13,8 @@
         <h1>Правила транзакций</h1>
       </div>
       {% if can_write %}
-        <form method="post" action="/rules/seed-defaults">
-          {{ csrf_input() }}
-          <button class="button" type="submit">{{ icon("import") }} загрузить базовые правила</button>
-        </form>
+        {% set action = page.seed_defaults_action %}
+        {% include "ui/_action.html" %}
       {% endif %}
     </div>
 
@@ -24,7 +22,7 @@
 
     {% if can_write %}
       <details class="action-details action-accordion rule-create-details">
-        <summary>{{ icon("plus") }} новое правило</summary>
+        <summary>{{ icon(page.create_rule_icon) }} {{ page.create_rule_label }}</summary>
         {% set form = page.create_form %}
         {% set form_class = "rule-create-form" %}
         {% include "transaction_rules/_rule_form.html" %}
@@ -34,9 +32,7 @@
 
   <section class="panel stack">
     <div>
-      <p class="eyebrow">
-        {{ page.total_rule_count }} правил · {{ page.active_rule_count }} активных · {{ page.inactive_rule_count }} выключенных
-      </p>
+      <p class="eyebrow">{{ page.rule_count_label }}</p>
       <h2>Правила</h2>
     </div>
 

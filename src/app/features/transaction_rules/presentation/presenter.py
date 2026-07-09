@@ -57,6 +57,21 @@ class TransactionRulesPagePresenter:
                 ),
                 show_name=True,
             ),
+            seed_defaults_action=ActionVM(
+                id="seed-default-rules",
+                label="загрузить базовые правила",
+                icon="import",
+                placement="secondary",
+                action_type="post",
+                url="/rules/seed-defaults",
+            ),
+            create_rule_label="новое правило",
+            create_rule_icon="plus",
+            rule_count_label=rule_count_label(
+                total=len(rows),
+                active=active_count,
+                inactive=len(rows) - active_count,
+            ),
             can_write=can_write,
             total_rule_count=len(rows),
             active_rule_count=active_count,
@@ -135,6 +150,10 @@ class TransactionRulesPagePresenter:
                 confirm_message="Удалить правило транзакций?",
             ),
         )
+
+
+def rule_count_label(*, total: int, active: int, inactive: int) -> str:
+    return f"{total} правил · {active} активных · {inactive} выключенных"
 
 
 def rule_form(
