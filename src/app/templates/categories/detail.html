@@ -40,7 +40,7 @@
       {% set form_name = edit_name if edit_name is defined and edit_name is not none else detail.category.name %}
       {% set form_kind = edit_kind if edit_kind is defined and edit_kind is not none else detail.category.kind %}
       {% set form_notes = edit_notes if edit_notes is defined and edit_notes is not none else detail.category.notes or "" %}
-      <details class="action-details action-accordion category-edit-details" {% if edit_error is defined and edit_error %}open{% endif %}>
+      <details class="action-details action-accordion category-edit-details" {% if (edit_error is defined and edit_error) or (lifecycle_error is defined and lifecycle_error) %}open{% endif %}>
         <summary>{{ icon("settings") }} управление категорией</summary>
         <div class="category-edit-layout">
           <form class="form-panel form-panel-embedded category-edit-form" method="post" action="/categories/{{ detail.category.id }}">
@@ -71,6 +71,9 @@
             </div>
           </form>
           <div class="category-lifecycle-actions">
+            {% if lifecycle_error is defined and lifecycle_error %}
+              <div class="form-error" role="alert">{{ lifecycle_error }}</div>
+            {% endif %}
             {% if detail.category.is_active %}
               <form method="post" action="/categories/{{ detail.category.id }}/archive">
                 {{ csrf_input() }}

@@ -1691,6 +1691,8 @@ Current state:
   user-facing feedback and preserved form values for expected creation errors.
 - Category detail edit form now returns the category detail page with inline
   user-facing feedback and preserved form values for expected update errors.
+- Category detail lifecycle actions now return the category detail page with
+  inline feedback for expected archive/restore/delete errors.
 - Properties create form now returns the properties page with inline
   user-facing feedback and preserved form values for expected creation errors.
 - Properties edit rows now return the properties page with row-scoped inline

@@ -246,6 +246,59 @@ def test_category_detail_template_shows_edit_error_and_keeps_values() -> None:
     assert 'name="notes" value="Новое описание"' in html
 
 
+def test_category_detail_template_shows_lifecycle_error() -> None:
+    category_id = uuid4()
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("categories/detail.html").render(
+        app_name="Booker Tee",
+        kinds=list(CategoryKind),
+        workspace=SimpleNamespace(name="Personal", default_currency="RUB"),
+        detail=SimpleNamespace(
+            category=SimpleNamespace(
+                id=category_id,
+                name="Архивная категория",
+                kind=CategoryKind.EXPENSE,
+                is_active=False,
+                is_system=False,
+                notes=None,
+            ),
+            summary=SimpleNamespace(
+                income=Decimal("0.00"),
+                expense=Decimal("0.00"),
+                profit=Decimal("0.00"),
+            ),
+            operations=[
+                SimpleNamespace(
+                    operation=SimpleNamespace(
+                        operation_date=date(2026, 6, 19),
+                        type=OperationType.EXPENSE,
+                        description="GREEN HOUSE",
+                        property=None,
+                        money_entries=[
+                            SimpleNamespace(
+                                account=SimpleNamespace(name="Экспобанк карта"),
+                                amount=Decimal("-890.00"),
+                                currency="RUB",
+                            )
+                        ],
+                    ),
+                    total=Decimal("-890.00"),
+                )
+            ],
+            rules=[],
+        ),
+        lifecycle_error="Нельзя удалить категорию, у которой есть операции.",
+    )
+
+    assert 'category-edit-details" open' in html
+    assert 'role="alert"' in html
+    assert "Нельзя удалить категорию, у которой есть операции." in html
+    assert f'action="/categories/{category_id}/restore"' in html
+    assert f'action="/categories/{category_id}/delete"' not in html
+
+
 def test_properties_template_uses_inline_card_editing() -> None:
     property_id = uuid4()
     templates = create_templates()

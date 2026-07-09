@@ -113,6 +113,7 @@ async def category_detail_response(
     edit_name: str | None = None,
     edit_kind: CategoryKind | None = None,
     edit_notes: str | None = None,
+    lifecycle_error: str | None = None,
     status_code: int = status.HTTP_200_OK,
 ) -> HTMLResponse:
     try:
@@ -134,6 +135,7 @@ async def category_detail_response(
             "edit_name": edit_name,
             "edit_kind": edit_kind,
             "edit_notes": edit_notes,
+            "lifecycle_error": lifecycle_error,
         },
         status_code=status_code,
     )
@@ -220,7 +222,9 @@ async def update_category(
 @router.post("/{category_id}/archive")
 async def archive_category(
     category_id: UUID,
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     view: Annotated[str | None, Form()] = None,
 ) -> Response:
@@ -231,7 +235,15 @@ async def archive_category(
             is_active=False,
         )
     except CategoryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return await category_detail_response(
+            category_id=category_id,
+            request=request,
+            session=session,
+            settings=settings,
+            context=context,
+            lifecycle_error=str(exc),
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     return RedirectResponse(
         url=categories_url(view),
@@ -242,7 +254,9 @@ async def archive_category(
 @router.post("/{category_id}/restore")
 async def restore_category(
     category_id: UUID,
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     view: Annotated[str | None, Form()] = None,
 ) -> Response:
@@ -253,7 +267,15 @@ async def restore_category(
             is_active=True,
         )
     except CategoryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return await category_detail_response(
+            category_id=category_id,
+            request=request,
+            session=session,
+            settings=settings,
+            context=context,
+            lifecycle_error=str(exc),
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     return RedirectResponse(
         url=categories_url(view),
@@ -264,7 +286,9 @@ async def restore_category(
 @router.post("/{category_id}/delete")
 async def delete_category(
     category_id: UUID,
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     view: Annotated[str | None, Form()] = None,
 ) -> Response:
@@ -274,7 +298,15 @@ async def delete_category(
             category_id=category_id,
         )
     except CategoryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return await category_detail_response(
+            category_id=category_id,
+            request=request,
+            session=session,
+            settings=settings,
+            context=context,
+            lifecycle_error=str(exc),
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     return RedirectResponse(
         url=categories_url(view),
