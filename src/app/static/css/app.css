@@ -4004,27 +4004,38 @@ pre {
   white-space: nowrap;
 }
 
-.rule-filter-form {
+.filter-form.rule-filter-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: end;
   border-top: 1px solid color-mix(in srgb, var(--border) 32%, transparent);
+  padding-block: 8px;
 }
 
-.rule-filter-form__fields {
-  grid-template-columns: minmax(220px, 1.4fr) minmax(180px, 0.9fr) minmax(150px, 0.7fr);
+.filter-form__fields.rule-filter-form__fields {
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 0.95fr) minmax(150px, 0.75fr);
+  align-items: end;
 }
 
-.rule-filter-form__footer {
-  grid-template-columns: minmax(0, 1fr) auto auto;
+.filter-form__footer.rule-filter-form__footer {
+  grid-template-columns: auto auto auto;
+  gap: 8px;
+  justify-content: end;
   align-items: center;
+  border-top: 0;
+  padding-top: 0;
 }
 
 .rule-filter-form__result {
   justify-self: start;
+  align-self: center;
   color: var(--muted);
   font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 .rule-filter-form__footer .primary-action {
-  grid-column: -2 / -1;
   justify-self: end;
 }
 
@@ -6269,6 +6280,21 @@ pre {
   .filter-form__fields--display,
   .filter-form__footer {
     grid-template-columns: 1fr;
+  }
+
+  .filter-form.rule-filter-form {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-form__fields.rule-filter-form__fields,
+  .filter-form__footer.rule-filter-form__footer {
+    grid-template-columns: 1fr;
+  }
+
+  .rule-filter-form__result,
+  .rule-filter-form__footer .primary-action,
+  .rule-filter-form__footer .filter-form__secondary-action {
+    justify-self: stretch;
   }
 
   .operation-form__fields,
