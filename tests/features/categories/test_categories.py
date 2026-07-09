@@ -5,7 +5,11 @@ from uuid import uuid4
 import pytest
 
 from app.features.categories.models import CategoryKind
-from app.features.categories.router import categories_url, split_category_rows
+from app.features.categories.router import (
+    categories_url,
+    category_form_error_message,
+    split_category_rows,
+)
 from app.features.categories.service import (
     DEFAULT_CATEGORY_SEEDS,
     PROPERTY_MANAGEMENT_CATEGORY_SEEDS,
@@ -94,6 +98,15 @@ def test_categories_url_preserves_non_default_view() -> None:
     assert categories_url("active") == "/categories"
     assert categories_url("archived") == "/categories?view=archived"
     assert categories_url("nope") == "/categories"
+
+
+def test_category_form_error_message_uses_user_facing_required_name() -> None:
+    assert category_form_error_message(CategoryError("Category name is required.")) == (
+        "Введите название категории."
+    )
+    assert category_form_error_message(CategoryError("Категория с таким названием уже есть.")) == (
+        "Категория с таким названием уже есть."
+    )
 
 
 @pytest.mark.asyncio

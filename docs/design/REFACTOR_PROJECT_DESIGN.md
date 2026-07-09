@@ -1687,6 +1687,8 @@ Current state:
   feedback for expected errors. Row action errors are transient
   `ProblemVM` entries, and the originating review panel is restored after the
   swap.
+- Categories create form now returns the categories page with inline
+  user-facing feedback and preserved form values for expected creation errors.
 - Many CRUD/reference forms still raise plain `400` errors for validation or
   duplicate-name cases.
 

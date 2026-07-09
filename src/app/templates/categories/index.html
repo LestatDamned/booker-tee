@@ -78,24 +78,30 @@
     {{ inline_hint("Категория отвечает на вопрос, почему деньги пришли или ушли. Она влияет на отчеты по доходам, расходам и прибыли.", "info") }}
 
     {% if can_write %}
+      {% set form_name = create_name | default("") %}
+      {% set form_kind = create_kind | default(kinds[-1]) %}
+      {% set form_notes = create_notes | default("") %}
       <form class="form-panel" method="post" action="/categories">
         {{ csrf_input() }}
         <input type="hidden" name="view" value="{{ category_view }}">
+        {% if create_error is defined and create_error %}
+          <div class="form-error" role="alert">{{ create_error }}</div>
+        {% endif %}
         <div class="field form-field-half">
           <label for="name">Название</label>
-          <input id="name" name="name" placeholder="Название категории" required>
+          <input id="name" name="name" value="{{ form_name }}" placeholder="Название категории" required>
         </div>
         <div class="field form-field-quarter">
           <label for="kind">Тип</label>
           <select id="kind" name="kind">
             {% for kind in kinds %}
-              <option value="{{ kind.value }}">{{ kind | ru }}</option>
+              <option value="{{ kind.value }}" {% if kind == form_kind %}selected{% endif %}>{{ kind | ru }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="field form-field-half">
           <label for="notes">Заметка</label>
-          <input id="notes" name="notes" placeholder="Когда использовать эту категорию">
+          <input id="notes" name="notes" value="{{ form_notes }}" placeholder="Когда использовать эту категорию">
         </div>
         <div class="form-actions">
           <button class="button" type="submit">{{ icon("plus") }} добавить</button>

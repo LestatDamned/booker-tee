@@ -38,6 +38,28 @@ async def category_index(
     view: Annotated[str, Query()] = "active",
 ) -> HTMLResponse:
     category_view = normalize_category_view(view)
+    return await category_index_response(
+        request=request,
+        session=session,
+        settings=settings,
+        context=context,
+        category_view=category_view,
+    )
+
+
+async def category_index_response(
+    *,
+    request: Request,
+    session: AsyncSession,
+    settings: Settings,
+    context: WorkspaceContext,
+    category_view: str,
+    create_error: str | None = None,
+    create_name: str = "",
+    create_kind: CategoryKind = CategoryKind.MIXED,
+    create_notes: str = "",
+    status_code: int = status.HTTP_200_OK,
+) -> HTMLResponse:
     category_rows = await CategoryService(session).list_management_rows(
         context.workspace.id,
         context.workspace.type,
@@ -54,7 +76,12 @@ async def category_index(
             "system_category_rows": system_category_rows,
             "kinds": list(CategoryKind),
             "workspace": context.workspace,
+            "create_error": create_error,
+            "create_name": create_name,
+            "create_kind": create_kind,
+            "create_notes": create_notes,
         },
+        status_code=status_code,
     )
 
 
@@ -87,7 +114,9 @@ async def category_detail(
 
 @router.post("")
 async def create_category(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     name: Annotated[str, Form()],
     kind: Annotated[CategoryKind, Form()] = CategoryKind.MIXED,
@@ -102,7 +131,18 @@ async def create_category(
             notes=notes,
         )
     except CategoryError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return await category_index_response(
+            request=request,
+            session=session,
+            settings=settings,
+            context=context,
+            category_view=normalize_category_view(view),
+            create_error=category_form_error_message(exc),
+            create_name=name,
+            create_kind=kind,
+            create_notes=notes or "",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     return RedirectResponse(
         url=categories_url(view),
@@ -213,6 +253,13 @@ def categories_url(raw_view: str | None) -> str:
     if category_view == "active":
         return "/categories"
     return f"/categories?view={category_view}"
+
+
+def category_form_error_message(error: CategoryError) -> str:
+    message = str(error)
+    if message == "Category name is required.":
+        return "Введите название категории."
+    return message
 
 
 def split_category_rows(
