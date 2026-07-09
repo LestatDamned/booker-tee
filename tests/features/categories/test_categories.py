@@ -10,6 +10,7 @@ from app.features.categories.presentation.presenter import (
     categories_url,
     category_form_error_message,
     category_form_state,
+    category_recent_url,
     split_category_rows,
 )
 from app.features.categories.service import (
@@ -121,10 +122,37 @@ def test_category_presenter_builds_page_state_for_current_view() -> None:
     assert [option.value for option in page.view_options if option.is_active] == ["archived"]
 
 
+def test_category_presenter_marks_recent_category_when_visible() -> None:
+    active_user = category_row(is_active=True, is_system=False)
+
+    page = CategoryPagePresenter.build_index(
+        [active_user],
+        category_view="active",
+        recent_category_id=active_user.category.id,
+    )
+
+    assert page.recent_category == active_user
+    assert page.recent_category_id == active_user.category.id
+
+
 def test_categories_url_preserves_non_default_view() -> None:
     assert categories_url("active") == "/categories"
     assert categories_url("archived") == "/categories?view=archived"
     assert categories_url("nope") == "/categories"
+
+
+def test_category_recent_url_targets_created_category_anchor() -> None:
+    category_id = uuid4()
+
+    assert category_recent_url(category_id, "active") == (
+        f"/categories?recent_category_id={category_id}#category-{category_id}"
+    )
+    assert category_recent_url(category_id, "all") == (
+        f"/categories?view=all&recent_category_id={category_id}#category-{category_id}"
+    )
+    assert category_recent_url(category_id, "archived") == (
+        f"/categories?recent_category_id={category_id}#category-{category_id}"
+    )
 
 
 def test_category_form_error_message_uses_user_facing_required_name() -> None:

@@ -1845,7 +1845,8 @@ Current state:
 - Transaction rules now use a recent-created feedback pattern.
 - Properties now use a recent-created feedback pattern through
   `recent_property_id`, compact feedback above the list and calm row highlight.
-- Categories do not yet use it.
+- Categories now use the same recent-created feedback pattern through
+  `recent_category_id`, compact feedback above the list and calm row highlight.
 
 Why it matters:
 
@@ -1854,7 +1855,7 @@ Why it matters:
 
 Preferred future direction:
 
-- for categories/users/workspaces, pass `recent_entity_id` into the
+- for users/workspaces, pass `recent_entity_id` into the
   list partial after create;
 - show compact feedback above the list;
 - highlight the created row calmly;

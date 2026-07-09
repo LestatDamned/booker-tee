@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 from app.features.categories.models import CategoryKind
 from app.features.categories.service import CategoryDetailView, CategoryManagementRow
@@ -31,6 +32,8 @@ class CategoryIndexPageVM:
     view_options: list[CategoryViewOptionVM]
     user_category_rows: list[CategoryManagementRow]
     system_category_rows: list[CategoryManagementRow]
+    recent_category: CategoryManagementRow | None
+    recent_category_id: UUID | None
     kinds: list[CategoryKind]
     create_form: CategoryFormStateVM
 

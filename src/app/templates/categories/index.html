@@ -4,9 +4,9 @@
 
 {% block title %}Категории · {{ app_name }}{% endblock %}
 
-{% macro category_card(row, kinds, category_view) %}
+{% macro category_card(row, kinds, category_view, recent_category_id=none) %}
   {% set category = row.category %}
-  <article class="entity-card {% if category.is_system %}entity-card-readonly{% endif %} {% if not category.is_active %}entity-card-inactive{% endif %}">
+  <article id="category-{{ category.id }}" class="entity-card category-card {% if category.is_system %}entity-card-readonly{% endif %} {% if not category.is_active %}entity-card-inactive{% endif %} {% if recent_category_id and category.id == recent_category_id %}category-card--recent{% endif %}">
     <div class="entity-card-main">
       <div class="entity-card-title">
         <a href="/categories/{{ category.id }}"><strong>{{ category.name }}</strong></a>
@@ -37,7 +37,7 @@
   </article>
 {% endmacro %}
 
-{% macro category_group(title, rows, kinds, category_view) %}
+{% macro category_group(title, rows, kinds, category_view, recent_category_id=none) %}
   {% if rows %}
     {% for kind in kinds %}
       {% set kind_rows = rows | selectattr("category.kind", "equalto", kind) | list %}
@@ -48,7 +48,7 @@
         </div>
         <div class="entity-card-list">
           {% for row in kind_rows %}
-            {{ category_card(row, kinds, category_view) }}
+            {{ category_card(row, kinds, category_view, recent_category_id) }}
           {% endfor %}
         </div>
       {% endif %}
@@ -109,14 +109,30 @@
     {% endif %}
 
     {% if page.user_category_rows or page.system_category_rows %}
-      {{ category_group("пользовательские", page.user_category_rows, page.kinds, page.view) }}
+      {% if page.recent_category %}
+        <div class="category-list-feedback">
+          <div>
+            <p class="eyebrow">категория готова</p>
+            <strong>{{ page.recent_category.category.name }}</strong>
+            <span>
+              {{ page.recent_category.category.kind | ru }}
+              {% if page.recent_category.category.notes %}
+                · {{ page.recent_category.category.notes }}
+              {% endif %}
+            </span>
+          </div>
+          <a class="meta-link category-list-feedback__link" href="#category-{{ page.recent_category.category.id }}">Показать в списке</a>
+        </div>
+      {% endif %}
+
+      {{ category_group("пользовательские", page.user_category_rows, page.kinds, page.view, page.recent_category_id) }}
 
       {% if page.system_category_rows %}
         <div class="section-heading">
           <p class="eyebrow">{{ page.system_category_rows|length }} служебных категорий</p>
           <h2>Системные</h2>
         </div>
-        {{ category_group("служебные", page.system_category_rows, page.kinds, page.view) }}
+        {{ category_group("служебные", page.system_category_rows, page.kinds, page.view, page.recent_category_id) }}
       {% endif %}
     {% else %}
       {% if can_write %}

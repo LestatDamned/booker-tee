@@ -70,6 +70,7 @@ def test_categories_template_uses_compact_cards() -> None:
     assert "почему деньги пришли или ушли" in html
     assert "влияет на отчеты" in html
     assert "filter-tab-active" in html
+    assert "категория готова" not in html
     assert "entity-card-readonly" in html
     assert "category-edit-details" not in html
     assert "badge-expense" in html
@@ -80,10 +81,52 @@ def test_categories_template_uses_compact_cards() -> None:
     assert "отчет" in html
     assert "Супермаркеты и доставка" in html
     assert f'href="/categories/{custom_category_id}"' in html
+    assert f'id="category-{custom_category_id}"' in html
     assert f'action="/categories/{custom_category_id}/restore"' not in html
     assert '<input type="hidden" name="view" value="all">' in html
     assert "<summary>ID</summary>" in html
     assert f"ID {system_category_id}" in html
+
+
+def test_categories_template_shows_recent_created_feedback() -> None:
+    category_id = uuid4()
+    templates = create_templates()
+    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
+
+    html = templates.env.get_template("categories/index.html").render(
+        app_name="Booker Tee",
+        workspace=SimpleNamespace(name="Personal"),
+        category_page=CategoryPagePresenter.build_index(
+            cast(
+                Any,
+                [
+                    SimpleNamespace(
+                        category=SimpleNamespace(
+                            id=category_id,
+                            name="Продукты",
+                            kind=CategoryKind.EXPENSE,
+                            is_active=True,
+                            is_system=False,
+                            system_key=None,
+                            notes="Супермаркеты",
+                        ),
+                        operation_count=0,
+                        rule_count=0,
+                    )
+                ],
+            ),
+            category_view="active",
+            recent_category_id=category_id,
+        ),
+    )
+
+    assert "категория готова" in html
+    assert "Продукты" in html
+    assert "расход" in html
+    assert "Супермаркеты" in html
+    assert "Показать в списке" in html
+    assert f'href="#category-{category_id}"' in html
+    assert "category-card--recent" in html
 
 
 def test_categories_template_empty_state_points_to_creation_form() -> None:

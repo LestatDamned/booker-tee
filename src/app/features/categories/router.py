@@ -14,6 +14,7 @@ from app.features.categories.presentation.presenter import (
     categories_url,
     category_form_error_message,
     category_form_state,
+    category_recent_url,
     normalize_category_view,
 )
 from app.features.categories.service import CategoryError, CategoryService
@@ -35,6 +36,7 @@ async def category_index(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
     view: Annotated[str, Query()] = "active",
+    recent_category_id: Annotated[UUID | None, Query()] = None,
 ) -> HTMLResponse:
     category_view = normalize_category_view(view)
     category_service = CategoryService(session)
@@ -45,6 +47,7 @@ async def category_index(
     category_page = CategoryPagePresenter.build_index(
         category_rows,
         category_view=category_view,
+        recent_category_id=recent_category_id,
     )
     return templates.TemplateResponse(
         request,
@@ -98,7 +101,7 @@ async def create_category(
 ) -> Response:
     category_service = CategoryService(session)
     try:
-        await category_service.create_custom(
+        category = await category_service.create_custom(
             workspace_id=context.workspace.id,
             name=name,
             kind=kind,
@@ -131,7 +134,7 @@ async def create_category(
         )
 
     return RedirectResponse(
-        url=categories_url(view),
+        url=category_recent_url(category.id, view),
         status_code=status.HTTP_303_SEE_OTHER,
     )
 

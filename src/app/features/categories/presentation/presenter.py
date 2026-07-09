@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from app.features.categories.models import CategoryKind
 from app.features.categories.presentation.models import (
     CategoryDetailPageVM,
@@ -28,17 +30,25 @@ class CategoryPagePresenter:
         *,
         category_view: str,
         create_form: CategoryFormStateVM | None = None,
+        recent_category_id: UUID | None = None,
     ) -> CategoryIndexPageVM:
         normalized_view = normalize_category_view(category_view)
         user_category_rows, system_category_rows = split_category_rows(
             category_rows,
             normalized_view,
         )
+        visible_rows = [*user_category_rows, *system_category_rows]
+        recent_category = next(
+            (row for row in visible_rows if row.category.id == recent_category_id),
+            None,
+        )
         return CategoryIndexPageVM(
             view=normalized_view,
             view_options=category_view_options(normalized_view),
             user_category_rows=user_category_rows,
             system_category_rows=system_category_rows,
+            recent_category=recent_category,
+            recent_category_id=recent_category_id if recent_category is not None else None,
             kinds=list(CategoryKind),
             create_form=create_form or default_category_form_state(),
         )
@@ -100,6 +110,25 @@ def categories_url(raw_view: str | None) -> str:
     if category_view == "active":
         return "/categories"
     return f"/categories?view={category_view}"
+
+
+def category_recent_url(category_id: UUID, raw_view: str | None) -> str:
+    category_view = visible_category_view_after_create(raw_view)
+    anchor_id = category_anchor_id(category_id)
+    if category_view == "active":
+        return f"/categories?recent_category_id={category_id}#{anchor_id}"
+    return f"/categories?view={category_view}&recent_category_id={category_id}#{anchor_id}"
+
+
+def category_anchor_id(category_id: UUID) -> str:
+    return f"category-{category_id}"
+
+
+def visible_category_view_after_create(raw_view: str | None) -> str:
+    category_view = normalize_category_view(raw_view)
+    if category_view in {"active", "all"}:
+        return category_view
+    return "active"
 
 
 def category_view_options(category_view: str) -> list[CategoryViewOptionVM]:
