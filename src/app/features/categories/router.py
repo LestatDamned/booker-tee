@@ -12,6 +12,7 @@ from app.features.categories.models import CategoryKind
 from app.features.categories.presentation.presenter import (
     CategoryPagePresenter,
     categories_url,
+    category_detail_url,
     category_form_error_message,
     category_form_state,
     category_recent_url,
@@ -192,7 +193,7 @@ async def update_category(
         )
 
     return RedirectResponse(
-        url=categories_url(view),
+        url=category_detail_url(category_id),
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -240,7 +241,7 @@ async def archive_category(
         )
 
     return RedirectResponse(
-        url=categories_url(view),
+        url=category_detail_url(category_id),
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -288,7 +289,7 @@ async def restore_category(
         )
 
     return RedirectResponse(
-        url=categories_url(view),
+        url=category_detail_url(category_id),
         status_code=status.HTTP_303_SEE_OTHER,
     )
 

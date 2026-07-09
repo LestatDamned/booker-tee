@@ -4,10 +4,12 @@ from uuid import uuid4
 
 import pytest
 
+import app.features.categories.router as categories_router
 from app.features.categories.models import CategoryKind
 from app.features.categories.presentation.presenter import (
     CategoryPagePresenter,
     categories_url,
+    category_detail_url,
     category_form_error_message,
     category_form_state,
     category_recent_url,
@@ -240,6 +242,62 @@ def test_category_recent_url_targets_created_category_anchor() -> None:
     )
 
 
+def test_category_detail_url_targets_category_detail() -> None:
+    category_id = uuid4()
+
+    assert category_detail_url(category_id) == f"/categories/{category_id}"
+
+
+@pytest.mark.asyncio
+async def test_category_update_redirect_keeps_detail_focus(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    category_id = uuid4()
+    monkeypatch.setattr(categories_router, "CategoryService", fake_category_service())
+
+    response = await categories_router.update_category(
+        category_id=category_id,
+        request=cast(Any, SimpleNamespace()),
+        session=cast(Any, SimpleNamespace()),
+        settings=cast(Any, SimpleNamespace()),
+        context=workspace_context(),
+        name="Продукты",
+        kind=CategoryKind.EXPENSE,
+        notes=None,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == category_detail_url(category_id)
+
+
+@pytest.mark.asyncio
+async def test_category_lifecycle_redirect_keeps_detail_focus(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    category_id = uuid4()
+    monkeypatch.setattr(categories_router, "CategoryService", fake_category_service())
+
+    archive_response = await categories_router.archive_category(
+        category_id=category_id,
+        request=cast(Any, SimpleNamespace()),
+        session=cast(Any, SimpleNamespace()),
+        settings=cast(Any, SimpleNamespace()),
+        context=workspace_context(),
+    )
+    restore_response = await categories_router.restore_category(
+        category_id=category_id,
+        request=cast(Any, SimpleNamespace()),
+        session=cast(Any, SimpleNamespace()),
+        settings=cast(Any, SimpleNamespace()),
+        context=workspace_context(),
+    )
+
+    assert archive_response.status_code == 303
+    assert archive_response.headers["location"] == category_detail_url(category_id)
+    assert restore_response.status_code == 303
+    assert restore_response.headers["location"] == category_detail_url(category_id)
+
+
 def test_category_form_error_message_uses_user_facing_required_name() -> None:
     assert category_form_error_message(CategoryError("Category name is required.")) == (
         "Введите название категории."
@@ -336,6 +394,24 @@ def category_row(*, is_active: bool, is_system: bool) -> CategoryManagementRow:
             rule_count=2,
         ),
     )
+
+
+def fake_category_service() -> type:
+    class FakeCategoryService:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def update_custom(self, **_kwargs: object) -> None:
+            pass
+
+        async def set_active(self, **_kwargs: object) -> None:
+            pass
+
+    return FakeCategoryService
+
+
+def workspace_context() -> Any:
+    return cast(Any, SimpleNamespace(workspace=SimpleNamespace(id=uuid4())))
 
 
 class FakeCategoryRepository:

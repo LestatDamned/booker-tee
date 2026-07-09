@@ -1735,7 +1735,9 @@ Current state:
 - Properties still use full-page redirects after row-level changes, but
   successful create/edit/archive/restore redirects now preserve entity focus
   through `recent_property_id` and a stable row anchor.
-- Categories still mostly use full-page redirects after row-level changes.
+- Categories still use full-page redirects after detail changes, but successful
+  edit/archive/restore now return to the same category detail page; delete
+  returns to the category list because the entity no longer exists.
 
 Why it matters:
 

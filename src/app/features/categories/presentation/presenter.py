@@ -195,6 +195,10 @@ def category_anchor_id(category_id: UUID) -> str:
     return f"category-{category_id}"
 
 
+def category_detail_url(category_id: UUID) -> str:
+    return f"/categories/{category_id}"
+
+
 def category_row_vm(
     row: CategoryManagementRow,
     *,
