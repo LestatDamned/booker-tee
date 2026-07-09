@@ -212,6 +212,7 @@ async def manual_operation_edit_panel(
 
 @router.post("/manual/{operation_id}")
 async def update_manual_operation(
+    request: Request,
     operation_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
@@ -241,6 +242,13 @@ async def update_manual_operation(
         )
     except (ValueError, LedgerPostingError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if is_htmx(request):
+        return await manual_operation_row_response(
+            request=request,
+            session=session,
+            context=context,
+            operation_id=operation.id,
+        )
     return RedirectResponse(
         url=manual_operation_anchor_url(operation.id),
         status_code=status.HTTP_303_SEE_OTHER,
@@ -249,6 +257,7 @@ async def update_manual_operation(
 
 @router.post("/manual/{operation_id}/cancel")
 async def cancel_manual_operation(
+    request: Request,
     operation_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
@@ -260,6 +269,13 @@ async def cancel_manual_operation(
         )
     except LedgerPostingError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if is_htmx(request):
+        return await manual_operation_row_response(
+            request=request,
+            session=session,
+            context=context,
+            operation_id=operation.id,
+        )
     return RedirectResponse(
         url=manual_operation_anchor_url(operation.id),
         status_code=status.HTTP_303_SEE_OTHER,
@@ -268,6 +284,7 @@ async def cancel_manual_operation(
 
 @router.post("/manual/{operation_id}/restore")
 async def restore_manual_operation(
+    request: Request,
     operation_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
@@ -279,6 +296,13 @@ async def restore_manual_operation(
         )
     except LedgerPostingError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if is_htmx(request):
+        return await manual_operation_row_response(
+            request=request,
+            session=session,
+            context=context,
+            operation_id=operation.id,
+        )
     return RedirectResponse(
         url=manual_operation_anchor_url(operation.id),
         status_code=status.HTTP_303_SEE_OTHER,
@@ -287,6 +311,7 @@ async def restore_manual_operation(
 
 @router.post("/manual/{operation_id}/delete")
 async def delete_manual_operation(
+    request: Request,
     operation_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
@@ -298,13 +323,53 @@ async def delete_manual_operation(
         )
     except LedgerPostingError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if is_htmx(request):
+        return Response(headers={"HX-Reswap": "delete"})
     return RedirectResponse(url="/ledger/manual", status_code=status.HTTP_303_SEE_OTHER)
+
+
+async def manual_operation_row_response(
+    *,
+    request: Request,
+    session: AsyncSession,
+    context: WorkspaceContext,
+    operation_id: UUID,
+) -> HTMLResponse:
+    operation = await LedgerPostingService(session).get_manual_operation(
+        workspace_id=context.workspace.id,
+        operation_id=operation_id,
+    )
+    if operation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    row = (
+        ManualOperationsPresenter()
+        .build_page(
+            operations=[operation],
+            page=LedgerPage(page=1, per_page=1, total=1),
+            filters=ManualOperationFilters(),
+            focused_operation_id=operation_id,
+            can_write=True,
+        )
+        .rows[0]
+    )
+    return templates.TemplateResponse(
+        request,
+        "ledger/manual/_row.html",
+        {
+            "can_write": True,
+            "row": row,
+        },
+    )
 
 
 def parse_optional_uuid(raw_value: str | None) -> UUID | None:
     if not raw_value:
         return None
     return UUID(raw_value)
+
+
+def is_htmx(request: Request) -> bool:
+    return request.headers.get("HX-Request") == "true"
 
 
 def parse_required_uuid(raw_value: str | None, message: str) -> UUID:

@@ -92,6 +92,10 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "x-show=\"operationType === 'transfer'\"" in html
     assert "x-bind:disabled=\"operationType !== 'transfer'\"" in html
     assert f'id="operation-{operation_id}"' in html
+    assert f'hx-select="#operation-{operation_id}"' in html
+    assert f'hx-target="#operation-{operation_id}"' in html
+    assert 'hx-swap="outerHTML show:none"' in html
+    assert 'hx-push-url="false"' in html
     assert f'hx-get="/ledger/manual/{operation_id}/edit"' in html
     assert 'hx-select=".manual-operation-edit-panel-content"' in html
     assert f'id="manual-operation-edit-panel-{operation_id}"' in html

@@ -1,6 +1,11 @@
 <article
   id="{{ row.id }}"
   class="financial-row manual-operation-row manual-operation-row--{{ row.tone }} {% if row.is_current %}manual-operation-row--current{% endif %} {% if row.is_inactive %}manual-operation-row--inactive{% endif %}"
+  hx-boost="true"
+  hx-select="#{{ row.id }}"
+  hx-target="#{{ row.id }}"
+  hx-swap="outerHTML show:none"
+  hx-push-url="false"
   x-data="{ drawerOpen: false }"
 >
   <div class="financial-row__main manual-operation-row__main">

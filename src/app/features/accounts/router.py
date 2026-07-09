@@ -21,6 +21,7 @@ from app.features.ledger.application.listing import (
     LedgerPage,
     normalize_pagination,
 )
+from app.features.ledger.mapping.dto import AccountLedgerEntryView
 from app.features.ledger.models import OperationSource, OperationStatus, OperationType
 from app.features.ledger.service import LedgerPostingService
 from app.features.properties.service import PropertyService
@@ -272,6 +273,7 @@ async def imported_operation_review_fields_panel(
 
 @router.post("/{account_id}/operations/{operation_id}/review-fields")
 async def update_imported_operation_review_fields(
+    request: Request,
     account_id: UUID,
     operation_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -303,6 +305,14 @@ async def update_imported_operation_review_fields(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if is_htmx(request):
+        return await account_movement_row_response(
+            request=request,
+            session=session,
+            context=context,
+            account_id=account_id,
+            operation_id=operation.id,
+        )
     redirect_filters = AccountEntryFilters(
         source=OperationSource.BANK_PDF,
         status=operation.status,
@@ -311,6 +321,56 @@ async def update_imported_operation_review_fields(
         url=f"{account_detail_url(account_id, redirect_filters, page=1, per_page=50)}"
         f"#operation-{operation_id}",
         status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+async def account_movement_row_response(
+    *,
+    request: Request,
+    session: AsyncSession,
+    context: WorkspaceContext,
+    account_id: UUID,
+    operation_id: UUID,
+) -> HTMLResponse:
+    operation = await LedgerPostingService(session).get_imported_operation_review(
+        workspace_id=context.workspace.id,
+        operation_id=operation_id,
+        account_id=account_id,
+    )
+    if operation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    money_entry = next(
+        (entry for entry in operation.money_entries if entry.account_id == account_id),
+        None,
+    )
+    if money_entry is None or money_entry.account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    movement = AccountDetailPresenter.build_movement(
+        money_entry.account,
+        AccountLedgerEntryView(
+            operation=operation,
+            operation_id=operation.id,
+            amount=money_entry.amount,
+            currency=money_entry.account.currency,
+        ),
+        AccountDetailPresenterInput(
+            can_write=True,
+            filters_date_from=None,
+            filters_date_to=None,
+            filters_source=None,
+            filters_operation_type=None,
+            filters_status=None,
+            filters_category_id=None,
+            filters_property_id=None,
+            filters_search=None,
+        ),
+    )
+    return templates.TemplateResponse(
+        request,
+        "accounts/detail/_movement.html",
+        {
+            "movement": movement,
+        },
     )
 
 
@@ -360,3 +420,7 @@ def account_detail_url(
     }
     query = urlencode({key: value for key, value in params.items() if value not in {None, ""}})
     return f"/accounts/{account_id}?{query}"
+
+
+def is_htmx(request: Request) -> bool:
+    return request.headers.get("HX-Request") == "true"

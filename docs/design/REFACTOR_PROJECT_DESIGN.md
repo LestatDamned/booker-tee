@@ -1710,8 +1710,12 @@ Current state:
 
 - Import review and transaction rules now have local HTMX updates for important
   row/list actions.
-- Manual operations, account detail corrections, categories and properties still
-  mostly use full-page redirects after row-level changes.
+- Manual operations now replace the affected row locally after save, cancel, or
+  restore, and remove the row locally after delete.
+- Account detail imported-operation corrections now replace the affected
+  movement row locally after save.
+- Categories and properties still mostly use full-page redirects after
+  row-level changes.
 
 Why it matters:
 

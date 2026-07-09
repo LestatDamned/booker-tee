@@ -165,6 +165,10 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
 
     assert "account-movement-list" in html
     assert "financial-row account-movement account-movement--expense" in html
+    assert f'hx-select="#operation-{operation_id}"' in html
+    assert f'hx-target="#operation-{operation_id}"' in html
+    assert 'hx-swap="outerHTML show:none"' in html
+    assert 'hx-push-url="false"' in html
     assert "account-movement__topline" in html
     assert "financial-row__description account-movement__description" in html
     row_html = html[html.index("financial-row account-movement") :]
@@ -231,6 +235,7 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "Действия с операцией" not in html
     assert "Исправить операцию" not in row_html
     assert "строка импорта" in html
+    assert 'hx-boost="false"' in html
     assert "разметка" not in html
     assert "Продукты" in html
     assert "ID операции" in html

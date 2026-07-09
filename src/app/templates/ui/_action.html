@@ -15,7 +15,7 @@
       </button>
     </form>
   {% elif action.action_type == "link" %}
-    <a class="button button-small ui-action__button ui-action__button--{{ action.placement }} ui-action__button--{{ action.id }} action-button action-{{ action.placement }} action-{{ action.id }} {% if action.placement == "primary" %}primary-action{% endif %}" href="{{ action.url }}" aria-label="{{ action.label }}">
+    <a class="button button-small ui-action__button ui-action__button--{{ action.placement }} ui-action__button--{{ action.id }} action-button action-{{ action.placement }} action-{{ action.id }} {% if action.placement == "primary" %}primary-action{% endif %}" href="{{ action.url }}" aria-label="{{ action.label }}" hx-boost="false">
       {{ icon(action.icon) }} <span class="action-label ui-action__label">{{ action.label }}</span>
     </a>
   {% elif action.action_type == "panel_toggle" %}

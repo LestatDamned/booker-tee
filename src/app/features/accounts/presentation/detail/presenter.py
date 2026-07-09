@@ -53,6 +53,14 @@ class AccountDetailPresenter:
         )
 
     @staticmethod
+    def build_movement(
+        account: AccountView,
+        entry: AccountLedgerEntryView,
+        presenter_input: AccountDetailPresenterInput,
+    ) -> AccountMovementVM:
+        return AccountDetailPresenter._movement(account, entry, presenter_input)
+
+    @staticmethod
     def _account(detail: AccountLedgerDetailView) -> AccountDetailAccountVM:
         return AccountDetailAccountVM(
             id=detail.account.id,
