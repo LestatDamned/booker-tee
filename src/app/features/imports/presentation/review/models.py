@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
 from app.features.ledger.models import OperationType
+from app.shared.ui.actions import ActionVM
 
 
 @dataclass(frozen=True)
@@ -17,20 +18,6 @@ class BadgeVM:
 class ProblemVM:
     message: str
     tone: str = "warning"
-
-
-@dataclass(frozen=True)
-class ActionVM:
-    id: str
-    label: str
-    icon: str
-    placement: str
-    action_type: str
-    url: str | None = None
-    hidden_fields: Mapping[str, str] | None = None
-    panel_id: str | None = None
-    style: str = "default"
-    confirm_message: str | None = None
 
 
 @dataclass(frozen=True)

@@ -452,6 +452,50 @@ explicit:
 Local visual improvements are not enough if they create a third or fourth
 layout language inside the same workflow.
 
+## 6.2 Working Screen Contract
+
+For financial workbench screens, reuse the same behavioral contract before
+inventing a new local layout.
+
+Default screen structure:
+
+```text
+page context / facts                 page actions / next step
+main data or rows                    secondary tools collapsed
+technical details                    hidden or clearly secondary
+```
+
+Rules:
+
+1. The main screen shows data and decisions first, not a large form.
+2. Forms appear as actions: row drawer, compact accordion, modal, or a dedicated
+   edit/detail page.
+3. A screen or row has one primary action in the active context.
+4. Secondary actions stay calm and predictable.
+5. Dangerous actions are separated from save/edit/apply actions.
+6. Filters are secondary tools: compact, collapsible when inactive, and able to
+   summarize active conditions.
+7. Technical details are available for people who need them, but hidden from the
+   normal reading path.
+8. Similar financial rows keep the same order:
+
+   ```text
+   date + amount
+   description
+   category / transfer route / account context / calm status
+   ```
+
+9. Normal statuses are quiet metadata. Problem statuses and required decisions
+   get visual emphasis.
+10. Reuse the existing `financial-row`, `row-actions`, `row-drawer`,
+    `operation-form`, and `filter-form` language where it fits. Prefer
+    feature-owned templates with shared classes before extracting a universal
+    macro or partial.
+
+This contract is intentionally smaller than a full design system. It is a
+review checklist for new or refactored screens: if a page breaks the contract,
+the reason should be deliberate and visible in the implementation.
+
 ---
 
 ## 7. Status And Badge Language
@@ -520,7 +564,21 @@ primary-action
 secondary-actions
 action-menu
 danger-zone
+ui-action__form
+ui-action__button
+ui-action__label
 ```
+
+Shared action VM contract:
+
+```text
+app.shared.ui.actions.ActionVM
+```
+
+Feature presenters decide which actions exist. The shared action contract only
+standardizes how actions are described for templates: id, label, icon,
+placement, action type, target URL/form/panel, style, hidden fields, and confirm
+message.
 
 ---
 

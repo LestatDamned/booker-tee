@@ -57,7 +57,7 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
         manual_operations=[operation],
         manual_page=LedgerPage(page=1, per_page=50, total=1),
         manual_page_vm=ManualOperationsPresenter().build_page(
-            operations=[operation],
+            operations=cast(Any, [operation]),
             page=LedgerPage(page=1, per_page=50, total=1),
             filters=ManualOperationFilters(),
             focused_operation_id=operation_id,
@@ -125,7 +125,9 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "action-save" in html
     assert "action-edit" in html
     assert "action-form action-form-secondary action-form-cancel" in html
+    assert "ui-action__form ui-action__form--secondary ui-action__form--cancel" in html
     assert "action-button action-secondary action-cancel" in html
+    assert "ui-action__button ui-action__button--secondary ui-action__button--cancel" in html
     assert "отменить" in html
 
 
@@ -234,7 +236,7 @@ def test_manual_operations_template_allows_restore_and_delete_cancelled_operatio
         manual_operations=[operation],
         manual_page=LedgerPage(page=1, per_page=50, total=1),
         manual_page_vm=ManualOperationsPresenter().build_page(
-            operations=[operation],
+            operations=cast(Any, [operation]),
             page=LedgerPage(page=1, per_page=50, total=1),
             filters=ManualOperationFilters(),
             focused_operation_id=None,

@@ -176,16 +176,30 @@ class AccountDetailPresenter:
         if not presenter_input.can_write:
             return None
         if drawer is not None:
-            return AccountMovementActionVM("исправить", "settings", variant="drawer")
+            return AccountMovementActionVM(
+                id="edit",
+                label="исправить",
+                icon="settings",
+                placement="primary",
+                action_type="drawer_toggle",
+            )
         if entry.operation.source == OperationSource.MANUAL:
             return AccountMovementActionVM(
-                "редактировать",
-                "plus",
-                href=f"/ledger/manual?operation_id={entry.operation_id}#operation-{entry.operation_id}",
-                variant="primary",
+                id="edit",
+                label="редактировать",
+                icon="plus",
+                placement="primary",
+                action_type="link",
+                url=f"/ledger/manual?operation_id={entry.operation_id}#operation-{entry.operation_id}",
             )
         if entry.operation.source == OperationSource.SYSTEM:
-            return AccountMovementActionVM("только чтение", "file-text", variant="readonly")
+            return AccountMovementActionVM(
+                id="readonly",
+                label="только чтение",
+                icon="file-text",
+                placement="secondary",
+                action_type="readonly",
+            )
         return None
 
     @staticmethod
@@ -194,9 +208,27 @@ class AccountDetailPresenter:
         source_url: str | None,
     ) -> list[AccountMovementActionVM]:
         if source_url is not None:
-            return [AccountMovementActionVM("строка импорта", "refresh", href=source_url)]
+            return [
+                AccountMovementActionVM(
+                    id="source",
+                    label="строка импорта",
+                    icon="refresh",
+                    placement="secondary",
+                    action_type="link",
+                    url=source_url,
+                )
+            ]
         if entry.operation.source == OperationSource.BANK_PDF:
-            return [AccountMovementActionVM("найти импорт", "refresh", href="/imports")]
+            return [
+                AccountMovementActionVM(
+                    id="source",
+                    label="найти импорт",
+                    icon="refresh",
+                    placement="secondary",
+                    action_type="link",
+                    url="/imports",
+                )
+            ]
         return []
 
     @staticmethod

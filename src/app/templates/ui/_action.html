@@ -1,7 +1,7 @@
 {% if action %}
   {% if action.action_type == "post" %}
     <form
-      class="action-form action-form-{{ action.placement }} action-form-{{ action.id }}"
+      class="ui-action__form ui-action__form--{{ action.placement }} ui-action__form--{{ action.id }} action-form action-form-{{ action.placement }} action-form-{{ action.id }}"
       method="post"
       action="{{ action.url }}"
       {% if action.confirm_message %}hx-confirm="{{ action.confirm_message }}"{% endif %}
@@ -10,42 +10,42 @@
       {% for name, value in (action.hidden_fields or {}).items() %}
         <input type="hidden" name="{{ name }}" value="{{ value }}">
       {% endfor %}
-      <button class="button button-small action-button action-{{ action.placement }} action-{{ action.id }} {% if action.placement == "primary" %}primary-action{% endif %} {% if action.style == "danger" %}button-danger{% endif %}" type="submit" aria-label="{{ action.label }}">
-        {{ icon(action.icon) }} <span class="action-label">{{ action.label }}</span>
+      <button class="button button-small ui-action__button ui-action__button--{{ action.placement }} ui-action__button--{{ action.id }} action-button action-{{ action.placement }} action-{{ action.id }} {% if action.placement == "primary" %}primary-action{% endif %} {% if action.style == "danger" %}button-danger{% endif %}" type="submit" aria-label="{{ action.label }}">
+        {{ icon(action.icon) }} <span class="action-label ui-action__label">{{ action.label }}</span>
       </button>
     </form>
   {% elif action.action_type == "link" %}
-    <a class="button button-small action-button action-{{ action.placement }} action-{{ action.id }} {% if action.placement == "primary" %}primary-action{% endif %}" href="{{ action.url }}" aria-label="{{ action.label }}">
-      {{ icon(action.icon) }} <span class="action-label">{{ action.label }}</span>
+    <a class="button button-small ui-action__button ui-action__button--{{ action.placement }} ui-action__button--{{ action.id }} action-button action-{{ action.placement }} action-{{ action.id }} {% if action.placement == "primary" %}primary-action{% endif %}" href="{{ action.url }}" aria-label="{{ action.label }}">
+      {{ icon(action.icon) }} <span class="action-label ui-action__label">{{ action.label }}</span>
     </a>
   {% elif action.action_type == "panel_toggle" %}
     <button
-      class="button button-small action-button action-{{ action.placement }} action-{{ action.id }} {% if action.placement == "primary" %}primary-action{% endif %}"
+      class="button button-small ui-action__button ui-action__button--{{ action.placement }} ui-action__button--{{ action.id }} action-button action-{{ action.placement }} action-{{ action.id }} {% if action.placement == "primary" %}primary-action{% endif %}"
       type="button"
       aria-controls="{{ action.panel_id }}"
       aria-label="{{ action.label }}"
       onclick="document.getElementById('{{ action.panel_id }}')?.click()"
     >
-      {{ icon(action.icon) }} <span class="action-label">{{ action.label }}</span>
+      {{ icon(action.icon) }} <span class="action-label ui-action__label">{{ action.label }}</span>
     </button>
   {% elif action.action_type == "submit" %}
     <button
-      class="button button-small action-button action-{{ action.placement }} action-{{ action.id }} {% if action.placement == "primary" %}primary-action{% endif %} {% if action.style == "danger" %}button-danger{% endif %}"
+      class="button button-small ui-action__button ui-action__button--{{ action.placement }} ui-action__button--{{ action.id }} action-button action-{{ action.placement }} action-{{ action.id }} {% if action.placement == "primary" %}primary-action{% endif %} {% if action.style == "danger" %}button-danger{% endif %}"
       type="submit"
       form="{{ action.form_id }}"
       aria-label="{{ action.label }}"
     >
-      {{ icon(action.icon) }} <span class="action-label">{{ action.label }}</span>
+      {{ icon(action.icon) }} <span class="action-label ui-action__label">{{ action.label }}</span>
     </button>
   {% elif action.action_type == "drawer_toggle" %}
     <button
-      class="button button-small action-button action-{{ action.placement }} action-{{ action.id }} {% if action.placement == "primary" %}primary-action{% endif %}"
+      class="button button-small ui-action__button ui-action__button--{{ action.placement }} ui-action__button--{{ action.id }} action-button action-{{ action.placement }} action-{{ action.id }} {% if action.placement == "primary" %}primary-action{% endif %}"
       type="button"
       x-on:click="drawerOpen = !drawerOpen"
       x-bind:aria-expanded="drawerOpen.toString()"
       aria-label="{{ action.label }}"
     >
-      {{ icon(action.icon) }} <span class="action-label">{{ action.label }}</span>
+      {{ icon(action.icon) }} <span class="action-label ui-action__label">{{ action.label }}</span>
     </button>
   {% endif %}
 {% endif %}

@@ -2953,6 +2953,8 @@ input[type="checkbox"] {
   align-content: start;
 }
 
+.row-actions .ui-action__form,
+.row-actions .ui-action__button,
 .row-actions .action-form,
 .row-actions .button,
 .row-actions__primary,
@@ -2961,10 +2963,12 @@ input[type="checkbox"] {
   width: 100%;
 }
 
+.row-actions .ui-action__form,
 .row-actions .action-form {
   display: grid;
 }
 
+.row-actions .ui-action__button,
 .row-actions .button {
   min-height: 48px;
   justify-content: center;
@@ -2973,6 +2977,7 @@ input[type="checkbox"] {
   text-align: center;
 }
 
+.row-actions .ui-action__button svg,
 .row-actions .button svg {
   flex: 0 0 auto;
   width: 16px;
@@ -2980,6 +2985,7 @@ input[type="checkbox"] {
 }
 
 .row-actions__primary,
+.row-actions .ui-action__button--primary,
 .row-actions .action-primary {
   border-color: color-mix(in srgb, var(--green) 76%, var(--border));
   background: color-mix(in srgb, var(--green) 13%, var(--surface-strong));
@@ -2988,6 +2994,7 @@ input[type="checkbox"] {
 }
 
 .row-actions__primary:hover,
+.row-actions .ui-action__button--primary:hover,
 .row-actions .action-primary:hover {
   border-color: var(--green);
   background: color-mix(in srgb, var(--green) 18%, var(--surface-strong));
@@ -2995,6 +3002,7 @@ input[type="checkbox"] {
 }
 
 .row-actions__secondary,
+.row-actions .ui-action__button--secondary,
 .row-actions .action-secondary {
   border-color: color-mix(in srgb, var(--border) 88%, transparent);
   background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
@@ -3002,11 +3010,13 @@ input[type="checkbox"] {
 }
 
 .row-actions__secondary:hover,
+.row-actions .ui-action__button--secondary:hover,
 .row-actions .action-secondary:hover {
   border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
   color: var(--text);
 }
 
+.row-actions .ui-action__button--danger,
 .row-actions .action-danger {
   border-color: color-mix(in srgb, var(--danger) 68%, var(--border));
   background: color-mix(in srgb, var(--danger) 7%, transparent);
@@ -3197,6 +3207,8 @@ input[type="checkbox"] {
 }
 
 .operation-form__submit,
+.operation-form__footer .ui-action__form,
+.operation-form__footer .ui-action__button,
 .operation-form__footer .action-form,
 .operation-form__footer .button {
   grid-column: span 4;
@@ -3209,6 +3221,8 @@ input[type="checkbox"] {
 }
 
 .operation-form__footer--actions .operation-form__submit,
+.operation-form__footer--actions .ui-action__form,
+.operation-form__footer--actions .ui-action__button,
 .operation-form__footer--actions .action-form,
 .operation-form__footer--actions .button {
   grid-column: auto;
@@ -4948,11 +4962,13 @@ pre {
   margin-top: 12px;
 }
 
+.review-actions__menu .ui-action__form,
 .review-actions__menu .action-form {
   width: 100%;
   min-width: 0;
 }
 
+.review-actions__menu .ui-action__button,
 .review-actions__menu .button {
   justify-content: flex-start;
   box-sizing: border-box;
@@ -5133,6 +5149,7 @@ pre {
   min-width: 0;
 }
 
+.review-item__actions .ui-action__button,
 .review-item__actions .button {
   width: 100%;
   max-width: 100%;
@@ -5145,17 +5162,20 @@ pre {
   text-align: left;
 }
 
+.review-item__actions .ui-action__button svg,
 .review-item__actions .action-button svg {
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
 }
 
+.review-item__actions .ui-action__label,
 .review-item__actions .action-label {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
+.review-item__actions .ui-action__button--primary,
 .review-item__actions .action-primary {
   border-color: color-mix(in srgb, var(--green) 76%, var(--border));
   background: color-mix(in srgb, var(--green) 13%, var(--surface-strong));
@@ -5163,23 +5183,27 @@ pre {
   font-weight: 760;
 }
 
+.review-item__actions .ui-action__button--primary:hover,
 .review-item__actions .action-primary:hover {
   border-color: var(--green);
   background: color-mix(in srgb, var(--green) 18%, var(--surface-strong));
   color: var(--text);
 }
 
+.review-item__actions .ui-action__button--secondary,
 .review-item__actions .action-secondary {
   border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
   background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
   color: var(--muted);
 }
 
+.review-item__actions .ui-action__button--secondary:hover,
 .review-item__actions .action-secondary:hover {
   border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
   color: var(--text);
 }
 
+.review-item__actions .ui-action__button--danger,
 .review-item__actions .action-danger {
   border-color: color-mix(in srgb, var(--danger) 68%, var(--border));
   background: color-mix(in srgb, var(--danger) 7%, transparent);
@@ -5561,9 +5585,12 @@ pre {
   .operation-form__fields--classification .operation-form__field,
   .operation-form__field--description,
   .operation-form__submit,
+  .operation-form__footer .ui-action__form,
+  .operation-form__footer .ui-action__button,
   .operation-form__footer .action-form,
   .operation-form__footer .button,
   .operation-form__footer--actions .operation-form__submit,
+  .operation-form__footer--actions .ui-action__button,
   .operation-form__footer--actions .button {
     grid-column: span 6;
   }
@@ -5923,9 +5950,12 @@ pre {
   .operation-form__fields--classification .operation-form__field,
   .operation-form__field--description,
   .operation-form__submit,
+  .operation-form__footer .ui-action__form,
+  .operation-form__footer .ui-action__button,
   .operation-form__footer .action-form,
   .operation-form__footer .button,
   .operation-form__footer--actions .operation-form__submit,
+  .operation-form__footer--actions .ui-action__button,
   .operation-form__footer--actions .button {
     grid-column: auto;
   }

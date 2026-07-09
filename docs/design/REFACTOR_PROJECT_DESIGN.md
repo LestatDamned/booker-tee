@@ -3,21 +3,26 @@
 Живой документ для подготовки и проведения рефакторинга frontend/SSR слоя Booker Tee.
 
 ```text
-Status: active implementation plan
-Read when: working on import review, ReviewItemVM, action policy, or SSR frontend refactor
+Status: active refactor anchor and implementation log
+Read when: working on SSR frontend refactor, financial rows, actions, forms, imports, account detail, manual operations, or reports
 Do not use as: general product roadmap
 ```
 
 Цель документа: собрать решения до начала больших правок, чтобы рефакторинг был
 последовательным, проверяемым и не превращался в серию случайных переделок.
 
-## Рабочий процесс
+## Как читать этот документ
 
-1. Codex задает один вопрос за раз.
-2. Пользователь отвечает в свободной форме.
-3. Codex обновляет этот документ: фиксирует решение, уточняет риски и добавляет
-   следующие открытые вопросы.
-4. Когда решений достаточно, документ становится инструкцией для реализации.
+Этот документ больше не является только планом первого import review slice. Он
+теперь выполняет две роли:
+
+1. фиксирует архитектурные решения, которые уже доказали себя в коде;
+2. держит ближайший план frontend/SSR refactor, чтобы не терять направление.
+
+Исторические sections оставлены там, где они объясняют почему код устроен
+именно так. Если нужно общее правило дизайна, сначала смотреть
+[`DESIGN.md`](DESIGN.md). Если нужно понять текущую реализацию конкретного
+feature, смотреть локальные README и код presenter/ViewModel слоя.
 
 ## Главная цель рефакторинга
 
@@ -65,16 +70,17 @@ Booker Tee остается надежным финансовым инструм
   который упрощает шаблоны и убирает из них вычисления.
 - Future frontend stack migration не должна диктовать архитектуру первого этапа.
 - Приоритетные экраны для рефакторинга идут от главного financial/review flow к
-  вспомогательным и техническим экранам:
-  1. Import review — главный review flow.
-  2. Account detail — просмотр движений по счету.
-  3. Manual operations — создание и редактирование ручных операций.
-  4. Categories / Rules / Properties / Users / Workspace operations —
-     вспомогательные CRUD/workspace функции. К этому моменту должен появиться
-     явный reusable шаблон, который можно применить без ручного изобретения
-     каждой страницы.
-  5. Reports — финансовые итоги и таблицы.
-  6. Mapping — настройка колонок импорта.
+  вспомогательным и техническим экранам. Текущий статус:
+  1. Import review — стабилизирован как эталонный review flow.
+  2. Imports flow вокруг review — document detail, mapping, upload/list pages
+     приведены к общей геометрии и presenter/ViewModel contracts.
+  3. Account detail — переведен на `financial-row`, row actions and row drawer
+     pattern; осталась точечная полировка, не новый архитектурный slice.
+  4. Manual operations — переведен на `financial-row`, `operation-form`,
+     `filter-form` и row drawer pattern; осталась точечная полировка.
+  5. Categories / Rules / Properties / Users / Workspace operations —
+     следующий кандидат на аккуратную унификацию CRUD/workspace screens.
+  6. Reports — отдельный будущий slice для финансовых итогов и таблиц.
 - Первый эталонный vertical slice: Import review.
   - Причина: это самый сложный и нагруженный экран; если новый подход выдержит
     его состояния, действия и HTMX-обновления, остальные экраны будет проще
@@ -817,13 +823,19 @@ presenter/resolver слое.
 Import review presentation слой живет внутри feature-owned package:
 
 ```text
-src/app/features/imports/presentation/mapping.py
 src/app/features/imports/presentation/review/
+src/app/features/imports/presentation/document_page/
+src/app/features/imports/presentation/mapping/
 ```
 
 `presentation/review/` является владельцем page context, `ReviewItemVM`,
 action policy, labels, panels, reference lookup and state/confirmability
 presentation rules.
+
+`presentation/document_page/` и `presentation/mapping/` являются владельцами
+page-level VM contracts для document detail и unknown-statement mapping. Старые
+одиночные файлы `document_detail.py` / `mapping.py` больше не являются целевым
+местом роста для этих экранов.
 
 Текущее размещение:
 
@@ -836,15 +848,24 @@ src/app/features/imports/presentation/review/panels.py
 src/app/features/imports/presentation/review/labels.py
 src/app/features/imports/presentation/review/references.py
 src/app/features/imports/presentation/review/state.py
+src/app/features/imports/presentation/document_page/models.py
+src/app/features/imports/presentation/document_page/presenter.py
+src/app/features/imports/presentation/mapping/models.py
+src/app/features/imports/presentation/mapping/page.py
+src/app/features/imports/presentation/mapping/form.py
+src/app/features/imports/presentation/mapping/tables.py
+src/app/features/imports/presentation/mapping/preview.py
 ```
 
 Где:
 
-- `page.py` содержит page-level context/builder.
-- `item.py` содержит `ImportReviewPresenter` and item orchestration.
-- `models.py` содержит маленькие VM dataclasses.
-- `actions.py`, `panels.py`, `labels.py`, `references.py`, `state.py`
+- `review/page.py` содержит review page-level context/builder.
+- `review/item.py` содержит `ImportReviewPresenter` and item orchestration.
+- `review/models.py` содержит маленькие VM dataclasses.
+- `review/actions.py`, `panels.py`, `labels.py`, `references.py`, `state.py`
   держат отдельные presentation reasons to change.
+- `document_page/` содержит document detail VM/presenter.
+- `mapping/` содержит page/form/table/preview VM builders для unknown mapping.
 
 ## Already Available Data
 
@@ -887,10 +908,11 @@ src/app/features/imports/presentation/review/state.py
   - `create_category_error_by_row`;
   - `create_category_initial_name_by_row`.
 
-## Logic To Move Out Of Jinja
+## Logic Moved Out Of Jinja
 
-Из `src/app/templates/imports/_review_item.html` нужно постепенно перенести в
-presenter:
+Следующая логика была вынесена из legacy review item templates в
+presenter/ViewModel слой. Новый `imports/review/_item.html` не должен
+возвращать эти вычисления обратно:
 
 - поиск `rule_suggestion` в `row.raw_payload`;
 - определение `rule_auto_applied`;
@@ -902,19 +924,21 @@ presenter:
 - вычисление первой строки очереди / `review-item--next`;
 - вычисление route для linked operation: from/to entry;
 - построение summary для transfer/non-transfer linked operation;
-- определение ветки UI по `row.status.value`, `linked_operation_id`,
+- определение ветки UI по статусу, `linked_operation_id`,
   `suggested_by_rule_id`;
 - решение, какая кнопка primary/secondary/danger;
 - сбор technical details.
 
-В `src/app/templates/imports/review.html` позже можно вынести page-level логику:
+Page-level логика также была вынесена из `src/app/templates/imports/review.html`
+в `ReviewPageVM` / `ReviewPageContext`:
 
 - вычисление `latest_attempt`;
 - `validation`;
 - `review_queue`;
 - workflow step state.
 
-Но это не часть первого `Review item + action system` slice.
+Новые изменения должны продолжать этот контракт: Jinja рендерит готовые
+page/item VM, а не собирает состояние страницы самостоятельно.
 
 ## Action Policy
 
@@ -1147,15 +1171,19 @@ slice оно должно быть либо ссылкой/placeholder action, �
 secondary action с понятной причиной. Не добавлять новые use cases внутри UI
 refactor без отдельного решения.
 
-## Template Refactor Strategy
+## Historical Import Review Template Refactor Strategy
 
-Новый review item partial должен стать стандартным компонентом:
+Этот section описывает уже выполненный rollout первого import review slice. Он
+оставлен как historical note, потому что объясняет происхождение текущего
+`ReviewItemVM` contract, HTMX response rendering и review partial placement.
+
+Текущий review item partial живет в feature-owned review folder:
 
 ```text
-src/app/templates/imports/_review_item.html
+src/app/templates/imports/review/_item.html
 ```
 
-Первый безопасный подход:
+Первый безопасный подход был таким:
 
 1. Добавить `ReviewItemVM` и builder.
 2. В `ReviewPageContext.template_values()` продолжать отдавать старые поля, но
@@ -1530,63 +1558,37 @@ container. Старые item fallback-селекторы (`review-status-*`, `re
 - Presenter может работать с ORM objects на первом этапе, но наружу в template
   должен отдавать только VM.
 
-## Temporary Review Item Flag
+## Completed Review Item Rollout Note
 
-Для внедрения нового review item используется временный template flag:
+Первый implementation slice выполнил временный feature-flag rollout:
 
-```text
-use_review_item_vm=True
-```
+- `use_review_item_vm` удален;
+- legacy `RawTransaction`-based review partial fallback удален;
+- active review rendering идет через `imports/review/_item.html`;
+- `_item.html` получает подготовленный `ReviewItemVM`;
+- rollback теперь является обычным git revert, а не runtime switch.
 
-Цель: дать возможность быстро переключаться между старым
-`RawTransaction`-based partial и новым `ReviewItemVM`-based partial без
-DB-миграций, изменения URL endpoints и отката бизнес-логики.
+Новые изменения не должны возвращать параллельную ветку `row`/`item` в Jinja.
+Если нужен новый безопасный rollout, он должен быть спроектирован отдельно и
+иметь явный срок удаления.
 
-Правила:
+## Current Open Plan
 
-- Старый partial продолжает получать `row` / `RawTransaction`.
-- Новый partial получает только `item` / `ReviewItemVM`.
-- Не смешивать `row` и `item` внутри нового partial.
-- Новый partial не должен обращаться напрямую к `RawTransaction`.
+Ближайшие направления после закрытия import review, imports flow convergence,
+account detail and manual operations slices:
 
-Пример:
-
-```jinja
-{% if use_review_item_vm %}
-  {% include "imports/review/_item.html" with item=review_item_vm %}
-{% else %}
-  {% include "imports/_old_review_item.html" with row=row %}
-{% endif %}
-```
-
-Флаг временный. После стабилизации нового review item:
-
-1. Обновить тесты.
-2. Проверить HTMX actions.
-3. Удалить старый partial.
-4. Удалить `use_review_item_vm`.
-5. Оставить только `ReviewItemVM`-based rendering.
-
-Не оставлять две ветки навсегда и не развивать старый partial дальше.
-
-Текущий implementation slice выполнил этот пункт: `use_review_item_vm` и
-старый `RawTransaction`-based review partial удалены, active review rendering
-идет через `imports/review/_item.html` и подготовленный `ReviewItemVM`.
-
-## Открытые вопросы
-
-1. С какого первого implementation шага начинать: presenter/tests или template
-   skeleton?
-
-## Черновой список будущих тем
-
-- Приоритетные экраны.
-- Канонический financial row.
-- Действия по статусам.
-- Что должно быть таблицей, карточкой или detail view.
-- Границы изменений в backend, routers, presenters, templates и CSS.
-- ViewModel/API strategy для будущей миграции frontend.
-- Acceptance criteria.
+1. Продолжать точечную CSS/BEM миграцию только при реальной работе с экраном:
+   не переписывать naming ради naming.
+2. Довести вспомогательные CRUD/workspace screens до общего языка:
+   categories, rules, properties, users, workspaces. Перед началом каждого
+   slice сверяться с `DESIGN.md` / `Working Screen Contract`.
+3. Выделить reports как отдельный financial-summary/table slice.
+4. Shared action contract уже начат через `app.shared.ui.actions.ActionVM` and
+   `ui-action__*` classes. Дальше усиливать только там, где несколько features
+   повторяют один и тот же action pattern; не переносить feature-specific
+   бизнес-решения в общий UI слой.
+5. Не вводить универсальный financial-row partial, пока account/manual/import
+   варианты не покажут стабильный повтор без потери смысла.
 
 ---------------
 
@@ -1632,18 +1634,20 @@ Validation note:
 old documents appear with stale validation reports, handle that as a separate
 repair/migration task rather than mixing it into UI/SSR refactor work.
 
-Completion gate for this slice:
+Completion gate for imports-flow UI work:
 
 - focused presenter/template tests pass for touched flows;
 - `ruff`, `ty` and `git diff --check` pass for touched code;
-- `scripts/ui_audit.py --authenticated --scenario realistic` passes;
+- `scripts/ui_audit.py --scenario realistic` passes for everyday smoke checks;
+- reserve `button_audit` for deliberate action-system changes or a final broad
+  pass;
 - desktop/mobile screenshots show no accidental horizontal overflow, no
   prominent technical/debug blocks on first screen, and consistent primary /
   secondary action hierarchy.
 
 ## Account Detail Refactor Note
 
-Next UI/SSR slice after imports flow convergence: account detail.
+Implemented UI/SSR slice after imports flow convergence: account detail.
 
 Decision:
 
@@ -1687,11 +1691,11 @@ Architecture direction:
 - migrate CSS toward owner BEM names when touching this screen, without a broad
   naming-only rewrite.
 
-### Account Detail Implementation Plan
+### Account Detail Implementation Status
 
-First safe vertical slice:
+Первый безопасный vertical slice уже реализован:
 
-1. Add an account detail presentation package:
+1. Account detail presentation package exists:
 
    ```text
    src/app/features/accounts/presentation/detail/
@@ -1699,15 +1703,20 @@ First safe vertical slice:
      presenter.py
    ```
 
-   Target VMs:
+   Current VMs:
 
    - `AccountDetailPageVM`;
+   - `AccountDetailAccountVM`;
+   - `AccountDetailMetricVM`;
    - `AccountMovementVM`;
+   - `AccountMovementBadgeVM`;
+   - `AccountMovementMetaVM`;
    - `OperationResultVM`;
    - `AccountMovementActionVM`;
-   - optional small payloads for edit drawer state.
+   - `AccountMovementDrawerVM`;
+   - `AccountDetailPresenterInput`.
 
-2. Move presentation decisions out of `accounts/detail.html`:
+2. Presentation decisions moved out of `accounts/detail.html`:
 
    - active filter state;
    - amount direction and money CSS class;
@@ -1717,7 +1726,7 @@ First safe vertical slice:
    - raw import source link;
    - whether a movement has an edit drawer and which drawer type it uses.
 
-3. Introduce dumb account detail partials:
+3. Dumb account detail partials exist:
 
    ```text
    src/app/templates/accounts/detail/_movement.html
@@ -1729,14 +1738,14 @@ First safe vertical slice:
    `entry.operation.source.value`, choose from `raw_transactions[0]`, compute
    amount sign, or search money entries.
 
-4. Replace heavy nested operation rendering in movement rows:
+4. Heavy nested operation rendering in movement rows was replaced:
 
    - remove `operation_ref(...)` from the normal movement row path;
    - keep a compact right-side result/action zone;
    - preserve source links and technical operation IDs behind secondary or
      technical details.
 
-5. Add row-level edit drawer shell:
+5. Row-level edit drawer shell exists:
 
    - drawer opens from the right action zone;
    - drawer spans the movement width under the row;
@@ -1745,7 +1754,7 @@ First safe vertical slice:
    - manual operation may initially link to `/ledger/manual?...` instead of
      duplicating the full manual edit form in this slice.
 
-6. Migrate touched CSS toward account-owned BEM names:
+6. Touched CSS migrated toward account-owned BEM names:
 
    ```text
    account-movement
@@ -1762,7 +1771,7 @@ First safe vertical slice:
    Do not rewrite unrelated `entity-card`, `manual-operation`, or import review
    CSS just for naming consistency.
 
-7. Focused tests:
+7. Focused tests cover the slice:
 
    - presenter tests for income, expense, transfer, imported/manual/system
      sources;
@@ -1771,7 +1780,7 @@ First safe vertical slice:
      `operation-ref` block;
    - account detail template keeps technical IDs collapsed.
 
-8. Checks for this slice:
+Recommended checks when touching this slice:
 
    ```bash
    uv run pytest tests/features/accounts/test_account_detail_template.py
@@ -1779,10 +1788,16 @@ First safe vertical slice:
    uv run ruff check .
    uv run ty check .
    git diff --check
-   uv run python scripts/ui_audit.py --authenticated --scenario realistic
+   uv run python scripts/ui_audit.py --scenario realistic
    ```
 
-Out of scope for the first account detail slice:
+Remaining account detail follow-up:
+
+- continue small UI/CSS cleanup only when touching the screen;
+- keep filters/settings compact and secondary;
+- do not reintroduce the old heavy `operation-ref` row card.
+
+Still out of scope unless explicitly requested:
 
 - changing ledger posting behavior;
 - changing URL endpoints;
@@ -1793,7 +1808,7 @@ Out of scope for the first account detail slice:
 
 ## Manual Operations Refactor Note
 
-Next UI/SSR slice after account detail: manual operations.
+Implemented UI/SSR slice after account detail: manual operations.
 
 Decision:
 
@@ -1805,7 +1820,7 @@ Decision:
 - lifecycle actions (`cancel`, `restore`, `delete`) must stay explicit and
   visually separated from ordinary edits.
 
-Main problems in the current screen:
+Original problems in the screen:
 
 - `ledger/manual.html` owns too many presentation decisions directly in Jinja;
 - the page mixes create form, filters, operation rows, edit forms and lifecycle
@@ -1849,11 +1864,11 @@ Architecture direction:
 - do not create a generic universal row component before the account detail and
   manual operation variants prove which fields are truly shared.
 
-### Manual Operations Implementation Plan
+### Manual Operations Implementation Status
 
-First safe vertical slice:
+Первый безопасный vertical slice уже реализован:
 
-1. Add manual operations presentation files:
+1. Manual operations presentation files exist:
 
    ```text
    src/app/features/ledger/presentation/manual_operations/
@@ -1861,16 +1876,15 @@ First safe vertical slice:
      presenter.py
    ```
 
-   Target VMs:
+   Current VMs:
 
    - `ManualOperationsPageVM`;
    - `ManualOperationRowVM`;
+   - `ManualOperationMetaVM`;
    - `ManualOperationActionVM`;
-   - `ManualOperationDrawerVM` or an equivalent edit payload;
-   - optional small filter/create-form helper VMs if they reduce template
-     decisions without over-abstracting.
+   - `ManualOperationDrawerVM`.
 
-2. Move row presentation decisions out of `ledger/manual.html`:
+2. Row presentation decisions moved out of `ledger/manual.html`:
 
    - display currency;
    - amount direction / money tone;
@@ -1883,7 +1897,7 @@ First safe vertical slice:
    - inactive/cancelled row state;
    - available primary, lifecycle and danger actions.
 
-3. Keep the create form mostly stable in the first slice:
+3. The create form stayed behavior-preserving:
 
    - preserve existing POST endpoint and form field names;
    - preserve segmented operation type behavior;
@@ -1891,7 +1905,7 @@ First safe vertical slice:
    - only add owner classes / small layout improvements if needed for the new
      page structure.
 
-4. Introduce manual operation partials:
+4. Manual operation partials exist:
 
    ```text
    src/app/templates/ledger/manual/_row.html
@@ -1903,8 +1917,8 @@ First safe vertical slice:
    Keep the partial count small. Add a partial only when it removes a real
    repeated or noisy story from `manual.html`.
 
-5. Convert the operation list from old `entity-card` rendering to the shared
-   financial-row pattern:
+5. The operation list was converted from old `entity-card` rendering to the
+   shared financial-row pattern:
 
    - date and amount in the top line;
    - description as the main human-readable text;
@@ -1913,21 +1927,21 @@ First safe vertical slice:
    - right-side actions in `row-actions`;
    - edit form moved to a row drawer.
 
-6. Rework edit behavior:
+6. Edit behavior was reworked:
 
    - row shows a calm `редактировать` primary action;
    - edit form appears only in the drawer;
    - lifecycle actions stay visible but secondary;
    - destructive delete remains danger and should keep explicit user intent.
 
-7. Bring filters closer to account detail:
+7. Filters were brought closer to account detail:
 
    - use the same compact accordion rhythm;
    - use `inline_hint` only if the copy carries real guidance;
    - keep primary `применить` and secondary `сбросить` hierarchy;
    - preserve all query parameter names and pagination behavior.
 
-8. Focused tests:
+8. Focused tests cover the slice:
 
    - presenter tests for income, expense and transfer rows;
    - presenter tests for confirmed vs ignored lifecycle actions;
@@ -1935,7 +1949,7 @@ First safe vertical slice:
    - regression tests for create/edit/cancel/restore/delete form actions;
    - URL helper tests for filters and focused operation anchors.
 
-9. Checks for this slice:
+Recommended checks when touching this slice:
 
    ```bash
    uv run pytest tests/features/ledger/test_manual_operations_template.py
@@ -1943,10 +1957,17 @@ First safe vertical slice:
    uv run ruff check .
    uv run ty check .
    git diff --check
-   uv run python scripts/ui_audit.py --authenticated --scenario realistic
+   uv run python scripts/ui_audit.py --scenario realistic
    ```
 
-Out of scope for the first manual operations slice:
+Remaining manual operations follow-up:
+
+- continue small UX/CSS cleanup after real use;
+- keep `filter-form` compact and secondary;
+- avoid bringing always-visible edit forms back into rows;
+- keep lifecycle actions separated from ordinary edit actions.
+
+Still out of scope unless explicitly requested:
 
 - changing ledger posting behavior;
 - changing URL endpoints or form field names;

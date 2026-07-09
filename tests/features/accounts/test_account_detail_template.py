@@ -120,15 +120,20 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
                         tone="expense",
                     ),
                     primary_action=AccountMovementActionVM(
-                        "исправить",
-                        "settings",
-                        variant="drawer",
+                        id="edit",
+                        label="исправить",
+                        icon="settings",
+                        placement="primary",
+                        action_type="drawer_toggle",
                     ),
                     secondary_actions=[
                         AccountMovementActionVM(
-                            "строка импорта",
-                            "refresh",
-                            href=f"/imports/documents/{document_id}/review#raw-{raw_transaction_id}",
+                            id="source",
+                            label="строка импорта",
+                            icon="refresh",
+                            placement="secondary",
+                            action_type="link",
+                            url=f"/imports/documents/{document_id}/review#raw-{raw_transaction_id}",
                         )
                     ],
                     drawer=AccountMovementDrawerVM(
@@ -213,7 +218,9 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "financial-row__amount account-movement__amount money-value money-expense" in html
     assert "financial-row__actions row-actions account-movement__actions" in html
     assert "action-button action-primary action-edit primary-action" in html
+    assert "ui-action__button ui-action__button--primary ui-action__button--edit" in html
     assert "action-button action-secondary action-source" in html
+    assert "ui-action__button ui-action__button--secondary ui-action__button--source" in html
     assert "row-actions__technical account-movement__technical" in html
     assert "financial-row__drawer row-drawer account-movement__drawer" in html
     assert "row-drawer__header account-movement__drawer-header" in html
@@ -237,4 +244,4 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert f"ID {operation_id}" in html
     assert f"/imports/documents/{document_id}/review#raw-{raw_transaction_id}" in html
     assert "<th>операция</th>" not in html
-    assert html.count('<span class="action-label">строка импорта</span>') == 1
+    assert html.count('<span class="action-label ui-action__label">строка импорта</span>') == 1

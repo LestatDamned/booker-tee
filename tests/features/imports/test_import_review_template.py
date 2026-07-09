@@ -106,9 +106,11 @@ def test_action_partial_renders_post_action_with_csrf_hidden_fields_and_confirm(
     assert 'name="action" value="ignore"' in html
     assert 'hx-confirm="Игнорировать эту строку импорта?"' in html
     assert "action-form-danger" in html
+    assert "ui-action__form--danger" in html
     assert "action-ignore" in html
+    assert "ui-action__button--ignore" in html
     assert 'aria-label="Игнорировать"' in html
-    assert '<span class="action-label">Игнорировать</span>' in html
+    assert '<span class="action-label ui-action__label">Игнорировать</span>' in html
     assert "button-danger" in html
     assert "Игнорировать" in html
 
@@ -127,11 +129,13 @@ def test_action_partial_renders_link_action_without_form_or_hidden_fields() -> N
 
     assert "<a" in html
     assert "action-button" in html
+    assert "ui-action__button" in html
     assert "action-primary" in html
+    assert "ui-action__button--primary" in html
     assert "action-open_operation" in html
     assert "primary-action" in html
     assert 'aria-label="Открыть операцию"' in html
-    assert '<span class="action-label">Открыть операцию</span>' in html
+    assert '<span class="action-label ui-action__label">Открыть операцию</span>' in html
     assert 'href="/ledger/manual?operation_id=operation-id"' in html
     assert "<form" not in html
     assert 'type="hidden"' not in html
@@ -140,7 +144,7 @@ def test_action_partial_renders_link_action_without_form_or_hidden_fields() -> N
 
 def test_action_partial_renders_detached_submit_action() -> None:
     html = render_action(
-        SimpleNamespace(
+        ActionVM(
             id="save",
             label="Сохранить",
             icon="save",
@@ -156,12 +160,12 @@ def test_action_partial_renders_detached_submit_action() -> None:
     assert 'form="operation-form-id"' in html
     assert "action-save" in html
     assert "primary-action" in html
-    assert '<span class="action-label">Сохранить</span>' in html
+    assert '<span class="action-label ui-action__label">Сохранить</span>' in html
 
 
 def test_action_partial_renders_drawer_toggle_action() -> None:
     html = render_action(
-        SimpleNamespace(
+        ActionVM(
             id="edit",
             label="Исправить",
             icon="settings",
@@ -174,7 +178,7 @@ def test_action_partial_renders_drawer_toggle_action() -> None:
     assert 'type="button"' in html
     assert 'x-on:click="drawerOpen = !drawerOpen"' in html
     assert 'x-bind:aria-expanded="drawerOpen.toString()"' in html
-    assert '<span class="action-label">Исправить</span>' in html
+    assert '<span class="action-label ui-action__label">Исправить</span>' in html
     assert "x-show" not in html
     assert "Закрыть" not in html
 
@@ -195,7 +199,7 @@ def test_action_partial_renders_panel_toggle_without_mutation_fields() -> None:
     assert 'type="button"' in html
     assert 'aria-controls="category-panel-row-id"' in html
     assert 'aria-label="Разобрать"' in html
-    assert '<span class="action-label">Разобрать</span>' in html
+    assert '<span class="action-label ui-action__label">Разобрать</span>' in html
     assert "document.getElementById('category-panel-row-id')" in html
     assert "?.click()" in html
     assert "<form" not in html

@@ -1,35 +1,18 @@
-from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
 from app.features.ledger.application.listing import LedgerPage
 from app.features.ledger.models import OperationStatus, OperationType
+from app.shared.ui.actions import ActionVM
+
+ManualOperationActionVM = ActionVM
 
 
 @dataclass(frozen=True)
 class ManualOperationMetaVM:
     label: str
     tone: str | None = None
-
-
-@dataclass(frozen=True)
-class ManualOperationActionVM:
-    id: str
-    label: str
-    icon: str
-    placement: str
-    action_type: str
-    url: str = ""
-    style: str = "default"
-    form_id: str | None = None
-    hidden_fields: Mapping[str, str] | None = None
-    panel_id: str | None = None
-    confirm_message: str | None = None
-
-    @property
-    def form_action(self) -> str:
-        return self.url
 
 
 @dataclass(frozen=True)
