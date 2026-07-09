@@ -32,6 +32,8 @@ def render_review_page(
     open_category_editor_by_row: Mapping[UUID, bool] | None = None,
     create_category_error_by_row: Mapping[UUID, str] | None = None,
     create_category_initial_name_by_row: Mapping[UUID, str] | None = None,
+    action_error_by_row: Mapping[UUID, str] | None = None,
+    active_panel_type_by_row: Mapping[UUID, str] | None = None,
     extra_context: dict[str, object] | None = None,
 ) -> str:
     templates = create_templates()
@@ -47,6 +49,8 @@ def render_review_page(
         open_category_editor_by_row=open_category_editor_by_row,
         create_category_error_by_row=create_category_error_by_row,
         create_category_initial_name_by_row=create_category_initial_name_by_row,
+        action_error_by_row=action_error_by_row,
+        active_panel_type_by_row=active_panel_type_by_row,
     )
     template_values = page_context.template_values(
         app_name="Booker Tee",
@@ -1234,12 +1238,16 @@ def test_review_action_response_state_builds_transient_row_maps() -> None:
         open_category_editor=True,
         create_category_error="Категория с таким названием уже есть.",
         create_category_initial_name="Аптека",
+        action_error="Для подтверждения выберите категорию.",
+        active_panel_type="category",
     )
 
     assert state.selected_category_id_by_row() == {row_id: category_id}
     assert state.open_category_editor_by_row() == {row_id: True}
     assert state.create_category_error_by_row() == {row_id: "Категория с таким названием уже есть."}
     assert state.create_category_initial_name_by_row() == {row_id: "Аптека"}
+    assert state.action_error_by_row() == {row_id: "Для подтверждения выберите категорию."}
+    assert state.active_panel_type_by_row() == {row_id: "category"}
 
 
 def test_review_action_response_request_builds_presentation_state() -> None:
@@ -1352,6 +1360,8 @@ def test_review_action_response_template_values_expose_only_review_item_vms() ->
     assert "open_category_editor_by_row" not in values
     assert "create_category_error_by_row" not in values
     assert "create_category_initial_name_by_row" not in values
+    assert "action_error_by_row" not in values
+    assert "active_panel_type_by_row" not in values
 
 
 def test_raw_transaction_review_form_parser_builds_application_command() -> None:
@@ -1603,6 +1613,96 @@ def test_review_item_reopens_category_dialog_with_error() -> None:
     assert "Категория с таким названием уже есть." in html
     assert 'value="Аптека"' in html
     assert "showModal()" in html
+
+
+def test_review_item_shows_transient_action_error() -> None:
+    row_id = uuid4()
+    row = SimpleNamespace(
+        id=row_id,
+        row_index=1,
+        status=RawTransactionStatus.NORMALIZED,
+        operation_date="2026-05-29",
+        operation_date_raw=None,
+        amount=Decimal("-100.00"),
+        amount_raw=None,
+        currency="RUB",
+        description_normalized="Аптека",
+        description_raw=None,
+        normalization_error=None,
+        suggested_by_rule_id=None,
+        suggested_category_id=None,
+        suggested_property_id=None,
+        linked_operation_id=None,
+        raw_payload={},
+    )
+
+    html = render_review_page(
+        document=SimpleNamespace(
+            id=uuid4(),
+            original_filename="statement.pdf",
+            status="requires_review",
+            parse_attempts=[],
+            raw_transactions=[row],
+        ),
+        categories=[SimpleNamespace(id=uuid4(), name="Без категории", system_key="uncategorized")],
+        action_error_by_row={row_id: "Для подтверждения выберите категорию."},
+    )
+
+    assert "review-item__signal--problem problem-danger" in html
+    assert "Для подтверждения выберите категорию." in html
+
+
+def test_review_item_action_error_keeps_transfer_panel_open() -> None:
+    row_id = uuid4()
+    source_account_id = uuid4()
+    target_account_id = uuid4()
+    row = SimpleNamespace(
+        id=row_id,
+        row_index=1,
+        status=RawTransactionStatus.NORMALIZED,
+        account_id=source_account_id,
+        counterparty_account_id=None,
+        operation_date="2026-05-29",
+        operation_date_raw=None,
+        amount=Decimal("-100.00"),
+        amount_raw=None,
+        currency="RUB",
+        description_normalized="Перевод",
+        description_raw=None,
+        normalization_error=None,
+        suggested_by_rule_id=None,
+        suggested_category_id=None,
+        suggested_property_id=None,
+        suggested_operation_type=OperationType.TRANSFER,
+        linked_operation_id=None,
+        raw_payload={},
+    )
+
+    html = render_review_page(
+        document=SimpleNamespace(
+            id=uuid4(),
+            original_filename="statement.pdf",
+            status="requires_review",
+            account_id=None,
+            parse_attempts=[],
+            raw_transactions=[row],
+        ),
+        accounts=[
+            SimpleNamespace(id=source_account_id, name="Карта"),
+            SimpleNamespace(id=target_account_id, name="Вклад"),
+        ],
+        categories=[],
+        action_error_by_row={row_id: "Для перевода выберите счет назначения."},
+        active_panel_type_by_row={row_id: "transfer"},
+    )
+
+    category_drawer = html[html.index(f'id="category-panel-{row_id}-drawer"') :]
+    transfer_drawer = html[html.index(f'id="transfer-panel-{row_id}-drawer"') :]
+
+    assert f"activePanel: 'transfer-panel-{row_id}'" in html
+    assert "Для перевода выберите счет назначения." in html
+    assert 'style="display: none;"' in category_drawer[:250]
+    assert 'style="display: none;"' not in transfer_drawer[:250]
 
 
 def test_review_template_shows_balance_chain_problem_on_row() -> None:

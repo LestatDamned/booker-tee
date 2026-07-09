@@ -53,6 +53,8 @@ class ReviewItemPresenterDependencies:
     queue_resolver: ReviewQueueResolver
     panel_presenter: ReviewPanelPresenter
     action_policy: ReviewActionPolicy
+    action_error_by_row: Mapping[UUID, str]
+    active_panel_type_by_row: Mapping[UUID, str]
 
     @classmethod
     def build(
@@ -68,6 +70,8 @@ class ReviewItemPresenterDependencies:
         open_category_editor_by_row: Mapping[UUID, bool] | None,
         create_category_error_by_row: Mapping[UUID, str] | None,
         create_category_initial_name_by_row: Mapping[UUID, str] | None,
+        action_error_by_row: Mapping[UUID, str] | None,
+        active_panel_type_by_row: Mapping[UUID, str] | None,
     ) -> "ReviewItemPresenterDependencies":
         labeler = ReviewLabeler()
         return cls(
@@ -95,6 +99,8 @@ class ReviewItemPresenterDependencies:
             action_policy=ReviewActionPolicy(
                 document_id=ReviewReferenceResolver.required_id(document),
             ),
+            action_error_by_row=action_error_by_row or {},
+            active_panel_type_by_row=active_panel_type_by_row or {},
         )
 
 
@@ -113,6 +119,8 @@ class ImportReviewPresenter:
         open_category_editor_by_row: Mapping[UUID, bool] | None = None,
         create_category_error_by_row: Mapping[UUID, str] | None = None,
         create_category_initial_name_by_row: Mapping[UUID, str] | None = None,
+        action_error_by_row: Mapping[UUID, str] | None = None,
+        active_panel_type_by_row: Mapping[UUID, str] | None = None,
         dependencies: ReviewItemPresenterDependencies | None = None,
     ) -> None:
         self.document = document
@@ -130,6 +138,8 @@ class ImportReviewPresenter:
             open_category_editor_by_row=open_category_editor_by_row,
             create_category_error_by_row=create_category_error_by_row,
             create_category_initial_name_by_row=create_category_initial_name_by_row,
+            action_error_by_row=action_error_by_row,
+            active_panel_type_by_row=active_panel_type_by_row,
         )
 
     def build_items(self) -> dict[UUID, ReviewItemVM]:
@@ -157,6 +167,7 @@ class ImportReviewPresenter:
             is_confirmable=is_confirmable,
         )
         row_id = ReviewReferenceResolver.required_id(row)
+        active_panel_type = self.dependencies.active_panel_type_by_row.get(row_id)
         panels = [
             ReviewPanelVM(
                 id=f"category-panel-{row_id}",
@@ -165,7 +176,7 @@ class ImportReviewPresenter:
                 role="primary",
                 panel_type="category",
                 template_name="imports/review/_category_panel.html",
-                is_open=category_panel.open_category_editor,
+                is_open=active_panel_type == "category" or category_panel.open_category_editor,
                 payload=category_panel,
             ),
             ReviewPanelVM(
@@ -175,7 +186,7 @@ class ImportReviewPresenter:
                 role="alternative",
                 panel_type="transfer",
                 template_name="imports/review/_transfer_panel.html",
-                is_open=False,
+                is_open=active_panel_type == "transfer",
                 payload=transfer_panel,
             ),
         ]
@@ -297,6 +308,11 @@ class ImportReviewPresenter:
             visual_state=visual_state,
         ):
             problems.append(ProblemVM(problem, "muted"))
+        action_error = self.dependencies.action_error_by_row.get(
+            ReviewReferenceResolver.required_id(row),
+        )
+        if action_error:
+            problems.append(ProblemVM(action_error, "danger"))
         return problems
 
     def build_proposal_summary(

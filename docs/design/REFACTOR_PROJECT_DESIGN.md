@@ -910,7 +910,9 @@ src/app/features/imports/presentation/mapping/preview.py
   - `selected_category_id_by_row`;
   - `open_category_editor_by_row`;
   - `create_category_error_by_row`;
-  - `create_category_initial_name_by_row`.
+  - `create_category_initial_name_by_row`;
+  - `action_error_by_row`;
+  - `active_panel_type_by_row`.
 
 ## Logic Moved Out Of Jinja
 
@@ -1681,6 +1683,10 @@ Preferred future direction:
 Current state:
 
 - Import review has the strongest HTMX/partial feedback story.
+- Import review category creation and row actions now return local row/form
+  feedback for expected errors. Row action errors are transient
+  `ProblemVM` entries, and the originating review panel is restored after the
+  swap.
 - Many CRUD/reference forms still raise plain `400` errors for validation or
   duplicate-name cases.
 
@@ -1694,7 +1700,7 @@ Why it matters:
 Before release:
 
 - manually test common bad inputs on `/rules`, `/categories`, `/properties`,
-  `/ledger/manual`, account detail correction, import review category creation;
+  `/ledger/manual`, account detail correction;
 - decide which raw errors are acceptable for private MVP and which need inline
   handling before release.
 

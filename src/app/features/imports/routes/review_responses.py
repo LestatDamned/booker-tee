@@ -28,6 +28,8 @@ class ReviewActionResponseRequest:
     create_category_error: str | None = None
     create_category_initial_name: str | None = None
     refresh_category_options: bool = False
+    action_error: str | None = None
+    active_panel_type: str | None = None
 
     def redirect_url(self) -> str:
         return review_redirect_url(self.document_id)
@@ -41,6 +43,8 @@ class ReviewActionResponseRequest:
             create_category_error=self.create_category_error,
             create_category_initial_name=self.create_category_initial_name,
             refresh_category_options=self.refresh_category_options,
+            action_error=self.action_error,
+            active_panel_type=self.active_panel_type,
         )
 
 
@@ -53,6 +57,8 @@ class ReviewActionResponseState:
     create_category_error: str | None = None
     create_category_initial_name: str | None = None
     refresh_category_options: bool = False
+    action_error: str | None = None
+    active_panel_type: str | None = None
 
     def selected_category_id_by_row(self) -> Mapping[UUID, UUID]:
         if self.selected_category_id is None:
@@ -73,6 +79,16 @@ class ReviewActionResponseState:
         if self.create_category_initial_name is None:
             return {}
         return {self.raw_transaction_id: self.create_category_initial_name}
+
+    def action_error_by_row(self) -> Mapping[UUID, str]:
+        if self.action_error is None:
+            return {}
+        return {self.raw_transaction_id: self.action_error}
+
+    def active_panel_type_by_row(self) -> Mapping[UUID, str]:
+        if self.active_panel_type is None:
+            return {}
+        return {self.raw_transaction_id: self.active_panel_type}
 
     def oob_row_ids(self, document: object) -> frozenset[UUID]:
         if self.refresh_category_options:
@@ -197,6 +213,8 @@ class ReviewActionResponseRenderer:
             open_category_editor_by_row=response_state.open_category_editor_by_row(),
             create_category_error_by_row=response_state.create_category_error_by_row(),
             create_category_initial_name_by_row=response_state.create_category_initial_name_by_row(),
+            action_error_by_row=response_state.action_error_by_row(),
+            active_panel_type_by_row=response_state.active_panel_type_by_row(),
         )
 
     def _template_response(

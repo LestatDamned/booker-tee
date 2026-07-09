@@ -113,19 +113,31 @@ async def update_raw_transaction_status(
         remember_rule=remember_rule,
         rule_pattern=rule_pattern,
     )
+    review_data_loader = ImportReviewPageDataLoader(session)
+    response_renderer = ReviewActionResponseRenderer(review_data_loader)
     try:
         result = await RawTransactionReviewUseCase(session, settings).handle(
             context=context,
             command=command,
         )
     except (ValueError, RawTransactionReviewError, LedgerPostingError, TransactionRuleError) as exc:
+        if request.headers.get("hx-request") == "true":
+            return await response_renderer.render(
+                request=request,
+                settings=settings,
+                context=context,
+                response_request=ReviewActionResponseRequest(
+                    document_id=document_id,
+                    raw_transaction_id=raw_transaction_id,
+                    action_error=str(exc),
+                    active_panel_type=review_action_panel_type(action),
+                ),
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
 
-    review_data_loader = ImportReviewPageDataLoader(session)
-    response_renderer = ReviewActionResponseRenderer(review_data_loader)
     return await response_renderer.render(
         request=request,
         settings=settings,
@@ -136,6 +148,14 @@ async def update_raw_transaction_status(
             oob_raw_transaction_ids=result.updated_raw_transaction_ids,
         ),
     )
+
+
+def review_action_panel_type(action: str) -> str | None:
+    if action == "confirm":
+        return "category"
+    if action == "transfer":
+        return "transfer"
+    return None
 
 
 @router.post("/documents/{document_id}/raw-transactions/{raw_transaction_id}/undo-posting")

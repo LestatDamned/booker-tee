@@ -55,6 +55,8 @@ def build_review_page_context(
     open_category_editor_by_row: Mapping[UUID, bool] | None = None,
     create_category_error_by_row: Mapping[UUID, str] | None = None,
     create_category_initial_name_by_row: Mapping[UUID, str] | None = None,
+    action_error_by_row: Mapping[UUID, str] | None = None,
+    active_panel_type_by_row: Mapping[UUID, str] | None = None,
 ) -> ReviewPageContext:
     validation_report = latest_validation_report(document)
     balance_chain_problems = balance_chain_problem_messages(validation_report)
@@ -72,6 +74,8 @@ def build_review_page_context(
         open_category_editor_by_row=open_category_editor_by_row,
         create_category_error_by_row=create_category_error_by_row,
         create_category_initial_name_by_row=create_category_initial_name_by_row,
+        action_error_by_row=action_error_by_row,
+        active_panel_type_by_row=active_panel_type_by_row,
     ).build_items()
     review_items: list[ReviewItemVM] = []
     for row in getattr(document, "raw_transactions", []):
