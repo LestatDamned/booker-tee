@@ -70,6 +70,7 @@ def test_manual_operations_presenter_builds_expense_row() -> None:
         "Карта",
         "подтверждено",
     ]
+    assert [item.tone for item in row.meta] == ["classification", None, None]
     assert row.primary_action is not None
     assert row.primary_action.action_type == "drawer_toggle"
     assert row.lifecycle_actions[0].form_action == f"/ledger/manual/{operation_id}/cancel"
@@ -147,6 +148,7 @@ def test_manual_operations_presenter_builds_transfer_row() -> None:
         "не влияет на прибыль",
         "подтверждено",
     ]
+    assert [item.tone for item in row.meta] == ["classification", None, None]
     assert row.lifecycle_actions == []
     assert row.primary_action is None
     assert edit_panel.save_action is None

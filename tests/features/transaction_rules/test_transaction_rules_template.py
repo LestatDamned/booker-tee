@@ -98,7 +98,7 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert "Показать ID" in html
     assert "row-actions" in html
     assert "review-actions__menu" in html
-    assert "badge badge-confirmed" in html
+    assert "badge badge-active" in html
     assert "Если описание содержит “SAMOKAT”" in html
     assert "предлагать · списание · расход · Квартира · 100.00...5000.00" in html
     assert "списание" in html
@@ -241,7 +241,7 @@ def test_transaction_rules_template_read_only_keeps_rule_meaning_without_actions
     assert "OZON -&gt; Продукты" in html
     assert "Если описание содержит “OZON”" in html
     assert "предлагать · списание · расход" in html
-    assert "badge badge-confirmed" in html
+    assert "badge badge-active" in html
     assert "изменить правило" not in html
     assert "выключить" not in html
     assert "Еще действия" not in html

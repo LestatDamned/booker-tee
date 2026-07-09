@@ -1734,6 +1734,32 @@ Preferred future direction:
 - convert one workflow at a time to row/list partial updates;
 - keep redirect fallback.
 
+#### Highlight Semantics Rollout
+
+Current state:
+
+- Transaction rules, account detail, manual operations and import review have
+  started following the highlight contract from `DESIGN.md`.
+- Calm statuses such as confirmed, imported, parsed, matched, normalized and
+  ready-to-confirm use muted badges/tokens instead of success colors.
+- Transaction rule `active` is a calm live-status badge: visible enough to show
+  that the rule is enabled, but quieter than money, problems and primary
+  actions.
+- Account/manual row categories use a dedicated `classification` chip instead
+  of income/expense colors; warning/problem states still stay visible.
+- Transfer amounts use transfer color by operation type, not by the sign of the
+  account leg; transfer routes use the same `classification` chip family as
+  categories.
+- Import review still keeps financial tones for money and operation type, and
+  keeps problem states noticeable.
+
+Remaining watch points:
+
+- Categories/properties/reference screens still need the same review when they
+  get their card/form refactor.
+- Avoid reintroducing green `confirmed` badges in templates; normal states
+  should be readable, not celebratory.
+
 ### P2: Near-Term UX/Scale Debt
 
 #### Hidden Row Forms In Long Lists

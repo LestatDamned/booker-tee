@@ -119,7 +119,8 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert "manual-operation-row__drawer-form operation-form operation-form--drawer" not in html
     assert "тип операции" in html
     assert "сохранить изменения" not in html
-    assert "financial-row__meta-item financial-row__meta-item--expense" in html
+    assert "financial-row__meta-item financial-row__meta-item--classification" in html
+    assert "financial-row__meta-item financial-row__meta-item--expense" not in html
     assert "подтверждено" in html
     assert "financial-row__amount manual-operation-row__amount money-value money-expense" in html
     assert "<small>RUB</small>" in html

@@ -552,6 +552,8 @@ def test_review_template_can_render_review_item_vm_slice() -> None:
     assert "review-item__state-primary" in html
     assert "review-item__state-secondary" in html
     assert "review-item__state-token" in html
+    assert "review-item__state-token tone-muted" in html
+    assert "review-item__state-token tone-ready_to_confirm" not in html
     assert "по сумме" in html
     assert "предложено операция связана" not in html
     assert "review-item__actions" in html
@@ -635,7 +637,7 @@ def test_review_template_shows_transfer_route_for_linked_operation() -> None:
         status=RawTransactionStatus.CONFIRMED,
         operation_date="2026-05-29",
         operation_date_raw=None,
-        amount=Decimal("-21000.00"),
+        amount=Decimal("2342.19"),
         amount_raw=None,
         currency="RUB",
         description_normalized="Перевод через СБП",
@@ -663,6 +665,8 @@ def test_review_template_shows_transfer_route_for_linked_operation() -> None:
     assert "перевод:" in html
     assert "review-item__signal--operation" not in html
     assert "review-item__ledger-summary" in html
+    assert "review-item__amount money-value money-transfer" in html
+    assert "review-item__amount money-value money-income" not in html
     assert "review-item__ledger-summary--confirmed" in html
     assert "review-item__ledger-title" in html
     assert f"ID {operation_id}" not in html

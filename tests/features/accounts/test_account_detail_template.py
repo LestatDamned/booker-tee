@@ -21,11 +21,12 @@ from app.templating import create_templates
 
 
 def test_account_ledger_entry_amount_direction_tracks_money_sign() -> None:
-    operation = cast(Any, object())
+    income_expense_operation = cast(Any, SimpleNamespace(type=OperationType.EXPENSE))
+    transfer_operation = cast(Any, SimpleNamespace(type=OperationType.TRANSFER))
 
     assert (
         AccountLedgerEntryView(
-            operation=operation,
+            operation=income_expense_operation,
             operation_id=uuid4(),
             amount=Decimal("-10.00"),
             currency="RUB",
@@ -34,7 +35,7 @@ def test_account_ledger_entry_amount_direction_tracks_money_sign() -> None:
     )
     assert (
         AccountLedgerEntryView(
-            operation=operation,
+            operation=income_expense_operation,
             operation_id=uuid4(),
             amount=Decimal("10.00"),
             currency="RUB",
@@ -43,9 +44,18 @@ def test_account_ledger_entry_amount_direction_tracks_money_sign() -> None:
     )
     assert (
         AccountLedgerEntryView(
-            operation=operation,
+            operation=income_expense_operation,
             operation_id=uuid4(),
             amount=Decimal("0.00"),
+            currency="RUB",
+        ).amount_direction
+        == "transfer"
+    )
+    assert (
+        AccountLedgerEntryView(
+            operation=transfer_operation,
+            operation_id=uuid4(),
+            amount=Decimal("2342.19"),
             currency="RUB",
         ).amount_direction
         == "transfer"
@@ -111,9 +121,9 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
                     badges=[],
                     description='Списание средств по платежу СБП | ООО "ЛЕНТА"',
                     meta=[
-                        AccountMovementMetaVM("Продукты", "expense"),
+                        AccountMovementMetaVM("Продукты", "classification"),
                         AccountMovementMetaVM("Экспобанк карта"),
-                        AccountMovementMetaVM("подтверждено", "confirmed"),
+                        AccountMovementMetaVM("подтверждено"),
                     ],
                     result=OperationResultVM(
                         eyebrow="расход · подтверждено",
@@ -215,6 +225,11 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "Открыть" in html
     assert "Закрыть" in html
     assert "financial-row__amount account-movement__amount money-value money-expense" in html
+    assert (
+        "financial-row__meta-item--classification account-movement__meta-item--classification"
+        in html
+    )
+    assert "financial-row__meta-item--expense account-movement__meta-item--expense" not in html
     assert "financial-row__actions row-actions account-movement__actions" in html
     assert "action-button action-primary action-edit primary-action" in html
     assert "ui-action__button ui-action__button--primary ui-action__button--edit" in html
@@ -286,3 +301,47 @@ def test_account_movement_edit_panel_lazy_loads_review_form() -> None:
     assert "Исправить операцию" in html
     assert "Продукты" in html
     assert "Дом" in html
+
+
+def test_account_movement_transfer_uses_transfer_amount_tone() -> None:
+    operation_id = uuid4()
+    html = (
+        create_templates()
+        .env.get_template("accounts/detail/_movement.html")
+        .render(
+            movement=AccountMovementVM(
+                id=f"operation-{operation_id}",
+                operation_id=operation_id,
+                tone="transfer",
+                amount=Decimal("2342.19"),
+                amount_direction="transfer",
+                currency="RUB",
+                date_label="30.06.2026",
+                badges=[],
+                description="Списание со вклада проценты",
+                meta=[
+                    AccountMovementMetaVM("ВТБ вклад -> Экспобанк карта", "classification"),
+                    AccountMovementMetaVM("Экспобанк карта"),
+                    AccountMovementMetaVM("не влияет на прибыль"),
+                    AccountMovementMetaVM("подтверждено"),
+                ],
+                result=OperationResultVM(
+                    eyebrow="перевод · подтверждено",
+                    title="ВТБ вклад -> Экспобанк карта",
+                    tone="transfer",
+                    detail="не влияет на прибыль",
+                ),
+                primary_action=None,
+                secondary_actions=[],
+                edit_panel_id=None,
+                edit_form_url=None,
+                technical_label=f"ID {operation_id}",
+            )
+        )
+    )
+
+    assert "account-movement--transfer" in html
+    assert "money-value money-transfer" in html
+    assert "money-income" not in html
+    assert "account-movement__meta-item--classification" in html
+    assert "account-movement__meta-item--transfer" not in html

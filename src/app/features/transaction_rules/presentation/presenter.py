@@ -155,7 +155,7 @@ class TransactionRulesPagePresenter:
             condition_label=rule_condition_label(rule),
             secondary_label=rule_secondary_label(rule),
             status_label="активно" if rule.is_active else "выключено",
-            status_tone="confirmed" if rule.is_active else "muted",
+            status_tone="active" if rule.is_active else "muted",
             is_inactive=not rule.is_active,
             is_recent=is_recent,
             edit_summary_id=edit_summary_id,

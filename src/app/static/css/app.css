@@ -3298,16 +3298,16 @@ pre {
 
 .badge-income,
 .badge-auto_apply,
-.badge-active,
-.badge-confirmed,
 .badge-inflow,
-.badge-imported,
-.badge-matched,
-.badge-parsed,
-.badge-ready_to_confirm,
 .badge-success {
   border-color: var(--green);
   color: var(--green);
+}
+
+.badge-active {
+  border-color: color-mix(in srgb, var(--green) 58%, var(--border));
+  background: color-mix(in srgb, var(--green) 5%, transparent);
+  color: color-mix(in srgb, var(--green) 84%, var(--text));
 }
 
 .badge-expense,
@@ -3323,7 +3323,6 @@ pre {
 
 .badge-any,
 .badge-transfer,
-.badge-normalized,
 .badge-suggested {
   border-color: var(--accent);
   color: var(--accent);
@@ -3342,8 +3341,14 @@ pre {
 }
 
 .badge-archived,
+.badge-confirmed,
 .badge-inactive,
 .badge-ignored,
+.badge-imported,
+.badge-matched,
+.badge-normalized,
+.badge-parsed,
+.badge-ready_to_confirm,
 .badge-muted {
   border-color: var(--muted);
   color: var(--muted);
@@ -4514,6 +4519,13 @@ pre {
   color: var(--accent);
 }
 
+.financial-row__meta-item--classification,
+.account-movement__meta-item--classification {
+  border-color: color-mix(in srgb, var(--help) 54%, var(--border));
+  background: color-mix(in srgb, var(--help) 5%, transparent);
+  color: color-mix(in srgb, var(--help) 78%, var(--text));
+}
+
 .financial-row__meta-item--warning,
 .financial-row__meta-item--adjustment,
 .financial-row__meta-item--mixed,
@@ -4757,10 +4769,7 @@ pre {
   line-height: 1;
 }
 
-.review-item__state-token.tone-income,
-.review-item__state-token.tone-confirmed,
-.review-item__state-token.tone-matched,
-.review-item__state-token.tone-ready_to_confirm {
+.review-item__state-token.tone-income {
   border-color: color-mix(in srgb, var(--green) 78%, var(--border));
   color: var(--green);
 }
@@ -4773,7 +4782,6 @@ pre {
 }
 
 .review-item__state-token.tone-transfer,
-.review-item__state-token.tone-normalized,
 .review-item__state-token.tone-suggested {
   border-color: color-mix(in srgb, var(--accent) 78%, var(--border));
   color: var(--accent);
@@ -5573,9 +5581,9 @@ pre {
 }
 
 .review-item__ledger-summary--confirmed {
-  border-color: color-mix(in srgb, var(--green) 40%, var(--border));
-  border-left-color: var(--green);
-  background: color-mix(in srgb, var(--green) 5%, var(--surface-strong));
+  border-color: color-mix(in srgb, var(--border) 80%, transparent);
+  border-left-color: var(--muted);
+  background: color-mix(in srgb, var(--surface-strong) 52%, transparent);
 }
 
 .review-item__ledger-summary--suggested {

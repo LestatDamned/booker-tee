@@ -162,23 +162,24 @@ class AccountDetailPresenter:
         if operation.type == OperationType.TRANSFER:
             route = transfer_route(operation)
             return [
-                AccountMovementMetaVM(route or "маршрут перевода не определен", "transfer"),
+                AccountMovementMetaVM(
+                    route or "маршрут перевода не определен",
+                    "classification",
+                ),
                 AccountMovementMetaVM(account_name),
-                AccountMovementMetaVM("не влияет на прибыль", "transfer"),
-                AccountMovementMetaVM(ru_label(operation.status), operation.status.value),
+                AccountMovementMetaVM("не влияет на прибыль"),
+                AccountMovementMetaVM(ru_label(operation.status)),
             ]
 
         meta: list[AccountMovementMetaVM] = []
         if operation.category is not None:
-            meta.append(
-                AccountMovementMetaVM(operation.category.name, operation.category.kind.value)
-            )
+            meta.append(AccountMovementMetaVM(operation.category.name, "classification"))
         else:
             meta.append(AccountMovementMetaVM("Без категории", "warning"))
         if operation.property is not None:
             meta.append(AccountMovementMetaVM(operation.property.name))
         meta.append(AccountMovementMetaVM(account_name))
-        meta.append(AccountMovementMetaVM(ru_label(operation.status), operation.status.value))
+        meta.append(AccountMovementMetaVM(ru_label(operation.status)))
         return meta
 
     @staticmethod

@@ -82,15 +82,13 @@ class ManualOperationsPresenter:
         if operation.type == OperationType.TRANSFER:
             meta.extend(
                 [
-                    ManualOperationMetaVM(self._transfer_route(operation), "transfer"),
-                    ManualOperationMetaVM("не влияет на прибыль", "transfer"),
+                    ManualOperationMetaVM(self._transfer_route(operation), "classification"),
+                    ManualOperationMetaVM("не влияет на прибыль"),
                 ]
             )
         else:
             if operation.category is not None:
-                meta.append(
-                    ManualOperationMetaVM(operation.category.name, operation.category.kind.value)
-                )
+                meta.append(ManualOperationMetaVM(operation.category.name, "classification"))
             else:
                 meta.append(ManualOperationMetaVM("без категории", "warning"))
             if operation.property is not None:
@@ -98,7 +96,7 @@ class ManualOperationsPresenter:
             if operation.primary_entry is not None:
                 meta.append(ManualOperationMetaVM(self._account_name(operation.primary_entry)))
 
-        meta.append(ManualOperationMetaVM(ru_label(operation.status), operation.status.value))
+        meta.append(ManualOperationMetaVM(ru_label(operation.status)))
         return meta
 
     def _drawer(self, operation: ManualOperationView) -> ManualOperationDrawerVM:

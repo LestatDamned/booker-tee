@@ -76,6 +76,8 @@ class AccountLedgerEntryView:
 
     @property
     def amount_direction(self) -> str:
+        if self.operation.type == OperationType.TRANSFER:
+            return "transfer"
         if self.amount > 0:
             return "income"
         if self.amount < 0:

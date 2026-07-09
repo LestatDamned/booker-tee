@@ -51,6 +51,7 @@ def test_presenter_builds_imported_expense_movement_with_drawer() -> None:
         "Экспобанк карта",
         "подтверждено",
     ]
+    assert [item.tone for item in movement.meta] == ["classification", None, None]
     assert movement.result.eyebrow == "расход · подтверждено"
     assert movement.result.title == "Продукты"
     assert movement.primary_action is not None
@@ -115,6 +116,8 @@ def test_presenter_summarizes_transfer_route() -> None:
     assert movement.meta[1].label == "Экспобанк карта"
     assert movement.meta[2].label == "не влияет на прибыль"
     assert movement.meta[3].label == "подтверждено"
+    assert movement.amount_direction == "transfer"
+    assert [item.tone for item in movement.meta] == ["classification", None, None, None]
 
 
 def test_presenter_keeps_manual_operation_as_link_action_for_first_slice() -> None:

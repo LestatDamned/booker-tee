@@ -28,9 +28,16 @@ from app.features.imports.presentation.review.state import (
     ReviewRuleSuggestionResolver,
     ReviewStateResolver,
 )
+from app.features.ledger.models import OperationType
 
 FINAL_VISUAL_STATES = {status.value for status in FINAL_RAW_STATUSES}
 FINAL_STATE_CONFIRMABILITY_MESSAGE = "строка уже в финальном состоянии"
+PROBLEM_VISUAL_STATE_TONES = {
+    "duplicate",
+    "failed",
+    "needs_review",
+    "possible_duplicate",
+}
 
 
 @dataclass(frozen=True)
@@ -205,7 +212,7 @@ class ImportReviewPresenter:
             currency=getattr(row, "currency", None) or "",
             money_tone=self.dependencies.money_tone_presenter.tone(
                 getattr(row, "amount", None),
-                classification.operation_type,
+                review_money_operation_type(row) or classification.operation_type,
             ),
             operation_type=classification.operation_type.value
             if classification.operation_type is not None
@@ -253,7 +260,10 @@ class ImportReviewPresenter:
         )
 
     def state_badge(self, visual_state: str) -> BadgeVM:
-        return BadgeVM(self.dependencies.labeler.raw_status(visual_state), visual_state)
+        return BadgeVM(
+            self.dependencies.labeler.raw_status(visual_state),
+            review_state_tone(visual_state),
+        )
 
     def classification_badge(self, classification: ClassificationVM) -> BadgeVM:
         return BadgeVM(
@@ -373,3 +383,19 @@ class ImportReviewPresenter:
 
 def review_row_anchor(raw_transaction_id: UUID) -> str:
     return f"raw-{raw_transaction_id}"
+
+
+def review_state_tone(visual_state: str) -> str:
+    if visual_state in PROBLEM_VISUAL_STATE_TONES:
+        return visual_state
+    return "muted"
+
+
+def review_money_operation_type(row: object) -> OperationType | None:
+    linked_operation = getattr(row, "linked_operation", None)
+    if linked_operation is None:
+        return None
+    return ReviewReferenceResolver.enum_or_none(
+        OperationType,
+        getattr(linked_operation, "type", None),
+    )
