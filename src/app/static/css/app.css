@@ -4235,6 +4235,55 @@ pre {
   border-left-color: color-mix(in srgb, var(--muted) 48%, var(--border));
 }
 
+.property-create-details {
+  border-color: color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-strong) 36%, transparent);
+}
+
+.property-create-details > summary {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 42px;
+}
+
+.property-create-details > summary::after,
+.property-create-details[open] > summary::after {
+  content: none;
+}
+
+.property-create-form {
+  border-color: color-mix(in srgb, var(--border) 52%, transparent);
+  padding-top: 14px;
+}
+
+.property-create-form__error {
+  grid-column: 1 / -1;
+}
+
+.property-create-form__field--name {
+  grid-column: span 4;
+}
+
+.property-create-form__field--short-name {
+  grid-column: span 3;
+}
+
+.property-create-form__field--address {
+  grid-column: span 5;
+}
+
+.property-create-form__actions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  border-top: 1px solid color-mix(in srgb, var(--border) 46%, transparent);
+  padding-top: 10px;
+}
+
+.property-create-form__actions .button {
+  width: auto;
+  min-width: 180px;
+}
+
 .property-card__main {
   display: grid;
   gap: 12px;

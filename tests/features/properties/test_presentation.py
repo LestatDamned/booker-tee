@@ -52,6 +52,10 @@ def test_properties_presenter_builds_create_and_row_edit_state() -> None:
     )
 
     assert page.create_form.name == "Дом"
+    assert page.create_form_id == "property-create-form"
+    assert page.create_label == "создать объект"
+    assert page.create_panel_open
+    assert page.create_submit_action.form_id == "property-create-form"
     assert page.lifecycle_error == "Объект не найден в этом workspace."
     assert page.rows[0].form_id == f"property-form-{property_id}"
     assert page.rows[0].anchor_id == f"property-{property_id}"
@@ -64,3 +68,23 @@ def test_properties_presenter_builds_create_and_row_edit_state() -> None:
     assert page.rows[1].edit_form.short_name == ""
     assert page.rows[1].is_inactive
     assert page.rows[1].lifecycle_action.label == "восстановить"
+
+
+def test_properties_presenter_keeps_create_panel_closed_for_existing_clean_list() -> None:
+    property_id = uuid4()
+    page = PropertiesPagePresenter.build_index(
+        cast(
+            Any,
+            [
+                SimpleNamespace(
+                    id=property_id,
+                    name="9 Maya 20",
+                    short_name=None,
+                    address=None,
+                    status=PropertyStatus.ACTIVE,
+                )
+            ],
+        )
+    )
+
+    assert not page.create_panel_open

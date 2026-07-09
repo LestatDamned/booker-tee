@@ -35,4 +35,8 @@ class PropertyRowVM:
 class PropertiesPageVM:
     rows: list[PropertyRowVM]
     create_form: PropertyFormStateVM
+    create_form_id: str
+    create_label: str
+    create_panel_open: bool
+    create_submit_action: ActionVM
     lifecycle_error: str | None

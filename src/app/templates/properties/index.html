@@ -25,27 +25,37 @@
 
     {% if can_write %}
       {% set create_form = page.create_form %}
-      <form class="form-panel" method="post" action="/properties">
-        {{ csrf_input() }}
-        {% if create_form.error %}
-          <div class="form-error" role="alert">{{ create_form.error }}</div>
-        {% endif %}
-        <div class="field form-field-quarter">
-          <label for="name">Название</label>
-          <input id="name" name="name" value="{{ create_form.name }}" placeholder="Название объекта" required>
-        </div>
-        <div class="field form-field-quarter">
-          <label for="short_name">Коротко</label>
-          <input id="short_name" name="short_name" value="{{ create_form.short_name }}" placeholder="Короткое название">
-        </div>
-        <div class="field form-field-quarter">
-          <label for="address">Адрес</label>
-          <input id="address" name="address" value="{{ create_form.address }}" placeholder="Адрес">
-        </div>
-        <div class="form-actions">
-          <button class="button" type="submit">{{ icon("plus") }} добавить</button>
-        </div>
-      </form>
+      <details class="action-details action-accordion property-create-details" {% if page.create_panel_open %}open{% endif %}>
+        <summary>
+          <span>{{ page.create_label }}</span>
+          <span class="details-toggle-label" aria-hidden="true">
+            <span class="details-toggle-open">Открыть</span>
+            <span class="details-toggle-close">Закрыть</span>
+          </span>
+        </summary>
+        <form id="{{ page.create_form_id }}" class="form-panel form-panel-embedded property-create-form" method="post" action="/properties">
+          {{ csrf_input() }}
+          {% if create_form.error %}
+            <div class="form-error property-create-form__error" role="alert">{{ create_form.error }}</div>
+          {% endif %}
+          <div class="field property-create-form__field property-create-form__field--name">
+            <label for="name">Название</label>
+            <input id="name" name="name" value="{{ create_form.name }}" placeholder="Название объекта" required>
+          </div>
+          <div class="field property-create-form__field property-create-form__field--short-name">
+            <label for="short_name">Коротко</label>
+            <input id="short_name" name="short_name" value="{{ create_form.short_name }}" placeholder="Короткое название">
+          </div>
+          <div class="field property-create-form__field property-create-form__field--address">
+            <label for="address">Адрес</label>
+            <input id="address" name="address" value="{{ create_form.address }}" placeholder="Адрес">
+          </div>
+          <div class="form-actions property-create-form__actions">
+            {% set action = page.create_submit_action %}
+            {% include "ui/_action.html" %}
+          </div>
+        </form>
+      </details>
     {% endif %}
 
     {% if page.lifecycle_error %}

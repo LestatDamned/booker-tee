@@ -1820,8 +1820,10 @@ Current state:
 - `properties/index.html` now uses Entity Work Row geometry:
   left-side information, right-side `row-actions`, and a full-width row drawer
   for editing.
+- Property creation is a compact page action accordion, closed for ordinary
+  lists and opened for an empty list or create validation error.
 - `PropertiesPagePresenter` owns row action policy and form state.
-- Create form is still a visible page-level form.
+- `PropertiesPagePresenter` owns the create form state and submit action.
 
 Why it matters:
 
@@ -1832,7 +1834,6 @@ Why it matters:
 
 Preferred future direction:
 
-- create form as a page action/compact accordion;
 - consider lazy-loading edit drawer only if property forms become heavier;
 - use Created Entity Feedback Pattern;
 - add local HTMX row swaps for edit/archive/restore when the partial contract is

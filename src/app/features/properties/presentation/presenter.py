@@ -20,6 +20,7 @@ class PropertiesPagePresenter:
         lifecycle_error: str | None = None,
     ) -> PropertiesPageVM:
         edit_forms = edit_forms_by_property_id or {}
+        resolved_create_form = create_form or default_property_form_state()
         return PropertiesPageVM(
             rows=[
                 property_row_vm(
@@ -28,7 +29,18 @@ class PropertiesPagePresenter:
                 )
                 for property_ in properties
             ],
-            create_form=create_form or default_property_form_state(),
+            create_form=resolved_create_form,
+            create_form_id="property-create-form",
+            create_label="создать объект",
+            create_panel_open=bool(resolved_create_form.error or not properties),
+            create_submit_action=ActionVM(
+                id="create-property",
+                label="создать объект",
+                icon="plus",
+                placement="primary",
+                action_type="submit",
+                form_id="property-create-form",
+            ),
             lifecycle_error=lifecycle_error,
         )
 

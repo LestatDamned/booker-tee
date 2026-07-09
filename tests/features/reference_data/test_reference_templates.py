@@ -305,7 +305,7 @@ def test_category_detail_template_shows_lifecycle_error() -> None:
     assert f'action="/categories/{category_id}/delete"' not in html
 
 
-def test_properties_template_uses_inline_card_editing() -> None:
+def test_properties_template_uses_row_drawer_editing() -> None:
     property_id = uuid4()
     templates = create_templates()
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
@@ -330,6 +330,9 @@ def test_properties_template_uses_inline_card_editing() -> None:
     )
 
     assert "form-panel" in html
+    assert "property-create-details" in html
+    assert 'property-create-details" open' not in html
+    assert "создать объект" in html
     assert "к чему относится операция" in html
     assert "квартира" in html
     assert "семейная цель" in html
@@ -365,6 +368,7 @@ def test_properties_template_shows_create_error_and_keeps_values() -> None:
     )
 
     assert 'role="alert"' in html
+    assert 'property-create-details" open' in html
     assert "Название объекта обязательно." in html
     assert 'value="Дом"' in html
     assert 'value="D"' in html
@@ -412,6 +416,7 @@ def test_properties_template_shows_edit_error_and_keeps_row_values() -> None:
     )
 
     assert html.count('role="alert"') == 1
+    assert 'property-create-details" open' not in html
     assert 'property-card__edit" open' in html
     assert "Название объекта обязательно." in html
     assert f'id="name-{property_id}" name="name" value="Дом"' in html
@@ -434,4 +439,5 @@ def test_properties_template_shows_lifecycle_error() -> None:
     )
 
     assert 'role="alert"' in html
+    assert 'property-create-details" open' in html
     assert "Объект не найден в этом workspace." in html
