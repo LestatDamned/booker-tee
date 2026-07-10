@@ -43,7 +43,6 @@ class CategoryRowVM:
     rule_count_label: str
     system_key_label: str | None
     notes_label: str | None
-    technical_label: str
     detail_action: ActionVM
 
 
@@ -61,7 +60,6 @@ class CategoryDetailHeaderVM:
     operation_count_label: str
     rule_count_label: str
     notes_label: str | None
-    technical_label: str
 
 
 @dataclass(frozen=True)

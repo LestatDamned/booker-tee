@@ -101,7 +101,6 @@ def property_row_vm(
         status_tone="archived" if is_archived else "active",
         short_name_label=property_.short_name,
         address_label=property_.address,
-        technical_label=f"ID {property_.id}",
         edit_toggle_action=ActionVM(
             id="edit-property",
             label="изменить объект",

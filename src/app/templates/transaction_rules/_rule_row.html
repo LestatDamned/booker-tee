@@ -44,12 +44,6 @@
       {% set action = rule.toggle_action %}
       {% include "ui/_action.html" %}
       {% call more_actions("rule-more-actions") %}
-        <div class="review-actions__menu-section rule-more-actions__menu-section">
-          <div class="rule-more-actions__item rule-more-actions__technical">
-            <span>Показать ID</span>
-            <code>{{ rule.technical_label }}</code>
-          </div>
-        </div>
         <div
           class="danger-zone review-actions__menu-section review-actions__danger-zone"
           hx-select="#rules-list-panel"

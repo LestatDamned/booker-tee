@@ -1951,17 +1951,20 @@ Current state:
 - `PropertiesPagePresenter` owns property row actions, edit drawer state and
   form values.
 - Categories index cards now follow the Entity Work Row contract: left-side
-  category information, right-side actions, calm "Еще действия" for technical
-  details.
+  category information and right-side actions. They do not show "Еще действия"
+  when there are no rare actions.
 - Category detail top card now uses the same Entity Work Row/action contract:
   edit is a drawer inside the card, lifecycle actions are prepared by the
-  presenter, and technical ID lives in "Еще действия".
+  presenter, and "Еще действия" is shown only when a real rare/danger action is
+  available.
 - Category-specific report navigation is not a row/card action. Category cards
   should keep the action rail focused on entity actions; report navigation can
   live in report surfaces or contextual content if needed later.
 - Transaction rules, categories and properties use the shared
   `ui/_more_actions.html` shell for the repeated "Еще действия" summary/menu
   rhythm. The feature templates still own menu contents.
+- Ordinary entity cards no longer expose "Показать ID"; IDs/debug payloads
+  should appear only behind an explicit support/debug scenario.
 - Categories still group row VMs in Jinja with `selectattr`.
 - Category detail operations/rules sections still use older table/card
   rendering and can be revisited only if they become a real workflow surface.

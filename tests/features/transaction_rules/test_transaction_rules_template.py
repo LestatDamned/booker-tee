@@ -95,7 +95,7 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert f'id="rule-edit-panel-{rule_id}"' in html
     assert "Загружаем форму..." in html
     assert "Еще действия" in html
-    assert "Показать ID" in html
+    assert "Показать ID" not in html
     assert "row-actions" in html
     assert "review-actions__menu" in html
     assert "badge badge-active" in html
@@ -113,7 +113,7 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert "показано 1 из 1" in html
     assert "danger-zone review-actions__menu-section review-actions__danger-zone" in html
     assert "<summary>ID</summary>" not in html
-    assert f"ID {rule_id}" in html
+    assert f"ID {rule_id}" not in html
     assert "Оно больше не будет применяться к новым выпискам" in html
     assert "<th>активно</th>" not in html
 

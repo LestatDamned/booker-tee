@@ -357,8 +357,9 @@ Rules:
    the submit action inside the drawer footer.
 9. Opening the drawer should not replace the right-side action rail with a
    different set of buttons. The action rail stays stable; the form owns save.
-10. Technical details, IDs, debug payloads, and rare administrative controls
-    stay collapsed or visually secondary.
+10. Technical details, IDs and debug payloads do not appear in ordinary
+    entity cards by default. Add them only behind an explicit support/debug
+    need, not as normal "Еще действия" content.
 
 Implementation guidance:
 
@@ -380,8 +381,8 @@ several screens.
 
 `ui/_more_actions.html` is intentionally small: it owns only the common
 `details`/summary/toggle shell for "Еще действия". The feature template still
-owns menu content, dangerous actions, technical details, HTMX targets, and
-feature-specific action policy.
+owns menu content, dangerous actions, HTMX targets, and feature-specific action
+policy.
 
 ### Entity Feedback And Local Update Contract
 

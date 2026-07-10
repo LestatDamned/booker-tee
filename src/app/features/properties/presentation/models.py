@@ -26,7 +26,6 @@ class PropertyRowVM:
     status_tone: str
     short_name_label: str | None
     address_label: str | None
-    technical_label: str
     edit_toggle_action: ActionVM
     lifecycle_action: ActionVM
     save_action: ActionVM

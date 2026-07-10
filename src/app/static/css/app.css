@@ -4194,39 +4194,6 @@ pre {
   display: inline;
 }
 
-.rule-more-actions__summary {
-  display: inline-flex;
-  align-items: center;
-}
-
-.rule-more-actions__menu {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-strong) 50%, transparent);
-  padding: 8px;
-}
-
-.rule-more-actions__item {
-  display: grid;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.rule-more-actions__technical code {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  color: color-mix(in srgb, var(--text) 82%, var(--muted));
-}
-
-.rule-more-actions__menu .ui-action__form,
-.rule-more-actions__menu .ui-action__button {
-  width: 100%;
-}
-
 .property-card {
   border-left-color: color-mix(in srgb, var(--help) 54%, var(--border));
 }
@@ -4433,19 +4400,6 @@ pre {
   padding: 8px;
 }
 
-.category-more-actions__item {
-  display: grid;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.category-more-actions__technical code {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  color: color-mix(in srgb, var(--text) 82%, var(--muted));
-}
-
 .category-detail-card {
   border-left-color: color-mix(in srgb, var(--help) 54%, var(--border));
 }
@@ -4650,57 +4604,6 @@ pre {
 
 .property-form__field--address {
   grid-column: 1 / -1;
-}
-
-.property-more-actions {
-  min-width: 0;
-  grid-column: 1 / -1;
-}
-
-.property-more-actions > summary {
-  width: 100%;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  list-style: none;
-}
-
-.property-more-actions > summary::-webkit-details-marker {
-  display: none;
-}
-
-.property-more-actions > summary::after,
-.property-more-actions[open] > summary::after {
-  content: none;
-}
-
-.property-more-actions[open] .details-toggle-open {
-  display: none;
-}
-
-.property-more-actions[open] .details-toggle-close {
-  display: inline;
-}
-
-.property-more-actions__menu {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-strong) 50%, transparent);
-  padding: 8px;
-}
-
-.property-more-actions__item {
-  display: grid;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.property-more-actions__technical code {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  color: color-mix(in srgb, var(--text) 82%, var(--muted));
 }
 
 .manual-operation-row {

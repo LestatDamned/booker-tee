@@ -65,7 +65,6 @@ class RuleRowVM:
     edit_panel_id: str
     edit_form_url: str
     edit_toggle_action: ActionVM
-    technical_label: str
     toggle_action: ActionVM
     delete_action: ActionVM
 

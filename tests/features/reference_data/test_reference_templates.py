@@ -84,15 +84,15 @@ def test_categories_template_uses_compact_cards() -> None:
     assert "10 операций" in html
     assert "4 правил" in html
     assert "открыть категорию" in html
-    assert "Еще действия" in html
+    assert "Еще действия" not in html
     assert f"/reports?category_id={custom_category_id}" not in html
     assert "Супермаркеты и доставка" in html
     assert f'href="/categories/{custom_category_id}"' in html
     assert f'id="category-{custom_category_id}"' in html
     assert f'action="/categories/{custom_category_id}/restore"' not in html
     assert '<input type="hidden" name="view" value="all">' in html
-    assert "Показать ID" in html
-    assert f"ID {system_category_id}" in html
+    assert "Показать ID" not in html
+    assert f"ID {system_category_id}" not in html
 
 
 def test_categories_template_shows_recent_created_feedback() -> None:
@@ -247,8 +247,8 @@ def test_category_detail_template_shows_operations_and_rules() -> None:
     assert "financial-row" in html
     assert "row-actions" in html
     assert "изменить категорию" in html
-    assert "Еще действия" in html
-    assert "Показать ID" in html
+    assert "Еще действия" not in html
+    assert "Показать ID" not in html
     assert f'action="/categories/{category_id}"' in html
     assert f'action="/categories/{category_id}/archive"' in html
     assert "GREEN HOUSE" in html
@@ -401,8 +401,8 @@ def test_properties_template_uses_row_drawer_editing() -> None:
     assert "badge-active" in html
     assert "изменить объект" in html
     assert "сохранить" in html
-    assert "Еще действия" in html
-    assert f"ID {property_id}" in html
+    assert "Еще действия" not in html
+    assert f"ID {property_id}" not in html
     assert f'id="property-{property_id}"' in html
 
 

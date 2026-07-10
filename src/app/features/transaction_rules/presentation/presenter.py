@@ -169,7 +169,6 @@ class TransactionRulesPagePresenter:
                 action_type="panel_toggle",
                 panel_id=edit_summary_id,
             ),
-            technical_label=f"ID {rule.id}",
             toggle_action=ActionVM(
                 id="toggle-rule",
                 label="выключить" if rule.is_active else "включить",

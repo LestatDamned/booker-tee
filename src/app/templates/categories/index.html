@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% from "components/empty_state.html" import empty_state %}
 {% from "components/inline_hint.html" import inline_hint %}
-{% from "ui/_more_actions.html" import more_actions %}
 
 {% block title %}Категории · {{ app_name }}{% endblock %}
 
@@ -31,12 +30,6 @@
     <div class="financial-row__side entity-card-actions row-actions category-card__actions">
       {% set action = row.detail_action %}
       {% include "ui/_action.html" %}
-      {% call more_actions("category-more-actions", menu_class="category-more-actions__menu") %}
-        <div class="category-more-actions__item category-more-actions__technical">
-          <span>Показать ID</span>
-          <code>{{ row.technical_label }}</code>
-        </div>
-      {% endcall %}
     </div>
   </article>
 {% endmacro %}

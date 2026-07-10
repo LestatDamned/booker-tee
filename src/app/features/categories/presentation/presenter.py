@@ -229,7 +229,6 @@ def category_row_vm(
         rule_count_label=f"{row.rule_count} правил",
         system_key_label=category.system_key,
         notes_label=category.notes,
-        technical_label=f"ID {category.id}",
         detail_action=ActionVM(
             id="open-category",
             label="открыть категорию",
@@ -265,7 +264,6 @@ def category_detail_header_vm(detail: CategoryDetailView) -> CategoryDetailHeade
         operation_count_label=f"{len(detail.operations)} операций",
         rule_count_label=f"{len(detail.rules)} правил",
         notes_label=category.notes,
-        technical_label=f"ID {category.id}",
     )
 
 
