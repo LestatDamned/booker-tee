@@ -39,6 +39,7 @@ async def reports_index(
     category_id: Annotated[str | None, Query()] = None,
     property_id: Annotated[str | None, Query()] = None,
     category_sort: Annotated[str | None, Query()] = None,
+    category_sort_dir: Annotated[str | None, Query()] = None,
 ) -> HTMLResponse:
     filters = ReportFilters(
         date_from=parse_optional_query_date(date_from, field_name="date_from"),
@@ -47,6 +48,29 @@ async def reports_index(
         category_id=parse_optional_query_uuid(category_id, field_name="category_id"),
         property_id=parse_optional_query_uuid(property_id, field_name="property_id"),
     )
+    overview = await ReportsService(session).build_overview(
+        workspace_id=context.workspace.id,
+        filters=filters,
+    )
+    report_period = build_report_period_nav(
+        filters,
+        category_sort=category_sort,
+        category_sort_dir=category_sort_dir,
+    )
+    report_categories = build_report_category_table(
+        overview.categories,
+        filters,
+        sort=category_sort or "name",
+        sort_direction=category_sort_dir,
+    )
+    if is_htmx_request(request) and request.headers.get("HX-Target") == "report-category-table":
+        return templates.TemplateResponse(
+            request,
+            "reports/_category_table.html",
+            {
+                "report_categories": report_categories,
+            },
+        )
     accounts = await AccountService(session).list_active_accounts(context.workspace.id)
     categories = await CategoryService(session).list_or_seed_defaults(
         context.workspace.id,
@@ -54,16 +78,6 @@ async def reports_index(
         include_inactive=True,
     )
     properties = await PropertyService(session).list_active(context.workspace.id)
-    overview = await ReportsService(session).build_overview(
-        workspace_id=context.workspace.id,
-        filters=filters,
-    )
-    report_period = build_report_period_nav(filters, category_sort=category_sort)
-    report_categories = build_report_category_table(
-        overview.categories,
-        filters,
-        sort=category_sort or "name",
-    )
     documents = await ImportQueryRepository(session).list_documents_for_workspace(
         context.workspace.id
     )
@@ -116,3 +130,7 @@ def parse_optional_query_date(raw_value: str | None, *, field_name: str) -> date
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"{field_name} должен быть датой в формате YYYY-MM-DD.",
         ) from exc
+
+
+def is_htmx_request(request: Request) -> bool:
+    return request.headers.get("HX-Request") == "true"

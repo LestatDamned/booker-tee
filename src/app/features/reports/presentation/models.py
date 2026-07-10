@@ -24,11 +24,12 @@ class ReportPeriodNav:
 
 
 @dataclass(frozen=True)
-class ReportSortOptionVM:
+class ReportCategoryColumnVM:
     value: str
     label: str
     url: str
     is_active: bool
+    direction: str | None
 
 
 @dataclass(frozen=True)
@@ -45,4 +46,5 @@ class ReportCategoryRowVM:
 class ReportCategoryTableVM:
     rows: list[ReportCategoryRowVM]
     sort: str
-    sort_options: list[ReportSortOptionVM]
+    sort_direction: str
+    columns: list[ReportCategoryColumnVM]

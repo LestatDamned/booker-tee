@@ -77,9 +77,12 @@ def test_reports_template_marks_financial_tones() -> None:
     assert "report-table" in html
     assert 'data-label="прибыль"' in html
     assert f'href="/categories/{category_id}"' in html
-    assert "report-sort-tabs" in html
-    assert "алфавит" in html
-    assert "расход" in html
+    assert 'id="report-category-table"' in html
+    assert "report-table-sort" in html
+    assert "report-table-sort__direction" in html
+    assert 'hx-target="#report-category-table"' in html
+    assert "категория" in html
+    assert "расходы" in html
     assert "amount-income" in html
     assert "amount-expense" in html
     assert "badge-expense" in html
@@ -220,13 +223,21 @@ def report_categories_stub(category_id: object | None = None) -> SimpleNamespace
         if category_id
         else [],
         sort="name",
-        sort_options=[
-            SimpleNamespace(value="name", label="алфавит", url="/reports", is_active=True),
+        sort_direction="asc",
+        columns=[
+            SimpleNamespace(
+                value="name",
+                label="категория",
+                url="/reports?category_sort=name&category_sort_dir=desc",
+                is_active=True,
+                direction="asc",
+            ),
             SimpleNamespace(
                 value="expense",
-                label="расход",
+                label="расходы",
                 url="/reports?category_sort=expense",
                 is_active=False,
+                direction=None,
             ),
         ],
     )

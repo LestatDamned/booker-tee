@@ -4,10 +4,10 @@ from urllib.parse import urlencode
 from uuid import UUID
 
 from app.features.reports.presentation.models import (
+    ReportCategoryColumnVM,
     ReportCategoryRowVM,
     ReportCategoryTableVM,
     ReportPeriodNav,
-    ReportSortOptionVM,
 )
 from app.features.reports.service import CategorySummaryRow, ReportFilters
 
@@ -27,21 +27,27 @@ MONTH_NAMES_RU = {
 }
 
 CATEGORY_SORT_OPTIONS = (
-    ("name", "алфавит"),
-    ("income", "доход"),
-    ("expense", "расход"),
+    ("name", "категория"),
+    ("income", "доходы"),
+    ("expense", "расходы"),
     ("profit", "прибыль"),
 )
 CATEGORY_SORT_VALUES = {value for value, _label in CATEGORY_SORT_OPTIONS}
+SORT_DIRECTION_VALUES = {"asc", "desc"}
 
 
 def build_report_period_nav(
     filters: ReportFilters,
     *,
     category_sort: str | None = None,
+    category_sort_dir: str | None = None,
     today: date | None = None,
 ) -> ReportPeriodNav:
     normalized_category_sort = normalize_category_sort(category_sort)
+    normalized_category_sort_dir = resolve_sort_direction(
+        normalized_category_sort,
+        category_sort_dir,
+    )
     base_day = filters.date_from or filters.date_to or today or date.today()
     month_start = base_day.replace(day=1)
     month_end = month_end_for(month_start)
@@ -71,22 +77,26 @@ def build_report_period_nav(
             filters,
             add_months(month_start, -1),
             category_sort=normalized_category_sort,
+            category_sort_dir=normalized_category_sort_dir,
         ),
         next_month_url=report_month_url(
             filters,
             add_months(month_start, 1),
             category_sort=normalized_category_sort,
+            category_sort_dir=normalized_category_sort_dir,
         ),
         current_month_url=report_month_url(
             filters,
             current_month_start,
             category_sort=normalized_category_sort,
+            category_sort_dir=normalized_category_sort_dir,
         ),
         all_time_url=report_url(
             filters,
             date_from=None,
             date_to=None,
             category_sort=normalized_category_sort,
+            category_sort_dir=normalized_category_sort_dir,
         ),
         has_period_filter=has_period_filter,
         is_month_period=is_month_period,
@@ -108,8 +118,10 @@ def build_report_category_table(
     filters: ReportFilters,
     *,
     sort: str,
+    sort_direction: str | None = None,
 ) -> ReportCategoryTableVM:
     normalized_sort = normalize_category_sort(sort)
+    normalized_direction = resolve_sort_direction(normalized_sort, sort_direction)
     return ReportCategoryTableVM(
         rows=[
             ReportCategoryRowVM(
@@ -126,11 +138,16 @@ def build_report_category_table(
                 if row.category_id
                 else None,
             )
-            for row in sorted(rows, key=category_sort_key(normalized_sort))
+            for row in sorted(
+                rows,
+                key=category_sort_key(normalized_sort, normalized_direction),
+                reverse=normalized_sort == "name" and normalized_direction == "desc",
+            )
         ],
         sort=normalized_sort,
-        sort_options=[
-            ReportSortOptionVM(
+        sort_direction=normalized_direction,
+        columns=[
+            ReportCategoryColumnVM(
                 value=value,
                 label=label,
                 url=report_url(
@@ -138,8 +155,14 @@ def build_report_category_table(
                     date_from=filters.date_from,
                     date_to=filters.date_to,
                     category_sort=value,
+                    category_sort_dir=next_sort_direction(
+                        column=value,
+                        active_sort=normalized_sort,
+                        active_direction=normalized_direction,
+                    ),
                 ),
                 is_active=value == normalized_sort,
+                direction=normalized_direction if value == normalized_sort else None,
             )
             for value, label in CATEGORY_SORT_OPTIONS
         ],
@@ -152,18 +175,45 @@ def normalize_category_sort(raw_sort: str | None) -> str:
     return "name"
 
 
-def category_sort_key(sort: str):
+def normalize_sort_direction(raw_direction: str | None) -> str:
+    if raw_direction in SORT_DIRECTION_VALUES:
+        return raw_direction
+    return "asc"
+
+
+def resolve_sort_direction(sort: str, raw_direction: str | None) -> str:
+    if raw_direction in SORT_DIRECTION_VALUES:
+        return raw_direction
+    return default_sort_direction(sort)
+
+
+def default_sort_direction(sort: str) -> str:
+    return "asc" if sort == "name" else "desc"
+
+
+def next_sort_direction(
+    *,
+    column: str,
+    active_sort: str,
+    active_direction: str,
+) -> str:
+    if column != active_sort:
+        return default_sort_direction(column)
+    return "desc" if active_direction == "asc" else "asc"
+
+
+def category_sort_key(sort: str, direction: str):
     if sort == "income":
-        return lambda row: (-row.income, row.category_name)
+        return lambda row: (money_sort_value(row.income, direction), row.category_name)
     if sort == "expense":
-        return lambda row: (-row.expense, row.category_name)
+        return lambda row: (money_sort_value(row.expense, direction), row.category_name)
     if sort == "profit":
-        return lambda row: (profit_rank(row.profit), row.category_name)
+        return lambda row: (money_sort_value(row.profit, direction), row.category_name)
     return lambda row: row.category_name
 
 
-def profit_rank(value: Decimal) -> tuple[int, Decimal]:
-    return (0, -value) if value >= 0 else (1, value)
+def money_sort_value(value: Decimal, direction: str) -> Decimal:
+    return -value if direction == "desc" else value
 
 
 def report_period_label(filters: ReportFilters) -> str:
@@ -207,12 +257,14 @@ def report_month_url(
     month_start: date,
     *,
     category_sort: str | None = None,
+    category_sort_dir: str | None = None,
 ) -> str:
     return report_url(
         filters,
         date_from=month_start,
         date_to=month_end_for(month_start),
         category_sort=category_sort,
+        category_sort_dir=category_sort_dir,
     )
 
 
@@ -222,14 +274,25 @@ def report_url(
     date_from: date | None,
     date_to: date | None,
     category_sort: str | None = None,
+    category_sort_dir: str | None = None,
 ) -> str:
+    normalized_category_sort = normalize_category_sort(category_sort)
+    normalized_category_sort_dir = resolve_sort_direction(
+        normalized_category_sort,
+        category_sort_dir,
+    )
+    include_sort = (
+        normalized_category_sort != "name"
+        or normalized_category_sort_dir != default_sort_direction(normalized_category_sort)
+    )
     params = {
         "date_from": date_from.isoformat() if date_from else None,
         "date_to": date_to.isoformat() if date_to else None,
         "account_id": str(filters.account_id) if filters.account_id else None,
         "category_id": str(filters.category_id) if filters.category_id else None,
         "property_id": str(filters.property_id) if filters.property_id else None,
-        "category_sort": category_sort if category_sort and category_sort != "name" else None,
+        "category_sort": normalized_category_sort if include_sort else None,
+        "category_sort_dir": normalized_category_sort_dir if include_sort else None,
     }
     query = urlencode(
         {key: value for key, value in params.items() if value not in {None, ""}}

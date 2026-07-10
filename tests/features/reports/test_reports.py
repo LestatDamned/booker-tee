@@ -253,7 +253,14 @@ def test_report_category_table_sorts_and_links_with_period() -> None:
         f"/categories/{groceries_id}?date_from=2026-06-01&date_to=2026-06-30"
     )
     assert table.sort == "expense"
-    assert any(option.is_active and option.value == "expense" for option in table.sort_options)
+    assert table.sort_direction == "desc"
+    expense_column = next(column for column in table.columns if column.value == "expense")
+    assert expense_column.is_active is True
+    assert expense_column.direction == "desc"
+    assert expense_column.url == (
+        "/reports?date_from=2026-06-01&date_to=2026-06-30"
+        "&category_sort=expense&category_sort_dir=asc"
+    )
 
 
 async def test_report_account_balances_use_selected_account_and_date_to() -> None:

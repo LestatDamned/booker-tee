@@ -6127,37 +6127,65 @@ html:not(.entity-target-cleared) .review-item:target {
   margin: 0;
 }
 
-.report-sort-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+.report-table th {
+  padding-block: 8px;
+  font-size: 0.72rem;
+}
+
+.report-table-sort {
+  min-height: 30px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: inherit;
+  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-strong) 18%, transparent);
+  padding: 0 7px;
+  color: color-mix(in srgb, var(--accent) 82%, var(--muted));
+  text-decoration: none;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease;
+}
+
+.report-table th:not(:first-child) .report-table-sort {
   justify-content: flex-end;
 }
 
-.report-sort-tab {
-  min-height: 28px;
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  padding: 0 8px;
-  color: var(--muted);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.7rem;
-  text-decoration: none;
-  text-transform: uppercase;
-}
-
-.report-sort-tab:hover,
-.report-sort-tab--active {
+.report-table-sort:hover,
+.report-table-sort:focus-visible,
+.report-table-sort--active {
   border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--text);
 }
 
-.report-table th {
-  padding-block: 8px;
-  font-size: 0.72rem;
+.report-table-sort__direction {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 22%, transparent);
+  color: color-mix(in srgb, var(--muted) 82%, var(--accent));
+  opacity: 0.72;
+}
+
+.report-table-sort:hover .report-table-sort__direction,
+.report-table-sort:focus-visible .report-table-sort__direction,
+.report-table-sort__direction--active {
+  border-color: color-mix(in srgb, var(--accent) 56%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  opacity: 1;
+}
+
+.report-table-sort__direction .icon {
+  width: 13px;
+  height: 13px;
 }
 
 .report-table td {
