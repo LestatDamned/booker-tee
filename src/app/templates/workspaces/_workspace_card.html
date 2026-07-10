@@ -1,6 +1,6 @@
 <article
   id="{{ row.anchor_id }}"
-  class="financial-row entity-card workspace-card {% if row.is_current %}entity-card-current workspace-card--current{% endif %} {% if not row.select_action and not row.edit_toggle_action %}financial-row--single entity-card-readonly{% endif %}"
+  class="financial-row entity-card workspace-card {% if row.is_current %}workspace-card--current{% endif %} {% if not row.select_action and not row.edit_toggle_action %}financial-row--single entity-card-readonly{% endif %}"
   {% if row.is_current %}aria-current="true"{% endif %}
 >
   <div class="financial-row__main entity-card-main workspace-card__main">

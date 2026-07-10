@@ -297,7 +297,6 @@ def test_category_detail_template_shows_edit_error_and_keeps_values() -> None:
         ),
     )
 
-    assert 'data-entity-working="true"' in html
     assert 'category-detail-card__edit" open' in html
     assert 'role="alert"' in html
     assert "Категория с таким названием уже есть." in html

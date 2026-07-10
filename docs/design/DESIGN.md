@@ -464,7 +464,7 @@ Recommended treatments:
 current context
   structure: "Текущее ..." / "Другие ..." or an equivalent page-level grouping
   markup: aria-current when appropriate
-  color: soft lavender/blue selected surface, not green
+  color: prefer labels and grouping over a selected card surface
 
 active work item
   structure: keep near the top of the workflow or queue
@@ -475,6 +475,8 @@ working card
   structure: the card whose action/form the user is interacting with
   color: soft lavender work surface; no timer-based flash
   behavior: one working card per screen; moves when another card is chosen
+  avoid: single detail/header cards, current-context cards, and admin/user
+  management cards unless there is a true peer list interaction
 
 selected
   structure: explicit selected control, checked state, or selected label
@@ -513,6 +515,8 @@ Current application:
   `working card`.
 - Transaction rules, categories, and properties use the same language for
   working/recent/problem states as they continue to evolve.
+- Do not add `working card` to workspace current-context cards, category detail
+  header cards, or user/admin management cards by default.
 
 Use the import review local-update pattern as the reference:
 
