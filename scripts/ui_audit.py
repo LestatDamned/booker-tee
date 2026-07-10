@@ -271,6 +271,14 @@ def try_login(page: Page, *, base_url: str, email: str, password: str) -> None:
     page.wait_for_url("**/workspaces", timeout=PAGE_TIMEOUT_MS)
 
 
+def open_details_if_closed(page: Page, selector: str) -> None:
+    details = page.locator(selector).first
+    if details.count() == 0:
+        return
+    if details.get_attribute("open") is None:
+        details.locator("summary").first.click(timeout=PAGE_TIMEOUT_MS)
+
+
 def prepare_realistic_scenario(
     context: BrowserContext,
     *,
@@ -281,6 +289,7 @@ def prepare_realistic_scenario(
     scenario_id = f"{viewport_name}-{time.time_ns()}"
     account_name = f"UI Audit Cash {scenario_id}"
     rule_category_name = "UI Audit Food"
+    property_name = f"UI Audit Apartment {scenario_id}"
     document_name = f"ui-audit-statement-{scenario_id}.xlsx"
     workbook_path = output_dir / document_name
     create_statement_fixture(workbook_path)
@@ -310,11 +319,21 @@ def prepare_realistic_scenario(
         page.wait_for_url("**/ledger/manual?operation_id=**", timeout=PAGE_TIMEOUT_MS)
 
         page.goto(build_url(base_url, "/categories"), wait_until="domcontentloaded")
+        open_details_if_closed(page, "details.category-create-details")
         category_form = page.locator('form[action="/categories"]').first
         category_form.locator('input[name="name"]').fill(rule_category_name)
         category_form.locator('select[name="kind"]').select_option("expense")
         category_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        page.get_by_text(rule_category_name, exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
+        page.get_by_text(rule_category_name, exact=True).first.wait_for(timeout=PAGE_TIMEOUT_MS)
+
+        page.goto(build_url(base_url, "/properties"), wait_until="domcontentloaded")
+        open_details_if_closed(page, "details.property-create-details")
+        property_form = page.locator('form[action="/properties"]').first
+        property_form.locator('input[name="name"]').fill(property_name)
+        property_form.locator('input[name="short_name"]').fill("UI Apt")
+        property_form.locator('input[name="address"]').fill("Audit street, 1")
+        property_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+        page.get_by_text(property_name, exact=True).first.wait_for(timeout=PAGE_TIMEOUT_MS)
 
         page.goto(build_url(base_url, "/rules"), wait_until="domcontentloaded")
         page.locator("details.rule-create-details > summary").click(timeout=PAGE_TIMEOUT_MS)
@@ -346,6 +365,7 @@ def prepare_realistic_scenario(
         "mapping_path": f"{detail_path.rstrip('/')}/mapping",
         "document_name": document_name,
         "rule_category_name": rule_category_name,
+        "property_name": property_name,
     }
 
 
