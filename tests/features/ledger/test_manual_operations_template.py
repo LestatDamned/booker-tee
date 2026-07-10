@@ -101,7 +101,7 @@ def test_manual_operations_template_renders_lifecycle_actions() -> None:
     assert f'id="manual-operation-edit-panel-{operation_id}"' in html
     assert f'id="manual-operation-form-{operation_id}"' not in html
     assert "financial-row-list" in html
-    assert "manual-operation-row--current" in html
+    assert "manual-operation-row--target" in html
     assert 'name="date_from" type="date"' in html
     assert "фильтры операций" in html
     assert "фильтры списка" not in html

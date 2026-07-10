@@ -57,7 +57,7 @@ class ManualOperationsPresenter:
             currency=self._display_currency(operation),
             description=operation.description or "Без описания",
             meta=self._meta(operation),
-            is_current=focused_operation_id == operation.id,
+            is_targeted=focused_operation_id == operation.id,
             is_inactive=operation.status == OperationStatus.IGNORED,
             edit_panel_id=f"manual-operation-edit-panel-{operation.id}",
             edit_form_url=f"/ledger/manual/{operation.id}/edit",

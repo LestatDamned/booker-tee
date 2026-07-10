@@ -42,7 +42,7 @@ class ManualOperationRowVM:
     currency: str
     description: str
     meta: list[ManualOperationMetaVM]
-    is_current: bool
+    is_targeted: bool
     is_inactive: bool
     edit_panel_id: str
     edit_form_url: str

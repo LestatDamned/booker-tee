@@ -36,6 +36,7 @@ def test_base_template_uses_local_frontend_assets() -> None:
 
     assert "/js/vendor/htmx-2.0.4.min.js" in rendered
     assert "/js/vendor/alpine-3.14.8.min.js" in rendered
+    assert "/js/entity-target.js" in rendered
     assert "unpkg.com" not in rendered
 
 

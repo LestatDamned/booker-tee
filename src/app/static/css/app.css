@@ -18,6 +18,9 @@
   --selected-bg: color-mix(in srgb, var(--surface-selected) 88%, var(--accent));
   --selected-bg-strong: color-mix(in srgb, var(--surface-selected) 80%, var(--accent));
   --selected-border: color-mix(in srgb, var(--lavender) 86%, var(--border));
+  --target-bg: color-mix(in srgb, var(--surface) 91%, var(--accent));
+  --target-border: color-mix(in srgb, var(--accent) 48%, var(--border));
+  --target-ring: color-mix(in srgb, var(--accent) 16%, transparent);
   --review-anchor-offset: 152px;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -1753,9 +1756,12 @@ input[type="checkbox"] {
   opacity: 0.76;
 }
 
-.entity-card:target {
-  border-color: var(--accent);
-  background: var(--surface-strong);
+html:not(.entity-target-cleared) .entity-card:target {
+  border-top-color: var(--target-border);
+  border-right-color: var(--target-border);
+  border-bottom-color: var(--target-border);
+  background: var(--target-bg);
+  box-shadow: inset 0 0 0 1px var(--target-ring);
 }
 
 .entity-card-main {
@@ -3321,9 +3327,9 @@ pre {
 }
 
 .badge-active {
-  border-color: color-mix(in srgb, var(--green) 58%, var(--border));
-  background: color-mix(in srgb, var(--green) 5%, transparent);
-  color: color-mix(in srgb, var(--green) 84%, var(--text));
+  border-color: color-mix(in srgb, var(--lavender) 58%, var(--border));
+  background: color-mix(in srgb, var(--lavender) 6%, transparent);
+  color: color-mix(in srgb, var(--lavender) 84%, var(--text));
 }
 
 .badge-expense,
@@ -4089,10 +4095,12 @@ pre {
   grid-template-columns: minmax(0, 1fr) max-content;
 }
 
-.rule-card:target {
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
-  background: color-mix(in srgb, var(--surface) 84%, var(--accent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+html:not(.entity-target-cleared) .rule-card:target {
+  border-top-color: var(--target-border);
+  border-right-color: var(--target-border);
+  border-bottom-color: var(--target-border);
+  background: var(--target-bg);
+  box-shadow: inset 0 0 0 1px var(--target-ring);
 }
 
 .rule-card.htmx-added {
@@ -4951,9 +4959,12 @@ pre {
   border-left-color: var(--accent);
 }
 
-.manual-operation-row--current {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--surface) 88%, var(--accent));
+.manual-operation-row--target {
+  border-top-color: var(--target-border);
+  border-right-color: var(--target-border);
+  border-bottom-color: var(--target-border);
+  background: var(--target-bg);
+  box-shadow: inset 0 0 0 1px var(--target-ring);
 }
 
 .manual-operation-row--inactive {
@@ -5136,6 +5147,15 @@ pre {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
+html:not(.entity-target-cleared) .financial-row:target:not(.entity-card-current),
+.financial-row.manual-operation-row--target {
+  border-top-color: var(--target-border);
+  border-right-color: var(--target-border);
+  border-bottom-color: var(--target-border);
+  background: var(--target-bg);
+  box-shadow: inset 0 0 0 1px var(--target-ring);
+}
+
 .financial-row-list {
   display: grid;
   gap: 10px;
@@ -5300,9 +5320,12 @@ pre {
   border-left-color: var(--danger);
 }
 
-.review-item:target {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--surface-strong) 88%, var(--accent));
+html:not(.entity-target-cleared) .review-item:target {
+  border-top-color: var(--target-border);
+  border-right-color: var(--target-border);
+  border-bottom-color: var(--target-border);
+  background: var(--target-bg);
+  box-shadow: inset 0 0 0 1px var(--target-ring);
 }
 
 .review-item--next {

@@ -60,7 +60,7 @@ def test_manual_operations_presenter_builds_expense_row() -> None:
 
     assert page_vm.total_label == "1 ручных операций"
     assert row.id == f"operation-{operation_id}"
-    assert row.is_current is True
+    assert row.is_targeted is True
     assert row.amount_direction == "expense"
     assert row.currency == "RUB"
     assert row.edit_panel_id == f"manual-operation-edit-panel-{operation_id}"

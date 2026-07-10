@@ -1,6 +1,6 @@
 <article
   id="{{ row.id }}"
-  class="financial-row manual-operation-row manual-operation-row--{{ row.tone }} {% if row.is_current %}manual-operation-row--current{% endif %} {% if row.is_inactive %}manual-operation-row--inactive{% endif %}"
+  class="financial-row manual-operation-row manual-operation-row--{{ row.tone }} {% if row.is_targeted %}manual-operation-row--target{% endif %} {% if row.is_inactive %}manual-operation-row--inactive{% endif %}"
   hx-boost="true"
   hx-select="#{{ row.id }}"
   hx-target="#{{ row.id }}"

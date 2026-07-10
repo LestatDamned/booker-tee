@@ -442,13 +442,15 @@ Visual semantics:
 5. Booker Tee uses the Catppuccin Mocha direction for selection states:
    lavender/blue/sapphire surfaces for current/selected context. Green remains
    for success/confirmed meaning, not generic selection.
-6. Focus is not selection. Browser/keyboard focus should be an outline/ring and
+6. Generic live/enabled states such as `активно`, `текущее`, or `доступно`
+   should use calm lavender/blue status treatment, not green success styling.
+7. Focus is not selection. Browser/keyboard focus should be an outline/ring and
    should disappear when focus moves.
-7. `:target` is navigation focus and fallback only. It should be subtle and
+8. `:target` is navigation focus and fallback only. It should be subtle and
    should not look like a permanent status, problem, or selected entity.
-8. "Just changed" feedback should be short-lived and calm. Prefer HTMX settling
+9. "Just changed" feedback should be short-lived and calm. Prefer HTMX settling
    or a temporary client-side state over a permanent ViewModel flag.
-9. Row update swaps should avoid automatic scrolling unless the action's purpose
+10. Row update swaps should avoid automatic scrolling unless the action's purpose
    is navigation.
 
 Recommended treatments:
@@ -485,13 +487,18 @@ status
   color: calm semantic tone; do not turn every normal status into a highlight
 ```
 
+For `:target` and URL-anchor return states, preserve the entity's semantic left
+edge when it exists. A target highlight may adjust the top/right/bottom border,
+surface, or inner ring, but it should not overwrite an income/expense/transfer,
+problem, category, property, or workflow-status rail.
+
 Current application:
 
 - Workspaces use `current context`: the current workspace is separated from
   other spaces and uses `aria-current`.
 - Import review uses `active work item` / queue semantics for rows the user is
   reviewing.
-- Account detail and manual ledger use `recent` and local row replacement to
+- Account detail and manual ledger use `target`/local row replacement to
   preserve working position after save/cancel.
 - Transaction rules, categories, and properties should use the same language for
   enabled/current/recent/problem states as they continue to evolve.
