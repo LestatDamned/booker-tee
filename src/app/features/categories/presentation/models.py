@@ -45,7 +45,6 @@ class CategoryRowVM:
     notes_label: str | None
     technical_label: str
     detail_action: ActionVM
-    report_action: ActionVM
 
 
 @dataclass(frozen=True)
@@ -63,7 +62,6 @@ class CategoryDetailHeaderVM:
     rule_count_label: str
     notes_label: str | None
     technical_label: str
-    report_action: ActionVM
 
 
 @dataclass(frozen=True)

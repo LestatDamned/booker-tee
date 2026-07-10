@@ -131,7 +131,6 @@ def test_category_presenter_builds_page_state_for_current_view() -> None:
     assert archived_vm.operation_count_label == "3 операций"
     assert archived_vm.rule_count_label == "2 правил"
     assert archived_vm.detail_action.url == f"/categories/{archived_user.category.id}"
-    assert archived_vm.report_action.url == f"/reports?category_id={archived_user.category.id}"
     assert page.view_options[0].url == "/categories"
     assert [option.value for option in page.view_options if option.is_active] == ["archived"]
 

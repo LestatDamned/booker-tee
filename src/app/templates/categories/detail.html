@@ -41,8 +41,6 @@
           {% set action = page.edit_toggle_action %}
           {% include "ui/_action.html" %}
         {% endif %}
-        {% set action = header.report_action %}
-        {% include "ui/_action.html" %}
         {% if can_write and page.lifecycle_action %}
           {% set action = page.lifecycle_action %}
           {% include "ui/_action.html" %}

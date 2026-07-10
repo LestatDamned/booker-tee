@@ -1956,6 +1956,9 @@ Current state:
 - Category detail top card now uses the same Entity Work Row/action contract:
   edit is a drawer inside the card, lifecycle actions are prepared by the
   presenter, and technical ID lives in "Еще действия".
+- Category-specific report navigation is not a row/card action. Category cards
+  should keep the action rail focused on entity actions; report navigation can
+  live in report surfaces or contextual content if needed later.
 - Transaction rules, categories and properties use the shared
   `ui/_more_actions.html` shell for the repeated "Еще действия" summary/menu
   rhythm. The feature templates still own menu contents.

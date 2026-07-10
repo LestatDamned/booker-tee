@@ -83,9 +83,9 @@ def test_categories_template_uses_compact_cards() -> None:
     assert "архив" in html
     assert "10 операций" in html
     assert "4 правил" in html
-    assert "отчет" in html
     assert "открыть категорию" in html
     assert "Еще действия" in html
+    assert f"/reports?category_id={custom_category_id}" not in html
     assert "Супермаркеты и доставка" in html
     assert f'href="/categories/{custom_category_id}"' in html
     assert f'id="category-{custom_category_id}"' in html
@@ -254,7 +254,7 @@ def test_category_detail_template_shows_operations_and_rules() -> None:
     assert "GREEN HOUSE" in html
     assert "Экспобанк карта" in html
     assert "-890.00 RUB" in html
-    assert f"/reports?category_id={category_id}" in html
+    assert f"/reports?category_id={category_id}" not in html
     assert f"/rules#rule-{rule_id}" in html
 
 

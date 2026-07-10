@@ -238,14 +238,6 @@ def category_row_vm(
             action_type="link",
             url=f"/categories/{category.id}",
         ),
-        report_action=ActionVM(
-            id="category-report",
-            label="отчет",
-            icon="list-check",
-            placement="secondary",
-            action_type="link",
-            url=f"/reports?category_id={category.id}",
-        ),
     )
 
 
@@ -274,14 +266,6 @@ def category_detail_header_vm(detail: CategoryDetailView) -> CategoryDetailHeade
         rule_count_label=f"{len(detail.rules)} правил",
         notes_label=category.notes,
         technical_label=f"ID {category.id}",
-        report_action=ActionVM(
-            id="category-report",
-            label="общий отчет",
-            icon="list-check",
-            placement="secondary",
-            action_type="link",
-            url=f"/reports?category_id={category.id}",
-        ),
     )
 
 

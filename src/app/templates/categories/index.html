@@ -31,8 +31,6 @@
     <div class="financial-row__side entity-card-actions row-actions category-card__actions">
       {% set action = row.detail_action %}
       {% include "ui/_action.html" %}
-      {% set action = row.report_action %}
-      {% include "ui/_action.html" %}
       {% call more_actions("category-more-actions", menu_class="category-more-actions__menu") %}
         <div class="category-more-actions__item category-more-actions__technical">
           <span>Показать ID</span>
