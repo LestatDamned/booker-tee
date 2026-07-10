@@ -351,6 +351,7 @@ def prepare_realistic_scenario(
         ).first.wait_for(timeout=PAGE_TIMEOUT_MS)
 
         page.goto(build_url(base_url, "/workspaces"), wait_until="domcontentloaded")
+        page.locator("#workspace-invitation-create > summary").click(timeout=PAGE_TIMEOUT_MS)
         invitation_form = page.locator('form[action$="/invitations"]').first
         invitation_form.locator('select[name="role"]').select_option("viewer")
         invitation_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)

@@ -4606,19 +4606,23 @@ pre {
   grid-column: 1 / -1;
 }
 
-.workspace-create-details {
+.workspace-create-details,
+.workspace-invitation-details {
   border-color: color-mix(in srgb, var(--border) 76%, transparent);
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface-strong) 36%, transparent);
 }
 
-.workspace-create-details > summary {
+.workspace-create-details > summary,
+.workspace-invitation-details > summary {
   grid-template-columns: minmax(0, 1fr) auto;
   min-height: 42px;
 }
 
 .workspace-create-details > summary::after,
-.workspace-create-details[open] > summary::after {
+.workspace-create-details[open] > summary::after,
+.workspace-invitation-details > summary::after,
+.workspace-invitation-details[open] > summary::after {
   content: none;
 }
 
@@ -4799,6 +4803,8 @@ pre {
 
 .workspace-invitation-form {
   align-items: end;
+  border-color: color-mix(in srgb, var(--border) 52%, transparent);
+  padding-top: 14px;
 }
 
 .workspace-invitation-form__field--role {
@@ -6982,6 +6988,10 @@ pre {
   .property-form__field--name,
   .property-form__field--short-name,
   .property-form__field--address,
+  .workspace-create-form__field--name,
+  .workspace-create-form__field--type,
+  .workspace-create-form__field--currency,
+  .workspace-create-form__actions,
   .workspace-form__field--name,
   .workspace-form__field--type,
   .workspace-form__field--currency,

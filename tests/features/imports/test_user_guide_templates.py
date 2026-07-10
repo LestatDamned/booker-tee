@@ -405,8 +405,15 @@ def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
         workspace_types=list(WorkspaceType),
         workspace_return_path="/imports",
         workspaces=workspaces,
+        can_invite_members=True,
+        invite_roles=[WorkspaceRole.EDITOR, WorkspaceRole.VIEWER],
     )
 
+    assert "Настройки пространства" in html
+    assert "Доступ" in html
+    assert "Участники" in html
+    assert "создать приглашение" in html
+    assert "Новая ссылка" not in html
     assert "workspace-card" in html
     assert "workspace-card__edit" in html
     assert "workspace-member-card" in html

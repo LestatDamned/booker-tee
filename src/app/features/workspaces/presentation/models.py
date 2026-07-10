@@ -92,4 +92,5 @@ class WorkspacesPageVM:
     create_panel_open: bool
     create_submit_action: ActionVM
     invitation_create_form_id: str
+    invitation_create_label: str
     invitation_create_submit_action: ActionVM

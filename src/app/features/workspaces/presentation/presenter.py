@@ -93,6 +93,7 @@ class WorkspacesPagePresenter:
                 form_id=create_form_id,
             ),
             invitation_create_form_id=invitation_create_form_id,
+            invitation_create_label="создать приглашение",
             invitation_create_submit_action=ActionVM(
                 id="create-invitation",
                 label="создать ссылку-приглашение",

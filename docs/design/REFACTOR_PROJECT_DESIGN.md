@@ -1654,28 +1654,35 @@ router.py
 
 - `/users` остается простым profile screen; presenter/ViewModel там пока не
   нужен.
-- `/workspaces` совмещает несколько историй в одном шаблоне:
-  workspace creation/switching/editing, members, invitations and audit events.
-- `workspaces/index.html` пока содержит presentation logic: условия ролей,
-  статусы, ID/details, inline edit forms and action hierarchy.
-- Секция "Пространства" все еще ближе к старому `entity-card` /
-  `form-panel-embedded` языку, чем к Entity Work Row contract.
+- `/workspaces` оформлен как settings/access screen для текущего workspace, а
+  не как обычный CRUD reference screen.
+- Верх страницы показывает текущий workspace, роль, пользователя и количество
+  доступных пространств.
+- Главная рабочая секция — "Доступ": участники, изменение ролей, lifecycle
+  actions, создание одноразовой ссылки-приглашения and pending invitations.
+- "Пространства" идет ниже как переключение/создание/редактирование workspace.
+- "Журнал событий" остается вторичным security/support слоем.
+- Workspace, member and invitation rows use Entity Work Row geometry,
+  `ActionVM`, shared action rendering, row-level edit drawers and calm
+  technical/details hierarchy.
 
-Refactor strategy:
+Closed slices:
 
-1. First vertical slice: только секция "Пространства".
-   - создать/редактировать workspace через компактный action/drawer pattern;
-   - карточку workspace привести к Entity Work Row geometry:
+1. "Пространства".
+   - создание/редактирование workspace через компактный action/drawer pattern;
+   - карточка workspace приведена к Entity Work Row geometry:
      левая зона — название, тип, валюта, статус; правая зона — действия;
-   - убрать ordinary ID/debug details из обычной карточки;
-   - использовать shared `ActionVM` shape for visible actions;
-   - не менять authorization, membership or invitation domain rules.
-2. Second slice: "Участники".
+   - ordinary ID/debug details убраны из обычной карточки;
+   - visible actions use shared `ActionVM` shape.
+2. "Участники".
    - row/card для участника в том же action contract;
    - изменение роли как drawer/form action;
-   - отключить/восстановить как lifecycle/danger action с понятной иерархией.
-3. Third slice: invitations and audit trail.
+   - отключить/восстановить как lifecycle/danger action with confirmation.
+3. Invitations and audit trail.
    - invitation links remain sensitive and one-time;
+   - create invitation is a compact closed action by default and opens after
+     link creation;
+   - pending invitations use row/action geometry with danger revoke action;
    - audit stays secondary and inspectable, not a main working card list;
    - technical details stay out of ordinary UI unless a support/debug scenario
      is explicitly designed.
