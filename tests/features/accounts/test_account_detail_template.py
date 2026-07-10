@@ -179,6 +179,7 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert f'hx-target="#operation-{operation_id}"' in html
     assert 'hx-swap="outerHTML show:none"' in html
     assert 'hx-push-url="false"' in html
+    assert 'data-entity-working="true"' in html
     assert "account-movement__topline" in html
     assert "financial-row__description account-movement__description" in html
     row_html = html[html.index("financial-row account-movement") :]

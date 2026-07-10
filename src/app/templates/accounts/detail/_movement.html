@@ -1,6 +1,7 @@
 <article
   id="{{ movement.id }}"
   class="financial-row account-movement account-movement--{{ movement.tone }}"
+  data-entity-working="true"
   hx-boost="true"
   hx-select="#{{ movement.id }}"
   hx-target="#{{ movement.id }}"

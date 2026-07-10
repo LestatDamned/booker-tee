@@ -76,6 +76,7 @@ def test_categories_template_uses_compact_cards() -> None:
     assert "категория готова" not in html
     assert "financial-row" in html
     assert "row-actions" in html
+    assert 'data-entity-working="true"' in html
     assert "category-card--system" in html
     assert "category-edit-details" not in html
     assert "badge-expense" in html
@@ -296,6 +297,7 @@ def test_category_detail_template_shows_edit_error_and_keeps_values() -> None:
         ),
     )
 
+    assert 'data-entity-working="true"' in html
     assert 'category-detail-card__edit" open' in html
     assert 'role="alert"' in html
     assert "Категория с таким названием уже есть." in html
@@ -396,6 +398,7 @@ def test_properties_template_uses_row_drawer_editing() -> None:
     assert "entity-card" in html
     assert "financial-row" in html
     assert "row-actions" in html
+    assert 'data-entity-working="true"' in html
     assert "row-drawer" in html
     assert "property-card__edit" in html
     assert "badge-active" in html

@@ -507,12 +507,12 @@ Current application:
 - Workspaces use `current context`: the current workspace is separated from
   other spaces and uses `aria-current`.
 - Import review uses `active work item` / queue semantics for rows the user is
-  reviewing.
+  reviewing, and `working card` when the user acts on a specific row.
 - Account detail and manual ledger use `target` only for URL-anchor return
   states. Local row replacement after save/cancel/restore should preserve the
   `working card`.
-- Transaction rules, categories, and properties should use the same language for
-  enabled/current/recent/problem states as they continue to evolve.
+- Transaction rules, categories, and properties use the same language for
+  working/recent/problem states as they continue to evolve.
 
 Use the import review local-update pattern as the reference:
 

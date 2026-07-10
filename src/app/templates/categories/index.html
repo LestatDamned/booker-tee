@@ -5,7 +5,7 @@
 {% block title %}Категории · {{ app_name }}{% endblock %}
 
 {% macro category_card(row) %}
-  <article id="{{ row.anchor_id }}" class="financial-row entity-card category-card {% if row.is_system %}category-card--system{% endif %} {% if row.is_inactive %}entity-card-inactive{% endif %} {% if row.is_recent %}category-card--recent{% endif %}">
+  <article id="{{ row.anchor_id }}" class="financial-row entity-card category-card {% if row.is_system %}category-card--system{% endif %} {% if row.is_inactive %}entity-card-inactive{% endif %} {% if row.is_recent %}category-card--recent{% endif %}" data-entity-working="true">
     <div class="financial-row__main entity-card-main category-card__main">
       <div class="financial-row__topline category-card__topline">
         <div class="entity-card-title category-card__title">

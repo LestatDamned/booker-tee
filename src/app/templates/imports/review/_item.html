@@ -3,6 +3,7 @@
 <article
   class="financial-row review-item review-item--vm review-item--status-{{ item.visual_state }} {% if item.is_next %}review-item--next{% endif %}"
   id="{{ item.anchor_id }}"
+  data-entity-working="true"
   hx-boost="true"
   hx-select="#{{ item.anchor_id }}"
   hx-target="#{{ item.anchor_id }}"

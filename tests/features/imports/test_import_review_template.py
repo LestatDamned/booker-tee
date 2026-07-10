@@ -473,6 +473,7 @@ def test_review_template_prefills_suggested_rule_category() -> None:
     assert 'hx-boost="true"' in html
     assert f'hx-target="#raw-{row_id}"' in html
     assert 'hx-swap="outerHTML show:none"' in html
+    assert 'data-entity-working="true"' in html
     assert 'hx-push-url="false"' in html
     assert 'aria-label="Новая категория"' in html
     assert "action-title-row" not in html
