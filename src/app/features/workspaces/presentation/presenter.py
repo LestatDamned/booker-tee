@@ -2,6 +2,8 @@ from uuid import UUID
 
 from app.features.workspaces.models import (
     Workspace,
+    WorkspaceAuditEvent,
+    WorkspaceInvitation,
     WorkspaceMember,
     WorkspaceMemberStatus,
     WorkspaceRole,
@@ -13,13 +15,15 @@ from app.features.workspaces.permissions import (
     can_reactivate_member,
 )
 from app.features.workspaces.presentation.models import (
+    WorkspaceAuditEventRowVM,
     WorkspaceCreateFormVM,
+    WorkspaceInvitationRowVM,
     WorkspaceMemberRowVM,
     WorkspaceRowVM,
     WorkspacesPageVM,
 )
 from app.shared.ui.actions import ActionVM
-from app.templating import ru_label
+from app.templating import date_ru, ru_label, short_id
 
 
 class WorkspacesPagePresenter:
@@ -28,6 +32,8 @@ class WorkspacesPagePresenter:
         workspaces: list[Workspace],
         *,
         members: list[WorkspaceMember],
+        pending_invitations: list[WorkspaceInvitation],
+        audit_events: list[WorkspaceAuditEvent],
         current_workspace_id: UUID,
         current_default_currency: str,
         current_user_id: UUID,
@@ -37,6 +43,7 @@ class WorkspacesPagePresenter:
         member_roles: tuple[WorkspaceRole, ...],
     ) -> WorkspacesPageVM:
         create_form_id = "workspace-create-form"
+        invitation_create_form_id = "workspace-invitation-create-form"
         return WorkspacesPageVM(
             workspace_rows=[
                 workspace_row_vm(
@@ -59,6 +66,15 @@ class WorkspacesPagePresenter:
                 for member in members
             ],
             member_count_label=member_count_label(len(members)),
+            invitation_rows=[
+                invitation_row_vm(
+                    invitation,
+                    current_workspace_id=current_workspace_id,
+                )
+                for invitation in pending_invitations
+            ],
+            invitation_count_label=invitation_count_label(len(pending_invitations)),
+            audit_event_rows=[audit_event_row_vm(event) for event in audit_events],
             workspace_types=list(WorkspaceType),
             create_form=WorkspaceCreateFormVM(
                 name="",
@@ -75,6 +91,15 @@ class WorkspacesPagePresenter:
                 placement="primary",
                 action_type="submit",
                 form_id=create_form_id,
+            ),
+            invitation_create_form_id=invitation_create_form_id,
+            invitation_create_submit_action=ActionVM(
+                id="create-invitation",
+                label="создать ссылку-приглашение",
+                icon="plus",
+                placement="primary",
+                action_type="submit",
+                form_id=invitation_create_form_id,
             ),
         )
 
@@ -192,6 +217,76 @@ def member_row_vm(
         else None,
         lifecycle_action=lifecycle_action,
     )
+
+
+def invitation_row_vm(
+    invitation: WorkspaceInvitation,
+    *,
+    current_workspace_id: UUID,
+) -> WorkspaceInvitationRowVM:
+    return WorkspaceInvitationRowVM(
+        invitation=invitation,
+        anchor_id=f"workspace-invitation-{invitation.id}",
+        title=f"Приглашение {short_id(invitation.id)}",
+        role_label=ru_label(invitation.role),
+        status_label=ru_label(invitation.status),
+        status_tone="warning",
+        expires_label=f"до {date_ru(invitation.expires_at)}",
+        revoke_action=ActionVM(
+            id="revoke-invitation",
+            label="отозвать",
+            icon="x",
+            placement="danger",
+            action_type="post",
+            url=f"/workspaces/{current_workspace_id}/invitations/{invitation.id}/revoke",
+            style="danger",
+            confirm_message="Отозвать ссылку-приглашение?",
+        ),
+    )
+
+
+def invitation_count_label(count: int) -> str:
+    if count % 10 == 1 and count % 100 != 11:
+        noun = "приглашение"
+    elif count % 10 in {2, 3, 4} and count % 100 not in {12, 13, 14}:
+        noun = "приглашения"
+    else:
+        noun = "приглашений"
+    return f"{count} {noun}"
+
+
+def audit_event_row_vm(event: WorkspaceAuditEvent) -> WorkspaceAuditEventRowVM:
+    return WorkspaceAuditEventRowVM(
+        event=event,
+        anchor_id=f"workspace-audit-{event.id}",
+        title=ru_label(event.event_type),
+        date_label=date_ru(event.created_at),
+        meta_labels=audit_event_meta_labels(event),
+        detail_labels=audit_event_detail_labels(event),
+    )
+
+
+def audit_event_meta_labels(event: WorkspaceAuditEvent) -> list[str]:
+    labels = []
+    if event.actor:
+        labels.append(f"кто: {event.actor.email}")
+    if event.target_user:
+        labels.append(f"кого: {event.target_user.email}")
+    if event.entity_type:
+        labels.append(audit_entity_type_label(event.entity_type))
+    return labels
+
+
+def audit_event_detail_labels(event: WorkspaceAuditEvent) -> list[str]:
+    if not event.details:
+        return []
+    return [f"{ru_label(key)}: {ru_label(value)}" for key, value in event.details.items()]
+
+
+def audit_entity_type_label(entity_type: str) -> str:
+    if entity_type == "workspace":
+        return "пространство"
+    return ru_label(entity_type)
 
 
 def member_status_tone(status: WorkspaceMemberStatus) -> str:

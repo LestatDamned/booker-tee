@@ -9,7 +9,13 @@ from app.features.imports.presentation.document_page.presenter import DocumentDe
 from app.features.imports.presentation.documents import ImportIndexPresenter, UploadPagePresenter
 from app.features.imports.presentation.mapping.models import MappingDocumentVM, MappingNextStepVM
 from app.features.imports.presentation.review.page import build_review_page_context
-from app.features.workspaces.models import WorkspaceMemberStatus, WorkspaceRole, WorkspaceType
+from app.features.workspaces.models import (
+    WorkspaceAuditEventType,
+    WorkspaceInvitationStatus,
+    WorkspaceMemberStatus,
+    WorkspaceRole,
+    WorkspaceType,
+)
 from app.features.workspaces.presentation.presenter import WorkspacesPagePresenter
 from app.templating import create_templates
 
@@ -344,6 +350,21 @@ def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
         status=WorkspaceMemberStatus.ACTIVE,
         user=SimpleNamespace(name="Editor User", email="editor@example.com"),
     )
+    pending_invitation = SimpleNamespace(
+        id=uuid4(),
+        role=WorkspaceRole.VIEWER,
+        status=WorkspaceInvitationStatus.PENDING,
+        expires_at=date(2026, 7, 3),
+    )
+    audit_event = SimpleNamespace(
+        id=uuid4(),
+        event_type=WorkspaceAuditEventType.MEMBER_ROLE_CHANGED,
+        created_at=date(2026, 7, 2),
+        actor=actor_membership.user,
+        target_user=managed_member.user,
+        entity_type="workspace_member",
+        details={"old_role": "viewer", "new_role": "editor"},
+    )
     current_workspace = SimpleNamespace(
         id=current_workspace_id,
         name="Personal",
@@ -371,6 +392,8 @@ def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
         workspace_page=WorkspacesPagePresenter.build_index(
             cast(Any, workspaces),
             members=cast(Any, [actor_membership, managed_member]),
+            pending_invitations=cast(Any, [pending_invitation]),
+            audit_events=cast(Any, [audit_event]),
             current_workspace_id=current_workspace_id,
             current_default_currency="RUB",
             current_user_id=current_user_id,
@@ -388,6 +411,8 @@ def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
     assert "workspace-card__edit" in html
     assert "workspace-member-card" in html
     assert "workspace-member-card__edit" in html
+    assert "workspace-invitation-card" in html
+    assert "workspace-audit-card" in html
     assert "Изменить пространство" in html
     assert "Изменить роль" in html
     managed_member_path = f"/workspaces/{current_workspace_id}/members/{managed_member.id}"
@@ -395,6 +420,12 @@ def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
     member_disable_action = f'action="{managed_member_path}/disable"'
     assert member_role_action in html
     assert member_disable_action in html
+    invitation_revoke_action = (
+        f'action="/workspaces/{current_workspace_id}/invitations/{pending_invitation.id}/revoke"'
+    )
+    assert invitation_revoke_action in html
+    assert "роль участника изменена" in html
+    assert "старая роль: наблюдатель" in html
     assert "admin-details" not in html
     assert f'action="/workspaces/{other_workspace_id}/select"' in html
     assert 'name="next" value="/imports"' in html
@@ -431,6 +462,8 @@ def test_workspace_invitation_link_is_visible_after_creation() -> None:
         workspace_page=WorkspacesPagePresenter.build_index(
             [],
             members=cast(Any, [actor_membership]),
+            pending_invitations=[],
+            audit_events=[],
             current_workspace_id=workspace_id,
             current_default_currency="RUB",
             current_user_id=current_user_id,

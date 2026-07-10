@@ -1,6 +1,13 @@
 from dataclasses import dataclass
 
-from app.features.workspaces.models import Workspace, WorkspaceMember, WorkspaceRole, WorkspaceType
+from app.features.workspaces.models import (
+    Workspace,
+    WorkspaceAuditEvent,
+    WorkspaceInvitation,
+    WorkspaceMember,
+    WorkspaceRole,
+    WorkspaceType,
+)
 from app.shared.ui.actions import ActionVM
 
 
@@ -48,14 +55,41 @@ class WorkspaceMemberRowVM:
 
 
 @dataclass(frozen=True)
+class WorkspaceInvitationRowVM:
+    invitation: WorkspaceInvitation
+    anchor_id: str
+    title: str
+    role_label: str
+    status_label: str
+    status_tone: str
+    expires_label: str
+    revoke_action: ActionVM
+
+
+@dataclass(frozen=True)
+class WorkspaceAuditEventRowVM:
+    event: WorkspaceAuditEvent
+    anchor_id: str
+    title: str
+    date_label: str
+    meta_labels: list[str]
+    detail_labels: list[str]
+
+
+@dataclass(frozen=True)
 class WorkspacesPageVM:
     workspace_rows: list[WorkspaceRowVM]
     workspace_count_label: str
     member_rows: list[WorkspaceMemberRowVM]
     member_count_label: str
+    invitation_rows: list[WorkspaceInvitationRowVM]
+    invitation_count_label: str
+    audit_event_rows: list[WorkspaceAuditEventRowVM]
     workspace_types: list[WorkspaceType]
     create_form: WorkspaceCreateFormVM
     create_form_id: str
     create_label: str
     create_panel_open: bool
     create_submit_action: ActionVM
+    invitation_create_form_id: str
+    invitation_create_submit_action: ActionVM

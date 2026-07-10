@@ -4797,6 +4797,70 @@ pre {
   grid-column: span 6;
 }
 
+.workspace-invitation-form {
+  align-items: end;
+}
+
+.workspace-invitation-form__field--role {
+  grid-column: span 6;
+}
+
+.workspace-invitation-form__actions {
+  grid-column: span 6;
+  justify-content: flex-end;
+}
+
+.workspace-invitation-form__actions .button {
+  width: 100%;
+}
+
+.workspace-invitation-card__main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.workspace-invitation-card__topline {
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
+
+.workspace-invitation-card__title strong {
+  font-size: 1.02rem;
+  overflow-wrap: anywhere;
+}
+
+.workspace-invitation-card__status {
+  min-height: 34px;
+  justify-self: end;
+  justify-content: center;
+  border-color: color-mix(in srgb, currentcolor 72%, var(--border));
+  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
+  padding-inline: 12px;
+}
+
+.workspace-invitation-card__actions {
+  min-width: 0;
+}
+
+.workspace-audit-card {
+  grid-template-columns: 1fr;
+  border-color: color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+}
+
+.workspace-audit-card__main {
+  gap: 10px;
+}
+
+.workspace-audit-card__title strong {
+  color: color-mix(in srgb, var(--text) 88%, var(--muted));
+  font-size: 1rem;
+}
+
+.workspace-audit-card__details span {
+  color: color-mix(in srgb, var(--muted) 88%, var(--text));
+}
+
 .manual-operation-row {
   border-left-width: 4px;
 }
@@ -6922,6 +6986,8 @@ pre {
   .workspace-form__field--type,
   .workspace-form__field--currency,
   .workspace-member-form__field--role,
+  .workspace-invitation-form__field--role,
+  .workspace-invitation-form__actions,
   .operation-form__fields--classification .operation-form__field,
   .operation-form__field--description,
   .rule-edit-fields--condition .rule-edit-field--match,

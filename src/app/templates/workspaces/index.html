@@ -275,9 +275,9 @@
           </div>
         {% endif %}
 
-        <form class="form-panel" method="post" action="/workspaces/{{ workspace.id }}/invitations">
+        <form id="{{ page.invitation_create_form_id }}" class="form-panel workspace-invitation-form" method="post" action="/workspaces/{{ workspace.id }}/invitations">
           {{ csrf_input() }}
-          <label class="field form-field-half">
+          <label class="field workspace-invitation-form__field workspace-invitation-form__field--role">
             <span>роль</span>
             <select name="role">
               {% for role in invite_roles %}
@@ -285,35 +285,36 @@
               {% endfor %}
             </select>
           </label>
-          <div class="form-actions-inline">
-            <button class="button" type="submit">{{ icon("plus") }} создать ссылку-приглашение</button>
+          <div class="form-actions workspace-invitation-form__actions">
+            {% set action = page.invitation_create_submit_action %}
+            {% include "ui/_action.html" %}
           </div>
         </form>
       {% endif %}
 
-      {% if pending_invitations %}
+      {% if page.invitation_rows %}
         <div class="subsection-heading">
           <h3>Ожидающие приглашения</h3>
-          <span>{{ pending_invitations | length }}</span>
+          <span>{{ page.invitation_count_label }}</span>
         </div>
-        <div class="entity-card-list">
-          {% for invitation in pending_invitations %}
-            <article class="entity-card">
-              <div class="entity-card-main">
-                <div class="entity-card-title">
-                  <strong>Приглашение {{ invitation.id | short_id }}</strong>
-                  <span class="badge badge-warning">{{ invitation.status | ru }}</span>
+        <div class="entity-card-list workspace-invitation-list">
+          {% for row in page.invitation_rows %}
+            <article id="{{ row.anchor_id }}" class="financial-row entity-card workspace-invitation-card">
+              <div class="financial-row__main entity-card-main workspace-invitation-card__main">
+                <div class="financial-row__topline workspace-invitation-card__topline">
+                  <div class="entity-card-title workspace-invitation-card__title">
+                    <strong>{{ row.title }}</strong>
+                  </div>
+                  <span class="badge badge-{{ row.status_tone }} workspace-invitation-card__status">{{ row.status_label }}</span>
                 </div>
-                <div class="entity-card-meta">
-                  <span>{{ invitation.role | ru }}</span>
-                  <span>до {{ invitation.expires_at | date_ru }}</span>
+                <div class="financial-row__meta workspace-invitation-card__meta">
+                  <span class="financial-row__meta-item financial-row__meta-item--classification">{{ row.role_label }}</span>
+                  <span class="financial-row__meta-item financial-row__meta-item--warning">{{ row.expires_label }}</span>
                 </div>
               </div>
-              <div class="entity-card-actions">
-                <form method="post" action="/workspaces/{{ workspace.id }}/invitations/{{ invitation.id }}/revoke">
-                  {{ csrf_input() }}
-                  <button class="button button-small" type="submit">{{ icon("trash") }} отозвать</button>
-                </form>
+              <div class="financial-row__side entity-card-actions row-actions workspace-invitation-card__actions">
+                {% set action = row.revoke_action %}
+                {% include "ui/_action.html" %}
               </div>
             </article>
           {% endfor %}
@@ -321,7 +322,7 @@
       {% endif %}
     </section>
 
-    {% if audit_events %}
+    {% if page.audit_event_rows %}
       <section class="workspace-section stack" aria-labelledby="audit-section-title">
         <div class="workspace-section-header">
           <div>
@@ -331,34 +332,27 @@
           <span class="section-context">последние события</span>
         </div>
 
-        <div class="entity-card-list">
-          {% for event in audit_events %}
-            <article class="entity-card">
-              <div class="entity-card-main">
-                <div class="entity-card-title">
-                  <strong>{{ event.event_type | ru }}</strong>
-                  <span class="badge">{{ event.created_at | date_ru }}</span>
+        <div class="entity-card-list workspace-audit-list">
+          {% for row in page.audit_event_rows %}
+            <article id="{{ row.anchor_id }}" class="entity-card workspace-audit-card">
+              <div class="entity-card-main workspace-audit-card__main">
+                <div class="entity-card-title workspace-audit-card__title">
+                  <strong>{{ row.title }}</strong>
+                  <span class="badge badge-muted">{{ row.date_label }}</span>
                 </div>
-                <div class="entity-card-meta">
-                  {% if event.actor %}
-                    <span>кто: {{ event.actor.email }}</span>
-                  {% endif %}
-                  {% if event.target_user %}
-                    <span>кого: {{ event.target_user.email }}</span>
-                  {% endif %}
-                </div>
-                {% if event.details %}
-                  <div class="entity-card-meta">
-                    {% for key, value in event.details.items() %}
-                      <span>{{ key | ru }}: {{ value | ru }}</span>
+                {% if row.meta_labels %}
+                  <div class="entity-card-meta workspace-audit-card__meta">
+                    {% for label in row.meta_labels %}
+                      <span>{{ label }}</span>
                     {% endfor %}
                   </div>
                 {% endif %}
-                {% if event.entity_id %}
-                  <details class="technical-details">
-                    <summary>ID</summary>
-                    <span>{{ event.entity_type | ru }} {{ event.entity_id }}</span>
-                  </details>
+                {% if row.detail_labels %}
+                  <div class="entity-card-meta workspace-audit-card__details">
+                    {% for label in row.detail_labels %}
+                      <span>{{ label }}</span>
+                    {% endfor %}
+                  </div>
                 {% endif %}
               </div>
             </article>

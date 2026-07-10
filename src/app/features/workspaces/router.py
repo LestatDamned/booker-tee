@@ -343,6 +343,8 @@ async def render_workspaces_index(
     workspace_return_path = current_request_path(request)
     user_workspaces = await service.list_user_workspaces(context.user.id)
     members = await service.list_workspace_members(context)
+    pending_invitations = await service.list_pending_invitations(context)
+    audit_events = await service.list_recent_audit_events(context)
     return templates.TemplateResponse(
         request,
         "workspaces/index.html",
@@ -353,6 +355,8 @@ async def render_workspaces_index(
             "workspace_page": WorkspacesPagePresenter.build_index(
                 user_workspaces,
                 members=members,
+                pending_invitations=pending_invitations,
+                audit_events=audit_events,
                 current_workspace_id=context.workspace.id,
                 current_default_currency=context.workspace.default_currency,
                 current_user_id=context.user.id,
@@ -365,8 +369,8 @@ async def render_workspaces_index(
             "workspaces": user_workspaces,
             "members": members,
             "member_roles": MANAGEABLE_MEMBER_ROLES,
-            "pending_invitations": await service.list_pending_invitations(context),
-            "audit_events": await service.list_recent_audit_events(context),
+            "pending_invitations": pending_invitations,
+            "audit_events": audit_events,
             "invite_roles": INVITABLE_ROLES,
             "can_invite_members": can_invite_workspace_members(context.membership),
             "created_invitation_link": created_invitation_link,
