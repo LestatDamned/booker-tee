@@ -5960,8 +5960,25 @@ html:not(.entity-target-cleared) .review-item:target {
   color: var(--text);
 }
 
+.report-control {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-strong) 20%, transparent);
+}
+
 .report-filter-details {
-  border-color: color-mix(in srgb, var(--border) 58%, transparent);
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 34%, transparent);
+  border-radius: 0;
+  background: transparent;
+}
+
+.report-filter-details summary {
+  min-height: 38px;
+  padding: 0 10px;
 }
 
 .report-period-nav {
@@ -5969,9 +5986,8 @@ html:not(.entity-target-cleared) .review-item:target {
   grid-template-columns: 40px minmax(180px, 1fr) 40px auto auto;
   gap: 6px;
   align-items: stretch;
-  border: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-strong) 24%, transparent);
+  border: 0;
+  background: transparent;
   padding: 6px;
 }
 
@@ -6021,11 +6037,18 @@ html:not(.entity-target-cleared) .review-item:target {
   color: var(--text);
 }
 
+.report-period-nav__shortcut.report-period-nav__shortcut--active {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-strong));
+  color: var(--text);
+}
+
 .filter-form.report-filter-form {
   grid-template-columns: minmax(300px, 0.85fr) minmax(460px, 1.4fr);
   align-items: end;
   gap: 8px 10px;
-  border-top-color: color-mix(in srgb, var(--border) 34%, transparent);
+  border-top-color: color-mix(in srgb, var(--border) 28%, transparent);
+  background: color-mix(in srgb, var(--surface) 22%, transparent);
   padding: 8px 10px 10px;
 }
 
@@ -6041,6 +6064,39 @@ html:not(.entity-target-cleared) .review-item:target {
   grid-column: 1 / -1;
   grid-template-columns: minmax(120px, 180px) minmax(140px, 200px);
   justify-content: end;
+}
+
+.report-kpis {
+  gap: 6px;
+  margin-top: -2px;
+}
+
+.report-kpis .metric {
+  min-height: 66px;
+  gap: 6px;
+  padding: 10px 12px;
+}
+
+.report-section-title {
+  margin: 10px 0 -2px;
+  color: color-mix(in srgb, var(--text) 84%, var(--muted));
+  font-size: 0.92rem;
+}
+
+.report-table th {
+  padding-block: 8px;
+  font-size: 0.72rem;
+}
+
+.report-table td {
+  padding-block: 9px;
+}
+
+.report-table th:not(:first-child),
+.report-table td.amount,
+.report-table td:last-child[data-label="прибыль"],
+.report-table td[data-label="баланс"] {
+  text-align: right;
 }
 
 .review-actions__secondary {

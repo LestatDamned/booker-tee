@@ -14,3 +14,8 @@ class ReportPeriodNav:
     all_time_url: str
     has_period_filter: bool
     is_month_period: bool
+    has_exact_filters: bool
+    is_all_time_period: bool
+    is_current_month_period: bool
+    mode_label: str
+    exact_filters_label: str

@@ -31,6 +31,20 @@ def build_report_period_nav(
     current_month_start = (today or date.today()).replace(day=1)
     has_period_filter = filters.date_from is not None or filters.date_to is not None
     is_month_period = filters.date_from == month_start and filters.date_to == month_end
+    is_current_month_period = is_month_period and month_start == current_month_start
+    has_entity_filters = any(
+        (
+            filters.account_id,
+            filters.category_id,
+            filters.property_id,
+        )
+    )
+    has_exact_filters = has_entity_filters or (has_period_filter and not is_month_period)
+    is_all_time_period = not has_period_filter
+    mode_label = report_mode_label(
+        is_all_time_period=is_all_time_period,
+        is_month_period=is_month_period,
+    )
     return ReportPeriodNav(
         month_start=month_start,
         month_end=month_end,
@@ -46,6 +60,16 @@ def build_report_period_nav(
         ),
         has_period_filter=has_period_filter,
         is_month_period=is_month_period,
+        has_exact_filters=has_exact_filters,
+        is_all_time_period=is_all_time_period,
+        is_current_month_period=is_current_month_period,
+        mode_label=mode_label,
+        exact_filters_label=exact_filters_label(
+            has_exact_filters=has_exact_filters,
+            has_entity_filters=has_entity_filters,
+            period_label=report_period_label(filters),
+            is_month_period=is_month_period,
+        ),
     )
 
 
@@ -57,6 +81,28 @@ def report_period_label(filters: ReportFilters) -> str:
     if filters.date_to:
         return f"по {format_report_date(filters.date_to)}"
     return "все время"
+
+
+def report_mode_label(*, is_all_time_period: bool, is_month_period: bool) -> str:
+    if is_all_time_period:
+        return "все время"
+    if is_month_period:
+        return "месяц"
+    return "точный период"
+
+
+def exact_filters_label(
+    *,
+    has_exact_filters: bool,
+    has_entity_filters: bool,
+    period_label: str,
+    is_month_period: bool,
+) -> str:
+    if not has_exact_filters:
+        return "не применены"
+    if has_entity_filters and is_month_period:
+        return "применены"
+    return period_label
 
 
 def format_report_date(value: date) -> str:

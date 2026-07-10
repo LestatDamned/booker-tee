@@ -172,6 +172,11 @@ def test_report_period_nav_uses_selected_month_and_preserves_filters() -> None:
     assert period.period_label == "10.05.2026 — 20.05.2026"
     assert period.is_month_period is False
     assert period.has_period_filter is True
+    assert period.has_exact_filters is True
+    assert period.is_all_time_period is False
+    assert period.is_current_month_period is False
+    assert period.mode_label == "точный период"
+    assert period.exact_filters_label == "10.05.2026 — 20.05.2026"
     assert period.previous_month_url == (
         f"/reports?date_from=2026-04-01&date_to=2026-04-30"
         f"&account_id={account_id}&category_id={category_id}&property_id={property_id}"
@@ -198,9 +203,21 @@ def test_report_month_url_marks_exact_month_period() -> None:
     period = build_report_period_nav(filters, today=date(2026, 7, 10))
 
     assert period.is_month_period is True
+    assert period.has_exact_filters is False
+    assert period.mode_label == "месяц"
     assert report_month_url(ReportFilters(), date(2026, 2, 1)) == (
         "/reports?date_from=2026-02-01&date_to=2026-02-28"
     )
+
+
+def test_report_period_nav_marks_all_time_mode() -> None:
+    period = build_report_period_nav(ReportFilters(), today=date(2026, 7, 10))
+
+    assert period.period_label == "все время"
+    assert period.is_all_time_period is True
+    assert period.has_exact_filters is False
+    assert period.mode_label == "все время"
+    assert period.exact_filters_label == "не применены"
 
 
 async def test_report_account_balances_use_selected_account_and_date_to() -> None:

@@ -66,7 +66,7 @@ def test_reports_template_marks_financial_tones() -> None:
     assert 'href="/reports?date_from=2026-08-01&amp;date_to=2026-08-31"' in html
     assert "этот месяц" in html
     assert "все время" in html
-    assert "точная настройка отчета" in html
+    assert "точные фильтры" in html
     assert "metric-expense" in html
     assert "metric-profit" in html
     assert "money-value money-income" in html
@@ -192,4 +192,9 @@ def report_period_stub() -> SimpleNamespace:
         all_time_url="/reports",
         has_period_filter=False,
         is_month_period=False,
+        has_exact_filters=False,
+        is_all_time_period=True,
+        is_current_month_period=False,
+        mode_label="все время",
+        exact_filters_label="не применены",
     )
