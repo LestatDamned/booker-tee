@@ -10,6 +10,7 @@ from app.features.imports.presentation.documents import ImportIndexPresenter, Up
 from app.features.imports.presentation.mapping.models import MappingDocumentVM, MappingNextStepVM
 from app.features.imports.presentation.review.page import build_review_page_context
 from app.features.workspaces.models import WorkspaceType
+from app.features.workspaces.presentation.presenter import WorkspacesPagePresenter
 from app.templating import create_templates
 
 
@@ -326,35 +327,42 @@ def test_profile_separates_session_action_from_profile_metrics() -> None:
 def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
     current_workspace_id = uuid4()
     other_workspace_id = uuid4()
+    current_workspace = SimpleNamespace(
+        id=current_workspace_id,
+        name="Personal",
+        type=WorkspaceType.PERSONAL,
+        default_currency="RUB",
+    )
+    workspaces = [
+        current_workspace,
+        SimpleNamespace(
+            id=other_workspace_id,
+            name="Family Budget",
+            type=WorkspaceType.FAMILY,
+            default_currency="RUB",
+        ),
+    ]
     html = render_template(
         "workspaces/index.html",
         app_name="Booker Tee",
         current_user=SimpleNamespace(name="Test User", email="test@example.com"),
-        workspace=SimpleNamespace(
-            id=current_workspace_id,
-            name="Personal",
-            default_currency="RUB",
+        workspace=current_workspace,
+        workspace_page=WorkspacesPagePresenter.build_index(
+            cast(Any, workspaces),
+            current_workspace_id=current_workspace_id,
+            current_default_currency="RUB",
+            can_manage_workspace=True,
+            select_return_path="/imports",
         ),
         workspace_types=list(WorkspaceType),
         workspace_return_path="/imports",
-        workspaces=[
-            SimpleNamespace(
-                id=current_workspace_id,
-                name="Personal",
-                type=WorkspaceType.PERSONAL,
-                default_currency="RUB",
-            ),
-            SimpleNamespace(
-                id=other_workspace_id,
-                name="Family Budget",
-                type=WorkspaceType.FAMILY,
-                default_currency="RUB",
-            ),
-        ],
+        workspaces=workspaces,
     )
 
-    assert "admin-details" in html
-    assert "Редактирование" in html
+    assert "workspace-card" in html
+    assert "workspace-card__edit" in html
+    assert "Изменить пространство" in html
+    assert "admin-details" not in html
     assert f'action="/workspaces/{other_workspace_id}/select"' in html
     assert 'name="next" value="/imports"' in html
     assert f'action="/workspaces/{current_workspace_id}/select"' not in html
@@ -371,7 +379,15 @@ def test_workspace_invitation_link_is_visible_after_creation() -> None:
         workspace=SimpleNamespace(
             id=workspace_id,
             name="Family",
+            type=WorkspaceType.FAMILY,
             default_currency="RUB",
+        ),
+        workspace_page=WorkspacesPagePresenter.build_index(
+            [],
+            current_workspace_id=workspace_id,
+            current_default_currency="RUB",
+            can_manage_workspace=True,
+            select_return_path="/workspaces",
         ),
         workspace_types=list(WorkspaceType),
         workspaces=[],

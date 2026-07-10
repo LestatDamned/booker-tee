@@ -3,8 +3,7 @@
 {% block title %}Пространства · {{ app_name }}{% endblock %}
 
 {% block content %}
-  {% set can_manage_workspace = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_manage_workspace %}
-  {% set workspace_select_return_path = workspace_return_path | default('/workspaces', true) %}
+  {% set page = workspace_page %}
   <section class="panel stack">
     <div class="toolbar">
       <div>
@@ -43,93 +42,112 @@
           <p class="eyebrow">переключение и настройки</p>
           <h2 id="workspaces-section-title">Пространства</h2>
         </div>
-        <span class="section-context">{{ workspaces | length }} доступно</span>
+        <span class="section-context">{{ page.workspace_count_label }}</span>
       </div>
 
-      <form class="form-panel" method="post" action="/workspaces">
-        {{ csrf_input() }}
-        <label class="field form-field-half">
-          <span>название</span>
-          <input name="name" placeholder="Личные финансы, семья, бизнес" required>
-        </label>
-        <label class="field form-field-quarter">
-          <span>тип</span>
-          <select name="workspace_type">
-            {% for workspace_type in workspace_types %}
-              <option value="{{ workspace_type.value }}">{{ workspace_type | ru }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="field form-field-quarter">
-          <span>валюта</span>
-          <input name="default_currency" value="{{ workspace.default_currency }}" maxlength="3" placeholder="RUB" required>
-        </label>
-        <div class="form-actions-inline">
-          <button class="button" type="submit">{{ icon("plus") }} создать пространство</button>
-        </div>
-      </form>
+      <details class="action-details action-accordion workspace-create-details" {% if page.create_panel_open %}open{% endif %}>
+        <summary>
+          <span>{{ page.create_label }}</span>
+          <span class="details-toggle-label" aria-hidden="true">
+            <span class="details-toggle-open">Открыть</span>
+            <span class="details-toggle-close">Закрыть</span>
+          </span>
+        </summary>
+        <form id="{{ page.create_form_id }}" class="form-panel form-panel-embedded workspace-create-form" method="post" action="/workspaces">
+          {{ csrf_input() }}
+          <label class="field workspace-create-form__field workspace-create-form__field--name">
+            <span>название</span>
+            <input name="name" value="{{ page.create_form.name }}" placeholder="Личные финансы, семья, бизнес" required>
+          </label>
+          <label class="field workspace-create-form__field workspace-create-form__field--type">
+            <span>тип</span>
+            <select name="workspace_type">
+              {% for workspace_type in page.workspace_types %}
+                <option value="{{ workspace_type.value }}" {% if page.create_form.workspace_type == workspace_type %}selected{% endif %}>{{ workspace_type | ru }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field workspace-create-form__field workspace-create-form__field--currency">
+            <span>валюта</span>
+            <input name="default_currency" value="{{ page.create_form.default_currency }}" maxlength="3" placeholder="RUB" required>
+          </label>
+          <div class="form-actions workspace-create-form__actions">
+            {% set action = page.create_submit_action %}
+            {% include "ui/_action.html" %}
+          </div>
+        </form>
+      </details>
 
-      {% if workspaces %}
-        <div class="entity-card-list">
-          {% for item in workspaces %}
-            {% set workspace_form_id = "workspace-form-" ~ item.id %}
-            <article class="entity-card {% if item.id == workspace.id %}entity-card-current{% endif %}">
-              <form class="detached-form" id="{{ workspace_form_id }}" method="post" action="/workspaces/{{ item.id }}">{{ csrf_input() }}</form>
-              <div class="entity-card-main">
-                <div class="entity-card-title">
-                  <strong class="truncate-label" title="{{ item.name }}">{{ item.name }}</strong>
-                  {% if item.id == workspace.id %}
-                    <span class="badge badge-confirmed">текущее</span>
-                  {% else %}
-                    <span class="badge">активно</span>
+      {% if page.workspace_rows %}
+        <div class="entity-card-list workspace-card-list">
+          {% for row in page.workspace_rows %}
+            <article id="{{ row.anchor_id }}" class="financial-row entity-card workspace-card {% if row.is_current %}entity-card-current workspace-card--current{% endif %} {% if not row.select_action and not row.edit_toggle_action %}financial-row--single entity-card-readonly{% endif %}">
+              <div class="financial-row__main entity-card-main workspace-card__main">
+                <div class="financial-row__topline workspace-card__topline">
+                  <div class="entity-card-title workspace-card__title">
+                    <strong class="truncate-label" title="{{ row.title }}">{{ row.title }}</strong>
+                  </div>
+                  <span class="badge badge-{{ row.status_tone }} workspace-card__status">{{ row.status_label }}</span>
+                </div>
+                <div class="financial-row__meta workspace-card__meta">
+                  <span class="financial-row__meta-item financial-row__meta-item--classification">{{ row.type_label }}</span>
+                  <span class="financial-row__meta-item">{{ row.default_currency_label }}</span>
+                </div>
+              </div>
+
+              {% if row.select_action or row.edit_toggle_action %}
+                <div class="financial-row__side entity-card-actions row-actions workspace-card__actions">
+                  {% if row.select_action %}
+                    {% set action = row.select_action %}
+                    {% include "ui/_action.html" %}
+                  {% endif %}
+                  {% if row.edit_toggle_action %}
+                    {% set action = row.edit_toggle_action %}
+                    {% include "ui/_action.html" %}
                   {% endif %}
                 </div>
-                <div class="entity-card-meta">
-                  <span>{{ item.type | ru }}</span>
-                  <span>{{ item.default_currency }}</span>
-                  <details class="technical-details">
-                    <summary>ID</summary>
-                    <span>ID {{ item.id }}</span>
-                  </details>
-                </div>
-                {% if can_manage_workspace %}
-                  <details class="admin-details">
-                    <summary>Редактирование</summary>
-                    <div class="form-panel form-panel-embedded">
-                      <label class="field form-field-half">
-                        <span>название</span>
-                        <input name="name" value="{{ item.name }}" form="{{ workspace_form_id }}" required>
+              {% endif %}
+
+              {% if row.edit_toggle_action %}
+                <details class="workspace-card__edit" {% if row.edit_panel_open %}open{% endif %}>
+                  <summary id="{{ row.edit_summary_id }}" class="workspace-card__edit-summary">
+                    <span>Изменить пространство</span>
+                  </summary>
+                  <div class="financial-row__drawer row-drawer workspace-card__edit-panel">
+                    <div class="row-drawer__header">
+                      <div class="row-drawer__heading">
+                        <h3 class="row-drawer__title">Изменить пространство</h3>
+                        <span class="row-drawer__context">{{ row.status_label }}</span>
+                      </div>
+                    </div>
+                    <form id="{{ row.form_id }}" class="row-drawer__form workspace-form workspace-form--drawer" method="post" action="/workspaces/{{ row.workspace.id }}">
+                      {{ csrf_input() }}
+                      <label class="field row-drawer__field workspace-form__field workspace-form__field--name">
+                        <span>Название</span>
+                        <input name="name" value="{{ row.workspace.name }}" required>
                       </label>
-                      <label class="field form-field-quarter">
-                        <span>тип</span>
-                        <select name="workspace_type" form="{{ workspace_form_id }}">
-                          {% for workspace_type in workspace_types %}
-                            <option value="{{ workspace_type.value }}" {% if item.type == workspace_type %}selected{% endif %}>
+                      <label class="field row-drawer__field workspace-form__field workspace-form__field--type">
+                        <span>Тип</span>
+                        <select name="workspace_type">
+                          {% for workspace_type in page.workspace_types %}
+                            <option value="{{ workspace_type.value }}" {% if row.workspace.type == workspace_type %}selected{% endif %}>
                               {{ workspace_type | ru }}
                             </option>
                           {% endfor %}
                         </select>
                       </label>
-                      <label class="field form-field-quarter">
-                        <span>валюта</span>
-                        <input name="default_currency" value="{{ item.default_currency }}" maxlength="3" form="{{ workspace_form_id }}" required>
+                      <label class="field row-drawer__field workspace-form__field workspace-form__field--currency">
+                        <span>Валюта</span>
+                        <input name="default_currency" value="{{ row.workspace.default_currency }}" maxlength="3" required>
                       </label>
-                      <div class="form-actions">
-                        <button class="button button-small" type="submit" form="{{ workspace_form_id }}">{{ icon("save") }} сохранить</button>
+                      <div class="row-drawer__footer workspace-form__footer">
+                        {% set action = row.save_action %}
+                        {% include "ui/_action.html" %}
                       </div>
-                    </div>
-                  </details>
-                {% endif %}
-              </div>
-              <div class="entity-card-actions">
-                {% if item.id != workspace.id %}
-                  <form method="post" action="/workspaces/{{ item.id }}/select">
-                    {{ csrf_input() }}
-                    <input type="hidden" name="next" value="{{ workspace_select_return_path }}">
-                    <button class="button button-small primary-action" type="submit">{{ icon("check") }} выбрать</button>
-                  </form>
-                {% endif %}
-              </div>
+                    </form>
+                  </div>
+                </details>
+              {% endif %}
             </article>
           {% endfor %}
         </div>

@@ -4606,6 +4606,128 @@ pre {
   grid-column: 1 / -1;
 }
 
+.workspace-create-details {
+  border-color: color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-strong) 36%, transparent);
+}
+
+.workspace-create-details > summary {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 42px;
+}
+
+.workspace-create-details > summary::after,
+.workspace-create-details[open] > summary::after {
+  content: none;
+}
+
+.workspace-create-form {
+  border-color: color-mix(in srgb, var(--border) 52%, transparent);
+  padding-top: 14px;
+}
+
+.workspace-create-form__field--name {
+  grid-column: span 6;
+}
+
+.workspace-create-form__field--type {
+  grid-column: span 3;
+}
+
+.workspace-create-form__field--currency {
+  grid-column: span 3;
+}
+
+.workspace-create-form__actions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  border-top: 1px solid color-mix(in srgb, var(--border) 46%, transparent);
+  padding-top: 10px;
+}
+
+.workspace-create-form__actions .button {
+  width: auto;
+  min-width: 210px;
+}
+
+.workspace-card__main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.workspace-card__topline {
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
+
+.workspace-card__title strong {
+  font-size: 1.02rem;
+  overflow-wrap: anywhere;
+}
+
+.workspace-card__status {
+  min-height: 34px;
+  justify-self: end;
+  justify-content: center;
+  border-color: color-mix(in srgb, currentcolor 72%, var(--border));
+  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
+  padding-inline: 12px;
+}
+
+.workspace-card__actions {
+  min-width: 0;
+}
+
+.workspace-card__edit {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+
+.workspace-card__edit-summary {
+  position: absolute;
+  width: 1px !important;
+  height: 1px;
+  min-height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  border: 0;
+  padding: 0;
+  white-space: nowrap;
+  list-style: none;
+}
+
+.workspace-card__edit > summary::after,
+.workspace-card__edit[open] > summary::after {
+  content: none;
+}
+
+.workspace-card__edit-panel {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-top: 12px;
+}
+
+.workspace-form--drawer {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.workspace-form__field--name {
+  grid-column: span 6;
+}
+
+.workspace-form__field--type {
+  grid-column: span 3;
+}
+
+.workspace-form__field--currency {
+  grid-column: span 3;
+}
+
 .manual-operation-row {
   border-left-width: 4px;
 }
@@ -6711,6 +6833,7 @@ pre {
   .operation-form__fields,
   .category-form--drawer,
   .property-form--drawer,
+  .workspace-form--drawer,
   .operation-form__footer {
     grid-template-columns: 1fr;
   }
@@ -6725,6 +6848,9 @@ pre {
   .property-form__field--name,
   .property-form__field--short-name,
   .property-form__field--address,
+  .workspace-form__field--name,
+  .workspace-form__field--type,
+  .workspace-form__field--currency,
   .operation-form__fields--classification .operation-form__field,
   .operation-form__field--description,
   .rule-edit-fields--condition .rule-edit-field--match,

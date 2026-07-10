@@ -1644,6 +1644,50 @@ router.py
 окажется, что достаточно локального presenter-free cleanup, это решение нужно
 зафиксировать перед кодом, а не создавать ViewModel ради симметрии.
 
+## Workspaces Reference/Admin Slice
+
+`/workspaces` не является обычным CRUD reference screen: это экран доступа,
+ролей, переключения текущего workspace, приглашений и audit trail. Поэтому его
+нельзя переписывать одним большим движением только ради визуальной унификации.
+
+Текущее состояние:
+
+- `/users` остается простым profile screen; presenter/ViewModel там пока не
+  нужен.
+- `/workspaces` совмещает несколько историй в одном шаблоне:
+  workspace creation/switching/editing, members, invitations and audit events.
+- `workspaces/index.html` пока содержит presentation logic: условия ролей,
+  статусы, ID/details, inline edit forms and action hierarchy.
+- Секция "Пространства" все еще ближе к старому `entity-card` /
+  `form-panel-embedded` языку, чем к Entity Work Row contract.
+
+Refactor strategy:
+
+1. First vertical slice: только секция "Пространства".
+   - создать/редактировать workspace через компактный action/drawer pattern;
+   - карточку workspace привести к Entity Work Row geometry:
+     левая зона — название, тип, валюта, статус; правая зона — действия;
+   - убрать ordinary ID/debug details из обычной карточки;
+   - использовать shared `ActionVM` shape for visible actions;
+   - не менять authorization, membership or invitation domain rules.
+2. Second slice: "Участники".
+   - row/card для участника в том же action contract;
+   - изменение роли как drawer/form action;
+   - отключить/восстановить как lifecycle/danger action с понятной иерархией.
+3. Third slice: invitations and audit trail.
+   - invitation links remain sensitive and one-time;
+   - audit stays secondary and inspectable, not a main working card list;
+   - technical details stay out of ordinary UI unless a support/debug scenario
+     is explicitly designed.
+
+Do not do now:
+
+- не вводить универсальный CRUD/admin component for workspaces/categories/users;
+- не переносить permission/security decisions into presenter;
+- не переписывать login/signup/profile вместе с `/workspaces`;
+- не делать локальные HTMX row swaps for member/admin actions before the
+  basic UI contract is stable.
+
 ## Known Scale UX Risks Before Release
 
 Этот раздел фиксирует риски, которые могут быть почти незаметны на небольших

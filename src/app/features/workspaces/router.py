@@ -25,8 +25,13 @@ from app.features.workspaces.dependencies import (
 )
 from app.features.workspaces.errors import WorkspaceError
 from app.features.workspaces.models import WorkspaceRole, WorkspaceType
-from app.features.workspaces.permissions import INVITABLE_ROLES, MANAGEABLE_MEMBER_ROLES
+from app.features.workspaces.permissions import (
+    INVITABLE_ROLES,
+    MANAGEABLE_MEMBER_ROLES,
+    can_manage_workspace,
+)
 from app.features.workspaces.permissions import can_invite_members as can_invite_workspace_members
+from app.features.workspaces.presentation.presenter import WorkspacesPagePresenter
 from app.features.workspaces.service import WorkspaceContext, WorkspaceService
 from app.templating import create_templates
 
@@ -335,6 +340,8 @@ async def render_workspaces_index(
     status_code: int = status.HTTP_200_OK,
 ) -> HTMLResponse:
     service = WorkspaceService(session, settings)
+    workspace_return_path = current_request_path(request)
+    user_workspaces = await service.list_user_workspaces(context.user.id)
     return templates.TemplateResponse(
         request,
         "workspaces/index.html",
@@ -342,8 +349,15 @@ async def render_workspaces_index(
             "app_name": settings.app_name,
             "current_user": context.user,
             "workspace": context.workspace,
+            "workspace_page": WorkspacesPagePresenter.build_index(
+                user_workspaces,
+                current_workspace_id=context.workspace.id,
+                current_default_currency=context.workspace.default_currency,
+                can_manage_workspace=can_manage_workspace(context.membership),
+                select_return_path=workspace_return_path,
+            ),
             "workspace_types": list(WorkspaceType),
-            "workspaces": await service.list_user_workspaces(context.user.id),
+            "workspaces": user_workspaces,
             "members": await service.list_workspace_members(context),
             "member_roles": MANAGEABLE_MEMBER_ROLES,
             "pending_invitations": await service.list_pending_invitations(context),
@@ -352,7 +366,7 @@ async def render_workspaces_index(
             "can_invite_members": can_invite_workspace_members(context.membership),
             "created_invitation_link": created_invitation_link,
             "created_invitation_expires_at": created_invitation_expires_at,
-            "workspace_return_path": current_request_path(request),
+            "workspace_return_path": workspace_return_path,
             "error": error,
         },
         status_code=status_code,
