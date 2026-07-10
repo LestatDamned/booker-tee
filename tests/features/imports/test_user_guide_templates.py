@@ -412,6 +412,9 @@ def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
     assert "Настройки пространства" in html
     assert "Доступ" in html
     assert "Участники" in html
+    assert "Текущее пространство" in html
+    assert "Другие пространства" in html
+    assert 'aria-current="true"' in html
     assert "создать приглашение" in html
     assert "Новая ссылка" not in html
     assert "workspace-card" in html

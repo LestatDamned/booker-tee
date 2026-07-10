@@ -408,18 +408,95 @@ Use full-page redirects for actions that change the page context, route,
 workspace, filters, pagination, or a broad list state that has not yet been
 given a stable partial/OOB contract.
 
-Feedback and highlighting semantics:
+### Entity State Language Contract
+
+Booker Tee has many dense entity lists: imported rows, ledger operations,
+accounts, rules, categories, properties, users, and workspaces. The interface
+must help the user understand which item is current, selected, focused, changed,
+or problematic without inventing a new visual treatment per screen.
+
+Use this vocabulary consistently:
+
+```text
+current context  the entity that defines where the user is working
+active work item the entity currently being reviewed or resolved
+selected         an entity chosen by the user for a pending action
+focus            keyboard/browser focus
+recent           just created, saved, restored, toggled, or otherwise changed
+problem          error, warning, duplicate, mismatch, or attention state
+status           durable entity state such as active, archived, confirmed
+```
+
+Visual semantics:
 
 1. Persistent color belongs to meaning: money direction, problem/error states,
-   danger, or an explicit current workflow item.
+   danger, explicit current context, or an active work item.
 2. Calm statuses such as `активно`, `подтверждено`, or `импортировано` should be
    readable but not compete with primary content.
-3. `:target` is navigation focus and fallback only. It should be subtle and
-   should not look like a permanent status or problem.
-4. "Just changed" feedback should be short-lived and calm. Prefer HTMX settling
+3. Selected/current/focused working entities must not rely on border or glow
+   alone. They need a visible surface change, structural separation, or an
+   explicit label.
+4. Persistent current context should prefer structural clarity first: if an item
+   defines where the user is working, separate it from peer items with a heading
+   such as `Текущее ...` / `Другие ...`, then use color as reinforcement.
+5. Booker Tee uses the Catppuccin Mocha direction for selection states:
+   lavender/blue/sapphire surfaces for current/selected context. Green remains
+   for success/confirmed meaning, not generic selection.
+6. Focus is not selection. Browser/keyboard focus should be an outline/ring and
+   should disappear when focus moves.
+7. `:target` is navigation focus and fallback only. It should be subtle and
+   should not look like a permanent status, problem, or selected entity.
+8. "Just changed" feedback should be short-lived and calm. Prefer HTMX settling
    or a temporary client-side state over a permanent ViewModel flag.
-5. Row update swaps should avoid automatic scrolling unless the action's purpose
-   is navigation. Use the import review pattern as the reference:
+9. Row update swaps should avoid automatic scrolling unless the action's purpose
+   is navigation.
+
+Recommended treatments:
+
+```text
+current context
+  structure: "Текущее ..." / "Другие ..." or an equivalent page-level grouping
+  markup: aria-current when appropriate
+  color: soft lavender/blue selected surface, not green
+
+active work item
+  structure: keep near the top of the workflow or queue
+  color: selected/work surface can be stronger than passive current context
+  behavior: local updates, no page jump
+
+selected
+  structure: explicit selected control, checked state, or selected label
+  color: selected surface as reinforcement, not the only signal
+
+focus
+  structure: no layout change
+  color: outline/ring only
+
+recent
+  structure: compact feedback near the affected list or row
+  color: temporary calm accent; avoid permanent success coloring
+
+problem
+  structure: explain what needs attention near the entity
+  color: warning/danger tones; this can be stronger than normal status
+
+status
+  structure: badge/token in the information zone
+  color: calm semantic tone; do not turn every normal status into a highlight
+```
+
+Current application:
+
+- Workspaces use `current context`: the current workspace is separated from
+  other spaces and uses `aria-current`.
+- Import review uses `active work item` / queue semantics for rows the user is
+  reviewing.
+- Account detail and manual ledger use `recent` and local row replacement to
+  preserve working position after save/cancel.
+- Transaction rules, categories, and properties should use the same language for
+  enabled/current/recent/problem states as they continue to evolve.
+
+Use the import review local-update pattern as the reference:
 
 ```html
 hx-boost="true"

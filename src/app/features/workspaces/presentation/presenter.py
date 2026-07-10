@@ -44,16 +44,21 @@ class WorkspacesPagePresenter:
     ) -> WorkspacesPageVM:
         create_form_id = "workspace-create-form"
         invitation_create_form_id = "workspace-invitation-create-form"
+        workspace_rows = [
+            workspace_row_vm(
+                workspace,
+                current_workspace_id=current_workspace_id,
+                can_manage_workspace=can_manage_workspace,
+                select_return_path=select_return_path,
+            )
+            for workspace in workspaces
+        ]
+        other_workspace_rows = [row for row in workspace_rows if not row.is_current]
         return WorkspacesPageVM(
-            workspace_rows=[
-                workspace_row_vm(
-                    workspace,
-                    current_workspace_id=current_workspace_id,
-                    can_manage_workspace=can_manage_workspace,
-                    select_return_path=select_return_path,
-                )
-                for workspace in workspaces
-            ],
+            workspace_rows=workspace_rows,
+            current_workspace_row=next((row for row in workspace_rows if row.is_current), None),
+            other_workspace_rows=other_workspace_rows,
+            other_workspace_count_label=workspace_count_label(len(other_workspace_rows)),
             workspace_count_label=f"{len(workspaces)} доступно",
             member_rows=[
                 member_row_vm(
@@ -159,6 +164,16 @@ def workspace_row_vm(
         if can_manage_workspace
         else None,
     )
+
+
+def workspace_count_label(count: int) -> str:
+    if count % 10 == 1 and count % 100 != 11:
+        noun = "пространство"
+    elif count % 10 in {2, 3, 4} and count % 100 not in {12, 13, 14}:
+        noun = "пространства"
+    else:
+        noun = "пространств"
+    return f"{count} {noun}"
 
 
 def member_row_vm(

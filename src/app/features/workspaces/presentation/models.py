@@ -79,6 +79,9 @@ class WorkspaceAuditEventRowVM:
 @dataclass(frozen=True)
 class WorkspacesPageVM:
     workspace_rows: list[WorkspaceRowVM]
+    current_workspace_row: WorkspaceRowVM | None
+    other_workspace_rows: list[WorkspaceRowVM]
+    other_workspace_count_label: str
     workspace_count_label: str
     member_rows: list[WorkspaceMemberRowVM]
     member_count_label: str
