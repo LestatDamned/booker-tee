@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "ui/_more_actions.html" import more_actions %}
 
 {% block title %}{{ category_page.detail.category.name }} · {{ app_name }}{% endblock %}
 
@@ -46,26 +47,16 @@
           {% set action = page.lifecycle_action %}
           {% include "ui/_action.html" %}
         {% endif %}
-        <details class="action-details action-accordion review-actions__secondary review-actions__details review-actions__menu category-more-actions">
-          <summary class="review-actions__summary">
-            {{ icon("list-check") }}
-            <span>Еще действия</span>
-            <span class="details-toggle-label review-actions__toggle" aria-hidden="true">
-              <span class="details-toggle-open">Открыть</span>
-              <span class="details-toggle-close">Закрыть</span>
-            </span>
-          </summary>
-          <div class="category-more-actions__menu">
-            {% if can_write and page.delete_action %}
-              {% set action = page.delete_action %}
-              {% include "ui/_action.html" %}
-            {% endif %}
-            <div class="category-more-actions__item category-more-actions__technical">
-              <span>Показать ID</span>
-              <code>{{ header.technical_label }}</code>
-            </div>
+        {% call more_actions("category-more-actions", menu_class="category-more-actions__menu") %}
+          {% if can_write and page.delete_action %}
+            {% set action = page.delete_action %}
+            {% include "ui/_action.html" %}
+          {% endif %}
+          <div class="category-more-actions__item category-more-actions__technical">
+            <span>Показать ID</span>
+            <code>{{ header.technical_label }}</code>
           </div>
-        </details>
+        {% endcall %}
       </div>
 
       {% if can_write and page.edit_toggle_action %}

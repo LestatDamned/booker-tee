@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/inline_hint.html" import inline_hint %}
+{% from "ui/_more_actions.html" import more_actions %}
 
 {% block title %}Объекты · {{ app_name }}{% endblock %}
 
@@ -111,22 +112,12 @@
                 {% include "ui/_action.html" %}
                 {% set action = row.lifecycle_action %}
                 {% include "ui/_action.html" %}
-                <details class="action-details action-accordion review-actions__secondary review-actions__details review-actions__menu property-more-actions">
-                  <summary class="review-actions__summary">
-                    {{ icon("list-check") }}
-                    <span>Еще действия</span>
-                    <span class="details-toggle-label review-actions__toggle" aria-hidden="true">
-                      <span class="details-toggle-open">Открыть</span>
-                      <span class="details-toggle-close">Закрыть</span>
-                    </span>
-                  </summary>
-                  <div class="property-more-actions__menu">
-                    <div class="property-more-actions__item property-more-actions__technical">
-                      <span>Показать ID</span>
-                      <code>{{ row.technical_label }}</code>
-                    </div>
+                {% call more_actions("property-more-actions", menu_class="property-more-actions__menu") %}
+                  <div class="property-more-actions__item property-more-actions__technical">
+                    <span>Показать ID</span>
+                    <code>{{ row.technical_label }}</code>
                   </div>
-                </details>
+                {% endcall %}
               </div>
 
               <details class="property-card__edit" {% if row.edit_panel_open %}open{% endif %}>

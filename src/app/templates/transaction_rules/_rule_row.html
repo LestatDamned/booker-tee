@@ -1,3 +1,5 @@
+{% from "ui/_more_actions.html" import more_actions %}
+
 <article
   id="{{ rule.anchor_id }}"
   class="financial-row entity-card rule-card {% if rule.is_inactive %}entity-card-inactive{% endif %} {% if rule.is_recent %}rule-card--recent{% endif %}"
@@ -41,15 +43,7 @@
       </button>
       {% set action = rule.toggle_action %}
       {% include "ui/_action.html" %}
-      <details class="action-details action-accordion review-actions__secondary review-actions__details review-actions__menu rule-more-actions">
-        <summary class="review-actions__summary">
-          {{ icon("list-check") }}
-          <span>Еще действия</span>
-          <span class="details-toggle-label review-actions__toggle" aria-hidden="true">
-            <span class="details-toggle-open">Открыть</span>
-            <span class="details-toggle-close">Закрыть</span>
-          </span>
-        </summary>
+      {% call more_actions("rule-more-actions") %}
         <div class="review-actions__menu-section rule-more-actions__menu-section">
           <div class="rule-more-actions__item rule-more-actions__technical">
             <span>Показать ID</span>
@@ -67,7 +61,7 @@
           {% set action = rule.delete_action %}
           {% include "ui/_action.html" %}
         </div>
-      </details>
+      {% endcall %}
     </div>
 
     <details class="rule-card__edit">

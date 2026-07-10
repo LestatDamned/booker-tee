@@ -1594,6 +1594,8 @@ account detail and manual operations slices:
    `ui-action__*` classes. Дальше усиливать только там, где несколько features
    повторяют один и тот же action pattern; не переносить feature-specific
    бизнес-решения в общий UI слой.
+   `ui/_more_actions.html` уже вынесен как тонкая общая оболочка для
+   "Еще действия"; содержимое меню остается feature-owned.
 5. Не вводить универсальный financial-row partial, пока account/manual/import
    варианты не покажут стабильный повтор без потери смысла.
 
@@ -1954,6 +1956,9 @@ Current state:
 - Category detail top card now uses the same Entity Work Row/action contract:
   edit is a drawer inside the card, lifecycle actions are prepared by the
   presenter, and technical ID lives in "Еще действия".
+- Transaction rules, categories and properties use the shared
+  `ui/_more_actions.html` shell for the repeated "Еще действия" summary/menu
+  rhythm. The feature templates still own menu contents.
 - Categories still group row VMs in Jinja with `selectattr`.
 - Category detail operations/rules sections still use older table/card
   rendering and can be revisited only if they become a real workflow surface.

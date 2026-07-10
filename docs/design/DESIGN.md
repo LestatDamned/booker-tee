@@ -370,12 +370,18 @@ row-actions                 primary/secondary/more action rail
 row-drawer                  full-width edit/resolve drawer
 operation-form / feature form classes
 ui/_action.html + ActionVM  shared action shape
+ui/_more_actions.html       shared "Еще действия" shell
 ```
 
 This is a design contract, not a command to extract a universal Jinja partial.
 Prefer feature-owned templates that reuse the same CSS/action language. Extract
 a shared partial only after the same markup and behavior have stabilized across
 several screens.
+
+`ui/_more_actions.html` is intentionally small: it owns only the common
+`details`/summary/toggle shell for "Еще действия". The feature template still
+owns menu content, dangerous actions, technical details, HTMX targets, and
+feature-specific action policy.
 
 ### Entity Feedback And Local Update Contract
 
@@ -739,6 +745,7 @@ primary-action
 secondary-actions
 action-menu
 danger-zone
+ui-more-actions
 ui-action__form
 ui-action__button
 ui-action__label
