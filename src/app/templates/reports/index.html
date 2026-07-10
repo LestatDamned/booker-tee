@@ -16,46 +16,94 @@
       </div>
     </div>
 
-    <form class="form-panel" method="get" action="/reports">
-      <label class="field form-field-third">
-        <span>с</span>
-        <input type="date" name="date_from" value="{{ filters.date_from or '' }}">
-      </label>
-      <label class="field form-field-third">
-        <span>по</span>
-        <input type="date" name="date_to" value="{{ filters.date_to or '' }}">
-      </label>
-      <label class="field form-field-third">
-        <span>счет</span>
-        <select name="account_id">
-          <option value="">все счета</option>
-          {% for account in accounts %}
-            <option value="{{ account.id }}" {% if filters.account_id == account.id %}selected{% endif %}>{{ account.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-third">
-        <span>категория</span>
-        <select name="category_id">
-          <option value="">все категории</option>
-          {% for category in categories %}
-            <option value="{{ category.id }}" {% if filters.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field form-field-third">
-        <span>объект</span>
-        <select name="property_id">
-          <option value="">все объекты</option>
-          {% for property in properties %}
-            <option value="{{ property.id }}" {% if filters.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <div class="form-actions">
-        <button class="button" type="submit">{{ icon("filter") }} фильтр</button>
+    <div class="report-period-nav" aria-label="Навигация по месяцу отчета">
+      <a class="button report-period-nav__button" href="{{ report_period.previous_month_url }}" aria-label="Предыдущий месяц">{{ icon("arrow-left") }}</a>
+      <div class="report-period-nav__current">
+        <span>период</span>
+        <strong>
+          {% if report_period.is_month_period %}
+            {{ report_period.month_label }}
+          {% else %}
+            {{ report_period.period_label }}
+          {% endif %}
+        </strong>
       </div>
-    </form>
+      <a class="button report-period-nav__button" href="{{ report_period.next_month_url }}" aria-label="Следующий месяц">{{ icon("arrow-right") }}</a>
+      <a class="button primary-action report-period-nav__shortcut" href="{{ report_period.current_month_url }}">{{ icon("calendar") }} этот месяц</a>
+      {% if report_period.has_period_filter %}
+        <a class="button filter-form__secondary-action report-period-nav__shortcut" href="{{ report_period.all_time_url }}">{{ icon("refresh") }} все время</a>
+      {% endif %}
+    </div>
+
+    {% set report_has_exact_filters = filters.account_id or filters.category_id or filters.property_id or (report_period.has_period_filter and not report_period.is_month_period) %}
+    <details class="action-details action-accordion filter-details report-filter-details" {% if report_has_exact_filters %}open{% endif %}>
+      <summary>
+        <span class="filter-details__title">точная настройка отчета</span>
+        <span class="filter-details__state">
+          {% if report_has_exact_filters %}
+            {{ report_period.period_label }}
+          {% else %}
+            фильтры свернуты
+          {% endif %}
+        </span>
+        <span class="details-toggle-label" aria-hidden="true">
+          <span>Открыть</span>
+          <span>Закрыть</span>
+        </span>
+      </summary>
+
+      <form class="filter-form report-filter-form" method="get" action="/reports">
+        <div class="filter-form__group filter-form__group--primary">
+          <div class="filter-form__fields filter-form__fields--primary report-filter-form__dates">
+            <label class="field filter-form__field">
+              <span>с</span>
+              <input type="date" name="date_from" value="{{ filters.date_from or '' }}">
+            </label>
+            <label class="field filter-form__field">
+              <span>по</span>
+              <input type="date" name="date_to" value="{{ filters.date_to or '' }}">
+            </label>
+          </div>
+        </div>
+
+        <div class="filter-form__group filter-form__group--classification">
+          <div class="filter-form__fields filter-form__fields--classification report-filter-form__entities">
+            <label class="field filter-form__field">
+              <span>счет</span>
+              <select name="account_id">
+                <option value="">все счета</option>
+                {% for account in accounts %}
+                  <option value="{{ account.id }}" {% if filters.account_id == account.id %}selected{% endif %}>{{ account.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field filter-form__field">
+              <span>категория</span>
+              <select name="category_id">
+                <option value="">все категории</option>
+                {% for category in categories %}
+                  <option value="{{ category.id }}" {% if filters.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="field filter-form__field">
+              <span>объект</span>
+              <select name="property_id">
+                <option value="">все объекты</option>
+                {% for property in properties %}
+                  <option value="{{ property.id }}" {% if filters.property_id == property.id %}selected{% endif %}>{{ property.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="filter-form__footer filter-form__footer--filters report-filter-form__footer">
+          <a class="button filter-form__secondary-action" href="/reports">сбросить</a>
+          <button class="button primary-action" type="submit">{{ icon("filter") }} применить</button>
+        </div>
+      </form>
+    </details>
 
     <div class="summary-grid kpi-strip">
       <div class="metric metric-income">

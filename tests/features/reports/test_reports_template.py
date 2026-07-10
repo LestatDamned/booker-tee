@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, cast
@@ -28,6 +29,7 @@ def test_reports_template_marks_financial_tones() -> None:
             category_id=None,
             property_id=None,
         ),
+        report_period=report_period_stub(),
         accounts=[SimpleNamespace(id=account_id, name="Карта")],
         categories=[],
         properties=[],
@@ -58,6 +60,13 @@ def test_reports_template_marks_financial_tones() -> None:
     )
 
     assert "metric-income" in html
+    assert "report-filter-details" in html
+    assert "report-period-nav" in html
+    assert 'href="/reports?date_from=2026-06-01&amp;date_to=2026-06-30"' in html
+    assert 'href="/reports?date_from=2026-08-01&amp;date_to=2026-08-31"' in html
+    assert "этот месяц" in html
+    assert "все время" in html
+    assert "точная настройка отчета" in html
     assert "metric-expense" in html
     assert "metric-profit" in html
     assert "money-value money-income" in html
@@ -148,6 +157,7 @@ def render_reports(
             category_id=None,
             property_id=None,
         ),
+        report_period=report_period_stub(),
         accounts=accounts,
         categories=[],
         documents_needing_review=documents_needing_review or [],
@@ -167,4 +177,19 @@ def empty_overview(*, account_balances: list[object]) -> SimpleNamespace:
         categories=[],
         properties=[],
         uncategorized=[],
+    )
+
+
+def report_period_stub() -> SimpleNamespace:
+    return SimpleNamespace(
+        month_start=date(2026, 7, 1),
+        month_end=date(2026, 7, 31),
+        month_label="июль 2026",
+        period_label="все время",
+        previous_month_url="/reports?date_from=2026-06-01&date_to=2026-06-30",
+        next_month_url="/reports?date_from=2026-08-01&date_to=2026-08-31",
+        current_month_url="/reports?date_from=2026-07-01&date_to=2026-07-31",
+        all_time_url="/reports",
+        has_period_filter=False,
+        is_month_period=False,
     )

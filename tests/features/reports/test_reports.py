@@ -10,7 +10,14 @@ from fastapi import HTTPException
 from app.features.categories.models import Category, CategoryKind
 from app.features.ledger.models import MoneyEntry, Operation, OperationStatus, OperationType
 from app.features.properties.models import Property
-from app.features.reports.router import parse_optional_query_date, parse_optional_query_uuid
+from app.features.reports.presentation.presenter import (
+    build_report_period_nav,
+    report_month_url,
+)
+from app.features.reports.router import (
+    parse_optional_query_date,
+    parse_optional_query_uuid,
+)
 from app.features.reports.service import (
     ReportFilters,
     ReportsService,
@@ -143,6 +150,57 @@ def test_report_query_parsers_raise_clear_bad_request_for_invalid_values() -> No
 
     assert uuid_exc.value.status_code == 400
     assert date_exc.value.status_code == 400
+
+
+def test_report_period_nav_uses_selected_month_and_preserves_filters() -> None:
+    account_id = uuid4()
+    category_id = uuid4()
+    property_id = uuid4()
+    filters = ReportFilters(
+        date_from=date(2026, 5, 10),
+        date_to=date(2026, 5, 20),
+        account_id=account_id,
+        category_id=category_id,
+        property_id=property_id,
+    )
+
+    period = build_report_period_nav(filters, today=date(2026, 7, 10))
+
+    assert period.month_start == date(2026, 5, 1)
+    assert period.month_end == date(2026, 5, 31)
+    assert period.month_label == "май 2026"
+    assert period.period_label == "10.05.2026 — 20.05.2026"
+    assert period.is_month_period is False
+    assert period.has_period_filter is True
+    assert period.previous_month_url == (
+        f"/reports?date_from=2026-04-01&date_to=2026-04-30"
+        f"&account_id={account_id}&category_id={category_id}&property_id={property_id}"
+    )
+    assert period.next_month_url == (
+        f"/reports?date_from=2026-06-01&date_to=2026-06-30"
+        f"&account_id={account_id}&category_id={category_id}&property_id={property_id}"
+    )
+    assert period.current_month_url == (
+        f"/reports?date_from=2026-07-01&date_to=2026-07-31"
+        f"&account_id={account_id}&category_id={category_id}&property_id={property_id}"
+    )
+    assert period.all_time_url == (
+        f"/reports?account_id={account_id}&category_id={category_id}&property_id={property_id}"
+    )
+
+
+def test_report_month_url_marks_exact_month_period() -> None:
+    filters = ReportFilters(
+        date_from=date(2026, 2, 1),
+        date_to=date(2026, 2, 28),
+    )
+
+    period = build_report_period_nav(filters, today=date(2026, 7, 10))
+
+    assert period.is_month_period is True
+    assert report_month_url(ReportFilters(), date(2026, 2, 1)) == (
+        "/reports?date_from=2026-02-01&date_to=2026-02-28"
+    )
 
 
 async def test_report_account_balances_use_selected_account_and_date_to() -> None:

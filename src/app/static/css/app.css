@@ -5960,6 +5960,89 @@ html:not(.entity-target-cleared) .review-item:target {
   color: var(--text);
 }
 
+.report-filter-details {
+  border-color: color-mix(in srgb, var(--border) 58%, transparent);
+}
+
+.report-period-nav {
+  display: grid;
+  grid-template-columns: 40px minmax(180px, 1fr) 40px auto auto;
+  gap: 6px;
+  align-items: stretch;
+  border: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-strong) 24%, transparent);
+  padding: 6px;
+}
+
+.report-period-nav__button {
+  min-width: 40px;
+  min-height: 38px;
+  justify-content: center;
+  padding-inline: 8px;
+}
+
+.report-period-nav__current {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 82%, var(--surface-strong));
+  padding: 5px 10px;
+}
+
+.report-period-nav__current span {
+  color: color-mix(in srgb, var(--accent) 74%, var(--muted));
+  font-size: 0.62rem;
+  text-transform: uppercase;
+}
+
+.report-period-nav__current strong {
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+
+.report-period-nav__shortcut {
+  min-width: 126px;
+  min-height: 38px;
+}
+
+.report-period-nav .filter-form__secondary-action {
+  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-strong) 62%, var(--bg));
+  color: var(--muted);
+}
+
+.report-period-nav .filter-form__secondary-action:hover {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+  background: color-mix(in srgb, var(--surface-strong) 72%, var(--accent));
+  color: var(--text);
+}
+
+.filter-form.report-filter-form {
+  grid-template-columns: minmax(300px, 0.85fr) minmax(460px, 1.4fr);
+  align-items: end;
+  gap: 8px 10px;
+  border-top-color: color-mix(in srgb, var(--border) 34%, transparent);
+  padding: 8px 10px 10px;
+}
+
+.report-filter-form__dates {
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+}
+
+.report-filter-form__entities {
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+}
+
+.report-filter-form__footer {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(120px, 180px) minmax(140px, 200px);
+  justify-content: end;
+}
+
 .review-actions__secondary {
   border-color: color-mix(in srgb, var(--border) 60%, transparent);
   background: color-mix(in srgb, var(--surface-strong) 16%, transparent);
@@ -6778,6 +6861,16 @@ html:not(.entity-target-cleared) .review-item:target {
 
 }
 
+@media (max-width: 900px) {
+  .filter-form.report-filter-form {
+    grid-template-columns: 1fr;
+  }
+
+  .report-filter-form__entities {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 720px) {
   .mapping-action-row {
     flex-direction: column;
@@ -6854,6 +6947,15 @@ html:not(.entity-target-cleared) .review-item:target {
   h1,
   .import-page-title h1 {
     font-size: 2rem;
+  }
+
+  .report-period-nav {
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+  }
+
+  .report-period-nav__shortcut {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 
   .account-detail-title {
