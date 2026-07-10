@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
@@ -68,16 +69,26 @@ async def category_detail(
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
+    date_from: Annotated[str | None, Query()] = None,
+    date_to: Annotated[str | None, Query()] = None,
 ) -> HTMLResponse:
+    parsed_date_from = parse_optional_query_date(date_from, field_name="date_from")
+    parsed_date_to = parse_optional_query_date(date_to, field_name="date_to")
     category_service = CategoryService(session)
     try:
         detail = await category_service.get_detail(
             workspace_id=context.workspace.id,
             category_id=category_id,
+            date_from=parsed_date_from,
+            date_to=parsed_date_to,
         )
     except CategoryError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    category_page = CategoryPagePresenter.build_detail(detail)
+    category_page = CategoryPagePresenter.build_detail(
+        detail,
+        date_from=parsed_date_from,
+        date_to=parsed_date_to,
+    )
     return templates.TemplateResponse(
         request,
         "categories/detail.html",
@@ -87,6 +98,18 @@ async def category_detail(
             "workspace": context.workspace,
         },
     )
+
+
+def parse_optional_query_date(raw_value: str | None, *, field_name: str) -> date | None:
+    if not raw_value:
+        return None
+    try:
+        return date.fromisoformat(raw_value)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field_name} должен быть датой в формате YYYY-MM-DD.",
+        ) from exc
 
 
 @router.post("")

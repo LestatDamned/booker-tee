@@ -14,7 +14,10 @@ from app.features.categories.service import CategoryService
 from app.features.imports.models import UploadedDocumentStatus
 from app.features.imports.query_repository import ImportQueryRepository
 from app.features.properties.service import PropertyService
-from app.features.reports.presentation.presenter import build_report_period_nav
+from app.features.reports.presentation.presenter import (
+    build_report_category_table,
+    build_report_period_nav,
+)
 from app.features.reports.service import ReportFilters, ReportsService
 from app.features.workspaces.dependencies import get_current_workspace_context
 from app.features.workspaces.service import WorkspaceContext
@@ -35,6 +38,7 @@ async def reports_index(
     account_id: Annotated[str | None, Query()] = None,
     category_id: Annotated[str | None, Query()] = None,
     property_id: Annotated[str | None, Query()] = None,
+    category_sort: Annotated[str | None, Query()] = None,
 ) -> HTMLResponse:
     filters = ReportFilters(
         date_from=parse_optional_query_date(date_from, field_name="date_from"),
@@ -54,7 +58,12 @@ async def reports_index(
         workspace_id=context.workspace.id,
         filters=filters,
     )
-    report_period = build_report_period_nav(filters)
+    report_period = build_report_period_nav(filters, category_sort=category_sort)
+    report_categories = build_report_category_table(
+        overview.categories,
+        filters,
+        sort=category_sort or "name",
+    )
     documents = await ImportQueryRepository(session).list_documents_for_workspace(
         context.workspace.id
     )
@@ -77,6 +86,7 @@ async def reports_index(
                 }
             ],
             "overview": overview,
+            "report_categories": report_categories,
             "report_period": report_period,
             "properties": properties,
             "workspace": context.workspace,

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
@@ -146,6 +147,9 @@ class CategoryService:
         self,
         workspace_id: UUID,
         category_id: UUID,
+        *,
+        date_from: date | None = None,
+        date_to: date | None = None,
     ) -> CategoryDetailView:
         category = await self.categories.get_for_workspace(workspace_id, category_id)
         if category is None:
@@ -153,6 +157,8 @@ class CategoryService:
         operations = await self.ledger.list_confirmed_operations_for_report(
             workspace_id=workspace_id,
             category_id=category_id,
+            date_from=date_from,
+            date_to=date_to,
         )
         profit_operations = [operation for operation in operations if operation.affects_profit]
         return CategoryDetailView(

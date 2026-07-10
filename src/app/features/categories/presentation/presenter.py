@@ -1,3 +1,5 @@
+from datetime import date
+from urllib.parse import urlencode
 from uuid import UUID
 
 from app.features.categories.models import Category, CategoryKind
@@ -86,6 +88,8 @@ class CategoryPagePresenter:
     def build_detail(
         detail: CategoryDetailView,
         *,
+        date_from: date | None = None,
+        date_to: date | None = None,
         edit_form: CategoryFormStateVM | None = None,
         lifecycle_error: str | None = None,
     ) -> CategoryDetailPageVM:
@@ -105,6 +109,9 @@ class CategoryPagePresenter:
         return CategoryDetailPageVM(
             detail=detail,
             header=category_detail_header_vm(detail),
+            period_label=category_detail_period_label(date_from=date_from, date_to=date_to),
+            has_period_filter=date_from is not None or date_to is not None,
+            reset_period_url=category_detail_url(category.id),
             kinds=list(CategoryKind),
             edit_form=resolved_edit_form,
             edit_form_id=form_id,
@@ -195,8 +202,38 @@ def category_anchor_id(category_id: UUID) -> str:
     return f"category-{category_id}"
 
 
-def category_detail_url(category_id: UUID) -> str:
-    return f"/categories/{category_id}"
+def category_detail_url(
+    category_id: UUID,
+    *,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> str:
+    params = {
+        "date_from": date_from.isoformat() if date_from else None,
+        "date_to": date_to.isoformat() if date_to else None,
+    }
+    query = urlencode(
+        {key: value for key, value in params.items() if value not in {None, ""}}
+    )
+    return f"/categories/{category_id}?{query}" if query else f"/categories/{category_id}"
+
+
+def category_detail_period_label(
+    *,
+    date_from: date | None,
+    date_to: date | None,
+) -> str:
+    if date_from and date_to:
+        return f"{format_category_date(date_from)} — {format_category_date(date_to)}"
+    if date_from:
+        return f"с {format_category_date(date_from)}"
+    if date_to:
+        return f"по {format_category_date(date_to)}"
+    return "все время"
+
+
+def format_category_date(value: date) -> str:
+    return value.strftime("%d.%m.%Y")
 
 
 def category_row_vm(

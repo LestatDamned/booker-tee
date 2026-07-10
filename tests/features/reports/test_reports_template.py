@@ -30,6 +30,7 @@ def test_reports_template_marks_financial_tones() -> None:
             property_id=None,
         ),
         report_period=report_period_stub(),
+        report_categories=report_categories_stub(category_id),
         accounts=[SimpleNamespace(id=account_id, name="Карта")],
         categories=[],
         properties=[],
@@ -76,6 +77,9 @@ def test_reports_template_marks_financial_tones() -> None:
     assert "report-table" in html
     assert 'data-label="прибыль"' in html
     assert f'href="/categories/{category_id}"' in html
+    assert "report-sort-tabs" in html
+    assert "алфавит" in html
+    assert "расход" in html
     assert "amount-income" in html
     assert "amount-expense" in html
     assert "badge-expense" in html
@@ -158,6 +162,7 @@ def render_reports(
             property_id=None,
         ),
         report_period=report_period_stub(),
+        report_categories=report_categories_stub(),
         accounts=accounts,
         categories=[],
         documents_needing_review=documents_needing_review or [],
@@ -197,4 +202,31 @@ def report_period_stub() -> SimpleNamespace:
         is_current_month_period=False,
         mode_label="все время",
         exact_filters_label="не применены",
+    )
+
+
+def report_categories_stub(category_id: object | None = None) -> SimpleNamespace:
+    return SimpleNamespace(
+        rows=[
+            SimpleNamespace(
+                category_id=category_id,
+                category_name="Продукты",
+                income=Decimal("0.00"),
+                expense=Decimal("40.00"),
+                profit=Decimal("-40.00"),
+                detail_url=f"/categories/{category_id}" if category_id else None,
+            )
+        ]
+        if category_id
+        else [],
+        sort="name",
+        sort_options=[
+            SimpleNamespace(value="name", label="алфавит", url="/reports", is_active=True),
+            SimpleNamespace(
+                value="expense",
+                label="расход",
+                url="/reports?category_sort=expense",
+                is_active=False,
+            ),
+        ],
     )

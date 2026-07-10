@@ -82,6 +82,9 @@ class CategoryIndexPageVM:
 class CategoryDetailPageVM:
     detail: CategoryDetailView
     header: CategoryDetailHeaderVM
+    period_label: str
+    has_period_filter: bool
+    reset_period_url: str
     kinds: list[CategoryKind]
     edit_form: CategoryFormStateVM
     edit_form_id: str

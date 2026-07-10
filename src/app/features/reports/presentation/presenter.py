@@ -1,8 +1,15 @@
 from datetime import date
+from decimal import Decimal
 from urllib.parse import urlencode
+from uuid import UUID
 
-from app.features.reports.presentation.models import ReportPeriodNav
-from app.features.reports.service import ReportFilters
+from app.features.reports.presentation.models import (
+    ReportCategoryRowVM,
+    ReportCategoryTableVM,
+    ReportPeriodNav,
+    ReportSortOptionVM,
+)
+from app.features.reports.service import CategorySummaryRow, ReportFilters
 
 MONTH_NAMES_RU = {
     1: "январь",
@@ -19,12 +26,22 @@ MONTH_NAMES_RU = {
     12: "декабрь",
 }
 
+CATEGORY_SORT_OPTIONS = (
+    ("name", "алфавит"),
+    ("income", "доход"),
+    ("expense", "расход"),
+    ("profit", "прибыль"),
+)
+CATEGORY_SORT_VALUES = {value for value, _label in CATEGORY_SORT_OPTIONS}
+
 
 def build_report_period_nav(
     filters: ReportFilters,
     *,
+    category_sort: str | None = None,
     today: date | None = None,
 ) -> ReportPeriodNav:
+    normalized_category_sort = normalize_category_sort(category_sort)
     base_day = filters.date_from or filters.date_to or today or date.today()
     month_start = base_day.replace(day=1)
     month_end = month_end_for(month_start)
@@ -50,13 +67,26 @@ def build_report_period_nav(
         month_end=month_end,
         month_label=f"{MONTH_NAMES_RU[month_start.month]} {month_start.year}",
         period_label=report_period_label(filters),
-        previous_month_url=report_month_url(filters, add_months(month_start, -1)),
-        next_month_url=report_month_url(filters, add_months(month_start, 1)),
-        current_month_url=report_month_url(filters, current_month_start),
+        previous_month_url=report_month_url(
+            filters,
+            add_months(month_start, -1),
+            category_sort=normalized_category_sort,
+        ),
+        next_month_url=report_month_url(
+            filters,
+            add_months(month_start, 1),
+            category_sort=normalized_category_sort,
+        ),
+        current_month_url=report_month_url(
+            filters,
+            current_month_start,
+            category_sort=normalized_category_sort,
+        ),
         all_time_url=report_url(
             filters,
             date_from=None,
             date_to=None,
+            category_sort=normalized_category_sort,
         ),
         has_period_filter=has_period_filter,
         is_month_period=is_month_period,
@@ -71,6 +101,69 @@ def build_report_period_nav(
             is_month_period=is_month_period,
         ),
     )
+
+
+def build_report_category_table(
+    rows: list[CategorySummaryRow],
+    filters: ReportFilters,
+    *,
+    sort: str,
+) -> ReportCategoryTableVM:
+    normalized_sort = normalize_category_sort(sort)
+    return ReportCategoryTableVM(
+        rows=[
+            ReportCategoryRowVM(
+                category_id=row.category_id,
+                category_name=row.category_name,
+                income=row.income,
+                expense=row.expense,
+                profit=row.profit,
+                detail_url=category_detail_url(
+                    row.category_id,
+                    date_from=filters.date_from,
+                    date_to=filters.date_to,
+                )
+                if row.category_id
+                else None,
+            )
+            for row in sorted(rows, key=category_sort_key(normalized_sort))
+        ],
+        sort=normalized_sort,
+        sort_options=[
+            ReportSortOptionVM(
+                value=value,
+                label=label,
+                url=report_url(
+                    filters,
+                    date_from=filters.date_from,
+                    date_to=filters.date_to,
+                    category_sort=value,
+                ),
+                is_active=value == normalized_sort,
+            )
+            for value, label in CATEGORY_SORT_OPTIONS
+        ],
+    )
+
+
+def normalize_category_sort(raw_sort: str | None) -> str:
+    if raw_sort in CATEGORY_SORT_VALUES:
+        return raw_sort
+    return "name"
+
+
+def category_sort_key(sort: str):
+    if sort == "income":
+        return lambda row: (-row.income, row.category_name)
+    if sort == "expense":
+        return lambda row: (-row.expense, row.category_name)
+    if sort == "profit":
+        return lambda row: (profit_rank(row.profit), row.category_name)
+    return lambda row: row.category_name
+
+
+def profit_rank(value: Decimal) -> tuple[int, Decimal]:
+    return (0, -value) if value >= 0 else (1, value)
 
 
 def report_period_label(filters: ReportFilters) -> str:
@@ -109,11 +202,17 @@ def format_report_date(value: date) -> str:
     return value.strftime("%d.%m.%Y")
 
 
-def report_month_url(filters: ReportFilters, month_start: date) -> str:
+def report_month_url(
+    filters: ReportFilters,
+    month_start: date,
+    *,
+    category_sort: str | None = None,
+) -> str:
     return report_url(
         filters,
         date_from=month_start,
         date_to=month_end_for(month_start),
+        category_sort=category_sort,
     )
 
 
@@ -122,6 +221,7 @@ def report_url(
     *,
     date_from: date | None,
     date_to: date | None,
+    category_sort: str | None = None,
 ) -> str:
     params = {
         "date_from": date_from.isoformat() if date_from else None,
@@ -129,11 +229,28 @@ def report_url(
         "account_id": str(filters.account_id) if filters.account_id else None,
         "category_id": str(filters.category_id) if filters.category_id else None,
         "property_id": str(filters.property_id) if filters.property_id else None,
+        "category_sort": category_sort if category_sort and category_sort != "name" else None,
     }
     query = urlencode(
         {key: value for key, value in params.items() if value not in {None, ""}}
     )
     return f"/reports?{query}" if query else "/reports"
+
+
+def category_detail_url(
+    category_id: UUID,
+    *,
+    date_from: date | None,
+    date_to: date | None,
+) -> str:
+    params = {
+        "date_from": date_from.isoformat() if date_from else None,
+        "date_to": date_to.isoformat() if date_to else None,
+    }
+    query = urlencode(
+        {key: value for key, value in params.items() if value not in {None, ""}}
+    )
+    return f"/categories/{category_id}?{query}" if query else f"/categories/{category_id}"
 
 
 def add_months(month_start: date, offset: int) -> date:

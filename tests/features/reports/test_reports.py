@@ -11,6 +11,7 @@ from app.features.categories.models import Category, CategoryKind
 from app.features.ledger.models import MoneyEntry, Operation, OperationStatus, OperationType
 from app.features.properties.models import Property
 from app.features.reports.presentation.presenter import (
+    build_report_category_table,
     build_report_period_nav,
     report_month_url,
 )
@@ -19,6 +20,7 @@ from app.features.reports.router import (
     parse_optional_query_uuid,
 )
 from app.features.reports.service import (
+    CategorySummaryRow,
     ReportFilters,
     ReportsService,
     list_uncategorized_operations,
@@ -218,6 +220,40 @@ def test_report_period_nav_marks_all_time_mode() -> None:
     assert period.has_exact_filters is False
     assert period.mode_label == "все время"
     assert period.exact_filters_label == "не применены"
+
+
+def test_report_category_table_sorts_and_links_with_period() -> None:
+    groceries_id = uuid4()
+    rent_id = uuid4()
+    filters = ReportFilters(
+        date_from=date(2026, 6, 1),
+        date_to=date(2026, 6, 30),
+    )
+    rows = [
+        CategorySummaryRow(
+            category_id=rent_id,
+            category_name="Аренда",
+            income=Decimal("0.00"),
+            expense=Decimal("1000.00"),
+            profit=Decimal("-1000.00"),
+        ),
+        CategorySummaryRow(
+            category_id=groceries_id,
+            category_name="Продукты",
+            income=Decimal("0.00"),
+            expense=Decimal("5000.00"),
+            profit=Decimal("-5000.00"),
+        ),
+    ]
+
+    table = build_report_category_table(rows, filters, sort="expense")
+
+    assert [row.category_name for row in table.rows] == ["Продукты", "Аренда"]
+    assert table.rows[0].detail_url == (
+        f"/categories/{groceries_id}?date_from=2026-06-01&date_to=2026-06-30"
+    )
+    assert table.sort == "expense"
+    assert any(option.is_active and option.value == "expense" for option in table.sort_options)
 
 
 async def test_report_account_balances_use_selected_account_and_date_to() -> None:

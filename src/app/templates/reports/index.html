@@ -174,8 +174,17 @@
     {% endif %}
 
     {% if report_has_rows %}
-      <h2 class="status report-section-title">По категориям</h2>
-      {% if overview.categories %}
+      <div class="report-section-header">
+        <h2 class="status report-section-title">По категориям</h2>
+        <nav class="report-sort-tabs" aria-label="Сортировка категорий отчета">
+          {% for option in report_categories.sort_options %}
+            <a class="report-sort-tab {% if option.is_active %}report-sort-tab--active{% endif %}" href="{{ option.url }}">
+              {{ option.label }}
+            </a>
+          {% endfor %}
+        </nav>
+      </div>
+      {% if report_categories.rows %}
         <table class="table report-table">
           <thead>
             <tr>
@@ -186,11 +195,11 @@
             </tr>
           </thead>
           <tbody>
-            {% for row in overview.categories %}
+            {% for row in report_categories.rows %}
               <tr>
                 <td data-label="категория">
-                  {% if row.category_id %}
-                    <a href="/categories/{{ row.category_id }}">{{ row.category_name }}</a>
+                  {% if row.detail_url %}
+                    <a href="{{ row.detail_url }}">{{ row.category_name }}</a>
                   {% else %}
                     {{ row.category_name }}
                   {% endif %}

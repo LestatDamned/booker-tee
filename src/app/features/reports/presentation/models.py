@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
+from uuid import UUID
 
 
 @dataclass(frozen=True)
@@ -19,3 +21,28 @@ class ReportPeriodNav:
     is_current_month_period: bool
     mode_label: str
     exact_filters_label: str
+
+
+@dataclass(frozen=True)
+class ReportSortOptionVM:
+    value: str
+    label: str
+    url: str
+    is_active: bool
+
+
+@dataclass(frozen=True)
+class ReportCategoryRowVM:
+    category_id: UUID | None
+    category_name: str
+    income: Decimal
+    expense: Decimal
+    profit: Decimal
+    detail_url: str | None
+
+
+@dataclass(frozen=True)
+class ReportCategoryTableVM:
+    rows: list[ReportCategoryRowVM]
+    sort: str
+    sort_options: list[ReportSortOptionVM]

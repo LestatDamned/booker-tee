@@ -102,6 +102,14 @@
       {% endif %}
     </article>
 
+    <div class="report-context-bar category-detail-period">
+      <span>{{ icon("calendar") }} период</span>
+      <strong>{{ page.period_label }}</strong>
+      {% if page.has_period_filter %}
+        <a class="button button-small filter-form__secondary-action" href="{{ page.reset_period_url }}">{{ icon("refresh") }} все время</a>
+      {% endif %}
+    </div>
+
     <div class="summary-grid kpi-strip">
       <div>
         <span>доходы</span>
@@ -118,7 +126,7 @@
     </div>
 
     <div class="section-heading">
-      <p class="eyebrow">{{ detail.operations|length }} подтвержденных операций</p>
+      <p class="eyebrow">{{ detail.operations|length }} подтвержденных операций · {{ page.period_label }}</p>
       <h2>Операции</h2>
     </div>
     {% if detail.operations %}

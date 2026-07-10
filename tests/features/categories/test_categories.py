@@ -1,3 +1,4 @@
+from datetime import date
 from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
@@ -196,6 +197,34 @@ def test_category_presenter_builds_detail_action_policy() -> None:
     assert page.save_action.form_id == f"category-form-{category_id}"
 
 
+def test_category_presenter_builds_period_context() -> None:
+    category_id = uuid4()
+
+    page = CategoryPagePresenter.build_detail(
+        cast(
+            Any,
+            SimpleNamespace(
+                category=SimpleNamespace(
+                    id=category_id,
+                    name="Продукты",
+                    kind=CategoryKind.EXPENSE,
+                    is_active=True,
+                    is_system=False,
+                    notes=None,
+                ),
+                operations=[],
+                rules=[],
+            ),
+        ),
+        date_from=date(2026, 6, 1),
+        date_to=date(2026, 6, 30),
+    )
+
+    assert page.period_label == "01.06.2026 — 30.06.2026"
+    assert page.has_period_filter is True
+    assert page.reset_period_url == f"/categories/{category_id}"
+
+
 def test_category_presenter_keeps_system_detail_readonly() -> None:
     page = CategoryPagePresenter.build_detail(
         cast(
@@ -245,6 +274,11 @@ def test_category_detail_url_targets_category_detail() -> None:
     category_id = uuid4()
 
     assert category_detail_url(category_id) == f"/categories/{category_id}"
+    assert category_detail_url(
+        category_id,
+        date_from=date(2026, 6, 1),
+        date_to=date(2026, 6, 30),
+    ) == f"/categories/{category_id}?date_from=2026-06-01&date_to=2026-06-30"
 
 
 @pytest.mark.asyncio
