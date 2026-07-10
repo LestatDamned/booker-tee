@@ -350,6 +350,13 @@ def prepare_realistic_scenario(
             exact=True,
         ).first.wait_for(timeout=PAGE_TIMEOUT_MS)
 
+        page.goto(build_url(base_url, "/workspaces"), wait_until="domcontentloaded")
+        invitation_form = page.locator('form[action$="/invitations"]').first
+        invitation_form.locator('select[name="role"]').select_option("viewer")
+        invitation_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+        page.get_by_text("Ссылка-приглашение создана", exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
+        page.get_by_text("Ожидающие приглашения", exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
+
         page.goto(build_url(base_url, "/imports/upload"), wait_until="domcontentloaded")
         page.locator('input[name="statement_pdf"]').set_input_files(str(workbook_path))
         page.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
@@ -366,6 +373,7 @@ def prepare_realistic_scenario(
         "document_name": document_name,
         "rule_category_name": rule_category_name,
         "property_name": property_name,
+        "workspace_pending_invitation": "true",
     }
 
 
@@ -506,6 +514,15 @@ def collect_ux_assertions(
             errors.append(f"dashboard does not show seeded account {account_name!r}")
         if document_name and document_name not in body_text:
             errors.append(f"dashboard does not show seeded document {document_name!r}")
+
+    if (
+        scenario == "realistic"
+        and path == "/workspaces"
+        and scenario_state.get("workspace_pending_invitation")
+    ):
+        body_text = page.locator("body").inner_text(timeout=PAGE_TIMEOUT_MS)
+        if "Ожидающие приглашения" not in body_text:
+            errors.append("workspaces page does not show seeded pending invitation")
 
     if scenario == "review_interactions" and path == scenario_state.get("review_path"):
         errors.extend(assert_review_interactions(page, scenario_state=scenario_state))
