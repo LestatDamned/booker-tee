@@ -167,54 +167,70 @@
         <span class="section-context">доступ и приглашения</span>
       </div>
 
-      {% if members %}
+      {% if page.member_rows %}
         <div class="subsection-heading">
-          <h3>Активные участники</h3>
-          <span>{{ members | length }}</span>
+          <h3>Состав пространства</h3>
+          <span>{{ page.member_count_label }}</span>
         </div>
-        <div class="entity-card-list">
-          {% for member in members %}
-            <article class="entity-card">
-              <div class="entity-card-main">
-                <div class="entity-card-title">
-                  <strong class="truncate-label" title="{{ member.user.name or member.user.email }}">{{ member.user.name or member.user.email }}</strong>
-                  <span class="badge badge-{{ member.status.value }}">{{ member.status | ru }}</span>
+        <div class="entity-card-list workspace-member-list">
+          {% for row in page.member_rows %}
+            <article id="{{ row.anchor_id }}" class="financial-row entity-card workspace-member-card {% if not row.edit_toggle_action and not row.lifecycle_action %}financial-row--single entity-card-readonly{% endif %}">
+              <div class="financial-row__main entity-card-main workspace-member-card__main">
+                <div class="financial-row__topline workspace-member-card__topline">
+                  <div class="entity-card-title workspace-member-card__title">
+                    <strong class="truncate-label" title="{{ row.title }}">{{ row.title }}</strong>
+                  </div>
+                  <span class="badge badge-{{ row.status_tone }} workspace-member-card__status">{{ row.status_label }}</span>
                 </div>
-                <div class="entity-card-meta">
-                  <span>{{ member.user.email }}</span>
-                  <span>{{ member.role | ru }}</span>
+                <div class="financial-row__meta workspace-member-card__meta">
+                  <span class="financial-row__meta-item">{{ row.email_label }}</span>
+                  <span class="financial-row__meta-item financial-row__meta-item--classification">{{ row.role_label }}</span>
                 </div>
-                {% if can_invite_members and member.user_id != current_user.id and member.role.value != "owner" %}
-                  <details class="admin-details">
-                    <summary>Управление</summary>
-                    <div class="form-panel form-panel-embedded">
-                      <form class="detached-form" id="member-role-form-{{ member.id }}" method="post" action="/workspaces/{{ workspace.id }}/members/{{ member.id }}/role">{{ csrf_input() }}</form>
-                      <label class="field form-field-half">
-                        <span>роль</span>
-                        <select name="role" form="member-role-form-{{ member.id }}">
-                          {% for role in member_roles %}
-                            <option value="{{ role.value }}" {% if member.role == role %}selected{% endif %}>{{ role | ru }}</option>
+              </div>
+
+              {% if row.edit_toggle_action or row.lifecycle_action %}
+                <div class="financial-row__side entity-card-actions row-actions workspace-member-card__actions">
+                  {% if row.edit_toggle_action %}
+                    {% set action = row.edit_toggle_action %}
+                    {% include "ui/_action.html" %}
+                  {% endif %}
+                  {% if row.lifecycle_action %}
+                    {% set action = row.lifecycle_action %}
+                    {% include "ui/_action.html" %}
+                  {% endif %}
+                </div>
+              {% endif %}
+
+              {% if row.edit_toggle_action %}
+                <details class="workspace-member-card__edit" {% if row.edit_panel_open %}open{% endif %}>
+                  <summary id="{{ row.edit_summary_id }}" class="workspace-member-card__edit-summary">
+                    <span>Изменить роль</span>
+                  </summary>
+                  <div class="financial-row__drawer row-drawer workspace-member-card__edit-panel">
+                    <div class="row-drawer__header">
+                      <div class="row-drawer__heading">
+                        <h3 class="row-drawer__title">Изменить роль</h3>
+                        <span class="row-drawer__context">{{ row.role_label }}</span>
+                      </div>
+                    </div>
+                    <form id="{{ row.form_id }}" class="row-drawer__form workspace-member-form workspace-member-form--drawer" method="post" action="/workspaces/{{ workspace.id }}/members/{{ row.member.id }}/role">
+                      {{ csrf_input() }}
+                      <label class="field row-drawer__field workspace-member-form__field workspace-member-form__field--role">
+                        <span>Роль</span>
+                        <select name="role">
+                          {% for role in row.role_options %}
+                            <option value="{{ role.value }}" {% if row.member.role == role %}selected{% endif %}>{{ role | ru }}</option>
                           {% endfor %}
                         </select>
                       </label>
-                      <div class="form-actions-inline">
-                        <button class="button button-small" type="submit" form="member-role-form-{{ member.id }}">{{ icon("save") }} сохранить роль</button>
-                        {% if member.status.value == "active" %}
-                          <form method="post" action="/workspaces/{{ workspace.id }}/members/{{ member.id }}/disable">
-                            {{ csrf_input() }}
-                            <button class="button button-small" type="submit">{{ icon("trash") }} отключить</button>
-                          </form>
-                        {% elif member.status.value == "disabled" %}
-                          <form method="post" action="/workspaces/{{ workspace.id }}/members/{{ member.id }}/reactivate">
-                            {{ csrf_input() }}
-                            <button class="button button-small" type="submit">{{ icon("refresh") }} восстановить</button>
-                          </form>
-                        {% endif %}
+                      <div class="row-drawer__footer workspace-member-form__footer">
+                        {% set action = row.save_role_action %}
+                        {% include "ui/_action.html" %}
                       </div>
-                    </div>
-                  </details>
-                {% endif %}
-              </div>
+                    </form>
+                  </div>
+                </details>
+              {% endif %}
             </article>
           {% endfor %}
         </div>

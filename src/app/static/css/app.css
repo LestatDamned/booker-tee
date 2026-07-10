@@ -4728,6 +4728,75 @@ pre {
   grid-column: span 3;
 }
 
+.workspace-member-card__main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.workspace-member-card__topline {
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
+
+.workspace-member-card__title strong {
+  font-size: 1.02rem;
+  overflow-wrap: anywhere;
+}
+
+.workspace-member-card__status {
+  min-height: 34px;
+  justify-self: end;
+  justify-content: center;
+  border-color: color-mix(in srgb, currentcolor 72%, var(--border));
+  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
+  padding-inline: 12px;
+}
+
+.workspace-member-card__actions {
+  min-width: 0;
+}
+
+.workspace-member-card__edit {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+
+.workspace-member-card__edit-summary {
+  position: absolute;
+  width: 1px !important;
+  height: 1px;
+  min-height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  border: 0;
+  padding: 0;
+  white-space: nowrap;
+  list-style: none;
+}
+
+.workspace-member-card__edit > summary::after,
+.workspace-member-card__edit[open] > summary::after {
+  content: none;
+}
+
+.workspace-member-card__edit-panel {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-top: 12px;
+}
+
+.workspace-member-form--drawer {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.workspace-member-form__field--role {
+  grid-column: span 6;
+}
+
 .manual-operation-row {
   border-left-width: 4px;
 }
@@ -6834,6 +6903,7 @@ pre {
   .category-form--drawer,
   .property-form--drawer,
   .workspace-form--drawer,
+  .workspace-member-form--drawer,
   .operation-form__footer {
     grid-template-columns: 1fr;
   }
@@ -6851,6 +6921,7 @@ pre {
   .workspace-form__field--name,
   .workspace-form__field--type,
   .workspace-form__field--currency,
+  .workspace-member-form__field--role,
   .operation-form__fields--classification .operation-form__field,
   .operation-form__field--description,
   .rule-edit-fields--condition .rule-edit-field--match,

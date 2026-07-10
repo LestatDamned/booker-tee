@@ -9,7 +9,7 @@ from app.features.imports.presentation.document_page.presenter import DocumentDe
 from app.features.imports.presentation.documents import ImportIndexPresenter, UploadPagePresenter
 from app.features.imports.presentation.mapping.models import MappingDocumentVM, MappingNextStepVM
 from app.features.imports.presentation.review.page import build_review_page_context
-from app.features.workspaces.models import WorkspaceType
+from app.features.workspaces.models import WorkspaceMemberStatus, WorkspaceRole, WorkspaceType
 from app.features.workspaces.presentation.presenter import WorkspacesPagePresenter
 from app.templating import create_templates
 
@@ -325,8 +325,25 @@ def test_profile_separates_session_action_from_profile_metrics() -> None:
 
 
 def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
+    current_user_id = uuid4()
     current_workspace_id = uuid4()
     other_workspace_id = uuid4()
+    actor_membership = SimpleNamespace(
+        id=uuid4(),
+        workspace_id=current_workspace_id,
+        user_id=current_user_id,
+        role=WorkspaceRole.OWNER,
+        status=WorkspaceMemberStatus.ACTIVE,
+        user=SimpleNamespace(name="Test User", email="test@example.com"),
+    )
+    managed_member = SimpleNamespace(
+        id=uuid4(),
+        workspace_id=current_workspace_id,
+        user_id=uuid4(),
+        role=WorkspaceRole.EDITOR,
+        status=WorkspaceMemberStatus.ACTIVE,
+        user=SimpleNamespace(name="Editor User", email="editor@example.com"),
+    )
     current_workspace = SimpleNamespace(
         id=current_workspace_id,
         name="Personal",
@@ -345,14 +362,22 @@ def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
     html = render_template(
         "workspaces/index.html",
         app_name="Booker Tee",
-        current_user=SimpleNamespace(name="Test User", email="test@example.com"),
+        current_user=SimpleNamespace(
+            id=current_user_id,
+            name="Test User",
+            email="test@example.com",
+        ),
         workspace=current_workspace,
         workspace_page=WorkspacesPagePresenter.build_index(
             cast(Any, workspaces),
+            members=cast(Any, [actor_membership, managed_member]),
             current_workspace_id=current_workspace_id,
             current_default_currency="RUB",
+            current_user_id=current_user_id,
+            actor_membership=cast(Any, actor_membership),
             can_manage_workspace=True,
             select_return_path="/imports",
+            member_roles=(WorkspaceRole.ADMIN, WorkspaceRole.EDITOR, WorkspaceRole.VIEWER),
         ),
         workspace_types=list(WorkspaceType),
         workspace_return_path="/imports",
@@ -361,7 +386,15 @@ def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
 
     assert "workspace-card" in html
     assert "workspace-card__edit" in html
+    assert "workspace-member-card" in html
+    assert "workspace-member-card__edit" in html
     assert "Изменить пространство" in html
+    assert "Изменить роль" in html
+    managed_member_path = f"/workspaces/{current_workspace_id}/members/{managed_member.id}"
+    member_role_action = f'action="{managed_member_path}/role"'
+    member_disable_action = f'action="{managed_member_path}/disable"'
+    assert member_role_action in html
+    assert member_disable_action in html
     assert "admin-details" not in html
     assert f'action="/workspaces/{other_workspace_id}/select"' in html
     assert 'name="next" value="/imports"' in html
@@ -369,13 +402,26 @@ def test_workspaces_keep_editing_in_secondary_admin_layer() -> None:
 
 
 def test_workspace_invitation_link_is_visible_after_creation() -> None:
+    current_user_id = uuid4()
     workspace_id = uuid4()
     invitation_link = "http://testserver/workspaces/invitations/invite-token"
+    actor_membership = SimpleNamespace(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        user_id=current_user_id,
+        role=WorkspaceRole.OWNER,
+        status=WorkspaceMemberStatus.ACTIVE,
+        user=SimpleNamespace(name="Test User", email="test@example.com"),
+    )
 
     html = render_template(
         "workspaces/index.html",
         app_name="Booker Tee",
-        current_user=SimpleNamespace(name="Test User", email="test@example.com"),
+        current_user=SimpleNamespace(
+            id=current_user_id,
+            name="Test User",
+            email="test@example.com",
+        ),
         workspace=SimpleNamespace(
             id=workspace_id,
             name="Family",
@@ -384,10 +430,14 @@ def test_workspace_invitation_link_is_visible_after_creation() -> None:
         ),
         workspace_page=WorkspacesPagePresenter.build_index(
             [],
+            members=cast(Any, [actor_membership]),
             current_workspace_id=workspace_id,
             current_default_currency="RUB",
+            current_user_id=current_user_id,
+            actor_membership=cast(Any, actor_membership),
             can_manage_workspace=True,
             select_return_path="/workspaces",
+            member_roles=(WorkspaceRole.ADMIN, WorkspaceRole.EDITOR, WorkspaceRole.VIEWER),
         ),
         workspace_types=list(WorkspaceType),
         workspaces=[],
