@@ -349,6 +349,7 @@ async def build_rules_page(
         category_id=filter_category_id,
         status=filter_status,
         limit=limit,
+        pinned_rule_id=recent_rule_id,
     )
     return TransactionRulesPagePresenter.build(
         result.rules,

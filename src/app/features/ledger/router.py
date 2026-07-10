@@ -347,7 +347,7 @@ async def manual_operation_row_response(
             operations=[operation],
             page=LedgerPage(page=1, per_page=1, total=1),
             filters=ManualOperationFilters(),
-            focused_operation_id=operation_id,
+            focused_operation_id=None,
             can_write=True,
         )
         .rows[0]

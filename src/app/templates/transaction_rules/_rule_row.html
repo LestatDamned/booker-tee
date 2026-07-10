@@ -3,6 +3,7 @@
 <article
   id="{{ rule.anchor_id }}"
   class="financial-row entity-card rule-card {% if rule.is_inactive %}entity-card-inactive{% endif %} {% if rule.is_recent %}rule-card--recent{% endif %}"
+  data-entity-working="true"
   hx-boost="true"
   hx-select="#{{ rule.anchor_id }}"
   hx-target="#{{ rule.anchor_id }}"

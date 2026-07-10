@@ -12,7 +12,10 @@ from app.features.transaction_rules.application.fixture_seeding import (
     DEFAULT_MERCHANT_RULE_SEEDS,
 )
 from app.features.transaction_rules.application.rule_application import select_best_matching_rule
-from app.features.transaction_rules.application.rule_queries import filter_rules
+from app.features.transaction_rules.application.rule_queries import (
+    filter_rules,
+    visible_rules_for_page,
+)
 from app.features.transaction_rules.domain.matching import rule_matches_raw_transaction
 from app.features.transaction_rules.domain.patterns import infer_rule_pattern
 from app.features.transaction_rules.domain.suggestions import (
@@ -246,6 +249,27 @@ def test_rule_list_limit_is_bounded_for_reference_screen() -> None:
     assert normalize_limit(0) == 1
     assert normalize_limit(50) == 50
     assert normalize_limit(5000) == 1000
+
+
+def test_rule_list_keeps_recent_rule_visible_beyond_limit() -> None:
+    workspace_id = uuid4()
+    rules = [
+        transaction_rule(
+            workspace_id=workspace_id,
+            category_id=None,
+            pattern=f"RULE {index:02}",
+        )
+        for index in range(4)
+    ]
+    recent_rule = rules[-1]
+
+    visible_rules = visible_rules_for_page(
+        rules,
+        limit=2,
+        pinned_rule_id=recent_rule.id,
+    )
+
+    assert visible_rules == [rules[0], rules[1], recent_rule]
 
 
 def transaction_rule(

@@ -88,6 +88,7 @@ def test_transaction_rules_template_uses_compact_rule_cards() -> None:
     assert 'hx-select="#rule-' in html
     assert 'hx-swap="outerHTML show:none settle:600ms"' in html
     assert 'hx-push-url="false"' in html
+    assert 'data-entity-working="true"' in html
     assert "rule-card__edit" in html
     assert "изменить правило" in html
     assert f'hx-get="/rules/{rule_id}/edit"' in html

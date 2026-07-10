@@ -138,6 +138,7 @@ def test_manual_operations_presenter_builds_transfer_row() -> None:
 
     assert page_vm.filters_active is True
     assert row.description == "Без описания"
+    assert row.is_targeted is False
     assert row.amount_direction == "transfer"
     edit_panel = ManualOperationsPresenter().build_edit_panel(operation, can_write=False)
 

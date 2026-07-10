@@ -42,6 +42,7 @@ class TransactionRuleQueryUseCase:
         category_id: UUID | None = None,
         status: str = RULE_LIST_STATUS_ALL,
         limit: int = RULE_LIST_DEFAULT_LIMIT,
+        pinned_rule_id: UUID | None = None,
     ) -> TransactionRuleListResult:
         rules = await self.rules.list_for_workspace(workspace_id)
         filtered_rules = filter_rules(
@@ -52,7 +53,11 @@ class TransactionRuleQueryUseCase:
         )
         normalized_limit = normalize_limit(limit)
         return TransactionRuleListResult(
-            rules=filtered_rules[:normalized_limit],
+            rules=visible_rules_for_page(
+                filtered_rules,
+                limit=normalized_limit,
+                pinned_rule_id=pinned_rule_id,
+            ),
             total_count=len(rules),
             filtered_count=len(filtered_rules),
             active_count=sum(1 for rule in rules if rule.is_active),
@@ -80,6 +85,26 @@ def filter_rules(
         and matches_status(rule, normalized_status)
         and matches_search(rule, normalized_search)
     ]
+
+
+def visible_rules_for_page(
+    filtered_rules: list[TransactionRule],
+    *,
+    limit: int,
+    pinned_rule_id: UUID | None = None,
+) -> list[TransactionRule]:
+    visible_rules = list(filtered_rules[:limit])
+    if pinned_rule_id is None:
+        return visible_rules
+    if any(getattr(rule, "id", None) == pinned_rule_id for rule in visible_rules):
+        return visible_rules
+    pinned_rule = next(
+        (rule for rule in filtered_rules if getattr(rule, "id", None) == pinned_rule_id),
+        None,
+    )
+    if pinned_rule is not None:
+        visible_rules.append(pinned_rule)
+    return visible_rules
 
 
 def normalize_status(status: str) -> str:

@@ -10,7 +10,7 @@ from app.features.properties.presentation.presenter import (
     PropertiesPagePresenter,
     property_form_state,
 )
-from app.features.properties.router import property_recent_url
+from app.features.properties.router import property_anchor_url, property_recent_url
 
 
 def test_properties_presenter_builds_create_and_row_edit_state() -> None:
@@ -105,6 +105,12 @@ def test_property_recent_url_targets_created_property_anchor() -> None:
     )
 
 
+def test_property_anchor_url_targets_existing_property_anchor() -> None:
+    property_id = uuid4()
+
+    assert property_anchor_url(property_id) == f"/properties#property-{property_id}"
+
+
 @pytest.mark.asyncio
 async def test_property_update_redirect_keeps_row_focus(
     monkeypatch: pytest.MonkeyPatch,
@@ -124,7 +130,7 @@ async def test_property_update_redirect_keeps_row_focus(
     )
 
     assert response.status_code == 303
-    assert response.headers["location"] == property_recent_url(property_id)
+    assert response.headers["location"] == property_anchor_url(property_id)
 
 
 @pytest.mark.asyncio
@@ -150,9 +156,9 @@ async def test_property_lifecycle_redirect_keeps_row_focus(
     )
 
     assert archive_response.status_code == 303
-    assert archive_response.headers["location"] == property_recent_url(property_id)
+    assert archive_response.headers["location"] == property_anchor_url(property_id)
     assert restore_response.status_code == 303
-    assert restore_response.headers["location"] == property_recent_url(property_id)
+    assert restore_response.headers["location"] == property_anchor_url(property_id)
 
 
 def fake_property_service(property_id: object) -> type:

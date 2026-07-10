@@ -420,9 +420,10 @@ Use this vocabulary consistently:
 ```text
 current context  the entity that defines where the user is working
 active work item the entity currently being reviewed or resolved
+working card     the card the user is currently interacting with
 selected         an entity chosen by the user for a pending action
 focus            keyboard/browser focus
-recent           just created, saved, restored, toggled, or otherwise changed
+recent           just created and worth surfacing after navigation/filtering
 problem          error, warning, duplicate, mismatch, or attention state
 status           durable entity state such as active, archived, confirmed
 ```
@@ -446,12 +447,16 @@ Visual semantics:
    should use calm lavender/blue status treatment, not green success styling.
 7. Focus is not selection. Browser/keyboard focus should be an outline/ring and
    should disappear when focus moves.
-8. `:target` is navigation focus and fallback only. It should be subtle and
-   should not look like a permanent status, problem, or selected entity.
-9. "Just changed" feedback should be short-lived and calm. Prefer HTMX settling
-   or a temporary client-side state over a permanent ViewModel flag.
+8. `:target` is navigation focus and fallback only. Use it when a page load or
+   URL anchor returns the user to an entity. It should be subtle and should not
+   look like a permanent status, problem, or selected entity.
+9. `working card` is for the card the user just chose to act on. It should move
+   when the user clicks another card action and should not depend on timers.
 10. Row update swaps should avoid automatic scrolling unless the action's purpose
    is navigation.
+11. HTMX row-swap responses must not mark the changed row as `target`. A local
+   swap should preserve or set `working card`; a full-page redirect/anchor may
+   use `target`.
 
 Recommended treatments:
 
@@ -466,6 +471,11 @@ active work item
   color: selected/work surface can be stronger than passive current context
   behavior: local updates, no page jump
 
+working card
+  structure: the card whose action/form the user is interacting with
+  color: soft lavender work surface; no timer-based flash
+  behavior: one working card per screen; moves when another card is chosen
+
 selected
   structure: explicit selected control, checked state, or selected label
   color: selected surface as reinforcement, not the only signal
@@ -476,7 +486,7 @@ focus
 
 recent
   structure: compact feedback near the affected list or row
-  color: temporary calm accent; avoid permanent success coloring
+  color: calm accent for newly created entities; avoid permanent success coloring
 
 problem
   structure: explain what needs attention near the entity
@@ -498,8 +508,9 @@ Current application:
   other spaces and uses `aria-current`.
 - Import review uses `active work item` / queue semantics for rows the user is
   reviewing.
-- Account detail and manual ledger use `target`/local row replacement to
-  preserve working position after save/cancel.
+- Account detail and manual ledger use `target` only for URL-anchor return
+  states. Local row replacement after save/cancel/restore should preserve the
+  `working card`.
 - Transaction rules, categories, and properties should use the same language for
   enabled/current/recent/problem states as they continue to evolve.
 
@@ -579,6 +590,8 @@ Rules:
 6. The list partial owns the feedback block and the row highlight.
 7. The link should target the created entity's stable anchor.
 8. HTMX create responses should pass the recent entity id into the list partial.
+9. Client-side behavior should clear recent feedback on the next meaningful
+   interaction or HTMX request. Recent is confirmation, not a durable state.
    Non-HTMX fallback may still redirect to the entity anchor.
 
 ### Financial Forms

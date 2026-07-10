@@ -147,7 +147,7 @@ async def update_property(
         )
 
     return RedirectResponse(
-        url=property_recent_url(property_.id),
+        url=property_anchor_url(property_.id),
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -159,6 +159,10 @@ def property_anchor_id(property_id: UUID) -> str:
 def property_recent_url(property_id: UUID) -> str:
     anchor_id = property_anchor_id(property_id)
     return f"/properties?recent_property_id={property_id}#{anchor_id}"
+
+
+def property_anchor_url(property_id: UUID) -> str:
+    return f"/properties#{property_anchor_id(property_id)}"
 
 
 @router.post("/{property_id}/archive")
@@ -193,7 +197,7 @@ async def archive_property(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
     return RedirectResponse(
-        url=property_recent_url(property_.id),
+        url=property_anchor_url(property_.id),
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -230,6 +234,6 @@ async def restore_property(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
     return RedirectResponse(
-        url=property_recent_url(property_.id),
+        url=property_anchor_url(property_.id),
         status_code=status.HTTP_303_SEE_OTHER,
     )
