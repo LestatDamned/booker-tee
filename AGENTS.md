@@ -136,7 +136,7 @@ Task-specific documents:
   [`docs/design/FRONTEND_NEXT_DESIGN.md`](docs/design/FRONTEND_NEXT_DESIGN.md).
 - Repeated entity rows in Frontend Next:
   [`docs/design/WORKBENCH_ROW_DESIGN.md`](docs/design/WORKBENCH_ROW_DESIGN.md).
-- Earlier import review refactor and current-behavior reference:
+- Legacy frontend behavior reference; read only when auditing existing UI:
   [`docs/design/REFACTOR_PROJECT_DESIGN.md`](docs/design/REFACTOR_PROJECT_DESIGN.md).
 - Historical parser-first MVP guardrails:
   [`docs/product/MVP.md`](docs/product/MVP.md).

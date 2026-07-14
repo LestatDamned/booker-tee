@@ -25,8 +25,10 @@ This document defines the first useful product version. It should be read togeth
 - [`PROJECT_VISION.md`](PROJECT_VISION.md) — product positioning and target audience;
 - [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) — canonical entities and invariants;
 - [`ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) — project structure and engineering architecture;
+- [`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md) — active
+  frontend/SSR architecture and migration strategy;
 - [`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md) —
-  current frontend/SSR refactor anchor for the import review UI;
+  historical legacy frontend behavior reference;
 - [`AGENTS.md`](../../AGENTS.md) — instructions for Codex and other coding agents.
 
 ---

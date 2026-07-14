@@ -243,7 +243,11 @@ Main references:
 - [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) - code structure and
   feature boundaries.
 - [DESIGN.md](docs/design/DESIGN.md) - UI/UX principles and visual direction.
-- [REFACTOR_PROJECT_DESIGN.md](docs/design/REFACTOR_PROJECT_DESIGN.md) - current
-  import review SSR refactor plan.
+- [FRONTEND_NEXT_DESIGN.md](docs/design/FRONTEND_NEXT_DESIGN.md) - active
+  isolated SSR frontend strategy.
+- [WORKBENCH_ROW_DESIGN.md](docs/design/WORKBENCH_ROW_DESIGN.md) - active
+  repeated entity row specification for Frontend Next.
+- [REFACTOR_PROJECT_DESIGN.md](docs/design/REFACTOR_PROJECT_DESIGN.md) - legacy
+  frontend behavior and implementation history.
 - [MVP.md](docs/product/MVP.md) - historical parser-first MVP baseline and
   guardrails.

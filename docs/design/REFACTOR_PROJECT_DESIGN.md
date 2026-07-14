@@ -1,30 +1,39 @@
-# REFACTOR_PROJECT_DESIGN.md — Frontend Refactor Anchor
+# REFACTOR_PROJECT_DESIGN.md — История рефакторинга текущего frontend
 
-Живой документ для подготовки и проведения рефакторинга frontend/SSR слоя Booker Tee.
+Историческая справка о рефакторинге существующего frontend/SSR слоя Booker Tee.
 
 ```text
-Status: active refactor anchor and implementation log
-Read when: working on SSR frontend refactor, financial rows, actions, forms, imports, account detail, manual operations, or reports
-Do not use as: general product roadmap
+Статус: историческая справка и журнал реализации legacy frontend
+Читать: при аудите существующего поведения, templates, presenters и HTMX-контрактов
+Не использовать: как архитектуру, план реализации или расположение файлов Frontend Next
 ```
 
-Цель документа: собрать решения до начала больших правок, чтобы рефакторинг был
-последовательным, проверяемым и не превращался в серию случайных переделок.
+Активный источник истины для нового frontend:
+[`FRONTEND_NEXT_DESIGN.md`](FRONTEND_NEXT_DESIGN.md). Для повторяющихся строк
+сущностей дополнительно действует
+[`WORKBENCH_ROW_DESIGN.md`](WORKBENCH_ROW_DESIGN.md).
+
+Этот файл сохраняется как каталог уже обнаруженного поведения, исторических
+решений, acceptance audit и карты legacy presentation-кода. Указания ниже про
+`src/app/templates`, `src/app/static/css/app.css` и
+`src/app/features/*/presentation` описывают текущий legacy frontend и не задают
+целевую структуру `src/app/web/`.
 
 ## Как читать этот документ
 
-Этот документ больше не является только планом первого import review slice. Он
-теперь выполняет две роли:
+Документ выполняет две исторические роли:
 
 1. фиксирует архитектурные решения, которые уже доказали себя в коде;
-2. держит ближайший план frontend/SSR refactor, чтобы не терять направление.
+2. объясняет, почему существующий legacy frontend устроен именно так.
 
-Исторические sections оставлены там, где они объясняют почему код устроен
-именно так. Если нужно общее правило дизайна, сначала смотреть
-[`DESIGN.md`](DESIGN.md). Если нужно понять текущую реализацию конкретного
-feature, смотреть локальные README и код presenter/ViewModel слоя.
+Слова `current`, `next` и формулировки будущего плана внутри старых разделов
+относятся к этапу, на котором этот журнал велся, а не к текущему приоритету
+проекта. Если нужно общее правило дизайна, смотреть [`DESIGN.md`](DESIGN.md).
+Если нужно проектировать или реализовывать новый frontend, этот документ
+используется только после `FRONTEND_NEXT_DESIGN.md` и только как источник
+наблюдаемого поведения.
 
-## Главная цель рефакторинга
+## Историческая цель предыдущего рефакторинга
 
 Первый этап рефакторинга сфокусирован на двух вещах:
 
@@ -63,7 +72,7 @@ Booker Tee остается надежным финансовым инструм
   страницы.
 - Существующие URL и финансовое поведение не менять без отдельного решения.
 
-## Решения
+## Исторические решения
 
 - Первый этап: унификация визуальных компонентов и UX.
 - Второй приоритет внутри того же направления: ViewModel/presentation слой,
@@ -1477,7 +1486,7 @@ review-actions__danger
 22. Если что-то ломается, старый partial можно временно вернуть без миграций БД
     и отката бизнес-логики.
 
-### Current Acceptance Audit
+### Исторический acceptance audit
 
 Состояние на 2026-07-06 после stabilization cleanup первого import review slice.
 
@@ -1506,7 +1515,7 @@ review-actions__danger
 | 21 | Closed | New active rendering path uses `imports/review/_item.html` and `ReviewItemVM`; old raw-transaction review item fallback was removed after stabilization. |
 | 22 | Superseded | Initial rollback criterion was useful during the feature-flag phase. After stabilization, the old partial and `use_review_item_vm` were removed by decision; rollback would now be a normal git revert, not a runtime switch. |
 
-## Gradual Migration Plan
+## Историческая стратегия постепенной миграции
 
 Не переписывать весь frontend сразу.
 
@@ -1552,7 +1561,7 @@ container. Старые item fallback-селекторы (`review-status-*`, `re
 6. Добавить unit tests для visual-state resolver и action policy.
 7. После этого перенести тот же паттерн на Account detail и Manual operations.
 
-## Implementation Guardrails
+## Исторические ограничения реализации
 
 - Не менять DB enum для `ready_to_confirm`.
 - Не менять финансовое поведение и posting use cases в рамках UI refactor.
@@ -1578,7 +1587,11 @@ container. Старые item fallback-селекторы (`review-status-*`, `re
 Если нужен новый безопасный rollout, он должен быть спроектирован отдельно и
 иметь явный срок удаления.
 
-## Current Open Plan
+## Исторический план legacy frontend
+
+Этот раздел сохранен для понимания прежней последовательности работ. Он не
+является текущим backlog и не должен выполняться внутри Frontend Next без
+отдельного решения в `FRONTEND_NEXT_DESIGN.md`.
 
 Ближайшие направления после закрытия import review, imports flow convergence,
 account detail and manual operations slices:

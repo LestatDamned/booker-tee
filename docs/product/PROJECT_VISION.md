@@ -16,8 +16,10 @@ Use:
 - [`MVP.md`](./MVP.md) as historical MVP baseline and guardrails.
 - [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) for financial/domain rules.
 - [`ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) for implementation shape.
-- [`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md) for the
-  current import review UI/SSR refactor.
+- [`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md) for the active
+  frontend/SSR architecture and migration strategy.
+- [`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md) only for
+  historical legacy frontend behavior and implementation discoveries.
 
 Current assessment: the original MVP has been completed and exceeded. Booker Tee
 already has workspaces, users, accounts, imports, review, operations, money

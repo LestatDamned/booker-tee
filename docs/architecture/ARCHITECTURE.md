@@ -13,7 +13,9 @@ read [`PROJECT_VISION.md`](../product/PROJECT_VISION.md) and
 [`ROADMAP.md`](../product/ROADMAP.md). For domain invariants read
 [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md). For UI/SSR refactoring read
 [`DESIGN.md`](../design/DESIGN.md) and
-[`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md).
+[`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md). Use
+[`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md) only to
+inspect existing legacy frontend behavior.
 
 Current assessment: the original parser-first MVP is complete and exceeded.
 Architecture now needs to protect clarity, maintainability, financial
@@ -443,8 +445,10 @@ Rules:
 - Generic UI partials may live under `templates/ui/` or `templates/components/`
   when they are stable.
 
-Current detailed import review plan lives in
-[`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md).
+Existing import-review implementation details and historical decisions live in
+[`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md). New SSR
+architecture and migration decisions live in
+[`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md).
 
 ---
 

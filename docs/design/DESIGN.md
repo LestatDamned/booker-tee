@@ -7,11 +7,28 @@ Status: active design reference.
 Read when changing layout, templates, CSS, actions, empty states, status badges,
 financial rows, or user flows.
 
-Do not use as the detailed implementation plan for the current import review
-refactor. For that, read
-[`REFACTOR_PROJECT_DESIGN.md`](REFACTOR_PROJECT_DESIGN.md). If the two documents
-conflict on the first import review slice, `REFACTOR_PROJECT_DESIGN.md` has
-priority.
+For the active frontend architecture and migration strategy, read
+[`FRONTEND_NEXT_DESIGN.md`](FRONTEND_NEXT_DESIGN.md). For repeated entity rows,
+also read [`WORKBENCH_ROW_DESIGN.md`](WORKBENCH_ROW_DESIGN.md). Use
+[`REFACTOR_PROJECT_DESIGN.md`](REFACTOR_PROJECT_DESIGN.md) only as a historical
+reference for existing legacy behavior and implementation discoveries. If it
+conflicts with Frontend Next, `FRONTEND_NEXT_DESIGN.md` has priority.
+
+## Роль документа
+
+Этот документ задает пользовательский опыт, визуальную иерархию и устойчивые
+interaction-принципы. Он не задает:
+
+- расположение Python, Jinja и CSS-файлов;
+- конкретные имена legacy selectors или partials;
+- Python-контракты Presenter/ViewModel;
+- порядок миграции workflows;
+- активный implementation backlog.
+
+Эти решения принадлежат `FRONTEND_NEXT_DESIGN.md` и его дочерним
+спецификациям. Названия компонентов в этом документе обозначают UI-концепты;
+точный HTML, BEM и ViewModel contract определяются в соответствующей дочерней
+спецификации.
 
 Current assessment: the first UI cleanup phase is mostly complete. The design
 work is no longer about adding more boxes, hints, and buttons. The next phase is
@@ -99,10 +116,50 @@ redesigning every page separately.
    compact cards instead.
 7. Empty states should explain what is missing and point to the next useful
    action.
-8. Technical details should be available, but not visually equal to financial
-   decisions.
+8. Internal technical details do not belong to the ordinary user flow.
+   Financial traceability is expressed through understandable sources and
+   actions, not UUIDs or debug payloads.
 9. One screen should have one main next step.
 10. Reuse components and patterns before inventing another local variant.
+
+### 3.1 Progressive Disclosure
+
+Booker Tee следует паттерну
+**[Progressive disclosure](https://en.wikipedia.org/wiki/Progressive_disclosure)**:
+интерфейс сначала показывает информацию и действия, необходимые для текущего
+решения, а вторичную сложность раскрывает по запросу пользователя. Это делает
+плотные финансовые workflows проще для изучения и снижает вероятность ошибок.
+
+Стандартный порядок раскрытия:
+
+```text
+финансовый смысл и текущее состояние
+-> основное действие
+-> вторичные действия и необязательный контекст
+-> форма редактирования/исправления или подробный workflow
+```
+
+Progressive disclosure используется для:
+
+- неактивных фильтров и вторичных инструментов страницы;
+- редких и опасных действий внутри явной области `Еще действия`;
+- lazy edit/repair panels;
+- необязательного вспомогательного контекста;
+- сложных workflows с безопасной отдельной страницей или панелью.
+
+Нельзя использовать progressive disclosure, чтобы скрывать:
+
+- сумму, валюту, дату или смысл операции;
+- ошибки, предупреждения и нерешенное review-состояние;
+- последствия финансового действия;
+- основное действие, необходимое для продолжения;
+- объяснение permissions или readonly-состояния;
+- подтверждение destructive action.
+
+Disclosure controls должны оставаться понятными, доступными с клавиатуры и
+работать через обычный HTTP fallback. Не использовать глубокую вложенность
+accordions и menus: если вторичная область превращается в полноценный workflow,
+ей нужна понятная отдельная панель или страница.
 
 ---
 
@@ -148,19 +205,15 @@ Principle:
 ```text
 money first
 decision second
-technical details last
+technical implementation outside the ordinary flow
 ```
 
-Suggested reusable classes:
+Stable UI concepts:
 
 ```text
-money-value
-money-income
-money-expense
-money-transfer
-money-profit
-kpi-strip
-money-card
+MoneyValue
+KpiStrip
+MoneyCard
 ```
 
 Rules:
@@ -168,8 +221,9 @@ Rules:
 - amounts should be easy to scan;
 - currency must stay near the amount;
 - negative values must not disappear in normal text;
-- financial values should usually be more visually important than UUIDs,
-  timestamps, parser names, and debug state.
+- financial values should usually be more visually important than timestamps
+  and processing metadata;
+- UUIDs, parser names and debug state are not ordinary page content.
 
 ---
 
@@ -183,7 +237,7 @@ Date                                      Amount
 Description
 Human meta: category, account, calm status
 Important signals only when action is needed
-Actions / drawer / technical details secondary or collapsed
+Actions / edit panel secondary until needed
 ```
 
 This pattern should feel familiar across:
@@ -195,16 +249,19 @@ This pattern should feel familiar across:
 - transaction rules where applicable.
 
 Do not force one universal component for every entity. Reuse the pattern and
-shared partials where the UX concept is actually the same.
+Frontend Next components where the UX concept and behavior are actually the
+same.
 
 Base type scale:
 
 ```text
-date:        financial-row__date        1.4rem
-amount:      financial-row__amount      1.4rem
-description: financial-row__description 1.02rem / 680
-meta:        financial-row__meta        compact, secondary
+date and amount: visually prominent peers
+description:     primary readable text
+metadata:        compact secondary text
 ```
+
+Exact sizes, weights and spacing are defined through foundation tokens, not
+hard-coded as a page-specific contract here.
 
 Normal statuses are calm metadata, not primary badges:
 
@@ -269,12 +326,12 @@ Action rail rules:
 ```text
 primary action
 secondary action
-technical details collapsed
+rare actions disclosed on demand
 ```
 
 - Primary action opens or performs the most useful row action.
 - Secondary actions link to source/context, for example import row.
-- Technical identifiers stay collapsed.
+- Technical identifiers are not rendered as ordinary row content.
 - Do not duplicate the same secondary action inside the drawer if it already
   exists in the action rail.
 
@@ -287,13 +344,12 @@ drawer footer: final submit action, aligned right
 ```
 
 Drawers should feel like an extension of the row, not a separate page nested
-inside the row. Use a compact shared structure:
+inside the row. Use the shared Frontend Next concepts:
 
 ```text
-row-actions
-row-actions__primary / row-actions__secondary / row-actions__technical
-row-drawer
-row-drawer__header / row-drawer__form / row-drawer__footer
+WorkbenchRow
+ActionStack
+ExpansionPanel
 ```
 
 Use row-level drawers for transaction repair, review panels, and compact
@@ -305,10 +361,9 @@ example, `Исправить` should stay `Исправить`; it should not tu
 `Закрыть`. Closing is the behavior of the drawer/accordion itself, while the
 drawer footer should contain only the data-changing submit action.
 
-`action-details`, `action-accordion`, and `form-panel-embedded` are still valid
-for page-level collapsible tools, filters, creation forms, and technical
-details. They should not be introduced for row-level transaction repair when
-`row-actions` / `row-drawer` can express the same interaction.
+Page-level disclosure remains valid for filters, creation forms and optional
+tools. Row-level repair uses the Workbench Row expansion contract instead of a
+separate local accordion language.
 
 Accepted row-level language:
 
@@ -341,8 +396,7 @@ Rules:
    calm metadata, and compact status/result signals.
 2. The right side owns actions only. It should not become a save panel, a
    duplicate status area, or a second data summary.
-3. The two zones should be separated by the same calm vertical divider rhythm
-   used by `financial-row__side`.
+3. The two zones should use one calm and consistent divider rhythm.
 4. Compact status/result anchors may live in the left side's right edge, like
    an amount or `активно` badge. They are still information, not row actions.
 5. A row/card has one visible primary action. Secondary actions are visually
@@ -357,32 +411,23 @@ Rules:
    the submit action inside the drawer footer.
 9. Opening the drawer should not replace the right-side action rail with a
    different set of buttons. The action rail stays stable; the form owns save.
-10. Technical details, IDs and debug payloads do not appear in ordinary
-    entity cards by default. Add them only behind an explicit support/debug
-    need, not as normal "Еще действия" content.
+10. Technical details, IDs and debug payloads do not appear in ordinary entity
+    cards or `Еще действия`. A proven diagnostic need belongs to a separate
+    authorized support/debug surface.
 
-Implementation guidance:
+Component guidance:
 
 ```text
-financial-row / entity-card root
-financial-row__main         left information zone
-financial-row__side         right action zone
-row-actions                 primary/secondary/more action rail
-row-drawer                  full-width edit/resolve drawer
-operation-form / feature form classes
-ui/_action.html + ActionVM  shared action shape
-ui/_more_actions.html       shared "Еще действия" shell
+WorkbenchRow     information, actions and expansion geometry
+ActionStack      primary, secondary, more and danger hierarchy
+ExpansionPanel   full-width edit/resolve surface
+MoneyValue       formatted amount and server-provided financial semantics
 ```
 
 This is a design contract, not a command to extract a universal Jinja partial.
-Prefer feature-owned templates that reuse the same CSS/action language. Extract
-a shared partial only after the same markup and behavior have stabilized across
-several screens.
-
-`ui/_more_actions.html` is intentionally small: it owns only the common
-`details`/summary/toggle shell for "Еще действия". The feature template still
-owns menu content, dangerous actions, HTMX targets, and feature-specific action
-policy.
+Feature templates live in their namespace under the isolated web template root.
+Extract a shared component only after the same meaning, input contract, markup
+and behavior have stabilized across several workflows.
 
 ### Entity Feedback And Local Update Contract
 
@@ -518,20 +563,11 @@ Current application:
 - Do not add `working card` to workspace current-context cards, category detail
   header cards, or user/admin management cards by default.
 
-Use the import review local-update pattern as the reference:
-
-```html
-hx-boost="true"
-hx-select="#row-id"
-hx-target="#row-id"
-hx-swap="outerHTML show:none"
-hx-push-url="false"
-```
-
-Do not move HTMX metadata into the shared `ActionVM` until repeated screens prove
-that action-level HTMX is the stable abstraction. It is acceptable, and often
-cleaner, for the row/card root to own the local update behavior while the actions
-inside continue to use the shared `ui/_action.html` shape.
+The existing import-review local update is a behavior reference, not a template
+or HTMX contract to copy. Frontend Next updates the smallest consistency
+boundary that keeps the visible page truthful: the affected row, the list, or
+related summaries. Exact response scopes, HTTP fallback and HTMX behavior
+follow `WORKBENCH_ROW_DESIGN.md`.
 
 Lazy row drawer loading:
 
@@ -589,8 +625,8 @@ Rules:
 3. Keep the feedback compact. It confirms the result; it is not a second card
    editor.
 4. Use calm accent feedback, not a permanent green success state.
-5. Presenter/ViewModel prepares `recent_entity` / `recent_entity_id` state.
-   Templates only render that state.
+5. Presenter/ViewModel prepares explicit recent-feedback state. Templates only
+   render that state.
 6. The list partial owns the feedback block and the row highlight.
 7. The link should target the created entity's stable anchor.
 8. HTMX create responses should pass the recent entity id into the list partial.
@@ -603,17 +639,16 @@ Rules:
 Creation and repair forms should share a calm, predictable structure without
 forcing every form into one Jinja macro too early.
 
-Use these form families:
+Use these conceptual form families:
 
 ```text
-operation-form  creates or repairs a financial operation
-filter-form     narrows a list of operations or movements
-account-tool-form / entity-tool-form
-                changes the entity itself, not a movement
-row-drawer      hosts row-level repair forms under a financial row
+OperationForm   creates or repairs a financial operation
+FilterForm      narrows a list of operations or movements
+EntityToolForm  changes the entity itself, not a movement
+ExpansionPanel  hosts row-level repair forms under a Workbench Row
 ```
 
-`operation-form` fields should usually read in this order:
+`OperationForm` fields should usually read in this order:
 
 ```text
 primary:        type / amount / date
@@ -631,10 +666,10 @@ footer:         submit action
 ```
 
 Do not build a universal operation form partial until the repeated shape is
-stable across at least a few screens. Prefer shared CSS classes and explicit
-feature-owned templates first.
+stable across at least a few screens. Prefer the shared form foundation and
+explicit workflow templates first.
 
-`filter-form` is a secondary tool, not the main content of the page. It should
+`FilterForm` is a secondary tool, not the main content of the page. It should
 stay compact:
 
 ```text
@@ -648,13 +683,13 @@ When filters are not active, keep the filter block collapsed by default. When
 filters are active, show that state in the summary and open the block where it
 helps the user understand the current list.
 
-### Financial Row Modes
+### Workbench Row Modes
 
-Use one financial row geometry with different modes, not a new geometry for
+Use one Workbench Row geometry with different modes, not a new geometry for
 each screen.
 
 ```text
-Financial row
+Workbench Row
 -> review mode: user decides what an uncertain row should become
 -> ledger mode: user understands what already happened on an account
 -> manual-edit mode: user creates or corrects a manual operation
@@ -668,7 +703,6 @@ description
 financial meaning: category, property, accounts, calm status
 important signals only when action is needed
 secondary details collapsed
-technical details hidden
 ```
 
 The action area may change by mode, but its position and hierarchy should not:
@@ -707,13 +741,13 @@ screen and follow its layout rhythm:
 - money/date/status in stable positions across related rows;
 - primary action visually stronger than secondary actions;
 - dangerous actions separated from normal actions;
-- technical details collapsed and visually secondary;
+- internal technical details absent from the ordinary page;
 - repeated entities use the same density, border radius, badge language, and
   action placement unless the workflow genuinely requires a different shape.
 
-For the imports flow, the current visual reference is the stabilized
-`import/review` screen. Document detail, mapping, upload result, and import list
-pages should move toward the same geometry:
+For the imports flow, the stabilized legacy `import/review` screen is a source
+of observed behavior, not a component implementation to copy. Document detail,
+mapping, upload result, and review should converge on the same new geometry:
 
 ```text
 context / status / financial facts        actions / next step
@@ -741,7 +775,7 @@ Default screen structure:
 ```text
 page context / facts                 page actions / next step
 main data or rows                    secondary tools collapsed
-technical details                    hidden or clearly secondary
+user-facing traceability             available through clear links/actions
 ```
 
 Rules:
@@ -754,8 +788,9 @@ Rules:
 5. Dangerous actions are separated from save/edit/apply actions.
 6. Filters are secondary tools: compact, collapsible when inactive, and able to
    summarize active conditions.
-7. Technical details are available for people who need them, but hidden from the
-   normal reading path.
+7. Internal technical details are absent from the ordinary page. User-facing
+   traceability uses understandable links to the operation, document or import
+   source.
 8. Similar financial rows keep the same order:
 
    ```text
@@ -766,10 +801,9 @@ Rules:
 
 9. Normal statuses are quiet metadata. Problem statuses and required decisions
    get visual emphasis.
-10. Reuse the existing `financial-row`, `row-actions`, `row-drawer`,
-    `operation-form`, and `filter-form` language where it fits. Prefer
-    feature-owned templates with shared classes before extracting a universal
-    macro or partial.
+10. Start from `WorkbenchRow`, `ActionStack`, `ExpansionPanel`, `MoneyValue` and
+    the shared form foundation where they fit. Keep workflow-specific templates
+    explicit before extracting a universal component.
 11. Entity/reference screens should start from the Entity Work Row Contract
     before inventing a local card shape, action menu, or edit form layout.
 
@@ -795,16 +829,15 @@ archived      -> muted
 error         -> red
 ```
 
-Reusable classes:
+Semantic tones:
 
 ```text
-badge
-badge-income
-badge-expense
-badge-transfer
-badge-warning
-badge-muted
-badge-danger
+income
+expense
+transfer
+warning
+muted
+danger
 ```
 
 Do not create a new status style on each page.
@@ -837,32 +870,17 @@ Rules:
 7. `Еще действия` should use the shared text-button/menu rhythm. Avoid local
    ellipsis-only controls or one-off icon menus for the same concept.
 
-For import review, the detailed action policy lives in
-[`REFACTOR_PROJECT_DESIGN.md`](REFACTOR_PROJECT_DESIGN.md).
+The existing import-review action policy is documented historically in
+[`REFACTOR_PROJECT_DESIGN.md`](REFACTOR_PROJECT_DESIGN.md). New implementation
+contracts follow `FRONTEND_NEXT_DESIGN.md` and its child specifications.
 
-Reusable classes:
+Frontend Next represents this hierarchy through `ActionStack`. Feature
+presenters decide which actions exist and place them into the prepared action
+groups; Jinja does not recalculate placement or permissions.
 
-```text
-primary-action
-secondary-actions
-action-menu
-danger-zone
-ui-more-actions
-ui-action__form
-ui-action__button
-ui-action__label
-```
-
-Shared action VM contract:
-
-```text
-app.shared.ui.actions.ActionVM
-```
-
-Feature presenters decide which actions exist. The shared action contract only
-standardizes how actions are described for templates: id, label, icon,
-placement, action type, target URL/form/panel, style, hidden fields, and confirm
-message.
+Exact immutable ViewModel contracts and HTTP fallbacks live in
+`WORKBENCH_ROW_DESIGN.md`; this document owns only the visible hierarchy and
+interaction intent.
 
 ---
 
@@ -884,24 +902,23 @@ Rules:
    in the footer. A drawer edits the full entity and should span the full
    row/card width.
 
-Suggested reusable classes:
+Stable UI concepts:
 
 ```text
-form-panel
-form-grid
-form-actions
-entity-card
-entity-row
+UIField
+FormLayout
+FormActions
+ExpansionPanel
 ```
 
 ---
 
 ## 10. Technical Details
 
-Technical details are useful for development and debugging, but they should not
-compete with money and user decisions.
+Internal technical details are useful for diagnostics but do not belong to the
+ordinary user interface.
 
-Hide by default:
+Do not render as ordinary page content:
 
 - full UUIDs;
 - storage keys;
@@ -923,11 +940,11 @@ Keep visible:
 - clear operation description;
 - linked operation summary.
 
-Reusable class:
-
-```text
-technical-details
-```
+Keep identifiers invisibly in URLs, HTML IDs, hidden fields and HTMX contracts
+where required. Put diagnostic details in sanitized logs and development tools.
+If a real support workflow later requires them, design a separate authorized
+support/debug surface rather than adding a generic technical-details block to
+normal pages.
 
 ---
 
@@ -951,13 +968,11 @@ Every icon-only button must have:
 - stable touch target, at least 44x44px;
 - one consistent icon style.
 
-Reusable classes:
+Stable UI concepts:
 
 ```text
-icon-button
-icon-button-danger
-icon-button-muted
-sr-only
+IconButton
+VisuallyHidden
 ```
 
 ---
@@ -1050,28 +1065,21 @@ accounts
 
 ## 15. Refactor Priority
 
-Current priority is not a visual redesign for its own sake.
-
-Refactor in this order:
-
-1. Import review item and action system via ViewModel/Presenter.
-2. Account detail financial rows.
-3. Manual operations.
-4. Shared CRUD/reference screens: categories, properties, users, workspaces,
-   rules.
-5. Reports and financial summaries.
-6. Mapping and unknown statement flows.
+Current priority is not a visual redesign for its own sake. The active migration
+order is defined only in `FRONTEND_NEXT_DESIGN.md` and
+`WORKBENCH_ROW_DESIGN.md`; do not duplicate it here.
 
 Use shared components where concepts are stable:
 
 ```text
-badge
-money-value
-entity-card
-form-panel
-action-menu
-technical-details
-empty-state
+UIButton
+UIBadge
+UIField
+MoneyValue
+WorkbenchRow
+ActionStack
+ExpansionPanel
+EmptyState
 ```
 
 ---
@@ -1115,38 +1123,23 @@ CI smoke test.
 
 ---
 
-## 17. Progress Snapshot
+## 17. Legacy Frontend Snapshot
 
-Already achieved:
+The existing frontend remains a source of observed behavior, UI audit
+infrastructure and lessons learned, but not a source of target CSS, templates or
+component contracts. Its detailed implementation history lives in
+`REFACTOR_PROJECT_DESIGN.md`.
 
-- app shell with user/workspace context and primary action;
-- dashboard shell;
-- baseline shared `badge`, `entity-card`, `form-panel`, empty states;
-- common visual language applied to accounts, rules, manual operations, imports,
-  categories, properties, users, and workspaces;
-- import review made denser and more review-focused without changing business
-  logic;
-- `ReviewItemVM`-based import review slice stabilized; active review rendering
-  no longer uses the legacy `RawTransaction` partial fallback;
-- document detail and unknown mapping pages moved to presenter/ViewModel-backed
-  template contracts;
-- imports flow pages started moving toward one shared review-inspired geometry:
-  page context, next step, primary action, technical details last;
-- new and touched imports controls are migrating toward BEM-like naming by
-  owner, for example `site-header__*` and `mapping-table-picker__*`;
-- technical/debug details hidden more consistently;
-- Playwright `ui_audit`, `button_audit`, and `design_audit` added;
-- current design audit findings for categories and mobile import review cleaned
-  up.
+Useful assets to preserve during migration:
 
-Still active:
+- sanitized realistic data scenarios;
+- Playwright `ui_audit`, `button_audit` and `design_audit` scripts;
+- proven financial and review behavior;
+- accessibility, responsive and local-update discoveries;
+- known UX failures that the new frontend must not repeat.
 
-- Stronger shared action policy and component partials beyond import review.
-- Imports flow convergence: keep upload, document detail, mapping, import list,
-  and review aligned with the same geometry and action hierarchy.
-- Better financial rows for account detail/manual operations/reports.
-- Style evolution toward modern financial workbench with restrained rebellious
-  creativity.
+This section is not an active backlog. Active implementation sequencing lives
+in `FRONTEND_NEXT_DESIGN.md` and its child specifications.
 
 ---
 
@@ -1156,6 +1149,6 @@ Still active:
 - Complex onboarding wizard.
 - Full RBAC UI redesign.
 - Decorative illustrations instead of working financial screens.
-- Full visual redesign page by page.
+- Uncoordinated page-by-page redesign outside the vertical migration plan.
 - New frontend framework.
 - Style changes that bypass shared components and CSS tokens.

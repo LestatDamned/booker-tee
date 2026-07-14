@@ -1,12 +1,17 @@
 # Review Item CSS Migration Plan
 
-Status: planning document only. No production CSS, templates, Python, or runtime
-contracts are changed by this file.
+Status: historical planning document for the legacy frontend. Do not use it as
+the CSS migration plan for Frontend Next. No production CSS, templates, Python,
+or runtime contracts are changed by this file.
 
 This plan uses the CSS audit in [`css-audit.md`](css-audit.md), the design
-direction in [`design/DESIGN.md`](design/DESIGN.md), and the current import
-review refactor contract in
+direction in [`design/DESIGN.md`](design/DESIGN.md), and the historical legacy
+import-review contract in
 [`design/REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md).
+
+For active frontend CSS architecture, use
+[`design/FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) and
+[`design/WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md).
 
 ## Goal
 
@@ -909,4 +914,3 @@ Ready to delete legacy selectors when:
   presenter instead of using Jinja `replace`.
 - Whether future theme support should promote component aliases to global
   semantic tokens after one or two migrated components.
-

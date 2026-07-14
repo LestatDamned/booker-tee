@@ -14,8 +14,10 @@ Read together with:
 - [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) — canonical entities and invariants.
 - [`ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) — code architecture and data flow.
 - [`DESIGN.md`](../design/DESIGN.md) — UI/UX principles.
+- [`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md) — active
+  frontend/SSR architecture and migration strategy.
 - [`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md) —
-  active frontend/SSR refactor plan for import review.
+  historical reference for legacy frontend behavior.
 - [`AGENTS.md`](../../AGENTS.md) — instructions for Codex and coding agents.
 
 ---
@@ -101,32 +103,36 @@ reference for what to improve next.
 
 ## Current Active Focus
 
-### 1. Import Review UX And SSR Refactor
+### 1. Isolated Frontend Next
 
-Source of truth: [`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md).
+Source of truth:
+[`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md).
 
 Goal:
 
 ```text
-RawTransaction / review state
-  -> ReviewItemVM / ActionVM / typed panel payloads
-  -> simple Jinja partials
-  -> safer, clearer review workflow
+existing behavior audit
+  -> isolated SSR web adapter
+  -> vertical workflow migration
+  -> legacy presentation cleanup
 ```
 
 Why now:
 
-- Import review is the most important daily workflow.
-- Current templates contain too much branching and presentation logic.
-- Unifying review item actions creates a reusable pattern for account detail,
-  manual operations, reports, and future review channels.
+- Repeated UI patterns need one controlled foundation without extending legacy
+  CSS and templates.
+- Backend, financial invariants and application use cases can remain stable
+  while presentation workflows migrate independently.
+- An isolated web adapter keeps a future JSON API or external frontend possible
+  without building either prematurely.
 
 Non-goals for this focus:
 
-- Do not change DB enums for `ready_to_confirm`.
-- Do not change ledger posting behavior.
-- Do not rebuild the frontend stack.
-- Do not turn this into a broad design-system rewrite.
+- Do not change financial meaning for visual reasons.
+- Do not build React or a speculative API now.
+- Do not reuse legacy CSS, base templates or presentation partials in the new
+  adapter.
+- Do not migrate all workflows in one uncontrolled rewrite.
 
 ### 2. Documentation Cleanup
 
@@ -168,8 +174,8 @@ Next useful work:
 
 ## Near-Term Priorities
 
-1. Finish the first import review frontend/SSR refactor slice.
-2. Apply the resulting review item/action pattern to account detail and manual operations.
+1. Build the minimal isolated Frontend Next foundation and manual-ledger pilot.
+2. Validate the Workbench Row contract on a second workflow before broad reuse.
 3. Tighten parser reliability for real user statements.
 4. Improve reports where they answer regular weekly questions.
 5. Simplify documentation and remove obsolete task-plan noise.

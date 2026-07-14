@@ -9,8 +9,10 @@ posting, reports, deduplication, workspace access, or financial invariants.
 
 Do not use as a UI implementation plan or sprint checklist. For UI/SSR work read
 [`DESIGN.md`](../design/DESIGN.md) and
-[`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md). For
-sequencing read [`ROADMAP.md`](../product/ROADMAP.md).
+[`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md). Use
+[`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md) only for
+legacy behavior reference. For sequencing read
+[`ROADMAP.md`](../product/ROADMAP.md).
 
 Current assessment: the original MVP is complete and exceeded. This file is now
 a compact domain reference, not the historical MVP implementation plan.
