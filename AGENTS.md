@@ -132,7 +132,11 @@ Task-specific documents:
   [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md).
 - UI/SSR/templates/CSS/actions:
   [`docs/design/DESIGN.md`](docs/design/DESIGN.md).
-- Current import review refactor:
+- Parallel Frontend Next strategy:
+  [`docs/design/FRONTEND_NEXT_DESIGN.md`](docs/design/FRONTEND_NEXT_DESIGN.md).
+- Repeated entity rows in Frontend Next:
+  [`docs/design/WORKBENCH_ROW_DESIGN.md`](docs/design/WORKBENCH_ROW_DESIGN.md).
+- Earlier import review refactor and current-behavior reference:
   [`docs/design/REFACTOR_PROJECT_DESIGN.md`](docs/design/REFACTOR_PROJECT_DESIGN.md).
 - Historical parser-first MVP guardrails:
   [`docs/product/MVP.md`](docs/product/MVP.md).
@@ -193,6 +197,13 @@ Keep files readable. If one file starts telling several stories, split by reason
 to change: `routes/`, `application/`, `domain/`, `presentation/`, `mapping/`, or
 `infrastructure/`.
 
+For Frontend Next, `src/app/web/` is a separate SSR presentation adapter.
+Feature-specific domain and application code remains in `src/app/features/`;
+web routes, presenters, ViewModels, Jinja templates, CSS, and HTMX response
+renderers belong to `src/app/web/`. Follow
+[`docs/design/FRONTEND_NEXT_DESIGN.md`](docs/design/FRONTEND_NEXT_DESIGN.md) for
+the detailed boundary and migration rules.
+
 ---
 
 ## 7. Code Readability Rules
@@ -235,6 +246,33 @@ formatting, review state, action policy, transfer preview, workspace checks,
 dedupe, and status transitions.
 
 Do not create generic abstractions before repeated stable use exists.
+
+Code should tell a clear story through domain-specific actors and actions. Use
+names such as `ManualLedgerPresenter.present(...)` and
+`ManualLedgerResponses.replace_row(...)` instead of vague names such as
+`process_data(...)`, `handle(...)`, `Manager`, `Processor`, `helpers.py`, or
+`utils.py`. A generic name is acceptable only when its meaning is genuinely
+unambiguous in the local context.
+
+Keep handwritten Python modules at a readable middle size. A module approaching
+roughly 250-350 lines should trigger a cohesion review; handwritten modules
+should not quietly grow beyond 500 lines. These are review signals, not targets
+or mechanical limits. Split a module only when it tells multiple stories or has
+multiple reasons to change. Do not replace one coherent module with many tiny
+files that force readers to jump between them.
+
+Prefer named actor APIs for business workflows and related presentation
+behavior, without wrapping every helper in a class. Free functions remain the
+right choice for small pure predicates, focused formatting or normalization,
+framework callbacks, and simple calculations without an owning role.
+
+Reuse code when the same stable concept and contract recur. Similar-looking
+code is not sufficient reason for a shared abstraction. Keep a feature-specific
+implementation local until a reusable responsibility has become clear.
+
+Keep imports explicit and import objects from the module that defines them.
+Avoid wildcard imports, broad package re-exports, dynamic import magic, and
+`__init__.py` facades that hide architectural ownership.
 
 ---
 
@@ -353,8 +391,13 @@ For complex screens use:
 Router -> Service / Use Case -> Presenter / ViewModel -> Jinja partial
 ```
 
-For the current import review refactor, follow
-[`docs/design/REFACTOR_PROJECT_DESIGN.md`](docs/design/REFACTOR_PROJECT_DESIGN.md).
+For Frontend Next work, follow
+[`docs/design/FRONTEND_NEXT_DESIGN.md`](docs/design/FRONTEND_NEXT_DESIGN.md) and
+the relevant child specification such as
+[`docs/design/WORKBENCH_ROW_DESIGN.md`](docs/design/WORKBENCH_ROW_DESIGN.md).
+Use [`docs/design/REFACTOR_PROJECT_DESIGN.md`](docs/design/REFACTOR_PROJECT_DESIGN.md)
+as a reference for existing import-review behavior, not as the Frontend Next
+migration strategy.
 
 ---
 

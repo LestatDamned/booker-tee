@@ -18,11 +18,13 @@ For any coding task:
 3. One or two task-specific documents from the table below
 4. Relevant code
 
-For frontend/SSR refactor work:
+Для работ по рефакторингу frontend/SSR:
 
-1. [`DESIGN.md`](design/DESIGN.md)
-2. [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md)
-3. [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md), especially SSR/presentation
+1. [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md)
+2. [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) при работе с
+   повторяющимися строками сущностей
+3. [`DESIGN.md`](design/DESIGN.md)
+4. [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md), especially SSR/presentation
    and feature boundary rules
 
 For financial/domain changes:
@@ -39,7 +41,9 @@ For financial/domain changes:
 | [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md) | active source of truth | Database models, ledger behavior, imports, reports, financial correctness |
 | [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md) | active architecture reference | Code structure, feature boundaries, services/repositories/presentation layer |
 | [`DESIGN.md`](design/DESIGN.md) | active design reference | General UI/UX rules, visual direction, financial UI patterns |
-| [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md) | active implementation plan | Current import review/frontend SSR refactor |
+| [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) | утвержденное ТЗ | Изолированный SSR frontend и вертикальное переключение workflows |
+| [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) | утвержденная дочерняя спецификация | Повторяющиеся строки сущностей в Frontend Next |
+| [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md) | earlier refactor reference | Existing import-review behavior and presentation discoveries |
 | [`MVP.md`](product/MVP.md) | historical baseline / guardrails | Preventing regressions in the completed parser-first MVP |
 | [`ROADMAP.md`](product/ROADMAP.md) | planning reference | Future sequencing, not a current task list |
 | [`FUTURE_IDEAS.md`](product/FUTURE_IDEAS.md) | parked ideas | Only when discussing post-core features |
@@ -67,9 +71,12 @@ For financial/domain changes:
 ## Design
 
 - [`DESIGN.md`](design/DESIGN.md) — UI/UX principles and visual direction.
-- [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md) — current
-  frontend/SSR refactor anchor for ReviewItemVM, action policy, and reusable
-  review item components.
+- [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) — утвержденная
+  стратегия параллельного SSR frontend, изоляции, переключения и очистки.
+- [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) — спецификация
+  компонентов и поведения повторяющихся строк сущностей в Frontend Next.
+- [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md) — справочный
+  документ предыдущего import-review рефакторинга и найденного поведения.
 
 ## Guides
 
