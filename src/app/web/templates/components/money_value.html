@@ -1,0 +1,6 @@
+{% macro money_value(value) %}
+  <span class="money-value{% for modifier in value.modifier_classes %} {{ modifier }}{% endfor %}">
+    <span class="money-value__amount">{{ value.amount_label }}</span>
+    <span class="money-value__currency">{{ value.currency_label }}</span>
+  </span>
+{% endmacro %}

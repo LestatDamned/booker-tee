@@ -1,0 +1,79 @@
+.ui-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-interactive);
+  color: var(--color-text-primary);
+  padding: var(--space-2) var(--space-4);
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) ease,
+    background var(--duration-fast) ease,
+    translate var(--duration-fast) ease;
+}
+
+.ui-button:hover:not(:disabled, [aria-disabled="true"]) {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-bg-interactive) 78%, var(--color-accent));
+  translate: 0 -1px;
+}
+
+.ui-button--primary {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
+.ui-button--secondary {
+  border-color: var(--color-border-strong);
+  background: transparent;
+}
+
+.ui-button--ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.ui-button--danger {
+  border-color: var(--color-status-danger);
+  background: color-mix(in srgb, var(--color-status-danger) 12%, transparent);
+  color: var(--color-status-danger);
+}
+
+.ui-button:disabled,
+.ui-button[aria-disabled="true"] {
+  opacity: 0.52;
+  cursor: not-allowed;
+  translate: none;
+}
+
+.ui-button__icon {
+  display: inline-grid;
+  width: 1rem;
+  place-items: center;
+  font-family: var(--font-family-mono);
+}
+
+.ui-button__icon[data-icon="edit"]::before {
+  content: "✎";
+}
+
+.ui-button__icon[data-icon="source"]::before {
+  content: "↗";
+}
+
+.ui-button__icon[data-icon="retry"]::before {
+  content: "↻";
+}
+
+.ui-button__icon[data-icon="trash"]::before {
+  content: "×";
+}

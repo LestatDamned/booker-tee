@@ -1,0 +1,15 @@
+{% from "components/action.html" import action as render_action %}
+
+{% macro request_state(state) %}
+  <div class="request-state" data-request-state aria-live="polite">
+    <span class="request-state__indicator" data-request-indicator {% if not state.is_busy %}hidden{% endif %}>
+      Выполняем запрос…
+    </span>
+    {% if state.has_error %}
+      <div class="request-state__error" role="alert">
+        <span>{{ state.message }}</span>
+        {% if state.retry_action %}{{ render_action(state.retry_action, "secondary") }}{% endif %}
+      </div>
+    {% endif %}
+  </div>
+{% endmacro %}

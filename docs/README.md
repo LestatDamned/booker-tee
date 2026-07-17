@@ -43,6 +43,7 @@ For financial/domain changes:
 | [`DESIGN.md`](design/DESIGN.md) | active design reference | General UI/UX rules, visual direction, financial UI patterns |
 | [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) | утвержденное ТЗ | Изолированный SSR frontend и вертикальное переключение workflows |
 | [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) | утвержденная дочерняя спецификация | Повторяющиеся строки сущностей в Frontend Next |
+| [`MANUAL_LEDGER_BASELINE.md`](design/MANUAL_LEDGER_BASELINE.md) | working migration baseline | Этап 1 первого пилота Frontend Next: наблюдаемый контракт `/ledger/manual` |
 | [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md) | earlier refactor reference | Existing import-review behavior and presentation discoveries |
 | [`MVP.md`](product/MVP.md) | historical baseline / guardrails | Preventing regressions in the completed parser-first MVP |
 | [`ROADMAP.md`](product/ROADMAP.md) | planning reference | Future sequencing, not a current task list |

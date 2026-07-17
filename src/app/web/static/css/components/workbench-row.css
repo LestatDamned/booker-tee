@@ -1,0 +1,111 @@
+.workbench-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 20rem);
+  gap: var(--space-4);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-surface);
+  padding: var(--space-4);
+  scroll-margin-top: 5rem;
+}
+
+.workbench-row:target {
+  border-color: var(--color-accent);
+  background: var(--color-target-surface);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 28%, transparent);
+}
+
+.workbench-row--recent {
+  background: var(--color-recent-surface);
+}
+
+.workbench-row--working {
+  border-color: color-mix(in srgb, var(--color-money-profit) 62%, var(--color-border-default));
+  background: var(--color-working-surface);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-money-profit) 20%, transparent);
+}
+
+.workbench-row__main {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: var(--space-3);
+}
+
+.workbench-row__header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.workbench-row__title {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+}
+
+.workbench-row__description {
+  margin: var(--space-2) 0 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+
+.workbench-row__value {
+  flex: none;
+}
+
+.workbench-row__meta,
+.workbench-row__signals {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.workbench-row__aside {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: var(--space-3);
+  border-left: 1px solid var(--color-border-default);
+  padding-left: var(--space-4);
+}
+
+.workbench-row__expansion {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+@media (max-width: 920px) {
+  .workbench-row {
+    grid-template-columns: 1fr;
+  }
+
+  .workbench-row__aside {
+    border-top: 1px solid var(--color-border-default);
+    border-left: 0;
+    padding-top: var(--space-4);
+    padding-left: 0;
+  }
+
+  .workbench-row__expansion {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .workbench-row__header {
+    display: grid;
+  }
+
+  .workbench-row__value {
+    justify-self: start;
+  }
+}

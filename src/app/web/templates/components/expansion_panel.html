@@ -1,0 +1,16 @@
+{% macro expansion_panel(panel_id, title) %}
+  <section
+    id="{{ panel_id }}"
+    class="expansion-panel"
+    x-show="open"
+    x-cloak
+    aria-live="polite"
+    data-expansion-panel
+  >
+    <header class="expansion-panel__header">
+      <h3 class="expansion-panel__title">{{ title }}</h3>
+      <button class="ui-button ui-button--ghost" type="button" x-on:click="close()">Закрыть</button>
+    </header>
+    <div class="expansion-panel__content">{{ caller() }}</div>
+  </section>
+{% endmacro %}

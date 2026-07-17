@@ -26,6 +26,8 @@ from app.features.users.router import router as users_router
 from app.features.users.service import AuthenticationService
 from app.features.workspaces.router import router as workspaces_router
 from app.templating import create_templates
+from app.web.router import router as web_router
+from app.web.templating import WEB_STATIC_ROOT
 
 templates = create_templates()
 
@@ -42,6 +44,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
     install_security_middleware(app, settings)
     app.mount("/static", StaticFiles(directory="src/app/static"), name="static")
+    app.mount("/_next/static", StaticFiles(directory=WEB_STATIC_ROOT), name="web_static")
     app.include_router(accounts_router)
     app.include_router(categories_router)
     app.include_router(chat_integrations_router)
@@ -53,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(transaction_rules_router)
     app.include_router(users_router)
     app.include_router(workspaces_router)
+    app.include_router(web_router)
 
     @app.get("/", response_class=HTMLResponse)
     async def home(

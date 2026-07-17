@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% from "components/action_stack.html" import action_stack %}
+{% from "components/expansion_panel.html" import expansion_panel %}
+{% from "components/money_value.html" import money_value %}
+{% from "components/request_state.html" import request_state %}
+{% from "components/status_badge.html" import status_badge %}
+{% from "components/ui_field.html" import ui_field %}
+
+{% block content %}
+  <header class="page-heading">
+    <div>
+      <p class="page-heading__eyebrow">Этап 2</p>
+      <h1>Минимальная shared-основа</h1>
+      <p class="page-heading__description">Изолированная проверка компонентов до переноса первого workflow.</p>
+    </div>
+  </header>
+
+  <section class="preview-section" aria-labelledby="preview-components-title">
+    <div class="preview-section__heading">
+      <h2 id="preview-components-title">Foundation components</h2>
+      {{ status_badge("готово к пилоту", "success") }}
+    </div>
+    <div class="preview-grid">
+      <article class="preview-card">
+        <h3>Деньги</h3>
+        {{ money_value(preview.expense) }}
+        {{ money_value(preview.transfer) }}
+      </article>
+      <article class="preview-card">
+        <h3>Поле</h3>
+        {% call ui_field("Описание", "foundation-description", preview.field_error) %}
+          <input
+            class="ui-field__control"
+            id="foundation-description"
+            name="description"
+            value=""
+            aria-invalid="true"
+            aria-describedby="{{ preview.field_error.error_id }}"
+          >
+        {% endcall %}
+      </article>
+      <article class="preview-card">
+        <h3>Состояние запроса</h3>
+        {{ request_state(preview.request_error) }}
+      </article>
+    </div>
+  </section>
+
+  <section class="preview-section" aria-labelledby="preview-row-title">
+    <h2 id="preview-row-title">Workbench Row</h2>
+    <article
+      id="foundation-row"
+      class="workbench-row"
+      data-request-scope
+      data-focus-fallback
+      x-data="disclosure({{ 'true' if preview.edit_panel_open else 'false' }})"
+      hx-sync="this:abort"
+    >
+      <div class="workbench-row__main">
+        <header class="workbench-row__header">
+          <div>
+            <p class="workbench-row__title">Проверка повторяемого UI-контракта</p>
+            <p class="workbench-row__description">Финансовый смысл подготовлен сервером.</p>
+          </div>
+          <div class="workbench-row__value">{{ money_value(preview.expense) }}</div>
+        </header>
+        <div class="workbench-row__meta">
+          {{ status_badge("подтверждено") }}
+          <span>Основной счёт</span>
+        </div>
+      </div>
+      <aside class="workbench-row__aside">
+        <div class="workbench-row__actions">{{ action_stack(preview.actions) }}</div>
+        {{ request_state(preview.request_state) }}
+      </aside>
+      <div class="workbench-row__expansion">
+        {% call expansion_panel("foundation-edit-panel", "Исправить пример") %}
+          {% if preview.edit_panel_open %}
+            {% include "features/foundation/_panel.html" %}
+          {% else %}
+            <p class="request-state__indicator" data-request-indicator>Загружаем форму…</p>
+          {% endif %}
+        {% endcall %}
+      </div>
+    </article>
+  </section>
+{% endblock %}

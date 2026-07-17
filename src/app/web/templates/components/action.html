@@ -1,0 +1,62 @@
+{% macro action(action, tone="default") %}
+  {% set disabled_title = action.disabled_reason if action.disabled else none %}
+  {% if action.kind == "link" %}
+    {% if action.disabled %}
+      <span class="ui-button ui-button--{{ tone }}" role="link" aria-disabled="true" title="{{ disabled_title }}">
+        <span class="ui-button__icon" aria-hidden="true" data-icon="{{ action.icon }}"></span>
+        <span>{{ action.label }}</span>
+      </span>
+    {% else %}
+      <a class="ui-button ui-button--{{ tone }}" href="{{ action.url }}">
+        <span class="ui-button__icon" aria-hidden="true" data-icon="{{ action.icon }}"></span>
+        <span>{{ action.label }}</span>
+      </a>
+    {% endif %}
+  {% elif action.kind == "submit" %}
+    <form class="action-stack__form" method="{{ action.method }}" action="{{ action.url }}">
+      {{ csrf_input() }}
+      {% for name, value in (action.hidden_fields or {}).items() %}
+        <input type="hidden" name="{{ name }}" value="{{ value }}">
+      {% endfor %}
+      <button
+        class="ui-button ui-button--{{ tone }}"
+        type="submit"
+        {% if action.confirmation %}hx-confirm="{{ action.confirmation }}"{% endif %}
+        {% if action.disabled %}disabled{% endif %}
+        {% if disabled_title %}title="{{ disabled_title }}"{% endif %}
+      >
+        <span class="ui-button__icon" aria-hidden="true" data-icon="{{ action.icon }}"></span>
+        <span>{{ action.label }}</span>
+        {% if disabled_title %}<span class="visually-hidden">{{ disabled_title }}</span>{% endif %}
+      </button>
+    </form>
+  {% elif action.kind == "disclosure" %}
+    {% if action.disabled %}
+      <span
+        class="ui-button ui-button--{{ tone }}"
+        role="link"
+        aria-controls="{{ action.panel_id }}"
+        aria-disabled="true"
+        title="{{ disabled_title }}"
+      >
+        <span class="ui-button__icon" aria-hidden="true" data-icon="{{ action.icon }}"></span>
+        <span>{{ action.label }}</span>
+      </span>
+    {% else %}
+      <a
+        class="ui-button ui-button--{{ tone }}"
+        href="{{ action.fallback_url }}"
+        aria-controls="{{ action.panel_id }}"
+        x-bind:aria-expanded="open.toString()"
+        hx-get="{{ action.load_url }}"
+        hx-target="#{{ action.panel_id }}"
+        hx-swap="innerHTML"
+        hx-trigger="click once"
+        x-on:click="open = true"
+      >
+        <span class="ui-button__icon" aria-hidden="true" data-icon="{{ action.icon }}"></span>
+        <span>{{ action.label }}</span>
+      </a>
+    {% endif %}
+  {% endif %}
+{% endmacro %}

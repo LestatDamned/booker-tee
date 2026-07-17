@@ -30,6 +30,7 @@ MAX_CLICK_TARGETS_PER_PAGE = 60
 
 PAGES: tuple[tuple[str, str], ...] = (
     ("/", "dashboard"),
+    ("/_next/foundation", "frontend-next-foundation"),
     ("/accounts", "accounts"),
     ("/ledger/manual", "manual-operations"),
     ("/imports", "imports"),
@@ -44,6 +45,7 @@ PAGES: tuple[tuple[str, str], ...] = (
 
 AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/dashboard", "dashboard"),
+    ("/_next/foundation", "frontend-next-foundation"),
     ("/accounts", "accounts"),
     ("/ledger/manual", "manual-operations"),
     ("/imports", "imports"),
@@ -58,6 +60,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
 
 VIEWPORTS: tuple[tuple[str, int, int], ...] = (
     ("desktop", 1440, 1000),
+    ("tablet", 920, 900),
     ("mobile", 390, 844),
 )
 
@@ -317,6 +320,7 @@ def prepare_realistic_scenario(
             timeout=PAGE_TIMEOUT_MS
         )
         page.wait_for_url("**/ledger/manual?operation_id=**", timeout=PAGE_TIMEOUT_MS)
+        manual_target_path = page.url.replace(base_url.rstrip("/"), "")
 
         page.goto(build_url(base_url, "/categories"), wait_until="domcontentloaded")
         open_details_if_closed(page, "details.category-create-details")
@@ -369,6 +373,7 @@ def prepare_realistic_scenario(
     return {
         "account_name": account_name,
         "account_detail_path": account_detail_path or "",
+        "manual_target_path": manual_target_path,
         "document_detail_path": detail_path,
         "mapping_path": f"{detail_path.rstrip('/')}/mapping",
         "document_name": document_name,
@@ -516,6 +521,12 @@ def collect_ux_assertions(
         if document_name and document_name not in body_text:
             errors.append(f"dashboard does not show seeded document {document_name!r}")
 
+    if scenario == "realistic" and path == scenario_state.get("manual_target_path"):
+        errors.extend(assert_manual_ledger_interactions(page))
+
+    if path == "/_next/foundation":
+        errors.extend(assert_frontend_next_foundation(page))
+
     if (
         scenario == "realistic"
         and path == "/workspaces"
@@ -534,6 +545,67 @@ def collect_ux_assertions(
     if scenario == "design_audit":
         errors.extend(assert_design_quality(page, path=path))
 
+    return errors
+
+
+def assert_manual_ledger_interactions(page: Page) -> list[str]:
+    errors: list[str] = []
+    targeted_row = page.locator(".manual-operation-row--target").first
+    if targeted_row.count() == 0:
+        return ["manual ledger target row was not found after create redirect"]
+
+    row_id = targeted_row.get_attribute("id")
+    if not row_id:
+        return ["manual ledger target row has no stable id"]
+    row = page.locator(f"#{row_id}")
+    if row.locator('form[id^="manual-operation-form-"]').count() != 0:
+        errors.append("manual ledger eagerly rendered a closed edit form")
+
+    edit_button = row.locator("button.action-edit").first
+    if edit_button.count() == 0:
+        return [*errors, "manual ledger edit action was not found"]
+    edit_button.click(timeout=PAGE_TIMEOUT_MS)
+    try:
+        row.locator(".manual-operation-edit-panel-content").wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        errors.append(f"manual ledger edit panel did not open: {short_error(exc)}")
+        return errors
+
+    if not row.evaluate("element => element.classList.contains('entity-card--working')"):
+        errors.append("manual ledger row did not enter working state after edit")
+    if row.evaluate("element => element.classList.contains('manual-operation-row--target')"):
+        errors.append("manual ledger target state was not cleared after edit")
+    overflow = collect_overflow(page)
+    if int(overflow["horizontalOverflowPx"]) > 1:
+        errors.append("manual ledger open edit panel causes horizontal overflow")
+    return errors
+
+
+def assert_frontend_next_foundation(page: Page) -> list[str]:
+    errors: list[str] = []
+    row = page.locator("#foundation-row")
+    if row.count() == 0:
+        return ["Frontend Next foundation row was not found"]
+    if row.evaluate("element => element.classList.contains('workbench-row--working')"):
+        errors.append("Frontend Next row starts in working state before interaction")
+    if row.locator("[data-edit-panel]").count() != 0:
+        errors.append("Frontend Next foundation eagerly rendered the edit panel")
+
+    disclosure = row.locator("a[aria-controls='foundation-edit-panel']")
+    disclosure.click(timeout=PAGE_TIMEOUT_MS)
+    try:
+        row.locator("[data-edit-panel]").wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        errors.append(f"Frontend Next disclosure did not load: {short_error(exc)}")
+        return errors
+    if not row.evaluate("element => element.classList.contains('workbench-row--working')"):
+        errors.append("Frontend Next row did not enter working state")
+    overflow = collect_overflow(page)
+    if int(overflow["horizontalOverflowPx"]) > 1:
+        errors.append("Frontend Next open expansion panel causes horizontal overflow")
     return errors
 
 
@@ -1412,6 +1484,10 @@ def run_audit(
                     if scenario_state.get("account_detail_path"):
                         dynamic_pages.append(
                             (scenario_state["account_detail_path"], "account-detail")
+                        )
+                    if scenario_state.get("manual_target_path"):
+                        dynamic_pages.append(
+                            (scenario_state["manual_target_path"], "manual-operation-target")
                         )
                     if scenario_state.get("document_detail_path"):
                         dynamic_pages.append(
