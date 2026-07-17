@@ -48,7 +48,7 @@ from app.web.features.ledger.manual.query_state import (
 )
 from app.web.features.ledger.manual.routes import router as manual_ledger_router
 from app.web.templating import WEB_STATIC_ROOT
-from app.web.ui.actions import DisclosureActionVM
+from app.web.ui.actions import DisclosureActionVM, SubmitActionVM
 
 
 def test_presenter_builds_server_owned_financial_and_action_contracts() -> None:
@@ -73,8 +73,31 @@ def test_presenter_builds_server_owned_financial_and_action_contracts() -> None:
     assert row.is_targeted is True
     assert isinstance(row.actions.primary, DisclosureActionVM)
     assert row.actions.primary.load_url.startswith(f"/_next/ledger/manual/{operation.id}/edit")
+    assert len(row.actions.danger) == 1
+    cancel_action = row.actions.danger[0]
+    assert isinstance(cancel_action, SubmitActionVM)
+    assert cancel_action.url == f"/_next/ledger/manual/{operation.id}/cancel"
+    assert cancel_action.target_id == row.id
     assert page.filters.active is False
     assert page.total_label == "1 ручная операция"
+
+
+def test_presenter_exposes_restore_and_delete_only_for_cancelled_operation() -> None:
+    operation = replace(manual_expense(), status=OperationStatus.IGNORED)
+
+    row = ManualLedgerPresenter().present_row(
+        operation,
+        focused_operation_id=None,
+        can_write=True,
+        return_to=MANUAL_LEDGER_URL,
+    )
+
+    assert isinstance(row.actions.primary, SubmitActionVM)
+    assert row.actions.primary.url.endswith(f"/{operation.id}/restore")
+    assert len(row.actions.danger) == 1
+    delete_action = row.actions.danger[0]
+    assert isinstance(delete_action, SubmitActionVM)
+    assert delete_action.url.endswith(f"/{operation.id}/delete")
 
 
 def test_presenter_keeps_transfer_separate_from_profit() -> None:
@@ -614,6 +637,155 @@ def test_business_error_returns_localized_422_row(monkeypatch: pytest.MonkeyPatc
     assert 'role="alert"' in response.text
 
 
+def test_cancel_replaces_row_with_restore_and_delete_actions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = manual_expense()
+    calls.operations = [operation]
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/_next/ledger/manual/{operation.id}/cancel",
+            data={"return_to": "/_next/ledger/manual?page=1&per_page=50"},
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    assert "HX-Retarget" not in response.headers
+    assert "отменено" in response.text
+    assert f'action="/_next/ledger/manual/{operation.id}/restore"' in response.text
+    assert f'action="/_next/ledger/manual/{operation.id}/delete"' in response.text
+    assert 'name="csrf_token" value="test-csrf-token"' in response.text
+    assert calls.cancelled_ids == [operation.id]
+
+
+def test_cancel_that_leaves_status_filter_replaces_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = manual_expense()
+    calls.operations = [operation]
+    calls.realistic_listing = True
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/_next/ledger/manual/{operation.id}/cancel",
+            data={"return_to": "/_next/ledger/manual?status=confirmed&page=1&per_page=50"},
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["HX-Retarget"] == "#manual-ledger-results"
+    assert f'id="next-operation-{operation.id}"' not in response.text
+    assert "0 ручных операций" in response.text
+
+
+def test_restore_replaces_cancelled_row(monkeypatch: pytest.MonkeyPatch) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = replace(manual_expense(), status=OperationStatus.IGNORED)
+    calls.operations = [operation]
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/_next/ledger/manual/{operation.id}/restore",
+            data={"return_to": MANUAL_LEDGER_URL},
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    assert "подтверждено" in response.text
+    assert f'hx-post="/_next/ledger/manual/{operation.id}/cancel"' in response.text
+    assert calls.restored_ids == [operation.id]
+
+
+def test_delete_always_rebuilds_results_and_clears_operation_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = replace(manual_expense(), status=OperationStatus.IGNORED)
+    calls.operations = [operation]
+    calls.realistic_listing = True
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/_next/ledger/manual/{operation.id}/delete",
+            data={
+                "return_to": (
+                    f"/_next/ledger/manual?operation_id={operation.id}&page=1&per_page=50"
+                )
+            },
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["HX-Retarget"] == "#manual-ledger-results"
+    assert "operation_id" not in response.headers["HX-Replace-Url"]
+    assert f'id="next-operation-{operation.id}"' not in response.text
+    assert "0 ручных операций" in response.text
+    assert calls.deleted_ids == [operation.id]
+
+
+def test_lifecycle_actions_have_http_redirect_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = manual_expense()
+    calls.operations = [operation]
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/_next/ledger/manual/{operation.id}/cancel",
+            data={"return_to": MANUAL_LEDGER_URL},
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 303
+    assert f"operation_id={operation.id}" in response.headers["location"]
+    assert response.headers["location"].endswith(f"#next-operation-{operation.id}")
+
+
+def test_lifecycle_error_returns_localized_422_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = manual_expense()
+    calls.operations = [operation]
+    calls.lifecycle_error = LedgerPostingError("Only confirmed manual operations can be cancelled.")
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/_next/ledger/manual/{operation.id}/cancel",
+            data={"return_to": MANUAL_LEDGER_URL},
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 422
+    assert "Отменить можно только подтверждённую ручную операцию" in response.text
+    assert 'role="alert"' in response.text
+
+
+def test_lifecycle_actions_require_financial_write_permission(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.VIEWER)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = manual_expense()
+    calls.operations = [operation]
+
+    with TestClient(app) as client:
+        response = client.post(f"/_next/ledger/manual/{operation.id}/cancel")
+
+    assert response.status_code == 403
+    assert calls.cancelled_ids == []
+
+
 def test_edit_requires_financial_write_permission(monkeypatch: pytest.MonkeyPatch) -> None:
     context = workspace_context(role=WorkspaceRole.VIEWER)
     app, calls = manual_ledger_app(monkeypatch, context=context)
@@ -783,6 +955,10 @@ class ManualLedgerCalls:
         self.transfer_commands: list[CreateManualTransferCommand] = []
         self.updated_workspace_ids: list[UUID] = []
         self.update_error: LedgerPostingError | None = None
+        self.lifecycle_error: LedgerPostingError | None = None
+        self.cancelled_ids: list[UUID] = []
+        self.restored_ids: list[UUID] = []
+        self.deleted_ids: list[UUID] = []
         self.realistic_listing = False
 
 
@@ -909,6 +1085,56 @@ def manual_ledger_app(
             created_id = uuid4()
             return SimpleNamespace(id=created_id)
 
+        async def cancel_manual_operation(
+            self,
+            *,
+            context: WorkspaceContext,
+            operation_id: UUID,
+        ) -> Any:
+            calls.updated_workspace_ids.append(context.workspace.id)
+            calls.cancelled_ids.append(operation_id)
+            if calls.lifecycle_error is not None:
+                raise calls.lifecycle_error
+            calls.operations = [
+                replace(operation, status=OperationStatus.IGNORED)
+                if operation.id == operation_id
+                else operation
+                for operation in calls.operations
+            ]
+            return SimpleNamespace(id=operation_id)
+
+        async def restore_manual_operation(
+            self,
+            *,
+            context: WorkspaceContext,
+            operation_id: UUID,
+        ) -> Any:
+            calls.updated_workspace_ids.append(context.workspace.id)
+            calls.restored_ids.append(operation_id)
+            if calls.lifecycle_error is not None:
+                raise calls.lifecycle_error
+            calls.operations = [
+                replace(operation, status=OperationStatus.CONFIRMED)
+                if operation.id == operation_id
+                else operation
+                for operation in calls.operations
+            ]
+            return SimpleNamespace(id=operation_id)
+
+        async def delete_manual_operation(
+            self,
+            *,
+            context: WorkspaceContext,
+            operation_id: UUID,
+        ) -> None:
+            calls.updated_workspace_ids.append(context.workspace.id)
+            calls.deleted_ids.append(operation_id)
+            if calls.lifecycle_error is not None:
+                raise calls.lifecycle_error
+            calls.operations = [
+                operation for operation in calls.operations if operation.id != operation_id
+            ]
+
     class FakeAccountService:
         def __init__(self, _session: AsyncSession) -> None:
             pass
@@ -951,7 +1177,7 @@ def manual_ledger_app(
 
     async def context_override(request: Request) -> WorkspaceContext:
         request.state.workspace_context = context
-        request.state.csrf_token = None
+        request.state.csrf_token = "test-csrf-token"
         return context
 
     monkeypatch.setattr(
@@ -985,6 +1211,10 @@ def manual_ledger_app(
     monkeypatch.setattr(
         "app.web.features.ledger.manual.create_routes.PropertyService",
         FakePropertyService,
+    )
+    monkeypatch.setattr(
+        "app.web.features.ledger.manual.lifecycle_routes.LedgerPostingService",
+        FakeLedgerPostingService,
     )
     app = FastAPI()
     app.mount("/static", StaticFiles(directory="src/app/static"), name="static")

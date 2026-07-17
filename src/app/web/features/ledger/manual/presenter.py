@@ -7,6 +7,7 @@ from uuid import UUID
 from app.features.ledger.application.listing import LedgerPage, ManualOperationFilters
 from app.features.ledger.mapping.dto import ManualOperationView, OperationRefMoneyEntryView
 from app.features.ledger.models import OperationStatus, OperationType
+from app.web.features.ledger.manual.action_policy import ManualOperationActionPolicy
 from app.web.features.ledger.manual.query_state import MANUAL_LEDGER_URL
 from app.web.features.ledger.manual.view_models import (
     BadgeTone,
@@ -19,8 +20,9 @@ from app.web.features.ledger.manual.view_models import (
     ManualLedgerPageVM,
     ManualLedgerRowVM,
 )
-from app.web.ui.actions import ActionSetVM, DisclosureActionVM, LinkActionVM
+from app.web.ui.actions import DisclosureActionVM
 from app.web.ui.money import EntryDirection, MoneyFormatter, MoneyValueVM, OperationTone
+from app.web.ui.request_state import RequestStateVM
 
 PER_PAGE_OPTIONS: Final = (25, 50, 100, 200)
 
@@ -163,6 +165,7 @@ class ManualLedgerPresenter:
         return_to: str,
         edit_panel: ManualLedgerEditPanelVM | None = None,
         reset_edit_panel: bool = False,
+        request_error: str | None = None,
     ) -> ManualLedgerRowVM:
         status_label, status_tone = STATUS_PRESENTATION[operation.status]
         return ManualLedgerRowVM(
@@ -176,10 +179,14 @@ class ManualLedgerPresenter:
             status_label=status_label,
             status_tone=status_tone,
             meta=self._meta(operation),
-            actions=self._actions(
+            actions=ManualOperationActionPolicy().resolve(
                 operation,
                 can_write=can_write,
                 return_to=return_to,
+            ),
+            request_state=RequestStateVM(
+                phase="error" if request_error else "idle",
+                message=request_error,
             ),
             is_targeted=focused_operation_id == operation.id,
             is_inactive=operation.status == OperationStatus.IGNORED,
@@ -214,38 +221,6 @@ class ManualLedgerPresenter:
         if operation.primary_entry is not None:
             meta.append(ManualLedgerMetaVM(self._account_name(operation.primary_entry)))
         return tuple(meta)
-
-    def _actions(
-        self,
-        operation: ManualOperationView,
-        *,
-        can_write: bool,
-        return_to: str,
-    ) -> ActionSetVM:
-        legacy_url = f"/ledger/manual?operation_id={operation.id}#operation-{operation.id}"
-        if can_write and operation.status != OperationStatus.IGNORED:
-            edit_url = (
-                f"/_next/ledger/manual/{operation.id}/edit?{urlencode({'return_to': return_to})}"
-            )
-            return ActionSetVM(
-                primary=DisclosureActionVM(
-                    label="Исправить",
-                    fallback_url=edit_url,
-                    load_url=edit_url,
-                    panel_id=f"next-manual-operation-edit-panel-{operation.id}",
-                    load_target_id=(f"next-manual-operation-edit-panel-content-{operation.id}"),
-                    icon="edit",
-                )
-            )
-        return ActionSetVM(
-            secondary=(
-                LinkActionVM(
-                    label="Открыть текущую версию",
-                    url=legacy_url,
-                    icon="source",
-                ),
-            )
-        )
 
     def _filters(
         self,

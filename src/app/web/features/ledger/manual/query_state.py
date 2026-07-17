@@ -119,6 +119,15 @@ def target_operation_url(return_to: str, operation_id: UUID) -> str:
     )
 
 
+def clear_operation_target_url(return_to: str) -> str:
+    parsed = urlsplit(return_to)
+    query = parse_qs(parsed.query)
+    query.pop("operation_id", None)
+    query.pop("edit", None)
+    query.pop("create", None)
+    return urlunsplit(("", "", MANUAL_LEDGER_URL, urlencode(query, doseq=True), ""))
+
+
 def first_query_value(query: dict[str, list[str]], name: str) -> str | None:
     values = query.get(name)
     return values[0] if values else None

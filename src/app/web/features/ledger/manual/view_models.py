@@ -113,6 +113,7 @@ class ManualLedgerRowVM:
     status_tone: BadgeTone
     meta: tuple[ManualLedgerMetaVM, ...]
     actions: ActionSetVM
+    request_state: RequestStateVM
     is_targeted: bool
     is_inactive: bool
     edit_panel_id: str

@@ -4,6 +4,7 @@ from typing import Literal
 
 ActionKind = Literal["link", "submit", "disclosure"]
 SubmitMethod = Literal["post"]
+SubmitSwap = Literal["outerHTML", "innerHTML"]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -24,6 +25,8 @@ class SubmitActionVM:
     method: SubmitMethod = "post"
     confirmation: str | None = None
     hidden_fields: Mapping[str, str] | None = None
+    target_id: str | None = None
+    swap: SubmitSwap = "outerHTML"
     disabled: bool = False
     disabled_reason: str | None = None
     kind: Literal["submit"] = "submit"

@@ -310,5 +310,7 @@ mobile. Он также подтвердил legacy-шум: target делает 
 Baseline принят владельцем проекта 17 июля 2026 года. После явной команды
 владельца завершен Этап 2 и начат Этап 3. Первый read-only срез расширен до
 lazy create/edit, локального `422`, SSR fallback и согласованного HTMX
-`replaceRow`/`replaceList` с OOB reset/total; текущее состояние зафиксировано в
+`replaceRow`/`replaceList` с OOB reset/total. Lifecycle cancel/restore/delete
+также перенесён с server-owned action policy, permission guard, HTTP fallback и
+пересчётом списка после delete; текущее состояние зафиксировано в
 [`FRONTEND_NEXT_DESIGN.md`](FRONTEND_NEXT_DESIGN.md).

@@ -28,6 +28,7 @@ from app.web.features.ledger.manual.forms import (
     business_error_message,
     validate_manual_ledger_edit,
 )
+from app.web.features.ledger.manual.lifecycle_routes import router as lifecycle_router
 from app.web.features.ledger.manual.presenter import ManualLedgerPresenter
 from app.web.features.ledger.manual.queries import (
     ManualLedgerEditQuery,
@@ -53,6 +54,7 @@ from app.web.ui.responses import is_htmx_request
 
 router = APIRouter(prefix=MANUAL_LEDGER_URL, tags=["web-manual-ledger"])
 router.include_router(create_router)
+router.include_router(lifecycle_router)
 renderer = ManualLedgerRenderer(create_web_templates())
 
 

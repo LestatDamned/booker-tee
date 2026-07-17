@@ -20,8 +20,12 @@
 - lazy create поддерживает income/expense/transfer, общий form contract с edit,
   локальный `422`, SSR fallback и согласованный HTMX `replaceList` с OOB reset
   формы и total;
-- lifecycle actions, полные фильтры, optimistic concurrency и canonical cutover
-  manual ledger остаются следующими инкрементами Этапа 3.
+- lifecycle manual operation реализован через отдельную action policy и явные
+  cancel/restore/delete routes: обычный переход заменяет row, смена
+  принадлежности фильтру и delete перестраивают list, ошибки возвращаются
+  локальным `422`, а все submit actions сохраняют обычный HTTP fallback;
+- полные фильтры, optimistic concurrency и canonical cutover manual ledger
+  остаются следующими инкрементами Этапа 3.
 
 ## 1. Решение
 

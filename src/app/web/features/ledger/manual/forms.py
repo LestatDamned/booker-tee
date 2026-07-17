@@ -217,6 +217,15 @@ def business_error_message(error: LedgerPostingError) -> str:
         "Only manual operations can be changed here.": (
             "Здесь можно изменять только ручные операции."
         ),
+        "Only confirmed manual operations can be cancelled.": (
+            "Отменить можно только подтверждённую ручную операцию."
+        ),
+        "Only cancelled manual operations can be restored.": (
+            "Восстановить можно только отменённую ручную операцию."
+        ),
+        "Cancel a manual operation before deleting it.": (
+            "Перед удалением отмените ручную операцию."
+        ),
     }
     return translations.get(
         str(error),

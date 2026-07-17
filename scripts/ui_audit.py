@@ -632,6 +632,7 @@ def assert_frontend_next_manual_ledger(page: Page, *, scenario: str) -> list[str
         errors.append("Frontend Next manual ledger did not render seeded operations")
     if scenario == "realistic" and rows.count() > 0:
         errors.extend(assert_frontend_next_manual_create(page))
+        errors.extend(assert_frontend_next_manual_lifecycle(page, rows.first))
         errors.extend(assert_frontend_next_manual_edit(page, rows.first))
     overflow = collect_overflow(page)
     if int(overflow["horizontalOverflowPx"]) > 1:
@@ -694,6 +695,67 @@ def assert_frontend_next_manual_create(page: Page) -> list[str]:
         errors.append("Frontend Next manual create form stayed open after success")
     if page.locator(".manual-ledger-row [data-expansion-panel]:visible").count() != 0:
         errors.append("Frontend Next manual create opened an unrelated edit panel")
+    return errors
+
+
+def assert_frontend_next_manual_lifecycle(page: Page, row: Locator) -> list[str]:
+    errors: list[str] = []
+    row_id = row.get_attribute("id")
+    if not row_id:
+        return ["Frontend Next manual lifecycle row has no stable id"]
+    row = page.locator(f"#{row_id}")
+    total_before = int(page.locator("#manual-ledger-total").inner_text().split()[0])
+
+    more_actions = row.locator("details.action-stack__more > summary")
+    if more_actions.count() == 0:
+        return ["Frontend Next manual cancel action menu was not found"]
+    more_actions.click(timeout=PAGE_TIMEOUT_MS)
+    page.once("dialog", lambda dialog: dialog.accept())
+    row.get_by_role("button", name="Отменить операцию").click(timeout=PAGE_TIMEOUT_MS)
+    try:
+        row.get_by_text("отменено", exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        return [f"Frontend Next manual cancel did not replace the row: {short_error(exc)}"]
+
+    page.once("dialog", lambda dialog: dialog.accept())
+    row.get_by_role("button", name="Восстановить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    try:
+        row.get_by_text("подтверждено", exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        return [f"Frontend Next manual restore did not replace the row: {short_error(exc)}"]
+
+    row.locator("details.action-stack__more > summary").click(timeout=PAGE_TIMEOUT_MS)
+    page.once("dialog", lambda dialog: dialog.accept())
+    row.get_by_role("button", name="Отменить операцию").click(timeout=PAGE_TIMEOUT_MS)
+    row.get_by_text("отменено", exact=True).wait_for(
+        state="visible",
+        timeout=PAGE_TIMEOUT_MS,
+    )
+    row.locator("details.action-stack__more > summary").click(timeout=PAGE_TIMEOUT_MS)
+    page.once("dialog", lambda dialog: dialog.accept())
+    row.get_by_role("button", name="Удалить окончательно").click(timeout=PAGE_TIMEOUT_MS)
+    try:
+        row.wait_for(state="detached", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        errors.append(f"Frontend Next manual delete did not rebuild the list: {short_error(exc)}")
+        return errors
+
+    total_after = int(page.locator("#manual-ledger-total").inner_text().split()[0])
+    if total_after != total_before - 1:
+        errors.append("Frontend Next manual delete did not update the OOB total")
+    try:
+        page.locator("#manual-ledger-results:focus, #manual-ledger-results :focus").first.wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError:
+        errors.append("Frontend Next manual delete did not restore focus")
     return errors
 
 

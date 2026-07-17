@@ -13,7 +13,12 @@
       </a>
     {% endif %}
   {% elif action.kind == "submit" %}
-    <form class="action-stack__form" method="{{ action.method }}" action="{{ action.url }}">
+    <form
+      class="action-stack__form"
+      method="{{ action.method }}"
+      action="{{ action.url }}"
+      {% if action.target_id %}hx-post="{{ action.url }}" hx-target="#{{ action.target_id }}" hx-swap="{{ action.swap }}"{% endif %}
+    >
       {{ csrf_input() }}
       {% for name, value in (action.hidden_fields or {}).items() %}
         <input type="hidden" name="{{ name }}" value="{{ value }}">
