@@ -1,16 +1,20 @@
-{% macro expansion_panel(panel_id, title) %}
+{% macro expansion_panel(panel_id, content_id, title, initial_open=false, close_url=none) %}
   <section
     id="{{ panel_id }}"
     class="expansion-panel"
     x-show="open"
-    x-cloak
+    {% if not initial_open %}x-cloak{% endif %}
     aria-live="polite"
     data-expansion-panel
   >
     <header class="expansion-panel__header">
       <h3 class="expansion-panel__title">{{ title }}</h3>
-      <button class="ui-button ui-button--ghost" type="button" x-on:click="close()">Закрыть</button>
+      {% if close_url %}
+        <a class="ui-button ui-button--ghost" href="{{ close_url }}" x-on:click.prevent="close()">Закрыть</a>
+      {% else %}
+        <button class="ui-button ui-button--ghost" type="button" x-on:click="close()">Закрыть</button>
+      {% endif %}
     </header>
-    <div class="expansion-panel__content">{{ caller() }}</div>
+    <div id="{{ content_id }}" class="expansion-panel__content">{{ caller() }}</div>
   </section>
 {% endmacro %}

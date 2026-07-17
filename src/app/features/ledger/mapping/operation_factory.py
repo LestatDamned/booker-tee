@@ -145,7 +145,7 @@ def build_money_entry(
     return MoneyEntry(
         workspace_id=context.workspace.id,
         operation_id=operation.id,
-        account_id=account.id,
+        account=account,
         amount=amount,
         currency=account.currency,
         entry_order=entry_order,

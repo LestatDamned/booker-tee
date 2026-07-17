@@ -476,3 +476,39 @@ async def test_manual_operation_use_case_rejects_imported_operation(monkeypatch)
     use_case = ManualOperationUseCase(cast(Any, object()))
     with pytest.raises(LedgerPostingError, match="Only manual operations"):
         await use_case._get_manual_operation(workspace_id, operation_id)
+
+
+@pytest.mark.asyncio
+async def test_replacing_manual_money_entries_keeps_operation_state_current(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    previous_entry = SimpleNamespace(id=uuid4())
+    replacement_entry = SimpleNamespace(id=uuid4())
+    operation = SimpleNamespace(money_entries=[previous_entry])
+    session = SimpleNamespace(deleted=[], flushes=0)
+
+    async def delete(entry: object) -> None:
+        session.deleted.append(entry)
+
+    async def flush() -> None:
+        session.flushes += 1
+
+    session.delete = delete
+    session.flush = flush
+    use_case = ManualOperationUseCase(cast(Any, session))
+    created_entries: list[object] = []
+
+    async def create_money_entry(entry: object) -> object:
+        created_entries.append(entry)
+        return entry
+
+    monkeypatch.setattr(use_case.ledger, "create_money_entry", create_money_entry)
+
+    await use_case._replace_money_entries(
+        cast(Any, operation),
+        cast(Any, [replacement_entry]),
+    )
+
+    assert session.deleted == [previous_entry]
+    assert created_entries == [replacement_entry]
+    assert operation.money_entries == [replacement_entry]

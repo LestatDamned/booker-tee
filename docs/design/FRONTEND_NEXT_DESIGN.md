@@ -9,10 +9,15 @@
 - создан изолированный presentation adapter `src/app/web/` со своими Jinja,
   CSS и небольшим общим слоем HTMX/Alpine.js;
 - локальный стенд `/_next/foundation` проверяет shared-компоненты и UI-контракты;
-- параллельный `/_next/ledger/manual` реализует первый read-only срез Этапа 3:
+- параллельный `/_next/ledger/manual` реализует list/edit-срез Этапа 3:
   workspace-scoped list, основные фильтры, pagination, target, деньги, metadata,
   readonly policy и `WorkbenchRow` на реальных application DTO;
-- create, lazy edit, validation/save lifecycle, HTMX mutations и canonical
+- lazy edit загружается только для writer, поддерживает SSR fallback, локальный
+  `422` с сохранением draft и серверный выбор HTMX `replaceRow`/`replaceList`;
+- update response scope сохраняет фильтры и pagination: изменение даты или
+  выход операции из текущего фильтра обновляет список, empty state, pagination
+  и total через OOB-fragment;
+- create, lifecycle actions, полные фильтры, optimistic concurrency и canonical
   cutover manual ledger остаются следующими инкрементами Этапа 3.
 
 ## 1. Решение
@@ -129,10 +134,11 @@ src/app/web/features/ledger/
 ├── router.py
 ├── manual/
 │   ├── routes.py
+│   ├── queries.py
 │   ├── presenter.py
 │   ├── view_models.py
 │   ├── action_policy.py
-│   └── responses.py
+│   └── renderer.py
 └── account_detail/
     ├── routes.py
     ├── presenter.py
@@ -440,7 +446,9 @@ design review. Тесты и явные ViewModel оцениваются по п
 ```text
 ManualLedgerPresenter.present(...)
 ManualOperationActionPolicy.resolve(...)
-ManualLedgerResponses.replace_row(...)
+ManualLedgerPageQuery.execute(...)
+ManualLedgerEditQuery.execute(...)
+ManualLedgerRenderer.row(...)
 MoneyFormatter.format(...)
 ```
 
@@ -522,9 +530,10 @@ HTML-атрибутов и другие технические идентифи�
     `src/app/web/static/css/app.css`; новый build tool не вводится.
 21. Python-код web features организуется прогрессивными вертикальными
     workflow-срезами, а не глобальными техническими каталогами.
-22. Простой route может вернуть шаблон напрямую; устойчивый набор page/HTMX
-    ответов оформляется именованным workflow-specific `*Responses` без
-    бизнес-логики.
+22. Простой route может вернуть шаблон напрямую; сложный экран разделяет
+    screen-specific `*Query`, чистый Presenter и узкий workflow-specific
+    `*Renderer`. Query возвращает application/read DTO без HTTP и ViewModel,
+    Renderer не обращается к session, сервисам или финансовой логике.
 23. `tests/ui_refactor/` повторяет workflow-структуру web-adapter и содержит
     отдельные `foundation/` и `contracts/`; тестовые файлы разделяются только
     по реальным ответственностям.

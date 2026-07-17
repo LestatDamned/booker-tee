@@ -134,6 +134,21 @@
     }
   }
 
+  function resetDisclosureStates() {
+    document.querySelectorAll("[data-disclosure-reset]").forEach((scope) => {
+      scope.removeAttribute("data-disclosure-reset");
+      if (
+        window.Alpine
+        && typeof window.Alpine.destroyTree === "function"
+        && typeof window.Alpine.initTree === "function"
+      ) {
+        window.Alpine.destroyTree(scope);
+        Reflect.deleteProperty(scope, "_x_dataStack");
+        window.Alpine.initTree(scope);
+      }
+    });
+  }
+
   document.addEventListener("alpine:init", () => {
     window.Alpine.data("disclosure", disclosure);
   });
@@ -168,6 +183,7 @@
   document.addEventListener("htmx:afterSettle", (event) => {
     const source = event.detail ? event.detail.elt : null;
     setRequestBusy(requestScope(source), false);
+    resetDisclosureStates();
     restoreReplacementFocus(pendingReplacement);
     pendingReplacement = null;
   });

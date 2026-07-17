@@ -33,6 +33,7 @@ class FoundationPreviewPresenter:
                     fallback_url="/_next/foundation?edit=1",
                     load_url="/_next/foundation/panel",
                     panel_id="foundation-edit-panel",
+                    load_target_id="foundation-edit-panel-content",
                     icon="edit",
                 ),
                 secondary=(

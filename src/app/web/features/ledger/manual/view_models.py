@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.web.ui.actions import ActionSetVM
 from app.web.ui.money import MoneyValueVM, OperationTone
+from app.web.ui.request_state import FieldErrorVM, RequestStateVM
 
 BadgeTone = Literal["neutral", "success", "warning", "danger"]
 
@@ -35,6 +36,56 @@ class ManualLedgerMetaVM:
 
 
 @dataclass(frozen=True)
+class ManualLedgerOptionVM:
+    value: str
+    label: str
+    selected: bool = False
+
+
+@dataclass(frozen=True)
+class ManualLedgerEditFieldIdsVM:
+    operation_type: str
+    amount: str
+    operation_date: str
+    account_id: str
+    destination_account_id: str
+    category_id: str
+    property_id: str
+    description: str
+
+
+@dataclass(frozen=True)
+class ManualLedgerEditErrorsVM:
+    operation_type: FieldErrorVM | None = None
+    amount: FieldErrorVM | None = None
+    operation_date: FieldErrorVM | None = None
+    account_id: FieldErrorVM | None = None
+    destination_account_id: FieldErrorVM | None = None
+    category_id: FieldErrorVM | None = None
+    property_id: FieldErrorVM | None = None
+    description: FieldErrorVM | None = None
+
+
+@dataclass(frozen=True)
+class ManualLedgerEditPanelVM:
+    operation_id: UUID
+    form_id: str
+    form_action: str
+    return_to: str
+    operation_type: str
+    amount: str
+    operation_date: str
+    description: str
+    field_ids: ManualLedgerEditFieldIdsVM
+    errors: ManualLedgerEditErrorsVM
+    accounts: tuple[ManualLedgerOptionVM, ...]
+    destination_accounts: tuple[ManualLedgerOptionVM, ...]
+    categories: tuple[ManualLedgerOptionVM, ...]
+    properties: tuple[ManualLedgerOptionVM, ...]
+    request_state: RequestStateVM
+
+
+@dataclass(frozen=True)
 class ManualLedgerRowVM:
     id: str
     operation_id: UUID
@@ -49,6 +100,11 @@ class ManualLedgerRowVM:
     actions: ActionSetVM
     is_targeted: bool
     is_inactive: bool
+    edit_panel_id: str
+    edit_panel_content_id: str
+    edit_panel_open: bool
+    reset_edit_panel: bool
+    edit_panel: ManualLedgerEditPanelVM | None
 
 
 @dataclass(frozen=True)

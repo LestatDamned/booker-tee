@@ -13,7 +13,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 from openpyxl import Workbook
-from playwright.sync_api import BrowserContext, Page, sync_playwright
+from playwright.sync_api import BrowserContext, Locator, Page, sync_playwright
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
@@ -619,15 +619,135 @@ def assert_frontend_next_manual_ledger(page: Page, *, scenario: str) -> list[str
         errors.append("Frontend Next manual ledger filters were not found")
     if page.locator(".financial-row, .manual-operation-row").count() != 0:
         errors.append("Frontend Next manual ledger rendered legacy row classes")
-    if page.locator('form[id^="manual-operation-form-"]').count() != 0:
+    if (
+        page.locator(
+            'form[id^="manual-operation-form-"], form[id^="next-manual-operation-form-"]'
+        ).count()
+        != 0
+    ):
         errors.append("Frontend Next manual ledger eagerly rendered edit forms")
 
     rows = page.locator(".manual-ledger-row")
     if scenario == "realistic" and rows.count() == 0:
         errors.append("Frontend Next manual ledger did not render seeded operations")
+    if scenario == "realistic" and rows.count() > 0:
+        errors.extend(assert_frontend_next_manual_edit(page, rows.first))
     overflow = collect_overflow(page)
     if int(overflow["horizontalOverflowPx"]) > 1:
         errors.append("Frontend Next manual ledger causes horizontal overflow")
+    return errors
+
+
+def assert_frontend_next_manual_edit(page: Page, row: Locator) -> list[str]:
+    errors: list[str] = []
+    row_id = row.get_attribute("id")
+    disclosure = row.locator('a[aria-controls^="next-manual-operation-edit-panel-"]').first
+    if disclosure.count() == 0:
+        return ["Frontend Next manual edit disclosure was not found"]
+    disclosure.click(timeout=PAGE_TIMEOUT_MS)
+    panel_id = disclosure.get_attribute("aria-controls")
+    if not panel_id:
+        return ["Frontend Next manual edit disclosure has no panel target"]
+    panel = page.locator(f"#{panel_id}")
+    form = row.locator('form[id^="next-manual-operation-form-"]')
+    try:
+        form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        return [f"Frontend Next manual edit panel did not load: {short_error(exc)}"]
+    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
+        errors.append("Frontend Next manual edit panel causes horizontal overflow")
+
+    close = panel.get_by_role("button", name="Закрыть")
+    if close.count() == 0:
+        errors.append("Frontend Next manual close action was lost after lazy load")
+        return errors
+    close.click(timeout=PAGE_TIMEOUT_MS)
+    try:
+        panel.wait_for(state="hidden", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        errors.append(f"Frontend Next manual panel did not close: {short_error(exc)}")
+        return errors
+    disclosure.click(timeout=PAGE_TIMEOUT_MS)
+    form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+
+    original_description = form.locator('input[name="description"]').input_value().strip()
+    amount = form.locator('input[name="amount"]')
+    original_amount = amount.input_value()
+    amount.fill("0")
+    form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+    try:
+        row.get_by_text("Сумма должна быть больше нуля.").wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        errors.append(f"Frontend Next manual 422 state was not rendered: {short_error(exc)}")
+        return errors
+    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
+        errors.append("Frontend Next manual 422 state causes horizontal overflow")
+
+    amount = row.locator('form[id^="next-manual-operation-form-"] input[name="amount"]')
+    if amount.input_value() != "0":
+        errors.append("Frontend Next manual validation did not preserve the amount draft")
+    amount.fill(original_amount)
+    row.locator('form[id^="next-manual-operation-form-"] button[type="submit"]').click(
+        timeout=PAGE_TIMEOUT_MS
+    )
+    try:
+        row.locator('form[id^="next-manual-operation-form-"]').wait_for(
+            state="detached",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        errors.append(f"Frontend Next manual row was not replaced after save: {short_error(exc)}")
+        return errors
+
+    if not row.evaluate("element => element.classList.contains('workbench-row--working')"):
+        errors.append("Frontend Next manual row did not retain working feedback after save")
+    try:
+        row.locator(":focus").wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError:
+        errors.append("Frontend Next manual row did not restore focus after save")
+    if panel.is_visible():
+        errors.append("Frontend Next manual panel stayed open after replaceRow")
+    if panel.get_by_text("Загружаем форму…").is_visible():
+        errors.append("Frontend Next manual loading placeholder stayed visible after save")
+
+    if row_id and original_description:
+        search = page.locator('.manual-ledger-filters input[name="search"]')
+        search.fill(original_description)
+        page.locator('.manual-ledger-filters button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+        filtered_row = page.locator(f"#{row_id}")
+        try:
+            filtered_row.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+        except PlaywrightError as exc:
+            errors.append(f"Frontend Next manual filtered row was not rendered: {short_error(exc)}")
+            return errors
+
+        total_before = int(page.locator("#manual-ledger-total").inner_text().split()[0])
+        filtered_row.locator('a[aria-controls^="next-manual-operation-edit-panel-"]').first.click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        filtered_form = filtered_row.locator('form[id^="next-manual-operation-form-"]')
+        filtered_form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+        filtered_form.locator('input[name="description"]').fill("UI audit: проверка области ответа")
+        filtered_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+        try:
+            filtered_row.wait_for(state="detached", timeout=PAGE_TIMEOUT_MS)
+        except PlaywrightError as exc:
+            errors.append(
+                f"Frontend Next manual row stayed in a mismatched filtered list: {short_error(exc)}"
+            )
+            return errors
+
+        total_after = int(page.locator("#manual-ledger-total").inner_text().split()[0])
+        if total_after != total_before - 1:
+            errors.append("Frontend Next manual OOB total did not follow replaceList")
+        focused_in_results = page.locator(
+            "#manual-ledger-results:focus, #manual-ledger-results :focus"
+        )
+        if focused_in_results.count() == 0:
+            errors.append("Frontend Next manual replaceList did not restore focus")
     return errors
 
 
@@ -1433,6 +1553,12 @@ def audit_page(
             scenario=scenario,
             scenario_state=scenario_state,
         )
+        console_errors = remove_expected_console_error(
+            console_errors,
+            path=path,
+            scenario=scenario,
+            ux_assertion_errors=ux_assertion_errors,
+        )
         page.screenshot(path=str(screenshot_path), full_page=True)
     except PlaywrightError as exc:
         error_text = str(exc)
@@ -1455,6 +1581,25 @@ def audit_page(
         overflow_offenders=overflow_offenders,
         error=error_text,
     )
+
+
+def remove_expected_console_error(
+    errors: list[str],
+    *,
+    path: str,
+    scenario: str,
+    ux_assertion_errors: list[str],
+) -> list[str]:
+    filtered = list(errors)
+    if path != "/_next/ledger/manual" or scenario != "realistic":
+        return filtered
+    if any("422 state was not rendered" in error for error in ux_assertion_errors):
+        return filtered
+    for index, message in enumerate(filtered):
+        if "Failed to load resource" in message and "422 (Unprocessable Entity)" in message:
+            filtered.pop(index)
+            break
+    return filtered
 
 
 def run_audit(

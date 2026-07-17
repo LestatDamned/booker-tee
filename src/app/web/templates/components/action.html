@@ -49,7 +49,7 @@
         aria-controls="{{ action.panel_id }}"
         x-bind:aria-expanded="open.toString()"
         hx-get="{{ action.load_url }}"
-        hx-target="#{{ action.panel_id }}"
+        hx-target="#{{ action.load_target_id }}"
         hx-swap="innerHTML"
         hx-trigger="click once"
         x-on:click="open = true"

@@ -74,7 +74,7 @@
         {{ request_state(preview.request_state) }}
       </aside>
       <div class="workbench-row__expansion">
-        {% call expansion_panel("foundation-edit-panel", "Исправить пример") %}
+        {% call expansion_panel("foundation-edit-panel", "foundation-edit-panel-content", "Исправить пример", preview.edit_panel_open, "/_next/foundation") %}
           {% if preview.edit_panel_open %}
             {% include "features/foundation/_panel.html" %}
           {% else %}

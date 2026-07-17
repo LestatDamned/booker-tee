@@ -1,0 +1,155 @@
+{% from "components/request_state.html" import request_state %}
+{% from "components/ui_field.html" import ui_field %}
+
+<form
+  id="{{ row.edit_panel.form_id }}"
+  class="manual-ledger-edit-form"
+  method="post"
+  action="{{ row.edit_panel.form_action }}"
+  hx-post="{{ row.edit_panel.form_action }}"
+  hx-target="#{{ row.id }}"
+  hx-swap="outerHTML"
+  data-edit-panel
+  x-data="{ operationType: '{{ row.edit_panel.operation_type }}' }"
+>
+  {{ csrf_input() }}
+  <input type="hidden" name="return_to" value="{{ row.edit_panel.return_to }}">
+
+  {{ request_state(row.edit_panel.request_state) }}
+
+  <fieldset
+    class="manual-ledger-edit-form__type"
+    {% if row.edit_panel.errors.operation_type %}aria-describedby="{{ row.edit_panel.errors.operation_type.error_id }}"{% endif %}
+  >
+    <legend class="ui-field__label">Тип операции</legend>
+    <div
+      id="{{ row.edit_panel.field_ids.operation_type }}"
+      class="manual-ledger-segmented"
+      role="radiogroup"
+      {% if row.edit_panel.errors.operation_type %}aria-invalid="true"{% endif %}
+    >
+      {% for value, label in [("income", "Доход"), ("expense", "Расход"), ("transfer", "Перевод")] %}
+        <label class="manual-ledger-segmented__option manual-ledger-segmented__option--{{ value }}">
+          <input
+            type="radio"
+            name="operation_type"
+            value="{{ value }}"
+            x-model="operationType"
+            {% if row.edit_panel.operation_type == value %}checked{% endif %}
+          >
+          <span>{{ label }}</span>
+        </label>
+      {% endfor %}
+    </div>
+    {% if row.edit_panel.errors.operation_type %}
+      <span id="{{ row.edit_panel.errors.operation_type.error_id }}" class="ui-field__error">{{ row.edit_panel.errors.operation_type.message }}</span>
+    {% endif %}
+  </fieldset>
+
+  <div class="manual-ledger-edit-form__grid">
+    {% call ui_field("Сумма", row.edit_panel.field_ids.amount, row.edit_panel.errors.amount) %}
+      <input
+        id="{{ row.edit_panel.field_ids.amount }}"
+        class="ui-field__control"
+        name="amount"
+        inputmode="decimal"
+        value="{{ row.edit_panel.amount }}"
+        {% if row.edit_panel.errors.amount %}aria-invalid="true" aria-describedby="{{ row.edit_panel.errors.amount.error_id }}"{% endif %}
+      >
+    {% endcall %}
+
+    {% call ui_field("Дата", row.edit_panel.field_ids.operation_date, row.edit_panel.errors.operation_date) %}
+      <input
+        id="{{ row.edit_panel.field_ids.operation_date }}"
+        class="ui-field__control"
+        name="operation_date"
+        type="date"
+        value="{{ row.edit_panel.operation_date }}"
+        {% if row.edit_panel.errors.operation_date %}aria-invalid="true" aria-describedby="{{ row.edit_panel.errors.operation_date.error_id }}"{% endif %}
+      >
+    {% endcall %}
+
+    {% call ui_field("Счёт", row.edit_panel.field_ids.account_id, row.edit_panel.errors.account_id) %}
+      <select
+        id="{{ row.edit_panel.field_ids.account_id }}"
+        class="ui-field__control"
+        name="account_id"
+        {% if row.edit_panel.errors.account_id %}aria-invalid="true" aria-describedby="{{ row.edit_panel.errors.account_id.error_id }}"{% endif %}
+      >
+        <option value="">Выберите счёт</option>
+        {% for option in row.edit_panel.accounts %}
+          <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
+      </select>
+    {% endcall %}
+
+    <div x-show="operationType === 'transfer'" x-cloak>
+      {% call ui_field("Счёт назначения", row.edit_panel.field_ids.destination_account_id, row.edit_panel.errors.destination_account_id) %}
+        <select
+          id="{{ row.edit_panel.field_ids.destination_account_id }}"
+          class="ui-field__control"
+          name="destination_account_id"
+          x-bind:disabled="operationType !== 'transfer'"
+          {% if row.edit_panel.errors.destination_account_id %}aria-invalid="true" aria-describedby="{{ row.edit_panel.errors.destination_account_id.error_id }}"{% endif %}
+        >
+          <option value="">Выберите счёт назначения</option>
+          {% for option in row.edit_panel.destination_accounts %}
+            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      {% endcall %}
+    </div>
+
+    <div x-show="operationType !== 'transfer'">
+      {% call ui_field("Категория", row.edit_panel.field_ids.category_id, row.edit_panel.errors.category_id) %}
+        <select
+          id="{{ row.edit_panel.field_ids.category_id }}"
+          class="ui-field__control"
+          name="category_id"
+          x-bind:disabled="operationType === 'transfer'"
+          {% if row.edit_panel.errors.category_id %}aria-invalid="true" aria-describedby="{{ row.edit_panel.errors.category_id.error_id }}"{% endif %}
+        >
+          <option value="">Без категории</option>
+          {% for option in row.edit_panel.categories %}
+            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      {% endcall %}
+    </div>
+
+    <div x-show="operationType !== 'transfer'">
+      {% call ui_field("Объект", row.edit_panel.field_ids.property_id, row.edit_panel.errors.property_id) %}
+        <select
+          id="{{ row.edit_panel.field_ids.property_id }}"
+          class="ui-field__control"
+          name="property_id"
+          x-bind:disabled="operationType === 'transfer'"
+          {% if row.edit_panel.errors.property_id %}aria-invalid="true" aria-describedby="{{ row.edit_panel.errors.property_id.error_id }}"{% endif %}
+        >
+          <option value="">Без объекта</option>
+          {% for option in row.edit_panel.properties %}
+            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      {% endcall %}
+    </div>
+
+    <div class="manual-ledger-edit-form__description">
+      {% call ui_field("Описание", row.edit_panel.field_ids.description, row.edit_panel.errors.description) %}
+        <input
+          id="{{ row.edit_panel.field_ids.description }}"
+          class="ui-field__control"
+          name="description"
+          value="{{ row.edit_panel.description }}"
+          placeholder="Описание"
+          {% if row.edit_panel.errors.description %}aria-invalid="true" aria-describedby="{{ row.edit_panel.errors.description.error_id }}"{% endif %}
+        >
+      {% endcall %}
+    </div>
+  </div>
+
+  <div class="manual-ledger-edit-form__actions">
+    <button class="ui-button ui-button--primary" type="submit">Сохранить изменения</button>
+    <a class="ui-button ui-button--secondary" href="{{ row.edit_panel.return_to }}" x-on:click.prevent="cancel()">Отмена</a>
+  </div>
+</form>

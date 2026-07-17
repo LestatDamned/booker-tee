@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from datetime import date
 from typing import Final
 from urllib.parse import urlencode
@@ -6,18 +7,19 @@ from uuid import UUID
 from app.features.ledger.application.listing import LedgerPage, ManualOperationFilters
 from app.features.ledger.mapping.dto import ManualOperationView, OperationRefMoneyEntryView
 from app.features.ledger.models import OperationStatus, OperationType
+from app.web.features.ledger.manual.query_state import MANUAL_LEDGER_URL
 from app.web.features.ledger.manual.view_models import (
     BadgeTone,
+    ManualLedgerEditPanelVM,
     ManualLedgerFilterOptionVM,
     ManualLedgerFiltersVM,
     ManualLedgerMetaVM,
     ManualLedgerPageVM,
     ManualLedgerRowVM,
 )
-from app.web.ui.actions import ActionSetVM, LinkActionVM
+from app.web.ui.actions import ActionSetVM, DisclosureActionVM, LinkActionVM
 from app.web.ui.money import EntryDirection, MoneyFormatter, MoneyValueVM, OperationTone
 
-MANUAL_LEDGER_URL: Final = "/_next/ledger/manual"
 PER_PAGE_OPTIONS: Final = (25, 50, 100, 200)
 
 OPERATION_LABELS: Final[dict[OperationType, str]] = {
@@ -52,22 +54,37 @@ class ManualLedgerPresenter:
         self,
         *,
         workspace_name: str,
-        operations: list[ManualOperationView],
+        operations: Iterable[ManualOperationView],
         page: LedgerPage,
         filters: ManualOperationFilters,
         focused_operation_id: UUID | None,
         can_write: bool,
+        edit_panel: ManualLedgerEditPanelVM | None = None,
+        reset_edit_panels: bool = False,
     ) -> ManualLedgerPageVM:
         filters_vm = self._filters(filters, page)
+        current_url = self.list_url(
+            filters=filters,
+            page=page.page,
+            per_page=page.per_page,
+            focused_operation_id=focused_operation_id,
+        )
         return ManualLedgerPageVM(
             workspace_name=workspace_name,
             total_label=self._total_label(page.total),
             readonly_message=self._readonly_message(can_write),
             rows=tuple(
-                self._row(
+                self.present_row(
                     operation,
                     focused_operation_id=focused_operation_id,
                     can_write=can_write,
+                    return_to=current_url,
+                    edit_panel=(
+                        edit_panel
+                        if edit_panel and edit_panel.operation_id == operation.id
+                        else None
+                    ),
+                    reset_edit_panel=reset_edit_panels,
                 )
                 for operation in operations
             ),
@@ -100,12 +117,15 @@ class ManualLedgerPresenter:
             ),
         )
 
-    def _row(
+    def present_row(
         self,
         operation: ManualOperationView,
         *,
         focused_operation_id: UUID | None,
         can_write: bool,
+        return_to: str,
+        edit_panel: ManualLedgerEditPanelVM | None = None,
+        reset_edit_panel: bool = False,
     ) -> ManualLedgerRowVM:
         status_label, status_tone = STATUS_PRESENTATION[operation.status]
         return ManualLedgerRowVM(
@@ -119,9 +139,18 @@ class ManualLedgerPresenter:
             status_label=status_label,
             status_tone=status_tone,
             meta=self._meta(operation),
-            actions=self._actions(operation, can_write=can_write),
+            actions=self._actions(
+                operation,
+                can_write=can_write,
+                return_to=return_to,
+            ),
             is_targeted=focused_operation_id == operation.id,
             is_inactive=operation.status == OperationStatus.IGNORED,
+            edit_panel_id=f"next-manual-operation-edit-panel-{operation.id}",
+            edit_panel_content_id=f"next-manual-operation-edit-panel-content-{operation.id}",
+            edit_panel_open=edit_panel is not None,
+            reset_edit_panel=reset_edit_panel,
+            edit_panel=edit_panel,
         )
 
     def _money(self, operation: ManualOperationView) -> MoneyValueVM | None:
@@ -149,20 +178,37 @@ class ManualLedgerPresenter:
             meta.append(ManualLedgerMetaVM(self._account_name(operation.primary_entry)))
         return tuple(meta)
 
-    def _actions(self, operation: ManualOperationView, *, can_write: bool) -> ActionSetVM:
+    def _actions(
+        self,
+        operation: ManualOperationView,
+        *,
+        can_write: bool,
+        return_to: str,
+    ) -> ActionSetVM:
         legacy_url = f"/ledger/manual?operation_id={operation.id}#operation-{operation.id}"
-        action = LinkActionVM(
-            label=(
-                "Изменить в текущем интерфейсе"
-                if can_write and operation.status != OperationStatus.IGNORED
-                else "Открыть текущую версию"
-            ),
-            url=legacy_url,
-            icon="source",
-        )
         if can_write and operation.status != OperationStatus.IGNORED:
-            return ActionSetVM(primary=action)
-        return ActionSetVM(secondary=(action,))
+            edit_url = (
+                f"/_next/ledger/manual/{operation.id}/edit?{urlencode({'return_to': return_to})}"
+            )
+            return ActionSetVM(
+                primary=DisclosureActionVM(
+                    label="Исправить",
+                    fallback_url=edit_url,
+                    load_url=edit_url,
+                    panel_id=f"next-manual-operation-edit-panel-{operation.id}",
+                    load_target_id=(f"next-manual-operation-edit-panel-content-{operation.id}"),
+                    icon="edit",
+                )
+            )
+        return ActionSetVM(
+            secondary=(
+                LinkActionVM(
+                    label="Открыть текущую версию",
+                    url=legacy_url,
+                    icon="source",
+                ),
+            )
+        )
 
     def _filters(
         self,
@@ -222,6 +268,21 @@ class ManualLedgerPresenter:
         query.update({name: value for name, value in optional_values.items() if value})
         return f"{MANUAL_LEDGER_URL}?{urlencode(query)}"
 
+    def list_url(
+        self,
+        *,
+        filters: ManualOperationFilters,
+        page: int,
+        per_page: int,
+        focused_operation_id: UUID | None,
+    ) -> str:
+        return self._page_url(
+            filters,
+            page=page,
+            per_page=per_page,
+            focused_operation_id=focused_operation_id,
+        )
+
     def _currency(self, operation: ManualOperationView) -> str:
         entry = (
             operation.source_entry
@@ -246,8 +307,8 @@ class ManualLedgerPresenter:
     def _readonly_message(self, can_write: bool) -> str:
         if can_write:
             return (
-                "Первый срез Frontend Next доступен только для просмотра. "
-                "Изменение пока открывается в текущем интерфейсе."
+                "Операции можно исправлять прямо в строке. Создание и lifecycle-действия "
+                "пока остаются в текущем интерфейсе."
             )
         return "Ручные операции доступны только для просмотра согласно вашей роли."
 

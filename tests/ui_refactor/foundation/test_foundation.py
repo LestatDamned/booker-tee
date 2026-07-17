@@ -51,6 +51,7 @@ def test_action_set_uses_explicit_valid_action_types() -> None:
             fallback_url="/operation/edit",
             load_url="/operation/edit/panel",
             panel_id="operation-edit-panel",
+            load_target_id="operation-edit-panel-content",
             icon="edit",
         ),
         secondary=(LinkActionVM(label="Источник", url="/source", icon="source"),),

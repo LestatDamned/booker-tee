@@ -35,6 +35,7 @@ class DisclosureActionVM:
     fallback_url: str
     load_url: str
     panel_id: str
+    load_target_id: str
     icon: str
     disabled: bool = False
     disabled_reason: str | None = None

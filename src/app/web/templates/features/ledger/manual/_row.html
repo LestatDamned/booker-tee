@@ -1,8 +1,16 @@
+{% from "components/action_stack.html" import action_stack %}
+{% from "components/expansion_panel.html" import expansion_panel %}
+{% from "components/money_value.html" import money_value %}
+{% from "components/status_badge.html" import status_badge %}
+
 <article
   id="{{ row.id }}"
   class="workbench-row manual-ledger-row{% if row.is_targeted %} workbench-row--target{% endif %}{% if row.is_inactive %} manual-ledger-row--inactive{% endif %}"
   data-request-scope
   data-focus-fallback
+  x-data="disclosure({{ 'true' if row.edit_panel_open else 'false' }})"
+  {% if row.reset_edit_panel %}data-disclosure-reset{% endif %}
+  hx-sync="this:abort"
 >
   <div class="workbench-row__main">
     <header class="workbench-row__header">
@@ -20,5 +28,15 @@
   </div>
   <aside class="workbench-row__aside">
     {{ action_stack(row.actions) }}
+    <span class="request-state__indicator" data-request-indicator hidden>Выполняем запрос…</span>
   </aside>
+  <div class="workbench-row__expansion">
+    {% call expansion_panel(row.edit_panel_id, row.edit_panel_content_id, "Исправить операцию", row.edit_panel_open, row.edit_panel.return_to if row.edit_panel else none) %}
+      {% if row.edit_panel %}
+        {% include "features/ledger/manual/_edit_panel.html" %}
+      {% else %}
+        <p class="request-state__indicator" data-request-indicator>Загружаем форму…</p>
+      {% endif %}
+    {% endcall %}
+  </div>
 </article>

@@ -241,8 +241,8 @@ class ManualOperationUseCase:
             destination_account_id=destination_account.id,
             amount=amount,
         )
-        operation.category_id = transfer_category.id
-        operation.property_id = None
+        operation.category = transfer_category
+        operation.property = None
         await self._replace_money_entries(
             operation,
             [
@@ -282,8 +282,8 @@ class ManualOperationUseCase:
             category_id,
         )
         property_ = await self.references.get_property(context.workspace.id, property_id)
-        operation.category_id = category.id
-        operation.property_id = property_.id if property_ else None
+        operation.category = category
+        operation.property = property_
         await self._replace_money_entries(
             operation,
             [
@@ -316,3 +316,4 @@ class ManualOperationUseCase:
         await self.session.flush()
         for money_entry in money_entries:
             await self.ledger.create_money_entry(money_entry)
+        operation.money_entries.extend(money_entries)
