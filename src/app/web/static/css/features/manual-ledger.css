@@ -3,6 +3,7 @@
 }
 
 .manual-ledger-toolbar,
+.manual-ledger-create,
 .manual-ledger-empty {
   display: grid;
   gap: var(--space-4);
@@ -17,6 +18,18 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+}
+
+.manual-ledger-create__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.manual-ledger-create__heading h2,
+.manual-ledger-create__heading p {
+  margin: 0;
 }
 
 .manual-ledger-toolbar h2,
@@ -136,6 +149,7 @@
 .manual-ledger-edit-form__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: var(--space-3);
 }
 
@@ -162,12 +176,14 @@
 
 @media (max-width: 560px) {
   .manual-ledger-heading,
+  .manual-ledger-create__heading,
   .manual-ledger-toolbar__heading,
   .manual-ledger-pagination {
     align-items: stretch;
   }
 
   .manual-ledger-heading,
+  .manual-ledger-create__heading,
   .manual-ledger-filters,
   .manual-ledger-toolbar__heading {
     display: grid;

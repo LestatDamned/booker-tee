@@ -10,9 +10,11 @@ from app.features.ledger.models import OperationStatus, OperationType
 from app.web.features.ledger.manual.query_state import MANUAL_LEDGER_URL
 from app.web.features.ledger.manual.view_models import (
     BadgeTone,
+    ManualLedgerCreateRegionVM,
     ManualLedgerEditPanelVM,
     ManualLedgerFilterOptionVM,
     ManualLedgerFiltersVM,
+    ManualLedgerFormVM,
     ManualLedgerMetaVM,
     ManualLedgerPageVM,
     ManualLedgerRowVM,
@@ -59,6 +61,8 @@ class ManualLedgerPresenter:
         filters: ManualOperationFilters,
         focused_operation_id: UUID | None,
         can_write: bool,
+        create_panel: ManualLedgerFormVM | None = None,
+        reset_create_panel: bool = False,
         edit_panel: ManualLedgerEditPanelVM | None = None,
         reset_edit_panels: bool = False,
     ) -> ManualLedgerPageVM:
@@ -73,6 +77,12 @@ class ManualLedgerPresenter:
             workspace_name=workspace_name,
             total_label=self._total_label(page.total),
             readonly_message=self._readonly_message(can_write),
+            create_region=self._create_region(
+                can_write=can_write,
+                current_url=current_url,
+                panel=create_panel,
+                reset_panel=reset_create_panel,
+            ),
             rows=tuple(
                 self.present_row(
                     operation,
@@ -115,6 +125,33 @@ class ManualLedgerPresenter:
                 if filters_vm.active
                 else "Ручные операции появятся здесь после создания в рабочем интерфейсе."
             ),
+        )
+
+    def _create_region(
+        self,
+        *,
+        can_write: bool,
+        current_url: str,
+        panel: ManualLedgerFormVM | None,
+        reset_panel: bool,
+    ) -> ManualLedgerCreateRegionVM | None:
+        if not can_write:
+            return None
+        load_url = f"{MANUAL_LEDGER_URL}/new?{urlencode({'return_to': current_url})}"
+        return ManualLedgerCreateRegionVM(
+            action=DisclosureActionVM(
+                label="Создать операцию",
+                fallback_url=load_url,
+                load_url=load_url,
+                panel_id="manual-ledger-create-panel",
+                load_target_id="manual-ledger-create-content",
+                icon="plus",
+            ),
+            panel_id="manual-ledger-create-panel",
+            content_id="manual-ledger-create-content",
+            panel_open=panel is not None,
+            reset_panel=reset_panel,
+            panel=panel,
         )
 
     def present_row(
@@ -307,8 +344,8 @@ class ManualLedgerPresenter:
     def _readonly_message(self, can_write: bool) -> str:
         if can_write:
             return (
-                "Операции можно исправлять прямо в строке. Создание и lifecycle-действия "
-                "пока остаются в текущем интерфейсе."
+                "Операции можно исправлять прямо в строке и создавать здесь. "
+                "Lifecycle-действия пока остаются в текущем интерфейсе."
             )
         return "Ручные операции доступны только для просмотра согласно вашей роли."
 

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID
 
-from app.web.ui.actions import ActionSetVM
+from app.web.ui.actions import ActionSetVM, DisclosureActionVM
 from app.web.ui.money import MoneyValueVM, OperationTone
 from app.web.ui.request_state import FieldErrorVM, RequestStateVM
 
@@ -43,7 +43,7 @@ class ManualLedgerOptionVM:
 
 
 @dataclass(frozen=True)
-class ManualLedgerEditFieldIdsVM:
+class ManualLedgerFormFieldIdsVM:
     operation_type: str
     amount: str
     operation_date: str
@@ -55,7 +55,7 @@ class ManualLedgerEditFieldIdsVM:
 
 
 @dataclass(frozen=True)
-class ManualLedgerEditErrorsVM:
+class ManualLedgerFormErrorsVM:
     operation_type: FieldErrorVM | None = None
     amount: FieldErrorVM | None = None
     operation_date: FieldErrorVM | None = None
@@ -67,8 +67,7 @@ class ManualLedgerEditErrorsVM:
 
 
 @dataclass(frozen=True)
-class ManualLedgerEditPanelVM:
-    operation_id: UUID
+class ManualLedgerFormVM:
     form_id: str
     form_action: str
     return_to: str
@@ -76,13 +75,29 @@ class ManualLedgerEditPanelVM:
     amount: str
     operation_date: str
     description: str
-    field_ids: ManualLedgerEditFieldIdsVM
-    errors: ManualLedgerEditErrorsVM
+    field_ids: ManualLedgerFormFieldIdsVM
+    errors: ManualLedgerFormErrorsVM
     accounts: tuple[ManualLedgerOptionVM, ...]
     destination_accounts: tuple[ManualLedgerOptionVM, ...]
     categories: tuple[ManualLedgerOptionVM, ...]
     properties: tuple[ManualLedgerOptionVM, ...]
     request_state: RequestStateVM
+
+
+@dataclass(frozen=True)
+class ManualLedgerEditPanelVM:
+    operation_id: UUID
+    form: ManualLedgerFormVM
+
+
+@dataclass(frozen=True)
+class ManualLedgerCreateRegionVM:
+    action: DisclosureActionVM
+    panel_id: str
+    content_id: str
+    panel_open: bool
+    reset_panel: bool
+    panel: ManualLedgerFormVM | None
 
 
 @dataclass(frozen=True)
@@ -112,6 +127,7 @@ class ManualLedgerPageVM:
     workspace_name: str
     total_label: str
     readonly_message: str
+    create_region: ManualLedgerCreateRegionVM | None
     rows: tuple[ManualLedgerRowVM, ...]
     filters: ManualLedgerFiltersVM
     show_pagination: bool

@@ -20,15 +20,18 @@ from app.features.workspaces.dependencies import (
 from app.features.workspaces.permissions import permission_flags_for
 from app.features.workspaces.service import WorkspaceContext
 from app.shared.query_params import parse_optional_query_uuid
+from app.web.features.ledger.manual.create_presenter import ManualLedgerCreatePresenter
+from app.web.features.ledger.manual.create_routes import router as create_router
 from app.web.features.ledger.manual.edit_presenter import ManualLedgerEditPresenter
 from app.web.features.ledger.manual.forms import (
-    ManualLedgerEditSubmission,
+    ManualLedgerFormSubmission,
     business_error_message,
     validate_manual_ledger_edit,
 )
 from app.web.features.ledger.manual.presenter import ManualLedgerPresenter
 from app.web.features.ledger.manual.queries import (
     ManualLedgerEditQuery,
+    ManualLedgerFormQuery,
     ManualLedgerPageQuery,
 )
 from app.web.features.ledger.manual.query_state import (
@@ -49,6 +52,7 @@ from app.web.templating import create_web_templates
 from app.web.ui.responses import is_htmx_request
 
 router = APIRouter(prefix=MANUAL_LEDGER_URL, tags=["web-manual-ledger"])
+router.include_router(create_router)
 renderer = ManualLedgerRenderer(create_web_templates())
 
 
@@ -68,8 +72,30 @@ async def manual_ledger_page(
     )
     permissions = permission_flags_for(context.membership)
     presenter = ManualLedgerPresenter()
+    create_panel = None
     edit_panel = None
     edit_operation_id = parse_optional_query_uuid(params.edit, field_name="edit")
+
+    if params.create:
+        if not permissions.can_write_financial_data:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Недостаточно прав для изменения финансовых данных.",
+            )
+        create_data = await ManualLedgerFormQuery(
+            accounts=AccountService(session),
+            categories=CategoryService(session),
+            properties=PropertyService(session),
+        ).execute(context=context)
+        create_panel = ManualLedgerCreatePresenter().present(
+            data=create_data,
+            return_to=presenter.list_url(
+                filters=list_query.filters,
+                page=page_data.page.page,
+                per_page=page_data.page.per_page,
+                focused_operation_id=list_query.focused_operation_id,
+            ),
+        )
 
     if edit_operation_id is not None:
         if not permissions.can_write_financial_data:
@@ -79,9 +105,11 @@ async def manual_ledger_page(
             )
         edit_data = await ManualLedgerEditQuery(
             ledger=ledger,
-            accounts=AccountService(session),
-            categories=CategoryService(session),
-            properties=PropertyService(session),
+            form=ManualLedgerFormQuery(
+                accounts=AccountService(session),
+                categories=CategoryService(session),
+                properties=PropertyService(session),
+            ),
         ).execute(
             context=context,
             operation_id=edit_operation_id,
@@ -106,6 +134,7 @@ async def manual_ledger_page(
         filters=list_query.filters,
         focused_operation_id=list_query.focused_operation_id,
         can_write=permissions.can_write_financial_data,
+        create_panel=create_panel,
         edit_panel=edit_panel,
     )
     return renderer.page(
@@ -133,9 +162,11 @@ async def manual_ledger_edit_panel(
     ledger = LedgerPostingService(session)
     edit_data = await ManualLedgerEditQuery(
         ledger=ledger,
-        accounts=AccountService(session),
-        categories=CategoryService(session),
-        properties=PropertyService(session),
+        form=ManualLedgerFormQuery(
+            accounts=AccountService(session),
+            categories=CategoryService(session),
+            properties=PropertyService(session),
+        ),
     ).execute(
         context=context,
         operation_id=operation_id,
@@ -177,7 +208,7 @@ async def update_manual_ledger_operation(
     safe_return_to = safe_manual_ledger_return_to(return_to)
     validation = validate_manual_ledger_edit(
         operation_id,
-        ManualLedgerEditSubmission(
+        ManualLedgerFormSubmission(
             operation_type=operation_type,
             account_id=account_id,
             destination_account_id=destination_account_id,
@@ -216,9 +247,11 @@ async def update_manual_ledger_operation(
     if not validation.is_valid or form_error is not None:
         edit_data = await ManualLedgerEditQuery(
             ledger=ledger,
-            accounts=AccountService(session),
-            categories=CategoryService(session),
-            properties=PropertyService(session),
+            form=ManualLedgerFormQuery(
+                accounts=AccountService(session),
+                categories=CategoryService(session),
+                properties=PropertyService(session),
+            ),
         ).execute(
             context=context,
             operation_id=operation_id,

@@ -16,7 +16,11 @@ from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.accounts.models import AccountType
-from app.features.ledger.application.commands import UpdateManualOperationCommand
+from app.features.ledger.application.commands import (
+    CreateManualIncomeExpenseCommand,
+    CreateManualTransferCommand,
+    UpdateManualOperationCommand,
+)
 from app.features.ledger.application.listing import (
     LedgerPage,
     LedgerPagination,
@@ -33,7 +37,8 @@ from app.features.workspaces.dependencies import get_current_workspace_context
 from app.features.workspaces.models import WorkspaceMemberStatus, WorkspaceRole
 from app.features.workspaces.service import WorkspaceContext
 from app.web.features.ledger.manual.forms import (
-    ManualLedgerEditSubmission,
+    ManualLedgerFormSubmission,
+    validate_manual_ledger_create,
     validate_manual_ledger_edit,
 )
 from app.web.features.ledger.manual.presenter import ManualLedgerPresenter
@@ -184,6 +189,190 @@ def test_empty_filtered_page_gives_recovery_action(monkeypatch: pytest.MonkeyPat
     assert response.status_code == 200
     assert "По этим фильтрам операций нет" in response.text
     assert "Сбросить фильтры" in response.text
+
+
+def test_create_validation_builds_income_and_transfer_commands() -> None:
+    source_id = uuid4()
+    destination_id = uuid4()
+    income = validate_manual_ledger_create(
+        ManualLedgerFormSubmission(
+            operation_type="income",
+            account_id=str(source_id),
+            amount="1250,50",
+            operation_date="2026-07-17",
+            description="Проценты",
+        )
+    )
+    transfer = validate_manual_ledger_create(
+        ManualLedgerFormSubmission(
+            operation_type="transfer",
+            account_id=str(source_id),
+            destination_account_id=str(destination_id),
+            amount="5000",
+            operation_date="2026-07-17",
+            description="Перевод между счетами",
+        )
+    )
+
+    assert isinstance(income.command, CreateManualIncomeExpenseCommand)
+    assert income.command.amount == Decimal("1250.50")
+    assert isinstance(transfer.command, CreateManualTransferCommand)
+    assert transfer.command.source_account_id == source_id
+    assert transfer.command.destination_account_id == destination_id
+
+
+def test_create_panel_loads_lazily_and_has_http_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    calls.operations = [manual_expense()]
+    calls.page = LedgerPage(page=1, per_page=50, total=1)
+
+    with TestClient(app) as client:
+        page_response = client.get(MANUAL_LEDGER_URL)
+        panel_response = client.get(
+            f"{MANUAL_LEDGER_URL}/new",
+            headers={"HX-Request": "true"},
+        )
+        fallback = client.get(f"{MANUAL_LEDGER_URL}/new", follow_redirects=False)
+        fallback_page = client.get(fallback.headers["location"])
+
+    assert page_response.status_code == 200
+    assert 'id="next-manual-operation-create-form"' not in page_response.text
+    assert 'hx-get="/_next/ledger/manual/new?' in page_response.text
+    assert panel_response.status_code == 200
+    assert 'id="next-manual-operation-create-form"' in panel_response.text
+    assert 'value="income"' in panel_response.text
+    assert fallback.status_code == 303
+    assert "create=true" in fallback.headers["location"]
+    assert fallback_page.status_code == 200
+    assert 'id="next-manual-operation-create-form"' in fallback_page.text
+    assert 'x-data="disclosure(true)"' in fallback_page.text
+
+
+def test_create_validation_returns_local_422_and_preserves_draft(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = manual_expense()
+    calls.operations = [operation]
+    form = valid_edit_form(operation)
+    form["amount"] = "0"
+    form["description"] = "Новая операция"
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"{MANUAL_LEDGER_URL}/new",
+            data=form,
+            headers={"HX-Request": "true"},
+        )
+        fallback = client.post(f"{MANUAL_LEDGER_URL}/new", data=form)
+
+    assert response.status_code == 422
+    assert "Сумма должна быть больше нуля" in response.text
+    assert 'value="Новая операция"' in response.text
+    assert calls.income_expense_commands == []
+    assert calls.transfer_commands == []
+    assert fallback.status_code == 422
+    assert "<!doctype html>" in fallback.text
+    assert 'id="next-manual-operation-create-form"' in fallback.text
+
+
+def test_successful_create_replaces_list_total_and_create_panel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = manual_expense()
+    calls.operations = [operation]
+    calls.realistic_listing = True
+    form = valid_edit_form(operation)
+    form["operation_type"] = "income"
+    form["operation_date"] = "2026-07-18"
+    form["description"] = "Новый доход"
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"{MANUAL_LEDGER_URL}/new",
+            data=form,
+            headers={"HX-Request": "true"},
+        )
+
+    created = calls.operations[-1]
+    assert response.status_code == 200
+    assert response.headers["HX-Retarget"] == "#manual-ledger-results"
+    assert response.headers["HX-Reswap"] == "outerHTML"
+    assert response.headers["HX-Replace-Url"].startswith(f"{MANUAL_LEDGER_URL}?page=1&per_page=50")
+    assert f'id="next-operation-{created.id}"' in response.text
+    assert "workbench-row--target" in response.text
+    assert "Новый доход" in response.text
+    assert "2 ручные операции" in response.text
+    assert 'id="manual-ledger-create"' in response.text
+    assert 'hx-swap-oob="outerHTML"' in response.text
+    assert 'id="next-manual-operation-create-form"' not in response.text
+    assert response.text.count("data-disclosure-reset") == 3
+    assert len(calls.income_expense_commands) == 1
+
+
+def test_create_http_fallback_redirects_to_created_operation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = manual_expense()
+    calls.operations = [operation]
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"{MANUAL_LEDGER_URL}/new",
+            data=valid_edit_form(operation),
+            follow_redirects=False,
+        )
+
+    created = calls.operations[-1]
+    assert response.status_code == 303
+    assert f"operation_id={created.id}" in response.headers["location"]
+    assert response.headers["location"].endswith(f"#next-operation-{created.id}")
+
+
+def test_create_transfer_dispatches_transfer_use_case(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = manual_transfer()
+    calls.operations = [operation]
+    form = valid_edit_form(operation)
+    assert operation.destination_entry is not None
+    form["destination_account_id"] = str(operation.destination_entry.account_id)
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"{MANUAL_LEDGER_URL}/new",
+            data=form,
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 303
+    assert calls.income_expense_commands == []
+    assert len(calls.transfer_commands) == 1
+    assert calls.transfer_commands[0].amount == Decimal("5000.00")
+
+
+def test_create_requires_financial_write_permission(monkeypatch: pytest.MonkeyPatch) -> None:
+    context = workspace_context(role=WorkspaceRole.VIEWER)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    calls.operations = [manual_expense()]
+
+    with TestClient(app) as client:
+        response = client.get(
+            f"{MANUAL_LEDGER_URL}/new",
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 403
 
 
 def test_edit_panel_loads_lazily_and_http_fallback_opens_full_page(
@@ -444,7 +633,7 @@ def test_edit_parser_rejects_same_transfer_accounts() -> None:
     account_id = uuid4()
     validation = validate_manual_ledger_edit(
         uuid4(),
-        ManualLedgerEditSubmission(
+        ManualLedgerFormSubmission(
             operation_type="transfer",
             account_id=str(account_id),
             destination_account_id=str(account_id),
@@ -590,6 +779,8 @@ class ManualLedgerCalls:
         self.filters: list[ManualOperationFilters] = []
         self.paginations: list[LedgerPagination] = []
         self.update_commands: list[UpdateManualOperationCommand] = []
+        self.income_expense_commands: list[CreateManualIncomeExpenseCommand] = []
+        self.transfer_commands: list[CreateManualTransferCommand] = []
         self.updated_workspace_ids: list[UUID] = []
         self.update_error: LedgerPostingError | None = None
         self.realistic_listing = False
@@ -671,6 +862,53 @@ def manual_ledger_app(
             ]
             return SimpleNamespace(id=command.operation_id)
 
+        async def create_manual_income_expense(
+            self,
+            *,
+            context: WorkspaceContext,
+            command: CreateManualIncomeExpenseCommand,
+        ) -> Any:
+            calls.updated_workspace_ids.append(context.workspace.id)
+            calls.income_expense_commands.append(command)
+            if calls.update_error is not None:
+                raise calls.update_error
+            template = calls.operations[0]
+            primary_entry = template.primary_entry
+            assert primary_entry is not None
+            created_id = uuid4()
+            amount = (
+                command.amount
+                if command.operation_type == OperationType.INCOME
+                else -command.amount
+            )
+            calls.operations.append(
+                replace(
+                    template,
+                    id=created_id,
+                    type=command.operation_type,
+                    operation_date=command.operation_date,
+                    description=command.description,
+                    category_id=command.category_id,
+                    property_id=command.property_id,
+                    primary_entry=replace(primary_entry, amount=amount),
+                    edit_amount=command.amount,
+                )
+            )
+            return SimpleNamespace(id=created_id)
+
+        async def create_manual_transfer(
+            self,
+            *,
+            context: WorkspaceContext,
+            command: CreateManualTransferCommand,
+        ) -> Any:
+            calls.updated_workspace_ids.append(context.workspace.id)
+            calls.transfer_commands.append(command)
+            if calls.update_error is not None:
+                raise calls.update_error
+            created_id = uuid4()
+            return SimpleNamespace(id=created_id)
+
     class FakeAccountService:
         def __init__(self, _session: AsyncSession) -> None:
             pass
@@ -730,6 +968,22 @@ def manual_ledger_app(
     )
     monkeypatch.setattr(
         "app.web.features.ledger.manual.routes.PropertyService",
+        FakePropertyService,
+    )
+    monkeypatch.setattr(
+        "app.web.features.ledger.manual.create_routes.LedgerPostingService",
+        FakeLedgerPostingService,
+    )
+    monkeypatch.setattr(
+        "app.web.features.ledger.manual.create_routes.AccountService",
+        FakeAccountService,
+    )
+    monkeypatch.setattr(
+        "app.web.features.ledger.manual.create_routes.CategoryService",
+        FakeCategoryService,
+    )
+    monkeypatch.setattr(
+        "app.web.features.ledger.manual.create_routes.PropertyService",
         FakePropertyService,
     )
     app = FastAPI()

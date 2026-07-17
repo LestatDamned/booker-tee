@@ -3,7 +3,11 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
-from app.features.ledger.application.commands import UpdateManualOperationCommand
+from app.features.ledger.application.commands import (
+    CreateManualIncomeExpenseCommand,
+    CreateManualTransferCommand,
+    UpdateManualOperationCommand,
+)
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.models import OperationType
 
@@ -15,7 +19,7 @@ EDITABLE_OPERATION_TYPES = {
 
 
 @dataclass(frozen=True)
-class ManualLedgerEditSubmission:
+class ManualLedgerFormSubmission:
     operation_type: str = ""
     account_id: str = ""
     destination_account_id: str = ""
@@ -33,8 +37,20 @@ class ManualLedgerFormIssue:
 
 
 @dataclass(frozen=True)
+class ParsedManualLedgerForm:
+    operation_type: OperationType
+    account_id: UUID
+    destination_account_id: UUID | None
+    amount: Decimal
+    operation_date: date
+    category_id: UUID | None
+    property_id: UUID | None
+    description: str
+
+
+@dataclass(frozen=True)
 class ManualLedgerEditValidation:
-    submission: ManualLedgerEditSubmission
+    submission: ManualLedgerFormSubmission
     issues: tuple[ManualLedgerFormIssue, ...]
     command: UpdateManualOperationCommand | None
 
@@ -45,8 +61,31 @@ class ManualLedgerEditValidation:
 
 def validate_manual_ledger_edit(
     operation_id: UUID,
-    submission: ManualLedgerEditSubmission,
+    submission: ManualLedgerFormSubmission,
 ) -> ManualLedgerEditValidation:
+    parsed, issues = parse_manual_ledger_form(submission)
+    if parsed is None:
+        return ManualLedgerEditValidation(submission, issues, None)
+    return ManualLedgerEditValidation(
+        submission=submission,
+        issues=(),
+        command=UpdateManualOperationCommand(
+            operation_id=operation_id,
+            operation_type=parsed.operation_type,
+            account_id=parsed.account_id,
+            amount=parsed.amount,
+            operation_date=parsed.operation_date,
+            description=parsed.description,
+            category_id=parsed.category_id,
+            property_id=parsed.property_id,
+            destination_account_id=parsed.destination_account_id,
+        ),
+    )
+
+
+def parse_manual_ledger_form(
+    submission: ManualLedgerFormSubmission,
+) -> tuple[ParsedManualLedgerForm | None, tuple[ManualLedgerFormIssue, ...]]:
     issues: list[ManualLedgerFormIssue] = []
     operation_type = parse_operation_type(submission.operation_type, issues)
     account_id = parse_required_uuid(
@@ -86,24 +125,75 @@ def validate_manual_ledger_edit(
         destination_account_id = None
 
     if issues or operation_type is None or account_id is None or amount is None:
-        return ManualLedgerEditValidation(submission, tuple(issues), None)
+        return None, tuple(issues)
     if operation_date is None:
-        return ManualLedgerEditValidation(submission, tuple(issues), None)
+        return None, tuple(issues)
 
-    return ManualLedgerEditValidation(
-        submission=submission,
-        issues=(),
-        command=UpdateManualOperationCommand(
-            operation_id=operation_id,
+    return (
+        ParsedManualLedgerForm(
             operation_type=operation_type,
             account_id=account_id,
+            destination_account_id=destination_account_id,
             amount=amount,
             operation_date=operation_date,
-            description=submission.description,
             category_id=category_id,
             property_id=property_id,
-            destination_account_id=destination_account_id,
+            description=submission.description,
         ),
+        (),
+    )
+
+
+type ManualLedgerCreateCommand = CreateManualIncomeExpenseCommand | CreateManualTransferCommand
+
+
+@dataclass(frozen=True)
+class ManualLedgerCreateValidation:
+    submission: ManualLedgerFormSubmission
+    issues: tuple[ManualLedgerFormIssue, ...]
+    command: ManualLedgerCreateCommand | None
+
+    @property
+    def is_valid(self) -> bool:
+        return self.command is not None and not self.issues
+
+
+def validate_manual_ledger_create(
+    submission: ManualLedgerFormSubmission,
+) -> ManualLedgerCreateValidation:
+    parsed, issues = parse_manual_ledger_form(submission)
+    if parsed is None:
+        return ManualLedgerCreateValidation(
+            submission=submission,
+            issues=issues,
+            command=None,
+        )
+
+    if parsed.operation_type == OperationType.TRANSFER:
+        destination_account_id = parsed.destination_account_id
+        if destination_account_id is None:
+            raise RuntimeError("Valid transfer submission has no destination account.")
+        command: ManualLedgerCreateCommand = CreateManualTransferCommand(
+            source_account_id=parsed.account_id,
+            destination_account_id=destination_account_id,
+            amount=parsed.amount,
+            operation_date=parsed.operation_date,
+            description=parsed.description,
+        )
+    else:
+        command = CreateManualIncomeExpenseCommand(
+            operation_type=parsed.operation_type,
+            account_id=parsed.account_id,
+            amount=parsed.amount,
+            operation_date=parsed.operation_date,
+            description=parsed.description,
+            category_id=parsed.category_id,
+            property_id=parsed.property_id,
+        )
+    return ManualLedgerCreateValidation(
+        submission=submission,
+        issues=(),
+        command=command,
     )
 
 

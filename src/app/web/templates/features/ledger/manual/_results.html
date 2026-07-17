@@ -5,6 +5,10 @@
     hx-swap-oob="outerHTML"
   >{{ page.total_label }}</p>
 {% endif %}
+{% if include_create_oob %}
+  {% set create_region_oob = true %}
+  {% include "features/ledger/manual/_create_region.html" %}
+{% endif %}
 
 <div
   id="manual-ledger-results"

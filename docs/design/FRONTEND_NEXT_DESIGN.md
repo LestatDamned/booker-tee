@@ -17,8 +17,11 @@
 - update response scope сохраняет фильтры и pagination: изменение даты или
   выход операции из текущего фильтра обновляет список, empty state, pagination
   и total через OOB-fragment;
-- create, lifecycle actions, полные фильтры, optimistic concurrency и canonical
-  cutover manual ledger остаются следующими инкрементами Этапа 3.
+- lazy create поддерживает income/expense/transfer, общий form contract с edit,
+  локальный `422`, SSR fallback и согласованный HTMX `replaceList` с OOB reset
+  формы и total;
+- lifecycle actions, полные фильтры, optimistic concurrency и canonical cutover
+  manual ledger остаются следующими инкрементами Этапа 3.
 
 ## 1. Решение
 

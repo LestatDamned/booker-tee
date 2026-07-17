@@ -31,11 +31,16 @@ class ManualLedgerPageData:
 
 
 @dataclass(frozen=True)
-class ManualLedgerEditData:
-    operation: ManualOperationView
+class ManualLedgerFormData:
     accounts: tuple[ManualLedgerAccountReference, ...]
     categories: tuple[ManualLedgerNamedReference, ...]
     properties: tuple[ManualLedgerNamedReference, ...]
+
+
+@dataclass(frozen=True)
+class ManualLedgerEditData:
+    operation: ManualOperationView
+    form: ManualLedgerFormData
 
 
 class ManualLedgerPageQuery:
@@ -69,16 +74,14 @@ class ManualLedgerPageQuery:
         )
 
 
-class ManualLedgerEditQuery:
+class ManualLedgerFormQuery:
     def __init__(
         self,
         *,
-        ledger: LedgerPostingService,
         accounts: AccountService,
         categories: CategoryService,
         properties: PropertyService,
     ) -> None:
-        self._ledger = ledger
         self._accounts = accounts
         self._categories = categories
         self._properties = properties
@@ -87,24 +90,15 @@ class ManualLedgerEditQuery:
         self,
         *,
         context: WorkspaceContext,
-        operation_id: UUID,
-    ) -> ManualLedgerEditData | None:
+    ) -> ManualLedgerFormData:
         workspace_id = context.workspace.id
-        operation = await self._ledger.get_manual_operation(
-            workspace_id=workspace_id,
-            operation_id=operation_id,
-        )
-        if operation is None:
-            return None
-
         accounts = await self._accounts.list_active_accounts(workspace_id)
         categories = await self._categories.list_or_seed_defaults(
             workspace_id,
             context.workspace.type,
         )
         properties = await self._properties.list_active(workspace_id)
-        return ManualLedgerEditData(
-            operation=operation,
+        return ManualLedgerFormData(
             accounts=tuple(
                 ManualLedgerAccountReference(
                     id=account.id,
@@ -121,4 +115,32 @@ class ManualLedgerEditQuery:
                 ManualLedgerNamedReference(id=property_.id, name=property_.name)
                 for property_ in properties
             ),
+        )
+
+
+class ManualLedgerEditQuery:
+    def __init__(
+        self,
+        *,
+        ledger: LedgerPostingService,
+        form: ManualLedgerFormQuery,
+    ) -> None:
+        self._ledger = ledger
+        self._form = form
+
+    async def execute(
+        self,
+        *,
+        context: WorkspaceContext,
+        operation_id: UUID,
+    ) -> ManualLedgerEditData | None:
+        operation = await self._ledger.get_manual_operation(
+            workspace_id=context.workspace.id,
+            operation_id=operation_id,
+        )
+        if operation is None:
+            return None
+        return ManualLedgerEditData(
+            operation=operation,
+            form=await self._form.execute(context=context),
         )

@@ -631,10 +631,69 @@ def assert_frontend_next_manual_ledger(page: Page, *, scenario: str) -> list[str
     if scenario == "realistic" and rows.count() == 0:
         errors.append("Frontend Next manual ledger did not render seeded operations")
     if scenario == "realistic" and rows.count() > 0:
+        errors.extend(assert_frontend_next_manual_create(page))
         errors.extend(assert_frontend_next_manual_edit(page, rows.first))
     overflow = collect_overflow(page)
     if int(overflow["horizontalOverflowPx"]) > 1:
         errors.append("Frontend Next manual ledger causes horizontal overflow")
+    return errors
+
+
+def assert_frontend_next_manual_create(page: Page) -> list[str]:
+    errors: list[str] = []
+    create_region = page.locator("#manual-ledger-create")
+    disclosure = create_region.locator('a[aria-controls="manual-ledger-create-panel"]')
+    if disclosure.count() == 0:
+        return ["Frontend Next manual create disclosure was not found"]
+    total_before = int(page.locator("#manual-ledger-total").inner_text().split()[0])
+    disclosure.click(timeout=PAGE_TIMEOUT_MS)
+    form = create_region.locator("#next-manual-operation-create-form")
+    try:
+        form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        return [f"Frontend Next manual create panel did not load: {short_error(exc)}"]
+    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
+        errors.append("Frontend Next manual create panel causes horizontal overflow")
+
+    account = form.locator('select[name="account_id"]')
+    if account.locator("option").count() < 2:
+        return [*errors, "Frontend Next manual create form has no account option"]
+    account.select_option(index=1)
+    amount = form.locator('input[name="amount"]')
+    amount.fill("0")
+    form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+    try:
+        create_region.get_by_text("Сумма должна быть больше нуля.").wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        errors.append(f"Frontend Next manual create 422 state was not rendered: {short_error(exc)}")
+        return errors
+
+    amount_box = create_region.locator('input[name="amount"]').bounding_box()
+    date_box = create_region.locator('input[name="operation_date"]').bounding_box()
+    if amount_box and date_box and abs(amount_box["height"] - date_box["height"]) > 1:
+        errors.append("Frontend Next manual field error stretched the neighboring control")
+
+    form = create_region.locator("#next-manual-operation-create-form")
+    form.locator('input[name="amount"]').fill("123.45")
+    description = "UI audit: созданная операция"
+    form.locator('input[name="description"]').fill(description)
+    form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+    try:
+        form.wait_for(state="detached", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        errors.append(f"Frontend Next manual create did not replace the list: {short_error(exc)}")
+        return errors
+
+    total_after = int(page.locator("#manual-ledger-total").inner_text().split()[0])
+    if total_after != total_before + 1:
+        errors.append("Frontend Next manual create did not update the OOB total")
+    if create_region.locator("#next-manual-operation-create-form").count() != 0:
+        errors.append("Frontend Next manual create form stayed open after success")
+    if page.locator(".manual-ledger-row [data-expansion-panel]:visible").count() != 0:
+        errors.append("Frontend Next manual create opened an unrelated edit panel")
     return errors
 
 
@@ -1595,11 +1654,11 @@ def remove_expected_console_error(
         return filtered
     if any("422 state was not rendered" in error for error in ux_assertion_errors):
         return filtered
-    for index, message in enumerate(filtered):
-        if "Failed to load resource" in message and "422 (Unprocessable Entity)" in message:
-            filtered.pop(index)
-            break
-    return filtered
+    return [
+        message
+        for message in filtered
+        if not ("Failed to load resource" in message and "422 (Unprocessable Entity)" in message)
+    ]
 
 
 def run_audit(

@@ -37,6 +37,7 @@ class ManualLedgerPageParams(BaseModel):
     search: str | None = None
     operation_id: str | None = None
     edit: str | None = None
+    create: bool = False
     page: int = Field(default=1, ge=1)
     per_page: int = Field(default=50, ge=1, le=200)
 
@@ -99,6 +100,13 @@ def open_edit_url(return_to: str, operation_id: UUID) -> str:
     return urlunsplit(
         ("", "", MANUAL_LEDGER_URL, urlencode(query, doseq=True), f"next-operation-{operation_id}")
     )
+
+
+def open_create_url(return_to: str) -> str:
+    parsed = urlsplit(return_to)
+    query = parse_qs(parsed.query)
+    query["create"] = ["true"]
+    return urlunsplit(("", "", MANUAL_LEDGER_URL, urlencode(query, doseq=True), "create"))
 
 
 def target_operation_url(return_to: str, operation_id: UUID) -> str:
