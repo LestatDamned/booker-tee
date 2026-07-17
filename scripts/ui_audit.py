@@ -46,6 +46,7 @@ PAGES: tuple[tuple[str, str], ...] = (
 AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/dashboard", "dashboard"),
     ("/_next/foundation", "frontend-next-foundation"),
+    ("/_next/ledger/manual", "frontend-next-manual-ledger"),
     ("/accounts", "accounts"),
     ("/ledger/manual", "manual-operations"),
     ("/imports", "imports"),
@@ -527,6 +528,9 @@ def collect_ux_assertions(
     if path == "/_next/foundation":
         errors.extend(assert_frontend_next_foundation(page))
 
+    if path == "/_next/ledger/manual":
+        errors.extend(assert_frontend_next_manual_ledger(page, scenario=scenario))
+
     if (
         scenario == "realistic"
         and path == "/workspaces"
@@ -606,6 +610,24 @@ def assert_frontend_next_foundation(page: Page) -> list[str]:
     overflow = collect_overflow(page)
     if int(overflow["horizontalOverflowPx"]) > 1:
         errors.append("Frontend Next open expansion panel causes horizontal overflow")
+    return errors
+
+
+def assert_frontend_next_manual_ledger(page: Page, *, scenario: str) -> list[str]:
+    errors: list[str] = []
+    if page.locator(".manual-ledger-filters").count() == 0:
+        errors.append("Frontend Next manual ledger filters were not found")
+    if page.locator(".financial-row, .manual-operation-row").count() != 0:
+        errors.append("Frontend Next manual ledger rendered legacy row classes")
+    if page.locator('form[id^="manual-operation-form-"]').count() != 0:
+        errors.append("Frontend Next manual ledger eagerly rendered edit forms")
+
+    rows = page.locator(".manual-ledger-row")
+    if scenario == "realistic" and rows.count() == 0:
+        errors.append("Frontend Next manual ledger did not render seeded operations")
+    overflow = collect_overflow(page)
+    if int(overflow["horizontalOverflowPx"]) > 1:
+        errors.append("Frontend Next manual ledger causes horizontal overflow")
     return errors
 
 

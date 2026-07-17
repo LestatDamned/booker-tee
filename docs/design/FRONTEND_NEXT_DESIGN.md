@@ -1,6 +1,6 @@
 # Проектирование Frontend Next
 
-Статус: утвержденное ТЗ; Этапы 1 и 2 завершены 17 июля 2026 года.
+Статус: утвержденное ТЗ; Этапы 1 и 2 завершены, Этап 3 начат 17 июля 2026 года.
 
 Текущее состояние реализации:
 
@@ -9,7 +9,11 @@
 - создан изолированный presentation adapter `src/app/web/` со своими Jinja,
   CSS и небольшим общим слоем HTMX/Alpine.js;
 - локальный стенд `/_next/foundation` проверяет shared-компоненты и UI-контракты;
-- перенос manual ledger в новые маршруты еще не начат и относится к Этапу 3.
+- параллельный `/_next/ledger/manual` реализует первый read-only срез Этапа 3:
+  workspace-scoped list, основные фильтры, pagination, target, деньги, metadata,
+  readonly policy и `WorkbenchRow` на реальных application DTO;
+- create, lazy edit, validation/save lifecycle, HTMX mutations и canonical
+  cutover manual ledger остаются следующими инкрементами Этапа 3.
 
 ## 1. Решение
 

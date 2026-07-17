@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% from "components/action_stack.html" import action_stack %}
+{% from "components/money_value.html" import money_value %}
+{% from "components/status_badge.html" import status_badge %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('web_static', path='/css/features/manual-ledger.css') }}?v={{ web_asset_version }}">
+{% endblock %}
+
+{% block content %}
+  <header class="page-heading manual-ledger-heading">
+    <div>
+      <p class="page-heading__eyebrow">{{ page.workspace_name }} · Этап 3</p>
+      <h1>Ручные операции</h1>
+      <p class="page-heading__description">{{ page.readonly_message }}</p>
+    </div>
+    <a class="ui-button ui-button--secondary" href="/ledger/manual">Текущий интерфейс</a>
+  </header>
+
+  <section class="manual-ledger-toolbar" aria-labelledby="manual-ledger-filter-title">
+    <div class="manual-ledger-toolbar__heading">
+      <div>
+        <p class="page-heading__eyebrow">{{ page.total_label }}</p>
+        <h2 id="manual-ledger-filter-title">Фильтры</h2>
+      </div>
+      {% if page.filters.active %}{{ status_badge("применены", "warning") }}{% endif %}
+    </div>
+    <form class="manual-ledger-filters" method="get" action="/_next/ledger/manual">
+      <label class="ui-field">
+        <span class="ui-field__label">С даты</span>
+        <input class="ui-field__control" name="date_from" type="date" value="{{ page.filters.date_from }}">
+      </label>
+      <label class="ui-field">
+        <span class="ui-field__label">По дату</span>
+        <input class="ui-field__control" name="date_to" type="date" value="{{ page.filters.date_to }}">
+      </label>
+      <label class="ui-field manual-ledger-filters__search">
+        <span class="ui-field__label">Поиск</span>
+        <input class="ui-field__control" name="search" value="{{ page.filters.search }}" placeholder="Описание">
+      </label>
+      <label class="ui-field">
+        <span class="ui-field__label">Тип</span>
+        <select class="ui-field__control" name="type">
+          <option value="">Любой</option>
+          {% for option in page.filters.operation_types %}
+            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="ui-field">
+        <span class="ui-field__label">Статус</span>
+        <select class="ui-field__control" name="status">
+          <option value="">Любой</option>
+          {% for option in page.filters.statuses %}
+            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="ui-field">
+        <span class="ui-field__label">На странице</span>
+        <select class="ui-field__control" name="per_page">
+          {% for option in page.filters.per_page_options %}
+            <option value="{{ option }}" {% if option == page.filters.per_page %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="manual-ledger-filters__actions">
+        <a class="ui-button ui-button--ghost" href="{{ page.filters.reset_url }}">Сбросить</a>
+        <button class="ui-button ui-button--primary" type="submit">Применить</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="manual-ledger-list" aria-label="Ручные операции">
+    {% if page.rows %}
+      {% for row in page.rows %}
+        {% include "features/ledger/manual/_row.html" %}
+      {% endfor %}
+    {% else %}
+      <div class="manual-ledger-empty">
+        <h2>{{ page.empty_title }}</h2>
+        <p>{{ page.empty_description }}</p>
+        {% if page.filters.active %}
+          <a class="ui-button ui-button--secondary" href="{{ page.filters.reset_url }}">Сбросить фильтры</a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  {% if page.show_pagination %}
+    <nav class="manual-ledger-pagination" aria-label="Страницы ручных операций">
+      {% if page.previous_url %}
+        <a class="ui-button ui-button--secondary" href="{{ page.previous_url }}">Назад</a>
+      {% else %}
+        <span class="ui-button ui-button--secondary" aria-disabled="true">Назад</span>
+      {% endif %}
+      <span>{{ page.page_label }}</span>
+      {% if page.next_url %}
+        <a class="ui-button ui-button--secondary" href="{{ page.next_url }}">Вперёд</a>
+      {% else %}
+        <span class="ui-button ui-button--secondary" aria-disabled="true">Вперёд</span>
+      {% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

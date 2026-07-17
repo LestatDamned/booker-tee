@@ -1,0 +1,24 @@
+<article
+  id="{{ row.id }}"
+  class="workbench-row manual-ledger-row{% if row.is_targeted %} workbench-row--target{% endif %}{% if row.is_inactive %} manual-ledger-row--inactive{% endif %}"
+  data-request-scope
+  data-focus-fallback
+>
+  <div class="workbench-row__main">
+    <header class="workbench-row__header">
+      <div>
+        <p class="workbench-row__title">{{ row.date_label }}</p>
+        <p class="workbench-row__description">{{ row.description }}</p>
+      </div>
+      {% if row.money %}<div class="workbench-row__value">{{ money_value(row.money) }}</div>{% endif %}
+    </header>
+    <div class="workbench-row__meta">
+      {{ status_badge(row.operation_label, row.operation_tone) }}
+      {{ status_badge(row.status_label, row.status_tone) }}
+      {% for meta in row.meta %}{{ status_badge(meta.label, meta.tone) }}{% endfor %}
+    </div>
+  </div>
+  <aside class="workbench-row__aside">
+    {{ action_stack(row.actions) }}
+  </aside>
+</article>

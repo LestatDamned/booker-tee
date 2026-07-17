@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ page_title }} · {{ app_name }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('web_static', path='/css/app.css') }}?v={{ web_asset_version }}">
+    {% block styles %}{% endblock %}
     <script defer src="/static/js/vendor/htmx-2.0.4.min.js"></script>
     <script defer src="{{ url_for('web_static', path='/js/web-ui.js') }}?v={{ web_asset_version }}"></script>
     <script defer src="/static/js/vendor/alpine-3.14.8.min.js"></script>

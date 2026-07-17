@@ -1,6 +1,8 @@
 # Проектирование Workbench Row
 
-Статус: утвержденная дочерняя спецификация Frontend Next; реализация не начата.
+Статус: утвержденная дочерняя спецификация Frontend Next; shared foundation
+реализован, read-only срез первого пилота manual operation начат 17 июля 2026
+года.
 
 Родительская стратегия: [`FRONTEND_NEXT_DESIGN.md`](FRONTEND_NEXT_DESIGN.md).
 
