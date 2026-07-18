@@ -6,7 +6,18 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Index, Numeric, String, Text
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
@@ -52,8 +63,14 @@ class Operation(Base):
         Index("ix_operations_workspace_category", "workspace_id", "category_id"),
         Index("ix_operations_workspace_property", "workspace_id", "property_id"),
     )
-
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1",
+    )
+    __mapper_args__ = {"version_id_col": version}
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         index=True,

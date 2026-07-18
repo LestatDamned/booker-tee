@@ -36,7 +36,7 @@
         <span class="ui-field__label">По дату</span>
         <input class="ui-field__control" name="date_to" type="date" value="{{ page.filters.date_to }}">
       </label>
-      <label class="ui-field manual-ledger-filters__search">
+      <label class="ui-field manual-ledger-filters__wide">
         <span class="ui-field__label">Поиск</span>
         <input class="ui-field__control" name="search" value="{{ page.filters.search }}" placeholder="Описание">
       </label>
@@ -54,6 +54,33 @@
         <select class="ui-field__control" name="status">
           <option value="">Любой</option>
           {% for option in page.filters.statuses %}
+            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="ui-field manual-ledger-filters__wide">
+        <span class="ui-field__label">Счёт</span>
+        <select class="ui-field__control" name="account_id">
+          <option value="">Любой</option>
+          {% for option in page.filters.accounts %}
+            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="ui-field">
+        <span class="ui-field__label">Категория</span>
+        <select class="ui-field__control" name="category_id">
+          <option value="">Любая</option>
+          {% for option in page.filters.categories %}
+            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="ui-field">
+        <span class="ui-field__label">Объект</span>
+        <select class="ui-field__control" name="property_id">
+          <option value="">Любой</option>
+          {% for option in page.filters.properties %}
             <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
           {% endfor %}
         </select>

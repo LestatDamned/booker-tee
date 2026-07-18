@@ -8,6 +8,7 @@ from app.features.ledger.application.listing import LedgerPage, ManualOperationF
 from app.features.ledger.mapping.dto import ManualOperationView, OperationRefMoneyEntryView
 from app.features.ledger.models import OperationStatus, OperationType
 from app.web.features.ledger.manual.action_policy import ManualOperationActionPolicy
+from app.web.features.ledger.manual.queries import ManualLedgerReferenceData
 from app.web.features.ledger.manual.query_state import MANUAL_LEDGER_URL
 from app.web.features.ledger.manual.view_models import (
     BadgeTone,
@@ -63,12 +64,13 @@ class ManualLedgerPresenter:
         filters: ManualOperationFilters,
         focused_operation_id: UUID | None,
         can_write: bool,
+        references: ManualLedgerReferenceData | None = None,
         create_panel: ManualLedgerFormVM | None = None,
         reset_create_panel: bool = False,
         edit_panel: ManualLedgerEditPanelVM | None = None,
         reset_edit_panels: bool = False,
     ) -> ManualLedgerPageVM:
-        filters_vm = self._filters(filters, page)
+        filters_vm = self._filters(filters, page, references)
         current_url = self.list_url(
             filters=filters,
             page=page.page,
@@ -226,12 +228,17 @@ class ManualLedgerPresenter:
         self,
         filters: ManualOperationFilters,
         page: LedgerPage,
+        references: ManualLedgerReferenceData | None,
     ) -> ManualLedgerFiltersVM:
+        reference_data = references or ManualLedgerReferenceData((), (), ())
         active = bool(
             filters.date_from
             or filters.date_to
             or filters.operation_type
             or filters.status
+            or filters.account_id
+            or filters.category_id
+            or filters.property_id
             or filters.search
         )
         return ManualLedgerFiltersVM(
@@ -254,6 +261,30 @@ class ManualLedgerPresenter:
                 )
                 for operation_status in OperationStatus
             ),
+            accounts=tuple(
+                ManualLedgerFilterOptionVM(
+                    value=str(account.id),
+                    label=f"{account.name} · {account.currency}",
+                    selected=filters.account_id == account.id,
+                )
+                for account in reference_data.accounts
+            ),
+            categories=tuple(
+                ManualLedgerFilterOptionVM(
+                    value=str(category.id),
+                    label=category.name,
+                    selected=filters.category_id == category.id,
+                )
+                for category in reference_data.categories
+            ),
+            properties=tuple(
+                ManualLedgerFilterOptionVM(
+                    value=str(property_.id),
+                    label=property_.name,
+                    selected=filters.property_id == property_.id,
+                )
+                for property_ in reference_data.properties
+            ),
             per_page=page.per_page,
             per_page_options=PER_PAGE_OPTIONS,
             active=active,
@@ -274,6 +305,9 @@ class ManualLedgerPresenter:
             "date_to": filters.date_to.isoformat() if filters.date_to else None,
             "type": filters.operation_type.value if filters.operation_type else None,
             "status": filters.status.value if filters.status else None,
+            "account_id": str(filters.account_id) if filters.account_id else None,
+            "category_id": str(filters.category_id) if filters.category_id else None,
+            "property_id": str(filters.property_id) if filters.property_id else None,
             "search": filters.search,
             "operation_id": str(focused_operation_id) if focused_operation_id else None,
         }
@@ -319,8 +353,8 @@ class ManualLedgerPresenter:
     def _readonly_message(self, can_write: bool) -> str:
         if can_write:
             return (
-                "Операции можно исправлять прямо в строке и создавать здесь. "
-                "Lifecycle-действия пока остаются в текущем интерфейсе."
+                "Операции можно создавать, исправлять, отменять и восстанавливать "
+                "прямо в рабочем списке."
             )
         return "Ручные операции доступны только для просмотра согласно вашей роли."
 

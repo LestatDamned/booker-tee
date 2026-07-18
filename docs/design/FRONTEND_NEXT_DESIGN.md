@@ -10,7 +10,8 @@
   CSS и небольшим общим слоем HTMX/Alpine.js;
 - локальный стенд `/_next/foundation` проверяет shared-компоненты и UI-контракты;
 - параллельный `/_next/ledger/manual` реализует list/edit-срез Этапа 3:
-  workspace-scoped list, основные фильтры, pagination, target, деньги, metadata,
+  workspace-scoped list, полные фильтры по периоду, поиску, типу, статусу,
+  счёту, категории и объекту, pagination, target, деньги, metadata,
   readonly policy и `WorkbenchRow` на реальных application DTO;
 - lazy edit загружается только для writer, поддерживает SSR fallback, локальный
   `422` с сохранением draft и серверный выбор HTMX `replaceRow`/`replaceList`;
@@ -24,8 +25,12 @@
   cancel/restore/delete routes: обычный переход заменяет row, смена
   принадлежности фильтру и delete перестраивают list, ошибки возвращаются
   локальным `422`, а все submit actions сохраняют обычный HTTP fallback;
-- полные фильтры, optimistic concurrency и canonical cutover manual ledger
-  остаются следующими инкрементами Этапа 3.
+- optimistic concurrency для manual edit реализован сквозным контрактом:
+  `Operation.version`, скрытая версия формы, атомарный versioned update и
+  локальный `409 Conflict`, который сохраняет draft и предлагает загрузить
+  актуальную версию;
+- следующим инкрементом Этапа 3 остается финальный аудит и canonical cutover
+  manual ledger.
 
 ## 1. Решение
 

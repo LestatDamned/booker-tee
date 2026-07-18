@@ -45,7 +45,7 @@
   gap: var(--space-3);
 }
 
-.manual-ledger-filters__search {
+.manual-ledger-filters__wide {
   grid-column: span 2;
 }
 
@@ -169,7 +169,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .manual-ledger-filters__search {
+  .manual-ledger-filters__wide {
     grid-column: span 2;
   }
 }
@@ -190,7 +190,7 @@
     grid-template-columns: 1fr;
   }
 
-  .manual-ledger-filters__search {
+  .manual-ledger-filters__wide {
     grid-column: auto;
   }
 

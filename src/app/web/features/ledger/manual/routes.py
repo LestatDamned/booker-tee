@@ -10,7 +10,7 @@ from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
-from app.features.ledger.errors import LedgerPostingError
+from app.features.ledger.errors import LedgerPostingError, OperationVersionConflictError
 from app.features.ledger.service import LedgerPostingService
 from app.features.properties.service import PropertyService
 from app.features.workspaces.dependencies import (
@@ -32,14 +32,13 @@ from app.web.features.ledger.manual.lifecycle_routes import router as lifecycle_
 from app.web.features.ledger.manual.presenter import ManualLedgerPresenter
 from app.web.features.ledger.manual.queries import (
     ManualLedgerEditQuery,
-    ManualLedgerFormQuery,
     ManualLedgerPageQuery,
+    ManualLedgerReferenceQuery,
 )
 from app.web.features.ledger.manual.query_state import (
     MANUAL_LEDGER_URL,
+    ManualLedgerListQuery,
     ManualLedgerPageParams,
-    build_list_query,
-    list_query_from_return_to,
     open_edit_url,
     safe_manual_ledger_return_to,
     target_operation_url,
@@ -49,6 +48,7 @@ from app.web.features.ledger.manual.response_scope import (
     ManualLedgerUpdateResponseScope,
     ManualLedgerUpdateScope,
 )
+from app.web.features.ledger.manual.view_models import ManualLedgerPageVM
 from app.web.templating import create_web_templates
 from app.web.ui.responses import is_htmx_request
 
@@ -66,67 +66,60 @@ async def manual_ledger_page(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_workspace_read_context)],
 ) -> HTMLResponse:
-    list_query = build_list_query(params)
+    list_query = ManualLedgerListQuery.from_page_params(params)
+    edit_operation_id = parse_optional_query_uuid(params.edit, field_name="edit")
+    
+    permissions = permission_flags_for(context.membership)
+    can_write = permissions.can_write_financial_data
+    has_write_intent = params.create or edit_operation_id is not None
+    
+    if has_write_intent and not can_write:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Недостаточно прав для изменения финансовых данных.",
+        )
+
     ledger = LedgerPostingService(session)
     page_data = await ManualLedgerPageQuery(ledger).execute(
         workspace_id=context.workspace.id,
         query=list_query,
     )
-    permissions = permission_flags_for(context.membership)
+    reference_query = ManualLedgerReferenceQuery(
+        accounts=AccountService(session),
+        categories=CategoryService(session),
+        properties=PropertyService(session),
+    )
+    references = await reference_query.execute(context=context)
     presenter = ManualLedgerPresenter()
-    create_panel = None
-    edit_panel = None
-    edit_operation_id = parse_optional_query_uuid(params.edit, field_name="edit")
+    current_url = presenter.list_url(
+        filters=list_query.filters,
+        page=page_data.page.page,
+        per_page=page_data.page.per_page,
+        focused_operation_id=list_query.focused_operation_id,
+    )
 
+    create_panel = None
     if params.create:
-        if not permissions.can_write_financial_data:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Недостаточно прав для изменения финансовых данных.",
-            )
-        create_data = await ManualLedgerFormQuery(
-            accounts=AccountService(session),
-            categories=CategoryService(session),
-            properties=PropertyService(session),
-        ).execute(context=context)
         create_panel = ManualLedgerCreatePresenter().present(
-            data=create_data,
-            return_to=presenter.list_url(
-                filters=list_query.filters,
-                page=page_data.page.page,
-                per_page=page_data.page.per_page,
-                focused_operation_id=list_query.focused_operation_id,
-            ),
+            data=references,
+            return_to=current_url,
         )
 
+    edit_panel = None
     if edit_operation_id is not None:
-        if not permissions.can_write_financial_data:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Недостаточно прав для изменения финансовых данных.",
-            )
         edit_data = await ManualLedgerEditQuery(
             ledger=ledger,
-            form=ManualLedgerFormQuery(
-                accounts=AccountService(session),
-                categories=CategoryService(session),
-                properties=PropertyService(session),
-            ),
+            references=reference_query,
         ).execute(
             context=context,
             operation_id=edit_operation_id,
+            references=references,
         )
         if edit_data is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-        return_to = presenter.list_url(
-            filters=list_query.filters,
-            page=page_data.page.page,
-            per_page=page_data.page.per_page,
-            focused_operation_id=list_query.focused_operation_id,
-        )
         edit_panel = ManualLedgerEditPresenter().present(
             data=edit_data,
-            return_to=return_to,
+            return_to=current_url,
         )
 
     page_vm = presenter.present(
@@ -135,7 +128,8 @@ async def manual_ledger_page(
         page=page_data.page,
         filters=list_query.filters,
         focused_operation_id=list_query.focused_operation_id,
-        can_write=permissions.can_write_financial_data,
+        can_write=can_write,
+        references=references,
         create_panel=create_panel,
         edit_panel=edit_panel,
     )
@@ -164,7 +158,7 @@ async def manual_ledger_edit_panel(
     ledger = LedgerPostingService(session)
     edit_data = await ManualLedgerEditQuery(
         ledger=ledger,
-        form=ManualLedgerFormQuery(
+        references=ManualLedgerReferenceQuery(
             accounts=AccountService(session),
             categories=CategoryService(session),
             properties=PropertyService(session),
@@ -197,6 +191,7 @@ async def update_manual_ledger_operation(
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
+    version: Annotated[str, Form()] = "",
     operation_type: Annotated[str, Form()] = "",
     account_id: Annotated[str, Form()] = "",
     destination_account_id: Annotated[str, Form()] = "",
@@ -211,6 +206,7 @@ async def update_manual_ledger_operation(
     validation = validate_manual_ledger_edit(
         operation_id,
         ManualLedgerFormSubmission(
+            version=version,
             operation_type=operation_type,
             account_id=account_id,
             destination_account_id=destination_account_id,
@@ -224,6 +220,7 @@ async def update_manual_ledger_operation(
     ledger = LedgerPostingService(session)
     htmx_request = is_htmx_request(request)
     form_error = None
+    conflict_error = None
     previous_operation = None
     updated = None
 
@@ -243,13 +240,19 @@ async def update_manual_ledger_operation(
                 context=context,
                 command=command,
             )
+        except OperationVersionConflictError as error:
+            # The use case rolls the failed transaction back. SQLAlchemy expires
+            # ORM-backed workspace context objects on rollback, so reload the
+            # workspace asynchronously before rebuilding the local 409 response.
+            await session.refresh(context.workspace)
+            conflict_error = business_error_message(error)
         except LedgerPostingError as error:
             form_error = business_error_message(error)
 
-    if not validation.is_valid or form_error is not None:
+    if not validation.is_valid or form_error is not None or conflict_error is not None:
         edit_data = await ManualLedgerEditQuery(
             ledger=ledger,
-            form=ManualLedgerFormQuery(
+            references=ManualLedgerReferenceQuery(
                 accounts=AccountService(session),
                 categories=CategoryService(session),
                 properties=PropertyService(session),
@@ -260,12 +263,27 @@ async def update_manual_ledger_operation(
         )
         if edit_data is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-        edit_panel = ManualLedgerEditPresenter().present(
-            data=edit_data,
-            return_to=safe_return_to,
-            submission=validation.submission,
-            issues=validation.issues,
-            form_error=form_error,
+        edit_presenter = ManualLedgerEditPresenter()
+        edit_panel = (
+            edit_presenter.present_conflict(
+                data=edit_data,
+                return_to=safe_return_to,
+                submission=validation.submission,
+                message=conflict_error,
+            )
+            if conflict_error is not None
+            else edit_presenter.present(
+                data=edit_data,
+                return_to=safe_return_to,
+                submission=validation.submission,
+                issues=validation.issues,
+                form_error=form_error,
+            )
+        )
+        response_status = (
+            status.HTTP_409_CONFLICT
+            if conflict_error is not None
+            else status.HTTP_422_UNPROCESSABLE_CONTENT
         )
         presenter = ManualLedgerPresenter()
         if htmx_request:
@@ -279,28 +297,29 @@ async def update_manual_ledger_operation(
             return renderer.row(
                 request,
                 row,
-                response_status=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                response_status=response_status,
             )
 
-        list_query = list_query_from_return_to(safe_return_to)
+        list_query = ManualLedgerListQuery.from_return_to(safe_return_to)
         page_data = await ManualLedgerPageQuery(ledger).execute(
             workspace_id=context.workspace.id,
             query=list_query,
         )
-        page_vm = presenter.present(
+        page_vm: ManualLedgerPageVM = presenter.present(
             workspace_name=context.workspace.name,
             operations=page_data.operations,
             page=page_data.page,
             filters=list_query.filters,
             focused_operation_id=list_query.focused_operation_id,
             can_write=True,
+            references=edit_data.references,
             edit_panel=edit_panel,
         )
         return renderer.page(
             request,
             page_vm,
             app_name=settings.app_name,
-            response_status=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            response_status=response_status,
         )
 
     if updated is None:
@@ -320,7 +339,7 @@ async def update_manual_ledger_operation(
     if previous_operation is None:
         raise RuntimeError("HTMX manual ledger update has no previous operation state.")
 
-    list_query = list_query_from_return_to(safe_return_to)
+    list_query = ManualLedgerListQuery.from_return_to(safe_return_to)
     response_scope = ManualLedgerUpdateResponseScope().resolve(
         previous=previous_operation,
         updated=operation,

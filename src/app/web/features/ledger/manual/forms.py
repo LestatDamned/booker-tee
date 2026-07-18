@@ -20,6 +20,7 @@ EDITABLE_OPERATION_TYPES = {
 
 @dataclass(frozen=True)
 class ManualLedgerFormSubmission:
+    version: str = ""
     operation_type: str = ""
     account_id: str = ""
     destination_account_id: str = ""
@@ -64,8 +65,10 @@ def validate_manual_ledger_edit(
     submission: ManualLedgerFormSubmission,
 ) -> ManualLedgerEditValidation:
     parsed, issues = parse_manual_ledger_form(submission)
-    if parsed is None:
-        return ManualLedgerEditValidation(submission, issues, None)
+    collected_issues = list(issues)
+    expected_version = parse_operation_version(submission.version, collected_issues)
+    if parsed is None or expected_version is None:
+        return ManualLedgerEditValidation(submission, tuple(collected_issues), None)
     return ManualLedgerEditValidation(
         submission=submission,
         issues=(),
@@ -79,8 +82,28 @@ def validate_manual_ledger_edit(
             category_id=parsed.category_id,
             property_id=parsed.property_id,
             destination_account_id=parsed.destination_account_id,
+            expected_version=expected_version,
         ),
     )
+
+
+def parse_operation_version(
+    raw_value: str,
+    issues: list[ManualLedgerFormIssue],
+) -> int | None:
+    try:
+        version = int(raw_value)
+    except ValueError:
+        version = 0
+    if version < 1:
+        issues.append(
+            ManualLedgerFormIssue(
+                "form",
+                "Версия формы устарела или повреждена. Загрузите операцию заново.",
+            )
+        )
+        return None
+    return version
 
 
 def parse_manual_ledger_form(
@@ -225,6 +248,9 @@ def business_error_message(error: LedgerPostingError) -> str:
         ),
         "Cancel a manual operation before deleting it.": (
             "Перед удалением отмените ручную операцию."
+        ),
+        "Manual operation changed after this edit form was loaded.": (
+            "Операция уже изменилась в другом окне. Ваши значения не сохранены."
         ),
     }
     return translations.get(

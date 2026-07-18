@@ -115,11 +115,7 @@ class TransferSuggestionUseCase:
         if account_entry is None:
             return None
         counterparty_entry = next(
-            (
-                entry
-                for entry in operation.money_entries
-                if entry.account_id != account_id
-            ),
+            (entry for entry in operation.money_entries if entry.account_id != account_id),
             None,
         )
         if raw_transaction.operation_date:

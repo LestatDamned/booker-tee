@@ -26,7 +26,7 @@ from app.features.ledger.application.listing import (
     LedgerPagination,
     ManualOperationFilters,
 )
-from app.features.ledger.errors import LedgerPostingError
+from app.features.ledger.errors import LedgerPostingError, OperationVersionConflictError
 from app.features.ledger.mapping.dto import (
     AccountView,
     ManualOperationView,
@@ -44,11 +44,40 @@ from app.web.features.ledger.manual.forms import (
 from app.web.features.ledger.manual.presenter import ManualLedgerPresenter
 from app.web.features.ledger.manual.query_state import (
     MANUAL_LEDGER_URL,
+    ManualLedgerListQuery,
+    ManualLedgerPageParams,
     safe_manual_ledger_return_to,
 )
 from app.web.features.ledger.manual.routes import router as manual_ledger_router
 from app.web.templating import WEB_STATIC_ROOT
 from app.web.ui.actions import DisclosureActionVM, SubmitActionVM
+
+
+def test_list_query_builds_from_page_params_and_return_url() -> None:
+    focused_operation_id = uuid4()
+    params = ManualLedgerPageParams(
+        date_from="2026-07-01",
+        type="expense",
+        status="confirmed",
+        search="  магазин  ",
+        operation_id=str(focused_operation_id),
+        page=2,
+        per_page=25,
+    )
+
+    from_params = ManualLedgerListQuery.from_page_params(params)
+    from_return_to = ManualLedgerListQuery.from_return_to(
+        f"{MANUAL_LEDGER_URL}?date_from=2026-07-01&type=expense&status=confirmed"
+        f"&search=++магазин++&operation_id={focused_operation_id}&page=2&per_page=25"
+    )
+
+    assert from_params == from_return_to
+    assert from_params.filters.date_from == date(2026, 7, 1)
+    assert from_params.filters.operation_type is OperationType.EXPENSE
+    assert from_params.filters.status is OperationStatus.CONFIRMED
+    assert from_params.filters.search == "магазин"
+    assert from_params.pagination == LedgerPagination(page=2, per_page=25)
+    assert from_params.focused_operation_id == focused_operation_id
 
 
 def test_presenter_builds_server_owned_financial_and_action_contracts() -> None:
@@ -138,14 +167,14 @@ def test_readonly_route_lists_real_workspace_data_and_preserves_filters(
         )
 
     assert response.status_code == 200
-    assert "Операции можно исправлять прямо в строке" in response.text
+    assert "Операции можно создавать, исправлять, отменять" in response.text
     assert f'id="next-operation-{operation.id}"' in response.text
     assert "workbench-row--target" in response.text
     assert "money-value--expense" in response.text
     assert "src/app/static/css/app.css" not in response.text
     assert "financial-row" not in response.text
     assert 'option value="expense" selected' in response.text
-    assert calls.workspace_ids == [context.workspace.id]
+    assert set(calls.workspace_ids) == {context.workspace.id}
     assert calls.filters[0].operation_type is OperationType.EXPENSE
     assert calls.filters[0].status is OperationStatus.CONFIRMED
     assert calls.filters[0].search == "coffee"
@@ -166,6 +195,51 @@ def test_route_is_readable_for_viewer_but_hides_write_intent(
     assert "согласно вашей роли" in response.text
     assert "Изменить в текущем интерфейсе" not in response.text
     assert "Открыть текущую версию" in response.text
+
+
+def test_route_applies_and_preserves_workspace_reference_filters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = manual_expense()
+    primary_entry = operation.primary_entry
+    assert primary_entry is not None
+    category = SimpleNamespace(id=uuid4(), name="Продукты")
+    property_ = SimpleNamespace(id=uuid4(), name="Красное Белое")
+    calls.operations = [
+        replace(
+            operation,
+            category_id=category.id,
+            property_id=property_.id,
+        )
+    ]
+    calls.categories = [category]
+    calls.properties = [property_]
+    calls.page = LedgerPage(page=1, per_page=25, total=30)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/_next/ledger/manual",
+            params={
+                "account_id": str(primary_entry.account_id),
+                "category_id": str(category.id),
+                "property_id": str(property_.id),
+                "per_page": "25",
+            },
+        )
+
+    assert response.status_code == 200
+    assert f'<option value="{primary_entry.account_id}" selected>' in response.text
+    assert f'<option value="{category.id}" selected>Продукты</option>' in response.text
+    assert f'<option value="{property_.id}" selected>Красное Белое</option>' in response.text
+    filters = calls.filters[0]
+    assert filters.account_id == primary_entry.account_id
+    assert filters.category_id == category.id
+    assert filters.property_id == property_.id
+    assert f"account_id={primary_entry.account_id}" in response.text
+    assert f"category_id={category.id}" in response.text
+    assert f"property_id={property_.id}" in response.text
 
 
 def test_transfer_row_uses_financial_badge_and_correct_text_hierarchy(
@@ -424,6 +498,7 @@ def test_edit_panel_loads_lazily_and_http_fallback_opens_full_page(
     assert f'id="next-manual-operation-edit-panel-content-{operation.id}"' in page_response.text
     assert panel_response.status_code == 200
     assert f'id="next-manual-operation-form-{operation.id}"' in panel_response.text
+    assert 'name="version" value="1"' in panel_response.text
     assert "data-edit-panel" in panel_response.text
     assert "<html" not in panel_response.text
     assert fallback.status_code == 303
@@ -507,6 +582,7 @@ def test_successful_update_has_htmx_replace_row_and_http_fallback(
             data=form,
             headers={"HX-Request": "true"},
         )
+        form["version"] = "2"
         fallback = client.post(
             f"/_next/ledger/manual/{operation.id}",
             data=form,
@@ -523,7 +599,88 @@ def test_successful_update_has_htmx_replace_row_and_http_fallback(
     assert fallback.headers["location"].startswith("/_next/ledger/manual?")
     assert fallback.headers["location"].endswith(f"#next-operation-{operation.id}")
     assert len(calls.update_commands) == 2
+    assert [command.expected_version for command in calls.update_commands] == [1, 2]
     assert set(calls.updated_workspace_ids) == {context.workspace.id}
+
+
+def test_stale_update_returns_local_409_and_preserves_user_draft(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    loaded_operation = manual_expense()
+    calls.operations = [
+        replace(
+            loaded_operation,
+            version=2,
+            description="Изменено в другом окне",
+        )
+    ]
+    form = valid_edit_form(loaded_operation)
+    form["description"] = "Мой несохранённый вариант"
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/_next/ledger/manual/{loaded_operation.id}",
+            data=form,
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 409
+    assert "Операция уже изменилась в другом окне" in response.text
+    assert 'value="Мой несохранённый вариант"' in response.text
+    assert 'name="version" value="1"' in response.text
+    assert "Загрузить актуальную версию" in response.text
+    assert (
+        f'hx-target="#next-manual-operation-edit-panel-content-{loaded_operation.id}"'
+        in response.text
+    )
+    assert calls.operations[0].description == "Изменено в другом окне"
+    assert calls.refreshed_workspace_ids == [context.workspace.id]
+
+
+def test_missing_edit_version_returns_local_422_without_mutation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    operation = manual_expense()
+    calls.operations = [operation]
+    form = valid_edit_form(operation)
+    form["version"] = ""
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/_next/ledger/manual/{operation.id}",
+            data=form,
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 422
+    assert "Версия формы устарела или повреждена" in response.text
+    assert calls.update_commands == []
+
+
+def test_stale_update_http_fallback_returns_full_409_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    loaded_operation = manual_expense()
+    calls.operations = [replace(loaded_operation, version=2)]
+    form = valid_edit_form(loaded_operation)
+    form["description"] = "Черновик обычного HTTP-запроса"
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/_next/ledger/manual/{loaded_operation.id}",
+            data=form,
+        )
+
+    assert response.status_code == 409
+    assert "<!doctype html>" in response.text
+    assert 'value="Черновик обычного HTTP-запроса"' in response.text
+    assert "Загрузить актуальную версию" in response.text
 
 
 def test_update_that_leaves_filter_replaces_results_and_total(
@@ -555,6 +712,32 @@ def test_update_that_leaves_filter_replaces_results_and_total(
     assert 'hx-swap-oob="outerHTML"' in response.text
     assert "0 ручных операций" in response.text
     assert "По этим фильтрам операций нет" in response.text
+
+
+def test_update_that_leaves_category_filter_replaces_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+    category_id = uuid4()
+    operation = replace(manual_expense(), category_id=category_id)
+    calls.operations = [operation]
+    calls.realistic_listing = True
+    form = valid_edit_form(operation)
+    form["category_id"] = ""
+    form["return_to"] = f"/_next/ledger/manual?category_id={category_id}&page=1&per_page=50"
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/_next/ledger/manual/{operation.id}",
+            data=form,
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["HX-Retarget"] == "#manual-ledger-results"
+    assert f'id="next-operation-{operation.id}"' not in response.text
+    assert "0 ручных операций" in response.text
 
 
 def test_date_change_replaces_sorted_results(
@@ -806,6 +989,7 @@ def test_edit_parser_rejects_same_transfer_accounts() -> None:
     validation = validate_manual_ledger_edit(
         uuid4(),
         ManualLedgerFormSubmission(
+            version="1",
             operation_type="transfer",
             account_id=str(account_id),
             destination_account_id=str(account_id),
@@ -833,6 +1017,7 @@ def manual_expense() -> ManualOperationView:
     account = account_view("Карта")
     return ManualOperationView(
         id=uuid4(),
+        version=1,
         type=OperationType.EXPENSE,
         status=OperationStatus.CONFIRMED,
         operation_date=date(2026, 7, 17),
@@ -857,6 +1042,7 @@ def manual_transfer() -> ManualOperationView:
     destination = account_view("Наличные")
     return ManualOperationView(
         id=uuid4(),
+        version=1,
         type=OperationType.TRANSFER,
         status=OperationStatus.CONFIRMED,
         operation_date=date(2026, 7, 17),
@@ -899,6 +1085,7 @@ def valid_edit_form(operation: ManualOperationView) -> dict[str, str]:
     primary_entry = operation.primary_entry
     assert primary_entry is not None
     return {
+        "version": str(operation.version),
         "operation_type": operation.type.value,
         "account_id": str(primary_entry.account_id),
         "destination_account_id": "",
@@ -938,6 +1125,21 @@ def manual_operation_matches(
         return False
     if filters.status is not None and operation.status != filters.status:
         return False
+    operation_account_ids = {
+        entry.account_id
+        for entry in (
+            operation.primary_entry,
+            operation.source_entry,
+            operation.destination_entry,
+        )
+        if entry is not None
+    }
+    if filters.account_id is not None and filters.account_id not in operation_account_ids:
+        return False
+    if filters.category_id is not None and operation.category_id != filters.category_id:
+        return False
+    if filters.property_id is not None and operation.property_id != filters.property_id:
+        return False
     return not (
         filters.search and filters.search.casefold() not in (operation.description or "").casefold()
     )
@@ -946,6 +1148,8 @@ def manual_operation_matches(
 class ManualLedgerCalls:
     def __init__(self) -> None:
         self.operations: list[ManualOperationView] = []
+        self.categories: list[Any] = []
+        self.properties: list[Any] = []
         self.page = LedgerPage(page=1, per_page=50, total=0)
         self.workspace_ids: list[UUID] = []
         self.filters: list[ManualOperationFilters] = []
@@ -959,6 +1163,7 @@ class ManualLedgerCalls:
         self.cancelled_ids: list[UUID] = []
         self.restored_ids: list[UUID] = []
         self.deleted_ids: list[UUID] = []
+        self.refreshed_workspace_ids: list[UUID] = []
         self.realistic_listing = False
 
 
@@ -1023,8 +1228,14 @@ def manual_ledger_app(
             operation = next(
                 operation for operation in calls.operations if operation.id == command.operation_id
             )
+            if (
+                command.expected_version is not None
+                and command.expected_version != operation.version
+            ):
+                raise OperationVersionConflictError()
             updated_operation = replace(
                 operation,
+                version=operation.version + 1,
                 type=command.operation_type,
                 operation_date=command.operation_date,
                 description=command.description,
@@ -1096,7 +1307,11 @@ def manual_ledger_app(
             if calls.lifecycle_error is not None:
                 raise calls.lifecycle_error
             calls.operations = [
-                replace(operation, status=OperationStatus.IGNORED)
+                replace(
+                    operation,
+                    version=operation.version + 1,
+                    status=OperationStatus.IGNORED,
+                )
                 if operation.id == operation_id
                 else operation
                 for operation in calls.operations
@@ -1114,7 +1329,11 @@ def manual_ledger_app(
             if calls.lifecycle_error is not None:
                 raise calls.lifecycle_error
             calls.operations = [
-                replace(operation, status=OperationStatus.CONFIRMED)
+                replace(
+                    operation,
+                    version=operation.version + 1,
+                    status=OperationStatus.CONFIRMED,
+                )
                 if operation.id == operation_id
                 else operation
                 for operation in calls.operations
@@ -1162,7 +1381,7 @@ def manual_ledger_app(
             _workspace_type: Any,
         ) -> list[Any]:
             calls.workspace_ids.append(workspace_id)
-            return []
+            return calls.categories
 
     class FakePropertyService:
         def __init__(self, _session: AsyncSession) -> None:
@@ -1170,10 +1389,14 @@ def manual_ledger_app(
 
         async def list_active(self, workspace_id: UUID) -> list[Any]:
             calls.workspace_ids.append(workspace_id)
-            return []
+            return calls.properties
+
+    class FakeSession:
+        async def refresh(self, instance: Any) -> None:
+            calls.refreshed_workspace_ids.append(instance.id)
 
     async def session_override() -> AsyncIterator[AsyncSession]:
-        yield cast(AsyncSession, object())
+        yield cast(AsyncSession, FakeSession())
 
     async def context_override(request: Request) -> WorkspaceContext:
         request.state.workspace_context = context

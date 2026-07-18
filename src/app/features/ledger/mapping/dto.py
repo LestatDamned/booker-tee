@@ -96,6 +96,7 @@ class AccountLedgerDetailView:
 @dataclass(frozen=True)
 class ManualOperationView:
     id: UUID
+    version: int
     type: OperationType
     status: OperationStatus
     operation_date: date
@@ -140,6 +141,7 @@ class LedgerViewMapper:
         destination_entry = first_positive_entry(entries)
         return ManualOperationView(
             id=operation.id,
+            version=operation.version,
             type=operation.type,
             status=operation.status,
             operation_date=operation.operation_date,

@@ -10,6 +10,7 @@ import pytest
 from app.features.imports.models import RawTransactionStatus
 from app.features.ledger.application.commands import (
     UpdateImportedOperationReviewFieldsCommand,
+    UpdateManualOperationCommand,
 )
 from app.features.ledger.application.imported_operation_review import (
     ImportedOperationReviewUseCase,
@@ -29,8 +30,8 @@ from app.features.ledger.domain.raw_transactions import (
     raw_transaction_effective_account_id,
     restored_raw_status_after_unlink,
 )
-from app.features.ledger.errors import LedgerPostingError
-from app.features.ledger.models import OperationSource, OperationStatus, OperationType
+from app.features.ledger.errors import LedgerPostingError, OperationVersionConflictError
+from app.features.ledger.models import Operation, OperationSource, OperationStatus, OperationType
 
 
 @dataclass(frozen=True)
@@ -68,6 +69,10 @@ def test_operation_type_for_amount_maps_income_and_expense() -> None:
     assert affects_profit_for_operation_type(OperationType.INCOME) is True
     assert affects_profit_for_operation_type(OperationType.EXPENSE) is True
     assert affects_profit_for_operation_type(OperationType.TRANSFER) is False
+
+
+def test_operation_mapper_uses_integer_version_for_optimistic_concurrency() -> None:
+    assert Operation.__mapper__.version_id_col is Operation.__table__.c.version
 
 
 def test_operation_type_for_amount_rejects_zero() -> None:
@@ -476,6 +481,70 @@ async def test_manual_operation_use_case_rejects_imported_operation(monkeypatch)
     use_case = ManualOperationUseCase(cast(Any, object()))
     with pytest.raises(LedgerPostingError, match="Only manual operations"):
         await use_case._get_manual_operation(workspace_id, operation_id)
+
+
+@pytest.mark.asyncio
+async def test_manual_update_rejects_stale_expected_version_before_mutation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    operation_id = uuid4()
+    account_id = uuid4()
+    operation = SimpleNamespace(
+        id=operation_id,
+        source=OperationSource.MANUAL,
+        version=2,
+    )
+    session = SimpleNamespace(rollbacks=0)
+
+    async def rollback() -> None:
+        session.rollbacks += 1
+
+    session.rollback = rollback
+
+    class FakeRepository:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_operation_for_workspace(
+            self,
+            workspace_id_arg: UUID,
+            operation_id_arg: UUID,
+        ) -> object:
+            assert workspace_id_arg == workspace_id
+            assert operation_id_arg == operation_id
+            return operation
+
+    monkeypatch.setattr(
+        "app.features.ledger.application.manual_operations.LedgerRepository",
+        FakeRepository,
+    )
+
+    with pytest.raises(OperationVersionConflictError):
+        await ManualOperationUseCase(cast(Any, session)).update(
+            context=cast(
+                Any,
+                SimpleNamespace(
+                    workspace=SimpleNamespace(id=workspace_id),
+                    user=SimpleNamespace(id=uuid4()),
+                ),
+            ),
+            command=UpdateManualOperationCommand(
+                operation_id=operation_id,
+                operation_type=OperationType.EXPENSE,
+                account_id=account_id,
+                amount=Decimal("10.00"),
+                operation_date=date(2026, 7, 18),
+                description="Устаревшая форма",
+                category_id=None,
+                property_id=None,
+                destination_account_id=None,
+                expected_version=1,
+            ),
+        )
+
+    assert session.rollbacks == 1
+    assert not hasattr(operation, "description")
 
 
 @pytest.mark.asyncio

@@ -2,6 +2,10 @@
 
 Статус: **working migration baseline**, Этап 1 первого пилота Frontend Next.
 
+Документ сохраняет исторический baseline старого интерфейса. Актуальное
+состояние Frontend Next и закрытые gaps фиксируются в
+[`FRONTEND_NEXT_DESIGN.md`](FRONTEND_NEXT_DESIGN.md).
+
 Дата фиксации: 14 июля 2026 года.
 
 Этот документ описывает наблюдаемое поведение текущей страницы
@@ -312,5 +316,10 @@ Baseline принят владельцем проекта 17 июля 2026 го�
 lazy create/edit, локального `422`, SSR fallback и согласованного HTMX
 `replaceRow`/`replaceList` с OOB reset/total. Lifecycle cancel/restore/delete
 также перенесён с server-owned action policy, permission guard, HTTP fallback и
-пересчётом списка после delete; текущее состояние зафиксировано в
-[`FRONTEND_NEXT_DESIGN.md`](FRONTEND_NEXT_DESIGN.md).
+пересчётом списка после delete. Полный набор фильтров дополнен workspace-scoped
+счётом, категорией и объектом с сохранением query state во всех pagination,
+edit/create и lifecycle переходах; текущее состояние зафиксировано в
+[`FRONTEND_NEXT_DESIGN.md`](FRONTEND_NEXT_DESIGN.md). Риск конкурентного
+редактирования также закрыт: в общей модели добавлен integer `version`, Next
+edit отправляет ожидаемую версию, а конфликт возвращает локальный `409` без
+потери пользовательского draft.

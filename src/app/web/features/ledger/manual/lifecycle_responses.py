@@ -7,8 +7,8 @@ from app.features.workspaces.service import WorkspaceContext
 from app.web.features.ledger.manual.presenter import ManualLedgerPresenter
 from app.web.features.ledger.manual.queries import ManualLedgerPageQuery
 from app.web.features.ledger.manual.query_state import (
+    ManualLedgerListQuery,
     clear_operation_target_url,
-    list_query_from_return_to,
     target_operation_url,
 )
 from app.web.features.ledger.manual.renderer import ManualLedgerRenderer
@@ -44,7 +44,7 @@ class ManualLedgerLifecycleResponses:
                 status_code=status.HTTP_303_SEE_OTHER,
             )
 
-        list_query = list_query_from_return_to(return_to)
+        list_query = ManualLedgerListQuery.from_return_to(return_to)
         scope = ManualLedgerUpdateResponseScope().resolve(
             previous=previous,
             updated=updated,
@@ -93,7 +93,7 @@ class ManualLedgerLifecycleResponses:
         return_to: str,
         message: str,
     ) -> Response:
-        list_query = list_query_from_return_to(return_to)
+        list_query = ManualLedgerListQuery.from_return_to(return_to)
         row = ManualLedgerPresenter().present_row(
             operation,
             focused_operation_id=list_query.focused_operation_id,
@@ -114,7 +114,7 @@ class ManualLedgerLifecycleResponses:
         context: WorkspaceContext,
         return_to: str,
     ) -> Response:
-        list_query = list_query_from_return_to(return_to)
+        list_query = ManualLedgerListQuery.from_return_to(return_to)
         page_data = await ManualLedgerPageQuery(self._ledger).execute(
             workspace_id=context.workspace.id,
             query=list_query,

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 from uuid import UUID
@@ -26,6 +28,65 @@ class ManualLedgerListQuery:
     pagination: LedgerPagination
     focused_operation_id: UUID | None = None
 
+    @classmethod
+    def from_page_params(
+        cls,
+        params: ManualLedgerPageParams,
+    ) -> ManualLedgerListQuery:
+        return cls(
+            filters=ManualOperationFilters(
+                date_from=parse_optional_query_date(params.date_from, field_name="date_from"),
+                date_to=parse_optional_query_date(params.date_to, field_name="date_to"),
+                operation_type=parse_optional_query_enum(
+                    params.operation_type_filter,
+                    OperationType,
+                    field_name="type",
+                ),
+                status=parse_optional_query_enum(
+                    params.status_filter,
+                    OperationStatus,
+                    field_name="status",
+                ),
+                account_id=parse_optional_query_uuid(
+                    params.account_id,
+                    field_name="account_id",
+                ),
+                category_id=parse_optional_query_uuid(
+                    params.category_id,
+                    field_name="category_id",
+                ),
+                property_id=parse_optional_query_uuid(
+                    params.property_id,
+                    field_name="property_id",
+                ),
+                search=clean_optional_query_text(params.search),
+            ),
+            pagination=normalize_pagination(params.page, params.per_page),
+            focused_operation_id=parse_optional_query_uuid(
+                params.operation_id,
+                field_name="operation_id",
+            ),
+        )
+
+    @classmethod
+    def from_return_to(cls, return_to: str) -> ManualLedgerListQuery:
+        query = parse_qs(urlsplit(return_to).query)
+        return cls.from_page_params(
+            ManualLedgerPageParams(
+                date_from=first_query_value(query, "date_from"),
+                date_to=first_query_value(query, "date_to"),
+                type=first_query_value(query, "type"),
+                status=first_query_value(query, "status"),
+                account_id=first_query_value(query, "account_id"),
+                category_id=first_query_value(query, "category_id"),
+                property_id=first_query_value(query, "property_id"),
+                search=first_query_value(query, "search"),
+                operation_id=first_query_value(query, "operation_id"),
+                page=max(1, parse_query_int(query, "page", default=1)),
+                per_page=min(200, max(1, parse_query_int(query, "per_page", default=50))),
+            )
+        )
+
 
 class ManualLedgerPageParams(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -34,53 +95,15 @@ class ManualLedgerPageParams(BaseModel):
     date_to: str | None = None
     operation_type_filter: str | None = Field(default=None, alias="type")
     status_filter: str | None = Field(default=None, alias="status")
+    account_id: str | None = None
+    category_id: str | None = None
+    property_id: str | None = None
     search: str | None = None
     operation_id: str | None = None
     edit: str | None = None
     create: bool = False
     page: int = Field(default=1, ge=1)
     per_page: int = Field(default=50, ge=1, le=200)
-
-
-def build_list_query(params: ManualLedgerPageParams) -> ManualLedgerListQuery:
-    return ManualLedgerListQuery(
-        filters=ManualOperationFilters(
-            date_from=parse_optional_query_date(params.date_from, field_name="date_from"),
-            date_to=parse_optional_query_date(params.date_to, field_name="date_to"),
-            operation_type=parse_optional_query_enum(
-                params.operation_type_filter,
-                OperationType,
-                field_name="type",
-            ),
-            status=parse_optional_query_enum(
-                params.status_filter,
-                OperationStatus,
-                field_name="status",
-            ),
-            search=clean_optional_query_text(params.search),
-        ),
-        pagination=normalize_pagination(params.page, params.per_page),
-        focused_operation_id=parse_optional_query_uuid(
-            params.operation_id,
-            field_name="operation_id",
-        ),
-    )
-
-
-def list_query_from_return_to(return_to: str) -> ManualLedgerListQuery:
-    query = parse_qs(urlsplit(return_to).query)
-    return build_list_query(
-        ManualLedgerPageParams(
-            date_from=first_query_value(query, "date_from"),
-            date_to=first_query_value(query, "date_to"),
-            type=first_query_value(query, "type"),
-            status=first_query_value(query, "status"),
-            search=first_query_value(query, "search"),
-            operation_id=first_query_value(query, "operation_id"),
-            page=max(1, parse_query_int(query, "page", default=1)),
-            per_page=min(200, max(1, parse_query_int(query, "per_page", default=50))),
-        )
-    )
 
 
 def safe_manual_ledger_return_to(return_to: str | None) -> str:

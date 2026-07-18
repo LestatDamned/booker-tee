@@ -23,6 +23,9 @@ class ManualLedgerFiltersVM:
     search: str
     operation_types: tuple[ManualLedgerFilterOptionVM, ...]
     statuses: tuple[ManualLedgerFilterOptionVM, ...]
+    accounts: tuple[ManualLedgerFilterOptionVM, ...]
+    categories: tuple[ManualLedgerFilterOptionVM, ...]
+    properties: tuple[ManualLedgerFilterOptionVM, ...]
     per_page: int
     per_page_options: tuple[int, ...]
     active: bool
@@ -71,6 +74,7 @@ class ManualLedgerFormVM:
     form_id: str
     form_action: str
     return_to: str
+    version: str
     operation_type: str
     amount: str
     operation_date: str

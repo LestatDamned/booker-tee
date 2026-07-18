@@ -31,7 +31,7 @@ class ManualLedgerPageData:
 
 
 @dataclass(frozen=True)
-class ManualLedgerFormData:
+class ManualLedgerReferenceData:
     accounts: tuple[ManualLedgerAccountReference, ...]
     categories: tuple[ManualLedgerNamedReference, ...]
     properties: tuple[ManualLedgerNamedReference, ...]
@@ -40,7 +40,7 @@ class ManualLedgerFormData:
 @dataclass(frozen=True)
 class ManualLedgerEditData:
     operation: ManualOperationView
-    form: ManualLedgerFormData
+    references: ManualLedgerReferenceData
 
 
 class ManualLedgerPageQuery:
@@ -74,7 +74,7 @@ class ManualLedgerPageQuery:
         )
 
 
-class ManualLedgerFormQuery:
+class ManualLedgerReferenceQuery:
     def __init__(
         self,
         *,
@@ -90,7 +90,7 @@ class ManualLedgerFormQuery:
         self,
         *,
         context: WorkspaceContext,
-    ) -> ManualLedgerFormData:
+    ) -> ManualLedgerReferenceData:
         workspace_id = context.workspace.id
         accounts = await self._accounts.list_active_accounts(workspace_id)
         categories = await self._categories.list_or_seed_defaults(
@@ -98,7 +98,7 @@ class ManualLedgerFormQuery:
             context.workspace.type,
         )
         properties = await self._properties.list_active(workspace_id)
-        return ManualLedgerFormData(
+        return ManualLedgerReferenceData(
             accounts=tuple(
                 ManualLedgerAccountReference(
                     id=account.id,
@@ -123,16 +123,17 @@ class ManualLedgerEditQuery:
         self,
         *,
         ledger: LedgerPostingService,
-        form: ManualLedgerFormQuery,
+        references: ManualLedgerReferenceQuery,
     ) -> None:
         self._ledger = ledger
-        self._form = form
+        self._references = references
 
     async def execute(
         self,
         *,
         context: WorkspaceContext,
         operation_id: UUID,
+        references: ManualLedgerReferenceData | None = None,
     ) -> ManualLedgerEditData | None:
         operation = await self._ledger.get_manual_operation(
             workspace_id=context.workspace.id,
@@ -142,5 +143,5 @@ class ManualLedgerEditQuery:
             return None
         return ManualLedgerEditData(
             operation=operation,
-            form=await self._form.execute(context=context),
+            references=references or await self._references.execute(context=context),
         )

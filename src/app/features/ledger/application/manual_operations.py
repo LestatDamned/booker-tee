@@ -2,6 +2,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.features.ledger.application.commands import (
     CreateManualIncomeExpenseCommand,
@@ -17,7 +18,7 @@ from app.features.ledger.domain.money import (
     require_uuid,
 )
 from app.features.ledger.domain.text import clean_description
-from app.features.ledger.errors import LedgerPostingError
+from app.features.ledger.errors import LedgerPostingError, OperationVersionConflictError
 from app.features.ledger.mapping.operation_factory import (
     build_manual_income_expense_operation,
     build_manual_transfer_operation,
@@ -146,6 +147,7 @@ class ManualOperationUseCase:
     ) -> Operation:
         try:
             operation = await self._get_manual_operation(context.workspace.id, command.operation_id)
+            self._ensure_expected_version(operation, command.expected_version)
             operation.type = command.operation_type
             operation.affects_profit = affects_profit_for_operation_type(command.operation_type)
             operation.description = clean_description(command.description)
@@ -176,6 +178,9 @@ class ManualOperationUseCase:
 
             await self.session.commit()
             return operation
+        except StaleDataError as error:
+            await self.session.rollback()
+            raise OperationVersionConflictError() from error
         except Exception:
             await self.session.rollback()
             raise
@@ -191,7 +196,7 @@ class ManualOperationUseCase:
             raise LedgerPostingError("Only confirmed manual operations can be cancelled.")
         operation.status = OperationStatus.IGNORED
         operation.updated_by_user_id = context.user.id
-        await self.session.commit()
+        await self._commit_versioned()
         return operation
 
     async def restore(
@@ -205,7 +210,7 @@ class ManualOperationUseCase:
             raise LedgerPostingError("Only cancelled manual operations can be restored.")
         operation.status = OperationStatus.CONFIRMED
         operation.updated_by_user_id = context.user.id
-        await self.session.commit()
+        await self._commit_versioned()
         return operation
 
     async def delete(
@@ -317,3 +322,18 @@ class ManualOperationUseCase:
         for money_entry in money_entries:
             await self.ledger.create_money_entry(money_entry)
         operation.money_entries.extend(money_entries)
+
+    def _ensure_expected_version(
+        self,
+        operation: Operation,
+        expected_version: int | None,
+    ) -> None:
+        if expected_version is not None and operation.version != expected_version:
+            raise OperationVersionConflictError()
+
+    async def _commit_versioned(self) -> None:
+        try:
+            await self.session.commit()
+        except StaleDataError as error:
+            await self.session.rollback()
+            raise OperationVersionConflictError() from error

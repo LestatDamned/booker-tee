@@ -27,12 +27,12 @@ from app.web.features.ledger.manual.forms import (
 )
 from app.web.features.ledger.manual.presenter import ManualLedgerPresenter
 from app.web.features.ledger.manual.queries import (
-    ManualLedgerFormQuery,
     ManualLedgerPageQuery,
+    ManualLedgerReferenceQuery,
 )
 from app.web.features.ledger.manual.query_state import (
     MANUAL_LEDGER_URL,
-    list_query_from_return_to,
+    ManualLedgerListQuery,
     open_create_url,
     safe_manual_ledger_return_to,
     target_operation_url,
@@ -59,7 +59,7 @@ async def manual_ledger_create_panel(
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
-    data = await ManualLedgerFormQuery(
+    data = await ManualLedgerReferenceQuery(
         accounts=AccountService(session),
         categories=CategoryService(session),
         properties=PropertyService(session),
@@ -123,7 +123,7 @@ async def create_manual_ledger_operation(
             form_error = business_error_message(error)
 
     if not validation.is_valid or form_error is not None:
-        data = await ManualLedgerFormQuery(
+        data = await ManualLedgerReferenceQuery(
             accounts=AccountService(session),
             categories=CategoryService(session),
             properties=PropertyService(session),
@@ -142,7 +142,7 @@ async def create_manual_ledger_operation(
                 response_status=status.HTTP_422_UNPROCESSABLE_CONTENT,
             )
 
-        list_query = list_query_from_return_to(safe_return_to)
+        list_query = ManualLedgerListQuery.from_return_to(safe_return_to)
         page_data = await ManualLedgerPageQuery(ledger).execute(
             workspace_id=context.workspace.id,
             query=list_query,
@@ -154,6 +154,7 @@ async def create_manual_ledger_operation(
             filters=list_query.filters,
             focused_operation_id=list_query.focused_operation_id,
             can_write=True,
+            references=data,
             create_panel=form,
         )
         return renderer.page(
@@ -172,7 +173,7 @@ async def create_manual_ledger_operation(
         )
 
     list_query = replace(
-        list_query_from_return_to(safe_return_to),
+        ManualLedgerListQuery.from_return_to(safe_return_to),
         focused_operation_id=created.id,
     )
     page_data = await ManualLedgerPageQuery(ledger).execute(

@@ -5,7 +5,7 @@ from app.web.features.ledger.manual.forms import (
     ManualLedgerFormIssue,
     ManualLedgerFormSubmission,
 )
-from app.web.features.ledger.manual.queries import ManualLedgerFormData
+from app.web.features.ledger.manual.queries import ManualLedgerReferenceData
 from app.web.features.ledger.manual.view_models import ManualLedgerFormVM
 
 
@@ -13,7 +13,7 @@ class ManualLedgerCreatePresenter:
     def present(
         self,
         *,
-        data: ManualLedgerFormData,
+        data: ManualLedgerReferenceData,
         return_to: str,
         submission: ManualLedgerFormSubmission | None = None,
         issues: tuple[ManualLedgerFormIssue, ...] = (),

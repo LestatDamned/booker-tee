@@ -1,3 +1,4 @@
+from urllib.parse import urlencode
 from uuid import UUID
 
 from app.features.ledger.mapping.dto import ManualOperationView
@@ -8,7 +9,9 @@ from app.web.features.ledger.manual.forms import (
     ManualLedgerFormSubmission,
 )
 from app.web.features.ledger.manual.queries import ManualLedgerEditData
+from app.web.features.ledger.manual.query_state import MANUAL_LEDGER_URL
 from app.web.features.ledger.manual.view_models import ManualLedgerEditPanelVM
+from app.web.ui.actions import DisclosureActionVM
 
 
 class ManualLedgerEditPresenter:
@@ -20,12 +23,13 @@ class ManualLedgerEditPresenter:
         submission: ManualLedgerFormSubmission | None = None,
         issues: tuple[ManualLedgerFormIssue, ...] = (),
         form_error: str | None = None,
+        retry_action: DisclosureActionVM | None = None,
     ) -> ManualLedgerEditPanelVM:
         operation = data.operation
         return ManualLedgerEditPanelVM(
             operation_id=operation.id,
             form=ManualLedgerFormPresenter().present(
-                data=data.form,
+                data=data.references,
                 values=submission or self._initial_submission(operation),
                 form_id=f"next-manual-operation-form-{operation.id}",
                 id_prefix=f"next-manual-operation-{operation.id}",
@@ -33,6 +37,34 @@ class ManualLedgerEditPresenter:
                 return_to=return_to,
                 issues=issues,
                 form_error=form_error,
+                retry_action=retry_action,
+            ),
+        )
+
+    def present_conflict(
+        self,
+        *,
+        data: ManualLedgerEditData,
+        return_to: str,
+        submission: ManualLedgerFormSubmission,
+        message: str,
+    ) -> ManualLedgerEditPanelVM:
+        operation_id = data.operation.id
+        reload_url = (
+            f"{MANUAL_LEDGER_URL}/{operation_id}/edit?{urlencode({'return_to': return_to})}"
+        )
+        return self.present(
+            data=data,
+            return_to=return_to,
+            submission=submission,
+            form_error=message,
+            retry_action=DisclosureActionVM(
+                label="Загрузить актуальную версию",
+                fallback_url=reload_url,
+                load_url=reload_url,
+                panel_id=f"next-manual-operation-edit-panel-{operation_id}",
+                load_target_id=(f"next-manual-operation-edit-panel-content-{operation_id}"),
+                icon="rotate-ccw",
             ),
         )
 
@@ -45,6 +77,7 @@ class ManualLedgerEditPresenter:
             operation.destination_entry.account_id if operation.destination_entry else None
         )
         return ManualLedgerFormSubmission(
+            version=str(operation.version),
             operation_type=operation.type.value,
             account_id=str(account_id) if account_id else "",
             destination_account_id=(str(destination_account_id) if destination_account_id else ""),

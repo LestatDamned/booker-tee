@@ -37,6 +37,7 @@ class UpdateManualOperationCommand:
     category_id: UUID | None
     property_id: UUID | None
     destination_account_id: UUID | None
+    expected_version: int | None = None
 
 
 @dataclass(frozen=True)

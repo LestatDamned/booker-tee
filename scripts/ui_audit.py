@@ -633,6 +633,10 @@ def assert_frontend_next_manual_ledger(page: Page, *, scenario: str) -> list[str
     if scenario == "realistic" and rows.count() > 0:
         errors.extend(assert_frontend_next_manual_create(page))
         errors.extend(assert_frontend_next_manual_lifecycle(page, rows.first))
+        errors.extend(assert_frontend_next_manual_reference_filters(page))
+        viewport = page.viewport_size or {}
+        if int(viewport.get("width") or 0) >= 1200:
+            errors.extend(assert_frontend_next_manual_conflict(page, rows.first))
         errors.extend(assert_frontend_next_manual_edit(page, rows.first))
     overflow = collect_overflow(page)
     if int(overflow["horizontalOverflowPx"]) > 1:
@@ -759,6 +763,100 @@ def assert_frontend_next_manual_lifecycle(page: Page, row: Locator) -> list[str]
     return errors
 
 
+def assert_frontend_next_manual_reference_filters(page: Page) -> list[str]:
+    form = page.locator(".manual-ledger-filters")
+    filter_names = ("account_id", "category_id", "property_id")
+    selected_values: dict[str, str] = {}
+    for name in filter_names:
+        select = form.locator(f'select[name="{name}"]')
+        if select.count() == 0:
+            return [f"Frontend Next manual {name} filter was not found"]
+        if select.locator("option").count() < 2:
+            continue
+        selected = select.locator("option").nth(1).get_attribute("value")
+        if selected:
+            select.select_option(selected)
+            selected_values[name] = selected
+
+    if not selected_values:
+        return ["Frontend Next manual reference filters have no realistic options"]
+    form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+    page.wait_for_load_state("domcontentloaded", timeout=PAGE_TIMEOUT_MS)
+    for name, expected in selected_values.items():
+        if page.locator(f'.manual-ledger-filters select[name="{name}"]').input_value() != expected:
+            return [f"Frontend Next manual {name} filter did not survive GET"]
+        if f"{name}={expected}" not in page.url:
+            return [f"Frontend Next manual {name} filter was lost from URL"]
+
+    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
+        return ["Frontend Next manual reference filters cause horizontal overflow"]
+    page.get_by_role("link", name="Сбросить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    page.wait_for_load_state("domcontentloaded", timeout=PAGE_TIMEOUT_MS)
+    return []
+
+
+def assert_frontend_next_manual_conflict(page: Page, row: Locator) -> list[str]:
+    row_id = row.get_attribute("id")
+    if not row_id:
+        return ["Frontend Next manual conflict row has no stable id"]
+    row = page.locator(f"#{row_id}")
+    disclosure = row.locator('a[aria-controls^="next-manual-operation-edit-panel-"]').first
+    disclosure.click(timeout=PAGE_TIMEOUT_MS)
+    stale_form = row.locator('form[id^="next-manual-operation-form-"]')
+    stale_form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    stale_version = stale_form.locator('input[name="version"]').input_value()
+    user_draft = "UI audit: несохранённый конкурентный черновик"
+    concurrent_value = "UI audit: изменение из второй вкладки"
+    stale_form.locator('input[name="description"]').fill(user_draft)
+
+    concurrent_page = page.context.new_page()
+    try:
+        concurrent_page.goto(page.url, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
+        concurrent_row = concurrent_page.locator(f"#{row_id}")
+        concurrent_row.locator('a[aria-controls^="next-manual-operation-edit-panel-"]').first.click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        concurrent_form = concurrent_row.locator('form[id^="next-manual-operation-form-"]')
+        concurrent_form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+        concurrent_form.locator('input[name="description"]').fill(concurrent_value)
+        concurrent_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+        concurrent_form.wait_for(state="detached", timeout=PAGE_TIMEOUT_MS)
+
+        stale_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+        try:
+            row.get_by_text("Операция уже изменилась в другом окне").wait_for(
+                state="visible",
+                timeout=PAGE_TIMEOUT_MS,
+            )
+        except PlaywrightError as exc:
+            return [f"Frontend Next manual 409 conflict was not rendered: {short_error(exc)}"]
+
+        conflict_form = row.locator('form[id^="next-manual-operation-form-"]')
+        if conflict_form.locator('input[name="description"]').input_value() != user_draft:
+            return ["Frontend Next manual conflict did not preserve the user draft"]
+        if conflict_form.locator('input[name="version"]').input_value() != stale_version:
+            return ["Frontend Next manual conflict replaced the submitted version prematurely"]
+
+        row.get_by_role("link", name="Загрузить актуальную версию").click(timeout=PAGE_TIMEOUT_MS)
+        page.wait_for_function(
+            """
+            ({ rowId, expected }) => {
+              const input = document.querySelector(`#${rowId} input[name="description"]`);
+              return input instanceof HTMLInputElement && input.value === expected;
+            }
+            """,
+            arg={"rowId": row_id, "expected": concurrent_value},
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        fresh_form = row.locator('form[id^="next-manual-operation-form-"]')
+        if fresh_form.locator('input[name="version"]').input_value() == stale_version:
+            return ["Frontend Next manual conflict reload kept the stale version"]
+        row.get_by_text("Закрыть", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    finally:
+        concurrent_page.close()
+    return []
+
+
 def assert_frontend_next_manual_edit(page: Page, row: Locator) -> list[str]:
     errors: list[str] = []
     row_id = row.get_attribute("id")
@@ -778,7 +876,7 @@ def assert_frontend_next_manual_edit(page: Page, row: Locator) -> list[str]:
     if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
         errors.append("Frontend Next manual edit panel causes horizontal overflow")
 
-    close = panel.get_by_role("button", name="Закрыть")
+    close = panel.get_by_text("Закрыть", exact=True)
     if close.count() == 0:
         errors.append("Frontend Next manual close action was lost after lazy load")
         return errors
@@ -1716,10 +1814,19 @@ def remove_expected_console_error(
         return filtered
     if any("422 state was not rendered" in error for error in ux_assertion_errors):
         return filtered
+    conflict_rendered = not any(
+        "409 conflict was not rendered" in error for error in ux_assertion_errors
+    )
     return [
         message
         for message in filtered
-        if not ("Failed to load resource" in message and "422 (Unprocessable Entity)" in message)
+        if not (
+            "Failed to load resource" in message
+            and (
+                "422 (Unprocessable Entity)" in message
+                or (conflict_rendered and "409 (Conflict)" in message)
+            )
+        )
     ]
 
 

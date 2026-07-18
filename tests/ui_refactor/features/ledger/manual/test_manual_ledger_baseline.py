@@ -141,6 +141,7 @@ def manual_expense() -> ManualOperationView:
     )
     return ManualOperationView(
         id=uuid4(),
+        version=1,
         type=OperationType.EXPENSE,
         status=OperationStatus.CONFIRMED,
         operation_date=date(2026, 6, 15),

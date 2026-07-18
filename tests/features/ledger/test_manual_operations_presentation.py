@@ -30,6 +30,7 @@ def test_manual_operations_presenter_builds_expense_row() -> None:
     category = CategoryView(id=category_id, name="Кафе", kind=CategoryKind.EXPENSE)
     operation = ManualOperationView(
         id=operation_id,
+        version=1,
         type=OperationType.EXPENSE,
         status=OperationStatus.CONFIRMED,
         operation_date=date(2026, 6, 15),
@@ -104,6 +105,7 @@ def test_manual_operations_presenter_builds_transfer_row() -> None:
     )
     operation = ManualOperationView(
         id=uuid4(),
+        version=1,
         type=OperationType.TRANSFER,
         status=OperationStatus.CONFIRMED,
         operation_date=date(2026, 6, 16),
@@ -159,6 +161,7 @@ def test_manual_operations_presenter_builds_ignored_row_actions() -> None:
     operation_id = uuid4()
     operation = ManualOperationView(
         id=operation_id,
+        version=1,
         type=OperationType.INCOME,
         status=OperationStatus.IGNORED,
         operation_date=date(2026, 6, 17),

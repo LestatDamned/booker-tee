@@ -3,8 +3,8 @@ from app.web.features.ledger.manual.forms import (
     ManualLedgerFormSubmission,
 )
 from app.web.features.ledger.manual.queries import (
-    ManualLedgerFormData,
     ManualLedgerNamedReference,
+    ManualLedgerReferenceData,
 )
 from app.web.features.ledger.manual.view_models import (
     ManualLedgerFormErrorsVM,
@@ -12,6 +12,7 @@ from app.web.features.ledger.manual.view_models import (
     ManualLedgerFormVM,
     ManualLedgerOptionVM,
 )
+from app.web.ui.actions import ActionVM
 from app.web.ui.request_state import FieldErrorVM, RequestStateVM
 
 
@@ -19,7 +20,7 @@ class ManualLedgerFormPresenter:
     def present(
         self,
         *,
-        data: ManualLedgerFormData,
+        data: ManualLedgerReferenceData,
         values: ManualLedgerFormSubmission,
         form_id: str,
         id_prefix: str,
@@ -27,6 +28,7 @@ class ManualLedgerFormPresenter:
         return_to: str,
         issues: tuple[ManualLedgerFormIssue, ...] = (),
         form_error: str | None = None,
+        retry_action: ActionVM | None = None,
     ) -> ManualLedgerFormVM:
         field_ids = self._field_ids(id_prefix)
         issue_messages = {issue.field: issue.message for issue in issues}
@@ -34,6 +36,7 @@ class ManualLedgerFormPresenter:
             form_id=form_id,
             form_action=form_action,
             return_to=return_to,
+            version=values.version,
             operation_type=values.operation_type,
             amount=values.amount,
             operation_date=values.operation_date,
@@ -89,8 +92,9 @@ class ManualLedgerFormPresenter:
             categories=self._named_options(data.categories, values.category_id),
             properties=self._named_options(data.properties, values.property_id),
             request_state=RequestStateVM(
-                phase="error" if form_error else "idle",
-                message=form_error,
+                phase="error" if form_error or issue_messages.get("form") else "idle",
+                message=form_error or issue_messages.get("form"),
+                retry_action=retry_action,
             ),
         )
 
