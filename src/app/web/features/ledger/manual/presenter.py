@@ -9,7 +9,10 @@ from app.features.ledger.mapping.dto import ManualOperationView, OperationRefMon
 from app.features.ledger.models import OperationStatus, OperationType
 from app.web.features.ledger.manual.action_policy import ManualOperationActionPolicy
 from app.web.features.ledger.manual.queries import ManualLedgerReferenceData
-from app.web.features.ledger.manual.query_state import MANUAL_LEDGER_URL
+from app.web.features.ledger.manual.query_state import (
+    MANUAL_LEDGER_URL,
+    ManualLedgerPageParams,
+)
 from app.web.features.ledger.manual.view_models import (
     BadgeTone,
     ManualLedgerCreateRegionVM,
@@ -55,7 +58,7 @@ STATUS_PRESENTATION: Final[dict[OperationStatus, tuple[str, BadgeTone]]] = {
 
 
 class ManualLedgerPresenter:
-    def present(
+    def build_page(
         self,
         *,
         workspace_name: str,
@@ -71,12 +74,13 @@ class ManualLedgerPresenter:
         reset_edit_panels: bool = False,
     ) -> ManualLedgerPageVM:
         filters_vm = self._filters(filters, page, references)
-        current_url = self.list_url(
+        page_state = ManualLedgerPageParams.from_list_state(
             filters=filters,
             page=page.page,
             per_page=page.per_page,
             focused_operation_id=focused_operation_id,
         )
+        current_url = page_state.list_url()
         return ManualLedgerPageVM(
             workspace_name=workspace_name,
             total_label=self._total_label(page.total),
@@ -88,7 +92,7 @@ class ManualLedgerPresenter:
                 reset_panel=reset_create_panel,
             ),
             rows=tuple(
-                self.present_row(
+                self.build_row(
                     operation,
                     focused_operation_id=focused_operation_id,
                     can_write=can_write,
@@ -105,22 +109,10 @@ class ManualLedgerPresenter:
             filters=filters_vm,
             show_pagination=page.total_pages > 1,
             page_label=f"Страница {page.page} из {page.total_pages}",
-            previous_url=self._page_url(
-                filters,
-                page=page.previous_page,
-                per_page=page.per_page,
-                focused_operation_id=focused_operation_id,
-            )
+            previous_url=page_state.with_page(page.previous_page).list_url()
             if page.has_previous
             else None,
-            next_url=self._page_url(
-                filters,
-                page=page.next_page,
-                per_page=page.per_page,
-                focused_operation_id=focused_operation_id,
-            )
-            if page.has_next
-            else None,
+            next_url=page_state.with_page(page.next_page).list_url() if page.has_next else None,
             empty_title=(
                 "По этим фильтрам операций нет" if filters_vm.active else "Ручных операций пока нет"
             ),
@@ -158,7 +150,7 @@ class ManualLedgerPresenter:
             panel=panel,
         )
 
-    def present_row(
+    def build_row(
         self,
         operation: ManualOperationView,
         *,
@@ -289,44 +281,6 @@ class ManualLedgerPresenter:
             per_page_options=PER_PAGE_OPTIONS,
             active=active,
             reset_url=MANUAL_LEDGER_URL,
-        )
-
-    def _page_url(
-        self,
-        filters: ManualOperationFilters,
-        *,
-        page: int,
-        per_page: int,
-        focused_operation_id: UUID | None,
-    ) -> str:
-        query: dict[str, str | int] = {"page": page, "per_page": per_page}
-        optional_values = {
-            "date_from": filters.date_from.isoformat() if filters.date_from else None,
-            "date_to": filters.date_to.isoformat() if filters.date_to else None,
-            "type": filters.operation_type.value if filters.operation_type else None,
-            "status": filters.status.value if filters.status else None,
-            "account_id": str(filters.account_id) if filters.account_id else None,
-            "category_id": str(filters.category_id) if filters.category_id else None,
-            "property_id": str(filters.property_id) if filters.property_id else None,
-            "search": filters.search,
-            "operation_id": str(focused_operation_id) if focused_operation_id else None,
-        }
-        query.update({name: value for name, value in optional_values.items() if value})
-        return f"{MANUAL_LEDGER_URL}?{urlencode(query)}"
-
-    def list_url(
-        self,
-        *,
-        filters: ManualOperationFilters,
-        page: int,
-        per_page: int,
-        focused_operation_id: UUID | None,
-    ) -> str:
-        return self._page_url(
-            filters,
-            page=page,
-            per_page=per_page,
-            focused_operation_id=focused_operation_id,
         )
 
     def _currency(self, operation: ManualOperationView) -> str:

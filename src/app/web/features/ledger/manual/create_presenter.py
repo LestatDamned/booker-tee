@@ -2,27 +2,27 @@ from datetime import date
 
 from app.web.features.ledger.manual.form_presenter import ManualLedgerFormPresenter
 from app.web.features.ledger.manual.forms import (
+    ManualLedgerFormInput,
     ManualLedgerFormIssue,
-    ManualLedgerFormSubmission,
 )
 from app.web.features.ledger.manual.queries import ManualLedgerReferenceData
 from app.web.features.ledger.manual.view_models import ManualLedgerFormVM
 
 
 class ManualLedgerCreatePresenter:
-    def present(
+    def build_form(
         self,
         *,
         data: ManualLedgerReferenceData,
         return_to: str,
-        submission: ManualLedgerFormSubmission | None = None,
+        submission: ManualLedgerFormInput | None = None,
         issues: tuple[ManualLedgerFormIssue, ...] = (),
         form_error: str | None = None,
     ) -> ManualLedgerFormVM:
-        return ManualLedgerFormPresenter().present(
+        return ManualLedgerFormPresenter().build_form(
             data=data,
             values=submission
-            or ManualLedgerFormSubmission(
+            or ManualLedgerFormInput(
                 operation_type="income",
                 operation_date=date.today().isoformat(),
             ),

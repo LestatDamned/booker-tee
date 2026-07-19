@@ -11,6 +11,7 @@ from app.db.session import get_session
 from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
 from app.features.ledger.errors import LedgerPostingError, OperationVersionConflictError
+from app.features.ledger.mapping.dto import ManualOperationView
 from app.features.ledger.service import LedgerPostingService
 from app.features.properties.service import PropertyService
 from app.features.workspaces.dependencies import (
@@ -19,14 +20,13 @@ from app.features.workspaces.dependencies import (
 )
 from app.features.workspaces.permissions import permission_flags_for
 from app.features.workspaces.service import WorkspaceContext
-from app.shared.query_params import parse_optional_query_uuid
 from app.web.features.ledger.manual.create_presenter import ManualLedgerCreatePresenter
 from app.web.features.ledger.manual.create_routes import router as create_router
 from app.web.features.ledger.manual.edit_presenter import ManualLedgerEditPresenter
 from app.web.features.ledger.manual.forms import (
-    ManualLedgerFormSubmission,
+    ManualLedgerEditValidation,
+    ManualLedgerFormInput,
     business_error_message,
-    validate_manual_ledger_edit,
 )
 from app.web.features.ledger.manual.lifecycle_routes import router as lifecycle_router
 from app.web.features.ledger.manual.presenter import ManualLedgerPresenter
@@ -39,9 +39,7 @@ from app.web.features.ledger.manual.query_state import (
     MANUAL_LEDGER_URL,
     ManualLedgerListQuery,
     ManualLedgerPageParams,
-    open_edit_url,
     safe_manual_ledger_return_to,
-    target_operation_url,
 )
 from app.web.features.ledger.manual.renderer import ManualLedgerRenderer
 from app.web.features.ledger.manual.response_scope import (
@@ -67,12 +65,12 @@ async def manual_ledger_page(
     context: Annotated[WorkspaceContext, Depends(require_workspace_read_context)],
 ) -> HTMLResponse:
     list_query = ManualLedgerListQuery.from_page_params(params)
-    edit_operation_id = parse_optional_query_uuid(params.edit, field_name="edit")
-    
+    edit_operation_id = params.edit
+
     permissions = permission_flags_for(context.membership)
     can_write = permissions.can_write_financial_data
-    has_write_intent = params.create or edit_operation_id is not None
-    
+    has_write_intent = params.create_requested or edit_operation_id is not None
+
     if has_write_intent and not can_write:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -91,16 +89,16 @@ async def manual_ledger_page(
     )
     references = await reference_query.execute(context=context)
     presenter = ManualLedgerPresenter()
-    current_url = presenter.list_url(
+    current_url = ManualLedgerPageParams.from_list_state(
         filters=list_query.filters,
         page=page_data.page.page,
         per_page=page_data.page.per_page,
         focused_operation_id=list_query.focused_operation_id,
-    )
+    ).list_url()
 
     create_panel = None
-    if params.create:
-        create_panel = ManualLedgerCreatePresenter().present(
+    if params.create_requested:
+        create_panel = ManualLedgerCreatePresenter().build_form(
             data=references,
             return_to=current_url,
         )
@@ -117,12 +115,12 @@ async def manual_ledger_page(
         )
         if edit_data is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-        edit_panel = ManualLedgerEditPresenter().present(
+        edit_panel = ManualLedgerEditPresenter().build_panel(
             data=edit_data,
             return_to=current_url,
         )
 
-    page_vm = presenter.present(
+    page_vm = presenter.build_page(
         workspace_name=context.workspace.name,
         operations=page_data.operations,
         page=page_data.page,
@@ -151,7 +149,7 @@ async def manual_ledger_edit_panel(
     safe_return_to = safe_manual_ledger_return_to(return_to)
     if not is_htmx_request(request):
         return RedirectResponse(
-            url=open_edit_url(safe_return_to, operation_id),
+            url=ManualLedgerPageParams.from_return_to(safe_return_to).open_edit_url(operation_id),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -170,11 +168,11 @@ async def manual_ledger_edit_panel(
     if edit_data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
-    edit_panel = ManualLedgerEditPresenter().present(
+    edit_panel = ManualLedgerEditPresenter().build_panel(
         data=edit_data,
         return_to=safe_return_to,
     )
-    row = ManualLedgerPresenter().present_row(
+    row = ManualLedgerPresenter().build_row(
         edit_data.operation,
         focused_operation_id=None,
         can_write=True,
@@ -188,169 +186,214 @@ async def manual_ledger_edit_panel(
 async def update_manual_ledger_operation(
     request: Request,
     operation_id: UUID,
+    form_input: Annotated[ManualLedgerFormInput, Form()],
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
-    version: Annotated[str, Form()] = "",
-    operation_type: Annotated[str, Form()] = "",
-    account_id: Annotated[str, Form()] = "",
-    destination_account_id: Annotated[str, Form()] = "",
-    amount: Annotated[str, Form()] = "",
-    operation_date: Annotated[str, Form()] = "",
-    category_id: Annotated[str, Form()] = "",
-    property_id: Annotated[str, Form()] = "",
-    description: Annotated[str, Form()] = "",
-    return_to: Annotated[str, Form()] = MANUAL_LEDGER_URL,
 ) -> Response:
-    safe_return_to = safe_manual_ledger_return_to(return_to)
-    validation = validate_manual_ledger_edit(
-        operation_id,
-        ManualLedgerFormSubmission(
-            version=version,
-            operation_type=operation_type,
-            account_id=account_id,
-            destination_account_id=destination_account_id,
-            amount=amount,
-            operation_date=operation_date,
-            category_id=category_id,
-            property_id=property_id,
-            description=description,
-        ),
+    safe_return_to = safe_manual_ledger_return_to(form_input.return_to)
+    return_state = ManualLedgerPageParams.from_return_to(safe_return_to)
+    validation = ManualLedgerEditValidation.from_form_input(
+        operation_id=operation_id,
+        form_input=form_input,
     )
     ledger = LedgerPostingService(session)
-    htmx_request = is_htmx_request(request)
-    form_error = None
-    conflict_error = None
-    previous_operation = None
-    updated = None
-
-    if validation.is_valid:
-        if htmx_request:
-            previous_operation = await ledger.get_manual_operation(
-                workspace_id=context.workspace.id,
-                operation_id=operation_id,
-            )
-            if previous_operation is None:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-        command = validation.command
-        if command is None:
-            raise RuntimeError("Valid manual ledger submission has no command.")
-        try:
-            updated = await ledger.update_manual_operation(
-                context=context,
-                command=command,
-            )
-        except OperationVersionConflictError as error:
-            # The use case rolls the failed transaction back. SQLAlchemy expires
-            # ORM-backed workspace context objects on rollback, so reload the
-            # workspace asynchronously before rebuilding the local 409 response.
-            await session.refresh(context.workspace)
-            conflict_error = business_error_message(error)
-        except LedgerPostingError as error:
-            form_error = business_error_message(error)
-
-    if not validation.is_valid or form_error is not None or conflict_error is not None:
-        edit_data = await ManualLedgerEditQuery(
+    is_htmx = is_htmx_request(request)
+    if not validation.is_valid:
+        return await _render_manual_ledger_update_failure(
+            request,
+            operation_id=operation_id,
+            validation=validation,
+            error=None,
             ledger=ledger,
-            references=ManualLedgerReferenceQuery(
-                accounts=AccountService(session),
-                categories=CategoryService(session),
-                properties=PropertyService(session),
-            ),
-        ).execute(
+            session=session,
             context=context,
+            app_name=settings.app_name,
+            return_to=safe_return_to,
+            return_state=return_state,
+        )
+
+    previous_view = None
+    if is_htmx:
+        previous_view = await ledger.get_manual_operation(
+            workspace_id=context.workspace.id,
             operation_id=operation_id,
         )
-        if edit_data is None:
+        if previous_view is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-        edit_presenter = ManualLedgerEditPresenter()
-        edit_panel = (
-            edit_presenter.present_conflict(
-                data=edit_data,
-                return_to=safe_return_to,
-                submission=validation.submission,
-                message=conflict_error,
-            )
-            if conflict_error is not None
-            else edit_presenter.present(
-                data=edit_data,
-                return_to=safe_return_to,
-                submission=validation.submission,
-                issues=validation.issues,
-                form_error=form_error,
-            )
-        )
-        response_status = (
-            status.HTTP_409_CONFLICT
-            if conflict_error is not None
-            else status.HTTP_422_UNPROCESSABLE_CONTENT
-        )
-        presenter = ManualLedgerPresenter()
-        if htmx_request:
-            row = presenter.present_row(
-                edit_data.operation,
-                focused_operation_id=None,
-                can_write=True,
-                return_to=safe_return_to,
-                edit_panel=edit_panel,
-            )
-            return renderer.row(
-                request,
-                row,
-                response_status=response_status,
-            )
 
-        list_query = ManualLedgerListQuery.from_return_to(safe_return_to)
-        page_data = await ManualLedgerPageQuery(ledger).execute(
-            workspace_id=context.workspace.id,
-            query=list_query,
+    command = validation.command
+    if command is None:
+        raise RuntimeError("Valid manual ledger submission has no command.")
+
+    try:
+        updated_record = await ledger.update_manual_operation(
+            context=context,
+            command=command,
         )
-        page_vm: ManualLedgerPageVM = presenter.present(
-            workspace_name=context.workspace.name,
-            operations=page_data.operations,
-            page=page_data.page,
-            filters=list_query.filters,
-            focused_operation_id=list_query.focused_operation_id,
-            can_write=True,
-            references=edit_data.references,
-            edit_panel=edit_panel,
-        )
-        return renderer.page(
+    except OperationVersionConflictError as error:
+        # The use case rolls the failed transaction back. SQLAlchemy expires
+        # ORM-backed workspace context objects on rollback, so reload the
+        # workspace asynchronously before rebuilding the local 409 response.
+        await session.refresh(context.workspace)
+        return await _render_manual_ledger_update_failure(
             request,
-            page_vm,
+            operation_id=operation_id,
+            validation=validation,
+            error=error,
+            ledger=ledger,
+            session=session,
+            context=context,
             app_name=settings.app_name,
-            response_status=response_status,
+            return_to=safe_return_to,
+            return_state=return_state,
+        )
+    except LedgerPostingError as error:
+        return await _render_manual_ledger_update_failure(
+            request,
+            operation_id=operation_id,
+            validation=validation,
+            error=error,
+            ledger=ledger,
+            session=session,
+            context=context,
+            app_name=settings.app_name,
+            return_to=safe_return_to,
+            return_state=return_state,
         )
 
-    if updated is None:
-        raise RuntimeError("Manual ledger update produced no result.")
-    if not htmx_request:
+    if not is_htmx:
         return RedirectResponse(
-            url=target_operation_url(safe_return_to, updated.id),
+            url=return_state.target_operation_url(updated_record.id),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
-    operation = await ledger.get_manual_operation(
-        workspace_id=context.workspace.id,
-        operation_id=updated.id,
-    )
-    if operation is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    if previous_operation is None:
+    if previous_view is None:
         raise RuntimeError("HTMX manual ledger update has no previous operation state.")
+    return await _render_manual_ledger_htmx_update_success(
+        request,
+        updated_operation_id=updated_record.id,
+        previous_view=previous_view,
+        ledger=ledger,
+        context=context,
+        return_to=safe_return_to,
+        return_state=return_state,
+    )
 
-    list_query = ManualLedgerListQuery.from_return_to(safe_return_to)
-    response_scope = ManualLedgerUpdateResponseScope().resolve(
-        previous=previous_operation,
-        updated=operation,
+
+async def _render_manual_ledger_update_failure(
+    request: Request,
+    *,
+    operation_id: UUID,
+    validation: ManualLedgerEditValidation,
+    error: LedgerPostingError | None,
+    ledger: LedgerPostingService,
+    session: AsyncSession,
+    context: WorkspaceContext,
+    app_name: str,
+    return_to: str,
+    return_state: ManualLedgerPageParams,
+) -> Response:
+    edit_data = await ManualLedgerEditQuery(
+        ledger=ledger,
+        references=ManualLedgerReferenceQuery(
+            accounts=AccountService(session),
+            categories=CategoryService(session),
+            properties=PropertyService(session),
+        ),
+    ).execute(
+        context=context,
+        operation_id=operation_id,
+    )
+    if edit_data is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    edit_presenter = ManualLedgerEditPresenter()
+    if isinstance(error, OperationVersionConflictError):
+        edit_panel = edit_presenter.build_conflict_panel(
+            data=edit_data,
+            return_to=return_to,
+            submission=validation.submission,
+            message=business_error_message(error),
+        )
+        response_status = status.HTTP_409_CONFLICT
+    else:
+        edit_panel = edit_presenter.build_panel(
+            data=edit_data,
+            return_to=return_to,
+            submission=validation.submission,
+            issues=validation.issues,
+            form_error=business_error_message(error) if error is not None else None,
+        )
+        response_status = status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    presenter = ManualLedgerPresenter()
+    if is_htmx_request(request):
+        row = presenter.build_row(
+            edit_data.operation,
+            focused_operation_id=None,
+            can_write=True,
+            return_to=return_to,
+            edit_panel=edit_panel,
+        )
+        return renderer.row(
+            request,
+            row,
+            response_status=response_status,
+        )
+
+    list_query = ManualLedgerListQuery.from_page_params(return_state)
+    page_data = await ManualLedgerPageQuery(ledger).execute(
+        workspace_id=context.workspace.id,
+        query=list_query,
+    )
+    page_vm: ManualLedgerPageVM = presenter.build_page(
+        workspace_name=context.workspace.name,
+        operations=page_data.operations,
+        page=page_data.page,
+        filters=list_query.filters,
+        focused_operation_id=list_query.focused_operation_id,
+        can_write=True,
+        references=edit_data.references,
+        edit_panel=edit_panel,
+    )
+    return renderer.page(
+        request,
+        page_vm,
+        app_name=app_name,
+        response_status=response_status,
+    )
+
+
+async def _render_manual_ledger_htmx_update_success(
+    request: Request,
+    *,
+    updated_operation_id: UUID,
+    previous_view: ManualOperationView,
+    ledger: LedgerPostingService,
+    context: WorkspaceContext,
+    return_to: str,
+    return_state: ManualLedgerPageParams,
+) -> Response:
+    updated_view = await ledger.get_manual_operation(
+        workspace_id=context.workspace.id,
+        operation_id=updated_operation_id,
+    )
+    if updated_view is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    list_query = ManualLedgerListQuery.from_page_params(return_state)
+    update_scope = ManualLedgerUpdateResponseScope().resolve(
+        previous=previous_view,
+        updated=updated_view,
         filters=list_query.filters,
     )
-    if response_scope is ManualLedgerUpdateScope.REPLACE_LIST:
+    if update_scope is ManualLedgerUpdateScope.REPLACE_LIST:
         page_data = await ManualLedgerPageQuery(ledger).execute(
             workspace_id=context.workspace.id,
             query=list_query,
         )
-        page_vm = ManualLedgerPresenter().present(
+        page_vm = ManualLedgerPresenter().build_page(
             workspace_name=context.workspace.name,
             operations=page_data.operations,
             page=page_data.page,
@@ -359,23 +402,23 @@ async def update_manual_ledger_operation(
             can_write=True,
             reset_edit_panels=True,
         )
-        replace_url = ManualLedgerPresenter().list_url(
+        replace_url = ManualLedgerPageParams.from_list_state(
             filters=list_query.filters,
             page=page_data.page.page,
             per_page=page_data.page.per_page,
             focused_operation_id=list_query.focused_operation_id,
-        )
+        ).list_url()
         return renderer.results(
             request,
             page_vm,
             replace_url=replace_url,
         )
 
-    row = ManualLedgerPresenter().present_row(
-        operation,
+    row = ManualLedgerPresenter().build_row(
+        updated_view,
         focused_operation_id=None,
         can_write=True,
-        return_to=safe_return_to,
+        return_to=return_to,
         reset_edit_panel=True,
     )
     return renderer.row(request, row)

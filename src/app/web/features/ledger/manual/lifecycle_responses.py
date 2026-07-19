@@ -8,8 +8,7 @@ from app.web.features.ledger.manual.presenter import ManualLedgerPresenter
 from app.web.features.ledger.manual.queries import ManualLedgerPageQuery
 from app.web.features.ledger.manual.query_state import (
     ManualLedgerListQuery,
-    clear_operation_target_url,
-    target_operation_url,
+    ManualLedgerPageParams,
 )
 from app.web.features.ledger.manual.renderer import ManualLedgerRenderer
 from app.web.features.ledger.manual.response_scope import (
@@ -40,11 +39,14 @@ class ManualLedgerLifecycleResponses:
     ) -> Response:
         if not is_htmx_request(request):
             return RedirectResponse(
-                url=target_operation_url(return_to, updated.id),
+                url=ManualLedgerPageParams.from_return_to(return_to).target_operation_url(
+                    updated.id
+                ),
                 status_code=status.HTTP_303_SEE_OTHER,
             )
 
-        list_query = ManualLedgerListQuery.from_return_to(return_to)
+        page_params = ManualLedgerPageParams.from_return_to(return_to)
+        list_query = ManualLedgerListQuery.from_page_params(page_params)
         scope = ManualLedgerUpdateResponseScope().resolve(
             previous=previous,
             updated=updated,
@@ -57,7 +59,7 @@ class ManualLedgerLifecycleResponses:
                 return_to=return_to,
             )
 
-        row = ManualLedgerPresenter().present_row(
+        row = ManualLedgerPresenter().build_row(
             updated,
             focused_operation_id=list_query.focused_operation_id,
             can_write=True,
@@ -73,7 +75,7 @@ class ManualLedgerLifecycleResponses:
         context: WorkspaceContext,
         return_to: str,
     ) -> Response:
-        settled_url = clear_operation_target_url(return_to)
+        settled_url = ManualLedgerPageParams.from_return_to(return_to).clear_operation_target_url()
         if not is_htmx_request(request):
             return RedirectResponse(
                 url=settled_url,
@@ -93,8 +95,9 @@ class ManualLedgerLifecycleResponses:
         return_to: str,
         message: str,
     ) -> Response:
-        list_query = ManualLedgerListQuery.from_return_to(return_to)
-        row = ManualLedgerPresenter().present_row(
+        page_params = ManualLedgerPageParams.from_return_to(return_to)
+        list_query = ManualLedgerListQuery.from_page_params(page_params)
+        row = ManualLedgerPresenter().build_row(
             operation,
             focused_operation_id=list_query.focused_operation_id,
             can_write=True,
@@ -114,13 +117,14 @@ class ManualLedgerLifecycleResponses:
         context: WorkspaceContext,
         return_to: str,
     ) -> Response:
-        list_query = ManualLedgerListQuery.from_return_to(return_to)
+        page_params = ManualLedgerPageParams.from_return_to(return_to)
+        list_query = ManualLedgerListQuery.from_page_params(page_params)
         page_data = await ManualLedgerPageQuery(self._ledger).execute(
             workspace_id=context.workspace.id,
             query=list_query,
         )
         presenter = ManualLedgerPresenter()
-        page = presenter.present(
+        page = presenter.build_page(
             workspace_name=context.workspace.name,
             operations=page_data.operations,
             page=page_data.page,
@@ -129,12 +133,12 @@ class ManualLedgerLifecycleResponses:
             can_write=True,
             reset_edit_panels=True,
         )
-        replace_url = presenter.list_url(
+        replace_url = ManualLedgerPageParams.from_list_state(
             filters=list_query.filters,
             page=page_data.page.page,
             per_page=page_data.page.per_page,
             focused_operation_id=list_query.focused_operation_id,
-        )
+        ).list_url()
         return self._renderer.results(
             request,
             page,

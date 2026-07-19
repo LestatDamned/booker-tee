@@ -1,7 +1,12 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
+from typing import Any, Self
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, ValidationError, ValidationInfo, field_validator
+from pydantic_core import PydanticCustomError
 
 from app.features.ledger.application.commands import (
     CreateManualIncomeExpenseCommand,
@@ -18,8 +23,9 @@ EDITABLE_OPERATION_TYPES = {
 }
 
 
-@dataclass(frozen=True)
-class ManualLedgerFormSubmission:
+class ManualLedgerFormInput(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
     version: str = ""
     operation_type: str = ""
     account_id: str = ""
@@ -29,6 +35,7 @@ class ManualLedgerFormSubmission:
     category_id: str = ""
     property_id: str = ""
     description: str = ""
+    return_to: str = ""
 
 
 @dataclass(frozen=True)
@@ -37,8 +44,9 @@ class ManualLedgerFormIssue:
     message: str
 
 
-@dataclass(frozen=True)
-class ParsedManualLedgerForm:
+class ParsedManualLedgerForm(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
     operation_type: OperationType
     account_id: UUID
     destination_account_id: UUID | None
@@ -48,10 +56,86 @@ class ParsedManualLedgerForm:
     property_id: UUID | None
     description: str
 
+    @field_validator("operation_type")
+    @classmethod
+    def require_editable_operation_type(
+        cls,
+        operation_type: OperationType,
+    ) -> OperationType:
+        if operation_type not in EDITABLE_OPERATION_TYPES:
+            raise PydanticCustomError(
+                "editable_operation_type",
+                "Выберите тип операции.",
+            )
+        return operation_type
+
+    @field_validator(
+        "destination_account_id",
+        "category_id",
+        "property_id",
+        mode="before",
+    )
+    @classmethod
+    def empty_optional_reference_as_none(cls, value: object) -> object:
+        return None if value == "" else value
+
+    @field_validator("destination_account_id")
+    @classmethod
+    def validate_destination_account(
+        cls,
+        destination_account_id: UUID | None,
+        info: ValidationInfo,
+    ) -> UUID | None:
+        operation_type = info.data.get("operation_type")
+        if operation_type != OperationType.TRANSFER:
+            return None
+        if destination_account_id is None:
+            raise PydanticCustomError(
+                "destination_account_required",
+                "Выберите счёт назначения.",
+            )
+        if destination_account_id == info.data.get("account_id"):
+            raise PydanticCustomError(
+                "different_transfer_accounts",
+                "Счета перевода должны отличаться.",
+            )
+        return destination_account_id
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def normalize_amount(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().replace(",", ".")
+        return value
+
+    @field_validator("amount")
+    @classmethod
+    def require_positive_amount(cls, amount: Decimal) -> Decimal:
+        if not amount.is_finite() or amount <= Decimal("0"):
+            raise PydanticCustomError(
+                "positive_amount",
+                "Сумма должна быть больше нуля.",
+            )
+        return amount
+
+
+class ParsedManualLedgerEditForm(ParsedManualLedgerForm):
+    version: int
+
+    @field_validator("version")
+    @classmethod
+    def require_current_version(cls, version: int) -> int:
+        if version < 1:
+            raise PydanticCustomError(
+                "current_operation_version",
+                "Версия формы устарела или повреждена. Загрузите операцию заново.",
+            )
+        return version
+
 
 @dataclass(frozen=True)
 class ManualLedgerEditValidation:
-    submission: ManualLedgerFormSubmission
+    submission: ManualLedgerFormInput
     issues: tuple[ManualLedgerFormIssue, ...]
     command: UpdateManualOperationCommand | None
 
@@ -59,112 +143,37 @@ class ManualLedgerEditValidation:
     def is_valid(self) -> bool:
         return self.command is not None and not self.issues
 
-
-def validate_manual_ledger_edit(
-    operation_id: UUID,
-    submission: ManualLedgerFormSubmission,
-) -> ManualLedgerEditValidation:
-    parsed, issues = parse_manual_ledger_form(submission)
-    collected_issues = list(issues)
-    expected_version = parse_operation_version(submission.version, collected_issues)
-    if parsed is None or expected_version is None:
-        return ManualLedgerEditValidation(submission, tuple(collected_issues), None)
-    return ManualLedgerEditValidation(
-        submission=submission,
-        issues=(),
-        command=UpdateManualOperationCommand(
-            operation_id=operation_id,
-            operation_type=parsed.operation_type,
-            account_id=parsed.account_id,
-            amount=parsed.amount,
-            operation_date=parsed.operation_date,
-            description=parsed.description,
-            category_id=parsed.category_id,
-            property_id=parsed.property_id,
-            destination_account_id=parsed.destination_account_id,
-            expected_version=expected_version,
-        ),
-    )
-
-
-def parse_operation_version(
-    raw_value: str,
-    issues: list[ManualLedgerFormIssue],
-) -> int | None:
-    try:
-        version = int(raw_value)
-    except ValueError:
-        version = 0
-    if version < 1:
-        issues.append(
-            ManualLedgerFormIssue(
-                "form",
-                "Версия формы устарела или повреждена. Загрузите операцию заново.",
+    @classmethod
+    def from_form_input(
+        cls,
+        *,
+        operation_id: UUID,
+        form_input: ManualLedgerFormInput,
+    ) -> Self:
+        try:
+            parsed = ParsedManualLedgerEditForm.model_validate(form_input.model_dump())
+        except ValidationError as error:
+            return cls(
+                submission=form_input,
+                issues=pydantic_form_issues(error),
+                command=None,
             )
+        return cls(
+            submission=form_input,
+            issues=(),
+            command=UpdateManualOperationCommand(
+                operation_id=operation_id,
+                operation_type=parsed.operation_type,
+                account_id=parsed.account_id,
+                amount=parsed.amount,
+                operation_date=parsed.operation_date,
+                description=parsed.description,
+                category_id=parsed.category_id,
+                property_id=parsed.property_id,
+                destination_account_id=parsed.destination_account_id,
+                expected_version=parsed.version,
+            ),
         )
-        return None
-    return version
-
-
-def parse_manual_ledger_form(
-    submission: ManualLedgerFormSubmission,
-) -> tuple[ParsedManualLedgerForm | None, tuple[ManualLedgerFormIssue, ...]]:
-    issues: list[ManualLedgerFormIssue] = []
-    operation_type = parse_operation_type(submission.operation_type, issues)
-    account_id = parse_required_uuid(
-        submission.account_id,
-        field="account_id",
-        required_message="Выберите счёт.",
-        issues=issues,
-    )
-    amount = parse_positive_amount(submission.amount, issues)
-    operation_date = parse_operation_date(submission.operation_date, issues)
-    category_id = parse_optional_uuid(submission.category_id, "category_id", issues)
-    property_id = parse_optional_uuid(submission.property_id, "property_id", issues)
-    destination_account_id = parse_optional_uuid(
-        submission.destination_account_id,
-        "destination_account_id",
-        issues,
-    )
-
-    if operation_type == OperationType.TRANSFER:
-        if destination_account_id is None and not any(
-            issue.field == "destination_account_id" for issue in issues
-        ):
-            issues.append(
-                ManualLedgerFormIssue(
-                    "destination_account_id",
-                    "Выберите счёт назначения.",
-                )
-            )
-        elif account_id is not None and destination_account_id == account_id:
-            issues.append(
-                ManualLedgerFormIssue(
-                    "destination_account_id",
-                    "Счета перевода должны отличаться.",
-                )
-            )
-    else:
-        destination_account_id = None
-
-    if issues or operation_type is None or account_id is None or amount is None:
-        return None, tuple(issues)
-    if operation_date is None:
-        return None, tuple(issues)
-
-    return (
-        ParsedManualLedgerForm(
-            operation_type=operation_type,
-            account_id=account_id,
-            destination_account_id=destination_account_id,
-            amount=amount,
-            operation_date=operation_date,
-            category_id=category_id,
-            property_id=property_id,
-            description=submission.description,
-        ),
-        (),
-    )
 
 
 type ManualLedgerCreateCommand = CreateManualIncomeExpenseCommand | CreateManualTransferCommand
@@ -172,7 +181,7 @@ type ManualLedgerCreateCommand = CreateManualIncomeExpenseCommand | CreateManual
 
 @dataclass(frozen=True)
 class ManualLedgerCreateValidation:
-    submission: ManualLedgerFormSubmission
+    submission: ManualLedgerFormInput
     issues: tuple[ManualLedgerFormIssue, ...]
     command: ManualLedgerCreateCommand | None
 
@@ -180,44 +189,90 @@ class ManualLedgerCreateValidation:
     def is_valid(self) -> bool:
         return self.command is not None and not self.issues
 
+    @classmethod
+    def from_form_input(
+        cls,
+        *,
+        form_input: ManualLedgerFormInput,
+    ) -> Self:
+        try:
+            parsed = ParsedManualLedgerForm.model_validate(form_input.model_dump())
+        except ValidationError as error:
+            return cls(
+                submission=form_input,
+                issues=pydantic_form_issues(error),
+                command=None,
+            )
 
-def validate_manual_ledger_create(
-    submission: ManualLedgerFormSubmission,
-) -> ManualLedgerCreateValidation:
-    parsed, issues = parse_manual_ledger_form(submission)
-    if parsed is None:
-        return ManualLedgerCreateValidation(
-            submission=submission,
-            issues=issues,
-            command=None,
+        if parsed.operation_type == OperationType.TRANSFER:
+            destination_account_id = parsed.destination_account_id
+            if destination_account_id is None:
+                raise RuntimeError("Valid transfer submission has no destination account.")
+            command: ManualLedgerCreateCommand = CreateManualTransferCommand(
+                source_account_id=parsed.account_id,
+                destination_account_id=destination_account_id,
+                amount=parsed.amount,
+                operation_date=parsed.operation_date,
+                description=parsed.description,
+            )
+        else:
+            command = CreateManualIncomeExpenseCommand(
+                operation_type=parsed.operation_type,
+                account_id=parsed.account_id,
+                amount=parsed.amount,
+                operation_date=parsed.operation_date,
+                description=parsed.description,
+                category_id=parsed.category_id,
+                property_id=parsed.property_id,
+            )
+        return cls(
+            submission=form_input,
+            issues=(),
+            command=command,
         )
 
-    if parsed.operation_type == OperationType.TRANSFER:
-        destination_account_id = parsed.destination_account_id
-        if destination_account_id is None:
-            raise RuntimeError("Valid transfer submission has no destination account.")
-        command: ManualLedgerCreateCommand = CreateManualTransferCommand(
-            source_account_id=parsed.account_id,
-            destination_account_id=destination_account_id,
-            amount=parsed.amount,
-            operation_date=parsed.operation_date,
-            description=parsed.description,
+
+def pydantic_form_issues(error: ValidationError) -> tuple[ManualLedgerFormIssue, ...]:
+    return tuple(_pydantic_form_issue(details) for details in error.errors(include_url=False))
+
+
+def _pydantic_form_issue(details: Mapping[str, Any]) -> ManualLedgerFormIssue:
+    location = details.get("loc", ())
+    field = str(location[-1]) if location else "form"
+    error_type = str(details.get("type", ""))
+    raw_value = details.get("input")
+
+    if field == "version":
+        return ManualLedgerFormIssue(
+            "form",
+            "Версия формы устарела или повреждена. Загрузите операцию заново.",
         )
-    else:
-        command = CreateManualIncomeExpenseCommand(
-            operation_type=parsed.operation_type,
-            account_id=parsed.account_id,
-            amount=parsed.amount,
-            operation_date=parsed.operation_date,
-            description=parsed.description,
-            category_id=parsed.category_id,
-            property_id=parsed.property_id,
+    if field == "operation_type":
+        return ManualLedgerFormIssue(field, "Выберите тип операции.")
+    if field == "account_id":
+        message = "Выберите счёт." if raw_value in (None, "") else "Выберите допустимое значение."
+        return ManualLedgerFormIssue(field, message)
+    if field == "amount":
+        message = (
+            str(details.get("msg"))
+            if error_type == "positive_amount"
+            else "Введите корректную сумму."
         )
-    return ManualLedgerCreateValidation(
-        submission=submission,
-        issues=(),
-        command=command,
-    )
+        return ManualLedgerFormIssue(field, message)
+    if field == "operation_date":
+        return ManualLedgerFormIssue(field, "Выберите корректную дату.")
+    if field in {"destination_account_id", "category_id", "property_id"}:
+        message = (
+            str(details.get("msg"))
+            if error_type
+            in {
+                "destination_account_required",
+                "different_transfer_accounts",
+            }
+            else "Выберите допустимое значение."
+        )
+        return ManualLedgerFormIssue(field, message)
+    return ManualLedgerFormIssue("form", "Проверьте введённые значения.")
 
 
 def business_error_message(error: LedgerPostingError) -> str:
@@ -257,71 +312,3 @@ def business_error_message(error: LedgerPostingError) -> str:
         str(error),
         "Не удалось сохранить операцию. Проверьте значения и повторите.",
     )
-
-
-def parse_operation_type(
-    raw_value: str,
-    issues: list[ManualLedgerFormIssue],
-) -> OperationType | None:
-    try:
-        operation_type = OperationType(raw_value)
-    except ValueError:
-        issues.append(ManualLedgerFormIssue("operation_type", "Выберите тип операции."))
-        return None
-    if operation_type not in EDITABLE_OPERATION_TYPES:
-        issues.append(ManualLedgerFormIssue("operation_type", "Выберите тип операции."))
-        return None
-    return operation_type
-
-
-def parse_positive_amount(
-    raw_value: str,
-    issues: list[ManualLedgerFormIssue],
-) -> Decimal | None:
-    try:
-        amount = Decimal(raw_value.strip().replace(",", "."))
-    except InvalidOperation:
-        issues.append(ManualLedgerFormIssue("amount", "Введите корректную сумму."))
-        return None
-    if not amount.is_finite() or amount <= Decimal("0"):
-        issues.append(ManualLedgerFormIssue("amount", "Сумма должна быть больше нуля."))
-        return None
-    return amount
-
-
-def parse_operation_date(
-    raw_value: str,
-    issues: list[ManualLedgerFormIssue],
-) -> date | None:
-    try:
-        return date.fromisoformat(raw_value)
-    except ValueError:
-        issues.append(ManualLedgerFormIssue("operation_date", "Выберите корректную дату."))
-        return None
-
-
-def parse_required_uuid(
-    raw_value: str,
-    *,
-    field: str,
-    required_message: str,
-    issues: list[ManualLedgerFormIssue],
-) -> UUID | None:
-    if not raw_value:
-        issues.append(ManualLedgerFormIssue(field, required_message))
-        return None
-    return parse_optional_uuid(raw_value, field, issues)
-
-
-def parse_optional_uuid(
-    raw_value: str,
-    field: str,
-    issues: list[ManualLedgerFormIssue],
-) -> UUID | None:
-    if not raw_value:
-        return None
-    try:
-        return UUID(raw_value)
-    except ValueError:
-        issues.append(ManualLedgerFormIssue(field, "Выберите допустимое значение."))
-        return None

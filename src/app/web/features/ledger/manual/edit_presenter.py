@@ -5,8 +5,8 @@ from app.features.ledger.mapping.dto import ManualOperationView
 from app.features.ledger.models import OperationType
 from app.web.features.ledger.manual.form_presenter import ManualLedgerFormPresenter
 from app.web.features.ledger.manual.forms import (
+    ManualLedgerFormInput,
     ManualLedgerFormIssue,
-    ManualLedgerFormSubmission,
 )
 from app.web.features.ledger.manual.queries import ManualLedgerEditData
 from app.web.features.ledger.manual.query_state import MANUAL_LEDGER_URL
@@ -15,12 +15,12 @@ from app.web.ui.actions import DisclosureActionVM
 
 
 class ManualLedgerEditPresenter:
-    def present(
+    def build_panel(
         self,
         *,
         data: ManualLedgerEditData,
         return_to: str,
-        submission: ManualLedgerFormSubmission | None = None,
+        submission: ManualLedgerFormInput | None = None,
         issues: tuple[ManualLedgerFormIssue, ...] = (),
         form_error: str | None = None,
         retry_action: DisclosureActionVM | None = None,
@@ -28,7 +28,7 @@ class ManualLedgerEditPresenter:
         operation = data.operation
         return ManualLedgerEditPanelVM(
             operation_id=operation.id,
-            form=ManualLedgerFormPresenter().present(
+            form=ManualLedgerFormPresenter().build_form(
                 data=data.references,
                 values=submission or self._initial_submission(operation),
                 form_id=f"next-manual-operation-form-{operation.id}",
@@ -41,19 +41,19 @@ class ManualLedgerEditPresenter:
             ),
         )
 
-    def present_conflict(
+    def build_conflict_panel(
         self,
         *,
         data: ManualLedgerEditData,
         return_to: str,
-        submission: ManualLedgerFormSubmission,
+        submission: ManualLedgerFormInput,
         message: str,
     ) -> ManualLedgerEditPanelVM:
         operation_id = data.operation.id
         reload_url = (
             f"{MANUAL_LEDGER_URL}/{operation_id}/edit?{urlencode({'return_to': return_to})}"
         )
-        return self.present(
+        return self.build_panel(
             data=data,
             return_to=return_to,
             submission=submission,
@@ -71,12 +71,12 @@ class ManualLedgerEditPresenter:
     def _initial_submission(
         self,
         operation: ManualOperationView,
-    ) -> ManualLedgerFormSubmission:
+    ) -> ManualLedgerFormInput:
         account_id = self._selected_account_id(operation)
         destination_account_id = (
             operation.destination_entry.account_id if operation.destination_entry else None
         )
-        return ManualLedgerFormSubmission(
+        return ManualLedgerFormInput(
             version=str(operation.version),
             operation_type=operation.type.value,
             account_id=str(account_id) if account_id else "",

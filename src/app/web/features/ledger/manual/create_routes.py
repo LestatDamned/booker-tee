@@ -1,4 +1,3 @@
-from dataclasses import replace
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, Query, Request, status
@@ -21,9 +20,9 @@ from app.features.workspaces.dependencies import require_financial_write_context
 from app.features.workspaces.service import WorkspaceContext
 from app.web.features.ledger.manual.create_presenter import ManualLedgerCreatePresenter
 from app.web.features.ledger.manual.forms import (
-    ManualLedgerFormSubmission,
+    ManualLedgerCreateValidation,
+    ManualLedgerFormInput,
     business_error_message,
-    validate_manual_ledger_create,
 )
 from app.web.features.ledger.manual.presenter import ManualLedgerPresenter
 from app.web.features.ledger.manual.queries import (
@@ -31,11 +30,9 @@ from app.web.features.ledger.manual.queries import (
     ManualLedgerReferenceQuery,
 )
 from app.web.features.ledger.manual.query_state import (
-    MANUAL_LEDGER_URL,
     ManualLedgerListQuery,
-    open_create_url,
+    ManualLedgerPageParams,
     safe_manual_ledger_return_to,
-    target_operation_url,
 )
 from app.web.features.ledger.manual.renderer import ManualLedgerRenderer
 from app.web.templating import create_web_templates
@@ -55,7 +52,7 @@ async def manual_ledger_create_panel(
     safe_return_to = safe_manual_ledger_return_to(return_to)
     if not is_htmx_request(request):
         return RedirectResponse(
-            url=open_create_url(safe_return_to),
+            url=ManualLedgerPageParams.from_return_to(safe_return_to).open_create_url(),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -64,7 +61,7 @@ async def manual_ledger_create_panel(
         categories=CategoryService(session),
         properties=PropertyService(session),
     ).execute(context=context)
-    form = ManualLedgerCreatePresenter().present(
+    form = ManualLedgerCreatePresenter().build_form(
         data=data,
         return_to=safe_return_to,
     )
@@ -74,32 +71,13 @@ async def manual_ledger_create_panel(
 @router.post("/new")
 async def create_manual_ledger_operation(
     request: Request,
+    form_input: Annotated[ManualLedgerFormInput, Form()],
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
-    operation_type: Annotated[str, Form()] = "",
-    account_id: Annotated[str, Form()] = "",
-    destination_account_id: Annotated[str, Form()] = "",
-    amount: Annotated[str, Form()] = "",
-    operation_date: Annotated[str, Form()] = "",
-    category_id: Annotated[str, Form()] = "",
-    property_id: Annotated[str, Form()] = "",
-    description: Annotated[str, Form()] = "",
-    return_to: Annotated[str, Form()] = MANUAL_LEDGER_URL,
 ) -> Response:
-    safe_return_to = safe_manual_ledger_return_to(return_to)
-    validation = validate_manual_ledger_create(
-        ManualLedgerFormSubmission(
-            operation_type=operation_type,
-            account_id=account_id,
-            destination_account_id=destination_account_id,
-            amount=amount,
-            operation_date=operation_date,
-            category_id=category_id,
-            property_id=property_id,
-            description=description,
-        )
-    )
+    safe_return_to = safe_manual_ledger_return_to(form_input.return_to)
+    validation = ManualLedgerCreateValidation.from_form_input(form_input=form_input)
     ledger = LedgerPostingService(session)
     form_error = None
     created = None
@@ -128,7 +106,7 @@ async def create_manual_ledger_operation(
             categories=CategoryService(session),
             properties=PropertyService(session),
         ).execute(context=context)
-        form = ManualLedgerCreatePresenter().present(
+        form = ManualLedgerCreatePresenter().build_form(
             data=data,
             return_to=safe_return_to,
             submission=validation.submission,
@@ -142,12 +120,13 @@ async def create_manual_ledger_operation(
                 response_status=status.HTTP_422_UNPROCESSABLE_CONTENT,
             )
 
-        list_query = ManualLedgerListQuery.from_return_to(safe_return_to)
+        page_params = ManualLedgerPageParams.from_return_to(safe_return_to)
+        list_query = ManualLedgerListQuery.from_page_params(page_params)
         page_data = await ManualLedgerPageQuery(ledger).execute(
             workspace_id=context.workspace.id,
             query=list_query,
         )
-        page = ManualLedgerPresenter().present(
+        page = ManualLedgerPresenter().build_page(
             workspace_name=context.workspace.name,
             operations=page_data.operations,
             page=page_data.page,
@@ -168,20 +147,22 @@ async def create_manual_ledger_operation(
         raise RuntimeError("Manual ledger creation produced no result.")
     if not is_htmx_request(request):
         return RedirectResponse(
-            url=target_operation_url(safe_return_to, created.id),
+            url=ManualLedgerPageParams.from_return_to(safe_return_to).target_operation_url(
+                created.id
+            ),
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
-    list_query = replace(
-        ManualLedgerListQuery.from_return_to(safe_return_to),
-        focused_operation_id=created.id,
+    page_params = ManualLedgerPageParams.from_return_to(safe_return_to).model_copy(
+        update={"operation_id": created.id, "edit": None, "create": False}
     )
+    list_query = ManualLedgerListQuery.from_page_params(page_params)
     page_data = await ManualLedgerPageQuery(ledger).execute(
         workspace_id=context.workspace.id,
         query=list_query,
     )
     presenter = ManualLedgerPresenter()
-    page = presenter.present(
+    page = presenter.build_page(
         workspace_name=context.workspace.name,
         operations=page_data.operations,
         page=page_data.page,
@@ -191,12 +172,12 @@ async def create_manual_ledger_operation(
         reset_create_panel=True,
         reset_edit_panels=True,
     )
-    replace_url = presenter.list_url(
+    replace_url = ManualLedgerPageParams.from_list_state(
         filters=list_query.filters,
         page=page_data.page.page,
         per_page=page_data.page.per_page,
         focused_operation_id=created.id,
-    )
+    ).list_url()
     return renderer.results(
         request,
         page,

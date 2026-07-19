@@ -37,9 +37,9 @@ from app.features.workspaces.dependencies import get_current_workspace_context
 from app.features.workspaces.models import WorkspaceMemberStatus, WorkspaceRole
 from app.features.workspaces.service import WorkspaceContext
 from app.web.features.ledger.manual.forms import (
-    ManualLedgerFormSubmission,
-    validate_manual_ledger_create,
-    validate_manual_ledger_edit,
+    ManualLedgerCreateValidation,
+    ManualLedgerEditValidation,
+    ManualLedgerFormInput,
 )
 from app.web.features.ledger.manual.presenter import ManualLedgerPresenter
 from app.web.features.ledger.manual.query_state import (
@@ -56,20 +56,21 @@ from app.web.ui.actions import DisclosureActionVM, SubmitActionVM
 def test_list_query_builds_from_page_params_and_return_url() -> None:
     focused_operation_id = uuid4()
     params = ManualLedgerPageParams(
-        date_from="2026-07-01",
-        type="expense",
-        status="confirmed",
+        date_from=date(2026, 7, 1),
+        type=OperationType.EXPENSE,
+        status=OperationStatus.CONFIRMED,
         search="  магазин  ",
-        operation_id=str(focused_operation_id),
+        operation_id=focused_operation_id,
         page=2,
         per_page=25,
     )
 
     from_params = ManualLedgerListQuery.from_page_params(params)
-    from_return_to = ManualLedgerListQuery.from_return_to(
+    return_to_params = ManualLedgerPageParams.from_return_to(
         f"{MANUAL_LEDGER_URL}?date_from=2026-07-01&type=expense&status=confirmed"
         f"&search=++магазин++&operation_id={focused_operation_id}&page=2&per_page=25"
     )
+    from_return_to = ManualLedgerListQuery.from_page_params(return_to_params)
 
     assert from_params == from_return_to
     assert from_params.filters.date_from == date(2026, 7, 1)
@@ -80,10 +81,61 @@ def test_list_query_builds_from_page_params_and_return_url() -> None:
     assert from_params.focused_operation_id == focused_operation_id
 
 
+def test_page_params_tolerantly_normalize_untrusted_query_values() -> None:
+    operation_id = uuid4()
+
+    params = ManualLedgerPageParams.from_return_to(
+        f"{MANUAL_LEDGER_URL}?date_from=wrong&date_to=2026-06-01&type=wrong"
+        f"&status=confirmed&operation_id={uuid4()}&operation_id={operation_id}"
+        "&account_id=wrong&search=++Кофе++с++молоком++&page=-3&per_page=999"
+        "&unknown=value"
+    )
+
+    assert params.date_from is None
+    assert params.date_to == date(2026, 6, 1)
+    assert params.operation_type_filter is None
+    assert params.status_filter is OperationStatus.CONFIRMED
+    assert params.account_id is None
+    assert params.search == "Кофе  с  молоком"
+    assert params.operation_id == operation_id
+    assert params.page == 1
+    assert params.per_page == 200
+
+
+def test_page_params_own_canonical_page_and_working_panel_urls() -> None:
+    focused_operation_id = uuid4()
+    edit_operation_id = uuid4()
+    state = ManualLedgerPageParams(
+        type=OperationType.EXPENSE,
+        operation_id=focused_operation_id,
+        page=1,
+        per_page=50,
+    )
+
+    assert state.list_url().startswith(f"{MANUAL_LEDGER_URL}?page=1&per_page=50")
+    assert f"operation_id={focused_operation_id}" in state.list_url()
+
+    edit_url = state.open_edit_url(edit_operation_id)
+    assert f"operation_id={edit_operation_id}" in edit_url
+    assert f"edit={edit_operation_id}" in edit_url
+    assert "create=" not in edit_url
+
+    create_url = ManualLedgerPageParams.from_return_to(
+        f"{MANUAL_LEDGER_URL}?edit={edit_operation_id}&create=true"
+    ).open_create_url()
+    assert "edit=" not in create_url
+    assert "create=true" in create_url
+
+    settled_url = ManualLedgerPageParams.from_return_to(edit_url).clear_operation_target_url()
+    assert "operation_id=" not in settled_url
+    assert "edit=" not in settled_url
+    assert "create=" not in settled_url
+
+
 def test_presenter_builds_server_owned_financial_and_action_contracts() -> None:
     operation = manual_expense()
 
-    page = ManualLedgerPresenter().present(
+    page = ManualLedgerPresenter().build_page(
         workspace_name="Дом",
         operations=[operation],
         page=LedgerPage(page=1, per_page=50, total=1),
@@ -114,7 +166,7 @@ def test_presenter_builds_server_owned_financial_and_action_contracts() -> None:
 def test_presenter_exposes_restore_and_delete_only_for_cancelled_operation() -> None:
     operation = replace(manual_expense(), status=OperationStatus.IGNORED)
 
-    row = ManualLedgerPresenter().present_row(
+    row = ManualLedgerPresenter().build_row(
         operation,
         focused_operation_id=None,
         can_write=True,
@@ -132,7 +184,7 @@ def test_presenter_exposes_restore_and_delete_only_for_cancelled_operation() -> 
 def test_presenter_keeps_transfer_separate_from_profit() -> None:
     operation = manual_transfer()
 
-    page = ManualLedgerPresenter().present(
+    page = ManualLedgerPresenter().build_page(
         workspace_name="Дом",
         operations=[operation],
         page=LedgerPage(page=1, per_page=50, total=1),
@@ -179,6 +231,25 @@ def test_readonly_route_lists_real_workspace_data_and_preserves_filters(
     assert calls.filters[0].status is OperationStatus.CONFIRMED
     assert calls.filters[0].search == "coffee"
     assert calls.paginations == [LedgerPagination(page=2, per_page=25)]
+
+
+def test_route_ignores_invalid_known_and_unknown_query_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = workspace_context(role=WorkspaceRole.EDITOR)
+    app, calls = manual_ledger_app(monkeypatch, context=context)
+
+    with TestClient(app) as client:
+        response = client.get(
+            f"{MANUAL_LEDGER_URL}?date_from=wrong&type=wrong&account_id=wrong"
+            "&page=wrong&per_page=wrong&unknown=value"
+        )
+
+    assert response.status_code == 200
+    assert calls.filters[0].date_from is None
+    assert calls.filters[0].operation_type is None
+    assert calls.filters[0].account_id is None
+    assert calls.paginations == [LedgerPagination(page=1, per_page=50)]
 
 
 def test_route_is_readable_for_viewer_but_hides_write_intent(
@@ -291,8 +362,8 @@ def test_empty_filtered_page_gives_recovery_action(monkeypatch: pytest.MonkeyPat
 def test_create_validation_builds_income_and_transfer_commands() -> None:
     source_id = uuid4()
     destination_id = uuid4()
-    income = validate_manual_ledger_create(
-        ManualLedgerFormSubmission(
+    income = ManualLedgerCreateValidation.from_form_input(
+        form_input=ManualLedgerFormInput(
             operation_type="income",
             account_id=str(source_id),
             amount="1250,50",
@@ -300,8 +371,8 @@ def test_create_validation_builds_income_and_transfer_commands() -> None:
             description="Проценты",
         )
     )
-    transfer = validate_manual_ledger_create(
-        ManualLedgerFormSubmission(
+    transfer = ManualLedgerCreateValidation.from_form_input(
+        form_input=ManualLedgerFormInput(
             operation_type="transfer",
             account_id=str(source_id),
             destination_account_id=str(destination_id),
@@ -316,6 +387,59 @@ def test_create_validation_builds_income_and_transfer_commands() -> None:
     assert isinstance(transfer.command, CreateManualTransferCommand)
     assert transfer.command.source_account_id == source_id
     assert transfer.command.destination_account_id == destination_id
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected_issue"),
+    [
+        (
+            {"operation_type": "unknown"},
+            ("operation_type", "Выберите тип операции."),
+        ),
+        (
+            {"account_id": ""},
+            ("account_id", "Выберите счёт."),
+        ),
+        (
+            {"account_id": "not-a-uuid"},
+            ("account_id", "Выберите допустимое значение."),
+        ),
+        (
+            {"amount": "not-money"},
+            ("amount", "Введите корректную сумму."),
+        ),
+        (
+            {"operation_date": "not-a-date"},
+            ("operation_date", "Выберите корректную дату."),
+        ),
+        (
+            {"category_id": "not-a-uuid"},
+            ("category_id", "Выберите допустимое значение."),
+        ),
+        (
+            {"operation_type": "transfer", "destination_account_id": ""},
+            ("destination_account_id", "Выберите счёт назначения."),
+        ),
+    ],
+)
+def test_pydantic_form_validation_returns_localized_field_issues(
+    overrides: dict[str, str],
+    expected_issue: tuple[str, str],
+) -> None:
+    values = {
+        "operation_type": "income",
+        "account_id": str(uuid4()),
+        "amount": "1250,50",
+        "operation_date": "2026-07-17",
+        **overrides,
+    }
+
+    validation = ManualLedgerCreateValidation.from_form_input(
+        form_input=ManualLedgerFormInput(**values)
+    )
+
+    assert validation.command is None
+    assert [(issue.field, issue.message) for issue in validation.issues] == [expected_issue]
 
 
 def test_create_panel_loads_lazily_and_has_http_fallback(
@@ -984,11 +1108,11 @@ def test_edit_requires_financial_write_permission(monkeypatch: pytest.MonkeyPatc
     assert response.status_code == 403
 
 
-def test_edit_parser_rejects_same_transfer_accounts() -> None:
+def test_edit_validation_rejects_same_transfer_accounts() -> None:
     account_id = uuid4()
-    validation = validate_manual_ledger_edit(
-        uuid4(),
-        ManualLedgerFormSubmission(
+    validation = ManualLedgerEditValidation.from_form_input(
+        operation_id=uuid4(),
+        form_input=ManualLedgerFormInput(
             version="1",
             operation_type="transfer",
             account_id=str(account_id),

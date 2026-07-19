@@ -1,6 +1,6 @@
 from app.web.features.ledger.manual.forms import (
+    ManualLedgerFormInput,
     ManualLedgerFormIssue,
-    ManualLedgerFormSubmission,
 )
 from app.web.features.ledger.manual.queries import (
     ManualLedgerNamedReference,
@@ -17,11 +17,11 @@ from app.web.ui.request_state import FieldErrorVM, RequestStateVM
 
 
 class ManualLedgerFormPresenter:
-    def present(
+    def build_form(
         self,
         *,
         data: ManualLedgerReferenceData,
-        values: ManualLedgerFormSubmission,
+        values: ManualLedgerFormInput,
         form_id: str,
         id_prefix: str,
         form_action: str,
