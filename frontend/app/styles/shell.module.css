@@ -55,8 +55,10 @@
 
 .navItem {
   display: block;
+  border-radius: var(--radius-md);
   padding: var(--space-3);
   color: var(--color-text-secondary);
+  text-decoration: none;
 }
 
 .navItemActive {
@@ -74,6 +76,12 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-5);
+}
+
+.workspaceName {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 800;
 }
 
 .userChip {

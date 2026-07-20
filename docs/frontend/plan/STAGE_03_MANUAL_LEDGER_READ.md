@@ -1,6 +1,6 @@
 # Stage 03: Manual Ledger Read Path
 
-Status: next.
+Status: active.
 
 ## Goal
 

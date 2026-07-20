@@ -1,0 +1,114 @@
+.page {
+  display: grid;
+  gap: var(--space-6);
+  max-width: var(--content-width);
+  margin-top: var(--space-7);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.filters {
+  display: grid;
+  gap: var(--space-4);
+  border-block: 1px solid var(--color-border-default);
+  padding-block: var(--space-4);
+}
+
+.filterHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.filterHeader h2,
+.filterHeader p {
+  margin: 0;
+}
+
+.filterHeader h2 {
+  font-size: var(--font-size-lg);
+}
+
+.filterHeader p {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.filterActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.resetLink {
+  min-height: var(--control-height);
+  align-content: center;
+  color: var(--color-text-secondary);
+  padding-inline: var(--space-3);
+}
+
+.pagination {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.pagination a {
+  min-height: var(--control-height);
+  align-content: center;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  padding: var(--space-2) var(--space-3);
+  text-decoration: none;
+}
+
+.pagination a:first-child {
+  justify-self: start;
+}
+
+.pagination a:last-child {
+  justify-self: end;
+}
+
+@media (max-width: 57.5rem) {
+  .filterGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 35rem) {
+  .filterHeader,
+  .filterActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filterGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .pagination {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pagination > span:nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+}

@@ -1,4 +1,5 @@
 import type { SessionLoadResult } from "../api/session";
+import { AppShell } from "../shell/app-shell";
 import styles from "../styles/shell.module.css";
 
 export function SessionShell({ result }: { result: SessionLoadResult }) {
@@ -43,38 +44,14 @@ export function SessionShell({ result }: { result: SessionLoadResult }) {
 
   const { session } = result;
   return (
-    <div className={styles.appShell}>
-      <aside className={styles.sidebar}>
-        <a className={styles.brand} href="/app">
-          Booker Tee
-        </a>
-        <nav aria-label="Главная навигация">
-          <span className={`${styles.navItem} ${styles.navItemActive}`}>
-            Обзор
-          </span>
-          <span className={styles.navItem}>Операции — скоро</span>
-        </nav>
-      </aside>
-      <main className={styles.workspace}>
-        <header className={styles.workspaceHeader}>
-          <div>
-            <p className={styles.eyebrow}>Текущий workspace</p>
-            <h1>{session.workspace.name}</h1>
-          </div>
-          <div className={styles.userChip}>
-            <span>{session.user.name ?? session.user.email}</span>
-            <small>{session.membership.role}</small>
-          </div>
-        </header>
-        <section className={styles.placeholderCard}>
-          <p className={styles.eyebrow}>Stage 01</p>
-          <h2>React-контур подключён</h2>
-          <p>
-            Сессия и права загружены через versioned JSON API. Финансовые данные
-            здесь пока не показываются.
-          </p>
-        </section>
-      </main>
-    </div>
+    <AppShell session={session}>
+      <section className={styles.placeholderCard}>
+        <p className={styles.eyebrow}>React frontend</p>
+        <h1>Рабочий контур подключён</h1>
+        <p>
+          Первый финансовый read workflow доступен в разделе ручных операций.
+        </p>
+      </section>
+    </AppShell>
   );
 }

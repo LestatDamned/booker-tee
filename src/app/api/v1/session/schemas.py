@@ -1,17 +1,11 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
-from pydantic.alias_generators import to_camel
-
+from app.api.schemas import ApiModel
 from app.features.workspaces.models import (
     WorkspaceMemberStatus,
     WorkspaceRole,
     WorkspaceType,
 )
-
-
-class ApiModel(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
 class SessionUser(ApiModel):

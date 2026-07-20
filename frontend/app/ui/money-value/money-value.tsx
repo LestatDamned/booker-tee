@@ -15,7 +15,10 @@ export function MoneyValue({
   tone = "neutral",
 }: MoneyValueProps) {
   return (
-    <span className={`${styles.value} ${styles[tone]}`}>
+    <span
+      aria-label={`${amount} ${currency}`}
+      className={`${styles.value} ${styles[tone]}`}
+    >
       <span className={styles.amount}>{amount}</span>
       <span className={styles.currency}>{currency}</span>
     </span>

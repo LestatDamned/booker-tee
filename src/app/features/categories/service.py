@@ -112,6 +112,12 @@ class CategoryService:
         self.ledger = LedgerRepository(session)
         self.rules = TransactionRuleRepository(session)
 
+    async def list_active(self, workspace_id: UUID) -> list[Category]:
+        return await self.categories.list_for_workspace(
+            workspace_id,
+            include_inactive=False,
+        )
+
     async def list_or_seed_defaults(
         self,
         workspace_id: UUID,

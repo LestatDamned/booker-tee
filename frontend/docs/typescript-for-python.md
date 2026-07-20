@@ -114,3 +114,44 @@ inheritance, child content не переопределяет методы: React
 назначает DOM node во время commit и очистит `ref.current` при unmount; читать и
 менять DOM через ref следует только для imperative задач вроде focus, а не для
 обычного UI state.
+
+## Route client loader
+
+`clientLoader` у route получает browser `Request`, загружает server state и
+передаёт результат route component как `loaderData`. Ближайшая Python-аналогия —
+FastAPI route dependency, которая готовит данные до вызова основного обработчика.
+
+Граница аналогии: loader выполняется в browser, повторяется при client-side
+navigation и не является доверенной backend boundary. Финансовые permissions и
+workspace isolation всё равно повторно проверяет FastAPI.
+
+В manual ledger loader передаёт query string URL в `/api/v1/manual-ledger`.
+Поэтому применённые filters и pagination принадлежат URL, переживают refresh и
+могут быть скопированы другому пользователю с доступом к тому же workspace.
+
+## Transport DTO и UI model
+
+`ManualLedgerListResponse` генерируется из OpenAPI и описывает JSON-контракт.
+`toManualOperationRowModel()` — явный frontend adapter, похожий на Python
+presenter: он переводит domain values в labels, semantic tones и display money.
+
+Component не получает generated DTO напрямую. Благодаря этому `WorkbenchRow`
+не знает backend statuses, а backend не возвращает CSS class, готовую кнопку или
+Jinja ViewModel. Для transfer mapper читает явный `operationType`; знак decimal
+string не используется для угадывания финансового смысла.
+
+## Controlled filter draft и applied URL state
+
+`ManualLedgerFilters` хранит редактируемый draft в `useState`. Пока пользователь
+пишет описание или выбирает счёт, URL и загруженный список не меняются. Это
+похоже на Python form object, который ещё не передан query service.
+
+После `Применить` draft сериализуется в query string, `page` сбрасывается на `1`,
+а React Router повторно вызывает `clientLoader`. С этого момента URL становится
+applied state и единственным источником для server request. `key={location.search}`
+создаёт новый экземпляр filter component после navigation, поэтому новый draft
+инициализируется уже из нормализованного URL.
+
+Граница аналогии: `useState` не изменяется синхронно как атрибут Python object.
+Setter планирует новый render. Поэтому сериализация выполняется из текущего
+state в submit handler, а не чтением DOM вручную.

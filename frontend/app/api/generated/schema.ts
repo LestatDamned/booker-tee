@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/manual-ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Manual Operations */
+        get: operations["list_manual_operations_api_v1_manual_ledger_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/session": {
         parameters: {
             query?: never;
@@ -1054,40 +1071,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/_next/foundation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Foundation Preview */
-        get: operations["foundation_preview__next_foundation_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/_next/foundation/panel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Foundation Panel */
-        get: operations["foundation_panel__next_foundation_panel_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/_next/ledger/manual/new": {
         parameters: {
             query?: never;
@@ -1674,6 +1657,36 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** ManualLedgerAccountReference */
+        ManualLedgerAccountReference: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+        };
+        /** ManualLedgerCapabilities */
+        ManualLedgerCapabilities: {
+            /** Cancreate */
+            canCreate: boolean;
+            /** Readonlyreason */
+            readonlyReason?: string | null;
+        };
+        /** ManualLedgerFilterOptions */
+        ManualLedgerFilterOptions: {
+            /** Accounts */
+            accounts: components["schemas"]["ManualLedgerAccountReference"][];
+            /** Categories */
+            categories: components["schemas"]["ManualLedgerNamedReference"][];
+            /** Properties */
+            properties: components["schemas"]["ManualLedgerNamedReference"][];
+            /** Perpage */
+            perPage: number[];
+        };
         /** ManualLedgerFormInput */
         ManualLedgerFormInput: {
             /**
@@ -1726,6 +1739,89 @@ export interface components {
              * @default
              */
             return_to: string;
+        };
+        /** ManualLedgerListResponse */
+        ManualLedgerListResponse: {
+            /** Items */
+            items: components["schemas"]["ManualOperationResponse"][];
+            pagination: components["schemas"]["ManualLedgerPaginationResponse"];
+            filterOptions: components["schemas"]["ManualLedgerFilterOptions"];
+            capabilities: components["schemas"]["ManualLedgerCapabilities"];
+            /** Targetoperationid */
+            targetOperationId?: string | null;
+        };
+        /** ManualLedgerMoney */
+        ManualLedgerMoney: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+            operationType: components["schemas"]["OperationType"];
+            /**
+             * Entrydirection
+             * @enum {string}
+             */
+            entryDirection: "inflow" | "outflow" | "transfer";
+        };
+        /** ManualLedgerNamedReference */
+        ManualLedgerNamedReference: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** ManualLedgerPaginationResponse */
+        ManualLedgerPaginationResponse: {
+            /** Page */
+            page: number;
+            /** Perpage */
+            perPage: number;
+            /** Total */
+            total: number;
+            /** Totalpages */
+            totalPages: number;
+            /** Hasprevious */
+            hasPrevious: boolean;
+            /** Hasnext */
+            hasNext: boolean;
+        };
+        /** ManualOperationCapabilities */
+        ManualOperationCapabilities: {
+            /** Canedit */
+            canEdit: boolean;
+            /** Cancancel */
+            canCancel: boolean;
+            /** Canrestore */
+            canRestore: boolean;
+            /** Candelete */
+            canDelete: boolean;
+            /** Readonlyreason */
+            readonlyReason?: string | null;
+        };
+        /** ManualOperationResponse */
+        ManualOperationResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Version */
+            version: number;
+            /** Operationdate */
+            operationDate: string;
+            /** Description */
+            description: string;
+            status: components["schemas"]["OperationStatus"];
+            money: components["schemas"]["ManualLedgerMoney"] | null;
+            account: components["schemas"]["ManualLedgerNamedReference"] | null;
+            sourceAccount: components["schemas"]["ManualLedgerNamedReference"] | null;
+            destinationAccount: components["schemas"]["ManualLedgerNamedReference"] | null;
+            category: components["schemas"]["ManualLedgerNamedReference"] | null;
+            property: components["schemas"]["ManualLedgerNamedReference"] | null;
+            capabilities: components["schemas"]["ManualOperationCapabilities"];
         };
         /**
          * MoneyDirection
@@ -1841,6 +1937,47 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_manual_operations_api_v1_manual_ledger_get: {
+        parameters: {
+            query?: {
+                date_from?: string | null;
+                date_to?: string | null;
+                type?: string | null;
+                status?: string | null;
+                account_id?: string | null;
+                category_id?: string | null;
+                property_id?: string | null;
+                search?: string | null;
+                operation_id?: string | null;
+                page?: string | null;
+                per_page?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualLedgerListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_session_api_v1_session_get: {
         parameters: {
             query?: never;
@@ -4167,57 +4304,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    foundation_preview__next_foundation_get: {
-        parameters: {
-            query?: {
-                edit?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    foundation_panel__next_foundation_panel_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
                 };
             };
         };
