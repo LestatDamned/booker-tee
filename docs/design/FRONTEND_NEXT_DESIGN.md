@@ -13,7 +13,8 @@
   [`MANUAL_LEDGER_BASELINE.md`](MANUAL_LEDGER_BASELINE.md);
 - создан изолированный presentation adapter `src/app/web/` со своими Jinja,
   CSS и небольшим общим слоем HTMX/Alpine.js;
-- локальный стенд `/_next/foundation` проверяет shared-компоненты и UI-контракты;
+- удалённый после React Stage 02 стенд `/_next/foundation` исторически проверял
+  shared-компоненты и UI-контракты;
 - параллельный `/_next/ledger/manual` реализует list/edit-срез Этапа 3:
   workspace-scoped list, полные фильтры по периоду, поиску, типу, статусу,
   счёту, категории и объекту, pagination, target, деньги, metadata,

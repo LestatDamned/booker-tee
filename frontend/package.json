@@ -11,13 +11,14 @@
     "preview": "vite preview",
     "typecheck": "react-router typegen && tsc",
     "lint": "eslint .",
+    "styles:check": "node scripts/check-styles.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "api:export": "cd .. && uv run python scripts/export_openapi.py frontend/openapi.json",
     "api:types": "openapi-typescript openapi.json -o app/api/generated/schema.ts",
     "api:generate": "npm run api:export && npm run api:types",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
+    "check": "npm run format:check && npm run lint && npm run styles:check && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "@react-router/node": "^8.2.0",

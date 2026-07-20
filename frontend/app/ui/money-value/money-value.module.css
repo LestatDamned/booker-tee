@@ -1,0 +1,44 @@
+.value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  white-space: nowrap;
+}
+
+.amount {
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.currency {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.income {
+  color: var(--color-money-income);
+}
+
+.expense {
+  color: var(--color-money-expense);
+}
+
+.transfer {
+  color: var(--color-money-transfer);
+}
+
+.profit {
+  color: var(--color-money-profit);
+}
+
+.adjustment {
+  color: var(--color-money-adjustment);
+}
+
+.neutral {
+  color: var(--color-text-primary);
+}

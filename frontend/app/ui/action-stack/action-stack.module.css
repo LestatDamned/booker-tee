@@ -1,0 +1,50 @@
+.stack,
+.group,
+.menu,
+.danger {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.group > * {
+  width: 100%;
+}
+
+.more {
+  position: relative;
+}
+
+.more > summary {
+  display: grid;
+  min-height: var(--control-height);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+}
+
+.more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.more > summary:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-interactive);
+}
+
+.menu {
+  margin-top: var(--space-2);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  padding: var(--space-2);
+}
+
+.danger {
+  border-top: 1px solid var(--color-border-default);
+  margin-top: var(--space-1);
+  padding-top: var(--space-3);
+}

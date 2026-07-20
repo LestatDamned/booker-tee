@@ -1,0 +1,128 @@
+.centeredState {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.centeredState p:not(.eyebrow) {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.eyebrow {
+  color: var(--color-accent);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.buttonLink {
+  min-height: var(--control-height);
+  justify-self: center;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+  padding: var(--space-2) var(--control-padding-inline);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.appShell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 15rem 1fr;
+}
+
+.sidebar {
+  border-right: 1px solid var(--color-border-default);
+  padding: var(--space-6) var(--space-5);
+}
+
+.brand {
+  display: block;
+  margin-bottom: var(--space-7);
+  color: var(--color-accent);
+  font-family: var(--font-family-mono);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.navItem {
+  display: block;
+  padding: var(--space-3);
+  color: var(--color-text-secondary);
+}
+
+.navItemActive {
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+.workspace {
+  padding: var(--space-6);
+}
+
+.workspaceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.userChip {
+  display: grid;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  padding: var(--space-3) var(--space-4);
+}
+
+.userChip small {
+  color: var(--color-text-secondary);
+}
+
+.placeholderCard {
+  max-width: 46rem;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  margin-top: var(--space-8);
+  background: var(--color-bg-surface);
+  padding: var(--space-6);
+}
+
+.placeholderCard p:last-child {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+@media (max-width: 45rem) {
+  .appShell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .workspace {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .workspaceHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .placeholderCard {
+    margin-top: var(--space-6);
+    padding: var(--space-5);
+  }
+}

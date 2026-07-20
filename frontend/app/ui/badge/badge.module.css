@@ -1,0 +1,46 @@
+.badge {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 1.75rem;
+  align-items: center;
+  border: 1px solid var(--badge-color, var(--color-border-default));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-bg-elevated) 82%, transparent);
+  color: var(--badge-color, var(--color-text-secondary));
+  padding-inline: var(--space-3);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.success {
+  --badge-color: var(--color-status-success);
+}
+
+.warning {
+  --badge-color: var(--color-status-warning);
+}
+
+.danger {
+  --badge-color: var(--color-status-danger);
+}
+
+.income {
+  --badge-color: var(--color-money-income);
+}
+
+.expense {
+  --badge-color: var(--color-money-expense);
+}
+
+.transfer {
+  --badge-color: var(--color-money-transfer);
+}
+
+.adjustment {
+  --badge-color: var(--color-money-adjustment);
+}
+
+.neutral {
+  --badge-color: var(--color-text-secondary);
+}

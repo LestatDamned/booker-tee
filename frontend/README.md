@@ -25,6 +25,10 @@ npm run dev
 Открыть `http://127.0.0.1:5173/app`. Vite проксирует `/api`, `/login` и `/logout`
 в FastAPI, поэтому session cookie остаётся same-origin с точки зрения browser.
 
+Временная visual gallery Stage 02 доступна на
+`http://127.0.0.1:5173/app/foundation`. Она показывает один component tree в
+Catppuccin Mocha и plain test theme.
+
 Если на host пока нет Node 22, тот же frontend запускается контейнером из корня:
 
 ```bash
@@ -36,6 +40,7 @@ docker compose --profile frontend up app frontend
 ```bash
 npm run format:check
 npm run lint
+npm run styles:check
 npm run typecheck
 npm run test
 npm run build

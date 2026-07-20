@@ -1,0 +1,42 @@
+import type { ReactNode } from "react";
+
+import { FormError } from "./form-error";
+import styles from "./field.module.css";
+
+type FieldProps = {
+  children: ReactNode;
+  error?: string;
+  errorId?: string;
+  hint?: string;
+  htmlFor: string;
+  label: string;
+  required?: boolean;
+};
+
+export function Field({
+  children,
+  error,
+  errorId,
+  hint,
+  htmlFor,
+  label,
+  required = false,
+}: FieldProps) {
+  return (
+    <div className={styles.field}>
+      <label className={styles.label} htmlFor={htmlFor}>
+        {label}
+        {required ? <span aria-hidden="true"> *</span> : null}
+      </label>
+      {children}
+      {hint && !error ? <span className={styles.hint}>{hint}</span> : null}
+      {error ? (
+        errorId ? (
+          <FormError id={errorId}>{error}</FormError>
+        ) : (
+          <FormError>{error}</FormError>
+        )
+      ) : null}
+    </div>
+  );
+}

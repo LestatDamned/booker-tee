@@ -1,6 +1,6 @@
 # Stage 02: Visual Foundation
 
-Status: next.
+Status: completed 2026-07-20.
 
 ## Goal
 
@@ -96,3 +96,53 @@ observe behavior and geometry
   its removal does not break the still-running Next manual workflow.
 
 Next: [`Stage 03`](STAGE_03_MANUAL_LEDGER_READ.md).
+
+## Completion Record
+
+Completed: 2026-07-20.
+
+Implemented:
+
+- semantic geometry/type/motion tokens and Catppuccin Mocha plus plain test
+  theme;
+- isolated global foundation and 11 CSS Modules without raw component palette;
+- `Button`, `IconButton`, `Field`, `FormError`, `MoneyValue`, `Badge`,
+  `RequestState`, `PageHeader`, `ActionStack`, `WorkbenchRow` and
+  `ExpansionPanel`;
+- `/app/foundation` gallery rendering the same component tree in both themes;
+- automatic theme completeness/raw-palette check and focused component tests.
+
+Checks run:
+
+- complete frontend format/lint/style/type/test/build gate; 13 Vitest tests;
+- 61 focused Frontend Next/manual-ledger regression tests with Ruff and ty;
+- Chromium visual/interaction audit at `1440×1000`, `920×900`, `390×844`;
+- equal row geometry across themes (`317px`, `470px`, `661px` respectively),
+  no horizontal overflow, visible focus and deterministic focus restoration.
+
+Intentional deviations:
+
+- no hover translation: financial controls change border/surface without visual
+  movement;
+- gallery is a development/reference route, not a product theme switcher;
+- component props cover proven responsibilities only; no universal form or row
+  schema was introduced.
+
+Cleanup performed:
+
+- removed replaced `/_next/foundation` route, presenter, ViewModels and Jinja
+  templates;
+- kept Frontend Next shared CSS/components still consumed by its manual-ledger
+  workflow.
+
+Learning notes updated:
+
+- documented CSS custom properties, semantic tokens, CSS Modules, props unions,
+  composition and refs/focus through Python analogies;
+- recorded geometry and intentional differences in
+  `frontend/docs/visual-baseline.md`.
+
+Post-completion correction:
+
+- operation date moved from secondary metadata into the primary WorkbenchRow
+  contract and is rendered as semantic `<time>` in `DD.MM.YYYY` format.

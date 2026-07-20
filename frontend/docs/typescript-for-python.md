@@ -70,3 +70,47 @@ Generated schema принадлежит transport contract и может быт�
 Handwritten union `SessionLoadResult` принадлежит UI: он добавляет loading,
 unauthenticated и error semantics, которых нет в successful API DTO. Не следует
 использовать generated OpenAPI namespace прямо во всех components.
+
+## CSS custom properties и темы
+
+`--color-bg-surface` — runtime CSS value. Один и тот же component получает
+разное значение из ближайшего `data-theme`, поэтому тема меняется без нового
+React render и без ветвления TypeScript-кода.
+
+Ближайшая Python-аналогия — конфигурация, переданная через context. Граница
+аналогии: CSS custom property участвует в cascade браузера и наследуется по DOM,
+а не передаётся как явный аргумент функции.
+
+Semantic token называет роль (`--color-status-danger`), а не оттенок (`red-400`).
+Raw palette разрешена только в `themes.css`. Component CSS использует роли,
+поэтому новая тема не копирует geometry.
+
+## CSS Modules
+
+Файл `button.module.css` компилирует локальные class names. Import `styles`
+похож на Python module namespace: `styles.button` явно показывает владельца.
+Однако CSS всё ещё участвует в cascade через tokens и global foundation;
+изоляция class name не превращает stylesheet в полностью изолированный object.
+
+## Props union и composition
+
+`RequestStateProps` — union, который запрещает невозможные комбинации вроде
+`loading=true` одновременно с `error=true`. Это аналог нескольких dataclass с
+Literal discriminator.
+
+`WorkbenchRow` принимает `aside`, `meta` и `expansion` как React nodes. Feature
+собирает устойчивые области через composition вместо наследования или одного
+универсального класса с десятками boolean-настроек. В отличие от Python
+inheritance, child content не переопределяет методы: React просто строит единое
+дерево из переданных nodes.
+
+## ref и управление focus
+
+`useRef<HTMLButtonElement>` хранит ссылку на конкретный DOM button между render,
+не вызывая новый render при изменении ссылки. Gallery использует ref, чтобы
+после закрытия expansion вернуть keyboard focus к кнопке «Редактировать».
+
+Это отдалённо похоже на сохранённую ссылку на Python object. Отличие: React
+назначает DOM node во время commit и очистит `ref.current` при unmount; читать и
+менять DOM через ref следует только для imperative задач вроде focus, а не для
+обычного UI state.

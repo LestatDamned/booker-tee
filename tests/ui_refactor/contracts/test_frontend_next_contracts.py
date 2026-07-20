@@ -21,7 +21,7 @@ def test_htmx_detection_requires_explicit_header() -> None:
         {
             "type": "http",
             "method": "GET",
-            "path": "/_next/foundation",
+            "path": "/_next/ledger/manual",
             "headers": [(b"hx-request", b"true")],
         }
     )
@@ -29,7 +29,7 @@ def test_htmx_detection_requires_explicit_header() -> None:
         {
             "type": "http",
             "method": "GET",
-            "path": "/_next/foundation",
+            "path": "/_next/ledger/manual",
             "headers": [],
         }
     )

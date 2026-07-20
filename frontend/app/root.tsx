@@ -9,6 +9,7 @@ import {
 
 import type { Route } from "./+types/root";
 import stylesheet from "./styles/app.css?url";
+import styles from "./styles/shell.module.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "stylesheet", href: stylesheet },
@@ -16,7 +17,7 @@ export const links: Route.LinksFunction = () => [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru">
+    <html data-theme="catppuccin-mocha" lang="ru">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -38,8 +39,8 @@ export default function App() {
 
 export function HydrateFallback() {
   return (
-    <main className="centered-state" aria-busy="true">
-      <p className="eyebrow">Booker Tee</p>
+    <main className={styles.centeredState} aria-busy="true">
+      <p className={styles.eyebrow}>Booker Tee</p>
       <h1>Загружаем workspace…</h1>
     </main>
   );
@@ -51,11 +52,11 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     : "Не удалось открыть приложение.";
 
   return (
-    <main className="centered-state" role="alert">
-      <p className="eyebrow">Booker Tee</p>
+    <main className={styles.centeredState} role="alert">
+      <p className={styles.eyebrow}>Booker Tee</p>
       <h1>Что-то пошло не так</h1>
       <p>{message}</p>
-      <a className="button-link" href="/app">
+      <a className={styles.buttonLink} href="/app">
         Попробовать снова
       </a>
     </main>

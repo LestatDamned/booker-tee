@@ -1422,7 +1422,7 @@ tooling rewrite раньше продукта.
 
 | Target | Условие |
 | --- | --- |
-| `/_next/foundation` route и `src/app/web/features/foundation/` | React tokens/components имеют визуальный и accessibility baseline |
+| ~~`/_next/foundation` route и `src/app/web/features/foundation/`~~ | удалено в React Stage 02 после visual/accessibility replacement baseline |
 | Next foundation templates/tests | их устойчивые контракты заменены React component tests |
 | Next-only foundation scenario в `ui_audit.py` | React foundation scenario существует |
 
@@ -1523,7 +1523,7 @@ docs/review-item-css-migration-plan.md
   foundation-кода;
 - зафиксировать screenshot geometry baseline current/Next manual ledger;
 - добавить desktop/920/mobile smoke;
-- удалить `/_next/foundation` после replacement baseline.
+- `/_next/foundation` удалён после replacement baseline в React Stage 02.
 
 ### Phase 2. Первый vertical pilot: manual ledger
 
