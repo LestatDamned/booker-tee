@@ -1,6 +1,6 @@
 # Stage 03: Manual Ledger Read Path
 
-Status: active.
+Status: completed.
 
 ## Goal
 
@@ -103,3 +103,27 @@ filters, pagination, readonly capabilities и устойчивые URL/deep-link
 - owner can trace query params -> API -> mapping -> component tree.
 
 Next: [`Stage 04`](STAGE_04_MANUAL_LEDGER_MUTATIONS.md).
+
+## Completion Record
+
+Completed: 2026-07-20
+
+Implemented: workspace-scoped JSON list API, decimal-string financial
+semantics, capability and reference-option contracts, generated DTO, explicit
+UI mapper, responsive React list, request/empty/readonly states, URL-owned
+filters, pagination and stable operation deep links.
+
+Checks run: Ruff format/lint, ty, API/presentation pytest (28 passed), full
+frontend check including TypeScript, ESLint, CSS rules, 30 Vitest tests and
+production build, plus realistic Playwright audit at 1440, 920 and 390 px.
+
+Intentional deviations: no mutation controls are rendered during the read-only
+stage; capabilities already cross the API boundary and become actionable in
+Stage 04.
+
+Cleanup performed: React reset and pagination remain inside the `/app` route;
+the route loader was separated into an imported module so React Router's
+production route splitting includes it safely.
+
+Learning notes updated: OpenAPI/Zod boundary, DTO-to-UI mapping, controlled
+filter draft versus applied URL state, and production route-splitting boundary.

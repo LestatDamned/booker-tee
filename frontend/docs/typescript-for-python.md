@@ -155,3 +155,15 @@ applied state и единственным источником для server req
 Граница аналогии: `useState` не изменяется синхронно как атрибут Python object.
 Setter планирует новый render. Поэтому сериализация выполняется из текущего
 state в submit handler, а не чтением DOM вручную.
+
+## Route splitting и отдельный loader module
+
+Production build React Router делит route module на отдельные chunks: код
+`clientLoader` может загружаться отдельно от component. Поэтому нетривиальную
+реализацию loader мы импортируем из `manual-ledger-loader.ts`, а в route оставляем
+тонкую функцию-адаптер.
+
+Ближайшая Python-аналогия — вынести dependency в отдельный importable module,
+когда framework загружает endpoint и presentation разными workers. Обычный
+unit-тест функции проверяет контракт, но только production build и browser test
+доказывают, что bundler действительно включил зависимость в client chunk.

@@ -1,28 +1,30 @@
 import type { Route } from "./+types/manual-ledger";
-import { loadSession } from "../api/session";
-import {
-  loadManualLedger,
-  type ManualLedgerLoadResult,
-} from "../features/manual-ledger/manual-ledger-api";
+import type { ManualLedgerLoadResult } from "../features/manual-ledger/manual-ledger-api";
 import { ManualLedgerPage } from "../features/manual-ledger/manual-ledger-page";
 import styles from "../styles/shell.module.css";
+import { loadManualLedgerRoute } from "./manual-ledger-loader";
+
+export { loadManualLedgerRoute } from "./manual-ledger-loader";
 
 export function meta() {
   return [{ title: "Ручные операции — Booker Tee" }];
 }
 
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
-  const search = new URL(request.url).search;
-  const [session, ledger] = await Promise.all([
-    loadSession(),
-    loadManualLedger(search),
-  ]);
-  return { session, ledger };
+  return loadManualLedgerRoute(request);
 }
 
 export default function ManualLedgerRoute({
   loaderData,
 }: Route.ComponentProps) {
+  return <ManualLedgerRouteView loaderData={loaderData} />;
+}
+
+export function ManualLedgerRouteView({
+  loaderData,
+}: {
+  loaderData: Awaited<ReturnType<typeof loadManualLedgerRoute>>;
+}) {
   const { ledger, session } = loaderData;
   if (
     session.status === "unauthenticated" ||

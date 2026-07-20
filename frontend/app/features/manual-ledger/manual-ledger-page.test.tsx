@@ -9,7 +9,7 @@ import { ManualLedgerPage } from "./manual-ledger-page";
 describe("ManualLedgerPage", () => {
   it("renders date, money and the single backend description as primary data", () => {
     render(
-      <MemoryRouter initialEntries={["/ledger/manual"]}>
+      <MemoryRouter initialEntries={["/app/ledger/manual"]}>
         <ManualLedgerPage ledger={ledger()} session={session} />
       </MemoryRouter>,
     );
@@ -37,7 +37,7 @@ describe("ManualLedgerPage", () => {
     };
     render(
       <MemoryRouter
-        initialEntries={["/ledger/manual?type=expense&page=1&per_page=25"]}
+        initialEntries={["/app/ledger/manual?type=expense&page=1&per_page=25"]}
       >
         <ManualLedgerPage ledger={page} session={session} />
       </MemoryRouter>,
@@ -45,8 +45,21 @@ describe("ManualLedgerPage", () => {
 
     expect(screen.getByRole("link", { name: "Дальше" })).toHaveAttribute(
       "href",
-      "/ledger/manual?type=expense&page=2&per_page=25",
+      "/app/ledger/manual?type=expense&page=2&per_page=25",
     );
+  });
+
+  it("marks the operation selected by a deep link as the target row", () => {
+    const page = ledger();
+    render(
+      <MemoryRouter initialEntries={["/app/ledger/manual"]}>
+        <ManualLedgerPage ledger={page} session={session} />
+      </MemoryRouter>,
+    );
+
+    expect(
+      document.getElementById(`operation-${page.targetOperationId}`),
+    ).toHaveAttribute("data-state", "target");
   });
 });
 

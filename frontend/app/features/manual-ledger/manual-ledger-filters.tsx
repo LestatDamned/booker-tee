@@ -177,7 +177,7 @@ export function ManualLedgerFilters({
             <Button tone="primary" type="submit">
               Применить
             </Button>
-            <Link className={styles.resetLink} to="/ledger/manual">
+            <Link className={styles.resetLink} to={location.pathname}>
               Сбросить
             </Link>
           </div>

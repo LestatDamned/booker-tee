@@ -47,6 +47,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/dashboard", "dashboard"),
     ("/_next/foundation", "frontend-next-foundation"),
     ("/_next/ledger/manual", "frontend-next-manual-ledger"),
+    ("/app/ledger/manual", "react-manual-ledger"),
     ("/accounts", "accounts"),
     ("/ledger/manual", "manual-operations"),
     ("/imports", "imports"),
@@ -138,6 +139,12 @@ def parse_args() -> argparse.Namespace:
         ),
         default="empty",
         help="Data scenario to prepare before auditing authenticated pages.",
+    )
+    parser.add_argument(
+        "--path",
+        action="append",
+        dest="paths",
+        help="Audit only this path. Repeat the option to select several paths.",
     )
     return parser.parse_args()
 
@@ -531,6 +538,16 @@ def collect_ux_assertions(
     if path == "/_next/ledger/manual":
         errors.extend(assert_frontend_next_manual_ledger(page, scenario=scenario))
 
+    if path == "/app/ledger/manual":
+        errors.extend(
+            assert_react_manual_ledger(
+                page,
+                base_url=base_url,
+                scenario=scenario,
+                scenario_state=scenario_state,
+            )
+        )
+
     if (
         scenario == "realistic"
         and path == "/workspaces"
@@ -641,6 +658,77 @@ def assert_frontend_next_manual_ledger(page: Page, *, scenario: str) -> list[str
     overflow = collect_overflow(page)
     if int(overflow["horizontalOverflowPx"]) > 1:
         errors.append("Frontend Next manual ledger causes horizontal overflow")
+    return errors
+
+
+def assert_react_manual_ledger(
+    page: Page,
+    *,
+    base_url: str,
+    scenario: str,
+    scenario_state: dict[str, str],
+) -> list[str]:
+    errors: list[str] = []
+    if page.get_by_role("heading", name="Ручные операции", exact=True).count() == 0:
+        return ["React manual ledger heading was not found"]
+    if page.locator(".financial-row, .manual-operation-row, .manual-ledger-row").count() != 0:
+        errors.append("React manual ledger rendered legacy row classes")
+
+    disclosure = page.get_by_role("button", name="Показать", exact=True)
+    if disclosure.count() == 0:
+        errors.append("React manual ledger filter disclosure was not found")
+    else:
+        disclosure.click(timeout=PAGE_TIMEOUT_MS)
+        panel = page.locator("#manual-ledger-filter-panel")
+        try:
+            panel.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+        except PlaywrightError as exc:
+            errors.append(f"React manual ledger filters did not open: {short_error(exc)}")
+        else:
+            for control_id in (
+                "manual-filter-search",
+                "manual-filter-date-from",
+                "manual-filter-date-to",
+                "manual-filter-type",
+                "manual-filter-status",
+                "manual-filter-account",
+                "manual-filter-category",
+                "manual-filter-property",
+                "manual-filter-per-page",
+            ):
+                if panel.locator(f"#{control_id}").count() == 0:
+                    errors.append(f"React manual ledger filter {control_id} was not found")
+
+    rows = page.locator('article[id^="operation-"]')
+    if scenario == "realistic" and rows.count() == 0:
+        errors.append("React manual ledger did not render seeded operations")
+    if rows.count() > 0:
+        first = rows.first
+        if first.locator("time[datetime]").count() == 0:
+            errors.append("React manual ledger row has no semantic operation date")
+        if first.locator("h2").count() == 0:
+            errors.append("React manual ledger row has no primary description")
+
+    target_path = scenario_state.get("manual_target_path")
+    if scenario == "realistic" and target_path and "?" in target_path:
+        target_search = target_path[target_path.index("?") :]
+        page.goto(
+            f"{base_url}/app/ledger/manual{target_search}",
+            wait_until="networkidle",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        target = page.locator('article[data-state="target"]')
+        if target.count() != 1:
+            errors.append("React manual ledger deep link did not mark one target row")
+        target_disclosure = page.get_by_role("button", name="Показать", exact=True)
+        if target_disclosure.count() == 1:
+            target_disclosure.click(timeout=PAGE_TIMEOUT_MS)
+        reset = page.get_by_role("link", name="Сбросить", exact=True)
+        if reset.count() == 0 or reset.get_attribute("href") != "/app/ledger/manual":
+            errors.append("React manual ledger reset link leaves the React route")
+
+    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
+        errors.append("React manual ledger causes horizontal overflow")
     return errors
 
 
@@ -1838,6 +1926,7 @@ def run_audit(
     auth_email: str | None,
     auth_password: str,
     scenario: str,
+    selected_paths: tuple[str, ...],
 ) -> list[PageAuditResult]:
     output_dir.mkdir(parents=True, exist_ok=True)
     results: list[PageAuditResult] = []
@@ -1898,6 +1987,8 @@ def run_audit(
                         dynamic_pages.append((scenario_state["review_path"], "review-interactions"))
                     if dynamic_pages:
                         pages = (*pages, *dynamic_pages)
+                    if selected_paths:
+                        pages = tuple(page for page in pages if page[0] in selected_paths)
                     for path, label in pages:
                         print(f" - {path}", flush=True)
                         page = context.new_page()
@@ -1990,6 +2081,7 @@ def main() -> int:
             auth_email=args.auth_email,
             auth_password=args.auth_password,
             scenario=args.scenario,
+            selected_paths=tuple(args.paths or ()),
         )
         report_path = write_report(results, output_dir, scenario=args.scenario)
         print_summary(results, report_path)

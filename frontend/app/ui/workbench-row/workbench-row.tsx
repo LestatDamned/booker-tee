@@ -31,7 +31,11 @@ export function WorkbenchRow({
   value,
 }: WorkbenchRowProps) {
   return (
-    <article className={`${styles.row} ${styles[state]}`} id={id}>
+    <article
+      className={`${styles.row} ${styles[state]}`}
+      data-state={state}
+      id={id}
+    >
       <div className={styles.main}>
         <header className={styles.header}>
           <div>

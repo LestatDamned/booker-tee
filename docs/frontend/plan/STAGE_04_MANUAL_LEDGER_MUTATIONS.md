@@ -1,6 +1,6 @@
 # Stage 04: Manual Ledger Mutations
 
-Status: planned.
+Status: next.
 
 ## Goal
 
