@@ -1,6 +1,11 @@
 # CSS Audit - Booker Tee
 
-Status: first-stage audit. No production CSS, templates, or Python code were changed.
+Status: historical first-stage snapshot from before the React cutover.
+
+No production files were changed while this audit was originally performed.
+React Stage 05 later removed both manual-ledger SSR implementations and their
+exclusive `.manual-operation-*` selectors; line numbers and counts below
+describe the earlier stylesheet snapshot.
 
 Scope:
 

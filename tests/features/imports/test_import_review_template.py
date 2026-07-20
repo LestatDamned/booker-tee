@@ -127,7 +127,7 @@ def test_action_partial_renders_link_action_without_form_or_hidden_fields() -> N
             icon="file-text",
             placement="primary",
             action_type="link",
-            url="/ledger/manual?operation_id=operation-id",
+            url="/app/ledger/manual?operation_id=operation-id",
         )
     )
 
@@ -140,7 +140,7 @@ def test_action_partial_renders_link_action_without_form_or_hidden_fields() -> N
     assert "primary-action" in html
     assert 'aria-label="Открыть операцию"' in html
     assert '<span class="action-label ui-action__label">Открыть операцию</span>' in html
-    assert 'href="/ledger/manual?operation_id=operation-id"' in html
+    assert 'href="/app/ledger/manual?operation_id=operation-id"' in html
     assert "<form" not in html
     assert 'type="hidden"' not in html
     assert "Открыть операцию" in html

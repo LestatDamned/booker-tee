@@ -35,3 +35,17 @@ def test_react_frontend_reports_missing_local_build(tmp_path: Path) -> None:
         response = client.get("/app")
 
     assert response.status_code == 503
+
+
+def test_historical_manual_ledger_url_redirects_with_query(tmp_path: Path) -> None:
+    app = FastAPI()
+    install_react_frontend(app, build_root=tmp_path / "missing")
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/ledger/manual?type=expense&page=2",
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "/app/ledger/manual?type=expense&page=2"

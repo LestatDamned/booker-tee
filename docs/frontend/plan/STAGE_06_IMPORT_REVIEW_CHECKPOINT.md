@@ -1,6 +1,6 @@
 # Stage 06: Import Review Complexity Checkpoint
 
-Status: planned.
+Status: next.
 
 ## Goal
 

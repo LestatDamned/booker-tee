@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import FastAPI, Request, status
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 REACT_BUILD_ROOT = Path("frontend/build/client")
@@ -30,6 +30,21 @@ def install_react_frontend(
         del client_path
         return await spa_index()
 
+    async def historical_manual_ledger_redirect(request: Request) -> RedirectResponse:
+        target = "/app/ledger/manual"
+        if request.url.query:
+            target = f"{target}?{request.url.query}"
+        return RedirectResponse(
+            url=target,
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        )
+
+    app.add_api_route(
+        "/ledger/manual",
+        historical_manual_ledger_redirect,
+        methods=["GET"],
+        include_in_schema=False,
+    )
     app.add_api_route("/app", spa_index, methods=["GET"], include_in_schema=False)
     app.add_api_route(
         "/app/{client_path:path}",

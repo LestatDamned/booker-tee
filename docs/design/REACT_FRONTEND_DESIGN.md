@@ -387,8 +387,10 @@ src/app/
 /dashboard, /imports... -> current SSR до workflow cutover
 ```
 
-`/_next/*` и `src/app/web/` удалены в Stage 05 после React manual-ledger
-cutover; они остаются только историческим источником решений в документации.
+`/_next/*`, `src/app/web/` и current SSR manual-ledger presentation удалены в
+Stage 05 после React cutover; они остаются только историческим источником
+решений в документации. `GET /ledger/manual` — временный query-preserving
+redirect к `/app/ledger/manual`, принадлежащий React adapter.
 
 Development:
 
@@ -1431,15 +1433,15 @@ tooling rewrite раньше продукта.
 
 ### 14.2 Можно удалить после React manual-ledger replacement
 
-| Target                                                        | Условие                                              |
-| ------------------------------------------------------------- | ---------------------------------------------------- |
-| ~~`src/app/web/features/ledger/manual/`~~                     | удалён после React cutover в Stage 05                |
-| ~~Next manual templates/CSS/JS consumers~~                    | весь неиспользуемый `src/app/web/` удалён в Stage 05 |
-| ~~`tests/ui_refactor/features/ledger/manual_next/`~~          | заменены API + React tests и удалены в Stage 05      |
-| `tests/ui_refactor/features/ledger/manual/` baseline          | владелец подтвердил replacement coverage             |
-| old `src/app/features/ledger/presentation/manual_operations/` | current SSR manual route также удален                |
-| `src/app/templates/ledger/manual*`                            | current SSR manual route удален                      |
-| manual selectors из current `app.css`                         | поиск не показывает consumers                        |
+| Target                                                            | Условие                                              |
+| ----------------------------------------------------------------- | ---------------------------------------------------- |
+| ~~`src/app/web/features/ledger/manual/`~~                         | удалён после React cutover в Stage 05                |
+| ~~Next manual templates/CSS/JS consumers~~                        | весь неиспользуемый `src/app/web/` удалён в Stage 05 |
+| ~~`tests/ui_refactor/features/ledger/manual_next/`~~              | заменены API + React tests и удалены в Stage 05      |
+| ~~`tests/ui_refactor/features/ledger/manual/` baseline~~          | удалён после подтверждения replacement coverage      |
+| ~~old `src/app/features/ledger/presentation/manual_operations/`~~ | удалён вместе с current SSR route                    |
+| ~~`src/app/templates/ledger/manual*`~~                            | удалены вместе с current SSR route                   |
+| ~~manual selectors из current `app.css`/`entity-target.js`~~      | удалены после consumer search                        |
 
 ### 14.3 Можно удалить после каждого legacy workflow cutover
 

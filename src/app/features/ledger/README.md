@@ -14,7 +14,7 @@ raw transaction review
 -> MoneyEntry[]
 -> account balance / reports
 
-manual operation form
+React manual ledger / JSON API
 -> Operation
 -> MoneyEntry[]
 -> lifecycle actions: cancel / restore / delete
@@ -28,15 +28,16 @@ manual operation form
 Внутри feature держим такой поток:
 
 ```text
-router.py
+api/v1/manual_ledger/router.py
 -> service facade / application use cases
 -> domain rules and mapping helpers
 -> repository.py
 -> models.py
 ```
 
-Router знает про HTTP, формы, redirects и шаблоны. Он не должен решать, как
-собрать проводки или какие операции можно удалить.
+API router знает про HTTP, JSON schemas и status codes. Он не должен решать,
+как собрать проводки или какие операции можно удалить. Исторический browser
+redirect принадлежит React presentation adapter, а не ledger feature.
 
 Use case описывает пользовательское действие целиком: провести импортированную
 строку, провести перевод, создать ручной расход, отменить ручную операцию.
@@ -75,8 +76,9 @@ Form / API input
 -> Operation / MoneyEntry ORM
 ```
 
-`schemas.py` откладываем до появления JSON API. Для SSR/Jinja текущие формы и
-command dataclasses полезнее, чем внешние Pydantic response schemas.
+JSON API использует отдельные Pydantic request/response schemas. Write-side
+остаётся выражен явными command dataclasses между transport и application
+слоями.
 
 ## Naming guide
 
@@ -91,7 +93,7 @@ command dataclasses полезнее, чем внешние Pydantic response sc
 
 ## Current module map
 
-- `router.py` - HTTP endpoints for manual operations.
+- `api/v1/manual_ledger/router.py` - JSON HTTP adapter for manual operations.
 - `service.py` - current facade for ledger workflows. Target: shrink over time.
 - `application/commands.py` - write-side command dataclasses for ledger actions.
 - `application/manual_operations.py` - manual income/expense/transfer lifecycle use case.

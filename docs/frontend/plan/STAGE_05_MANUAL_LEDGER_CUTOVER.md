@@ -1,6 +1,6 @@
 # Stage 05: Manual Ledger Cutover And Cleanup
 
-Status: active.
+Status: completed.
 
 ## Goal
 
@@ -116,13 +116,37 @@ Completed slices:
 - verified the deletion with the full Python suite (`515 passed`), the complete
   frontend check (`49 passed`, lint/type/build passed), and a six-page browser
   audit of the canonical and historical URLs at desktop, tablet and mobile
-  widths.
+  widths;
+- moved the historical GET redirect into the React presentation adapter and
+  deleted the legacy ledger HTML router, presenter/ViewModels, six Jinja
+  templates, manual-only CSS/JavaScript hooks and 13 implementation tests;
+- removed legacy HTML endpoints from OpenAPI/generated TypeScript contracts and
+  verified the final state with `503` Python tests, `49` frontend tests and a
+  fresh six-page browser audit.
 
-Observation/rollback condition: before SSR deletion, revert only the canonical
-GET/navigation switch if React cannot complete a writer or readonly workflow,
-loses saved target/filter URLs, exposes an authorization failure, or violates a
-financial invariant. API/application changes are not part of that rollback.
+The observation fallback implementation is removed. The only compatibility
+surface left is `GET /ledger/manual`, which preserves its query and redirects to
+`/app/ledger/manual`; it is owned by the React adapter and excluded from
+OpenAPI.
 
-Next slice: delete current SSR manual routes/presenter/templates/tests and their
-exclusive CSS/HTMX hooks, while retaining the historical query-preserving GET
-redirect to React.
+## Completion Record
+
+Completed: 2026-07-20.
+
+Implemented: canonical React manual ledger, versioned JSON API workflow and a
+query-preserving historical browser redirect.
+
+Checks run: Ruff, ty, full `503`-test Python suite, complete frontend
+format/lint/style/type/`49`-test/build check, and Playwright audit of both URLs
+at 1440, 920 and 390 px.
+
+Intentional deviations: the temporary `/app` basename and historical GET
+redirect remain until a later whole-application routing cleanup.
+
+Cleanup performed: both SSR manual-ledger adapters, 68 implementation-specific
+tests, their templates/assets/audit branches and HTML OpenAPI contracts were
+deleted.
+
+Learning notes updated: ownership of a compatibility redirect belongs to the
+target presentation adapter, while financial behavior remains in application,
+domain and API tests.

@@ -76,6 +76,7 @@ desktop, 920 px and mobile layouts preserve the established reading order.
 
 All pre-cutover gates passed. Navigation and historical GET now resolve to
 `/app/ledger/manual`; realistic seeding also uses React. Frontend Next runtime,
-assets and implementation tests are deleted. Only current SSR manual
-mutation/presentation code remains for the documented observation and rollback
-window before its deletion.
+assets and implementation tests are deleted. Current SSR manual routes,
+presenter/ViewModels, templates, exclusive assets and implementation tests are
+also deleted. The historical GET is now a query-preserving compatibility route
+owned by the React adapter; no legacy manual mutation endpoint remains.
