@@ -7,11 +7,12 @@ Status: active source of truth.
 Read when changing models, migrations, repositories, services, imports, ledger
 posting, reports, deduplication, workspace access, or financial invariants.
 
-Do not use as a UI implementation plan or sprint checklist. For UI/SSR work read
-[`DESIGN.md`](../design/DESIGN.md) and
-[`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md). Use
+Do not use as a UI implementation plan or sprint checklist. For UI/frontend work
+read [`DESIGN.md`](../design/DESIGN.md) and
+[`REACT_FRONTEND_DESIGN.md`](../design/REACT_FRONTEND_DESIGN.md). Use
+[`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md) and
 [`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md) only for
-legacy behavior reference. For sequencing read
+superseded SSR behavior reference. For sequencing read
 [`ROADMAP.md`](../product/ROADMAP.md).
 
 Current assessment: the original MVP is complete and exceeded. This file is now
@@ -138,8 +139,8 @@ select(Operation).where(
 )
 ```
 
-This applies to reads, updates, deletes, imports, exports, reports, HTMX partial
-updates, background jobs, and integration handlers.
+This applies to reads, updates, deletes, imports, exports, reports, JSON API and
+legacy partial updates, background jobs, and integration handlers.
 
 ---
 

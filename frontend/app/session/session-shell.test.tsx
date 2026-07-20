@@ -1,0 +1,64 @@
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
+import { SessionShell } from "./session-shell";
+
+describe("SessionShell", () => {
+  it("renders loading state", () => {
+    render(<SessionShell result={{ status: "loading" }} />);
+    expect(screen.getByRole("main")).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("offers login for an unauthenticated user", () => {
+    render(<SessionShell result={{ status: "unauthenticated" }} />);
+    expect(screen.getByRole("link", { name: "Войти" })).toHaveAttribute(
+      "href",
+      "/login?next=/app",
+    );
+  });
+
+  it("renders the authenticated workspace", () => {
+    render(
+      <SessionShell
+        result={{
+          status: "authenticated",
+          session: {
+            user: { id: "user-id", email: "max@example.test", name: "Max" },
+            workspace: {
+              id: "workspace-id",
+              name: "Personal ledger",
+              type: "personal",
+              defaultCurrency: "RUB",
+            },
+            membership: { role: "owner", status: "active" },
+            capabilities: {
+              canReadWorkspace: true,
+              canWriteFinancialData: true,
+              canManageImports: true,
+              canManageMembers: true,
+              canManageWorkspace: true,
+            },
+            csrfToken: "csrf-token",
+          },
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Personal ledger" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Max")).toBeInTheDocument();
+  });
+
+  it("renders a recoverable API error", () => {
+    render(
+      <SessionShell
+        result={{ status: "error", message: "Backend недоступен." }}
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Backend недоступен.");
+    expect(
+      screen.getByRole("button", { name: "Повторить" }),
+    ).toBeInTheDocument();
+  });
+});

@@ -1,9 +1,12 @@
 # Проектирование Workbench Row
 
-Статус: утвержденная дочерняя спецификация Frontend Next; shared foundation и
-list/edit-срез первого пилота manual operation реализованы 17 июля 2026 года.
+Статус: **historical detailed UX specification**; shared foundation и
+list/edit-срез SSR-пилота manual operation реализованы 17 июля 2026 года.
 
-Родительская стратегия: [`FRONTEND_NEXT_DESIGN.md`](FRONTEND_NEXT_DESIGN.md).
+Активная родительская стратегия:
+[`REACT_FRONTEND_DESIGN.md`](REACT_FRONTEND_DESIGN.md). Этот документ используется
+для переноса geometry, accessibility и interaction discoveries, но не задает
+React component props, CSS architecture или runtime.
 
 `WorkbenchRow` создается внутри изолированного нового фронтенда. Он не использует
 общий CSS cascade, базовый шаблон или presentation partials текущего фронтенда.

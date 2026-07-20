@@ -4,8 +4,8 @@ Booker Tee is a private financial assistant for turning bank statements and
 manual money movements into trusted financial records, balances, and reports.
 
 The original parser-first MVP has been completed and exceeded. The current focus
-is to keep the financial core reliable while improving import review, SSR/UI
-consistency, maintainability, and user workflows.
+is to keep the financial core reliable while migrating the authenticated UI to
+a maintainable React frontend and improving import-review workflows.
 
 Core flow:
 
@@ -44,11 +44,15 @@ Implemented:
 
 Current engineering focus:
 
-- Unify SSR/UI patterns.
-- Move complex template logic into Presenter/ViewModel layers.
-- Refactor import review around `ReviewItemVM`, action policy, and reusable
-  partials.
-- Keep code modular through progressive feature architecture.
+- Build a versioned FastAPI JSON API without moving financial rules to the
+  browser.
+- Introduce the React foundation and migrate manual ledger as the first vertical
+  pilot.
+- Preserve the current UI geometry while moving to tokenized, theme-ready CSS.
+- Use import review as the required complexity checkpoint before broad
+  migration.
+- Remove each superseded SSR presentation slice after its replacement passes
+  tests and observation.
 
 ## Tech Stack
 
@@ -57,10 +61,11 @@ Current engineering focus:
 - SQLAlchemy 2.0 async
 - Alembic
 - PostgreSQL
-- Jinja2 server-rendered templates
-- HTMX
-- Alpine.js
-- Tailwind/project CSS
+- TypeScript in strict mode
+- React and React Router Framework Mode in SPA mode
+- semantic CSS tokens, themes, and component CSS Modules
+- FastAPI `/api/v1` JSON API
+- Jinja2, HTMX, Alpine.js, and project CSS during legacy migration only
 - `pdfplumber`
 - uv, Ruff, ty, pytest
 
@@ -189,6 +194,9 @@ uv run ty check .
 uv run pytest
 ```
 
+Frontend commands will be added after the `frontend/` scaffold. The approved
+package manager is npm with one committed `package-lock.json`.
+
 Run UI audits:
 
 ```bash
@@ -242,11 +250,18 @@ Main references:
   invariants.
 - [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) - code structure and
   feature boundaries.
+- [Architecture decisions](docs/architecture/decisions/README.md) - accepted
+  React runtime, API, CSS/theme, and learning decisions.
 - [DESIGN.md](docs/design/DESIGN.md) - UI/UX principles and visual direction.
-- [FRONTEND_NEXT_DESIGN.md](docs/design/FRONTEND_NEXT_DESIGN.md) - active
-  isolated SSR frontend strategy.
-- [WORKBENCH_ROW_DESIGN.md](docs/design/WORKBENCH_ROW_DESIGN.md) - active
-  repeated entity row specification for Frontend Next.
+- [REACT_FRONTEND_DESIGN.md](docs/design/REACT_FRONTEND_DESIGN.md) - active
+  React/API architecture, migration strategy, learning contract, and cleanup
+  gates.
+- [React implementation plan](docs/frontend/plan/README.md) - staged execution
+  sequence with the current stage and exit gates.
+- [FRONTEND_NEXT_DESIGN.md](docs/design/FRONTEND_NEXT_DESIGN.md) - superseded
+  SSR strategy retained as a behavior reference.
+- [WORKBENCH_ROW_DESIGN.md](docs/design/WORKBENCH_ROW_DESIGN.md) - historical
+  detailed repeated-row UX specification.
 - [REFACTOR_PROJECT_DESIGN.md](docs/design/REFACTOR_PROJECT_DESIGN.md) - legacy
   frontend behavior and implementation history.
 - [MVP.md](docs/product/MVP.md) - historical parser-first MVP baseline and

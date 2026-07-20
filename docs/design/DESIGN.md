@@ -4,31 +4,32 @@ UI/UX direction for Booker Tee.
 
 Status: active design reference.
 
-Read when changing layout, templates, CSS, actions, empty states, status badges,
+Read when changing layout, components, CSS, actions, empty states, status badges,
 financial rows, or user flows.
 
 For the active frontend architecture and migration strategy, read
-[`FRONTEND_NEXT_DESIGN.md`](FRONTEND_NEXT_DESIGN.md). For repeated entity rows,
-also read [`WORKBENCH_ROW_DESIGN.md`](WORKBENCH_ROW_DESIGN.md). Use
+[`REACT_FRONTEND_DESIGN.md`](REACT_FRONTEND_DESIGN.md). For detailed historical
+repeated-row discoveries, also read
+[`WORKBENCH_ROW_DESIGN.md`](WORKBENCH_ROW_DESIGN.md). Use
+[`FRONTEND_NEXT_DESIGN.md`](FRONTEND_NEXT_DESIGN.md) and
 [`REFACTOR_PROJECT_DESIGN.md`](REFACTOR_PROJECT_DESIGN.md) only as a historical
-reference for existing legacy behavior and implementation discoveries. If it
-conflicts with Frontend Next, `FRONTEND_NEXT_DESIGN.md` has priority.
+reference for existing SSR behavior and implementation discoveries. If they
+conflict with the active React design, `REACT_FRONTEND_DESIGN.md` has priority.
 
 ## Роль документа
 
 Этот документ задает пользовательский опыт, визуальную иерархию и устойчивые
 interaction-принципы. Он не задает:
 
-- расположение Python, Jinja и CSS-файлов;
+- расположение Python, TypeScript, templates и CSS-файлов;
 - конкретные имена legacy selectors или partials;
 - Python-контракты Presenter/ViewModel;
 - порядок миграции workflows;
 - активный implementation backlog.
 
-Эти решения принадлежат `FRONTEND_NEXT_DESIGN.md` и его дочерним
-спецификациям. Названия компонентов в этом документе обозначают UI-концепты;
-точный HTML, BEM и ViewModel contract определяются в соответствующей дочерней
-спецификации.
+Эти решения принадлежат `REACT_FRONTEND_DESIGN.md`. Названия компонентов в этом
+документе обозначают UI-концепты; точный HTML, component props и API contract
+определяются рядом с реализацией и не меняют финансовую семантику.
 
 Current assessment: the first UI cleanup phase is mostly complete. The design
 work is no longer about adding more boxes, hints, and buttons. The next phase is
@@ -248,9 +249,8 @@ This pattern should feel familiar across:
 - reports;
 - transaction rules where applicable.
 
-Do not force one universal component for every entity. Reuse the pattern and
-Frontend Next components where the UX concept and behavior are actually the
-same.
+Do not force one universal component for every entity. Reuse React components
+where the responsibility, UX concept and behavior are actually the same.
 
 Base type scale:
 
@@ -344,7 +344,7 @@ drawer footer: final submit action, aligned right
 ```
 
 Drawers should feel like an extension of the row, not a separate page nested
-inside the row. Use the shared Frontend Next concepts:
+inside the row. Use the shared concepts:
 
 ```text
 WorkbenchRow
@@ -424,10 +424,10 @@ ExpansionPanel   full-width edit/resolve surface
 MoneyValue       formatted amount and server-provided financial semantics
 ```
 
-This is a design contract, not a command to extract a universal Jinja partial.
-Feature templates live in their namespace under the isolated web template root.
-Extract a shared component only after the same meaning, input contract, markup
-and behavior have stabilized across several workflows.
+This is a design contract, not a command to extract a universal component.
+Feature components live inside their React feature. Extract shared UI only after
+the same responsibility, semantic input and behavior have stabilized across
+several workflows.
 
 ### Entity Feedback And Local Update Contract
 
@@ -436,22 +436,22 @@ row-level action. A save, toggle, restore, cancel, or similar action should not
 send the user to the top of the page or make the screen jump when the result can
 be represented by updating the affected row.
 
-Default behavior:
+Target behavior:
 
 ```text
-HTMX request     -> replace the affected row/card in place
-non-HTMX request -> redirect fallback to the affected entity anchor
+local mutation success -> replace or refetch the smallest truthful boundary
+route/context change   -> navigate and load the new route state
 ```
 
-Use local HTMX updates for actions that only change:
+Use local React state/server-state updates for actions that only change:
 
 - the current row/card;
 - a small page summary or queue counter that can be updated out-of-band;
 - sibling rows directly affected by the same workflow.
 
-Use full-page redirects for actions that change the page context, route,
-workspace, filters, pagination, or a broad list state that has not yet been
-given a stable partial/OOB contract.
+Use route navigation or route revalidation for actions that change page context,
+workspace, filters, pagination, or a broad list state. Legacy HTMX behavior is a
+characterization source, not the target response contract.
 
 ### Entity State Language Contract
 
@@ -499,9 +499,9 @@ Visual semantics:
    when the user clicks another card action and should not depend on timers.
 10. Row update swaps should avoid automatic scrolling unless the action's purpose
    is navigation.
-11. HTMX row-swap responses must not mark the changed row as `target`. A local
-   swap should preserve or set `working card`; a full-page redirect/anchor may
-   use `target`.
+11. A local mutation must not mark the changed row as URL `target`. It should
+    preserve or set `working card`; route navigation to an anchor may use
+    `target`.
 
 Recommended treatments:
 
@@ -564,10 +564,9 @@ Current application:
   header cards, or user/admin management cards by default.
 
 The existing import-review local update is a behavior reference, not a template
-or HTMX contract to copy. Frontend Next updates the smallest consistency
-boundary that keeps the visible page truthful: the affected row, the list, or
-related summaries. Exact response scopes, HTTP fallback and HTMX behavior
-follow `WORKBENCH_ROW_DESIGN.md`.
+or HTMX contract to copy. React updates the smallest consistency boundary that
+keeps the visible page truthful: the affected row, list or related summaries.
+Exact API/state boundaries follow `REACT_FRONTEND_DESIGN.md`.
 
 Lazy row drawer loading:
 
@@ -575,18 +574,18 @@ Lazy row drawer loading:
 2. If a drawer contains repeated reference selects, account/category/property
    options, or a complex correction form, load the drawer body only when the user
    chooses the edit/correction action.
-3. The initial row/card HTML should contain the information shell, actions, and
-   an empty drawer target with a calm loading state.
-4. The feature owns a small partial endpoint for the drawer body. The endpoint
-   returns only the drawer content, not a second page.
+3. The initial row/card render should contain the information shell, actions,
+   and an empty expansion target with a calm loading state.
+4. The feature loads focused edit data through its JSON API only when the user
+   opens the drawer.
 5. After saving, replace the affected row/card and let the drawer close as part
    of the row refresh.
 
 Bounded long reference lists:
 
 1. Search/filter is the first response to a growing reference list.
-2. If the visible row count can grow enough to make SSR HTML heavy, render a
-   moderate initial slice and provide a calm `Show more` action.
+2. If the visible row count can make the initial payload or browser DOM heavy,
+   render a moderate initial slice and provide a calm `Show more` action.
 3. Avoid numbered pagination for reference cleanup screens unless the user is
    truly navigating separate pages of results. `Show more` preserves scanning
    flow better than page numbers.
@@ -625,19 +624,19 @@ Rules:
 3. Keep the feedback compact. It confirms the result; it is not a second card
    editor.
 4. Use calm accent feedback, not a permanent green success state.
-5. Presenter/ViewModel prepares explicit recent-feedback state. Templates only
-   render that state.
-6. The list partial owns the feedback block and the row highlight.
+5. Feature state prepares explicit recent-feedback state. Components only render
+   that state.
+6. The list component owns the feedback block and row highlight.
 7. The link should target the created entity's stable anchor.
-8. HTMX create responses should pass the recent entity id into the list partial.
-9. Client-side behavior should clear recent feedback on the next meaningful
-   interaction or HTMX request. Recent is confirmation, not a durable state.
-   Non-HTMX fallback may still redirect to the entity anchor.
+8. Successful create response returns the entity identity required to reconcile
+   the list.
+9. Client-side behavior clears recent feedback on the next meaningful
+   interaction. Recent is confirmation, not durable domain state.
 
 ### Financial Forms
 
 Creation and repair forms should share a calm, predictable structure without
-forcing every form into one Jinja macro too early.
+forcing every form into one universal React component too early.
 
 Use these conceptual form families:
 
@@ -872,15 +871,14 @@ Rules:
 
 The existing import-review action policy is documented historically in
 [`REFACTOR_PROJECT_DESIGN.md`](REFACTOR_PROJECT_DESIGN.md). New implementation
-contracts follow `FRONTEND_NEXT_DESIGN.md` and its child specifications.
+contracts follow `REACT_FRONTEND_DESIGN.md`.
 
-Frontend Next represents this hierarchy through `ActionStack`. Feature
-presenters decide which actions exist and place them into the prepared action
-groups; Jinja does not recalculate placement or permissions.
+React represents this hierarchy through `ActionStack`. Server capabilities
+constrain which actions are allowed; the feature places them into presentation
+groups. Components do not recalculate permissions.
 
-Exact immutable ViewModel contracts and HTTP fallbacks live in
-`WORKBENCH_ROW_DESIGN.md`; this document owns only the visible hierarchy and
-interaction intent.
+Exact API/state contracts live in `REACT_FRONTEND_DESIGN.md` and feature code;
+this document owns only the visible hierarchy and interaction intent.
 
 ---
 
@@ -940,8 +938,9 @@ Keep visible:
 - clear operation description;
 - linked operation summary.
 
-Keep identifiers invisibly in URLs, HTML IDs, hidden fields and HTMX contracts
-where required. Put diagnostic details in sanitized logs and development tools.
+Keep identifiers in URLs, component keys and API requests where required, but
+do not render them as ordinary content. Put diagnostic details in sanitized logs
+and development tools.
 If a real support workflow later requires them, design a separate authorized
 support/debug surface rather than adding a generic technical-details block to
 normal pages.
@@ -1114,7 +1113,7 @@ Minimum checks:
 - no failed requests;
 - no unintended horizontal overflow;
 - desktop and mobile screenshots are readable;
-- critical HTMX interactions work;
+- critical interactions and API requests work;
 - design audit does not reveal button noise, visible debug data, broken badges,
   or nested-box overload on core screens.
 
@@ -1139,7 +1138,7 @@ Useful assets to preserve during migration:
 - known UX failures that the new frontend must not repeat.
 
 This section is not an active backlog. Active implementation sequencing lives
-in `FRONTEND_NEXT_DESIGN.md` and its child specifications.
+in `REACT_FRONTEND_DESIGN.md`.
 
 ---
 
@@ -1150,5 +1149,5 @@ in `FRONTEND_NEXT_DESIGN.md` and its child specifications.
 - Full RBAC UI redesign.
 - Decorative illustrations instead of working financial screens.
 - Uncoordinated page-by-page redesign outside the vertical migration plan.
-- New frontend framework.
+- Another frontend framework or parallel permanent authenticated UI.
 - Style changes that bypass shared components and CSS tokens.

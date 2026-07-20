@@ -14,8 +14,12 @@ Read together with:
 - [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) — canonical entities and invariants.
 - [`ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) — code architecture and data flow.
 - [`DESIGN.md`](../design/DESIGN.md) — UI/UX principles.
-- [`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md) — active
-  frontend/SSR architecture and migration strategy.
+- [`REACT_FRONTEND_DESIGN.md`](../design/REACT_FRONTEND_DESIGN.md) — active
+  React/API architecture and migration strategy.
+- [`React implementation plan`](../frontend/plan/README.md) — current execution
+  stage and stage exit gates.
+- [`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md) — superseded SSR
+  strategy and behavior reference.
 - [`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md) —
   historical reference for legacy frontend behavior.
 - [`AGENTS.md`](../../AGENTS.md) — instructions for Codex and coding agents.
@@ -103,36 +107,41 @@ reference for what to improve next.
 
 ## Current Active Focus
 
-### 1. Isolated Frontend Next
+### 1. React Frontend And Versioned API
 
 Source of truth:
-[`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md).
+[`REACT_FRONTEND_DESIGN.md`](../design/REACT_FRONTEND_DESIGN.md).
 
 Goal:
 
 ```text
 existing behavior audit
-  -> isolated SSR web adapter
+  -> versioned FastAPI JSON API
+  -> tokenized React foundation
   -> vertical workflow migration
-  -> legacy presentation cleanup
+  -> current SSR and Frontend Next cleanup
 ```
 
 Why now:
 
-- Repeated UI patterns need one controlled foundation without extending legacy
-  CSS and templates.
+- Interactive financial workflows need explicit client state without extending
+  HTMX/OOB and global CSS coordination.
 - Backend, financial invariants and application use cases can remain stable
-  while presentation workflows migrate independently.
-- An isolated web adapter keeps a future JSON API or external frontend possible
-  without building either prematurely.
+  behind a separate JSON presentation adapter.
+- Tokenized theme-ready CSS can preserve current geometry without copying the
+  legacy cascade.
+- The migration is also a deliberate TypeScript/React learning path for the
+  Python-oriented project owner.
 
 Non-goals for this focus:
 
 - Do not change financial meaning for visual reasons.
-- Do not build React or a speculative API now.
-- Do not reuse legacy CSS, base templates or presentation partials in the new
-  adapter.
+- Do not move financial or authorization rules into TypeScript.
+- Do not import legacy or Frontend Next stylesheets into React; extract proven
+  tokens, geometry and interaction contracts.
+- Do not add a Node backend or permissive cross-origin deployment.
 - Do not migrate all workflows in one uncontrolled rewrite.
+- Do not keep current SSR, Frontend Next and React as permanent parallel UIs.
 
 ### 2. Documentation Cleanup
 
@@ -174,12 +183,13 @@ Next useful work:
 
 ## Near-Term Priorities
 
-1. Build the minimal isolated Frontend Next foundation and manual-ledger pilot.
-2. Validate the Workbench Row contract on a second workflow before broad reuse.
-3. Tighten parser reliability for real user statements.
-4. Improve reports where they answer regular weekly questions.
-5. Simplify documentation and remove obsolete task-plan noise.
-6. Prepare deployment/productization basics: backups, production settings,
+1. Keep active architecture docs synchronized and Frontend Next frozen.
+2. Build the React/API foundation and manual-ledger vertical pilot.
+3. Validate complex client state on import review before broad migration.
+4. Remove both manual SSR implementations after replacement gates pass.
+5. Tighten parser reliability for real user statements.
+6. Improve reports where they answer regular weekly questions.
+7. Prepare deployment/productization basics: backups, production settings,
    export, security review, operational runbooks.
 
 ---
@@ -352,6 +362,7 @@ If the answer to question 8 is no, the feature probably belongs later.
 ```text
 Make review clear.
 Keep ledger correct.
-Reduce template noise.
+Replace presentation vertically.
+Teach the new frontend as it grows.
 Then expand.
 ```

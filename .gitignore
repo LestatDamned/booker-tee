@@ -51,6 +51,14 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# React frontend
+frontend/node_modules/
+frontend/build/
+frontend/.react-router/
+frontend/coverage/
+frontend/openapi.json
+.npm-cache/
+
 # Translations
 *.mo
 *.pot

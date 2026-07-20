@@ -6,16 +6,20 @@ Status: active architecture reference.
 
 Read when changing code structure, layers, routers, services, repositories,
 templates, presentation/ViewModel code, import workflows, ledger posting,
-workspace access, or integration boundaries.
+workspace access, API/frontend adapters, or integration boundaries.
 
 Do not use as a product roadmap or historical MVP build plan. For product scope
 read [`PROJECT_VISION.md`](../product/PROJECT_VISION.md) and
 [`ROADMAP.md`](../product/ROADMAP.md). For domain invariants read
-[`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md). For UI/SSR refactoring read
-[`DESIGN.md`](../design/DESIGN.md) and
-[`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md). Use
+[`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md). For the active frontend boundary
+and migration read
+[`REACT_FRONTEND_DESIGN.md`](../design/REACT_FRONTEND_DESIGN.md); for product UX
+read [`DESIGN.md`](../design/DESIGN.md). Use
+[`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md) and
 [`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md) only to
-inspect existing legacy frontend behavior.
+inspect superseded SSR behavior.
+Accepted React runtime, API, CSS and learning decisions are indexed in
+[`decisions/`](decisions/README.md).
 
 Current assessment: the original parser-first MVP is complete and exceeded.
 Architecture now needs to protect clarity, maintainability, financial
@@ -70,10 +74,11 @@ SQLAlchemy 2.0 async
 Alembic
 Pydantic v2
 PostgreSQL
-Jinja2 SSR
-HTMX
-Alpine.js for small local UI state
-Tailwind / project CSS
+TypeScript strict
+React + React Router Framework Mode, SPA mode
+semantic CSS tokens + themes + component CSS Modules
+versioned FastAPI JSON API
+Jinja2 + HTMX + Alpine.js during legacy migration only
 pdfplumber and file extractors
 uv
 Ruff
@@ -81,18 +86,21 @@ ty
 pytest
 ```
 
-Do not introduce a new frontend framework, background queue, AI stack, or storage
-backend without a concrete product need and an architecture update.
+React is approved as the target authenticated frontend. Do not introduce another
+frontend framework, Node backend, background queue, AI stack, or storage backend
+without a concrete product need and an architecture update.
 
 ---
 
-## 3. Current Repository Shape
+## 3. Repository Shape During Migration
 
-Current high-level layout:
+Current backend/legacy layout and approved target additions:
 
 ```text
 src/app/
   main.py
+  api/                  # target, introduced in React foundation phase
+    v1/
   core/
   db/
   shared/
@@ -110,6 +118,10 @@ src/app/
     workspaces/
   templates/
   static/
+frontend/               # target, introduced in React foundation phase
+  app/
+  tests/
+  docs/
 tests/
 docs/
 migrations/
@@ -193,34 +205,42 @@ Primary flow:
 Router -> Application Use Case / Service -> Repository -> Model
 ```
 
-For complex SSR screens:
+For the target React frontend:
 
 ```text
-Router -> Service / Use Case -> Presenter / ViewModel -> Jinja partial
+React feature -> API Router -> Application Use Case / Service -> Repository
+```
+
+For legacy SSR screens during migration:
+
+```text
+SSR Router -> Service / Use Case -> Presenter / ViewModel -> Jinja partial
 ```
 
 Responsibilities:
 
 | Layer | Responsibility |
 | --- | --- |
-| `router.py` / `routes/` | HTTP, dependencies, forms, redirects, template responses, HTMX responses. |
+| `api/` | Versioned JSON HTTP schemas, auth/workspace dependencies, error mapping, and use-case invocation. |
+| `router.py` / `routes/` | Feature HTTP adapters; legacy modules may still own forms, redirects, templates, and HTMX responses until cutover. |
 | `service.py` | Facade for feature operations and compatibility layer for simple workflows. |
 | `application/` | Use cases, commands, workflows, orchestration, transactions. |
 | `domain/` | Pure policies, calculations, status resolvers, validation rules. No HTTP, Jinja, or SQLAlchemy session. |
-| `presentation/` | ViewModels, presenters, action policies, form option builders. No financial mutation. |
+| `presentation/` | Legacy/browser/chat adapter ViewModels, presenters, action policies, and form option builders. No financial mutation. |
 | `mapping/` | DTO/model/form conversion, factories, translation between layers. |
 | `repository.py` | Database queries only. No business decisions. No commits unless explicitly documented. |
 | `models.py` | SQLAlchemy persistence shape. No service/router/template knowledge. |
 | `infrastructure/` | File storage, PDF/excel extraction, external adapters, provider clients. |
-| `templates/` | Render prepared data. No business rules. |
+| `frontend/` | React routes, feature UI, client state, API adapters, semantic tokens, themes, and component styles. No financial truth. |
+| `templates/` | Legacy SSR rendering during migration. No business rules. |
 
 Rules:
 
 - Routers do not contain business scenarios.
 - Repositories do not call services.
 - Models do not reach into repositories, services, HTTP, or templates.
-- Domain code does not know about HTTP, Jinja, HTMX, SQLAlchemy sessions, or
-  request objects.
+- Domain code does not know about HTTP, React, Jinja, HTMX, SQLAlchemy sessions,
+  or request objects.
 - Presentation code does not post ledger records or mutate financial data.
 - Cross-feature behavior goes through service/use-case APIs, not direct random
   table manipulation.
@@ -423,32 +443,39 @@ When UI logic grows, add `presentation/`. When workflows grow, add
 
 ---
 
-## 9. SSR And Template Architecture
+## 9. Browser Presentation Adapters
 
-Use server-side rendering with Jinja2 and HTMX.
+React is the target authenticated browser adapter. Current Jinja2/HTMX and
+frozen Frontend Next adapters remain only while their workflows have runtime
+consumers.
 
 Target flow:
 
 ```text
-Router -> Service / Use Case -> Presenter / ViewModel -> Jinja partial
+React route / feature
+  -> versioned FastAPI API
+  -> application query / command
+  -> repository
 ```
 
 Rules:
 
-- Templates render prepared data.
-- Templates do not compute financial state, action policy, duplicate policy,
-  transfer direction, or confirmation readiness.
-- HTMX partial responses reuse the same ViewModel builders as full-page
-  rendering.
-- Complex repeated UI should become partials.
-- Domain-specific UI partials stay inside the feature until they prove reusable.
-- Generic UI partials may live under `templates/ui/` or `templates/components/`
-  when they are stable.
+- API schemas are not SQLAlchemy models or Jinja ViewModels.
+- API returns server-owned semantics and capabilities, not component placement.
+- React owns presentation composition, URL/client/form state and request UX.
+- React does not recompute financial, authorization, duplicate or transfer
+  rules.
+- Shared UI is extracted only for a stable responsibility; feature workflows
+  keep their own state and orchestration.
+- Legacy templates render prepared data and receive only critical fixes while
+  they have runtime consumers.
+- A migrated workflow deletes its obsolete routes, presenters, templates, CSS,
+  JavaScript and implementation-specific tests after observation gates.
 
 Existing import-review implementation details and historical decisions live in
-[`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md). New SSR
-architecture and migration decisions live in
-[`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md).
+[`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md). Active
+frontend architecture and delete gates live in
+[`REACT_FRONTEND_DESIGN.md`](../design/REACT_FRONTEND_DESIGN.md).
 
 ---
 
@@ -717,9 +744,12 @@ application/integration:
   repeat upload -> duplicate handling
   workspace isolation
 
-template/presentation:
-  ViewModel fields, action policy, HTMX partial rendering,
-  review item states
+API/frontend:
+  JSON schemas, auth/CSRF/error contracts, workspace isolation,
+  TypeScript/component/route state, critical browser workflows
+
+legacy presentation while consumed:
+  ViewModel fields, action policy, HTMX partial rendering
 ```
 
 Decorative UI tests are less important than correctness and review workflow

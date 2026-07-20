@@ -1,6 +1,11 @@
 # Проектирование Frontend Next
 
-Статус: утвержденное ТЗ; Этапы 1 и 2 завершены, Этап 3 начат 17 июля 2026 года.
+Статус: **superseded SSR strategy / historical behavior reference**.
+
+20 июля 2026 года React/API architecture заменила эту стратегию как target.
+Новые workflows и shared abstractions в `src/app/web/` не добавляются. Активный
+источник истины: [`REACT_FRONTEND_DESIGN.md`](REACT_FRONTEND_DESIGN.md). Текст
+ниже сохраняет состояние и решения SSR-эксперимента на момент его остановки.
 
 Текущее состояние реализации:
 

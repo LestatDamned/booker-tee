@@ -58,6 +58,19 @@ services:
       timeout: 5s
       retries: 12
 
+  frontend:
+    image: node:22.22.0-bookworm-slim
+    profiles: ["frontend"]
+    user: node
+    working_dir: /workspace/frontend
+    environment:
+      VITE_API_TARGET: http://app:8000
+    ports:
+      - "${BOOKER_TEE_FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - .:/workspace
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
 volumes:
   booker_tee_postgres_data:
   booker_tee_uploads:

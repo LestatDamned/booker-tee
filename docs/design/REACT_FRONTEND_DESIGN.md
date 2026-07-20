@@ -23,6 +23,10 @@ stack, расположения нового frontend-кода и дальней
 [`MANUAL_LEDGER_BASELINE.md`](MANUAL_LEDGER_BASELINE.md) и
 [`REFACTOR_PROJECT_DESIGN.md`](REFACTOR_PROJECT_DESIGN.md) используются только
 как источники найденного поведения и проверенных контрактов.
+Короткие принятые технические решения и их последствия находятся в
+[`architecture/decisions`](../architecture/decisions/README.md).
+Исполняемая последовательность, current stage и exit gates находятся в
+[`frontend/plan`](../frontend/plan/README.md).
 
 ---
 
@@ -216,9 +220,9 @@ rows. Выбор фиксируется отдельным коротким ADR 
 
 ### 3.2 Package management
 
-Frontend имеет один package manager и один lockfile. Не смешивать npm, pnpm и
-yarn. Конкретный manager фиксируется при scaffold и добавляется в quality
-commands `AGENTS.md`.
+Frontend использует npm и один committed `package-lock.json`. Clean install
+выполняется через `npm ci`, scripts — через `npm run`. Не смешивать npm, pnpm и
+yarn. Точные dependency versions фиксирует scaffold-generated lockfile.
 
 Python продолжает использовать `uv`; Node packages не устанавливаются через
 Python tooling.
@@ -395,15 +399,11 @@ FastAPI
   -> session/auth/workspace/API/domain/database
 ```
 
-Production должен быть same-origin. Предпочтительные варианты:
-
-1. reverse proxy раздает React build и направляет `/api` в FastAPI;
-2. FastAPI раздает immutable build assets и SPA fallback для `/app/*`.
-
-Первый вариант лучше разделяет static delivery и backend, второй проще для
-текущего single-container deployment. Решение принимается при scaffold после
-проверки существующего deployment. Нельзя включать permissive CORS как замену
-same-origin setup.
+Production остается same-origin и single-container на первом этапе. Docker
+multi-stage build собирает frontend в Node stage; Python runtime раздает
+immutable assets и SPA fallback для `/app/*`, а `/api/v1/*` обрабатывает FastAPI.
+Reverse proxy/CDN можно добавить позже без изменения frontend/API contracts.
+Нельзя включать permissive CORS как замену same-origin setup.
 
 После полного authenticated cutover временный `/app` prefix может быть удален,
 а product URLs возвращены к `/dashboard`, `/imports`, `/reports` и другим
@@ -1505,7 +1505,7 @@ docs/review-item-css-migration-plan.md
 - обновить active documentation и `AGENTS.md`;
 - заморозить `src/app/web/` для новых feature;
 - зафиксировать repository metrics и cleanup owners;
-- выбрать package manager и deployment integration;
+- применить принятые ADR для npm и single-container deployment integration;
 - создать API error/auth/CSRF conventions;
 - не удалять working current SSR.
 

@@ -8,6 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.errors import install_api_exception_handlers
+from app.api.router import router as api_router
 from app.core.config import get_settings
 from app.core.middleware import install_security_middleware
 from app.core.security import session_token_from_request
@@ -25,6 +27,7 @@ from app.features.transaction_rules.router import router as transaction_rules_ro
 from app.features.users.router import router as users_router
 from app.features.users.service import AuthenticationService
 from app.features.workspaces.router import router as workspaces_router
+from app.react_frontend import install_react_frontend
 from app.templating import create_templates
 from app.web.router import router as web_router
 from app.web.templating import WEB_STATIC_ROOT
@@ -43,8 +46,10 @@ def create_app() -> FastAPI:
     settings.validate_for_runtime()
     app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
     install_security_middleware(app, settings)
+    install_api_exception_handlers(app)
     app.mount("/static", StaticFiles(directory="src/app/static"), name="static")
     app.mount("/_next/static", StaticFiles(directory=WEB_STATIC_ROOT), name="web_static")
+    app.include_router(api_router)
     app.include_router(accounts_router)
     app.include_router(categories_router)
     app.include_router(chat_integrations_router)
@@ -87,6 +92,8 @@ def create_app() -> FastAPI:
         async with session_factory() as session:
             await session.execute(text("select 1"))
         return {"status": "ok", "database": "reachable"}
+
+    install_react_frontend(app)
 
     return app
 

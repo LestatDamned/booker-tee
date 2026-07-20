@@ -16,8 +16,10 @@ Use:
 - [`MVP.md`](./MVP.md) as historical MVP baseline and guardrails.
 - [`DOMAIN_MODEL.md`](../domain/DOMAIN_MODEL.md) for financial/domain rules.
 - [`ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) for implementation shape.
-- [`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md) for the active
-  frontend/SSR architecture and migration strategy.
+- [`REACT_FRONTEND_DESIGN.md`](../design/REACT_FRONTEND_DESIGN.md) for the active
+  React/API architecture and migration strategy.
+- [`FRONTEND_NEXT_DESIGN.md`](../design/FRONTEND_NEXT_DESIGN.md) only for
+  superseded SSR behavior discoveries.
 - [`REFACTOR_PROJECT_DESIGN.md`](../design/REFACTOR_PROJECT_DESIGN.md) only for
   historical legacy frontend behavior and implementation discoveries.
 
@@ -264,10 +266,10 @@ Imported data must be explainable. Raw source data must be preserved. Failed
 parsing must not delete files. Control-total mismatches and uncertain rows must
 require review.
 
-Current active UX focus: make the review item clear, consistent, and
-presenter-driven. Jinja should render prepared ViewModels instead of deciding
-financial state, actions, suggestions, and confirmation readiness inside
-templates.
+Current active UX focus: make review clear and consistent while migrating to
+React. The API supplies server-owned financial semantics and capabilities;
+components render them without deciding financial state, permissions,
+suggestions or confirmation readiness.
 
 ---
 
@@ -390,7 +392,7 @@ Booker Tee should preserve and refine:
 - account balances and financial reports;
 - workspace membership and invitations;
 - unknown statement mapping;
-- clear SSR/HTMX workflows.
+- clear, testable browser workflows across the React migration.
 
 New work should improve clarity and reliability before widening the product.
 

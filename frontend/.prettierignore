@@ -1,0 +1,6 @@
+build
+.react-router
+coverage
+node_modules
+openapi.json
+app/api/generated/schema.ts

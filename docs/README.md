@@ -20,11 +20,13 @@ For any coding task:
 
 Для работ по новому frontend и миграции с SSR:
 
-1. [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md)
-2. [`DESIGN.md`](design/DESIGN.md)
-3. [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md), especially application,
+1. [`React implementation plan`](frontend/plan/README.md) и только текущий
+   stage-файл
+2. [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md)
+3. [`DESIGN.md`](design/DESIGN.md)
+4. [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md), especially application,
    domain, repository, API adapter and feature boundary rules
-4. [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) только как
+5. [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) только как
    подробный источник UX-контрактов повторяющихся строк сущностей
 
 For financial/domain changes:
@@ -40,6 +42,8 @@ For financial/domain changes:
 | [`PROJECT_VISION.md`](product/PROJECT_VISION.md) | active product compass | Product positioning, target users, major UX/domain decisions |
 | [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md) | active source of truth | Database models, ledger behavior, imports, reports, financial correctness |
 | [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md) | active architecture reference | Code structure, feature boundaries, services/repositories/presentation layer |
+| [`Architecture decisions`](architecture/decisions/README.md) | accepted ADR index | React runtime, API boundary, CSS/themes and learning contract decisions |
+| [`React implementation plan`](frontend/plan/README.md) | active execution plan | Current stage, deliverables, learning outcomes, checks and exit gates |
 | [`DESIGN.md`](design/DESIGN.md) | active design reference | General UI/UX rules, visual direction, financial UI patterns |
 | [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md) | active target frontend architecture | React/API boundary, UX contracts, migration strategy and repository cleanup manifest |
 | [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) | superseded SSR strategy / behavior reference | Изолированный SSR frontend и найденные при его проектировании контракты |
@@ -69,6 +73,8 @@ For financial/domain changes:
 
 - [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md) — code structure, progressive
   feature architecture, feature boundaries, and data flow.
+- [`Architecture decisions`](architecture/decisions/README.md) — concise accepted
+  React migration decisions and their consequences.
 
 ## Design
 
@@ -81,6 +87,11 @@ For financial/domain changes:
   подробная спецификация поведения повторяющихся строк сущностей.
 - [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md) — справочный
   документ предыдущего import-review рефакторинга и найденного поведения.
+
+## Frontend
+
+- [`React implementation plan`](frontend/plan/README.md) — последовательность
+  stages и указатель на ближайший исполняемый этап.
 
 ## Guides
 

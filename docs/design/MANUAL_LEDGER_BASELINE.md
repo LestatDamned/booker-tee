@@ -1,16 +1,18 @@
 # Manual Ledger Baseline
 
-Статус: **working migration baseline**, Этап 1 первого пилота Frontend Next.
+Статус: **historical migration baseline** для React manual-ledger pilot.
 
-Документ сохраняет исторический baseline старого интерфейса. Актуальное
-состояние Frontend Next и закрытые gaps фиксируются в
+Документ сохраняет исторический baseline старого интерфейса. Активная стратегия
+и replacement gates находятся в
+[`REACT_FRONTEND_DESIGN.md`](REACT_FRONTEND_DESIGN.md); состояние остановленного
+SSR Frontend Next сохраняется в
 [`FRONTEND_NEXT_DESIGN.md`](FRONTEND_NEXT_DESIGN.md).
 
 Дата фиксации: 14 июля 2026 года.
 
 Этот документ описывает наблюдаемое поведение текущей страницы
-`/ledger/manual`. Он нужен для реализации нового SSR web-adapter и не задает
-его HTML, CSS, имена partials или ViewModel.
+`/ledger/manual`. Он нужен для React/API replacement и не задает его component
+tree, CSS selectors или API schemas.
 
 ## 1. Scope и non-goals
 

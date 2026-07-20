@@ -18,7 +18,8 @@ import, review, and ledger correctness.
 
 The original parser-first MVP has been completed and exceeded. The current
 product challenge is to keep the financial core trustworthy while improving
-maintainability, SSR/UI consistency, and user workflows.
+maintainability, migrating the authenticated frontend, and clarifying user
+workflows.
 
 Core flow:
 
@@ -65,19 +66,20 @@ Use the repository's current stack unless a task explicitly changes it:
 - Alembic
 - Pydantic v2
 - PostgreSQL
-- Jinja2 for SSR
-- HTMX for server-driven interactivity
-- Alpine.js for small local UI state
-- Tailwind/project CSS
+- TypeScript in strict mode
+- React with React Router Framework Mode in SPA mode
+- semantic CSS tokens, theme files, and component CSS Modules
+- versioned FastAPI JSON API for the React application
+- Jinja2, HTMX, Alpine.js, and project CSS only for legacy SSR during migration
 - pdfplumber and file extractors for statement import
 - uv
 - Ruff
 - ty
 - pytest
 
-Do not introduce a new frontend framework, background queue, AI stack, storage
-backend, or large infrastructure dependency without a strong reason and user
-approval.
+React is an approved target frontend. Do not introduce another frontend
+framework, Node backend, background queue, AI stack, storage backend, or large
+infrastructure dependency without a strong reason and user approval.
 
 ---
 
@@ -93,6 +95,16 @@ uv add <package>
 uv add --dev <package>
 uv run <command>
 ```
+
+Frontend package management after `frontend/` is scaffolded:
+
+```bash
+npm install
+npm ci
+npm run <script>
+```
+
+Use one committed `package-lock.json`. Do not mix npm, pnpm, and yarn.
 
 Do not use plain `pip install`, Poetry, Pipenv, or ad-hoc virtualenv commands
 unless explicitly requested.
@@ -130,12 +142,18 @@ Task-specific documents:
   [`docs/domain/DOMAIN_MODEL.md`](docs/domain/DOMAIN_MODEL.md).
 - Code structure/layers/module boundaries:
   [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md).
-- UI/SSR/templates/CSS/actions:
+- UI/UX/React/API/CSS/actions:
   [`docs/design/DESIGN.md`](docs/design/DESIGN.md).
-- Parallel Frontend Next strategy:
-  [`docs/design/FRONTEND_NEXT_DESIGN.md`](docs/design/FRONTEND_NEXT_DESIGN.md).
-- Repeated entity rows in Frontend Next:
+- Active React frontend architecture and migration strategy:
+  [`docs/design/REACT_FRONTEND_DESIGN.md`](docs/design/REACT_FRONTEND_DESIGN.md).
+- React implementation sequence; read the index and current stage only:
+  [`docs/frontend/plan/README.md`](docs/frontend/plan/README.md).
+- Accepted React migration decisions:
+  [`docs/architecture/decisions/README.md`](docs/architecture/decisions/README.md).
+- Historical detailed repeated-row behavior:
   [`docs/design/WORKBENCH_ROW_DESIGN.md`](docs/design/WORKBENCH_ROW_DESIGN.md).
+- Superseded SSR Frontend Next strategy; read only for behavior discoveries:
+  [`docs/design/FRONTEND_NEXT_DESIGN.md`](docs/design/FRONTEND_NEXT_DESIGN.md).
 - Legacy frontend behavior reference; read only when auditing existing UI:
   [`docs/design/REFACTOR_PROJECT_DESIGN.md`](docs/design/REFACTOR_PROJECT_DESIGN.md).
 - Historical parser-first MVP guardrails:
@@ -173,36 +191,39 @@ feature/
 
 Layer responsibilities:
 
-- Routers handle HTTP, dependencies, forms, redirects, template responses, and
-  HTMX responses.
+- Routers are presentation adapters. JSON API routers handle HTTP schemas,
+  dependencies and responses; legacy SSR routers may handle forms, redirects,
+  templates and HTMX responses until their workflow is migrated.
 - Application/use-case code owns workflows, orchestration, and transactions.
 - Domain code owns pure policies, calculations, validators, and status
   resolvers.
-- Presenters/ViewModels prepare UI data for Jinja and must not mutate financial
-  data.
+- Legacy presenters/ViewModels prepare UI data for Jinja and must not mutate
+  financial data. React builds feature view state from versioned API DTOs.
 - Repositories contain database queries only.
 - Models define persistence only.
 - Infrastructure adapters handle files, extraction, external services, and
   provider clients.
-- Templates render prepared data and must not contain business rules.
+- Templates and React components render prepared data and must not contain
+  financial or authorization rules.
 
 Default flow:
 
 ```text
 Router -> Service / Application Use Case -> Repository -> Model
-Router -> Service / Use Case -> Presenter / ViewModel -> Jinja partial
+React -> API Router -> Service / Application Use Case -> Repository -> Model
+Legacy SSR Router -> Service / Use Case -> Presenter / ViewModel -> Jinja
 ```
 
 Keep files readable. If one file starts telling several stories, split by reason
 to change: `routes/`, `application/`, `domain/`, `presentation/`, `mapping/`, or
 `infrastructure/`.
 
-For Frontend Next, `src/app/web/` is a separate SSR presentation adapter.
-Feature-specific domain and application code remains in `src/app/features/`;
-web routes, presenters, ViewModels, Jinja templates, CSS, and HTMX response
-renderers belong to `src/app/web/`. Follow
-[`docs/design/FRONTEND_NEXT_DESIGN.md`](docs/design/FRONTEND_NEXT_DESIGN.md) for
-the detailed boundary and migration rules.
+The target React application lives in top-level `frontend/`; its versioned JSON
+API adapter lives in `src/app/api/`. Feature-specific domain and application
+code remains in `src/app/features/`. `src/app/web/` is the frozen superseded SSR
+Frontend Next adapter: do not add new workflows or shared abstractions there.
+Follow [`docs/design/REACT_FRONTEND_DESIGN.md`](docs/design/REACT_FRONTEND_DESIGN.md)
+for boundaries, learning rules, migration and delete gates.
 
 ---
 
@@ -365,9 +386,10 @@ Rules:
 
 ---
 
-## 11. SSR/UI Rules
+## 11. Frontend/UI Rules
 
-Use server-side rendering with Jinja2 and HTMX.
+React is the target authenticated frontend. Existing Jinja2/HTMX pages remain
+operational only until their vertical React replacement passes cutover gates.
 
 Current visual direction:
 
@@ -381,23 +403,22 @@ trustworthy
 with restrained rebellious creativity
 ```
 
-Templates should render prepared data. They should not compute financial state,
-review state, duplicate policy, transfer direction, action policy, or
+React components and legacy templates should render prepared data. They must not
+compute financial state, permission, duplicate policy, transfer direction or
 confirmation readiness.
 
-For complex screens use:
+Target flow for complex screens:
 
 ```text
-Router -> Service / Use Case -> Presenter / ViewModel -> Jinja partial
+React feature -> versioned API -> Service / Use Case -> Repository
 ```
 
-For Frontend Next work, follow
-[`docs/design/FRONTEND_NEXT_DESIGN.md`](docs/design/FRONTEND_NEXT_DESIGN.md) and
-the relevant child specification such as
-[`docs/design/WORKBENCH_ROW_DESIGN.md`](docs/design/WORKBENCH_ROW_DESIGN.md).
+Follow [`docs/design/REACT_FRONTEND_DESIGN.md`](docs/design/REACT_FRONTEND_DESIGN.md)
+and [`docs/design/DESIGN.md`](docs/design/DESIGN.md). Use
+[`docs/design/WORKBENCH_ROW_DESIGN.md`](docs/design/WORKBENCH_ROW_DESIGN.md) as a
+detailed historical UX contract, not as an SSR implementation target.
 Use [`docs/design/REFACTOR_PROJECT_DESIGN.md`](docs/design/REFACTOR_PROJECT_DESIGN.md)
-as a reference for existing import-review behavior, not as the Frontend Next
-migration strategy.
+as a reference for existing import-review behavior.
 
 ---
 
@@ -429,7 +450,9 @@ Prioritize tests for:
 - control-total mismatch creates review state;
 - dedupe detects repeated imports;
 - category/rule behavior stays workspace-scoped;
-- ViewModel/action policy behavior for complex SSR screens.
+- API schema/auth/error contracts and React state behavior for migrated screens;
+- ViewModel/action policy behavior only for legacy screens that still have a
+  runtime consumer.
 
 ---
 
@@ -448,7 +471,8 @@ Prioritize tests for:
 
 Do not introduce these unless explicitly requested and scoped:
 
-- new frontend framework or SPA rewrite;
+- another frontend framework, Node backend, microfrontend architecture, or
+  second permanent authenticated UI;
 - external AI/RAG/Text-to-SQL;
 - external document processing services;
 - full property CRM;
