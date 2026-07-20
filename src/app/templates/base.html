@@ -26,7 +26,7 @@
           {% if workspace_permissions and workspace_permissions.can_manage_imports %}
             <a class="site-header__action site-header__action--primary" href="/imports/upload">{{ icon("upload") }} загрузить</a>
           {% elif workspace_permissions and workspace_permissions.can_write_financial_data %}
-            <a class="site-header__action site-header__action--primary" href="/ledger/manual">{{ icon("plus") }} операция</a>
+            <a class="site-header__action site-header__action--primary" href="/app/ledger/manual">{{ icon("plus") }} операция</a>
           {% else %}
             <a class="site-header__action site-header__action--primary" href="/reports">{{ icon("list-check") }} отчеты</a>
           {% endif %}
@@ -43,9 +43,7 @@
           <a class="nav-link" href="/users">{{ icon("user") }} профиль</a>
           <a class="nav-link" href="/workspaces">{{ icon("folder") }} пространства</a>
           <a class="nav-link" href="/accounts">{{ icon("wallet") }} счета</a>
-          {% if workspace_permissions and workspace_permissions.can_write_financial_data %}
-            <a class="nav-link" href="/ledger/manual">{{ icon("plus") }} операции</a>
-          {% endif %}
+          <a class="nav-link" href="/app/ledger/manual">{{ icon("plus") }} операции</a>
           <a class="nav-link" href="/imports">{{ icon("import") }} импорт</a>
           <a class="nav-link" href="/reports">{{ icon("list-check") }} отчеты</a>
           <a class="nav-link" href="/categories">{{ icon("tag") }} категории</a>

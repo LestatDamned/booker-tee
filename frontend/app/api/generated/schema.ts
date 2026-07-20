@@ -1141,126 +1141,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/_next/ledger/manual/new": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Manual Ledger Create Form */
-        get: operations["manual_ledger_create_form__next_ledger_manual_new_get"];
-        put?: never;
-        /** Create Manual Ledger Operation */
-        post: operations["create_manual_ledger_operation__next_ledger_manual_new_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/_next/ledger/manual/{operation_id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Cancel Manual Ledger Operation */
-        post: operations["cancel_manual_ledger_operation__next_ledger_manual__operation_id__cancel_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/_next/ledger/manual/{operation_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Restore Manual Ledger Operation */
-        post: operations["restore_manual_ledger_operation__next_ledger_manual__operation_id__restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/_next/ledger/manual/{operation_id}/delete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Delete Manual Ledger Operation */
-        post: operations["delete_manual_ledger_operation__next_ledger_manual__operation_id__delete_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/_next/ledger/manual": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Manual Ledger Page */
-        get: operations["manual_ledger_page__next_ledger_manual_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/_next/ledger/manual/{operation_id}/edit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Manual Ledger Edit Form */
-        get: operations["manual_ledger_edit_form__next_ledger_manual__operation_id__edit_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/_next/ledger/manual/{operation_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Update Manual Ledger Operation */
-        post: operations["update_manual_ledger_operation__next_ledger_manual__operation_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/": {
         parameters: {
             query?: never;
@@ -1340,14 +1220,6 @@ export interface components {
         Body_archive_category_categories__category_id__archive_post: {
             /** View */
             view?: string | null;
-        };
-        /** Body_cancel_manual_ledger_operation__next_ledger_manual__operation_id__cancel_post */
-        Body_cancel_manual_ledger_operation__next_ledger_manual__operation_id__cancel_post: {
-            /**
-             * Return To
-             * @default /_next/ledger/manual
-             */
-            return_to: string;
         };
         /** Body_create_account_accounts_post */
         Body_create_account_accounts_post: {
@@ -1451,14 +1323,6 @@ export interface components {
         Body_delete_category_categories__category_id__delete_post: {
             /** View */
             view?: string | null;
-        };
-        /** Body_delete_manual_ledger_operation__next_ledger_manual__operation_id__delete_post */
-        Body_delete_manual_ledger_operation__next_ledger_manual__operation_id__delete_post: {
-            /**
-             * Return To
-             * @default /_next/ledger/manual
-             */
-            return_to: string;
         };
         /** Body_import_document_mapping_imports_documents__document_id__mapping_import_post */
         Body_import_document_mapping_imports_documents__document_id__mapping_import_post: {
@@ -1567,14 +1431,6 @@ export interface components {
         Body_restore_category_categories__category_id__restore_post: {
             /** View */
             view?: string | null;
-        };
-        /** Body_restore_manual_ledger_operation__next_ledger_manual__operation_id__restore_post */
-        Body_restore_manual_ledger_operation__next_ledger_manual__operation_id__restore_post: {
-            /**
-             * Return To
-             * @default /_next/ledger/manual
-             */
-            return_to: string;
         };
         /** Body_select_workspace_workspaces__workspace_id__select_post */
         Body_select_workspace_workspaces__workspace_id__select_post: {
@@ -1831,59 +1687,6 @@ export interface components {
             properties: components["schemas"]["ManualLedgerNamedReference"][];
             /** Perpage */
             perPage: number[];
-        };
-        /** ManualLedgerFormInput */
-        ManualLedgerFormInput: {
-            /**
-             * Version
-             * @default
-             */
-            version: string;
-            /**
-             * Operation Type
-             * @default
-             */
-            operation_type: string;
-            /**
-             * Account Id
-             * @default
-             */
-            account_id: string;
-            /**
-             * Destination Account Id
-             * @default
-             */
-            destination_account_id: string;
-            /**
-             * Amount
-             * @default
-             */
-            amount: string;
-            /**
-             * Operation Date
-             * @default
-             */
-            operation_date: string;
-            /**
-             * Category Id
-             * @default
-             */
-            category_id: string;
-            /**
-             * Property Id
-             * @default
-             */
-            property_id: string;
-            /**
-             * Description
-             * @default
-             */
-            description: string;
-            /**
-             * Return To
-             * @default
-             */
-            return_to: string;
         };
         /** ManualLedgerListResponse */
         ManualLedgerListResponse: {
@@ -3768,19 +3571,7 @@ export interface operations {
     };
     manual_operation_form_ledger_manual_get: {
         parameters: {
-            query?: {
-                date_from?: string | null;
-                date_to?: string | null;
-                type?: string | null;
-                status?: string | null;
-                account_id?: string | null;
-                category_id?: string | null;
-                property_id?: string | null;
-                search?: string | null;
-                operation_id?: string | null;
-                page?: number;
-                per_page?: number;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -3794,15 +3585,6 @@ export interface operations {
                 };
                 content: {
                     "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -4915,284 +4697,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    manual_ledger_create_form__next_ledger_manual_new_get: {
-        parameters: {
-            query?: {
-                return_to?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_manual_ledger_operation__next_ledger_manual_new_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["ManualLedgerFormInput"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    cancel_manual_ledger_operation__next_ledger_manual__operation_id__cancel_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_cancel_manual_ledger_operation__next_ledger_manual__operation_id__cancel_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    restore_manual_ledger_operation__next_ledger_manual__operation_id__restore_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_restore_manual_ledger_operation__next_ledger_manual__operation_id__restore_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_manual_ledger_operation__next_ledger_manual__operation_id__delete_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_delete_manual_ledger_operation__next_ledger_manual__operation_id__delete_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    manual_ledger_page__next_ledger_manual_get: {
-        parameters: {
-            query?: {
-                date_from?: string | null;
-                date_to?: string | null;
-                type?: components["schemas"]["OperationType"] | null;
-                status?: components["schemas"]["OperationStatus"] | null;
-                account_id?: string | null;
-                category_id?: string | null;
-                property_id?: string | null;
-                search?: string | null;
-                operation_id?: string | null;
-                page?: number;
-                per_page?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    manual_ledger_edit_form__next_ledger_manual__operation_id__edit_get: {
-        parameters: {
-            query?: {
-                return_to?: string | null;
-            };
-            header?: never;
-            path: {
-                operation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_manual_ledger_operation__next_ledger_manual__operation_id__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["ManualLedgerFormInput"];
-            };
-        };
         responses: {
             /** @description Successful Response */
             200: {

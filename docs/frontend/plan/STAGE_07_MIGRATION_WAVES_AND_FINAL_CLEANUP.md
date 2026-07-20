@@ -64,7 +64,8 @@ for unrelated workflows.
 
 After the last authenticated workflow:
 
-- delete `src/app/web/` and `/_next` mounts;
+- keep the Stage 05 removal of `src/app/web/` and `/_next` verified by consumer
+  search;
 - delete remaining authenticated legacy Jinja routes/templates/presenters;
 - delete HTMX/Alpine/vendor scripts with no public/auth consumer;
 - delete legacy global CSS after its last consumer;

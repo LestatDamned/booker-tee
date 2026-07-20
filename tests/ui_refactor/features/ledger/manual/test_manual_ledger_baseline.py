@@ -52,7 +52,7 @@ def test_financial_meaning_and_target_state_are_prepared_by_server() -> None:
     assert row.is_targeted is True
 
 
-def test_get_page_is_workspace_scoped_and_supports_readonly_target(
+def test_historical_get_preserves_query_when_redirecting_to_react(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     context = workspace_context(role=WorkspaceRole.VIEWER)
@@ -61,16 +61,14 @@ def test_get_page_is_workspace_scoped_and_supports_readonly_target(
     calls.operation = operation
 
     with TestClient(app) as client:
-        response = client.get(f"/ledger/manual?operation_id={operation.id}")
+        response = client.get(
+            f"/ledger/manual?operation_id={operation.id}",
+            follow_redirects=False,
+        )
 
-    assert response.status_code == 200
-    assert "Ручные операции доступны только для просмотра" in response.text
-    assert 'id="new-manual-operation"' not in response.text
-    assert f'id="operation-{operation.id}"' in response.text
-    assert "manual-operation-row--target" in response.text
-    assert f'hx-get="/ledger/manual/{operation.id}/edit"' not in response.text
-    assert calls.workspace_ids
-    assert set(calls.workspace_ids) == {context.workspace.id}
+    assert response.status_code == 307
+    assert response.headers["location"] == f"/app/ledger/manual?operation_id={operation.id}"
+    assert calls.workspace_ids == []
 
 
 def test_edit_panel_is_loaded_lazily_for_writer(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -80,12 +78,8 @@ def test_edit_panel_is_loaded_lazily_for_writer(monkeypatch: pytest.MonkeyPatch)
     calls.operation = operation
 
     with TestClient(app) as client:
-        page_response = client.get("/ledger/manual")
         panel_response = client.get(f"/ledger/manual/{operation.id}/edit")
 
-    assert page_response.status_code == 200
-    assert f'id="manual-operation-form-{operation.id}"' not in page_response.text
-    assert f'hx-get="/ledger/manual/{operation.id}/edit"' in page_response.text
     assert panel_response.status_code == 200
     assert "manual-operation-edit-panel-content" in panel_response.text
     assert f'id="manual-operation-form-{operation.id}"' in panel_response.text
@@ -121,7 +115,7 @@ def test_update_has_http_redirect_and_htmx_row_contract(
             headers={"HX-Request": "true"},
         )
 
-    anchor = f"/ledger/manual?operation_id={operation.id}#operation-{operation.id}"
+    anchor = f"/app/ledger/manual?operation_id={operation.id}#operation-{operation.id}"
     assert fallback.status_code == 303
     assert fallback.headers["location"] == anchor
     assert htmx.status_code == 200

@@ -13,7 +13,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 from openpyxl import Workbook
-from playwright.sync_api import BrowserContext, Locator, Page, sync_playwright
+from playwright.sync_api import BrowserContext, Page, Route, sync_playwright
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
@@ -30,7 +30,6 @@ MAX_CLICK_TARGETS_PER_PAGE = 60
 
 PAGES: tuple[tuple[str, str], ...] = (
     ("/", "dashboard"),
-    ("/_next/foundation", "frontend-next-foundation"),
     ("/accounts", "accounts"),
     ("/ledger/manual", "manual-operations"),
     ("/imports", "imports"),
@@ -45,8 +44,6 @@ PAGES: tuple[tuple[str, str], ...] = (
 
 AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/dashboard", "dashboard"),
-    ("/_next/foundation", "frontend-next-foundation"),
-    ("/_next/ledger/manual", "frontend-next-manual-ledger"),
     ("/app/ledger/manual", "react-manual-ledger"),
     ("/accounts", "accounts"),
     ("/ledger/manual", "manual-operations"),
@@ -328,15 +325,22 @@ def prepare_realistic_scenario(
         page.locator('form#new-account button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
         page.get_by_text(destination_account_name, exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
 
-        page.goto(build_url(base_url, "/ledger/manual"), wait_until="domcontentloaded")
-        page.locator("label.segmented-expense").click(timeout=PAGE_TIMEOUT_MS)
-        page.locator('input[name="operation_date"]').fill("30.06.2026")
-        page.locator('input[name="amount"]').fill("881.12")
-        page.locator('input[name="description"]').fill("UI Audit expense")
-        page.locator('form#new-manual-operation button[type="submit"]').click(
+        page.goto(build_url(base_url, "/app/ledger/manual"), wait_until="networkidle")
+        page.get_by_role("button", name="Добавить операцию", exact=True).click(
             timeout=PAGE_TIMEOUT_MS
         )
-        page.wait_for_url("**/ledger/manual?operation_id=**", timeout=PAGE_TIMEOUT_MS)
+        create_form = page.locator("#manual-operation-create-panel")
+        create_form.locator("#manual-operation-type").select_option("expense")
+        create_form.locator("#manual-operation-account").select_option(
+            label=f"{account_name} · RUB"
+        )
+        create_form.locator("#manual-operation-date").fill("2026-06-30")
+        create_form.locator("#manual-operation-amount").fill("881.12")
+        create_form.locator("#manual-operation-description").fill("UI Audit expense")
+        create_form.get_by_role("button", name="Создать расход", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        page.wait_for_url("**/app/ledger/manual?operation_id=**", timeout=PAGE_TIMEOUT_MS)
         manual_target_path = page.url.replace(base_url.rstrip("/"), "")
 
         page.goto(build_url(base_url, "/categories"), wait_until="domcontentloaded")
@@ -539,13 +543,13 @@ def collect_ux_assertions(
             errors.append(f"dashboard does not show seeded document {document_name!r}")
 
     if scenario == "realistic" and path == scenario_state.get("manual_target_path"):
-        errors.extend(assert_manual_ledger_interactions(page))
+        if "/app/ledger/manual" not in page.url:
+            errors.append("manual operation target did not open the canonical React route")
+        elif page.locator('article[data-state="target"]').count() != 1:
+            errors.append("manual operation target did not mark one React row")
 
-    if path == "/_next/foundation":
-        errors.extend(assert_frontend_next_foundation(page))
-
-    if path == "/_next/ledger/manual":
-        errors.extend(assert_frontend_next_manual_ledger(page, scenario=scenario))
+    if path == "/ledger/manual" and "/app/ledger/manual" not in page.url:
+        errors.append("historical manual ledger URL did not redirect to React")
 
     if path == "/app/ledger/manual":
         errors.extend(
@@ -614,62 +618,6 @@ def assert_manual_ledger_interactions(page: Page) -> list[str]:
     return errors
 
 
-def assert_frontend_next_foundation(page: Page) -> list[str]:
-    errors: list[str] = []
-    row = page.locator("#foundation-row")
-    if row.count() == 0:
-        return ["Frontend Next foundation row was not found"]
-    if row.evaluate("element => element.classList.contains('workbench-row--working')"):
-        errors.append("Frontend Next row starts in working state before interaction")
-    if row.locator("[data-edit-panel]").count() != 0:
-        errors.append("Frontend Next foundation eagerly rendered the edit panel")
-
-    disclosure = row.locator("a[aria-controls='foundation-edit-panel']")
-    disclosure.click(timeout=PAGE_TIMEOUT_MS)
-    try:
-        row.locator("[data-edit-panel]").wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
-    except PlaywrightError as exc:
-        errors.append(f"Frontend Next disclosure did not load: {short_error(exc)}")
-        return errors
-    if not row.evaluate("element => element.classList.contains('workbench-row--working')"):
-        errors.append("Frontend Next row did not enter working state")
-    overflow = collect_overflow(page)
-    if int(overflow["horizontalOverflowPx"]) > 1:
-        errors.append("Frontend Next open expansion panel causes horizontal overflow")
-    return errors
-
-
-def assert_frontend_next_manual_ledger(page: Page, *, scenario: str) -> list[str]:
-    errors: list[str] = []
-    if page.locator(".manual-ledger-filters").count() == 0:
-        errors.append("Frontend Next manual ledger filters were not found")
-    if page.locator(".financial-row, .manual-operation-row").count() != 0:
-        errors.append("Frontend Next manual ledger rendered legacy row classes")
-    if (
-        page.locator(
-            'form[id^="manual-operation-form-"], form[id^="next-manual-operation-form-"]'
-        ).count()
-        != 0
-    ):
-        errors.append("Frontend Next manual ledger eagerly rendered edit forms")
-
-    rows = page.locator(".manual-ledger-row")
-    if scenario == "realistic" and rows.count() == 0:
-        errors.append("Frontend Next manual ledger did not render seeded operations")
-    if scenario == "realistic" and rows.count() > 0:
-        errors.extend(assert_frontend_next_manual_create(page))
-        errors.extend(assert_frontend_next_manual_lifecycle(page, rows.first))
-        errors.extend(assert_frontend_next_manual_reference_filters(page))
-        viewport = page.viewport_size or {}
-        if int(viewport.get("width") or 0) >= 1200:
-            errors.extend(assert_frontend_next_manual_conflict(page, rows.first))
-        errors.extend(assert_frontend_next_manual_edit(page, rows.first))
-    overflow = collect_overflow(page)
-    if int(overflow["horizontalOverflowPx"]) > 1:
-        errors.append("Frontend Next manual ledger causes horizontal overflow")
-    return errors
-
-
 def assert_react_manual_ledger(
     page: Page,
     *,
@@ -692,6 +640,9 @@ def assert_react_manual_ledger(
             )
         )
         errors.extend(assert_react_manual_lifecycle(page))
+        if int((page.viewport_size or {}).get("width") or 0) >= 1200:
+            errors.extend(assert_react_manual_readonly(page, base_url=base_url))
+            errors.extend(assert_react_manual_missing_session(page, base_url=base_url))
 
     disclosure = page.get_by_role("button", name="Показать", exact=True)
     if disclosure.count() == 0:
@@ -745,10 +696,106 @@ def assert_react_manual_ledger(
         reset = page.get_by_role("link", name="Сбросить", exact=True)
         if reset.count() == 0 or reset.get_attribute("href") != "/app/ledger/manual":
             errors.append("React manual ledger reset link leaves the React route")
+        else:
+            page.reload(wait_until="networkidle", timeout=PAGE_TIMEOUT_MS)
+            if page.locator('article[data-state="target"]').count() != 1:
+                errors.append("React manual ledger refresh lost the target row")
+            filter_disclosure = page.get_by_role("button", name="Показать", exact=True)
+            if filter_disclosure.count() == 1:
+                filter_disclosure.click(timeout=PAGE_TIMEOUT_MS)
+            reset = page.get_by_role("link", name="Сбросить", exact=True)
+            reset.click(timeout=PAGE_TIMEOUT_MS)
+            page.wait_for_url("**/app/ledger/manual", timeout=PAGE_TIMEOUT_MS)
+            page.go_back(wait_until="networkidle", timeout=PAGE_TIMEOUT_MS)
+            if "operation_id=" not in page.url:
+                errors.append("React manual ledger Back did not restore route state")
+            else:
+                try:
+                    page.locator('article[data-state="target"]').wait_for(
+                        state="visible", timeout=PAGE_TIMEOUT_MS
+                    )
+                except PlaywrightError:
+                    errors.append("React manual ledger Back did not restore the target row")
+            page.go_forward(wait_until="networkidle", timeout=PAGE_TIMEOUT_MS)
+            if "operation_id=" in page.url:
+                errors.append("React manual ledger Forward did not restore reset state")
 
     if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
         errors.append("React manual ledger causes horizontal overflow")
     return errors
+
+
+def assert_react_manual_readonly(page: Page, *, base_url: str) -> list[str]:
+    errors: list[str] = []
+    readonly_page = page.context.new_page()
+
+    def make_ledger_readonly(route: Route) -> None:
+        response = route.fetch()
+        payload = response.json()
+        payload["capabilities"] = {
+            "canCreate": False,
+            "readonlyReason": "Ручные операции доступны только для просмотра согласно вашей роли.",
+        }
+        for operation in payload["items"]:
+            operation["capabilities"] = {
+                "canEdit": False,
+                "canCancel": False,
+                "canRestore": False,
+                "canDelete": False,
+                "readonlyReason": "Операция доступна только для просмотра согласно вашей роли.",
+            }
+        route.fulfill(response=response, json=payload)
+
+    readonly_page.route("**/api/v1/manual-ledger*", make_ledger_readonly)
+    try:
+        readonly_page.goto(
+            build_url(base_url, "/app/ledger/manual"),
+            wait_until="networkidle",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        readonly_page.get_by_text(
+            "Ручные операции доступны только для просмотра согласно вашей роли.",
+            exact=True,
+        ).wait_for(timeout=PAGE_TIMEOUT_MS)
+        for action_name in (
+            "Добавить операцию",
+            "Исправить",
+            "Отменить операцию",
+            "Восстановить операцию",
+            "Удалить окончательно",
+        ):
+            if readonly_page.get_by_role("button", name=action_name, exact=True).count() != 0:
+                errors.append(f"React readonly manual ledger exposes {action_name!r}")
+    except PlaywrightError as exc:
+        errors.append(f"React readonly manual ledger failed: {short_error(exc)}")
+    finally:
+        readonly_page.close()
+    return errors
+
+
+def assert_react_manual_missing_session(page: Page, *, base_url: str) -> list[str]:
+    browser = page.context.browser
+    if browser is None:
+        return ["React missing-session audit could not create an isolated browser context"]
+    context = browser.new_context(viewport=page.viewport_size)
+    session_page = context.new_page()
+    try:
+        session_page.goto(
+            build_url(base_url, "/app/ledger/manual"),
+            wait_until="networkidle",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        session_page.get_by_role("heading", name="Войдите в Booker Tee", exact=True).wait_for(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        login = session_page.get_by_role("link", name="Войти", exact=True)
+        if login.get_attribute("href") != "/login?next=/app/ledger/manual":
+            return ["React missing-session state has an unsafe return URL"]
+    except PlaywrightError as exc:
+        return [f"React missing-session state failed: {short_error(exc)}"]
+    finally:
+        context.close()
+    return []
 
 
 def assert_react_manual_create(page: Page) -> list[str]:
@@ -1042,9 +1089,7 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
     except PlaywrightError as exc:
         return [f"React manual restore did not reconcile the row: {short_error(exc)}"]
 
-    row.get_by_role("button", name="Отменить операцию", exact=True).click(
-        timeout=PAGE_TIMEOUT_MS
-    )
+    row.get_by_role("button", name="Отменить операцию", exact=True).click(timeout=PAGE_TIMEOUT_MS)
     try:
         delete = row.get_by_role("button", name="Удалить окончательно", exact=True)
         delete.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
@@ -1064,9 +1109,7 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
     row.get_by_role("button", name="Удалить окончательно", exact=True).click(
         timeout=PAGE_TIMEOUT_MS
     )
-    row.get_by_role("button", name="Да, удалить", exact=True).click(
-        timeout=PAGE_TIMEOUT_MS
-    )
+    row.get_by_role("button", name="Да, удалить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
     try:
         row.wait_for(state="detached", timeout=PAGE_TIMEOUT_MS)
     except PlaywrightError as exc:
@@ -1076,332 +1119,6 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
     if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
         return ["React manual lifecycle actions cause horizontal overflow"]
     return []
-
-
-def assert_frontend_next_manual_create(page: Page) -> list[str]:
-    errors: list[str] = []
-    create_region = page.locator("#manual-ledger-create")
-    disclosure = create_region.locator('a[aria-controls="manual-ledger-create-panel"]')
-    if disclosure.count() == 0:
-        return ["Frontend Next manual create disclosure was not found"]
-    total_before = int(page.locator("#manual-ledger-total").inner_text().split()[0])
-    disclosure.click(timeout=PAGE_TIMEOUT_MS)
-    form = create_region.locator("#next-manual-operation-create-form")
-    try:
-        form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
-    except PlaywrightError as exc:
-        return [f"Frontend Next manual create panel did not load: {short_error(exc)}"]
-    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
-        errors.append("Frontend Next manual create panel causes horizontal overflow")
-
-    account = form.locator('select[name="account_id"]')
-    if account.locator("option").count() < 2:
-        return [*errors, "Frontend Next manual create form has no account option"]
-    account.select_option(index=1)
-    amount = form.locator('input[name="amount"]')
-    amount.fill("0")
-    form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-    try:
-        create_region.get_by_text("Сумма должна быть больше нуля.").wait_for(
-            state="visible",
-            timeout=PAGE_TIMEOUT_MS,
-        )
-    except PlaywrightError as exc:
-        errors.append(f"Frontend Next manual create 422 state was not rendered: {short_error(exc)}")
-        return errors
-
-    amount_box = create_region.locator('input[name="amount"]').bounding_box()
-    date_box = create_region.locator('input[name="operation_date"]').bounding_box()
-    if amount_box and date_box and abs(amount_box["height"] - date_box["height"]) > 1:
-        errors.append("Frontend Next manual field error stretched the neighboring control")
-
-    form = create_region.locator("#next-manual-operation-create-form")
-    form.locator('input[name="amount"]').fill("123.45")
-    description = "UI audit: созданная операция"
-    form.locator('input[name="description"]').fill(description)
-    form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-    try:
-        form.wait_for(state="detached", timeout=PAGE_TIMEOUT_MS)
-    except PlaywrightError as exc:
-        errors.append(f"Frontend Next manual create did not replace the list: {short_error(exc)}")
-        return errors
-
-    total_after = int(page.locator("#manual-ledger-total").inner_text().split()[0])
-    if total_after != total_before + 1:
-        errors.append("Frontend Next manual create did not update the OOB total")
-    if create_region.locator("#next-manual-operation-create-form").count() != 0:
-        errors.append("Frontend Next manual create form stayed open after success")
-    if page.locator(".manual-ledger-row [data-expansion-panel]:visible").count() != 0:
-        errors.append("Frontend Next manual create opened an unrelated edit panel")
-    return errors
-
-
-def assert_frontend_next_manual_lifecycle(page: Page, row: Locator) -> list[str]:
-    errors: list[str] = []
-    row_id = row.get_attribute("id")
-    if not row_id:
-        return ["Frontend Next manual lifecycle row has no stable id"]
-    row = page.locator(f"#{row_id}")
-    total_before = int(page.locator("#manual-ledger-total").inner_text().split()[0])
-
-    more_actions = row.locator("details.action-stack__more > summary")
-    if more_actions.count() == 0:
-        return ["Frontend Next manual cancel action menu was not found"]
-    more_actions.click(timeout=PAGE_TIMEOUT_MS)
-    page.once("dialog", lambda dialog: dialog.accept())
-    row.get_by_role("button", name="Отменить операцию").click(timeout=PAGE_TIMEOUT_MS)
-    try:
-        row.get_by_text("отменено", exact=True).wait_for(
-            state="visible",
-            timeout=PAGE_TIMEOUT_MS,
-        )
-    except PlaywrightError as exc:
-        return [f"Frontend Next manual cancel did not replace the row: {short_error(exc)}"]
-
-    page.once("dialog", lambda dialog: dialog.accept())
-    row.get_by_role("button", name="Восстановить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
-    try:
-        row.get_by_text("подтверждено", exact=True).wait_for(
-            state="visible",
-            timeout=PAGE_TIMEOUT_MS,
-        )
-    except PlaywrightError as exc:
-        return [f"Frontend Next manual restore did not replace the row: {short_error(exc)}"]
-
-    row.locator("details.action-stack__more > summary").click(timeout=PAGE_TIMEOUT_MS)
-    page.once("dialog", lambda dialog: dialog.accept())
-    row.get_by_role("button", name="Отменить операцию").click(timeout=PAGE_TIMEOUT_MS)
-    row.get_by_text("отменено", exact=True).wait_for(
-        state="visible",
-        timeout=PAGE_TIMEOUT_MS,
-    )
-    row.locator("details.action-stack__more > summary").click(timeout=PAGE_TIMEOUT_MS)
-    page.once("dialog", lambda dialog: dialog.accept())
-    row.get_by_role("button", name="Удалить окончательно").click(timeout=PAGE_TIMEOUT_MS)
-    try:
-        row.wait_for(state="detached", timeout=PAGE_TIMEOUT_MS)
-    except PlaywrightError as exc:
-        errors.append(f"Frontend Next manual delete did not rebuild the list: {short_error(exc)}")
-        return errors
-
-    total_after = int(page.locator("#manual-ledger-total").inner_text().split()[0])
-    if total_after != total_before - 1:
-        errors.append("Frontend Next manual delete did not update the OOB total")
-    try:
-        page.locator("#manual-ledger-results:focus, #manual-ledger-results :focus").first.wait_for(
-            state="visible",
-            timeout=PAGE_TIMEOUT_MS,
-        )
-    except PlaywrightError:
-        errors.append("Frontend Next manual delete did not restore focus")
-    return errors
-
-
-def assert_frontend_next_manual_reference_filters(page: Page) -> list[str]:
-    form = page.locator(".manual-ledger-filters")
-    filter_names = ("account_id", "category_id", "property_id")
-    selected_values: dict[str, str] = {}
-    for name in filter_names:
-        select = form.locator(f'select[name="{name}"]')
-        if select.count() == 0:
-            return [f"Frontend Next manual {name} filter was not found"]
-        if select.locator("option").count() < 2:
-            continue
-        selected = select.locator("option").nth(1).get_attribute("value")
-        if selected:
-            select.select_option(selected)
-            selected_values[name] = selected
-
-    if not selected_values:
-        return ["Frontend Next manual reference filters have no realistic options"]
-    form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-    page.wait_for_load_state("domcontentloaded", timeout=PAGE_TIMEOUT_MS)
-    for name, expected in selected_values.items():
-        if page.locator(f'.manual-ledger-filters select[name="{name}"]').input_value() != expected:
-            return [f"Frontend Next manual {name} filter did not survive GET"]
-        if f"{name}={expected}" not in page.url:
-            return [f"Frontend Next manual {name} filter was lost from URL"]
-
-    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
-        return ["Frontend Next manual reference filters cause horizontal overflow"]
-    page.get_by_role("link", name="Сбросить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
-    page.wait_for_load_state("domcontentloaded", timeout=PAGE_TIMEOUT_MS)
-    return []
-
-
-def assert_frontend_next_manual_conflict(page: Page, row: Locator) -> list[str]:
-    row_id = row.get_attribute("id")
-    if not row_id:
-        return ["Frontend Next manual conflict row has no stable id"]
-    row = page.locator(f"#{row_id}")
-    disclosure = row.locator('a[aria-controls^="next-manual-operation-edit-panel-"]').first
-    disclosure.click(timeout=PAGE_TIMEOUT_MS)
-    stale_form = row.locator('form[id^="next-manual-operation-form-"]')
-    stale_form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
-    stale_version = stale_form.locator('input[name="version"]').input_value()
-    user_draft = "UI audit: несохранённый конкурентный черновик"
-    concurrent_value = "UI audit: изменение из второй вкладки"
-    stale_form.locator('input[name="description"]').fill(user_draft)
-
-    concurrent_page = page.context.new_page()
-    try:
-        concurrent_page.goto(page.url, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
-        concurrent_row = concurrent_page.locator(f"#{row_id}")
-        concurrent_row.locator('a[aria-controls^="next-manual-operation-edit-panel-"]').first.click(
-            timeout=PAGE_TIMEOUT_MS
-        )
-        concurrent_form = concurrent_row.locator('form[id^="next-manual-operation-form-"]')
-        concurrent_form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
-        concurrent_form.locator('input[name="description"]').fill(concurrent_value)
-        concurrent_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        concurrent_form.wait_for(state="detached", timeout=PAGE_TIMEOUT_MS)
-
-        stale_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        try:
-            row.get_by_text("Операция уже изменилась в другом окне").wait_for(
-                state="visible",
-                timeout=PAGE_TIMEOUT_MS,
-            )
-        except PlaywrightError as exc:
-            return [f"Frontend Next manual 409 conflict was not rendered: {short_error(exc)}"]
-
-        conflict_form = row.locator('form[id^="next-manual-operation-form-"]')
-        if conflict_form.locator('input[name="description"]').input_value() != user_draft:
-            return ["Frontend Next manual conflict did not preserve the user draft"]
-        if conflict_form.locator('input[name="version"]').input_value() != stale_version:
-            return ["Frontend Next manual conflict replaced the submitted version prematurely"]
-
-        row.get_by_role("link", name="Загрузить актуальную версию").click(timeout=PAGE_TIMEOUT_MS)
-        page.wait_for_function(
-            """
-            ({ rowId, expected }) => {
-              const input = document.querySelector(`#${rowId} input[name="description"]`);
-              return input instanceof HTMLInputElement && input.value === expected;
-            }
-            """,
-            arg={"rowId": row_id, "expected": concurrent_value},
-            timeout=PAGE_TIMEOUT_MS,
-        )
-        fresh_form = row.locator('form[id^="next-manual-operation-form-"]')
-        if fresh_form.locator('input[name="version"]').input_value() == stale_version:
-            return ["Frontend Next manual conflict reload kept the stale version"]
-        row.get_by_text("Закрыть", exact=True).click(timeout=PAGE_TIMEOUT_MS)
-    finally:
-        concurrent_page.close()
-    return []
-
-
-def assert_frontend_next_manual_edit(page: Page, row: Locator) -> list[str]:
-    errors: list[str] = []
-    row_id = row.get_attribute("id")
-    disclosure = row.locator('a[aria-controls^="next-manual-operation-edit-panel-"]').first
-    if disclosure.count() == 0:
-        return ["Frontend Next manual edit disclosure was not found"]
-    disclosure.click(timeout=PAGE_TIMEOUT_MS)
-    panel_id = disclosure.get_attribute("aria-controls")
-    if not panel_id:
-        return ["Frontend Next manual edit disclosure has no panel target"]
-    panel = page.locator(f"#{panel_id}")
-    form = row.locator('form[id^="next-manual-operation-form-"]')
-    try:
-        form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
-    except PlaywrightError as exc:
-        return [f"Frontend Next manual edit panel did not load: {short_error(exc)}"]
-    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
-        errors.append("Frontend Next manual edit panel causes horizontal overflow")
-
-    close = panel.get_by_text("Закрыть", exact=True)
-    if close.count() == 0:
-        errors.append("Frontend Next manual close action was lost after lazy load")
-        return errors
-    close.click(timeout=PAGE_TIMEOUT_MS)
-    try:
-        panel.wait_for(state="hidden", timeout=PAGE_TIMEOUT_MS)
-    except PlaywrightError as exc:
-        errors.append(f"Frontend Next manual panel did not close: {short_error(exc)}")
-        return errors
-    disclosure.click(timeout=PAGE_TIMEOUT_MS)
-    form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
-
-    original_description = form.locator('input[name="description"]').input_value().strip()
-    amount = form.locator('input[name="amount"]')
-    original_amount = amount.input_value()
-    amount.fill("0")
-    form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-    try:
-        row.get_by_text("Сумма должна быть больше нуля.").wait_for(
-            state="visible",
-            timeout=PAGE_TIMEOUT_MS,
-        )
-    except PlaywrightError as exc:
-        errors.append(f"Frontend Next manual 422 state was not rendered: {short_error(exc)}")
-        return errors
-    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
-        errors.append("Frontend Next manual 422 state causes horizontal overflow")
-
-    amount = row.locator('form[id^="next-manual-operation-form-"] input[name="amount"]')
-    if amount.input_value() != "0":
-        errors.append("Frontend Next manual validation did not preserve the amount draft")
-    amount.fill(original_amount)
-    row.locator('form[id^="next-manual-operation-form-"] button[type="submit"]').click(
-        timeout=PAGE_TIMEOUT_MS
-    )
-    try:
-        row.locator('form[id^="next-manual-operation-form-"]').wait_for(
-            state="detached",
-            timeout=PAGE_TIMEOUT_MS,
-        )
-    except PlaywrightError as exc:
-        errors.append(f"Frontend Next manual row was not replaced after save: {short_error(exc)}")
-        return errors
-
-    if not row.evaluate("element => element.classList.contains('workbench-row--working')"):
-        errors.append("Frontend Next manual row did not retain working feedback after save")
-    try:
-        row.locator(":focus").wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
-    except PlaywrightError:
-        errors.append("Frontend Next manual row did not restore focus after save")
-    if panel.is_visible():
-        errors.append("Frontend Next manual panel stayed open after replaceRow")
-    if panel.get_by_text("Загружаем форму…").is_visible():
-        errors.append("Frontend Next manual loading placeholder stayed visible after save")
-
-    if row_id and original_description:
-        search = page.locator('.manual-ledger-filters input[name="search"]')
-        search.fill(original_description)
-        page.locator('.manual-ledger-filters button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        filtered_row = page.locator(f"#{row_id}")
-        try:
-            filtered_row.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
-        except PlaywrightError as exc:
-            errors.append(f"Frontend Next manual filtered row was not rendered: {short_error(exc)}")
-            return errors
-
-        total_before = int(page.locator("#manual-ledger-total").inner_text().split()[0])
-        filtered_row.locator('a[aria-controls^="next-manual-operation-edit-panel-"]').first.click(
-            timeout=PAGE_TIMEOUT_MS
-        )
-        filtered_form = filtered_row.locator('form[id^="next-manual-operation-form-"]')
-        filtered_form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
-        filtered_form.locator('input[name="description"]').fill("UI audit: проверка области ответа")
-        filtered_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        try:
-            filtered_row.wait_for(state="detached", timeout=PAGE_TIMEOUT_MS)
-        except PlaywrightError as exc:
-            errors.append(
-                f"Frontend Next manual row stayed in a mismatched filtered list: {short_error(exc)}"
-            )
-            return errors
-
-        total_after = int(page.locator("#manual-ledger-total").inner_text().split()[0])
-        if total_after != total_before - 1:
-            errors.append("Frontend Next manual OOB total did not follow replaceList")
-        focused_in_results = page.locator(
-            "#manual-ledger-results:focus, #manual-ledger-results :focus"
-        )
-        if focused_in_results.count() == 0:
-            errors.append("Frontend Next manual replaceList did not restore focus")
-    return errors
 
 
 def assert_design_quality(page: Page, *, path: str) -> list[str]:
@@ -2244,28 +1961,13 @@ def remove_expected_console_error(
     ux_assertion_errors: list[str],
 ) -> list[str]:
     filtered = list(errors)
-    if scenario != "realistic" or path not in {
-        "/_next/ledger/manual",
-        "/app/ledger/manual",
-    }:
+    if scenario != "realistic" or path != "/app/ledger/manual":
         return filtered
     if any("422 state was not rendered" in error for error in ux_assertion_errors):
         return filtered
     conflict_rendered = not any(
         "409 conflict was not rendered" in error for error in ux_assertion_errors
     )
-    if path == "/app/ledger/manual":
-        return [
-            message
-            for message in filtered
-            if not (
-                "Failed to load resource" in message
-                and (
-                    "422 (Unprocessable Entity)" in message
-                    or (conflict_rendered and "409 (Conflict)" in message)
-                )
-            )
-        ]
     return [
         message
         for message in filtered

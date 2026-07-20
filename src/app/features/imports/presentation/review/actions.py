@@ -16,7 +16,7 @@ class ReviewActionUrlBuilder:
         return f"/imports/documents/{self.document_id}/raw-transactions/{row_id}/undo-posting"
 
     def operation_url(self, operation_id: object) -> str:
-        return f"/ledger/manual?operation_id={operation_id}"
+        return f"/app/ledger/manual?operation_id={operation_id}"
 
 
 class ReviewActionPolicy:

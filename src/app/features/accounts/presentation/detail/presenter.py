@@ -227,7 +227,7 @@ class AccountDetailPresenter:
                 icon="plus",
                 placement="primary",
                 action_type="link",
-                url=f"/ledger/manual?operation_id={entry.operation_id}#operation-{entry.operation_id}",
+                url=f"/app/ledger/manual?operation_id={entry.operation_id}#operation-{entry.operation_id}",
             )
         if entry.operation.source == OperationSource.SYSTEM:
             return AccountMovementActionVM(

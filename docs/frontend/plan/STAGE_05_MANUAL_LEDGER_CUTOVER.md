@@ -1,6 +1,6 @@
 # Stage 05: Manual Ledger Cutover And Cleanup
 
-Status: next.
+Status: active.
 
 ## Goal
 
@@ -89,3 +89,40 @@ Before deleting each target, prove:
 - cleanup record lists what remains and its actual consumer.
 
 Next: [`Stage 06`](STAGE_06_IMPORT_REVIEW_CHECKPOINT.md).
+
+## Progress
+
+Completed slices:
+
+- replacement coverage and deletion policy frozen in
+  [`STAGE_05_MANUAL_LEDGER_REPLACEMENT_MATRIX.md`](STAGE_05_MANUAL_LEDGER_REPLACEMENT_MATRIX.md);
+- canonical URL policy fixed as `/app/ledger/manual` with a query-preserving
+  redirect from the historical GET URL;
+- implementation-specific Jinja/HTMX/Alpine assertions separated from retained
+  financial, security, API, React and browser contracts;
+- readonly, missing-session, refresh and Back/Forward browser gates passed;
+- response, bundle and query comparison recorded in
+  [`STAGE_05_MANUAL_LEDGER_MEASUREMENTS.md`](STAGE_05_MANUAL_LEDGER_MEASUREMENTS.md);
+- canonical navigation, account-detail and import-review links switched to
+  `/app/ledger/manual`; historical GET preserves query through a temporary
+  redirect;
+- realistic browser seeding migrated from the current SSR form to React; the
+  three-route transition matrix passed at desktop, 920 px and mobile widths;
+- deleted the complete unconsumed `src/app/web/` runtime, `/_next` mount, manual
+  templates/CSS/JavaScript, shared Next UI primitives and 55 implementation
+  tests after consumer search;
+- removed Frontend Next selectors/scenarios from the UI audit and regenerated
+  OpenAPI TypeScript types without `/_next` HTML endpoints;
+- verified the deletion with the full Python suite (`515 passed`), the complete
+  frontend check (`49 passed`, lint/type/build passed), and a six-page browser
+  audit of the canonical and historical URLs at desktop, tablet and mobile
+  widths.
+
+Observation/rollback condition: before SSR deletion, revert only the canonical
+GET/navigation switch if React cannot complete a writer or readonly workflow,
+loses saved target/filter URLs, exposes an authorization failure, or violates a
+financial invariant. API/application changes are not part of that rollback.
+
+Next slice: delete current SSR manual routes/presenter/templates/tests and their
+exclusive CSS/HTMX hooks, while retaining the historical query-preserving GET
+redirect to React.

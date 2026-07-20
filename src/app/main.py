@@ -29,8 +29,6 @@ from app.features.users.service import AuthenticationService
 from app.features.workspaces.router import router as workspaces_router
 from app.react_frontend import install_react_frontend
 from app.templating import create_templates
-from app.web.router import router as web_router
-from app.web.templating import WEB_STATIC_ROOT
 
 templates = create_templates()
 
@@ -48,7 +46,6 @@ def create_app() -> FastAPI:
     install_security_middleware(app, settings)
     install_api_exception_handlers(app)
     app.mount("/static", StaticFiles(directory="src/app/static"), name="static")
-    app.mount("/_next/static", StaticFiles(directory=WEB_STATIC_ROOT), name="web_static")
     app.include_router(api_router)
     app.include_router(accounts_router)
     app.include_router(categories_router)
@@ -61,7 +58,6 @@ def create_app() -> FastAPI:
     app.include_router(transaction_rules_router)
     app.include_router(users_router)
     app.include_router(workspaces_router)
-    app.include_router(web_router)
 
     @app.get("/", response_class=HTMLResponse)
     async def home(

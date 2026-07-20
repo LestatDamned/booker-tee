@@ -145,7 +145,7 @@ def test_presenter_keeps_manual_operation_as_link_action_for_first_slice() -> No
     assert movement.edit_form_url is None
     assert movement.primary_action is not None
     assert movement.primary_action.href == (
-        f"/ledger/manual?operation_id={operation.id}#operation-{operation.id}"
+        f"/app/ledger/manual?operation_id={operation.id}#operation-{operation.id}"
     )
     assert movement.primary_action.action_type == "link"
     assert movement.primary_action.placement == "primary"

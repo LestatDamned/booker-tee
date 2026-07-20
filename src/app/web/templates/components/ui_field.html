@@ -1,9 +1,0 @@
-{% macro ui_field(label, field_id, error=none) %}
-  <label class="ui-field" for="{{ field_id }}">
-    <span class="ui-field__label">{{ label }}</span>
-    {{ caller() }}
-    {% if error %}
-      <span id="{{ error.error_id }}" class="ui-field__error">{{ error.message }}</span>
-    {% endif %}
-  </label>
-{% endmacro %}

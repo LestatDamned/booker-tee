@@ -128,13 +128,13 @@ response scopes, draft state, focus и sibling updates.
 
 Разные части репозитория имеют разные роли.
 
-| Источник | Что берем | Что не копируем |
-| --- | --- | --- |
-| Product/domain docs | финансовые инварианты, review-first, privacy, workspace boundary | старые frontend implementation assumptions |
-| Current SSR | реальные workflows, edge cases, тексты, permissions, empty/error states | Jinja, HTMX/OOB, Alpine, CSS cascade, HTML response contracts |
-| Frontend Next | semantic tokens, Workbench Row, ActionStack, lifecycle, accessibility, `409`/`422` discoveries | Python UI ViewModel, HTML fragment renderers, `/_next`, SSR fallback machinery |
-| UI tests and audits | realistic data, behavior baselines, responsive/accessibility failures | exact HTML, CSS selectors и HTMX-specific assertions |
-| Git history | удаленная implementation history | production-копии `legacy`, `old`, `next` после cutover |
+| Источник            | Что берем                                                                                      | Что не копируем                                                                |
+| ------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Product/domain docs | финансовые инварианты, review-first, privacy, workspace boundary                               | старые frontend implementation assumptions                                     |
+| Current SSR         | реальные workflows, edge cases, тексты, permissions, empty/error states                        | Jinja, HTMX/OOB, Alpine, CSS cascade, HTML response contracts                  |
+| Frontend Next       | semantic tokens, Workbench Row, ActionStack, lifecycle, accessibility, `409`/`422` discoveries | Python UI ViewModel, HTML fragment renderers, `/_next`, SSR fallback machinery |
+| UI tests and audits | realistic data, behavior baselines, responsive/accessibility failures                          | exact HTML, CSS selectors и HTMX-specific assertions                           |
+| Git history         | удаленная implementation history                                                               | production-копии `legacy`, `old`, `next` после cutover                         |
 
 При конфликте:
 
@@ -385,8 +385,10 @@ src/app/
 /app/*                  -> React application
 /api/v1/*               -> FastAPI JSON API
 /dashboard, /imports... -> current SSR до workflow cutover
-/_next/*                -> frozen SSR Frontend Next до удаления
 ```
+
+`/_next/*` и `src/app/web/` удалены в Stage 05 после React manual-ledger
+cutover; они остаются только историческим источником решений в документации.
 
 Development:
 
@@ -512,15 +514,15 @@ API использует единый envelope:
 
 Минимальные статусы:
 
-| HTTP | Значение |
-| --- | --- |
-| `400` | malformed request вне нормального validation contract |
-| `401` | нет действующей session |
-| `403` | недостаточно permission или invalid CSRF |
-| `404` | workspace-scoped resource не найден |
-| `409` | stale version или явный state conflict |
+| HTTP  | Значение                                                  |
+| ----- | --------------------------------------------------------- |
+| `400` | malformed request вне нормального validation contract     |
+| `401` | нет действующей session                                   |
+| `403` | недостаточно permission или invalid CSRF                  |
+| `404` | workspace-scoped resource не найден                       |
+| `409` | stale version или явный state conflict                    |
 | `422` | ожидаемая validation error с сохранением draft на клиенте |
-| `5xx` | неожиданная server error без sensitive details |
+| `5xx` | неожиданная server error без sensitive details            |
 
 API не возвращает `303` login redirect, HTML error page или Jinja fragment.
 Browser shell обрабатывает `401` и переводит пользователя на login route с
@@ -578,15 +580,15 @@ FastAPI OpenAPI является machine-readable boundary. Frontend types/clien
 
 React не означает, что все состояние становится global.
 
-| State | Владелец | Примеры |
-| --- | --- | --- |
-| Financial truth | FastAPI/application/database | operation type, confirmed status, balance, profit |
-| Server state | route/feature data layer | operations list, review queue, reference options |
-| URL state | React Router | filters, pagination, selected period, stable target |
-| Form draft | form/feature component | amount input, selected category, unsaved description |
-| Ephemeral row state | row/feature component | open panel, active review panel, request pending |
-| App context | root shell | current user, workspace, role, theme |
-| Durable preference | backend or explicit browser storage | theme after separate product decision |
+| State               | Владелец                            | Примеры                                              |
+| ------------------- | ----------------------------------- | ---------------------------------------------------- |
+| Financial truth     | FastAPI/application/database        | operation type, confirmed status, balance, profit    |
+| Server state        | route/feature data layer            | operations list, review queue, reference options     |
+| URL state           | React Router                        | filters, pagination, selected period, stable target  |
+| Form draft          | form/feature component              | amount input, selected category, unsaved description |
+| Ephemeral row state | row/feature component               | open panel, active review panel, request pending     |
+| App context         | root shell                          | current user, workspace, role, theme                 |
+| Durable preference  | backend or explicit browser storage | theme after separate product decision                |
 
 Не хранить в global context:
 
@@ -814,12 +816,12 @@ Danger zone   destructive actions отдельно
 
 Разделять:
 
-| Канал | Пример | Presentation |
-| --- | --- | --- |
-| Financial meaning | income, expense, transfer | MoneyValue и semantic row accent |
-| Durable status | confirmed, archived, ignored | calm metadata/badge |
-| Problem | needs review, duplicate, mismatch, error | visible signal + explanation |
-| Ephemeral UI | working, recent, target, focus | surface/outline/label |
+| Канал             | Пример                                   | Presentation                     |
+| ----------------- | ---------------------------------------- | -------------------------------- |
+| Financial meaning | income, expense, transfer                | MoneyValue и semantic row accent |
+| Durable status    | confirmed, archived, ignored             | calm metadata/badge              |
+| Problem           | needs review, duplicate, mismatch, error | visible signal + explanation     |
+| Ephemeral UI      | working, recent, target, focus           | surface/outline/label            |
 
 Временный приоритет:
 
@@ -1233,17 +1235,17 @@ src/app/features/workspaces/permissions.py
 
 ### 12.2 Сохраняем после адаптации
 
-| Текущий код | Целевая роль |
-| --- | --- |
-| application DTO/read projections | источник API response mapper |
-| service/use-case commands | вызываются API endpoints |
-| workspace context/permission functions | основа API dependencies |
-| session cookie helpers | same-origin auth |
-| CSRF HMAC verification | header-based API CSRF |
-| legacy presenters | временный источник wording/state discovery |
-| Frontend Next MoneyFormatter | поведенческий baseline, не runtime dependency React |
-| UI audit realistic scenario | backend + browser E2E fixture |
-| semantic color/spacing tokens | первая React theme/foundation |
+| Текущий код                            | Целевая роль                                        |
+| -------------------------------------- | --------------------------------------------------- |
+| application DTO/read projections       | источник API response mapper                        |
+| service/use-case commands              | вызываются API endpoints                            |
+| workspace context/permission functions | основа API dependencies                             |
+| session cookie helpers                 | same-origin auth                                    |
+| CSRF HMAC verification                 | header-based API CSRF                               |
+| legacy presenters                      | временный источник wording/state discovery          |
+| Frontend Next MoneyFormatter           | поведенческий baseline, не runtime dependency React |
+| UI audit realistic scenario            | backend + browser E2E fixture                       |
+| semantic color/spacing tokens          | первая React theme/foundation                       |
 
 ### 12.3 Не путать browser и chat presentation
 
@@ -1302,18 +1304,19 @@ React нельзя подключать к этим routes через HTML scrap
 dependencies; существующий SSR contract сохраняется, пока его используют
 legacy routes.
 
-### 13.4 Important: две активные browser presentation systems
+### 13.4 Resolved: Frontend Next runtime удалён
 
-`src/app/main.py` одновременно:
+До Stage 05 `src/app/main.py` одновременно:
 
 - монтирует `/static` current frontend;
 - монтирует `/_next/static`;
 - подключает current feature routers;
 - подключает `app.web.router`.
 
-Добавление React без cleanup создает три frontend runtime. Поэтому
-`src/app/web/` замораживается сейчас и удаляется после переноса его полезных
-behavior contracts в React tests/docs.
+Добавление React без cleanup создавало три frontend runtime. После переноса
+полезных behavior contracts в React tests/docs `src/app/web/`, `/_next` mount и
+Next-only tests удалены. Во время дальнейшей миграции остаются current SSR и
+React, но не третья экспериментальная presentation system.
 
 ### 13.5 Important: browser presentation внутри backend feature routers
 
@@ -1420,23 +1423,23 @@ tooling rewrite раньше продукта.
 
 ### 14.1 Можно удалить после React foundation baseline
 
-| Target | Условие |
-| --- | --- |
+| Target                                                             | Условие                                                                  |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------ |
 | ~~`/_next/foundation` route и `src/app/web/features/foundation/`~~ | удалено в React Stage 02 после visual/accessibility replacement baseline |
-| Next foundation templates/tests | их устойчивые контракты заменены React component tests |
-| Next-only foundation scenario в `ui_audit.py` | React foundation scenario существует |
+| ~~Next foundation templates/tests~~                                | удалены вместе с последним `src/app/web` consumer в Stage 05             |
+| ~~Next-only foundation scenario в `ui_audit.py`~~                  | удалён в Stage 05                                                        |
 
 ### 14.2 Можно удалить после React manual-ledger replacement
 
-| Target | Условие |
-| --- | --- |
-| `src/app/web/features/ledger/manual/` | React manual workflow и API прошли cutover |
-| Next manual templates/CSS/JS consumers | replacement tests и browser audit проходят |
-| `tests/ui_refactor/features/ledger/manual_next/` | API + React tests покрывают useful contracts |
-| `tests/ui_refactor/features/ledger/manual/` baseline | владелец подтвердил replacement coverage |
-| old `src/app/features/ledger/presentation/manual_operations/` | current SSR manual route также удален |
-| `src/app/templates/ledger/manual*` | current SSR manual route удален |
-| manual selectors из current `app.css` | поиск не показывает consumers |
+| Target                                                        | Условие                                              |
+| ------------------------------------------------------------- | ---------------------------------------------------- |
+| ~~`src/app/web/features/ledger/manual/`~~                     | удалён после React cutover в Stage 05                |
+| ~~Next manual templates/CSS/JS consumers~~                    | весь неиспользуемый `src/app/web/` удалён в Stage 05 |
+| ~~`tests/ui_refactor/features/ledger/manual_next/`~~          | заменены API + React tests и удалены в Stage 05      |
+| `tests/ui_refactor/features/ledger/manual/` baseline          | владелец подтвердил replacement coverage             |
+| old `src/app/features/ledger/presentation/manual_operations/` | current SSR manual route также удален                |
+| `src/app/templates/ledger/manual*`                            | current SSR manual route удален                      |
+| manual selectors из current `app.css`                         | поиск не показывает consumers                        |
 
 ### 14.3 Можно удалить после каждого legacy workflow cutover
 
@@ -1582,7 +1585,7 @@ Go criteria:
 ### Phase 6. Final SSR cleanup
 
 - удалить последний authenticated legacy presentation;
-- удалить `src/app/web/` и `/_next` mount;
+- ~~удалить `src/app/web/` и `/_next` mount;~~ выполнено в Stage 05;
 - удалить HTMX/Alpine/vendor scripts без consumers;
 - удалить current CSS/templates/presenters без consumers;
 - очистить UI audit branches;
@@ -1626,23 +1629,23 @@ inventory behavior and consumers
 
 ## 17. Risks и mitigations
 
-| Риск | Mitigation |
-| --- | --- |
-| Три frontend во время миграции | freeze Next, manual pilot, immediate vertical cleanup gates |
-| Дублирование financial logic в TypeScript | semantic API fields, server authority, backend tests |
-| API превращается в UI-specific BFF schemas | resource/workflow schemas без component placement |
-| Слишком ранний frontend framework zoo | minimal dependencies, ADR only after real need |
-| Потеря SSR progressive enhancement | reliable errors/retry/deep links; legacy remains до replacement |
-| Session/CSRF regression | same-origin, HttpOnly cookie, API CSRF header tests |
-| Workspace leak | API dependency + scoped repository tests on every resource family |
-| Optimistic UI показывает ложные деньги | no optimistic financial confirmation |
-| Long migration preserves dead code | vertical cleanup manifest and consumer search |
-| UI audit rewrite съест migration budget | reuse Python Playwright first, split later |
-| React component becomes universal CRUD | composition slots, feature ownership, no flag-heavy models |
-| Generated API types leak everywhere | feature mapping at API boundary |
-| Новый frontend непонятен владельцу проекта | explicit code, Python-oriented learning docs, concept walkthrough per slice |
-| Token system разрастается в свалку variables | semantic layers, named ownership, no token per arbitrary value |
-| Сохранение geometry превращается в перенос старых bugs | screenshot baseline плюс documented intentional differences |
+| Риск                                                   | Mitigation                                                                  |
+| ------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Три frontend во время миграции                         | freeze Next, manual pilot, immediate vertical cleanup gates                 |
+| Дублирование financial logic в TypeScript              | semantic API fields, server authority, backend tests                        |
+| API превращается в UI-specific BFF schemas             | resource/workflow schemas без component placement                           |
+| Слишком ранний frontend framework zoo                  | minimal dependencies, ADR only after real need                              |
+| Потеря SSR progressive enhancement                     | reliable errors/retry/deep links; legacy remains до replacement             |
+| Session/CSRF regression                                | same-origin, HttpOnly cookie, API CSRF header tests                         |
+| Workspace leak                                         | API dependency + scoped repository tests on every resource family           |
+| Optimistic UI показывает ложные деньги                 | no optimistic financial confirmation                                        |
+| Long migration preserves dead code                     | vertical cleanup manifest and consumer search                               |
+| UI audit rewrite съест migration budget                | reuse Python Playwright first, split later                                  |
+| React component becomes universal CRUD                 | composition slots, feature ownership, no flag-heavy models                  |
+| Generated API types leak everywhere                    | feature mapping at API boundary                                             |
+| Новый frontend непонятен владельцу проекта             | explicit code, Python-oriented learning docs, concept walkthrough per slice |
+| Token system разрастается в свалку variables           | semantic layers, named ownership, no token per arbitrary value              |
+| Сохранение geometry превращается в перенос старых bugs | screenshot baseline плюс documented intentional differences                 |
 
 ---
 

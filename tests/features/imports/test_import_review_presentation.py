@@ -212,6 +212,23 @@ def test_possible_duplicate_actions_are_status_actions_without_panel_toggle() ->
     assert all(action.action_type != "panel_toggle" for action in rendered_actions)
 
 
+def test_possible_duplicate_links_to_the_canonical_react_operation() -> None:
+    operation_id = uuid4()
+    actions = ReviewActionPolicy(document_id=uuid4()).actions_for(
+        review_row(linked_operation_id=operation_id),
+        visual_state="duplicate",
+        is_confirmable=False,
+        category_panel_id="category-panel",
+        transfer_panel_id="transfer-panel",
+        category_id=None,
+        property_id=None,
+    )
+
+    assert actions.primary is not None
+    assert actions.primary.action_type == "link"
+    assert actions.primary.url == f"/app/ledger/manual?operation_id={operation_id}"
+
+
 def test_income_or_expense_without_real_category_is_not_confirmable() -> None:
     uncategorized = category(system_key="uncategorized")
     policy = ReviewConfirmabilityPolicy(categories=[uncategorized])

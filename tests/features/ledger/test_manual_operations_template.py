@@ -328,7 +328,7 @@ def test_manual_operation_anchor_url_points_to_operation_card() -> None:
 
     assert (
         manual_operation_anchor_url(operation_id)
-        == f"/ledger/manual?operation_id={operation_id}#operation-{operation_id}"
+        == f"/app/ledger/manual?operation_id={operation_id}#operation-{operation_id}"
     )
 
 
