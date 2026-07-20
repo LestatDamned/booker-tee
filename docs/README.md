@@ -18,14 +18,14 @@ For any coding task:
 3. One or two task-specific documents from the table below
 4. Relevant code
 
-Для работ по рефакторингу frontend/SSR:
+Для работ по новому frontend и миграции с SSR:
 
-1. [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md)
-2. [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) при работе с
-   повторяющимися строками сущностей
-3. [`DESIGN.md`](design/DESIGN.md)
-4. [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md), especially SSR/presentation
-   and feature boundary rules
+1. [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md)
+2. [`DESIGN.md`](design/DESIGN.md)
+3. [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md), especially application,
+   domain, repository, API adapter and feature boundary rules
+4. [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) только как
+   подробный источник UX-контрактов повторяющихся строк сущностей
 
 For financial/domain changes:
 
@@ -41,9 +41,10 @@ For financial/domain changes:
 | [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md) | active source of truth | Database models, ledger behavior, imports, reports, financial correctness |
 | [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md) | active architecture reference | Code structure, feature boundaries, services/repositories/presentation layer |
 | [`DESIGN.md`](design/DESIGN.md) | active design reference | General UI/UX rules, visual direction, financial UI patterns |
-| [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) | утвержденное ТЗ | Изолированный SSR frontend и вертикальное переключение workflows |
-| [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) | утвержденная дочерняя спецификация | Повторяющиеся строки сущностей в Frontend Next |
-| [`MANUAL_LEDGER_BASELINE.md`](design/MANUAL_LEDGER_BASELINE.md) | working migration baseline | Этап 1 первого пилота Frontend Next: наблюдаемый контракт `/ledger/manual` |
+| [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md) | active target frontend architecture | React/API boundary, UX contracts, migration strategy and repository cleanup manifest |
+| [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) | superseded SSR strategy / behavior reference | Изолированный SSR frontend и найденные при его проектировании контракты |
+| [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) | historical detailed UX specification | Повторяющиеся строки сущностей; переносимые interaction-контракты для React |
+| [`MANUAL_LEDGER_BASELINE.md`](design/MANUAL_LEDGER_BASELINE.md) | historical migration baseline | Наблюдаемый контракт `/ledger/manual` до React migration |
 | [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md) | earlier refactor reference | Existing import-review behavior and presentation discoveries |
 | [`MVP.md`](product/MVP.md) | historical baseline / guardrails | Preventing regressions in the completed parser-first MVP |
 | [`ROADMAP.md`](product/ROADMAP.md) | planning reference | Future sequencing, not a current task list |
@@ -72,10 +73,12 @@ For financial/domain changes:
 ## Design
 
 - [`DESIGN.md`](design/DESIGN.md) — UI/UX principles and visual direction.
-- [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) — утвержденная
-  стратегия параллельного SSR frontend, изоляции, переключения и очистки.
-- [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) — спецификация
-  компонентов и поведения повторяющихся строк сущностей в Frontend Next.
+- [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md) — активная
+  целевая React/API архитектура, стратегия миграции и cleanup manifest.
+- [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) — superseded
+  стратегия параллельного SSR frontend; сохраняется как behavior reference.
+- [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) — историческая
+  подробная спецификация поведения повторяющихся строк сущностей.
 - [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md) — справочный
   документ предыдущего import-review рефакторинга и найденного поведения.
 
