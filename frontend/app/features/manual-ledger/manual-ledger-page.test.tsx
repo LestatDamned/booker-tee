@@ -1,10 +1,13 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionDto } from "../../api/session";
 import type { ManualLedgerDto } from "./manual-ledger-api";
 import { ManualLedgerPage } from "./manual-ledger-page";
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("ManualLedgerPage", () => {
   it("renders date, money and the single backend description as primary data", () => {
@@ -60,6 +63,51 @@ describe("ManualLedgerPage", () => {
     expect(
       document.getElementById(`operation-${page.targetOperationId}`),
     ).toHaveAttribute("data-state", "target");
+  });
+
+  it("locks conflicting actions on one row while leaving unrelated UI available", async () => {
+    const user = userEvent.setup();
+    const page = ledger();
+    let resolveRequest: ((response: Response) => void) | undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveRequest = resolve;
+    });
+    const fetchMock = vi.fn().mockReturnValue(pendingResponse);
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <MemoryRouter initialEntries={["/app/ledger/manual"]}>
+        <ManualLedgerPage ledger={page} session={session} />
+      </MemoryRouter>,
+    );
+
+    const cancel = screen.getByRole("button", { name: "Отменить операцию" });
+    fireEvent.click(cancel);
+    fireEvent.click(cancel);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Исправить" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Добавить операцию" }),
+    ).toBeEnabled();
+
+    const cancelled = {
+      ...page.items[0],
+      version: 4,
+      status: "ignored" as const,
+      capabilities: {
+        canEdit: false,
+        canCancel: false,
+        canRestore: true,
+        canDelete: true,
+        readonlyReason: null,
+      },
+    };
+    resolveRequest?.(jsonResponse(cancelled, 200));
+
+    await user.click(
+      await screen.findByRole("button", { name: "Восстановить операцию" }),
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   });
 });
 
@@ -131,4 +179,11 @@ function ledger(): ManualLedgerDto {
     capabilities: { canCreate: true, readonlyReason: null },
     targetOperationId: operationId,
   };
+}
+
+function jsonResponse(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { "Content-Type": "application/json" },
+    status,
+  });
 }

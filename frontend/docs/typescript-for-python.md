@@ -167,3 +167,145 @@ Production build React Router делит route module на отдельные ch
 когда framework загружает endpoint и presentation разными workers. Обычный
 unit-тест функции проверяет контракт, но только production build и browser test
 доказывают, что bundler действительно включил зависимость в client chunk.
+
+## Controlled mutation form
+
+`ManualOperationCreate` хранит draft и состояние отправки рядом с формой. Draft —
+обычный typed object в `useState`; request state — discriminated union
+`idle | pending | error`. Поэтому TypeScript не позволяет случайно прочитать
+`fieldErrors`, пока форма не находится в error state.
+
+Submit handler сначала переводит форму в `pending`, затем отправляет JSON с CSRF
+header. Ответ `201` ещё не добавляется в список вручную: React Router переходит
+на URL с `operation_id`, повторно запускает loader и получает authoritative
+server list. Ответ `422`, наоборот, не заменяет draft и только добавляет ошибки
+к соответствующим controls.
+
+Python-аналогия — Pydantic form model плюс явный enum состояния запроса. Граница
+аналогии: setter React не меняет объект немедленно, а планирует render; кроме
+того, disabled button защищает UI от concurrent click, но не является backend
+idempotency guarantee против сетевого replay.
+
+Когда форма получила transfer, generated OpenAPI contract стал discriminated
+union из двух объектов: income/expense request и transfer request. Общий
+`operationType` позволяет TypeScript сузить объект: у transfer доступны
+`sourceAccountId`/`destinationAccountId`, а у другой ветки — `accountId`,
+`categoryId` и `propertyId`. Это близко к Pydantic discriminated union: одна
+внешняя JSON-граница, но невозможные сочетания полей не становятся моделью.
+
+Значение нативного `<select>` в DOM всё равно
+имеет широкий тип `string`, поэтому `operationType()` явно сужает его до
+union. Это runtime-проверка, а не `as`-утверждение компилятору «поверь мне».
+
+Python-аналогия — преобразование внешней строки в `Literal`/Enum на границе до
+создания Pydantic command. Благодаря этому остальной draft и API request уже не
+могут содержать произвольный operation type.
+
+## Idempotency key и retry
+
+Форма создаёт UUID один раз для нового draft и отправляет его в
+`Idempotency-Key`. Ошибка `422` или сетевой сбой не меняют ключ: повторная
+отправка относится к той же попытке создания. После успешного ответа или
+явной отмены создаётся новый UUID.
+
+Backend хранит ключ вместе с fingerprint команды и уникализирует его внутри
+workspace. Тот же ключ и тот же payload возвращают уже созданную operation;
+тот же ключ с другим payload даёт `409`. Уникальный индекс также закрывает гонку
+двух одновременных запросов, которую невозможно надёжно решить disabled-кнопкой.
+
+Python-аналогия — UUID в command плюс unique constraint и повторное чтение после
+`IntegrityError`. Граница аналогии: React state здесь нужен не для финансовой
+логики, а чтобы идентичность попытки пережила новые renders и пользовательский
+retry.
+
+## Lazy edit: snapshot и draft
+
+`ManualOperationEdit` не получает тяжёлую форму из list response. При первом
+открытии `useEffect` запускает GET edit snapshot, а `useRef` отмечает, что запрос
+уже был начат. Поэтому обычное закрытие и повторное открытие не загружают форму
+заново и сохраняют несохранённый draft.
+
+Состояние edit panel — discriminated union: `idle`, `loading`, `load_error` или
+`ready`. Только ветка `ready` содержит одновременно server snapshot, изменяемый
+draft, reference options и submission state. TypeScript заставляет проверить
+ветку перед чтением этих полей.
+
+Python-аналогия — объект результата загрузки с разными dataclass-вариантами.
+Граница аналогии: `useEffect` описывает синхронизацию React-компонента с внешним
+HTTP-сервисом; это не аналог вызова функции непосредственно во время render.
+
+Create и edit используют один `ManualOperationFields` и один
+`ManualOperationDraft`. Они не делят lifecycle: create владеет idempotency key,
+а edit — загруженной `version` и server snapshot. Переиспользуется стабильная
+форма данных, а не случайно похожий orchestration code.
+
+При `422` backend errors добавляются к текущему draft. При `409` draft тоже
+остаётся нетронутым, пока пользователь явно не нажмёт «Загрузить актуальную
+версию». Только это действие заменяет draft свежим snapshot.
+
+Python-аналогия optimistic concurrency — отправить `expected_version` из формы
+и выполнить SQL `UPDATE` с version check. Disabled-кнопка предотвращает второй
+локальный submit, но именно server version не позволяет двум вкладкам молча
+перезаписать изменения друг друга.
+
+## Lifecycle action как маленький state machine
+
+`ManualOperationLifecycle` получает не произвольный URL, а union
+`"cancel" | "restore"`. Доступное действие приходит из server capabilities:
+confirmed operation показывает cancel, ignored operation — restore. Frontend не
+пытается самостоятельно решить, разрешён ли переход.
+
+Локальное состояние компонента — union `idle | pending | conflict | error`.
+В `pending` блокируется только нажатая lifecycle-кнопка, остальные строки списка
+остаются рабочими. Успешный POST возвращает полную новую operation; этот server
+response немедленно заменяет строку, а route revalidation затем сверяет весь
+список с backend.
+
+Каждая команда отправляет текущую `version`. Поэтому capability — это подсказка
+для UI, но не разрешение на запись: backend снова проверяет workspace, роль,
+исходный status и version. При `409` компонент предлагает явно обновить строку.
+
+Python-аналогия — маленький объект команды с `Literal` action и optimistic lock.
+Главное отличие: TypeScript union ограничивает код клиента на этапе компиляции,
+но доверенная проверка перехода всё равно принадлежит Python use case.
+
+## Destructive confirmation и удаление из коллекции
+
+Удаление вынесено в `ManualOperationDelete`, потому что его lifecycle отличается
+от обратимых cancel/restore. State union содержит отдельную ветку `confirming`:
+первое нажатие не отправляет HTTP-запрос, а показывает последствия и две явные
+кнопки. Только «Да, удалить» переводит компонент в `pending` и вызывает DELETE.
+
+Успешный DELETE возвращает `204 No Content`, поэтому frontend не пытается читать
+JSON. Callback передаёт `operationId` владельцу списка, который иммутабельно
+добавляет id в набор скрытых строк. Если удалённая строка была URL target,
+`operation_id` и hash убираются через navigation с сохранением filters.
+
+Python-аналогия — удалить элемент из новой копии коллекции по id, а затем
+перечитать страницу из repository. React сначала reconciles локальную коллекцию,
+чтобы UI ответил немедленно, а route revalidation подтверждает pagination и
+total с backend. При `409` строка не исчезает и предлагает обновить snapshot.
+
+## Mutation lock, focus и retry
+
+Одна строка manual ledger владеет общим `mutationPending`. Дочерние edit,
+cancel/restore и delete сообщают о начале и завершении запроса через
+`onPendingChange`. Пока один запрос выполняется, конфликтующие кнопки этой строки
+disabled, но форма создания и соседние строки продолжают работать.
+
+Python-аналогия — короткоживущий lock у одного aggregate instance. Граница
+аналогии: React lock улучшает UX и предотвращает обычный двойной click, но не
+защищает данные сам по себе. Create по-прежнему опирается на idempotency key, а
+edit/lifecycle/delete — на server version.
+
+После `422` React сначала рендерит `aria-invalid` и текст ошибок, затем
+`useEffect` выполняет императивный `focus()` первого невалидного control. Effect
+нужен именно после render: до него элемента с новым состоянием ошибки в DOM ещё
+нет. После явной отмены focus возвращается на disclosure-кнопку, чтобы keyboard
+пользователь не потерял рабочий контекст.
+
+Сетевой сбой не сбрасывает draft, idempotency key или загруженную version.
+Повторное нажатие отправляет ту же логическую попытку, тогда как успешный ответ
+заменяет snapshot данными backend. Это похоже на повтор команды после
+`ConnectionError`: клиент не делает вывод, применена ли команда, только из факта
+разрыва соединения.

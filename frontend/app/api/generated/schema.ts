@@ -14,7 +14,77 @@ export interface paths {
         /** List Manual Operations */
         get: operations["list_manual_operations_api_v1_manual_ledger_get"];
         put?: never;
+        /** Create Manual Operation */
+        post: operations["create_manual_operation_api_v1_manual_ledger_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/manual-ledger/{operation_id}/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Load Manual Operation Edit */
+        get: operations["load_manual_operation_edit_api_v1_manual_ledger__operation_id__edit_get"];
+        put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/manual-ledger/{operation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Manual Operation */
+        put: operations["update_manual_operation_api_v1_manual_ledger__operation_id__put"];
+        post?: never;
+        /** Delete Manual Operation */
+        delete: operations["delete_manual_operation_api_v1_manual_ledger__operation_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/manual-ledger/{operation_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Manual Operation */
+        post: operations["cancel_manual_operation_api_v1_manual_ledger__operation_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/manual-ledger/{operation_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Manual Operation */
+        post: operations["restore_manual_operation_api_v1_manual_ledger__operation_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1251,6 +1321,21 @@ export interface components {
          * @enum {string}
          */
         AccountType: "cash" | "card" | "deposit" | "checking" | "other";
+        /** ApiErrorDetails */
+        ApiErrorDetails: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Fielderrors */
+            fieldErrors?: {
+                [key: string]: string[];
+            } | null;
+        };
+        /** ApiErrorEnvelope */
+        ApiErrorEnvelope: {
+            error: components["schemas"]["ApiErrorDetails"];
+        };
         /** Body_archive_category_categories__category_id__archive_post */
         Body_archive_category_categories__category_id__archive_post: {
             /** View */
@@ -1657,6 +1742,66 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** ManualIncomeExpenseCreateRequest */
+        ManualIncomeExpenseCreateRequest: {
+            /** Amount */
+            amount: string;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            operationType: "income" | "expense";
+            /**
+             * Accountid
+             * Format: uuid
+             */
+            accountId: string;
+            /** Categoryid */
+            categoryId?: string | null;
+            /** Propertyid */
+            propertyId?: string | null;
+        };
+        /** ManualIncomeExpenseUpdateRequest */
+        ManualIncomeExpenseUpdateRequest: {
+            /** Amount */
+            amount: string;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Version */
+            version: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            operationType: "income" | "expense";
+            /**
+             * Accountid
+             * Format: uuid
+             */
+            accountId: string;
+            /** Categoryid */
+            categoryId?: string | null;
+            /** Propertyid */
+            propertyId?: string | null;
+        };
         /** ManualLedgerAccountReference */
         ManualLedgerAccountReference: {
             /**
@@ -1801,6 +1946,16 @@ export interface components {
             /** Readonlyreason */
             readonlyReason?: string | null;
         };
+        /** ManualOperationEditResponse */
+        ManualOperationEditResponse: {
+            operation: components["schemas"]["ManualOperationResponse"];
+            filterOptions: components["schemas"]["ManualLedgerFilterOptions"];
+        };
+        /** ManualOperationLifecycleRequest */
+        ManualOperationLifecycleRequest: {
+            /** Version */
+            version: number;
+        };
         /** ManualOperationResponse */
         ManualOperationResponse: {
             /**
@@ -1822,6 +1977,68 @@ export interface components {
             category: components["schemas"]["ManualLedgerNamedReference"] | null;
             property: components["schemas"]["ManualLedgerNamedReference"] | null;
             capabilities: components["schemas"]["ManualOperationCapabilities"];
+        };
+        /** ManualTransferCreateRequest */
+        ManualTransferCreateRequest: {
+            /** Amount */
+            amount: string;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            operationType: "transfer";
+            /**
+             * Sourceaccountid
+             * Format: uuid
+             */
+            sourceAccountId: string;
+            /**
+             * Destinationaccountid
+             * Format: uuid
+             */
+            destinationAccountId: string;
+        };
+        /** ManualTransferUpdateRequest */
+        ManualTransferUpdateRequest: {
+            /** Amount */
+            amount: string;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Version */
+            version: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            operationType: "transfer";
+            /**
+             * Sourceaccountid
+             * Format: uuid
+             */
+            sourceAccountId: string;
+            /**
+             * Destinationaccountid
+             * Format: uuid
+             */
+            destinationAccountId: string;
         };
         /**
          * MoneyDirection
@@ -1965,6 +2182,417 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ManualLedgerListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_manual_operation_api_v1_manual_ledger_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualIncomeExpenseCreateRequest"] | components["schemas"]["ManualTransferCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualOperationResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    load_manual_operation_edit_api_v1_manual_ledger__operation_id__edit_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualOperationEditResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_manual_operation_api_v1_manual_ledger__operation_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualIncomeExpenseUpdateRequest"] | components["schemas"]["ManualTransferUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualOperationResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    delete_manual_operation_api_v1_manual_ledger__operation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualOperationLifecycleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_manual_operation_api_v1_manual_ledger__operation_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualOperationLifecycleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualOperationResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_manual_operation_api_v1_manual_ledger__operation_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualOperationLifecycleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualOperationResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
             /** @description Validation Error */

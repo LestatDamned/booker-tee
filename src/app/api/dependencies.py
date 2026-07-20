@@ -14,7 +14,7 @@ from app.core.security import (
 from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.users.service import AuthenticationService
-from app.features.workspaces.permissions import can_read_workspace
+from app.features.workspaces.permissions import can_read_workspace, can_write_financial_data
 from app.features.workspaces.service import WorkspaceContext
 
 API_CSRF_HEADER = "X-CSRF-Token"
@@ -62,6 +62,18 @@ async def get_api_request_context(
     request.state.csrf_token = csrf_token
     request.state.workspace_context = workspace_context
     return ApiRequestContext(workspace=workspace_context, csrf_token=csrf_token)
+
+
+def require_api_financial_write_context(
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+) -> ApiRequestContext:
+    if not can_write_financial_data(context.workspace.membership):
+        raise ApiError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="financial_write_forbidden",
+            message="Недостаточно прав для изменения финансовых данных.",
+        )
+    return context
 
 
 def verify_api_csrf(

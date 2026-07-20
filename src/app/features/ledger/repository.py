@@ -56,6 +56,26 @@ class LedgerRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_operation_by_idempotency_key(
+        self,
+        *,
+        workspace_id: UUID,
+        idempotency_key: UUID,
+    ) -> Operation | None:
+        result = await self.session.execute(
+            select(Operation)
+            .options(
+                selectinload(Operation.category),
+                selectinload(Operation.property),
+                selectinload(Operation.money_entries).selectinload(MoneyEntry.account),
+            )
+            .where(
+                Operation.workspace_id == workspace_id,
+                Operation.idempotency_key == str(idempotency_key),
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def list_manual_operations_for_workspace(self, workspace_id: UUID) -> list[Operation]:
         result = await self.session.execute(
             select(Operation)

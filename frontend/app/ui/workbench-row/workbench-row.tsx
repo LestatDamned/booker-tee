@@ -11,6 +11,7 @@ type WorkbenchRowProps = {
   description: ReactNode;
   details?: ReactNode;
   expansion?: ReactNode;
+  expansionHidden?: boolean;
   id?: string;
   meta?: ReactNode;
   signals?: ReactNode;
@@ -24,6 +25,7 @@ export function WorkbenchRow({
   description,
   details,
   expansion,
+  expansionHidden = false,
   id,
   meta,
   signals,
@@ -53,7 +55,11 @@ export function WorkbenchRow({
         {signals ? <div className={styles.signals}>{signals}</div> : null}
       </div>
       {aside ? <aside className={styles.aside}>{aside}</aside> : null}
-      {expansion ? <div className={styles.expansion}>{expansion}</div> : null}
+      {expansion ? (
+        <div className={styles.expansion} hidden={expansionHidden}>
+          {expansion}
+        </div>
+      ) : null}
     </article>
   );
 }

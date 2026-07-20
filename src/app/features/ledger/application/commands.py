@@ -15,6 +15,7 @@ class CreateManualIncomeExpenseCommand:
     description: str | None
     category_id: UUID | None
     property_id: UUID | None
+    idempotency_key: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,7 @@ class CreateManualTransferCommand:
     amount: Decimal
     operation_date: date
     description: str | None
+    idempotency_key: UUID | None = None
 
 
 @dataclass(frozen=True)

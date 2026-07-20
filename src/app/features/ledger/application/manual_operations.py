@@ -1,6 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -10,6 +11,10 @@ from app.features.ledger.application.commands import (
     UpdateManualOperationCommand,
 )
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
+from app.features.ledger.domain.manual_idempotency import (
+    manual_income_expense_fingerprint,
+    manual_transfer_fingerprint,
+)
 from app.features.ledger.domain.money import (
     TransferAmounts,
     affects_profit_for_operation_type,
@@ -18,7 +23,13 @@ from app.features.ledger.domain.money import (
     require_uuid,
 )
 from app.features.ledger.domain.text import clean_description
-from app.features.ledger.errors import LedgerPostingError, OperationVersionConflictError
+from app.features.ledger.errors import (
+    LedgerPostingError,
+    ManualOperationLifecycleConflictError,
+    ManualOperationNotFoundError,
+    OperationIdempotencyConflictError,
+    OperationVersionConflictError,
+)
 from app.features.ledger.mapping.operation_factory import (
     build_manual_income_expense_operation,
     build_manual_transfer_operation,
@@ -47,7 +58,15 @@ class ManualOperationUseCase:
         context: WorkspaceContext,
         command: CreateManualIncomeExpenseCommand,
     ) -> Operation:
+        fingerprint = manual_income_expense_fingerprint(command)
         try:
+            replay = await self._find_idempotent_replay(
+                workspace_id=context.workspace.id,
+                idempotency_key=command.idempotency_key,
+                fingerprint=fingerprint,
+            )
+            if replay is not None:
+                return replay
             if command.operation_type not in {OperationType.INCOME, OperationType.EXPENSE}:
                 raise LedgerPostingError("Manual operation must be income or expense.")
             account = await self.references.get_account(context.workspace.id, command.account_id)
@@ -82,6 +101,13 @@ class ManualOperationUseCase:
             )
             await self.session.commit()
             return operation
+        except IntegrityError as error:
+            return await self._recover_idempotent_race(
+                workspace_id=context.workspace.id,
+                idempotency_key=command.idempotency_key,
+                fingerprint=fingerprint,
+                integrity_error=error,
+            )
         except Exception:
             await self.session.rollback()
             raise
@@ -92,7 +118,15 @@ class ManualOperationUseCase:
         context: WorkspaceContext,
         command: CreateManualTransferCommand,
     ) -> Operation:
+        fingerprint = manual_transfer_fingerprint(command)
         try:
+            replay = await self._find_idempotent_replay(
+                workspace_id=context.workspace.id,
+                idempotency_key=command.idempotency_key,
+                fingerprint=fingerprint,
+            )
+            if replay is not None:
+                return replay
             source_account = await self.references.get_account(
                 context.workspace.id,
                 command.source_account_id,
@@ -135,9 +169,53 @@ class ManualOperationUseCase:
             )
             await self.session.commit()
             return operation
+        except IntegrityError as error:
+            return await self._recover_idempotent_race(
+                workspace_id=context.workspace.id,
+                idempotency_key=command.idempotency_key,
+                fingerprint=fingerprint,
+                integrity_error=error,
+            )
         except Exception:
             await self.session.rollback()
             raise
+
+    async def _find_idempotent_replay(
+        self,
+        *,
+        workspace_id: UUID,
+        idempotency_key: UUID | None,
+        fingerprint: str,
+    ) -> Operation | None:
+        if idempotency_key is None:
+            return None
+        operation = await self.ledger.get_operation_by_idempotency_key(
+            workspace_id=workspace_id,
+            idempotency_key=idempotency_key,
+        )
+        if operation is None:
+            return None
+        if operation.idempotency_fingerprint != fingerprint:
+            raise OperationIdempotencyConflictError()
+        return operation
+
+    async def _recover_idempotent_race(
+        self,
+        *,
+        workspace_id: UUID,
+        idempotency_key: UUID | None,
+        fingerprint: str,
+        integrity_error: IntegrityError,
+    ) -> Operation:
+        await self.session.rollback()
+        replay = await self._find_idempotent_replay(
+            workspace_id=workspace_id,
+            idempotency_key=idempotency_key,
+            fingerprint=fingerprint,
+        )
+        if replay is None:
+            raise integrity_error
+        return replay
 
     async def update(
         self,
@@ -147,6 +225,11 @@ class ManualOperationUseCase:
     ) -> Operation:
         try:
             operation = await self._get_manual_operation(context.workspace.id, command.operation_id)
+            if operation.status not in {
+                OperationStatus.CONFIRMED,
+                OperationStatus.DRAFT,
+            }:
+                raise LedgerPostingError("Only confirmed or draft manual operations can be edited.")
             self._ensure_expected_version(operation, command.expected_version)
             operation.type = command.operation_type
             operation.affects_profit = affects_profit_for_operation_type(command.operation_type)
@@ -190,10 +273,14 @@ class ManualOperationUseCase:
         *,
         context: WorkspaceContext,
         operation_id: UUID,
+        expected_version: int | None = None,
     ) -> Operation:
         operation = await self._get_manual_operation(context.workspace.id, operation_id)
+        self._ensure_expected_version(operation, expected_version)
         if operation.status != OperationStatus.CONFIRMED:
-            raise LedgerPostingError("Only confirmed manual operations can be cancelled.")
+            raise ManualOperationLifecycleConflictError(
+                "Only confirmed manual operations can be cancelled."
+            )
         operation.status = OperationStatus.IGNORED
         operation.updated_by_user_id = context.user.id
         await self._commit_versioned()
@@ -204,10 +291,14 @@ class ManualOperationUseCase:
         *,
         context: WorkspaceContext,
         operation_id: UUID,
+        expected_version: int | None = None,
     ) -> Operation:
         operation = await self._get_manual_operation(context.workspace.id, operation_id)
+        self._ensure_expected_version(operation, expected_version)
         if operation.status != OperationStatus.IGNORED:
-            raise LedgerPostingError("Only cancelled manual operations can be restored.")
+            raise ManualOperationLifecycleConflictError(
+                "Only cancelled manual operations can be restored."
+            )
         operation.status = OperationStatus.CONFIRMED
         operation.updated_by_user_id = context.user.id
         await self._commit_versioned()
@@ -218,12 +309,16 @@ class ManualOperationUseCase:
         *,
         context: WorkspaceContext,
         operation_id: UUID,
+        expected_version: int | None = None,
     ) -> None:
         operation = await self._get_manual_operation(context.workspace.id, operation_id)
+        self._ensure_expected_version(operation, expected_version)
         if operation.status not in {OperationStatus.DRAFT, OperationStatus.IGNORED}:
-            raise LedgerPostingError("Cancel a manual operation before deleting it.")
+            raise ManualOperationLifecycleConflictError(
+                "Cancel a manual operation before deleting it."
+            )
         await self.ledger.delete_operation(operation)
-        await self.session.commit()
+        await self._commit_versioned()
 
     async def _update_as_transfer(
         self,
@@ -305,7 +400,7 @@ class ManualOperationUseCase:
     async def _get_manual_operation(self, workspace_id: UUID, operation_id: UUID) -> Operation:
         operation = await self.ledger.get_operation_for_workspace(workspace_id, operation_id)
         if operation is None:
-            raise LedgerPostingError("Manual operation was not found.")
+            raise ManualOperationNotFoundError()
         if operation.source != OperationSource.MANUAL:
             raise LedgerPostingError("Only manual operations can be changed here.")
         return operation

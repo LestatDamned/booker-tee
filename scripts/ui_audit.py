@@ -299,6 +299,7 @@ def prepare_realistic_scenario(
 ) -> dict[str, str]:
     scenario_id = f"{viewport_name}-{time.time_ns()}"
     account_name = f"UI Audit Cash {scenario_id}"
+    destination_account_name = f"UI Audit Savings {scenario_id}"
     rule_category_name = "UI Audit Food"
     property_name = f"UI Audit Apartment {scenario_id}"
     document_name = f"ui-audit-statement-{scenario_id}.xlsx"
@@ -318,6 +319,14 @@ def prepare_realistic_scenario(
         account_detail_path = account_card.locator('a[href^="/accounts/"]').first.get_attribute(
             "href"
         )
+        page.goto(build_url(base_url, "/accounts"), wait_until="domcontentloaded")
+        open_details_if_closed(page, "details.account-create-details")
+        page.locator('form#new-account input[name="name"]').fill(destination_account_name)
+        page.locator('form#new-account select[name="account_type"]').select_option("deposit")
+        page.locator('form#new-account input[name="currency"]').fill("RUB")
+        page.locator('form#new-account input[name="initial_balance"]').fill("0.00")
+        page.locator('form#new-account button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+        page.get_by_text(destination_account_name, exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
 
         page.goto(build_url(base_url, "/ledger/manual"), wait_until="domcontentloaded")
         page.locator("label.segmented-expense").click(timeout=PAGE_TIMEOUT_MS)
@@ -674,6 +683,16 @@ def assert_react_manual_ledger(
     if page.locator(".financial-row, .manual-operation-row, .manual-ledger-row").count() != 0:
         errors.append("React manual ledger rendered legacy row classes")
 
+    if scenario == "realistic":
+        errors.extend(assert_react_manual_create(page))
+        errors.extend(
+            assert_react_manual_edit(
+                page,
+                check_conflict=int((page.viewport_size or {}).get("width") or 0) >= 1200,
+            )
+        )
+        errors.extend(assert_react_manual_lifecycle(page))
+
     disclosure = page.get_by_role("button", name="Показать", exact=True)
     if disclosure.count() == 0:
         errors.append("React manual ledger filter disclosure was not found")
@@ -730,6 +749,333 @@ def assert_react_manual_ledger(
     if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
         errors.append("React manual ledger causes horizontal overflow")
     return errors
+
+
+def assert_react_manual_create(page: Page) -> list[str]:
+    errors: list[str] = []
+    disclosure = page.get_by_role("button", name="Добавить операцию", exact=True)
+    if disclosure.count() == 0:
+        return ["React manual income/expense create disclosure was not found"]
+    disclosure.click(timeout=PAGE_TIMEOUT_MS)
+    form = page.locator("#manual-operation-create-panel")
+    try:
+        form.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        return [f"React manual income/expense form did not open: {short_error(exc)}"]
+
+    form.locator("#manual-operation-type").select_option("expense")
+    account = form.locator("#manual-operation-account")
+    if account.locator("option").count() < 2:
+        return ["React manual income/expense form has no account option"]
+    account.select_option(index=1)
+    amount = form.locator("#manual-operation-amount")
+    description = "UI audit: React expense"
+    amount.fill("0")
+    form.locator("#manual-operation-description").fill(description)
+    form.get_by_role("button", name="Создать расход", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    try:
+        form.get_by_text("Сумма должна быть больше нуля.", exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        return [f"React manual income/expense 422 state was not rendered: {short_error(exc)}"]
+    if amount.input_value() != "0":
+        errors.append("React manual expense 422 state did not preserve the amount draft")
+    if not amount.evaluate("element => element === document.activeElement"):
+        errors.append("React manual expense 422 did not focus the invalid amount")
+
+    amount.fill("123.45")
+    form.get_by_role("button", name="Создать расход", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    try:
+        page.get_by_role("heading", name=description, exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        return [
+            *errors,
+            f"React manual expense was not reloaded in the list: {short_error(exc)}",
+        ]
+    if "operation_id=" not in page.url:
+        errors.append("React manual expense success did not create a stable target URL")
+    if page.locator('article[data-state="target"]').count() != 1:
+        errors.append("React manual expense success did not mark the created row")
+    created_row = page.get_by_role("heading", name=description, exact=True).locator(
+        "xpath=ancestor::article[1]"
+    )
+    if "расход" not in created_row.inner_text().lower():
+        errors.append("React manual expense lost its expense semantics")
+    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
+        errors.append("React manual expense form or result causes horizontal overflow")
+
+    disclosure = page.get_by_role("button", name="Добавить операцию", exact=True)
+    disclosure.click(timeout=PAGE_TIMEOUT_MS)
+    form = page.locator("#manual-operation-create-panel")
+    form.locator("#manual-operation-type").select_option("transfer")
+    source_account = form.locator("#manual-operation-account")
+    if source_account.locator("option").count() < 3:
+        return [*errors, "React manual transfer form has fewer than two accounts"]
+    source_account.select_option(index=1)
+    destination_account = form.locator("#manual-operation-destination-account")
+    destination_account.select_option(index=1)
+    transfer_description = "UI audit: React transfer"
+    form.locator("#manual-operation-amount").fill("50.25")
+    form.locator("#manual-operation-description").fill(transfer_description)
+    form.get_by_role("button", name="Создать перевод", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    try:
+        page.get_by_role("heading", name=transfer_description, exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        return [*errors, f"React manual transfer was not reloaded in the list: {short_error(exc)}"]
+    transfer_row = page.get_by_role("heading", name=transfer_description, exact=True).locator(
+        "xpath=ancestor::article[1]"
+    )
+    transfer_text = transfer_row.inner_text().lower()
+    if "перевод" not in transfer_text:
+        errors.append("React manual transfer lost its transfer semantics")
+    if "расход" in transfer_text or "доход" in transfer_text:
+        errors.append("React manual transfer was presented as profit-affecting operation")
+    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
+        errors.append("React manual transfer form or result causes horizontal overflow")
+    return errors
+
+
+def assert_react_manual_edit(page: Page, *, check_conflict: bool) -> list[str]:
+    errors: list[str] = []
+    original_description = "UI audit: React transfer"
+    updated_description = "UI audit: React transfer edited"
+    heading = page.get_by_role("heading", name=original_description, exact=True)
+    if heading.count() == 0:
+        return ["React manual edit target was not found"]
+    row = heading.locator("xpath=ancestor::article[1]")
+    row.get_by_role("button", name="Исправить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    panel = row.locator('section[id^="manual-operation-edit-panel-"]')
+    try:
+        panel.get_by_label("Сумма *").wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        return [f"React manual lazy edit did not load: {short_error(exc)}"]
+
+    amount = panel.get_by_label("Сумма *")
+    amount.fill("0")
+    panel.get_by_role("button", name="Сохранить изменения", exact=True).click(
+        timeout=PAGE_TIMEOUT_MS
+    )
+    try:
+        panel.get_by_text("Сумма должна быть больше нуля.", exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        return [f"React manual edit 422 state was not rendered: {short_error(exc)}"]
+    if amount.input_value() != "0":
+        errors.append("React manual edit 422 did not preserve the amount draft")
+    if not amount.evaluate("element => element === document.activeElement"):
+        errors.append("React manual edit 422 did not focus the invalid amount")
+
+    amount.fill("50.25")
+    description = panel.get_by_label("Описание")
+    description.fill(updated_description)
+    panel.get_by_role("button", name="Сохранить изменения", exact=True).click(
+        timeout=PAGE_TIMEOUT_MS
+    )
+    try:
+        page.get_by_role("heading", name=updated_description, exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        return [*errors, f"React manual edit did not reload the row: {short_error(exc)}"]
+    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
+        errors.append("React manual edit causes horizontal overflow")
+    if check_conflict:
+        errors.extend(
+            assert_react_manual_edit_conflict(
+                page,
+                current_description=updated_description,
+            )
+        )
+    return errors
+
+
+def assert_react_manual_edit_conflict(
+    page: Page,
+    *,
+    current_description: str,
+) -> list[str]:
+    row = page.get_by_role("heading", name=current_description, exact=True).locator(
+        "xpath=ancestor::article[1]"
+    )
+    row.get_by_role("button", name="Исправить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    panel = row.locator('section[id^="manual-operation-edit-panel-"]')
+    panel.get_by_label("Описание").wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    user_draft = "UI audit: React stale draft"
+    concurrent_value = "UI audit: React concurrent update"
+    panel.get_by_label("Описание").fill(user_draft)
+
+    concurrent_page = page.context.new_page()
+    try:
+        concurrent_page.goto(page.url, wait_until="networkidle", timeout=PAGE_TIMEOUT_MS)
+        concurrent_row = concurrent_page.get_by_role(
+            "heading",
+            name=current_description,
+            exact=True,
+        ).locator("xpath=ancestor::article[1]")
+        concurrent_row.get_by_role("button", name="Исправить", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        concurrent_panel = concurrent_row.locator('section[id^="manual-operation-edit-panel-"]')
+        concurrent_panel.get_by_label("Описание").wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        concurrent_panel.get_by_label("Описание").fill(concurrent_value)
+        concurrent_panel.get_by_role(
+            "button",
+            name="Сохранить изменения",
+            exact=True,
+        ).click(timeout=PAGE_TIMEOUT_MS)
+        concurrent_page.get_by_role("heading", name=concurrent_value, exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+
+        panel.get_by_role("button", name="Сохранить изменения", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        try:
+            panel.get_by_text("Операция уже изменилась в другом окне.", exact=True).wait_for(
+                state="visible",
+                timeout=PAGE_TIMEOUT_MS,
+            )
+        except PlaywrightError as exc:
+            return [f"React manual 409 conflict was not rendered: {short_error(exc)}"]
+        if panel.get_by_label("Описание").input_value() != user_draft:
+            return ["React manual 409 conflict did not preserve the user draft"]
+        panel.get_by_role("button", name="Загрузить актуальную версию", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        page.wait_for_function(
+            """
+            expected => Array.from(document.querySelectorAll('input')).some(
+              input => input.value === expected
+            )
+            """,
+            arg=concurrent_value,
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    finally:
+        concurrent_page.close()
+    return []
+
+
+def assert_react_manual_lifecycle(page: Page) -> list[str]:
+    description = "UI audit: React transfer edited"
+    heading = page.get_by_role("heading", name=description, exact=True)
+    if heading.count() == 0:
+        return ["React manual lifecycle target was not found"]
+    row = heading.locator("xpath=ancestor::article[1]")
+    close_edit = row.get_by_role("button", name="Закрыть", exact=True)
+    if close_edit.count() == 1 and close_edit.is_visible():
+        close_edit.click(timeout=PAGE_TIMEOUT_MS)
+
+    cancel = row.get_by_role("button", name="Отменить операцию", exact=True)
+    if cancel.count() == 0:
+        return ["React manual cancel action was not exposed by capability"]
+    cancel.click(timeout=PAGE_TIMEOUT_MS)
+    restore = row.get_by_role("button", name="Восстановить операцию", exact=True)
+    refresh = row.get_by_role("button", name="Обновить строку", exact=True)
+    try:
+        restore.or_(refresh).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        return [f"React manual cancel did not settle: {short_error(exc)}"]
+
+    if refresh.count() == 1 and refresh.is_visible():
+        if row.get_by_text("Операция уже изменилась в другом окне.", exact=True).count() == 0:
+            return ["React manual lifecycle 409 did not explain the conflict"]
+        refresh.click(timeout=PAGE_TIMEOUT_MS)
+        refreshed_heading = page.get_by_role(
+            "heading",
+            name="UI audit: React concurrent update",
+            exact=True,
+        )
+        try:
+            refreshed_heading.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+        except PlaywrightError as exc:
+            return [f"React manual lifecycle conflict did not refresh row: {short_error(exc)}"]
+        row = refreshed_heading.locator("xpath=ancestor::article[1]")
+        row.get_by_role("button", name="Отменить операцию", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+
+    try:
+        row.get_by_role("button", name="Восстановить операцию", exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        row.get_by_text("отменено", exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        return [f"React manual cancel did not reconcile the row: {short_error(exc)}"]
+    if row.get_by_role("button", name="Исправить", exact=True).count() != 0:
+        return ["React manual cancelled row still exposes edit"]
+
+    row.get_by_role("button", name="Восстановить операцию", exact=True).click(
+        timeout=PAGE_TIMEOUT_MS
+    )
+    try:
+        row.get_by_role("button", name="Отменить операцию", exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        row.get_by_text("подтверждено", exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        return [f"React manual restore did not reconcile the row: {short_error(exc)}"]
+
+    row.get_by_role("button", name="Отменить операцию", exact=True).click(
+        timeout=PAGE_TIMEOUT_MS
+    )
+    try:
+        delete = row.get_by_role("button", name="Удалить окончательно", exact=True)
+        delete.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        return [f"React manual delete capability was not reconciled: {short_error(exc)}"]
+
+    delete.click(timeout=PAGE_TIMEOUT_MS)
+    confirmation = row.get_by_text("Удалить операцию без возможности восстановления?", exact=False)
+    try:
+        confirmation.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        return [f"React manual delete confirmation was not rendered: {short_error(exc)}"]
+    row.get_by_role("button", name="Не удалять", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    if row.count() != 1:
+        return ["React manual delete cancellation removed the row"]
+
+    row.get_by_role("button", name="Удалить окончательно", exact=True).click(
+        timeout=PAGE_TIMEOUT_MS
+    )
+    row.get_by_role("button", name="Да, удалить", exact=True).click(
+        timeout=PAGE_TIMEOUT_MS
+    )
+    try:
+        row.wait_for(state="detached", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        return [f"React manual delete did not remove the row: {short_error(exc)}"]
+    if "operation_id=" in page.url:
+        return ["React manual delete left a stale target in the URL"]
+    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
+        return ["React manual lifecycle actions cause horizontal overflow"]
+    return []
 
 
 def assert_frontend_next_manual_create(page: Page) -> list[str]:
@@ -1898,13 +2244,28 @@ def remove_expected_console_error(
     ux_assertion_errors: list[str],
 ) -> list[str]:
     filtered = list(errors)
-    if path != "/_next/ledger/manual" or scenario != "realistic":
+    if scenario != "realistic" or path not in {
+        "/_next/ledger/manual",
+        "/app/ledger/manual",
+    }:
         return filtered
     if any("422 state was not rendered" in error for error in ux_assertion_errors):
         return filtered
     conflict_rendered = not any(
         "409 conflict was not rendered" in error for error in ux_assertion_errors
     )
+    if path == "/app/ledger/manual":
+        return [
+            message
+            for message in filtered
+            if not (
+                "Failed to load resource" in message
+                and (
+                    "422 (Unprocessable Entity)" in message
+                    or (conflict_rendered and "409 (Conflict)" in message)
+                )
+            )
+        ]
     return [
         message
         for message in filtered

@@ -14,6 +14,10 @@ describe("toManualOperationRowModel", () => {
 
     expect(row.description).toBe("Аренда за июль");
     expect(row.date).toBe("2026-07-20");
+    expect(row.version).toBe(3);
+    expect(row.canCancel).toBe(true);
+    expect(row.canDelete).toBe(false);
+    expect(row.canRestore).toBe(false);
     expect(row.money).toEqual({
       amount: "−65 000,00",
       currency: "RUB",

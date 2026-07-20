@@ -10,6 +10,10 @@ type OperationStatus = components["schemas"]["OperationStatus"];
 export type ManualOperationRowModel = {
   id: string;
   anchorId: string;
+  canCancel: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canRestore: boolean;
   date: string;
   description: string;
   money: { amount: string; currency: string; tone: MoneyTone } | null;
@@ -18,6 +22,7 @@ export type ManualOperationRowModel = {
   operationTone: BadgeTone;
   statusLabel: string;
   statusTone: BadgeTone;
+  version: number;
 };
 
 const operationPresentation: Record<
@@ -51,8 +56,12 @@ export function toManualOperationRowModel(
   return {
     id: operation.id,
     anchorId: `operation-${operation.id}`,
+    canCancel: operation.capabilities.canCancel,
+    canDelete: operation.capabilities.canDelete,
+    canEdit: operation.capabilities.canEdit,
+    canRestore: operation.capabilities.canRestore,
     date: operation.operationDate,
-    description: operation.description,
+    description: operation.description || "Без описания",
     money: operation.money
       ? {
           amount: formatMoneyAmount(
@@ -68,6 +77,7 @@ export function toManualOperationRowModel(
     operationTone: operationView.tone,
     statusLabel: statusView.label,
     statusTone: statusView.tone,
+    version: operation.version,
   };
 }
 

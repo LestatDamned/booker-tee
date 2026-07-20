@@ -1,5 +1,10 @@
+import { useRevalidator } from "react-router";
+
 import type { Route } from "./+types/manual-ledger";
-import type { ManualLedgerLoadResult } from "../features/manual-ledger/manual-ledger-api";
+import type {
+  ManualLedgerLoadResult,
+  ManualOperationDto,
+} from "../features/manual-ledger/manual-ledger-api";
 import { ManualLedgerPage } from "../features/manual-ledger/manual-ledger-page";
 import styles from "../styles/shell.module.css";
 import { loadManualLedgerRoute } from "./manual-ledger-loader";
@@ -17,13 +22,27 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 export default function ManualLedgerRoute({
   loaderData,
 }: Route.ComponentProps) {
-  return <ManualLedgerRouteView loaderData={loaderData} />;
+  const revalidator = useRevalidator();
+  return (
+    <ManualLedgerRouteView
+      loaderData={loaderData}
+      onOperationDeleted={() => void revalidator.revalidate()}
+      onOperationUpdated={() => void revalidator.revalidate()}
+      onRefresh={() => void revalidator.revalidate()}
+    />
+  );
 }
 
 export function ManualLedgerRouteView({
   loaderData,
+  onOperationDeleted,
+  onOperationUpdated,
+  onRefresh,
 }: {
   loaderData: Awaited<ReturnType<typeof loadManualLedgerRoute>>;
+  onOperationDeleted?: (operationId: string) => void;
+  onOperationUpdated?: (operation: ManualOperationDto) => void;
+  onRefresh?: () => void;
 }) {
   const { ledger, session } = loaderData;
   if (
@@ -45,7 +64,15 @@ export function ManualLedgerRouteView({
       />
     );
   }
-  return <ManualLedgerPage ledger={ledger.ledger} session={session.session} />;
+  return (
+    <ManualLedgerPage
+      ledger={ledger.ledger}
+      {...(onOperationDeleted === undefined ? {} : { onOperationDeleted })}
+      {...(onOperationUpdated === undefined ? {} : { onOperationUpdated })}
+      {...(onRefresh === undefined ? {} : { onRefresh })}
+      session={session.session}
+    />
+  );
 }
 
 function RouteState({

@@ -9,6 +9,10 @@ from app.features.ledger.application.commands import (
     CreateManualIncomeExpenseCommand,
     CreateManualTransferCommand,
 )
+from app.features.ledger.domain.manual_idempotency import (
+    manual_income_expense_fingerprint,
+    manual_transfer_fingerprint,
+)
 from app.features.ledger.domain.raw_transactions import (
     LedgerPostingPlan,
     require_raw_operation_date,
@@ -45,6 +49,10 @@ def build_manual_income_expense_operation(
         created_by_user_id=context.user.id,
         updated_by_user_id=context.user.id,
         confirmed_at=utc_now(),
+        idempotency_key=str(command.idempotency_key) if command.idempotency_key else None,
+        idempotency_fingerprint=(
+            manual_income_expense_fingerprint(command) if command.idempotency_key else None
+        ),
     )
 
 
@@ -66,6 +74,10 @@ def build_manual_transfer_operation(
         created_by_user_id=context.user.id,
         updated_by_user_id=context.user.id,
         confirmed_at=utc_now(),
+        idempotency_key=str(command.idempotency_key) if command.idempotency_key else None,
+        idempotency_fingerprint=(
+            manual_transfer_fingerprint(command) if command.idempotency_key else None
+        ),
     )
 
 

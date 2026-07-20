@@ -9,6 +9,7 @@ import pytest
 
 from app.features.imports.models import RawTransactionStatus
 from app.features.ledger.application.commands import (
+    CreateManualIncomeExpenseCommand,
     UpdateImportedOperationReviewFieldsCommand,
     UpdateManualOperationCommand,
 )
@@ -16,6 +17,7 @@ from app.features.ledger.application.imported_operation_review import (
     ImportedOperationReviewUseCase,
 )
 from app.features.ledger.application.manual_operations import ManualOperationUseCase
+from app.features.ledger.domain.manual_idempotency import manual_income_expense_fingerprint
 from app.features.ledger.domain.money import (
     TransferAmounts,
     affects_profit_for_operation_type,
@@ -30,7 +32,11 @@ from app.features.ledger.domain.raw_transactions import (
     raw_transaction_effective_account_id,
     restored_raw_status_after_unlink,
 )
-from app.features.ledger.errors import LedgerPostingError, OperationVersionConflictError
+from app.features.ledger.errors import (
+    LedgerPostingError,
+    OperationIdempotencyConflictError,
+    OperationVersionConflictError,
+)
 from app.features.ledger.models import Operation, OperationSource, OperationStatus, OperationType
 
 
@@ -117,6 +123,95 @@ def test_manual_transfer_amounts_reject_same_account_and_non_positive_amount() -
             destination_account_id=uuid4(),
             amount=Decimal("0.00"),
         )
+
+
+@pytest.mark.asyncio
+async def test_manual_create_replays_matching_idempotency_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    idempotency_key = uuid4()
+    command = CreateManualIncomeExpenseCommand(
+        operation_type=OperationType.INCOME,
+        account_id=uuid4(),
+        amount=Decimal("10.00"),
+        operation_date=date(2026, 7, 20),
+        description="Повтор",
+        category_id=None,
+        property_id=None,
+        idempotency_key=idempotency_key,
+    )
+    existing = SimpleNamespace(
+        id=uuid4(),
+        idempotency_fingerprint=manual_income_expense_fingerprint(command),
+    )
+
+    class FakeRepository:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_operation_by_idempotency_key(self, **_kwargs: object) -> object:
+            return existing
+
+    monkeypatch.setattr(
+        "app.features.ledger.application.manual_operations.LedgerRepository",
+        FakeRepository,
+    )
+    result = await ManualOperationUseCase(cast(Any, object())).create_income_expense(
+        context=cast(
+            Any,
+            SimpleNamespace(workspace=SimpleNamespace(id=workspace_id)),
+        ),
+        command=command,
+    )
+
+    assert result is existing
+
+
+@pytest.mark.asyncio
+async def test_manual_create_rejects_idempotency_key_reuse_with_other_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    command = CreateManualIncomeExpenseCommand(
+        operation_type=OperationType.INCOME,
+        account_id=uuid4(),
+        amount=Decimal("10.00"),
+        operation_date=date(2026, 7, 20),
+        description="Новая операция",
+        category_id=None,
+        property_id=None,
+        idempotency_key=uuid4(),
+    )
+    session = SimpleNamespace(rollbacks=0)
+
+    async def rollback() -> None:
+        session.rollbacks += 1
+
+    session.rollback = rollback
+
+    class FakeRepository:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_operation_by_idempotency_key(self, **_kwargs: object) -> object:
+            return SimpleNamespace(idempotency_fingerprint="different")
+
+    monkeypatch.setattr(
+        "app.features.ledger.application.manual_operations.LedgerRepository",
+        FakeRepository,
+    )
+
+    with pytest.raises(OperationIdempotencyConflictError):
+        await ManualOperationUseCase(cast(Any, session)).create_income_expense(
+            context=cast(
+                Any,
+                SimpleNamespace(workspace=SimpleNamespace(id=workspace_id)),
+            ),
+            command=command,
+        )
+
+    assert session.rollbacks == 1
 
 
 def test_ensure_balanced_transfer_rejects_unbalanced_entries() -> None:
@@ -493,6 +588,7 @@ async def test_manual_update_rejects_stale_expected_version_before_mutation(
     operation = SimpleNamespace(
         id=operation_id,
         source=OperationSource.MANUAL,
+        status=OperationStatus.CONFIRMED,
         version=2,
     )
     session = SimpleNamespace(rollbacks=0)
@@ -545,6 +641,248 @@ async def test_manual_update_rejects_stale_expected_version_before_mutation(
 
     assert session.rollbacks == 1
     assert not hasattr(operation, "description")
+
+
+@pytest.mark.asyncio
+async def test_manual_update_rejects_ignored_operation_before_mutation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    operation_id = uuid4()
+    operation = SimpleNamespace(
+        id=operation_id,
+        source=OperationSource.MANUAL,
+        status=OperationStatus.IGNORED,
+        version=1,
+    )
+    session = SimpleNamespace(rollbacks=0)
+
+    async def rollback() -> None:
+        session.rollbacks += 1
+
+    session.rollback = rollback
+
+    class FakeRepository:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_operation_for_workspace(
+            self,
+            _workspace_id: UUID,
+            _operation_id: UUID,
+        ) -> object:
+            return operation
+
+    monkeypatch.setattr(
+        "app.features.ledger.application.manual_operations.LedgerRepository",
+        FakeRepository,
+    )
+
+    with pytest.raises(LedgerPostingError, match="confirmed or draft"):
+        await ManualOperationUseCase(cast(Any, session)).update(
+            context=cast(
+                Any,
+                SimpleNamespace(
+                    workspace=SimpleNamespace(id=workspace_id),
+                    user=SimpleNamespace(id=uuid4()),
+                ),
+            ),
+            command=UpdateManualOperationCommand(
+                operation_id=operation_id,
+                operation_type=OperationType.EXPENSE,
+                account_id=uuid4(),
+                amount=Decimal("10.00"),
+                operation_date=date(2026, 7, 20),
+                description="Нельзя изменить",
+                category_id=None,
+                property_id=None,
+                destination_account_id=None,
+                expected_version=1,
+            ),
+        )
+
+    assert session.rollbacks == 1
+    assert not hasattr(operation, "description")
+
+
+@pytest.mark.asyncio
+async def test_manual_cancel_and_restore_change_only_lifecycle_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    user_id = uuid4()
+    money_entries = [SimpleNamespace(id=uuid4(), amount=Decimal("-10.00"))]
+    operation = SimpleNamespace(
+        id=uuid4(),
+        source=OperationSource.MANUAL,
+        status=OperationStatus.CONFIRMED,
+        version=3,
+        money_entries=money_entries,
+        updated_by_user_id=None,
+    )
+    session = SimpleNamespace(commits=0)
+
+    async def commit() -> None:
+        session.commits += 1
+
+    session.commit = commit
+
+    class FakeRepository:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_operation_for_workspace(
+            self,
+            workspace_id_arg: UUID,
+            operation_id_arg: UUID,
+        ) -> object:
+            assert workspace_id_arg == workspace_id
+            assert operation_id_arg == operation.id
+            return operation
+
+    monkeypatch.setattr(
+        "app.features.ledger.application.manual_operations.LedgerRepository",
+        FakeRepository,
+    )
+    use_case = ManualOperationUseCase(cast(Any, session))
+    context = cast(
+        Any,
+        SimpleNamespace(
+            workspace=SimpleNamespace(id=workspace_id),
+            user=SimpleNamespace(id=user_id),
+        ),
+    )
+
+    await use_case.cancel(
+        context=context,
+        operation_id=operation.id,
+        expected_version=3,
+    )
+    assert operation.status is OperationStatus.IGNORED
+    assert operation.updated_by_user_id == user_id
+    assert operation.money_entries is money_entries
+
+    await use_case.restore(context=context, operation_id=operation.id)
+    assert operation.status is OperationStatus.CONFIRMED
+    assert operation.money_entries is money_entries
+    assert session.commits == 2
+
+
+@pytest.mark.asyncio
+async def test_manual_cancel_rejects_stale_version_before_state_change(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    operation = SimpleNamespace(
+        id=uuid4(),
+        source=OperationSource.MANUAL,
+        status=OperationStatus.CONFIRMED,
+        version=4,
+    )
+
+    class FakeRepository:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_operation_for_workspace(
+            self,
+            _workspace_id: UUID,
+            _operation_id: UUID,
+        ) -> object:
+            return operation
+
+    monkeypatch.setattr(
+        "app.features.ledger.application.manual_operations.LedgerRepository",
+        FakeRepository,
+    )
+
+    with pytest.raises(OperationVersionConflictError):
+        await ManualOperationUseCase(cast(Any, object())).cancel(
+            context=cast(
+                Any,
+                SimpleNamespace(
+                    workspace=SimpleNamespace(id=workspace_id),
+                    user=SimpleNamespace(id=uuid4()),
+                ),
+            ),
+            operation_id=operation.id,
+            expected_version=3,
+        )
+
+    assert operation.status is OperationStatus.CONFIRMED
+
+
+@pytest.mark.asyncio
+async def test_manual_delete_requires_deletable_state_and_expected_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    operation = SimpleNamespace(
+        id=uuid4(),
+        source=OperationSource.MANUAL,
+        status=OperationStatus.CONFIRMED,
+        version=3,
+    )
+    deleted: list[object] = []
+    session = SimpleNamespace(commits=0)
+
+    async def commit() -> None:
+        session.commits += 1
+
+    session.commit = commit
+
+    class FakeRepository:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_operation_for_workspace(
+            self,
+            _workspace_id: UUID,
+            _operation_id: UUID,
+        ) -> object:
+            return operation
+
+        async def delete_operation(self, operation_to_delete: object) -> None:
+            deleted.append(operation_to_delete)
+
+    monkeypatch.setattr(
+        "app.features.ledger.application.manual_operations.LedgerRepository",
+        FakeRepository,
+    )
+    use_case = ManualOperationUseCase(cast(Any, session))
+    context = cast(
+        Any,
+        SimpleNamespace(
+            workspace=SimpleNamespace(id=workspace_id),
+            user=SimpleNamespace(id=uuid4()),
+        ),
+    )
+
+    with pytest.raises(LedgerPostingError, match="Cancel a manual operation"):
+        await use_case.delete(
+            context=context,
+            operation_id=operation.id,
+            expected_version=3,
+        )
+    assert deleted == []
+
+    operation.status = OperationStatus.IGNORED
+    operation.version = 4
+    with pytest.raises(OperationVersionConflictError):
+        await use_case.delete(
+            context=context,
+            operation_id=operation.id,
+            expected_version=3,
+        )
+    assert deleted == []
+
+    await use_case.delete(
+        context=context,
+        operation_id=operation.id,
+        expected_version=4,
+    )
+    assert deleted == [operation]
+    assert session.commits == 1
 
 
 @pytest.mark.asyncio

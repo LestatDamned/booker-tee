@@ -62,6 +62,12 @@ class Operation(Base):
         Index("ix_operations_workspace_status", "workspace_id", "status"),
         Index("ix_operations_workspace_category", "workspace_id", "category_id"),
         Index("ix_operations_workspace_property", "workspace_id", "property_id"),
+        Index(
+            "uq_operations_workspace_idempotency_key",
+            "workspace_id",
+            "idempotency_key",
+            unique=True,
+        ),
     )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     version: Mapped[int] = mapped_column(
@@ -95,6 +101,8 @@ class Operation(Base):
     created_by_user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
     updated_by_user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
     external_id: Mapped[str | None] = mapped_column(String(255))
+    idempotency_key: Mapped[str | None] = mapped_column(String(36))
+    idempotency_fingerprint: Mapped[str | None] = mapped_column(String(64))
     notes: Mapped[str | None] = mapped_column(Text)
     extra_metadata: Mapped[dict[str, object] | None] = mapped_column("metadata", JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

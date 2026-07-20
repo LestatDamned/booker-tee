@@ -10,6 +10,126 @@
   gap: var(--space-3);
 }
 
+.createRegion {
+  display: grid;
+  gap: var(--space-4);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  padding: var(--space-4);
+}
+
+.createHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.createHeader h2,
+.createHeader p {
+  margin: 0;
+}
+
+.createHeader h2 {
+  font-size: var(--font-size-lg);
+}
+
+.createHeader p {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.createGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.createActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.editPanel {
+  display: grid;
+  gap: var(--space-4);
+  border-top: 1px solid var(--color-border-default);
+  padding-top: var(--space-4);
+}
+
+.editPanel[hidden] {
+  display: none;
+}
+
+.editHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.editHeader h3,
+.editHeader p,
+.editFeedback p {
+  margin: 0;
+}
+
+.editHeader p,
+.editFeedback p {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.editFeedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.rowActions,
+.lifecycleAction,
+.lifecycleFeedback {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.deleteConfirmation {
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid var(--color-status-danger);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-status-danger) 8%, transparent);
+  padding: var(--space-2);
+}
+
+.deleteConfirmation p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.deleteActions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.rowActions > *,
+.rowActions button {
+  width: 100%;
+}
+
+.lifecycleFeedback {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
 .filters {
   display: grid;
   gap: var(--space-4);
@@ -87,18 +207,24 @@
 }
 
 @media (max-width: 57.5rem) {
+  .createGrid,
   .filterGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 35rem) {
+  .createHeader,
+  .createActions,
+  .editHeader,
+  .editFeedback,
   .filterHeader,
   .filterActions {
     align-items: stretch;
     flex-direction: column;
   }
 
+  .createGrid,
   .filterGrid {
     grid-template-columns: 1fr;
   }

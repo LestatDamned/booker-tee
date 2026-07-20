@@ -1,6 +1,6 @@
 # Stage 04: Manual Ledger Mutations
 
-Status: next.
+Status: completed.
 
 ## Goal
 
@@ -105,3 +105,56 @@ No confirmed financial result is shown optimistically before server success.
 - owner can trace one mutation from event to server response and rerender.
 
 Next: [`Stage 05`](STAGE_05_MANUAL_LEDGER_CUTOVER.md).
+
+## Progress
+
+Completed slices:
+
+- common JSON mutation/error boundary with API write permission and header CSRF;
+- income and expense create through one typed contract with decimal-string amount
+  and server-owned inflow/outflow semantics;
+- transfer create through a discriminated request contract with two distinct
+  same-currency accounts and server-owned balanced entries;
+- required `Idempotency-Key`, workspace-scoped unique persistence, request
+  fingerprint comparison and concurrent unique-race recovery for every manual
+  create;
+- lazy row-owned edit snapshot with references loaded only on first open;
+- shared typed operation fields for create/edit and versioned `PUT` for income,
+  expense and transfer;
+- local `422` draft preservation and explicit `409` reload of the latest
+  server snapshot;
+- controlled React draft, scoped pending state and field-level `422` errors;
+- immediate reconciliation from the authoritative mutation response, background
+  route revalidation and stable target URL after success;
+- versioned cancel/restore actions derived from server capabilities, with local
+  pending/conflict state and authoritative row reconciliation;
+- versioned delete for draft/ignored operations with inline destructive
+  confirmation, target URL cleanup and immediate list reconciliation;
+- readonly capability, component, API and realistic browser coverage;
+- first-invalid-field focus, disclosure focus restoration, row-scoped mutation
+  lock, double-submit protection and draft-preserving network retry coverage.
+
+Create idempotency is a backend guarantee; edit and lifecycle concurrency are
+protected by the loaded integer version and SQLAlchemy's atomic versioned
+update. The Stage 04 exit gate is satisfied; the next stage is manual-ledger
+cutover and deletion of replaced SSR presentation.
+
+## Completion Record
+
+Completed: 2026-07-20
+
+Implemented: full typed create/edit/cancel/restore/delete workflow, authoritative
+server reconciliation, validation/conflict/retry UX and scoped concurrency
+protection.
+
+Checks run: frontend format, lint, style policy, typecheck, 49 component/route
+tests and production build; Ruff, ty and 53 scoped backend tests; realistic
+Playwright audit at desktop, tablet and mobile widths.
+
+Intentional deviations: none.
+
+Cleanup performed: shared mutation/form code replaced repeated operation-specific
+UI; canonical SSR cleanup remains intentionally scoped to Stage 05.
+
+Learning notes updated: controlled mutations, discriminated unions, idempotency,
+optimistic versions, row locks, focus effects and retry semantics.

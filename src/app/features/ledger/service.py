@@ -215,10 +215,12 @@ class LedgerPostingService:
         *,
         context: WorkspaceContext,
         operation_id: UUID,
+        expected_version: int | None = None,
     ) -> Operation:
         return await ManualOperationUseCase(self.session).cancel(
             context=context,
             operation_id=operation_id,
+            expected_version=expected_version,
         )
 
     async def restore_manual_operation(
@@ -226,10 +228,12 @@ class LedgerPostingService:
         *,
         context: WorkspaceContext,
         operation_id: UUID,
+        expected_version: int | None = None,
     ) -> Operation:
         return await ManualOperationUseCase(self.session).restore(
             context=context,
             operation_id=operation_id,
+            expected_version=expected_version,
         )
 
     async def delete_manual_operation(
@@ -237,10 +241,12 @@ class LedgerPostingService:
         *,
         context: WorkspaceContext,
         operation_id: UUID,
+        expected_version: int | None = None,
     ) -> None:
         await ManualOperationUseCase(self.session).delete(
             context=context,
             operation_id=operation_id,
+            expected_version=expected_version,
         )
 
     async def post_raw_transaction_as_transfer(

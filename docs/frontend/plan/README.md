@@ -21,20 +21,21 @@ Stage 0  completed
 Stage 1  completed
 Stage 2  completed
 Stage 3  completed
-Stage 4  next
-Stage 5+ planned
+Stage 4  completed
+Stage 5  next
+Stage 6+ planned
 ```
 
-| Stage | Status | Outcome |
-| --- | --- | --- |
-| [`00`](STAGE_00_DECISIONS_AND_FREEZE.md) | completed | React decision, ADR and SSR freeze are explicit |
-| [`01`](STAGE_01_RUNTIME_AND_API_FOUNDATION.md) | completed | React builds, FastAPI exposes safe session/API foundation |
-| [`02`](STAGE_02_VISUAL_FOUNDATION.md) | completed | Tokens, themes and shared geometry are proven |
-| [`03`](STAGE_03_MANUAL_LEDGER_READ.md) | completed | Manual ledger list works read-only through JSON API |
-| [`04`](STAGE_04_MANUAL_LEDGER_MUTATIONS.md) | next | Full manual create/edit/lifecycle works in React |
-| [`05`](STAGE_05_MANUAL_LEDGER_CUTOVER.md) | planned | React becomes canonical; two manual SSR slices are deleted |
-| [`06`](STAGE_06_IMPORT_REVIEW_CHECKPOINT.md) | planned | Complex import review validates or challenges the architecture |
-| [`07`](STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md) | planned | Remaining workflows migrate and authenticated SSR is removed |
+| Stage                                                 | Status    | Outcome                                                        |
+| ----------------------------------------------------- | --------- | -------------------------------------------------------------- |
+| [`00`](STAGE_00_DECISIONS_AND_FREEZE.md)              | completed | React decision, ADR and SSR freeze are explicit                |
+| [`01`](STAGE_01_RUNTIME_AND_API_FOUNDATION.md)        | completed | React builds, FastAPI exposes safe session/API foundation      |
+| [`02`](STAGE_02_VISUAL_FOUNDATION.md)                 | completed | Tokens, themes and shared geometry are proven                  |
+| [`03`](STAGE_03_MANUAL_LEDGER_READ.md)                | completed | Manual ledger list works read-only through JSON API            |
+| [`04`](STAGE_04_MANUAL_LEDGER_MUTATIONS.md)           | completed | Full manual create/edit/lifecycle works in React               |
+| [`05`](STAGE_05_MANUAL_LEDGER_CUTOVER.md)             | next      | React becomes canonical; two manual SSR slices are deleted     |
+| [`06`](STAGE_06_IMPORT_REVIEW_CHECKPOINT.md)          | planned   | Complex import review validates or challenges the architecture |
+| [`07`](STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md) | planned   | Remaining workflows migrate and authenticated SSR is removed   |
 
 ## Status Rules
 

@@ -52,26 +52,30 @@ def build_manual_ledger_response(
             has_previous=page.has_previous,
             has_next=page.has_next,
         ),
-        filter_options=ManualLedgerFilterOptions(
-            accounts=[
-                ManualLedgerAccountReference(
-                    id=account.id,
-                    name=account.name,
-                    currency=account.currency,
-                )
-                for account in references.accounts
-            ],
-            categories=[_required_named_reference(category) for category in references.categories],
-            properties=[
-                _required_named_reference(property_) for property_ in references.properties
-            ],
-            per_page=PER_PAGE_OPTIONS,
-        ),
+        filter_options=manual_ledger_filter_options(references),
         capabilities=ManualLedgerCapabilities(
             can_create=can_write,
             readonly_reason=None if can_write else READONLY_REASON,
         ),
         target_operation_id=target_operation_id,
+    )
+
+
+def manual_ledger_filter_options(
+    references: ManualLedgerReferences,
+) -> ManualLedgerFilterOptions:
+    return ManualLedgerFilterOptions(
+        accounts=[
+            ManualLedgerAccountReference(
+                id=account.id,
+                name=account.name,
+                currency=account.currency,
+            )
+            for account in references.accounts
+        ],
+        categories=[_required_named_reference(category) for category in references.categories],
+        properties=[_required_named_reference(property_) for property_ in references.properties],
+        per_page=PER_PAGE_OPTIONS,
     )
 
 
@@ -84,7 +88,7 @@ def manual_operation_response(
         id=operation.id,
         version=operation.version,
         operation_date=operation.operation_date.isoformat(),
-        description=operation.description or "Без описания",
+        description=operation.description or "",
         status=operation.status,
         money=_money(operation),
         account=_account_reference(operation.primary_entry)

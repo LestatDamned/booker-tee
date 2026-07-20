@@ -1,6 +1,6 @@
 # Stage 05: Manual Ledger Cutover And Cleanup
 
-Status: planned.
+Status: next.
 
 ## Goal
 
