@@ -11,12 +11,11 @@ from app.web.features.ledger.manual.action_policy import ManualOperationActionPo
 from app.web.features.ledger.manual.queries import ManualLedgerReferenceData
 from app.web.features.ledger.manual.query_state import (
     MANUAL_LEDGER_URL,
-    ManualLedgerPageParams,
+    ManualLedgerUrlState,
 )
 from app.web.features.ledger.manual.view_models import (
     BadgeTone,
     ManualLedgerCreateRegionVM,
-    ManualLedgerEditPanelVM,
     ManualLedgerFilterOptionVM,
     ManualLedgerFiltersVM,
     ManualLedgerFormVM,
@@ -63,32 +62,29 @@ class ManualLedgerPresenter:
         *,
         workspace_name: str,
         operations: Iterable[ManualOperationView],
-        page: LedgerPage,
+        pagination: LedgerPage,
         filters: ManualOperationFilters,
         focused_operation_id: UUID | None,
         can_write: bool,
         references: ManualLedgerReferenceData | None = None,
-        create_panel: ManualLedgerFormVM | None = None,
         reset_create_panel: bool = False,
-        edit_panel: ManualLedgerEditPanelVM | None = None,
         reset_edit_panels: bool = False,
     ) -> ManualLedgerPageVM:
-        filters_vm = self._filters(filters, page, references)
-        page_state = ManualLedgerPageParams.from_list_state(
+        filters_vm = self._filters(filters, pagination, references)
+        url_state = ManualLedgerUrlState.for_list_page(
             filters=filters,
-            page=page.page,
-            per_page=page.per_page,
+            page=pagination.page,
+            per_page=pagination.per_page,
             focused_operation_id=focused_operation_id,
         )
-        current_url = page_state.list_url()
+        current_url = url_state.list_url()
         return ManualLedgerPageVM(
             workspace_name=workspace_name,
-            total_label=self._total_label(page.total),
+            total_label=self._total_label(pagination.total),
             readonly_message=self._readonly_message(can_write),
             create_region=self._create_region(
                 can_write=can_write,
                 current_url=current_url,
-                panel=create_panel,
                 reset_panel=reset_create_panel,
             ),
             rows=tuple(
@@ -97,22 +93,19 @@ class ManualLedgerPresenter:
                     focused_operation_id=focused_operation_id,
                     can_write=can_write,
                     return_to=current_url,
-                    edit_panel=(
-                        edit_panel
-                        if edit_panel and edit_panel.operation_id == operation.id
-                        else None
-                    ),
                     reset_edit_panel=reset_edit_panels,
                 )
                 for operation in operations
             ),
             filters=filters_vm,
-            show_pagination=page.total_pages > 1,
-            page_label=f"Страница {page.page} из {page.total_pages}",
-            previous_url=page_state.with_page(page.previous_page).list_url()
-            if page.has_previous
+            show_pagination=pagination.total_pages > 1,
+            page_label=f"Страница {pagination.page} из {pagination.total_pages}",
+            previous_url=url_state.with_page(pagination.previous_page).list_url()
+            if pagination.has_previous
             else None,
-            next_url=page_state.with_page(page.next_page).list_url() if page.has_next else None,
+            next_url=url_state.with_page(pagination.next_page).list_url()
+            if pagination.has_next
+            else None,
             empty_title=(
                 "По этим фильтрам операций нет" if filters_vm.active else "Ручных операций пока нет"
             ),
@@ -128,7 +121,6 @@ class ManualLedgerPresenter:
         *,
         can_write: bool,
         current_url: str,
-        panel: ManualLedgerFormVM | None,
         reset_panel: bool,
     ) -> ManualLedgerCreateRegionVM | None:
         if not can_write:
@@ -145,9 +137,7 @@ class ManualLedgerPresenter:
             ),
             panel_id="manual-ledger-create-panel",
             content_id="manual-ledger-create-content",
-            panel_open=panel is not None,
             reset_panel=reset_panel,
-            panel=panel,
         )
 
     def build_row(
@@ -157,7 +147,7 @@ class ManualLedgerPresenter:
         focused_operation_id: UUID | None,
         can_write: bool,
         return_to: str,
-        edit_panel: ManualLedgerEditPanelVM | None = None,
+        edit_form: ManualLedgerFormVM | None = None,
         reset_edit_panel: bool = False,
         request_error: str | None = None,
     ) -> ManualLedgerRowVM:
@@ -186,9 +176,8 @@ class ManualLedgerPresenter:
             is_inactive=operation.status == OperationStatus.IGNORED,
             edit_panel_id=f"next-manual-operation-edit-panel-{operation.id}",
             edit_panel_content_id=f"next-manual-operation-edit-panel-content-{operation.id}",
-            edit_panel_open=edit_panel is not None,
             reset_edit_panel=reset_edit_panel,
-            edit_panel=edit_panel,
+            edit_form=edit_form,
         )
 
     def _money(self, operation: ManualOperationView) -> MoneyValueVM | None:
@@ -219,20 +208,10 @@ class ManualLedgerPresenter:
     def _filters(
         self,
         filters: ManualOperationFilters,
-        page: LedgerPage,
+        pagination: LedgerPage,
         references: ManualLedgerReferenceData | None,
     ) -> ManualLedgerFiltersVM:
         reference_data = references or ManualLedgerReferenceData((), (), ())
-        active = bool(
-            filters.date_from
-            or filters.date_to
-            or filters.operation_type
-            or filters.status
-            or filters.account_id
-            or filters.category_id
-            or filters.property_id
-            or filters.search
-        )
         return ManualLedgerFiltersVM(
             date_from=filters.date_from.isoformat() if filters.date_from else "",
             date_to=filters.date_to.isoformat() if filters.date_to else "",
@@ -277,9 +256,9 @@ class ManualLedgerPresenter:
                 )
                 for property_ in reference_data.properties
             ),
-            per_page=page.per_page,
+            per_page=pagination.per_page,
             per_page_options=PER_PAGE_OPTIONS,
-            active=active,
+            active=filters.is_active,
             reset_url=MANUAL_LEDGER_URL,
         )
 

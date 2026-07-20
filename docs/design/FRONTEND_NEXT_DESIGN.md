@@ -13,24 +13,30 @@
   workspace-scoped list, полные фильтры по периоду, поиску, типу, статусу,
   счёту, категории и объекту, pagination, target, деньги, metadata,
   readonly policy и `WorkbenchRow` на реальных application DTO;
-- lazy edit загружается только для writer, поддерживает SSR fallback, локальный
-  `422` с сохранением draft и серверный выбор HTMX `replaceRow`/`replaceList`;
-- update response scope сохраняет фильтры и pagination: изменение даты или
-  выход операции из текущего фильтра обновляет список, empty state, pagination
-  и total через OOB-fragment;
-- lazy create поддерживает income/expense/transfer, общий form contract с edit,
-  локальный `422`, SSR fallback и согласованный HTMX `replaceList` с OOB reset
-  формы и total;
+- lazy edit загружается только для writer; HTMX сохраняет inline-панель,
+  локальный `422` с draft и серверный выбор `replaceRow`/`replaceList`, а
+  обычный HTTP использует отдельную full-page edit-форму и `303` после успеха;
+- update response scope сохраняет фильтры и pagination: без фильтров и изменения
+  даты заменяется одна строка, а при любом активном фильтре или изменении даты
+  список, empty state, pagination и total заново строятся из БД;
+- lazy create поддерживает income/expense/transfer и общий form contract с
+  edit; HTMX использует inline-панель, локальный `422` и согласованный
+  `replaceList` с OOB reset формы и total, а обычный HTTP — отдельную
+  full-page create-форму;
 - lifecycle manual operation реализован через отдельную action policy и явные
-  cancel/restore/delete routes: обычный переход заменяет row, смена
-  принадлежности фильтру и delete перестраивают list, ошибки возвращаются
-  локальным `422`, а все submit actions сохраняют обычный HTTP fallback;
+  cancel/restore/delete routes: HTMX заменяет row или list и возвращает
+  локальный `422`, а обычный HTTP после успешной mutation выполняет `303` к
+  списку без попытки воспроизвести inline-состояние; lifecycle business error
+  без HTMX остается техническим JSON `422` fallback;
+- query string разбирается толерантной `ManualLedgerUrlState`, которая хранит
+  только URL-состояние списка; HTML-формы принимаются строковой Pydantic-моделью
+  и преобразуются отдельными типизированными validation-моделями в commands;
 - optimistic concurrency для manual edit реализован сквозным контрактом:
   `Operation.version`, скрытая версия формы, атомарный versioned update и
   локальный `409 Conflict`, который сохраняет draft и предлагает загрузить
   актуальную версию;
-- следующим инкрементом Этапа 3 остается финальный аудит и canonical cutover
-  manual ledger.
+- финальный code audit пилота завершен; следующим инкрементом Этапа 3 остаются
+  ручной smoke/performance check и canonical cutover manual ledger.
 
 ## 1. Решение
 
@@ -221,7 +227,7 @@ point можно разделить на bundles без изменения BEM-�
 - отображаемые данные и форматирование;
 - доступные действия и правила разрешений;
 - пустое, загружающееся, ошибочное, readonly и lifecycle-состояния;
-- HTMX-фрагменты и обычный HTTP fallback;
+- HTMX-фрагменты и page-level HTTP fallback без обязательной inline parity;
 - фильтры, pagination, anchors и поведение фокуса;
 - responsive и accessibility требования;
 - доменные инварианты, защищаемые рабочим процессом.
@@ -303,6 +309,13 @@ oobUpdate    -> обновить дополнительные feature-owned об
 Выбор зависит не только от типа действия, но и от текущих фильтров, pagination
 и влияния результата на другие элементы. Обычный HTTP-сценарий после того же
 действия выполняет redirect с сохранением безопасного контекста списка.
+Create/edit без HTMX открываются отдельными полными страницами; обычный HTTP не
+обязан воспроизводить inline-панель внутри строки списка.
+
+Это page-level fallback, а не обещание полной работы интерфейса без JavaScript.
+HTMX и Alpine.js остаются частью поддерживаемого Frontend Next runtime; обычные
+ссылки, формы и `303` сохраняют понятную HTTP-навигацию и аварийный путь, но не
+обязаны полностью повторять локальное интерактивное поведение без этих библиотек.
 
 Ошибка валидации имеет HTTP-статус `422` и для обычного, и для HTMX-запроса.
 Один глобальный обработчик нового frontend разрешает HTMX заменить целевой HTML
@@ -323,6 +336,44 @@ transfer в каждом workflow проверяется необходимос�
 `409 Conflict`: пользовательские изменения не перезаписывают актуальную запись,
 а локальная форма объясняет конфликт и предлагает загрузить свежую версию.
 Сложное визуальное сравнение версий не входит в первый этап.
+
+### 7.1 Зафиксированный контракт Manual Ledger
+
+Первый пилот применяет следующие конкретные правила:
+
+- `ManualLedgerUrlState` отвечает только за толерантный разбор и каноническую
+  сборку URL списка; открытые create/edit формы не являются состоянием URL
+  списка;
+- HTML form input сначала сохраняется строковой Pydantic-моделью без потери
+  пользовательского draft, затем типизированная validation-модель преобразует
+  значения в application command и локализованные field issues;
+- HTMX загружает create/edit формы лениво и сохраняет локальное взаимодействие;
+  без HTMX create/edit открываются отдельными полными страницами;
+- успешный обычный create/update/lifecycle POST отвечает `303` и возвращает к
+  безопасному контексту списка;
+- create/update validation возвращает HTML `422`, optimistic conflict — HTML
+  `409`; lifecycle business error без HTMX является ограниченным техническим
+  JSON `422` fallback;
+- без активных фильтров и изменения даты успешный update/status change заменяет
+  строку; при активном фильтре или изменении даты весь список повторно читается
+  из БД, поэтому SQL остается единственным источником истины для membership;
+- create и delete всегда перестраивают список и связанные total/pagination
+  области; feature-owned дополнительные области обновляются OOB-фрагментами;
+- Alpine.js управляет только локальным disclosure/form state и не вычисляет
+  финансовый смысл, permissions или область HTMX-ответа.
+
+Финальный ручной smoke-check перед canonical cutover:
+
+- [ ] создать доход, расход и перевод;
+- [ ] проверить локальную ошибку для нулевой суммы и сохранение draft;
+- [ ] изменить описание без фильтров и убедиться в замене одной строки;
+- [ ] изменить операцию при активном фильтре и убедиться в обновлении списка;
+- [ ] изменить дату и проверить новую позицию операции;
+- [ ] воспроизвести optimistic conflict и загрузить актуальную версию;
+- [ ] отменить, восстановить и окончательно удалить допустимую операцию;
+- [ ] открыть create/edit прямыми URL без HTMX и проверить full-page формы;
+- [ ] проверить desktop, `920px` и mobile без horizontal overflow;
+- [ ] подтвердить readonly/permission поведение отдельным пользователем.
 
 ## 8. Технические детали в пользовательском интерфейсе
 
@@ -511,7 +562,9 @@ HTML-атрибутов и другие технические идентифи�
    области согласованности.
 4. Расположение действий задает `ActionSetVM`; отдельной technical-группы нет.
 5. Действия представлены явными `LinkActionVM`, `SubmitActionVM` и
-   `DisclosureActionVM` с обычным HTTP fallback.
+   `DisclosureActionVM`. HTMX поддерживает inline-взаимодействие, а обычный
+   HTTP использует page-level fallback: отдельные create/edit страницы и
+   redirects после mutations без обязательной inline parity.
 6. `row_id` идентифицирует отображаемую запись, а бизнес-ссылка хранится
    отдельно.
 7. `OperationType` и направление `MoneyEntry` являются двумя разными
@@ -549,6 +602,17 @@ HTML-атрибутов и другие технические идентифи�
 23. `tests/ui_refactor/` повторяет workflow-структуру web-adapter и содержит
     отдельные `foundation/` и `contracts/`; тестовые файлы разделяются только
     по реальным ответственностям.
+24. URL-state списка и form-state не смешиваются: query string разбирается
+    толерантной Pydantic-моделью, а create/edit без HTMX используют отдельные
+    страницы.
+25. HTML form input сохраняется строковой Pydantic-моделью, после чего отдельная
+    типизированная validation-модель строит application command или
+    локализованные field issues.
+26. При любом активном фильтре mutation перестраивает manual-ledger list из БД;
+    Python response policy не повторяет SQL-предикаты repository.
+27. Полноценный page-level fallback обязателен для create/edit и успешных
+    mutations; lifecycle business errors без HTMX могут оставаться техническим
+    JSON `422` fallback до появления общего flash/error-page контракта.
 
 Дополнительное обязательное решение: обычный пользовательский интерфейс не
 показывает UUID, database keys, debug-состояния и специальные блоки технической

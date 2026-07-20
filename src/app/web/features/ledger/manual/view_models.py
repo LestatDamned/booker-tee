@@ -89,19 +89,11 @@ class ManualLedgerFormVM:
 
 
 @dataclass(frozen=True)
-class ManualLedgerEditPanelVM:
-    operation_id: UUID
-    form: ManualLedgerFormVM
-
-
-@dataclass(frozen=True)
 class ManualLedgerCreateRegionVM:
     action: DisclosureActionVM
     panel_id: str
     content_id: str
-    panel_open: bool
     reset_panel: bool
-    panel: ManualLedgerFormVM | None
 
 
 @dataclass(frozen=True)
@@ -122,9 +114,8 @@ class ManualLedgerRowVM:
     is_inactive: bool
     edit_panel_id: str
     edit_panel_content_id: str
-    edit_panel_open: bool
     reset_edit_panel: bool
-    edit_panel: ManualLedgerEditPanelVM | None
+    edit_form: ManualLedgerFormVM | None
 
 
 @dataclass(frozen=True)

@@ -32,6 +32,33 @@ class ManualLedgerRenderer:
             status_code=response_status,
         )
 
+    def form_page(
+        self,
+        request: Request,
+        form: ManualLedgerFormVM,
+        *,
+        app_name: str,
+        workspace_name: str,
+        heading: str,
+        description: str,
+        submit_label: str,
+        response_status: int = status.HTTP_200_OK,
+    ) -> HTMLResponse:
+        return self._templates.TemplateResponse(
+            request,
+            "features/ledger/manual/form_page.html",
+            {
+                "app_name": app_name,
+                "page_title": heading,
+                "workspace_name": workspace_name,
+                "heading": heading,
+                "description": description,
+                "form": form,
+                "submit_label": submit_label,
+            },
+            status_code=response_status,
+        )
+
     def row(
         self,
         request: Request,

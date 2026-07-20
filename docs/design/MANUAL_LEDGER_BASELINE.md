@@ -323,3 +323,10 @@ edit/create и lifecycle переходах; текущее состояние �
 редактирования также закрыт: в общей модели добавлен integer `version`, Next
 edit отправляет ожидаемую версию, а конфликт возвращает локальный `409` без
 потери пользовательского draft.
+
+19 июля 2026 года fallback-политика Frontend Next была уточнена. Этот baseline
+сохраняет исторический контракт current UI, но новый manual-ledger workbench не
+обязан воспроизводить inline create/edit без HTMX. HTMX-взаимодействие остается
+локальным; обычный HTTP использует отдельные full-page create/edit формы и
+`303` после успешных mutations. Актуальное правило зафиксировано в
+[`FRONTEND_NEXT_DESIGN.md`](FRONTEND_NEXT_DESIGN.md).

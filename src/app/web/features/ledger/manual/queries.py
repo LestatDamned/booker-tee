@@ -8,7 +8,7 @@ from app.features.ledger.mapping.dto import ManualOperationView
 from app.features.ledger.service import LedgerPostingService
 from app.features.properties.service import PropertyService
 from app.features.workspaces.service import WorkspaceContext
-from app.web.features.ledger.manual.query_state import ManualLedgerListQuery
+from app.web.features.ledger.manual.query_state import ManualLedgerPageParams
 
 
 @dataclass(frozen=True)
@@ -27,7 +27,7 @@ class ManualLedgerAccountReference:
 @dataclass(frozen=True)
 class ManualLedgerPageData:
     operations: tuple[ManualOperationView, ...]
-    page: LedgerPage
+    pagination: LedgerPage
 
 
 @dataclass(frozen=True)
@@ -51,26 +51,26 @@ class ManualLedgerPageQuery:
         self,
         *,
         workspace_id: UUID,
-        query: ManualLedgerListQuery,
+        params: ManualLedgerPageParams,
     ) -> ManualLedgerPageData:
-        operations, page = await self._ledger.list_manual_operations(
+        operations, pagination = await self._ledger.list_manual_operations(
             workspace_id,
-            filters=query.filters,
-            pagination=query.pagination,
+            filters=params.filters,
+            pagination=params.pagination,
         )
-        if page.page > page.total_pages:
-            normalized_query = replace(
-                query,
-                pagination=replace(query.pagination, page=page.total_pages),
+        if pagination.page > pagination.total_pages:
+            normalized_params = replace(
+                params,
+                pagination=replace(params.pagination, page=pagination.total_pages),
             )
-            operations, page = await self._ledger.list_manual_operations(
+            operations, pagination = await self._ledger.list_manual_operations(
                 workspace_id,
-                filters=normalized_query.filters,
-                pagination=normalized_query.pagination,
+                filters=normalized_params.filters,
+                pagination=normalized_params.pagination,
             )
         return ManualLedgerPageData(
             operations=tuple(operations),
-            page=page,
+            pagination=pagination,
         )
 
 

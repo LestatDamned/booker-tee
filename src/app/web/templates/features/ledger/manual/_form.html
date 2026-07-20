@@ -6,10 +6,11 @@
   class="manual-ledger-edit-form"
   method="post"
   action="{{ form.form_action }}"
-  hx-post="{{ form.form_action }}"
-  hx-target="#{{ form_target_id }}"
-  hx-swap="{{ form_swap }}"
-  {% if edit_form %}data-edit-panel{% endif %}
+  {% if inline_form %}
+    hx-post="{{ form.form_action }}"
+    hx-target="#{{ form_target_id }}"
+    hx-swap="{{ form_swap }}"
+  {% endif %}
   x-data="{ operationType: '{{ form.operation_type }}' }"
 >
   {{ csrf_input() }}
@@ -151,6 +152,10 @@
 
   <div class="manual-ledger-edit-form__actions">
     <button class="ui-button ui-button--primary" type="submit">{{ submit_label }}</button>
-    <a class="ui-button ui-button--secondary" href="{{ form.return_to }}" x-on:click.prevent="cancel()">Отмена</a>
+    <a
+      class="ui-button ui-button--secondary"
+      href="{{ form.return_to }}"
+      {% if inline_form %}x-on:click.prevent="cancel()"{% endif %}
+    >Отмена</a>
   </div>
 </form>

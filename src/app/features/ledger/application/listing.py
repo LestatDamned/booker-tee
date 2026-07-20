@@ -69,6 +69,21 @@ class ManualOperationFilters:
     property_id: UUID | None = None
     search: str | None = None
 
+    @property
+    def is_active(self) -> bool:
+        return any(
+            (
+                self.date_from,
+                self.date_to,
+                self.operation_type,
+                self.status,
+                self.account_id,
+                self.category_id,
+                self.property_id,
+                self.search,
+            )
+        )
+
 
 def normalize_pagination(page: int, per_page: int) -> LedgerPagination:
     safe_page = max(1, page)

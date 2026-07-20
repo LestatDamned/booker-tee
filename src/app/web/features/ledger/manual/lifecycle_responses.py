@@ -7,8 +7,8 @@ from app.features.workspaces.service import WorkspaceContext
 from app.web.features.ledger.manual.presenter import ManualLedgerPresenter
 from app.web.features.ledger.manual.queries import ManualLedgerPageQuery
 from app.web.features.ledger.manual.query_state import (
-    ManualLedgerListQuery,
     ManualLedgerPageParams,
+    ManualLedgerUrlState,
 )
 from app.web.features.ledger.manual.renderer import ManualLedgerRenderer
 from app.web.features.ledger.manual.response_scope import (
@@ -39,18 +39,16 @@ class ManualLedgerLifecycleResponses:
     ) -> Response:
         if not is_htmx_request(request):
             return RedirectResponse(
-                url=ManualLedgerPageParams.from_return_to(return_to).target_operation_url(
-                    updated.id
-                ),
+                url=ManualLedgerUrlState.from_return_to(return_to).target_operation_url(updated.id),
                 status_code=status.HTTP_303_SEE_OTHER,
             )
 
-        page_params = ManualLedgerPageParams.from_return_to(return_to)
-        list_query = ManualLedgerListQuery.from_page_params(page_params)
+        url_state = ManualLedgerUrlState.from_return_to(return_to)
+        page_params = ManualLedgerPageParams.from_url_state(url_state)
         scope = ManualLedgerUpdateResponseScope().resolve(
             previous=previous,
             updated=updated,
-            filters=list_query.filters,
+            filters=page_params.filters,
         )
         if scope is ManualLedgerUpdateScope.REPLACE_LIST:
             return await self._replace_list(
@@ -61,7 +59,7 @@ class ManualLedgerLifecycleResponses:
 
         row = ManualLedgerPresenter().build_row(
             updated,
-            focused_operation_id=list_query.focused_operation_id,
+            focused_operation_id=url_state.focused_operation_id,
             can_write=True,
             return_to=return_to,
             reset_edit_panel=True,
@@ -75,7 +73,7 @@ class ManualLedgerLifecycleResponses:
         context: WorkspaceContext,
         return_to: str,
     ) -> Response:
-        settled_url = ManualLedgerPageParams.from_return_to(return_to).clear_operation_target_url()
+        settled_url = ManualLedgerUrlState.from_return_to(return_to).clear_operation_target_url()
         if not is_htmx_request(request):
             return RedirectResponse(
                 url=settled_url,
@@ -95,11 +93,10 @@ class ManualLedgerLifecycleResponses:
         return_to: str,
         message: str,
     ) -> Response:
-        page_params = ManualLedgerPageParams.from_return_to(return_to)
-        list_query = ManualLedgerListQuery.from_page_params(page_params)
+        url_state = ManualLedgerUrlState.from_return_to(return_to)
         row = ManualLedgerPresenter().build_row(
             operation,
-            focused_operation_id=list_query.focused_operation_id,
+            focused_operation_id=url_state.focused_operation_id,
             can_write=True,
             return_to=return_to,
             request_error=message,
@@ -117,28 +114,23 @@ class ManualLedgerLifecycleResponses:
         context: WorkspaceContext,
         return_to: str,
     ) -> Response:
-        page_params = ManualLedgerPageParams.from_return_to(return_to)
-        list_query = ManualLedgerListQuery.from_page_params(page_params)
+        url_state = ManualLedgerUrlState.from_return_to(return_to)
+        page_params = ManualLedgerPageParams.from_url_state(url_state)
         page_data = await ManualLedgerPageQuery(self._ledger).execute(
             workspace_id=context.workspace.id,
-            query=list_query,
+            params=page_params,
         )
         presenter = ManualLedgerPresenter()
         page = presenter.build_page(
             workspace_name=context.workspace.name,
             operations=page_data.operations,
-            page=page_data.page,
-            filters=list_query.filters,
-            focused_operation_id=list_query.focused_operation_id,
+            pagination=page_data.pagination,
+            filters=page_params.filters,
+            focused_operation_id=url_state.focused_operation_id,
             can_write=True,
             reset_edit_panels=True,
         )
-        replace_url = ManualLedgerPageParams.from_list_state(
-            filters=list_query.filters,
-            page=page_data.page.page,
-            per_page=page_data.page.per_page,
-            focused_operation_id=list_query.focused_operation_id,
-        ).list_url()
+        replace_url = url_state.with_page(page_data.pagination.page).list_url()
         return self._renderer.results(
             request,
             page,

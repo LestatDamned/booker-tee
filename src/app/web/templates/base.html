@@ -10,7 +10,7 @@
     <script defer src="{{ url_for('web_static', path='/js/web-ui.js') }}?v={{ web_asset_version }}"></script>
     <script defer src="/static/js/vendor/alpine-3.14.8.min.js"></script>
   </head>
-  <body>
+  <body hx-history="false">
     <a class="skip-link" href="#main-content">К содержанию</a>
     <header class="app-header">
       <div class="app-shell app-header__content">

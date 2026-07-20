@@ -6,7 +6,7 @@
     id="manual-ledger-create"
     class="manual-ledger-create"
     data-request-scope
-    x-data="disclosure({{ 'true' if page.create_region.panel_open else 'false' }})"
+    x-data="disclosure(false)"
     {% if page.create_region.reset_panel %}data-disclosure-reset{% endif %}
     hx-sync="this:abort"
     {% if create_region_oob %}hx-swap-oob="outerHTML"{% endif %}
@@ -18,13 +18,8 @@
       </div>
       {{ action(page.create_region.action, "primary") }}
     </header>
-    {% call expansion_panel(page.create_region.panel_id, page.create_region.content_id, "Новая операция", page.create_region.panel_open, page.create_region.panel.return_to if page.create_region.panel else none) %}
-      {% if page.create_region.panel %}
-        {% set form = page.create_region.panel %}
-        {% include "features/ledger/manual/_create_panel.html" %}
-      {% else %}
-        <p class="request-state__indicator" data-request-indicator>Загружаем форму…</p>
-      {% endif %}
+    {% call expansion_panel(page.create_region.panel_id, page.create_region.content_id, "Новая операция", false, none) %}
+      <p class="request-state__indicator" data-request-indicator>Загружаем форму…</p>
     {% endcall %}
   </section>
 {% endif %}
