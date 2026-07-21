@@ -586,6 +586,18 @@ def collect_ux_assertions(
             errors.append("React import review heading was not found")
         if page.locator(".review-item, .review-row, .review-page").count() != 0:
             errors.append("React import review rendered legacy review classes")
+        classification_panel = page.get_by_text("Разобрать строку", exact=True).first
+        if classification_panel.count() == 0:
+            errors.append("React import review classification panel was not found")
+        else:
+            classification_panel.click()
+            if page.get_by_label("Категория").count() == 0:
+                errors.append("React import review category draft field was not found")
+            if page.get_by_label("Объект").count() == 0:
+                errors.append("React import review property draft field was not found")
+            expanded_overflow = collect_overflow(page)
+            if int(expanded_overflow["horizontalOverflowPx"]) > 1:
+                errors.append("React import review draft panel causes horizontal overflow")
 
     if scenario == "button_audit":
         errors.extend(assert_safe_click_interactions(page, base_url=base_url))

@@ -1,8 +1,12 @@
+import { useState } from "react";
+
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
 import { PageHeader } from "../../ui/page-header/page-header";
 import { RequestState } from "../../ui/request-state/request-state";
 import type { ImportReviewDto } from "./api/import-review-api";
+import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
+import { ClassificationPanel } from "./classification-panel";
 import styles from "./import-review.module.css";
 
 type ImportReviewPageProps = {
@@ -12,6 +16,16 @@ type ImportReviewPageProps = {
 
 export function ImportReviewPage({ review, session }: ImportReviewPageProps) {
   const readonly = !review.capabilities.canWrite;
+  const [categories, setCategories] = useState(review.references.categories);
+
+  function addCategory(category: ImportReviewCategoryReferenceDto) {
+    setCategories((current) =>
+      [...current.filter((item) => item.id !== category.id), category].sort(
+        (left, right) => left.name.localeCompare(right.name, "ru"),
+      ),
+    );
+  }
+
   return (
     <AppShell session={session}>
       <section className={styles.page}>
@@ -43,12 +57,18 @@ export function ImportReviewPage({ review, session }: ImportReviewPageProps) {
               {review.items.map((item) => (
                 <li key={item.id}>
                   <ReviewItem
+                    categories={categories}
+                    documentId={review.document.id}
                     item={item}
+                    onCategoryCreated={addCategory}
                     problems={
                       review.validation?.rowProblems.filter(
                         (problem) => problem.itemId === item.id,
                       ) ?? []
                     }
+                    properties={review.references.properties}
+                    readonly={readonly}
+                    csrfToken={session.csrfToken}
                   />
                 </li>
               ))}
@@ -223,11 +243,23 @@ function ReviewQueue({ review }: { review: ImportReviewDto }) {
 }
 
 function ReviewItem({
+  categories,
+  documentId,
   item,
+  onCategoryCreated,
   problems,
+  properties,
+  readonly,
+  csrfToken,
 }: {
+  categories: ImportReviewDto["references"]["categories"];
+  documentId: string;
   item: ImportReviewDto["items"][number];
+  onCategoryCreated: (category: ImportReviewCategoryReferenceDto) => void;
   problems: NonNullable<ImportReviewDto["validation"]>["rowProblems"];
+  properties: ImportReviewDto["references"]["properties"];
+  readonly: boolean;
+  csrfToken: string;
 }) {
   const normalizedDescription =
     item.normalized.description ?? item.raw.description ?? "Без описания";
@@ -265,6 +297,13 @@ function ReviewItem({
           <dt>Статус</dt>
           <dd>{statusLabel(item.status)}</dd>
         </div>
+        <div>
+          <dt>Классификация</dt>
+          <dd>
+            {operationTypeLabel(item.classification.operationType)} ·{" "}
+            {classificationSourceLabel(item.classification.source)}
+          </dd>
+        </div>
       </dl>
       {problems.map((problem) => (
         <div
@@ -279,6 +318,17 @@ function ReviewItem({
           </span>
         </div>
       ))}
+      {!item.isTerminal ? (
+        <ClassificationPanel
+          categories={categories}
+          csrfToken={csrfToken}
+          documentId={documentId}
+          item={item}
+          onCategoryCreated={onCategoryCreated}
+          properties={properties}
+          readonly={readonly}
+        />
+      ) : null}
       <details className={styles.rawDetails}>
         <summary>Исходные данные</summary>
         <dl>
@@ -344,6 +394,29 @@ function balanceChainLabel(
     return `обнаружено несоответствий: ${balanceChain.mismatchCount}; проверено пар: ${balanceChain.checkedPairCount}`;
   }
   return `расхождений нет; проверено пар: ${balanceChain.checkedPairCount}`;
+}
+
+function operationTypeLabel(
+  operationType: ImportReviewDto["items"][number]["classification"]["operationType"],
+): string {
+  if (operationType === null) return "Тип не определён";
+  return {
+    income: "Доход",
+    expense: "Расход",
+    transfer: "Перевод",
+    adjustment: "Корректировка",
+  }[operationType];
+}
+
+function classificationSourceLabel(
+  source: ImportReviewDto["items"][number]["classification"]["source"],
+): string {
+  return {
+    explicit: "выбрано вручную",
+    suggested: "предложено правилом",
+    inferred: "определено по сумме",
+    unknown: "источник неизвестен",
+  }[source];
 }
 
 function RawValue({ label, value }: { label: string; value: string | null }) {

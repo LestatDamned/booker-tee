@@ -5,13 +5,29 @@ from app.api.v1.import_review.schemas.responses import (
     ImportReviewApiResponse,
     ImportReviewBalanceChainApiResponse,
     ImportReviewCapabilitiesApiResponse,
+    ImportReviewCategoryReferenceApiResponse,
+    ImportReviewClassificationApiResponse,
+    ImportReviewConfirmabilityApiResponse,
     ImportReviewDocumentApiResponse,
+    ImportReviewDraftEvaluationApiResponse,
     ImportReviewItemApiResponse,
     ImportReviewNormalizedSourceApiResponse,
+    ImportReviewPropertyReferenceApiResponse,
     ImportReviewQueueApiResponse,
     ImportReviewRawSourceApiResponse,
+    ImportReviewReferencesApiResponse,
     ImportReviewRowProblemApiResponse,
+    ImportReviewRuleSuggestionApiResponse,
+    ImportReviewSelectionApiResponse,
     ImportReviewValidationApiResponse,
+)
+from app.features.imports.application.review.classification import (
+    ImportReviewCategoryReferenceDto,
+    ImportReviewClassificationDto,
+    ImportReviewConfirmabilityDto,
+    ImportReviewDraftEvaluationDto,
+    ImportReviewRuleSuggestionDto,
+    ImportReviewSelectionDto,
 )
 from app.features.imports.application.review.read_model import (
     ImportReviewAccountDto,
@@ -63,9 +79,28 @@ class ImportReviewResponseMapper:
                             item.normalized.balance_after
                         ),
                     ),
+                    classification=ImportReviewResponseMapper._classification(item.classification),
+                    selection=ImportReviewResponseMapper._selection(item.selection),
+                    confirmability=ImportReviewResponseMapper._confirmability(item.confirmability),
+                    rule_suggestion=ImportReviewResponseMapper._rule_suggestion(
+                        item.rule_suggestion
+                    ),
                 )
                 for item in review.items
             ],
+            references=ImportReviewReferencesApiResponse(
+                categories=[
+                    ImportReviewResponseMapper.category_reference(category)
+                    for category in review.references.categories
+                ],
+                properties=[
+                    ImportReviewPropertyReferenceApiResponse(
+                        id=property_.id,
+                        name=property_.name,
+                    )
+                    for property_ in review.references.properties
+                ],
+            ),
             validation=(
                 ImportReviewValidationApiResponse(
                     status=review.validation.status,
@@ -143,6 +178,29 @@ class ImportReviewResponseMapper:
         )
 
     @staticmethod
+    def draft_evaluation(
+        evaluation: ImportReviewDraftEvaluationDto,
+    ) -> ImportReviewDraftEvaluationApiResponse:
+        return ImportReviewDraftEvaluationApiResponse(
+            item_id=evaluation.item_id,
+            classification=ImportReviewResponseMapper._classification(evaluation.classification),
+            selection=ImportReviewResponseMapper._selection(evaluation.selection),
+            confirmability=ImportReviewResponseMapper._confirmability(evaluation.confirmability),
+            rule_suggestion=ImportReviewResponseMapper._rule_suggestion(evaluation.rule_suggestion),
+        )
+
+    @staticmethod
+    def category_reference(
+        category: ImportReviewCategoryReferenceDto,
+    ) -> ImportReviewCategoryReferenceApiResponse:
+        return ImportReviewCategoryReferenceApiResponse(
+            id=category.id,
+            name=category.name,
+            kind=category.kind,
+            is_uncategorized=category.is_uncategorized,
+        )
+
+    @staticmethod
     def _account(
         account: ImportReviewAccountDto | None,
     ) -> ImportReviewAccountApiResponse | None:
@@ -161,3 +219,38 @@ class ImportReviewResponseMapper:
     @staticmethod
     def _decimal_required(value: Decimal) -> str:
         return format(value, "f")
+
+    @staticmethod
+    def _classification(
+        classification: ImportReviewClassificationDto,
+    ) -> ImportReviewClassificationApiResponse:
+        return ImportReviewClassificationApiResponse(
+            operation_type=classification.operation_type,
+            source=classification.source,
+        )
+
+    @staticmethod
+    def _selection(selection: ImportReviewSelectionDto) -> ImportReviewSelectionApiResponse:
+        return ImportReviewSelectionApiResponse(
+            category_id=selection.category_id,
+            property_id=selection.property_id,
+        )
+
+    @staticmethod
+    def _confirmability(
+        confirmability: ImportReviewConfirmabilityDto,
+    ) -> ImportReviewConfirmabilityApiResponse:
+        return ImportReviewConfirmabilityApiResponse(
+            can_confirm=confirmability.can_confirm,
+            blocking_reason_codes=list(confirmability.blocking_reason_codes),
+        )
+
+    @staticmethod
+    def _rule_suggestion(
+        rule_suggestion: ImportReviewRuleSuggestionDto,
+    ) -> ImportReviewRuleSuggestionApiResponse:
+        return ImportReviewRuleSuggestionApiResponse(
+            is_active=rule_suggestion.is_active,
+            was_auto_applied=rule_suggestion.was_auto_applied,
+            rule_id=rule_suggestion.rule_id,
+        )

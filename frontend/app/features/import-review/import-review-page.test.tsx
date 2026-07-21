@@ -1,11 +1,17 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImportReviewPage } from "./import-review-page";
-import { importReviewPayload, remainingItemId } from "./test-support";
+import {
+  expenseCategoryId,
+  importReviewPayload,
+  remainingItemId,
+} from "./test-support";
 
 describe("import review page", () => {
+  afterEach(() => vi.unstubAllGlobals());
   it("renders queue progress and links to the first remaining row", () => {
     renderPage(importReviewPayload());
 
@@ -131,6 +137,60 @@ describe("import review page", () => {
     renderPage(review);
 
     expect(screen.getByText(/доступен только для чтения/)).toBeInTheDocument();
+  });
+
+  it("keeps the local row draft after a network error and panel toggle", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    renderPage(importReviewPayload());
+
+    const summary = screen.getByText("Разобрать строку");
+    await user.click(summary);
+    const category = screen.getByLabelText("Категория");
+    await user.selectOptions(category, expenseCategoryId);
+    await user.click(screen.getByRole("button", { name: "Проверить выбор" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Backend недоступен",
+    );
+    await user.click(summary);
+    await user.click(summary);
+    expect(screen.getByLabelText("Категория")).toHaveValue(expenseCategoryId);
+  });
+
+  it("keeps invalid category input and focuses the first invalid field", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                code: "invalid_category",
+                message: "Категорию не удалось создать.",
+                fieldErrors: { name: ["Название уже занято."] },
+              },
+            }),
+            { status: 422 },
+          ),
+        ),
+      ),
+    );
+    renderPage(importReviewPayload());
+
+    await user.click(screen.getByText("Разобрать строку"));
+    await user.click(screen.getByRole("button", { name: "Новая категория" }));
+    const name = screen.getByLabelText("Название категории");
+    await user.type(name, "Продукты");
+    await user.click(screen.getByRole("button", { name: "Создать и выбрать" }));
+
+    expect(await screen.findByText("Название уже занято.")).toBeInTheDocument();
+    expect(name).toHaveValue("Продукты");
+    expect(name).toHaveFocus();
   });
 });
 

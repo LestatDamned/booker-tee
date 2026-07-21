@@ -61,6 +61,21 @@ class LedgerReferenceResolver:
         except CategoryError as exc:
             raise LedgerPostingError(str(exc)) from exc
 
+    async def get_required_import_category(
+        self,
+        workspace_id: UUID,
+        category_id: UUID | None,
+    ) -> Category:
+        if category_id is None:
+            raise LedgerPostingError("Income or expense import requires a category.")
+        try:
+            category = await self.categories.get_for_workspace(workspace_id, category_id)
+        except CategoryError as exc:
+            raise LedgerPostingError(str(exc)) from exc
+        if category is None or category.system_key == "uncategorized":
+            raise LedgerPostingError("Income or expense import requires a real category.")
+        return category
+
     async def get_property(
         self,
         workspace_id: UUID,

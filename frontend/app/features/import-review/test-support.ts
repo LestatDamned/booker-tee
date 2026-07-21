@@ -3,6 +3,9 @@ import type { ImportReviewDto } from "./api/import-review-api";
 export const reviewDocumentId = "5e4c43a1-7e08-4afe-a442-5d1d72e08ca8";
 export const completedItemId = "74d26880-543e-459f-a2a2-9f1a497914fe";
 export const remainingItemId = "cb1b2959-b134-4a57-b2f4-7a7dfe8e8a42";
+export const expenseCategoryId = "078d4cda-d476-4bd6-b731-92d423d07c39";
+export const uncategorizedCategoryId = "5c1fed65-56a7-4210-b8db-e63401b411af";
+export const propertyId = "47d25198-3c11-4610-b02d-1df9aff0dc48";
 
 export function importReviewPayload(): ImportReviewDto {
   return {
@@ -39,6 +42,23 @@ export function importReviewPayload(): ImportReviewDto {
         isReviewable: true,
       }),
     ],
+    references: {
+      categories: [
+        {
+          id: expenseCategoryId,
+          name: "Продукты",
+          kind: "expense",
+          isUncategorized: false,
+        },
+        {
+          id: uncategorizedCategoryId,
+          name: "Без категории",
+          kind: "mixed",
+          isUncategorized: true,
+        },
+      ],
+      properties: [{ id: propertyId, name: "Квартира" }],
+    },
     validation: {
       status: "mismatch",
       reasonCode: "balance_chain_mismatch",
@@ -109,6 +129,17 @@ function importReviewItem(
       amount: "-1250.50",
       currency: "RUB",
       balanceAfter: "10000.00",
+    },
+    classification: { operationType: "expense", source: "inferred" },
+    selection: { categoryId: null, propertyId: null },
+    confirmability: {
+      canConfirm: false,
+      blockingReasonCodes: ["missing_category"],
+    },
+    ruleSuggestion: {
+      isActive: false,
+      wasAutoApplied: false,
+      ruleId: null,
     },
   };
 }

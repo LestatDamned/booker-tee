@@ -1,6 +1,6 @@
 # Slice 03: Classification, Category и Property
 
-Статус: planned.
+Статус: completed.
 
 ## Результат
 
@@ -36,3 +36,29 @@ Writer понимает server classification, выбирает category/propert
 
 React не реализует заново classification или confirmability rules, а crafted
 request не может обойти category safety policy.
+
+## Реализовано
+
+- Pure domain resolver закрепляет приоритет `explicit → suggested → inferred →
+  unknown`; server confirmability возвращает стабильные blocking reason codes.
+- Typed GET contract содержит classification, selection, confirmability,
+  rule-suggestion facts и workspace-scoped active category/property references.
+  Read endpoint по-прежнему не выполняет seed/commit и не зависит от legacy
+  Presenter.
+- Side-effect-free draft evaluation принимает только operation type,
+  category/property IDs и повторно проверяет workspace references. Cross-workspace
+  category/property возвращают typed `422`, а не доверяются client options.
+- Создание category вынесено в отдельный JSON command. Response содержит только
+  новую reference; React добавляет ее в options всех строк и выбирает в текущем
+  draft.
+- Local row draft переживает закрытие panel, network error и `422`. При field
+  error focus переходит к первому invalid control; financial state не обновляется
+  optimistic.
+- Existing posting boundary больше не подставляет `uncategorized` при crafted
+  confirm request: income/expense import требует реальную workspace category.
+- Rule suggestion отображается как предложение и никогда не вызывает silent
+  confirm. Confirm/post UI остается вне scope этого slice.
+
+Проверки: classification/application/API tests, real-category posting regression,
+83 frontend tests, production build и Playwright audit раскрытого panel на
+1440/920/390 прошли.

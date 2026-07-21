@@ -8,10 +8,12 @@ import pytest
 
 from app.features.accounts.models import Account, AccountType
 from app.features.imports.models import RawTransactionStatus
+from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.application.raw_transaction_posting import (
     RawTransactionPoster,
 )
 from app.features.ledger.domain.types import OperationType
+from app.features.ledger.errors import LedgerPostingError
 
 
 class SessionStub:
@@ -82,11 +84,19 @@ class ReferenceResolverStub:
         self.raw_account_requests.append(raw_transaction)
         return self.account
 
-    async def get_category_or_uncategorized(self, *args: object) -> object:
+    async def get_required_import_category(self, *args: object) -> object:
         return SimpleNamespace(id=uuid4())
 
     async def get_property(self, *args: object) -> None:
         return None
+
+
+class CategoryLookupStub:
+    def __init__(self, category: object | None) -> None:
+        self.category = category
+
+    async def get_for_workspace(self, *args: object) -> object | None:
+        return self.category
 
 
 class DocumentStatusStub:
@@ -153,6 +163,7 @@ async def test_post_raw_transaction_uses_document_level_account() -> None:
         ),
         document_id=document_id,
         raw_transaction_id=raw_transaction.id,
+        category_id=uuid4(),
     )
 
     assert references.raw_account_requests == [raw_transaction]
@@ -161,6 +172,22 @@ async def test_post_raw_transaction_uses_document_level_account() -> None:
     assert len(ledger.entries) == 1
     assert session.committed is False
     assert session.rolled_back is False
+
+
+@pytest.mark.asyncio
+async def test_import_posting_rejects_missing_and_uncategorized_category() -> None:
+    resolver = LedgerReferenceResolver(cast(Any, SessionStub()))
+    resolver.categories = cast(Any, CategoryLookupStub(None))
+
+    with pytest.raises(LedgerPostingError, match="requires a category"):
+        await resolver.get_required_import_category(uuid4(), None)
+
+    resolver.categories = cast(
+        Any,
+        CategoryLookupStub(SimpleNamespace(id=uuid4(), system_key="uncategorized")),
+    )
+    with pytest.raises(LedgerPostingError, match="requires a real category"):
+        await resolver.get_required_import_category(uuid4(), uuid4())
 
 
 @pytest.mark.asyncio

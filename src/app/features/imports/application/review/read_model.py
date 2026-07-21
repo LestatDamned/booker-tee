@@ -6,6 +6,16 @@ from typing import Protocol
 from uuid import UUID
 
 from app.features.accounts.models import Account
+from app.features.imports.application.review.classification import (
+    ImportReviewClassificationDto,
+    ImportReviewConfirmabilityDto,
+    ImportReviewDraftEvaluationDto,
+    ImportReviewReferenceReader,
+    ImportReviewReferencesDto,
+    ImportReviewRuleSuggestionDto,
+    ImportReviewSelectionDto,
+    build_import_review_draft_evaluation,
+)
 from app.features.imports.application.review.validation_read_model import (
     ImportReviewValidationDto,
     build_import_review_validation,
@@ -84,6 +94,10 @@ class ImportReviewItemDto:
     source_account: ImportReviewAccountDto | None
     raw: ImportReviewRawSourceDto
     normalized: ImportReviewNormalizedSourceDto
+    classification: ImportReviewClassificationDto
+    selection: ImportReviewSelectionDto
+    confirmability: ImportReviewConfirmabilityDto
+    rule_suggestion: ImportReviewRuleSuggestionDto
 
 
 @dataclass(frozen=True)
@@ -99,13 +113,19 @@ class ImportReviewReadModel:
     document: ImportReviewDocumentDto
     queue: ImportReviewQueueDto
     items: list[ImportReviewItemDto]
+    references: ImportReviewReferencesDto
     validation: ImportReviewValidationDto | None
     capabilities: ImportReviewCapabilitiesDto
 
 
 class ImportReviewReader:
-    def __init__(self, documents: ImportReviewDocumentSource) -> None:
+    def __init__(
+        self,
+        documents: ImportReviewDocumentSource,
+        references: ImportReviewReferenceReader,
+    ) -> None:
         self._documents = documents
+        self._references = references
 
     async def read(
         self,
@@ -117,21 +137,50 @@ class ImportReviewReader:
         document = await self._documents.get_document_for_workspace(workspace_id, document_id)
         if document is None:
             return None
-        return build_import_review_read_model(document, can_write=can_write)
+        references = await self._references.read(workspace_id)
+        return build_import_review_read_model(
+            document,
+            references=references,
+            can_write=can_write,
+        )
 
 
 def build_import_review_read_model(
     document: UploadedDocument,
     *,
+    references: ImportReviewReferencesDto,
     can_write: bool,
 ) -> ImportReviewReadModel:
     queue = review_queue_snapshot(document.raw_transactions)
     rows_by_id = {row.id: row for row in document.raw_transactions}
     document_account = _account_dto(document.account)
-    items = [
-        _item_dto(rows_by_id[item_id], document_account=document_account)
-        for item_id in queue.ordered_item_ids
-    ]
+    categories_by_id = {category.id: category for category in references.categories}
+    properties_by_id = {property_.id: property_ for property_ in references.properties}
+    items: list[ImportReviewItemDto] = []
+    for item_id in queue.ordered_item_ids:
+        row = rows_by_id[item_id]
+        category = (
+            categories_by_id.get(row.suggested_category_id)
+            if row.suggested_category_id is not None
+            else None
+        )
+        property_ = (
+            properties_by_id.get(row.suggested_property_id)
+            if row.suggested_property_id is not None
+            else None
+        )
+        items.append(
+            _item_dto(
+                row,
+                document=document,
+                document_account=document_account,
+                category_id=category.id if category is not None else None,
+                category_is_uncategorized=(
+                    category.is_uncategorized if category is not None else False
+                ),
+                property_id=property_.id if property_ is not None else None,
+            )
+        )
     return ImportReviewReadModel(
         document=ImportReviewDocumentDto(
             id=document.id,
@@ -147,6 +196,7 @@ def build_import_review_read_model(
             ordered_item_ids=queue.ordered_item_ids,
         ),
         items=items,
+        references=references,
         validation=build_import_review_validation(document),
         capabilities=ImportReviewCapabilitiesDto(
             can_write=can_write,
@@ -160,9 +210,21 @@ def build_import_review_read_model(
 def _item_dto(
     row: RawTransaction,
     *,
+    document: UploadedDocument,
     document_account: ImportReviewAccountDto | None,
+    category_id: UUID | None,
+    category_is_uncategorized: bool,
+    property_id: UUID | None,
 ) -> ImportReviewItemDto:
     status = row.status
+    draft: ImportReviewDraftEvaluationDto = build_import_review_draft_evaluation(
+        document=document,
+        row=row,
+        explicit_operation_type=None,
+        category_id=category_id,
+        property_id=property_id,
+        category_is_uncategorized=category_is_uncategorized,
+    )
     return ImportReviewItemDto(
         id=row.id,
         row_index=row.row_index,
@@ -187,6 +249,10 @@ def _item_dto(
             currency=row.currency,
             balance_after=row.balance_after,
         ),
+        classification=draft.classification,
+        selection=draft.selection,
+        confirmability=draft.confirmability,
+        rule_suggestion=draft.rule_suggestion,
     )
 
 

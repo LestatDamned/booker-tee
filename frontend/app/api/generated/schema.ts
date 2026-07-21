@@ -21,6 +21,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/import-review/{document_id}/items/{item_id}/draft-evaluation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Evaluate Import Review Draft */
+        post: operations["evaluate_import_review_draft_api_v1_import_review__document_id__items__item_id__draft_evaluation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/import-review/{document_id}/items/{item_id}/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Import Review Category */
+        post: operations["create_import_review_category_api_v1_import_review__document_id__items__item_id__categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/manual-ledger": {
         parameters: {
             query?: never;
@@ -1488,6 +1522,7 @@ export interface components {
             queue: components["schemas"]["ImportReviewQueueApiResponse"];
             /** Items */
             items: components["schemas"]["ImportReviewItemApiResponse"][];
+            references: components["schemas"]["ImportReviewReferencesApiResponse"];
             validation: components["schemas"]["ImportReviewValidationApiResponse"] | null;
             capabilities: components["schemas"]["ImportReviewCapabilitiesApiResponse"];
         };
@@ -1507,6 +1542,37 @@ export interface components {
             canWrite: boolean;
             readonlyReasonCode: components["schemas"]["ImportReviewReadonlyReasonCode"] | null;
         };
+        /** ImportReviewCategoryCreateApiRequest */
+        ImportReviewCategoryCreateApiRequest: {
+            /** Name */
+            name: string;
+            kind: components["schemas"]["CategoryKind"];
+        };
+        /** ImportReviewCategoryReferenceApiResponse */
+        ImportReviewCategoryReferenceApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["CategoryKind"];
+            /** Isuncategorized */
+            isUncategorized: boolean;
+        };
+        /** ImportReviewClassificationApiResponse */
+        ImportReviewClassificationApiResponse: {
+            operationType: components["schemas"]["OperationType"] | null;
+            source: components["schemas"]["ReviewClassificationSource"];
+        };
+        /** ImportReviewConfirmabilityApiResponse */
+        ImportReviewConfirmabilityApiResponse: {
+            /** Canconfirm */
+            canConfirm: boolean;
+            /** Blockingreasoncodes */
+            blockingReasonCodes: components["schemas"]["ReviewBlockingReasonCode"][];
+        };
         /** ImportReviewDocumentApiResponse */
         ImportReviewDocumentApiResponse: {
             /**
@@ -1518,6 +1584,26 @@ export interface components {
             filename: string;
             status: components["schemas"]["UploadedDocumentStatus"];
             sourceAccount: components["schemas"]["ImportReviewAccountApiResponse"] | null;
+        };
+        /** ImportReviewDraftEvaluationApiRequest */
+        ImportReviewDraftEvaluationApiRequest: {
+            operationType?: components["schemas"]["OperationType"] | null;
+            /** Categoryid */
+            categoryId?: string | null;
+            /** Propertyid */
+            propertyId?: string | null;
+        };
+        /** ImportReviewDraftEvaluationApiResponse */
+        ImportReviewDraftEvaluationApiResponse: {
+            /**
+             * Itemid
+             * Format: uuid
+             */
+            itemId: string;
+            classification: components["schemas"]["ImportReviewClassificationApiResponse"];
+            selection: components["schemas"]["ImportReviewSelectionApiResponse"];
+            confirmability: components["schemas"]["ImportReviewConfirmabilityApiResponse"];
+            ruleSuggestion: components["schemas"]["ImportReviewRuleSuggestionApiResponse"];
         };
         /** ImportReviewItemApiResponse */
         ImportReviewItemApiResponse: {
@@ -1536,6 +1622,10 @@ export interface components {
             sourceAccount: components["schemas"]["ImportReviewAccountApiResponse"] | null;
             raw: components["schemas"]["ImportReviewRawSourceApiResponse"];
             normalized: components["schemas"]["ImportReviewNormalizedSourceApiResponse"];
+            classification: components["schemas"]["ImportReviewClassificationApiResponse"];
+            selection: components["schemas"]["ImportReviewSelectionApiResponse"];
+            confirmability: components["schemas"]["ImportReviewConfirmabilityApiResponse"];
+            ruleSuggestion: components["schemas"]["ImportReviewRuleSuggestionApiResponse"];
         };
         /** ImportReviewNormalizedSourceApiResponse */
         ImportReviewNormalizedSourceApiResponse: {
@@ -1551,6 +1641,16 @@ export interface components {
             currency: string | null;
             /** Balanceafter */
             balanceAfter: string | null;
+        };
+        /** ImportReviewPropertyReferenceApiResponse */
+        ImportReviewPropertyReferenceApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** ImportReviewQueueApiResponse */
         ImportReviewQueueApiResponse: {
@@ -1587,6 +1687,13 @@ export interface components {
          * @enum {string}
          */
         ImportReviewReadonlyReasonCode: "financial_write_forbidden";
+        /** ImportReviewReferencesApiResponse */
+        ImportReviewReferencesApiResponse: {
+            /** Categories */
+            categories: components["schemas"]["ImportReviewCategoryReferenceApiResponse"][];
+            /** Properties */
+            properties: components["schemas"]["ImportReviewPropertyReferenceApiResponse"][];
+        };
         /** ImportReviewRowProblemApiResponse */
         ImportReviewRowProblemApiResponse: {
             /**
@@ -1614,6 +1721,22 @@ export interface components {
          * @enum {string}
          */
         ImportReviewRowProblemCode: "balance_chain_mismatch";
+        /** ImportReviewRuleSuggestionApiResponse */
+        ImportReviewRuleSuggestionApiResponse: {
+            /** Isactive */
+            isActive: boolean;
+            /** Wasautoapplied */
+            wasAutoApplied: boolean;
+            /** Ruleid */
+            ruleId: string | null;
+        };
+        /** ImportReviewSelectionApiResponse */
+        ImportReviewSelectionApiResponse: {
+            /** Categoryid */
+            categoryId: string | null;
+            /** Propertyid */
+            propertyId: string | null;
+        };
         /** ImportReviewValidationApiResponse */
         ImportReviewValidationApiResponse: {
             status: components["schemas"]["StatementValidationStatus"];
@@ -1922,6 +2045,16 @@ export interface components {
          * @enum {string}
          */
         RawTransactionStatus: "extracted" | "normalized" | "suggested" | "needs_review" | "matched" | "ignored" | "duplicate" | "possible_duplicate" | "failed" | "confirmed";
+        /**
+         * ReviewBlockingReasonCode
+         * @enum {string}
+         */
+        ReviewBlockingReasonCode: "terminal_state" | "failed_state" | "duplicate_review_required" | "normalization_error" | "missing_operation_date" | "missing_amount" | "missing_currency" | "missing_source_account" | "missing_operation_type" | "missing_category" | "uncategorized_category" | "transfer_accounts_required" | "same_transfer_account" | "unsupported_operation_type";
+        /**
+         * ReviewClassificationSource
+         * @enum {string}
+         */
+        ReviewClassificationSource: "explicit" | "suggested" | "inferred" | "unknown";
         /** SessionApiResponse */
         SessionApiResponse: {
             user: components["schemas"]["SessionUserApiResponse"];
@@ -2085,6 +2218,132 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    evaluate_import_review_draft_api_v1_import_review__document_id__items__item_id__draft_evaluation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportReviewDraftEvaluationApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportReviewDraftEvaluationApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_import_review_category_api_v1_import_review__document_id__items__item_id__categories_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportReviewCategoryCreateApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportReviewCategoryReferenceApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };

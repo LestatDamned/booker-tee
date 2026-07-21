@@ -6,10 +6,13 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from app.features.imports.application.review.classification import ImportReviewReferencesDto
 from app.features.imports.application.review.read_model import (
     ImportReviewReader,
     ImportReviewReadonlyReasonCode,
 )
+from app.features.imports.domain.review_classification import ReviewClassificationSource
+from app.features.imports.domain.review_confirmability import ReviewBlockingReasonCode
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import UploadedDocumentStatus
 
@@ -26,6 +29,11 @@ class DocumentSourceStub:
         return self.document
 
 
+class ReferenceReaderStub:
+    async def read(self, workspace_id: object) -> ImportReviewReferencesDto:
+        return ImportReviewReferencesDto(categories=(), properties=())
+
+
 @pytest.mark.asyncio
 async def test_import_review_reader_builds_ordered_raw_and_normalized_rows() -> None:
     workspace_id = uuid4()
@@ -38,6 +46,7 @@ async def test_import_review_reader_builds_ordered_raw_and_normalized_rows() -> 
         original_filename="statement.pdf",
         status=UploadedDocumentStatus.REQUIRES_REVIEW,
         account=account,
+        account_id=account.id,
         raw_transactions=[
             row(second_id, 2, RawTransactionStatus.MATCHED),
             row(first_id, 1, RawTransactionStatus.CONFIRMED),
@@ -45,7 +54,7 @@ async def test_import_review_reader_builds_ordered_raw_and_normalized_rows() -> 
     )
     source = DocumentSourceStub(document)
 
-    result = await ImportReviewReader(cast(Any, source)).read(
+    result = await ImportReviewReader(cast(Any, source), cast(Any, ReferenceReaderStub())).read(
         workspace_id=workspace_id,
         document_id=document_id,
         can_write=False,
@@ -60,6 +69,12 @@ async def test_import_review_reader_builds_ordered_raw_and_normalized_rows() -> 
     assert result.items[1].source_account.name == "Основной"
     assert result.items[1].raw.amount == "-1250,50"
     assert result.items[1].normalized.amount == Decimal("-1250.50")
+    assert result.items[1].classification.source is ReviewClassificationSource.INFERRED
+    assert result.items[1].confirmability.can_confirm is False
+    assert (
+        ReviewBlockingReasonCode.MISSING_CATEGORY
+        in result.items[1].confirmability.blocking_reason_codes
+    )
     assert result.capabilities.can_write is False
     assert (
         result.capabilities.readonly_reason_code
@@ -71,7 +86,7 @@ async def test_import_review_reader_builds_ordered_raw_and_normalized_rows() -> 
 async def test_import_review_reader_returns_none_for_unknown_document() -> None:
     source = DocumentSourceStub(None)
 
-    result = await ImportReviewReader(cast(Any, source)).read(
+    result = await ImportReviewReader(cast(Any, source), cast(Any, ReferenceReaderStub())).read(
         workspace_id=uuid4(),
         document_id=uuid4(),
         can_write=True,
@@ -99,4 +114,11 @@ def row(row_id: UUID, row_index: int, status: RawTransactionStatus) -> SimpleNam
         amount=Decimal("-1250.50"),
         currency="RUB",
         balance_after=Decimal("10000.00"),
+        account_id=None,
+        suggested_category_id=None,
+        suggested_property_id=None,
+        suggested_operation_type=None,
+        suggested_by_rule_id=None,
+        normalization_error=None,
+        raw_payload={},
     )

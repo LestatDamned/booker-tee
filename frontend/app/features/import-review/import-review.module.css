@@ -231,7 +231,7 @@
 .summary,
 .rawDetails dl {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-3);
   margin: 0;
 }
@@ -265,6 +265,121 @@
   color: var(--color-text-secondary);
 }
 
+.classificationPanel {
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+
+.classificationPanel > summary {
+  min-height: var(--control-height);
+  align-content: center;
+  padding: var(--space-3);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.classificationPanel[open] > summary {
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.classificationPanelBody {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.classificationPanelBody p {
+  margin: 0;
+}
+
+.ruleSuggestion {
+  border-inline-start: 0.2rem solid var(--color-accent);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+}
+
+.draftFields,
+.categoryEditor {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--space-3);
+}
+
+.draftFields label,
+.categoryEditor label {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.draftFields select,
+.categoryEditor input,
+.categoryEditor select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  padding: var(--space-2) var(--space-3);
+}
+
+.draftActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.categoryEditor {
+  border-top: 1px solid var(--color-border-default);
+  padding-top: var(--space-4);
+}
+
+.categoryEditor > button {
+  align-self: end;
+}
+
+.draftStatus,
+.draftReady,
+.draftError {
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+}
+
+.draftStatus {
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+}
+
+.draftStatus ul {
+  margin: var(--space-2) 0 0;
+  padding-inline-start: var(--space-5);
+}
+
+.draftReady {
+  border-inline-start: 0.2rem solid var(--color-status-success);
+  background: color-mix(in srgb, var(--color-status-success) 10%, transparent);
+}
+
+.draftError,
+.fieldError {
+  color: var(--color-status-danger);
+}
+
+.draftError {
+  background: color-mix(in srgb, var(--color-status-danger) 10%, transparent);
+}
+
+.fieldError {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
 .rawDetails summary {
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -282,6 +397,12 @@
 
   .nextLink {
     grid-column: 1 / -1;
+  }
+
+  .summary,
+  .draftFields,
+  .categoryEditor {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -301,6 +422,11 @@
   .validationHeader,
   .summary,
   .rawDetails dl {
+    grid-template-columns: 1fr;
+  }
+
+  .draftFields,
+  .categoryEditor {
     grid-template-columns: 1fr;
   }
 

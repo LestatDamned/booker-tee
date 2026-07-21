@@ -240,7 +240,7 @@ class RawTransactionPoster:
             if rule_suggestion_auto_applies(raw_transaction)
             else None
         )
-        category = await self.references.get_category_or_uncategorized(
+        category = await self.references.get_required_import_category(
             context.workspace.id,
             category_id or suggested_category_id,
         )

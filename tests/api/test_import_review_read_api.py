@@ -8,6 +8,13 @@ from fastapi.testclient import TestClient
 
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.v1.import_review.dependencies import get_import_review_reader
+from app.features.imports.application.review.classification import (
+    ImportReviewClassificationDto,
+    ImportReviewConfirmabilityDto,
+    ImportReviewReferencesDto,
+    ImportReviewRuleSuggestionDto,
+    ImportReviewSelectionDto,
+)
 from app.features.imports.application.review.read_model import (
     ImportReviewAccountDto,
     ImportReviewCapabilitiesDto,
@@ -26,9 +33,12 @@ from app.features.imports.application.review.validation_read_model import (
     ImportReviewValidationDto,
     ImportReviewValidationReasonCode,
 )
+from app.features.imports.domain.review_classification import ReviewClassificationSource
+from app.features.imports.domain.review_confirmability import ReviewBlockingReasonCode
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.domain.validation import StatementValidationStatus
 from app.features.imports.models import UploadedDocumentStatus
+from app.features.ledger.domain.types import OperationType
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
     WorkspaceMemberStatus,
@@ -98,6 +108,15 @@ def test_import_review_returns_typed_queue_and_source_data() -> None:
     assert payload["items"][0]["isReviewable"] is True
     assert payload["items"][0]["raw"]["amount"] == "-1250,50"
     assert payload["items"][0]["normalized"]["amount"] == "-1250.50"
+    assert payload["items"][0]["classification"] == {
+        "operationType": "expense",
+        "source": "inferred",
+    }
+    assert payload["items"][0]["confirmability"] == {
+        "canConfirm": False,
+        "blockingReasonCodes": ["missing_category"],
+    }
+    assert payload["references"] == {"categories": [], "properties": []}
     assert payload["validation"]["reasonCode"] == "control_totals_mismatch"
     assert payload["validation"]["calculatedTotalOutflow"] == "1250.50"
     assert payload["validation"]["rowProblems"][0]["itemId"] == str(review.items[0].id)
@@ -214,8 +233,26 @@ def review_model() -> ImportReviewReadModel:
                     currency="RUB",
                     balance_after=Decimal("10000.00"),
                 ),
+                classification=ImportReviewClassificationDto(
+                    operation_type=OperationType.EXPENSE,
+                    source=ReviewClassificationSource.INFERRED,
+                ),
+                selection=ImportReviewSelectionDto(
+                    category_id=None,
+                    property_id=None,
+                ),
+                confirmability=ImportReviewConfirmabilityDto(
+                    can_confirm=False,
+                    blocking_reason_codes=(ReviewBlockingReasonCode.MISSING_CATEGORY,),
+                ),
+                rule_suggestion=ImportReviewRuleSuggestionDto(
+                    is_active=False,
+                    was_auto_applied=False,
+                    rule_id=None,
+                ),
             )
         ],
+        references=ImportReviewReferencesDto(categories=(), properties=()),
         validation=ImportReviewValidationDto(
             status=StatementValidationStatus.MISMATCH,
             reason_code=ImportReviewValidationReasonCode.CONTROL_TOTALS_MISMATCH,

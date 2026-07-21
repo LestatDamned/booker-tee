@@ -2,6 +2,7 @@ from datetime import date
 from uuid import UUID
 
 from app.api.schemas import ApiModel
+from app.features.categories.models import CategoryKind
 from app.features.imports.application.review.read_model import (
     ImportReviewReadonlyReasonCode,
 )
@@ -9,9 +10,12 @@ from app.features.imports.application.review.validation_read_model import (
     ImportReviewRowProblemCode,
     ImportReviewValidationReasonCode,
 )
+from app.features.imports.domain.review_classification import ReviewClassificationSource
+from app.features.imports.domain.review_confirmability import ReviewBlockingReasonCode
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.domain.validation import StatementValidationStatus
 from app.features.imports.models import UploadedDocumentStatus
+from app.features.ledger.domain.types import OperationType
 
 
 class ImportReviewAccountApiResponse(ApiModel):
@@ -52,6 +56,27 @@ class ImportReviewNormalizedSourceApiResponse(ApiModel):
     balance_after: str | None
 
 
+class ImportReviewClassificationApiResponse(ApiModel):
+    operation_type: OperationType | None
+    source: ReviewClassificationSource
+
+
+class ImportReviewSelectionApiResponse(ApiModel):
+    category_id: UUID | None
+    property_id: UUID | None
+
+
+class ImportReviewConfirmabilityApiResponse(ApiModel):
+    can_confirm: bool
+    blocking_reason_codes: list[ReviewBlockingReasonCode]
+
+
+class ImportReviewRuleSuggestionApiResponse(ApiModel):
+    is_active: bool
+    was_auto_applied: bool
+    rule_id: UUID | None
+
+
 class ImportReviewItemApiResponse(ApiModel):
     id: UUID
     row_index: int
@@ -61,6 +86,27 @@ class ImportReviewItemApiResponse(ApiModel):
     source_account: ImportReviewAccountApiResponse | None
     raw: ImportReviewRawSourceApiResponse
     normalized: ImportReviewNormalizedSourceApiResponse
+    classification: ImportReviewClassificationApiResponse
+    selection: ImportReviewSelectionApiResponse
+    confirmability: ImportReviewConfirmabilityApiResponse
+    rule_suggestion: ImportReviewRuleSuggestionApiResponse
+
+
+class ImportReviewCategoryReferenceApiResponse(ApiModel):
+    id: UUID
+    name: str
+    kind: CategoryKind
+    is_uncategorized: bool
+
+
+class ImportReviewPropertyReferenceApiResponse(ApiModel):
+    id: UUID
+    name: str
+
+
+class ImportReviewReferencesApiResponse(ApiModel):
+    categories: list[ImportReviewCategoryReferenceApiResponse]
+    properties: list[ImportReviewPropertyReferenceApiResponse]
 
 
 class ImportReviewDocumentApiResponse(ApiModel):
@@ -114,5 +160,14 @@ class ImportReviewApiResponse(ApiModel):
     document: ImportReviewDocumentApiResponse
     queue: ImportReviewQueueApiResponse
     items: list[ImportReviewItemApiResponse]
+    references: ImportReviewReferencesApiResponse
     validation: ImportReviewValidationApiResponse | None
     capabilities: ImportReviewCapabilitiesApiResponse
+
+
+class ImportReviewDraftEvaluationApiResponse(ApiModel):
+    item_id: UUID
+    classification: ImportReviewClassificationApiResponse
+    selection: ImportReviewSelectionApiResponse
+    confirmability: ImportReviewConfirmabilityApiResponse
+    rule_suggestion: ImportReviewRuleSuggestionApiResponse

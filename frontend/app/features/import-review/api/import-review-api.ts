@@ -39,6 +39,57 @@ const validationReasonSchema = z.enum([
   "ignored_rows_explain_mismatch",
 ]);
 const nullableDecimalSchema = z.string().nullable();
+const operationTypeSchema = z.enum([
+  "income",
+  "expense",
+  "transfer",
+  "adjustment",
+]);
+const classificationSourceSchema = z.enum([
+  "explicit",
+  "suggested",
+  "inferred",
+  "unknown",
+]);
+const blockingReasonSchema = z.enum([
+  "terminal_state",
+  "failed_state",
+  "duplicate_review_required",
+  "normalization_error",
+  "missing_operation_date",
+  "missing_amount",
+  "missing_currency",
+  "missing_source_account",
+  "missing_operation_type",
+  "missing_category",
+  "uncategorized_category",
+  "transfer_accounts_required",
+  "same_transfer_account",
+  "unsupported_operation_type",
+]);
+const classificationSchema = z.object({
+  operationType: operationTypeSchema.nullable(),
+  source: classificationSourceSchema,
+});
+const selectionSchema = z.object({
+  categoryId: z.uuid().nullable(),
+  propertyId: z.uuid().nullable(),
+});
+const confirmabilitySchema = z.object({
+  canConfirm: z.boolean(),
+  blockingReasonCodes: z.array(blockingReasonSchema),
+});
+const ruleSuggestionSchema = z.object({
+  isActive: z.boolean(),
+  wasAutoApplied: z.boolean(),
+  ruleId: z.uuid().nullable(),
+});
+export const importReviewCategoryReferenceSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  kind: z.enum(["income", "expense", "transfer", "adjustment", "mixed"]),
+  isUncategorized: z.boolean(),
+});
 
 export const importReviewSchema: z.ZodType<ImportReviewDto> = z.object({
   document: z.object({
@@ -88,8 +139,21 @@ export const importReviewSchema: z.ZodType<ImportReviewDto> = z.object({
         currency: nullableSourceTextSchema,
         balanceAfter: nullableSourceTextSchema,
       }),
+      classification: classificationSchema,
+      selection: selectionSchema,
+      confirmability: confirmabilitySchema,
+      ruleSuggestion: ruleSuggestionSchema,
     }),
   ),
+  references: z.object({
+    categories: z.array(importReviewCategoryReferenceSchema),
+    properties: z.array(
+      z.object({
+        id: z.uuid(),
+        name: z.string(),
+      }),
+    ),
+  }),
   validation: z
     .object({
       status: validationStatusSchema,

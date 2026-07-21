@@ -35,7 +35,7 @@ Stage 7  planned
 | [`03`](STAGE_03_MANUAL_LEDGER_READ.md)                | completed | Manual ledger list works read-only through JSON API          |
 | [`04`](STAGE_04_MANUAL_LEDGER_MUTATIONS.md)           | completed | Full manual create/edit/lifecycle works in React             |
 | [`05`](STAGE_05_MANUAL_LEDGER_CUTOVER.md)             | completed | React is canonical; two manual SSR slices are deleted        |
-| [`06`](STAGE_06_IMPORT_REVIEW_CHECKPOINT.md)          | active    | Slice 01–02 completed; следующий classification/category/property |
+| [`06`](STAGE_06_IMPORT_REVIEW_CHECKPOINT.md)          | active    | Slice 01–03 completed; следующий transfer/matching |
 | [`07`](STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md) | planned   | Remaining workflows migrate and authenticated SSR is removed |
 
 ## Status Rules
