@@ -45,8 +45,8 @@ from app.features.chat_integrations.use_cases.manual.state_reader import (
 from app.features.chat_integrations.use_cases.manual.state_store import (
     ChatManualOperationStateStore,
 )
-from app.features.ledger.models import OperationType
-from app.features.ledger.service import LedgerPostingService
+from app.features.ledger.application.manual_operations import ManualOperationUseCase
+from app.features.ledger.domain.types import OperationType
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -55,7 +55,7 @@ class ChatManualOperationService:
         self.session = session
         self.accounts = AccountService(session)
         self.categories = CategoryService(session)
-        self.ledger = LedgerPostingService(session)
+        self.manual_operations = ManualOperationUseCase(session)
         self.states = ChatManualOperationStateStore(session)
         self.account_selection = ChatManualAccountSelectionService(
             states=self.states,
@@ -69,7 +69,7 @@ class ChatManualOperationService:
             states=self.states,
             categories=self.categories,
         )
-        self.operation_poster = ChatManualOperationPoster(self.ledger)
+        self.operation_poster = ChatManualOperationPoster(self.manual_operations)
 
     async def start_income_expense(
         self,

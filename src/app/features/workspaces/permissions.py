@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
-from app.features.workspaces.models import WorkspaceMember, WorkspaceMemberStatus, WorkspaceRole
+from app.features.workspaces.domain.types import WorkspaceMemberStatus, WorkspaceRole
+from app.features.workspaces.models import WorkspaceMember
 
 READ_ROLES = {
     WorkspaceRole.OWNER,

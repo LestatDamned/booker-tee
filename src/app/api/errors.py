@@ -49,6 +49,13 @@ def install_api_exception_handlers(app: FastAPI) -> None:
     )
 
 
+def api_error_responses(*status_codes: int) -> dict[int | str, dict[str, Any]]:
+    responses: dict[int | str, dict[str, Any]] = {}
+    for status_code in status_codes:
+        responses[status_code] = {"model": ApiErrorEnvelope}
+    return responses
+
+
 async def api_http_exception_handler(
     request: Request,
     exc: StarletteHTTPException,
@@ -81,7 +88,7 @@ async def api_validation_exception_handler(
         return await request_validation_exception_handler(request, exc)
 
     return _error_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         code="validation_error",
         message="Проверьте переданные данные.",
         field_errors=_validation_field_errors(exc),
@@ -114,16 +121,22 @@ def _validation_field_errors(exc: RequestValidationError) -> dict[str, list[str]
     field_errors: dict[str, list[str]] = {}
     for error in exc.errors():
         field_name = _field_name(error.get("loc"))
-        message = str(error.get("msg", "Некорректное значение."))
+        message = _validation_message(error)
         field_errors.setdefault(field_name, []).append(message)
     return field_errors
+
+
+def _validation_message(error: Mapping[str, Any]) -> str:
+    if error.get("type") == "extra_forbidden":
+        return "Неизвестное поле."
+    return str(error.get("msg", "Некорректное значение."))
 
 
 def _field_name(location: Any) -> str:
     if not isinstance(location, tuple | list):
         return "request"
     visible_parts = [str(part) for part in location if part not in {"body", "path", "query"}]
-    return ".".join(visible_parts) or "request"
+    return visible_parts[-1] if visible_parts else "request"
 
 
 def _is_api_request(request: Request) -> bool:
@@ -143,5 +156,5 @@ def _default_error_code(status_code: int) -> str:
         status.HTTP_403_FORBIDDEN: "forbidden",
         status.HTTP_404_NOT_FOUND: "not_found",
         status.HTTP_409_CONFLICT: "conflict",
-        status.HTTP_422_UNPROCESSABLE_ENTITY: "validation_error",
+        status.HTTP_422_UNPROCESSABLE_CONTENT: "validation_error",
     }.get(status_code, "http_error")

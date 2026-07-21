@@ -9,14 +9,14 @@ from app.features.categories.service import CategoryService
 from app.features.ledger.application.manual_operation_references import (
     ManualLedgerReferenceReader,
 )
-from app.features.ledger.service import LedgerPostingService
+from app.features.ledger.application.manual_operation_service import ManualOperationService
 from app.features.properties.service import PropertyService
 
 
-def get_ledger_posting_service(
+def get_manual_operation_service(
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> LedgerPostingService:
-    return LedgerPostingService(session)
+) -> ManualOperationService:
+    return ManualOperationService(session)
 
 
 def get_manual_ledger_reference_reader(

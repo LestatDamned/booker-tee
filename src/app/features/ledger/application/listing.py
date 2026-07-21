@@ -3,7 +3,7 @@ from datetime import date
 from math import ceil
 from uuid import UUID
 
-from app.features.ledger.models import OperationSource, OperationStatus, OperationType
+from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
 
 DEFAULT_PER_PAGE = 50
 MAX_PER_PAGE = 200

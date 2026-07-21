@@ -7,11 +7,12 @@ from fastapi import Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.features.ledger.application.listing import (
+    DEFAULT_PER_PAGE,
     LedgerPagination,
     ManualOperationFilters,
     normalize_pagination,
 )
-from app.features.ledger.models import OperationStatus, OperationType
+from app.features.ledger.domain.types import OperationStatus, OperationType
 
 
 class ManualLedgerQuery(BaseModel):
@@ -29,7 +30,7 @@ class ManualLedgerQuery(BaseModel):
     search: str | None = None
     operation_id: UUID | None = None
     page: int = 1
-    per_page: int = 50
+    per_page: int = DEFAULT_PER_PAGE
 
     @field_validator("date_from", "date_to", mode="before")
     @classmethod
@@ -71,13 +72,13 @@ class ManualLedgerQuery(BaseModel):
 
     @field_validator("page", mode="before")
     @classmethod
-    def normalize_page(cls, value: Any) -> int:
-        return max(1, cls._parse_int(value, default=1))
+    def parse_page(cls, value: Any) -> int:
+        return cls._parse_int(value, default=1)
 
     @field_validator("per_page", mode="before")
     @classmethod
-    def normalize_per_page(cls, value: Any) -> int:
-        return min(200, max(1, cls._parse_int(value, default=50)))
+    def parse_per_page(cls, value: Any) -> int:
+        return cls._parse_int(value, default=DEFAULT_PER_PAGE)
 
     @property
     def filters(self) -> ManualOperationFilters:

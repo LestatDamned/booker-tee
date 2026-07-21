@@ -10,8 +10,8 @@ from app.features.ledger.domain.money import (
     affects_profit_for_operation_type,
     operation_type_for_amount,
 )
+from app.features.ledger.domain.types import OperationType
 from app.features.ledger.errors import LedgerPostingError
-from app.features.ledger.models import OperationType
 
 
 class PostableRawTransaction(Protocol):

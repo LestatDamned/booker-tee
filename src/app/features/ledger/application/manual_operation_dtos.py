@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.ledger.models import OperationStatus, OperationType
+from app.features.ledger.domain.types import OperationStatus, OperationType
 
 
 @dataclass(frozen=True)

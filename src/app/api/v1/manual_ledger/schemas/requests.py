@@ -6,11 +6,11 @@ from uuid import UUID
 from pydantic import Field, field_validator
 from pydantic_core import PydanticCustomError
 
-from app.api.schemas import ApiModel
-from app.features.ledger.models import OperationType
+from app.api.schemas import ApiRequestModel
+from app.features.ledger.domain.types import OperationType
 
 
-class ManualOperationCreateApiRequestBase(ApiModel):
+class ManualOperationCreateApiRequestBase(ApiRequestModel):
     amount: str
     operation_date: date
     description: str = ""
@@ -90,5 +90,5 @@ ManualOperationUpdateApiRequest = Annotated[
 ]
 
 
-class ManualOperationLifecycleApiRequest(ApiModel):
+class ManualOperationLifecycleApiRequest(ApiRequestModel):
     version: int = Field(ge=1)

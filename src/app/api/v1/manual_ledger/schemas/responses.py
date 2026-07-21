@@ -2,7 +2,7 @@ from datetime import date
 from uuid import UUID
 
 from app.api.schemas import ApiModel
-from app.features.ledger.models import OperationStatus, OperationType
+from app.features.ledger.domain.types import OperationStatus, OperationType
 
 
 class ManualLedgerNamedReferenceApiResponse(ApiModel):

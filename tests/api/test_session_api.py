@@ -146,3 +146,15 @@ def test_api_csrf_rejects_missing_token() -> None:
 
     assert error.value.status_code == 403
     assert error.value.code == "invalid_csrf"
+
+
+def test_openapi_describes_runtime_api_error_envelope() -> None:
+    openapi = create_app().openapi()
+
+    session_unauthorized = openapi["paths"]["/api/v1/session"]["get"]["responses"]["401"]
+    list_validation = openapi["paths"]["/api/v1/manual-ledger"]["get"]["responses"]["422"]
+    create_validation = openapi["paths"]["/api/v1/manual-ledger"]["post"]["responses"]["422"]
+
+    for response in (session_unauthorized, list_validation, create_validation):
+        schema = response["content"]["application/json"]["schema"]
+        assert schema["$ref"] == "#/components/schemas/ApiErrorEnvelope"

@@ -11,7 +11,7 @@ from app.features.imports.models import RawTransactionStatus
 from app.features.ledger.application.commands import (
     CreateManualIncomeExpenseCommand,
     UpdateImportedOperationReviewFieldsCommand,
-    UpdateManualOperationCommand,
+    UpdateManualIncomeExpenseCommand,
 )
 from app.features.ledger.application.imported_operation_review import (
     ImportedOperationReviewUseCase,
@@ -625,7 +625,7 @@ async def test_manual_update_rejects_stale_expected_version_before_mutation(
                     user=SimpleNamespace(id=uuid4()),
                 ),
             ),
-            command=UpdateManualOperationCommand(
+            command=UpdateManualIncomeExpenseCommand(
                 operation_id=operation_id,
                 operation_type=OperationType.EXPENSE,
                 account_id=account_id,
@@ -634,7 +634,6 @@ async def test_manual_update_rejects_stale_expected_version_before_mutation(
                 description="Устаревшая форма",
                 category_id=None,
                 property_id=None,
-                destination_account_id=None,
                 expected_version=1,
             ),
         )
@@ -687,7 +686,7 @@ async def test_manual_update_rejects_ignored_operation_before_mutation(
                     user=SimpleNamespace(id=uuid4()),
                 ),
             ),
-            command=UpdateManualOperationCommand(
+            command=UpdateManualIncomeExpenseCommand(
                 operation_id=operation_id,
                 operation_type=OperationType.EXPENSE,
                 account_id=uuid4(),
@@ -696,7 +695,6 @@ async def test_manual_update_rejects_ignored_operation_before_mutation(
                 description="Нельзя изменить",
                 category_id=None,
                 property_id=None,
-                destination_account_id=None,
                 expected_version=1,
             ),
         )

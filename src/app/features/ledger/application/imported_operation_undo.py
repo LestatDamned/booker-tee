@@ -8,8 +8,9 @@ from app.features.imports.application.review.validation_refresh import (
 from app.features.imports.models import UploadedDocumentStatus
 from app.features.imports.repository import ImportRepository
 from app.features.ledger.domain.raw_transactions import restored_raw_status_after_unlink
+from app.features.ledger.domain.types import OperationSource, OperationStatus
 from app.features.ledger.errors import LedgerPostingError
-from app.features.ledger.models import Operation, OperationSource, OperationStatus
+from app.features.ledger.models import Operation
 from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
 

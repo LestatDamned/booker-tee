@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
@@ -23,6 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
 
 from app.db.base import Base, utc_now
+from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
 from app.features.workspaces.models import enum_values
 
 if TYPE_CHECKING:
@@ -32,27 +32,6 @@ if TYPE_CHECKING:
     from app.features.properties.models import Property
     from app.features.users.models import User
     from app.features.workspaces.models import Workspace
-
-
-class OperationType(StrEnum):
-    INCOME = "income"
-    EXPENSE = "expense"
-    TRANSFER = "transfer"
-    ADJUSTMENT = "adjustment"
-
-
-class OperationStatus(StrEnum):
-    DRAFT = "draft"
-    NEEDS_REVIEW = "needs_review"
-    CONFIRMED = "confirmed"
-    IGNORED = "ignored"
-    DUPLICATE = "duplicate"
-
-
-class OperationSource(StrEnum):
-    MANUAL = "manual"
-    BANK_PDF = "bank_pdf"
-    SYSTEM = "system"
 
 
 class Operation(Base):

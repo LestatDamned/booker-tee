@@ -1711,8 +1711,17 @@ export interface components {
          * @enum {string}
          */
         OperationType: "income" | "expense" | "transfer" | "adjustment";
-        /** SessionCapabilities */
-        SessionCapabilities: {
+        /** SessionApiResponse */
+        SessionApiResponse: {
+            user: components["schemas"]["SessionUserApiResponse"];
+            workspace: components["schemas"]["SessionWorkspaceApiResponse"];
+            membership: components["schemas"]["SessionMembershipApiResponse"];
+            capabilities: components["schemas"]["SessionCapabilitiesApiResponse"];
+            /** Csrftoken */
+            csrfToken: string;
+        };
+        /** SessionCapabilitiesApiResponse */
+        SessionCapabilitiesApiResponse: {
             /** Canreadworkspace */
             canReadWorkspace: boolean;
             /** Canwritefinancialdata */
@@ -1724,22 +1733,13 @@ export interface components {
             /** Canmanageworkspace */
             canManageWorkspace: boolean;
         };
-        /** SessionMembership */
-        SessionMembership: {
+        /** SessionMembershipApiResponse */
+        SessionMembershipApiResponse: {
             role: components["schemas"]["WorkspaceRole"];
             status: components["schemas"]["WorkspaceMemberStatus"];
         };
-        /** SessionResponse */
-        SessionResponse: {
-            user: components["schemas"]["SessionUser"];
-            workspace: components["schemas"]["SessionWorkspace"];
-            membership: components["schemas"]["SessionMembership"];
-            capabilities: components["schemas"]["SessionCapabilities"];
-            /** Csrftoken */
-            csrfToken: string;
-        };
-        /** SessionUser */
-        SessionUser: {
+        /** SessionUserApiResponse */
+        SessionUserApiResponse: {
             /**
              * Id
              * Format: uuid
@@ -1750,8 +1750,8 @@ export interface components {
             /** Name */
             name: string | null;
         };
-        /** SessionWorkspace */
-        SessionWorkspace: {
+        /** SessionWorkspaceApiResponse */
+        SessionWorkspaceApiResponse: {
             /**
              * Id
              * Format: uuid
@@ -1840,13 +1840,40 @@ export interface operations {
                     "application/json": components["schemas"]["ManualLedgerListApiResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };
@@ -1969,13 +1996,13 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };
@@ -2109,13 +2136,13 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };
@@ -2180,13 +2207,13 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };
@@ -2251,13 +2278,13 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };
@@ -2277,7 +2304,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionResponse"];
+                    "application/json": components["schemas"]["SessionApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };

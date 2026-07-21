@@ -9,6 +9,7 @@ from app.features.ledger.application.commands import (
     CreateManualIncomeExpenseCommand,
     CreateManualTransferCommand,
     UpdateManualOperationCommand,
+    UpdateManualTransferCommand,
 )
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.domain.manual_idempotency import (
@@ -21,9 +22,9 @@ from app.features.ledger.domain.money import (
     affects_profit_for_operation_type,
     ensure_same_currency,
     manual_income_expense_amount,
-    require_uuid,
 )
 from app.features.ledger.domain.text import clean_description
+from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
 from app.features.ledger.errors import (
     LedgerPostingError,
     ManualOperationLifecycleConflictError,
@@ -37,13 +38,7 @@ from app.features.ledger.mapping.operation_factory import (
     build_manual_transfer_operation,
     build_money_entry,
 )
-from app.features.ledger.models import (
-    MoneyEntry,
-    Operation,
-    OperationSource,
-    OperationStatus,
-    OperationType,
-)
+from app.features.ledger.models import MoneyEntry, Operation
 from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
 
@@ -230,24 +225,23 @@ class ManualOperationUseCase:
             if not manual_operation_actions(operation.status).can_edit:
                 raise ManualOperationNotEditableError()
             self._ensure_expected_version(operation, command.expected_version)
-            operation.type = command.operation_type
-            operation.affects_profit = affects_profit_for_operation_type(command.operation_type)
             operation.description = clean_description(command.description)
             operation.operation_date = command.operation_date
             operation.updated_by_user_id = context.user.id
 
-            if command.operation_type == OperationType.TRANSFER:
+            if isinstance(command, UpdateManualTransferCommand):
+                operation.type = OperationType.TRANSFER
+                operation.affects_profit = affects_profit_for_operation_type(OperationType.TRANSFER)
                 await self._update_as_transfer(
                     context=context,
                     operation=operation,
-                    source_account_id=command.account_id,
-                    destination_account_id=require_uuid(
-                        command.destination_account_id,
-                        "Destination account is required.",
-                    ),
+                    source_account_id=command.source_account_id,
+                    destination_account_id=command.destination_account_id,
                     amount=command.amount,
                 )
             else:
+                operation.type = command.operation_type
+                operation.affects_profit = affects_profit_for_operation_type(command.operation_type)
                 await self._update_as_income_expense(
                     context=context,
                     operation=operation,

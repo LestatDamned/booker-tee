@@ -7,15 +7,16 @@ from app.features.ledger.application.commands import (
     CreateManualIncomeExpenseCommand,
     CreateManualTransferCommand,
 )
+from app.features.ledger.application.manual_operations import ManualOperationUseCase
+from app.features.ledger.domain.types import OperationType
 from app.features.ledger.errors import LedgerPostingError
-from app.features.ledger.models import Operation, OperationType
-from app.features.ledger.service import LedgerPostingService
+from app.features.ledger.models import Operation
 from app.features.workspaces.service import WorkspaceContext
 
 
 class ChatManualOperationPoster:
-    def __init__(self, ledger: LedgerPostingService) -> None:
-        self.ledger = ledger
+    def __init__(self, manual_operations: ManualOperationUseCase) -> None:
+        self.manual_operations = manual_operations
 
     async def post(
         self,
@@ -47,7 +48,7 @@ class ChatManualOperationPoster:
         payload: dict[str, object],
         confirmation: ChatManualOperationConfirmation,
     ) -> Operation:
-        return await self.ledger.create_manual_transfer(
+        return await self.manual_operations.create_transfer(
             context=context,
             command=CreateManualTransferCommand(
                 source_account_id=ChatManualOperationStateReader.read_required_uuid(
@@ -71,7 +72,7 @@ class ChatManualOperationPoster:
         payload: dict[str, object],
         confirmation: ChatManualOperationConfirmation,
     ) -> Operation:
-        return await self.ledger.create_manual_income_expense(
+        return await self.manual_operations.create_income_expense(
             context=context,
             command=CreateManualIncomeExpenseCommand(
                 operation_type=confirmation.operation_type,

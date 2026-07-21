@@ -1,32 +1,32 @@
 from uuid import UUID
 
 from app.api.schemas import ApiModel
-from app.features.workspaces.models import (
+from app.features.workspaces.domain.types import (
     WorkspaceMemberStatus,
     WorkspaceRole,
     WorkspaceType,
 )
 
 
-class SessionUser(ApiModel):
+class SessionUserApiResponse(ApiModel):
     id: UUID
     email: str
     name: str | None
 
 
-class SessionWorkspace(ApiModel):
+class SessionWorkspaceApiResponse(ApiModel):
     id: UUID
     name: str
     type: WorkspaceType
     default_currency: str
 
 
-class SessionMembership(ApiModel):
+class SessionMembershipApiResponse(ApiModel):
     role: WorkspaceRole
     status: WorkspaceMemberStatus
 
 
-class SessionCapabilities(ApiModel):
+class SessionCapabilitiesApiResponse(ApiModel):
     can_read_workspace: bool
     can_write_financial_data: bool
     can_manage_imports: bool
@@ -34,9 +34,9 @@ class SessionCapabilities(ApiModel):
     can_manage_workspace: bool
 
 
-class SessionResponse(ApiModel):
-    user: SessionUser
-    workspace: SessionWorkspace
-    membership: SessionMembership
-    capabilities: SessionCapabilities
+class SessionApiResponse(ApiModel):
+    user: SessionUserApiResponse
+    workspace: SessionWorkspaceApiResponse
+    membership: SessionMembershipApiResponse
+    capabilities: SessionCapabilitiesApiResponse
     csrf_token: str

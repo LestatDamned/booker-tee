@@ -8,12 +8,13 @@ from app.api.dependencies import (
     get_api_request_context,
     require_api_financial_write_context,
 )
-from app.api.errors import ApiError, ApiErrorEnvelope
+from app.api.errors import ApiError, api_error_responses
 from app.api.v1.manual_ledger.dependencies import (
-    get_ledger_posting_service,
     get_manual_ledger_reference_reader,
+    get_manual_operation_service,
 )
 from app.api.v1.manual_ledger.mapper import ManualLedgerApiResponseMapper
+from app.api.v1.manual_ledger.mutation_errors import manual_operation_api_error
 from app.api.v1.manual_ledger.query import ManualLedgerQuery, parse_manual_ledger_query
 from app.api.v1.manual_ledger.schemas.responses import (
     ManualLedgerListApiResponse,
@@ -22,17 +23,30 @@ from app.api.v1.manual_ledger.schemas.responses import (
 from app.features.ledger.application.manual_operation_references import (
     ManualLedgerReferenceReader,
 )
-from app.features.ledger.service import LedgerPostingService
+from app.features.ledger.application.manual_operation_service import ManualOperationService
+from app.features.ledger.errors import LedgerPostingError
 from app.features.workspaces.permissions import permission_flags_for
 
 router = APIRouter()
 
 
-@router.get("", response_model=ManualLedgerListApiResponse)
+@router.get(
+    "",
+    response_model=ManualLedgerListApiResponse,
+    responses=api_error_responses(
+        status.HTTP_400_BAD_REQUEST,
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
 async def list_manual_operations(
     context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
     query: Annotated[ManualLedgerQuery, Depends(parse_manual_ledger_query)],
-    ledger: Annotated[LedgerPostingService, Depends(get_ledger_posting_service)],
+    manual_operations: Annotated[
+        ManualOperationService,
+        Depends(get_manual_operation_service),
+    ],
     reference_reader: Annotated[
         ManualLedgerReferenceReader,
         Depends(get_manual_ledger_reference_reader),
@@ -45,8 +59,8 @@ async def list_manual_operations(
             message="Начало периода не может быть позже конца периода.",
         )
 
-    operations, page = await ledger.list_manual_operations(
-        context.workspace.workspace.id,
+    operations, page = await manual_operations.list(
+        workspace_id=context.workspace.workspace.id,
         filters=query.filters,
         pagination=query.pagination,
     )
@@ -64,12 +78,13 @@ async def list_manual_operations(
 @router.get(
     "/{operation_id}/edit",
     response_model=ManualOperationEditApiResponse,
-    responses={
-        status.HTTP_401_UNAUTHORIZED: {"model": ApiErrorEnvelope},
-        status.HTTP_403_FORBIDDEN: {"model": ApiErrorEnvelope},
-        status.HTTP_404_NOT_FOUND: {"model": ApiErrorEnvelope},
-        status.HTTP_409_CONFLICT: {"model": ApiErrorEnvelope},
-    },
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
 )
 async def load_manual_operation_edit(
     operation_id: UUID,
@@ -77,32 +92,26 @@ async def load_manual_operation_edit(
         ApiRequestContext,
         Depends(require_api_financial_write_context),
     ],
-    ledger: Annotated[LedgerPostingService, Depends(get_ledger_posting_service)],
+    manual_operations: Annotated[
+        ManualOperationService,
+        Depends(get_manual_operation_service),
+    ],
     reference_reader: Annotated[
         ManualLedgerReferenceReader,
         Depends(get_manual_ledger_reference_reader),
     ],
 ) -> ManualOperationEditApiResponse:
-    operation = await ledger.get_manual_operation(
-        workspace_id=context.workspace.workspace.id,
-        operation_id=operation_id,
-    )
-    if operation is None:
-        raise ApiError(
-            status_code=status.HTTP_404_NOT_FOUND,
-            code="manual_operation_not_found",
-            message="Ручная операция не найдена.",
+    try:
+        operation = await manual_operations.get_for_edit(
+            workspace_id=context.workspace.workspace.id,
+            operation_id=operation_id,
         )
+    except LedgerPostingError as error:
+        raise manual_operation_api_error(error) from error
     operation_response = ManualLedgerApiResponseMapper.operation_response(
         operation,
         can_write=True,
     )
-    if not operation_response.capabilities.can_edit:
-        raise ApiError(
-            status_code=status.HTTP_409_CONFLICT,
-            code="operation_not_editable",
-            message="Операцию в текущем состоянии нельзя редактировать.",
-        )
     references = await reference_reader.read(context.workspace.workspace.id)
     return ManualOperationEditApiResponse(
         operation=operation_response,

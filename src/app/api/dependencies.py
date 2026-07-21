@@ -58,9 +58,6 @@ async def get_api_request_context(
         )
 
     csrf_token = csrf_token_for_session(session_token, settings)
-    request.state.login_session = login_session
-    request.state.csrf_token = csrf_token
-    request.state.workspace_context = workspace_context
     return ApiRequestContext(workspace=workspace_context, csrf_token=csrf_token)
 
 

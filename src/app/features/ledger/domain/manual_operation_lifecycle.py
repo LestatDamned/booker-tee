@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from app.features.ledger.models import OperationStatus
+from app.features.ledger.domain.types import OperationStatus
 
 
 @dataclass(frozen=True)

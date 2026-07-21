@@ -5,8 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.ledger.application.commands import UpdateImportedOperationReviewFieldsCommand
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.domain.text import clean_description
+from app.features.ledger.domain.types import OperationSource
 from app.features.ledger.errors import LedgerPostingError
-from app.features.ledger.models import Operation, OperationSource
+from app.features.ledger.models import Operation
 from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
 

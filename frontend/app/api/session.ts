@@ -1,7 +1,7 @@
 import type { components } from "./generated/schema";
 import { sessionSchema } from "./session-schema";
 
-export type SessionDto = components["schemas"]["SessionResponse"];
+export type SessionDto = components["schemas"]["SessionApiResponse"];
 
 export type SessionLoadResult =
   | { status: "loading" }

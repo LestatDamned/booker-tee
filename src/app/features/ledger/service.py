@@ -6,10 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.accounts.repository import AccountRepository
 from app.features.imports.models import RawTransaction
 from app.features.ledger.application.commands import (
-    CreateManualIncomeExpenseCommand,
-    CreateManualTransferCommand,
     UpdateImportedOperationReviewFieldsCommand,
-    UpdateManualOperationCommand,
 )
 from app.features.ledger.application.imported_operation_review import ImportedOperationReviewUseCase
 from app.features.ledger.application.imported_operation_undo import ImportedOperationUndoUseCase
@@ -17,11 +14,8 @@ from app.features.ledger.application.listing import (
     AccountEntryFilters,
     LedgerPage,
     LedgerPagination,
-    ManualOperationFilters,
     normalize_pagination,
 )
-from app.features.ledger.application.manual_operation_dtos import ManualOperationReadDto
-from app.features.ledger.application.manual_operations import ManualOperationUseCase
 from app.features.ledger.application.raw_transaction_posting import RawTransactionPostingUseCase
 from app.features.ledger.application.transfer_suggestions import (
     ExistingTransferSuggestion,
@@ -33,7 +27,6 @@ from app.features.ledger.mapping.dto import (
     LedgerViewMapper,
     OperationRefView,
 )
-from app.features.ledger.mapping.manual_operations import ManualOperationReadDtoMapper
 from app.features.ledger.models import Operation, OperationSource
 from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
@@ -101,43 +94,6 @@ class LedgerPostingService:
             ),
         )
 
-    async def list_manual_operations(
-        self,
-        workspace_id: UUID,
-        filters: ManualOperationFilters | None = None,
-        pagination: LedgerPagination | None = None,
-    ) -> tuple[list[ManualOperationReadDto], LedgerPage]:
-        normalized_filters = filters or ManualOperationFilters()
-        normalized_pagination = pagination or normalize_pagination(1, 50)
-        operation_count = await self.ledger.count_manual_operations_for_workspace(
-            workspace_id=workspace_id,
-            filters=normalized_filters,
-        )
-        operations = await self.ledger.list_manual_operations_page_for_workspace(
-            workspace_id=workspace_id,
-            filters=normalized_filters,
-            pagination=normalized_pagination,
-        )
-        return (
-            [ManualOperationReadDtoMapper.from_model(operation) for operation in operations],
-            LedgerPage(
-                page=normalized_pagination.page,
-                per_page=normalized_pagination.per_page,
-                total=operation_count,
-            ),
-        )
-
-    async def get_manual_operation(
-        self,
-        *,
-        workspace_id: UUID,
-        operation_id: UUID,
-    ) -> ManualOperationReadDto | None:
-        operation = await self.ledger.get_operation_for_workspace(workspace_id, operation_id)
-        if operation is None or operation.source != OperationSource.MANUAL:
-            return None
-        return ManualOperationReadDtoMapper.from_model(operation)
-
     async def get_imported_operation_review(
         self,
         *,
@@ -167,39 +123,6 @@ class LedgerPostingService:
             raw_transaction_id=raw_transaction_id,
         )
 
-    async def create_manual_income_expense(
-        self,
-        *,
-        context: WorkspaceContext,
-        command: CreateManualIncomeExpenseCommand,
-    ) -> Operation:
-        return await ManualOperationUseCase(self.session).create_income_expense(
-            context=context,
-            command=command,
-        )
-
-    async def create_manual_transfer(
-        self,
-        *,
-        context: WorkspaceContext,
-        command: CreateManualTransferCommand,
-    ) -> Operation:
-        return await ManualOperationUseCase(self.session).create_transfer(
-            context=context,
-            command=command,
-        )
-
-    async def update_manual_operation(
-        self,
-        *,
-        context: WorkspaceContext,
-        command: UpdateManualOperationCommand,
-    ) -> Operation:
-        return await ManualOperationUseCase(self.session).update(
-            context=context,
-            command=command,
-        )
-
     async def update_imported_operation_review_fields(
         self,
         *,
@@ -209,45 +132,6 @@ class LedgerPostingService:
         return await ImportedOperationReviewUseCase(self.session).update_review_fields(
             context=context,
             command=command,
-        )
-
-    async def cancel_manual_operation(
-        self,
-        *,
-        context: WorkspaceContext,
-        operation_id: UUID,
-        expected_version: int | None = None,
-    ) -> Operation:
-        return await ManualOperationUseCase(self.session).cancel(
-            context=context,
-            operation_id=operation_id,
-            expected_version=expected_version,
-        )
-
-    async def restore_manual_operation(
-        self,
-        *,
-        context: WorkspaceContext,
-        operation_id: UUID,
-        expected_version: int | None = None,
-    ) -> Operation:
-        return await ManualOperationUseCase(self.session).restore(
-            context=context,
-            operation_id=operation_id,
-            expected_version=expected_version,
-        )
-
-    async def delete_manual_operation(
-        self,
-        *,
-        context: WorkspaceContext,
-        operation_id: UUID,
-        expected_version: int | None = None,
-    ) -> None:
-        await ManualOperationUseCase(self.session).delete(
-            context=context,
-            operation_id=operation_id,
-            expected_version=expected_version,
         )
 
     async def post_raw_transaction_as_transfer(

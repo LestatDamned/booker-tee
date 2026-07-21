@@ -17,7 +17,7 @@ checker и исчезает из JavaScript build. Это похоже на impo
 `SessionDto` сгенерирован из OpenAPI и проверяет наш код при сборке. Browser
 может получить любой JSON, поэтому `response.json()` рассматривается как
 `unknown`. Zod schema проверяет payload во время выполнения, примерно как
-`SessionResponse.model_validate(payload)` в Pydantic.
+`SessionApiResponse.model_validate(payload)` в Pydantic.
 
 Граница аналогии: TypeScript type не существует в runtime и сам ничего не
 валидирует. Pydantic model существует и выполняет validation в Python process.
