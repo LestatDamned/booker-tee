@@ -13,6 +13,7 @@ from app.features.imports.application.review.validation_read_model import (
 )
 from app.features.imports.domain.review_classification import ReviewClassificationSource
 from app.features.imports.domain.review_confirmability import ReviewBlockingReasonCode
+from app.features.imports.domain.review_lifecycle import ImportReviewLifecycleAction
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.domain.validation import StatementValidationStatus
 from app.features.imports.models import UploadedDocumentStatus
@@ -78,6 +79,11 @@ class ImportReviewRuleSuggestionApiResponse(ApiModel):
     rule_id: UUID | None
 
 
+class ImportReviewPostingApiResponse(ApiModel):
+    operation_id: UUID | None
+    can_undo: bool
+
+
 class ImportReviewTransferAccountApiResponse(ApiModel):
     id: UUID
     name: str
@@ -113,6 +119,10 @@ class ImportReviewTransferOptionsApiResponse(ApiModel):
     existing_operation_candidates: list[ImportReviewExistingTransferCandidateApiResponse]
 
 
+class ImportReviewLifecycleApiResponse(ApiModel):
+    allowed_actions: list[ImportReviewLifecycleAction]
+
+
 class ImportReviewItemApiResponse(ApiModel):
     id: UUID
     row_index: int
@@ -126,7 +136,9 @@ class ImportReviewItemApiResponse(ApiModel):
     selection: ImportReviewSelectionApiResponse
     confirmability: ImportReviewConfirmabilityApiResponse
     rule_suggestion: ImportReviewRuleSuggestionApiResponse
+    posting: ImportReviewPostingApiResponse
     transfer: ImportReviewTransferOptionsApiResponse
+    lifecycle: ImportReviewLifecycleApiResponse
 
 
 class ImportReviewCategoryReferenceApiResponse(ApiModel):
@@ -214,4 +226,28 @@ class ImportReviewTransferMutationApiResponse(ApiModel):
     primary_document_id: UUID
     updated_item_ids: list[UUID]
     validation_document_ids: list[UUID]
+    reviews: list[ImportReviewApiResponse]
+
+
+class ImportReviewLifecycleMutationApiResponse(ApiModel):
+    item_id: UUID
+    document_id: UUID
+    replayed: bool
+    review: ImportReviewApiResponse
+
+
+class ImportReviewRuleApplicationApiResponse(ApiModel):
+    document_id: UUID
+    checked_count: int
+    suggested_count: int
+    updated_item_ids: list[UUID]
+    review: ImportReviewApiResponse
+
+
+class ImportReviewPostingMutationApiResponse(ApiModel):
+    primary_document_id: UUID
+    item_id: UUID
+    operation_id: UUID
+    updated_item_ids: list[UUID]
+    replayed: bool
     reviews: list[ImportReviewApiResponse]

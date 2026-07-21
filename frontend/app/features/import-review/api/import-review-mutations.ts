@@ -20,6 +20,18 @@ export type ImportReviewTransferRequest =
   | components["schemas"]["ImportReviewExistingTransferLinkApiRequest"];
 export type ImportReviewTransferMutationDto =
   components["schemas"]["ImportReviewTransferMutationApiResponse"];
+export type ImportReviewLifecycleRequest =
+  components["schemas"]["ImportReviewLifecycleApiRequest"];
+export type ImportReviewLifecycleMutationDto =
+  components["schemas"]["ImportReviewLifecycleMutationApiResponse"];
+export type ImportReviewConfirmationRequest =
+  components["schemas"]["ImportReviewConfirmationApiRequest"];
+export type ImportReviewUndoRequest =
+  components["schemas"]["ImportReviewUndoApiRequest"];
+export type ImportReviewPostingMutationDto =
+  components["schemas"]["ImportReviewPostingMutationApiResponse"];
+export type ImportReviewRuleApplicationDto =
+  components["schemas"]["ImportReviewRuleApplicationApiResponse"];
 
 const operationTypeSchema = z.enum([
   "income",
@@ -51,6 +63,7 @@ const draftEvaluationSchema: z.ZodType<ImportReviewDraftEvaluationDto> =
           "missing_currency",
           "missing_source_account",
           "missing_operation_type",
+          "operation_type_amount_mismatch",
           "missing_category",
           "uncategorized_category",
           "transfer_accounts_required",
@@ -79,6 +92,30 @@ const transferMutationSchema: z.ZodType<ImportReviewTransferMutationDto> =
     updatedItemIds: z.array(z.uuid()),
     validationDocumentIds: z.array(z.uuid()),
     reviews: z.array(importReviewSchema),
+  });
+const lifecycleMutationSchema: z.ZodType<ImportReviewLifecycleMutationDto> =
+  z.object({
+    itemId: z.uuid(),
+    documentId: z.uuid(),
+    replayed: z.boolean(),
+    review: importReviewSchema,
+  });
+const postingMutationSchema: z.ZodType<ImportReviewPostingMutationDto> =
+  z.object({
+    primaryDocumentId: z.uuid(),
+    itemId: z.uuid(),
+    operationId: z.uuid(),
+    updatedItemIds: z.array(z.uuid()),
+    replayed: z.boolean(),
+    reviews: z.array(importReviewSchema),
+  });
+const ruleApplicationSchema: z.ZodType<ImportReviewRuleApplicationDto> =
+  z.object({
+    documentId: z.uuid(),
+    checkedCount: z.number().int().nonnegative(),
+    suggestedCount: z.number().int().nonnegative(),
+    updatedItemIds: z.array(z.uuid()),
+    review: importReviewSchema,
   });
 
 export type ImportReviewMutationResult<T> =
@@ -133,6 +170,62 @@ export async function postImportReviewTransfer(
     csrfToken,
     transferMutationSchema,
     idempotencyKey,
+  );
+}
+
+export async function updateImportReviewLifecycle(
+  documentId: string,
+  itemId: string,
+  request: ImportReviewLifecycleRequest,
+  csrfToken: string,
+): Promise<ImportReviewMutationResult<ImportReviewLifecycleMutationDto>> {
+  return sendMutation(
+    `/api/v1/import-review/${documentId}/items/${itemId}/lifecycle`,
+    request,
+    csrfToken,
+    lifecycleMutationSchema,
+  );
+}
+
+export async function confirmImportReviewItem(
+  documentId: string,
+  itemId: string,
+  request: ImportReviewConfirmationRequest,
+  csrfToken: string,
+  idempotencyKey: string,
+): Promise<ImportReviewMutationResult<ImportReviewPostingMutationDto>> {
+  return sendMutation(
+    `/api/v1/import-review/${documentId}/items/${itemId}/confirm`,
+    request,
+    csrfToken,
+    postingMutationSchema,
+    idempotencyKey,
+  );
+}
+
+export async function undoImportReviewPosting(
+  documentId: string,
+  itemId: string,
+  request: ImportReviewUndoRequest,
+  csrfToken: string,
+): Promise<ImportReviewMutationResult<ImportReviewPostingMutationDto>> {
+  return sendMutation(
+    `/api/v1/import-review/${documentId}/items/${itemId}/undo-posting`,
+    request,
+    csrfToken,
+    postingMutationSchema,
+  );
+}
+
+export async function applyRulesToImportReview(
+  documentId: string,
+  csrfToken: string,
+): Promise<ImportReviewMutationResult<ImportReviewRuleApplicationDto>> {
+  return sendMutation(
+    `/api/v1/import-review/${documentId}/apply-rules`,
+    {},
+    csrfToken,
+    ruleApplicationSchema,
   );
 }
 

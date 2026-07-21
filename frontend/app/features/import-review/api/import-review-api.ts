@@ -61,6 +61,7 @@ const blockingReasonSchema = z.enum([
   "missing_currency",
   "missing_source_account",
   "missing_operation_type",
+  "operation_type_amount_mismatch",
   "missing_category",
   "uncategorized_category",
   "transfer_accounts_required",
@@ -178,7 +179,16 @@ export const importReviewSchema: z.ZodType<ImportReviewDto> = z.object({
       selection: selectionSchema,
       confirmability: confirmabilitySchema,
       ruleSuggestion: ruleSuggestionSchema,
+      posting: z.object({
+        operationId: z.uuid().nullable(),
+        canUndo: z.boolean(),
+      }),
       transfer: transferOptionsSchema,
+      lifecycle: z.object({
+        allowedActions: z.array(
+          z.enum(["mark_unique", "mark_duplicate", "ignore", "needs_review"]),
+        ),
+      }),
     }),
   ),
   references: z.object({

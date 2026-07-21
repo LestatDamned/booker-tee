@@ -71,7 +71,7 @@ def test_presenter_builds_imported_expense_movement_with_drawer() -> None:
         f"/accounts/{account.id}/operations/{operation.id}/review-fields"
     )
     assert movement.secondary_actions[0].href == (
-        f"/imports/documents/{raw_link.uploaded_document_id}/review#raw-{raw_link.id}"
+        f"/app/imports/documents/{raw_link.uploaded_document_id}/review#raw-{raw_link.id}"
     )
     assert movement.secondary_actions[0].action_type == "link"
     assert movement.secondary_actions[0].placement == "secondary"

@@ -131,7 +131,7 @@ async def test_chat_event_service_returns_next_review_item_for_bound_callback(
     assert response.buttons[0][1].callback_data == "rev:reviewtoken:trn"
     assert response.buttons[1][0].callback_data == "rev:reviewtoken:ign"
     assert response.buttons[2][0].url == (
-        f"https://booker.example/imports/documents/{document_id}/review#raw-{raw_transaction_id}"
+        f"https://booker.example/app/imports/documents/{document_id}/review#raw-{raw_transaction_id}"
     )
     assert response.buttons[3][0].callback_data == "rvn:reviewtoken:prev"
     assert response.buttons[3][1].callback_data == "rvn:reviewtoken:next"

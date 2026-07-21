@@ -1,6 +1,10 @@
 from uuid import UUID
 
-from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
+from app.features.imports.models import (
+    RawTransactionStatus,
+    UploadedDocument,
+    UploadedDocumentStatus,
+)
 from app.features.imports.repository import ImportRepository
 
 COMPLETE_RAW_TRANSACTION_STATUSES = {
@@ -29,3 +33,18 @@ class ImportedDocumentStatusUpdater:
             await self.imports.mark_document_status(document, UploadedDocumentStatus.IMPORTED)
             return True
         return False
+
+    async def sync_review_status(self, document: UploadedDocument) -> bool:
+        if not document.raw_transactions:
+            return False
+        target_status = (
+            UploadedDocumentStatus.IMPORTED
+            if all(
+                row.status in COMPLETE_RAW_TRANSACTION_STATUSES for row in document.raw_transactions
+            )
+            else UploadedDocumentStatus.REQUIRES_REVIEW
+        )
+        if document.status is target_status:
+            return False
+        await self.imports.mark_document_status(document, target_status)
+        return True

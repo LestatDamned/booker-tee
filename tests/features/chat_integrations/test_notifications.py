@@ -37,7 +37,7 @@ def test_shared_feed_import_notification_hides_financial_details() -> None:
         ImportDocumentUploadedNotification(
             workspace_name="Family",
             document_status=UploadedDocumentStatus.REQUIRES_REVIEW,
-            review_url="https://booker.example/imports/documents/1/review",
+            review_url="https://booker.example/app/imports/documents/1/review",
         ),
     )
 
@@ -46,7 +46,7 @@ def test_shared_feed_import_notification_hides_financial_details() -> None:
     assert "требует проверки" in message.text
     assert "40000" not in message.text
     assert "statement.pdf" not in message.text
-    assert message.buttons[0][0].url == "https://booker.example/imports/documents/1/review"
+    assert message.buttons[0][0].url == "https://booker.example/app/imports/documents/1/review"
 
 
 @pytest.mark.asyncio
@@ -125,5 +125,5 @@ async def test_shared_feed_notification_service_sends_safe_import_notification(
     assert "Загружена выписка" in provider.sent_messages[0].text
     assert "statement.pdf" not in provider.sent_messages[0].text
     assert provider.sent_messages[0].buttons[0][0].url == (
-        f"https://booker.example/imports/documents/{document.id}/review"
+        f"https://booker.example/app/imports/documents/{document.id}/review"
     )

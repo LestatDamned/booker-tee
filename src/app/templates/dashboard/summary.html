@@ -27,7 +27,7 @@
       <strong class="money-value money-profit">{{ overview.reports.summary.profit }} <small>{{ workspace.default_currency }}</small></strong>
     </div>
     {% if dashboard_next_review_document %}
-      <a class="metric metric-review-action" href="/imports/documents/{{ dashboard_next_review_document.id }}/review">
+      <a class="metric metric-review-action" href="/app/imports/documents/{{ dashboard_next_review_document.id }}/review">
         <span>требует проверки</span>
         <strong>{{ overview.documents_needing_review | length }}</strong>
         <small>проверить строки</small>

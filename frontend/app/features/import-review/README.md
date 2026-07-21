@@ -1,6 +1,6 @@
 # Import Review в React
 
-## Поток данных Slice 01–04
+## Поток данных после Slice 07
 
 ```text
 ImportReviewReader
@@ -13,12 +13,33 @@ ImportReviewTransferService
   -> POST discriminated transfer command + Idempotency-Key
   -> committed current/cross-document review snapshots
   -> feature-local reconciliation
+
+ImportReviewConfirmationService
+  -> POST confirm + expectedStatus + Idempotency-Key
+  -> atomic posting/rule/validation/document lifecycle commit
+  -> authoritative review snapshot
+  -> React reconciliation без optimistic financial state
+
+ImportReviewRuleApplicationService
+  -> POST apply-rules
+  -> один committed review snapshot
+  -> обновление всех sibling suggestions
+
+Browser navigation
+  -> /app/imports/documents/{document_id}/review
+  -> historical GET временно перенаправляет с сохранением query
 ```
 
 `ImportReviewReader` возвращает финансовые и lifecycle facts. API переводит
 `Decimal` в строки и Python `snake_case` в JSON `camelCase`. React отвечает
 только за labels, layout, раскрытие raw details и переход к первой оставшейся
 строке.
+
+Confirm повторно проверяет references и capability внутри server transaction.
+`expectedStatus` защищает от stale draft, а `Idempotency-Key` позволяет безопасно
+повторить тот же запрос после потери ответа. Это похоже на Python command object
+с optimistic concurrency token: локальная форма описывает намерение, но истиной
+становится только committed response.
 
 ## Владение state
 
@@ -41,9 +62,8 @@ results для success/unauthenticated/forbidden/not-found/error. В отлич�
 Python exception flow, TypeScript заставляет component разобрать каждый variant
 до доступа к `review`.
 
-## Что пока намеренно отсутствует
+## Что намеренно отсутствует
 
-- duplicate/lifecycle actions;
-- обычный confirm/post для income и expense;
 - глобальная cache library и optimistic financial state;
-- redirect или удаление legacy import review.
+- постоянный второй import-review UI: legacy presentation удалён;
+- снятие временного `/app` prefix — это общий routing cleanup Stage 07.

@@ -14,13 +14,13 @@ class ImportRepositoryStub:
         self.candidates = candidates
         self.requests: list[tuple[UUID, object]] = []
 
-    async def list_transfer_candidate_raw_transactions(
+    async def list_transfer_candidate_raw_transactions_for_sources(
         self,
         *,
         workspace_id: UUID,
-        raw_transaction: object,
+        raw_transactions: list[object],
     ) -> list[object]:
-        self.requests.append((workspace_id, raw_transaction))
+        self.requests.append((workspace_id, raw_transactions))
         return self.candidates
 
 
@@ -29,22 +29,30 @@ class LedgerRepositoryStub:
         self.candidates = candidates
         self.requests: list[tuple[UUID, object]] = []
 
-    async def list_manual_transfer_candidates_for_raw_transaction(
+    async def list_manual_transfer_candidates_for_raw_transactions(
         self,
         *,
         workspace_id: UUID,
-        raw_transaction: object,
+        raw_transactions: list[object],
     ) -> list[object]:
-        self.requests.append((workspace_id, raw_transaction))
+        self.requests.append((workspace_id, raw_transactions))
         return self.candidates
 
 
 @pytest.mark.asyncio
 async def test_transfer_suggestions_skip_linked_rows_and_preserve_day_distance() -> None:
     workspace_id = uuid4()
-    source = raw_row(operation_date=date(2026, 7, 21))
-    linked = raw_row(operation_date=date(2026, 7, 21), linked_operation_id=uuid4())
-    candidate = raw_row(operation_date=date(2026, 7, 19))
+    source = raw_row(operation_date=date(2026, 7, 21), account_id=uuid4())
+    linked = raw_row(
+        operation_date=date(2026, 7, 21),
+        account_id=source.account_id,
+        linked_operation_id=uuid4(),
+    )
+    candidate = raw_row(
+        operation_date=date(2026, 7, 19),
+        account_id=uuid4(),
+        amount=Decimal("100.00"),
+    )
     imports = ImportRepositoryStub([candidate])
     use_case = TransferSuggestionUseCase(cast(Any, object()))
     use_case.imports = cast(Any, imports)
@@ -57,7 +65,7 @@ async def test_transfer_suggestions_skip_linked_rows_and_preserve_day_distance()
     assert list(suggestions) == [source.id]
     assert suggestions[source.id][0].raw_transaction is candidate
     assert suggestions[source.id][0].day_distance == 2
-    assert imports.requests == [(workspace_id, source)]
+    assert imports.requests == [(workspace_id, [source, linked])]
 
 
 @pytest.mark.asyncio
@@ -86,6 +94,7 @@ async def test_existing_manual_transfer_suggestion_selects_account_and_counterpa
         id=uuid4(),
         operation_date=date(2026, 7, 22),
         money_entries=[account_entry, counterparty_entry],
+        raw_transactions=[],
     )
     ledger = LedgerRepositoryStub([operation])
     use_case = TransferSuggestionUseCase(cast(Any, object()))
@@ -101,7 +110,7 @@ async def test_existing_manual_transfer_suggestion_selects_account_and_counterpa
     assert suggestion.account_entry is account_entry
     assert suggestion.counterparty_entry is counterparty_entry
     assert suggestion.day_distance == 1
-    assert ledger.requests == [(workspace_id, source)]
+    assert ledger.requests == [(workspace_id, [source])]
 
 
 def raw_row(

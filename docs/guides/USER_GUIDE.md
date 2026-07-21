@@ -74,9 +74,9 @@ Teach on:
 
 - `/imports`
 - `/imports/upload`
-- `/imports/documents/{id}`
+- `/app/imports/documents/{id}`
 - `/imports/documents/{id}/mapping`
-- `/imports/documents/{id}/review`
+- `/app/imports/documents/{id}/review`
 
 This should be a compact step indicator, not a marketing hero.
 

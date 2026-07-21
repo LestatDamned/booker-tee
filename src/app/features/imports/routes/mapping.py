@@ -175,7 +175,7 @@ async def import_document_mapping(
         ) from exc
 
     return RedirectResponse(
-        url=f"/imports/documents/{document_id}/review",
+        url=f"/app/imports/documents/{document_id}/review",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 

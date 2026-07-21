@@ -167,6 +167,7 @@ async def test_post_raw_transaction_uses_document_level_account() -> None:
     use_case.ledger = cast(Any, ledger)
     use_case.references = cast(Any, references)
     use_case.document_status = cast(Any, DocumentStatusStub())
+    idempotency_key = uuid4()
 
     operation = await use_case.post_raw_transaction(
         context=cast(
@@ -179,10 +180,15 @@ async def test_post_raw_transaction_uses_document_level_account() -> None:
         document_id=document_id,
         raw_transaction_id=raw_transaction.id,
         category_id=uuid4(),
+        idempotency_key=idempotency_key,
+        idempotency_fingerprint="confirm-fingerprint",
     )
 
     assert references.raw_account_requests == [raw_transaction]
     assert operation.type == OperationType.INCOME
+    assert operation.affects_profit is True
+    assert operation.idempotency_key == str(idempotency_key)
+    assert operation.idempotency_fingerprint == "confirm-fingerprint"
     assert imports.linked_operation_id == operation.id
     assert len(ledger.entries) == 1
     assert session.committed is False

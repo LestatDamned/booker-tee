@@ -13,8 +13,10 @@ from app.features.imports.application.review.read_model import (
 )
 from app.features.imports.domain.review_classification import ReviewClassificationSource
 from app.features.imports.domain.review_confirmability import ReviewBlockingReasonCode
+from app.features.imports.domain.review_lifecycle import ImportReviewLifecycleAction
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import UploadedDocumentStatus
+from app.features.ledger.domain.types import OperationStatus
 
 
 class DocumentSourceStub:
@@ -71,6 +73,15 @@ async def test_import_review_reader_builds_ordered_raw_and_normalized_rows() -> 
     assert result.items[1].normalized.amount == Decimal("-1250.50")
     assert result.items[1].classification.source is ReviewClassificationSource.INFERRED
     assert result.items[1].confirmability.can_confirm is False
+    assert set(result.items[1].lifecycle.allowed_actions) == {
+        ImportReviewLifecycleAction.MARK_DUPLICATE,
+        ImportReviewLifecycleAction.NEEDS_REVIEW,
+        ImportReviewLifecycleAction.IGNORE,
+    }
+    assert result.items[1].posting.operation_id is None
+    assert result.items[1].posting.can_undo is False
+    assert result.items[0].posting.operation_id is not None
+    assert result.items[0].posting.can_undo is True
     assert (
         ReviewBlockingReasonCode.MISSING_CATEGORY
         in result.items[1].confirmability.blocking_reason_codes
@@ -96,6 +107,7 @@ async def test_import_review_reader_returns_none_for_unknown_document() -> None:
 
 
 def row(row_id: UUID, row_index: int, status: RawTransactionStatus) -> SimpleNamespace:
+    operation_id = uuid4() if status is RawTransactionStatus.CONFIRMED else None
     return SimpleNamespace(
         id=row_id,
         row_index=row_index,
@@ -121,4 +133,8 @@ def row(row_id: UUID, row_index: int, status: RawTransactionStatus) -> SimpleNam
         suggested_by_rule_id=None,
         normalization_error=None,
         raw_payload={},
+        linked_operation_id=operation_id,
+        linked_operation=(
+            SimpleNamespace(status=OperationStatus.CONFIRMED) if operation_id is not None else None
+        ),
     )

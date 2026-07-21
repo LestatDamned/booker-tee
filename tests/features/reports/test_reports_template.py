@@ -140,7 +140,7 @@ def test_reports_template_empty_state_points_to_review_when_documents_need_revie
 
     assert "Есть выписка со строками на проверке" in html
     assert "неподтвержденные строки не входят в доходы, расходы и прибыль" in html
-    assert f'href="/imports/documents/{document_id}/review"' in html
+    assert f'href="/app/imports/documents/{document_id}/review"' in html
     assert "проверить строки" in html
     assert 'href="/imports/upload"' not in html
     assert "По категориям" not in html

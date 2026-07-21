@@ -1,6 +1,6 @@
 # Stage 06: child plans для Import Review
 
-Статус: active; Slice 01–04 completed, следующий — Slice 05.
+Статус: completed; Slice 01–07 завершены.
 
 Этот каталог делит complexity checkpoint Stage 06 на пользовательские
 вертикальные slice. Каждый implementation slice проходит через application
@@ -9,10 +9,10 @@ read/command boundaries, versioned JSON API, React state/UI и тесты. Фа�
 
 ## Baseline и boundary
 
-- [`INVENTORY.md`](INVENTORY.md) — текущее поведение, consumers, ошибочно
-  размещенные правила и минимальный подготовительный application refactor.
-- Существующие route `/imports/documents/{document_id}/review`, Presenter,
-  templates и HTMX responses продолжают работать во время реализации slice.
+- [`INVENTORY.md`](INVENTORY.md) — baseline поведения до миграции, найденные
+  ошибочно размещенные правила и минимальный application refactor.
+- Legacy route, Presenter, templates и HTMX responses работали параллельно до
+  Slice 07 и удалены только после replacement gate.
 - Новые JSON-контракты строятся из типизированных application DTO, а не из
   legacy-объектов `Review*VM` или отрендеренного HTML.
 - Подготовительная работа не включает широкий рефакторинг parsers, mapping,
@@ -20,19 +20,19 @@ read/command boundaries, versioned JSON API, React state/UI и тесты. Фа�
 
 ## Порядок child plans
 
-| Порядок | План                                                                               | Статус  | Пользовательский результат                                              |
-| ------- | ---------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------- |
-| 1       | [`01_QUEUE_AND_READ_MODEL.md`](01_QUEUE_AND_READ_MODEL.md)                         | completed | Видит typed queue, raw/normalized rows и точный progress                 |
+| Порядок | План                                                                               | Статус    | Пользовательский результат                                              |
+| ------- | ---------------------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------- |
+| 1       | [`01_QUEUE_AND_READ_MODEL.md`](01_QUEUE_AND_READ_MODEL.md)                         | completed | Видит typed queue, raw/normalized rows и точный progress                |
 | 2       | [`02_VALIDATION_AND_CONTROL_TOTALS.md`](02_VALIDATION_AND_CONTROL_TOTALS.md)       | completed | Понимает validation источника и проблемы control totals                 |
 | 3       | [`03_CLASSIFICATION_CATEGORY_PROPERTY.md`](03_CLASSIFICATION_CATEGORY_PROPERTY.md) | completed | Безопасно разбирает classification, category и property                 |
 | 4       | [`04_TRANSFER_AND_MATCHING.md`](04_TRANSFER_AND_MATCHING.md)                       | completed | Создает или связывает transfer и видит обновление всех затронутых строк |
-| 5       | [`05_DUPLICATE_AND_LIFECYCLE.md`](05_DUPLICATE_AND_LIFECYCLE.md)                   | planned | Разбирает duplicates и lifecycle строки через явные transitions         |
-| 6       | [`06_CONFIRM_POST_AND_CONSISTENCY.md`](06_CONFIRM_POST_AND_CONSISTENCY.md)         | planned | Подтверждает/posting ровно один раз и получает согласованное обновление |
-| 7       | [`07_CUTOVER_AND_CLEANUP.md`](07_CUTOVER_AND_CLEANUP.md)                           | planned | Завершает реальный review в React и удаляет legacy только после parity  |
+| 5       | [`05_DUPLICATE_AND_LIFECYCLE.md`](05_DUPLICATE_AND_LIFECYCLE.md)                   | completed | Разбирает duplicates и lifecycle строки через явные transitions         |
+| 6       | [`06_CONFIRM_POST_AND_CONSISTENCY.md`](06_CONFIRM_POST_AND_CONSISTENCY.md)         | completed | Подтверждает/posting ровно один раз и получает согласованное обновление |
+| 7       | [`07_CUTOVER_AND_CLEANUP.md`](07_CUTOVER_AND_CLEANUP.md)                           | completed | Реальный review работает в React, legacy presentation удалён           |
 
-Текущий следующий шаг: Slice 05 — duplicate/lifecycle transition policy и
-action-specific commands. Legacy review остается production путем для полного
-workflow до replacement gate Slice 07.
+Stage 06 закрыт с Go-решением. Измерения и browser evidence записаны в
+[`MEASUREMENTS.md`](MEASUREMENTS.md); следующий global stage — Stage 07 migration
+waves.
 
 ## Ограничения последовательности
 
@@ -47,8 +47,8 @@ workflow до replacement gate Slice 07.
 4. Server-state cache dependency этим планом не одобрена. Сначала проверяются
    route data и feature-local reconciliation; для новой библиотеки нужен ADR с
    конкретной обнаруженной проблемой.
-5. Ни один slice не удаляет и не перенаправляет legacy review route. Это
-   происходит только в Slice 07 после replacement tests и observation gate.
+5. Slice 07 переключил canonical route только после replacement tests; от
+   historical URL остался query-preserving compatibility redirect.
 
 ## Текущие ответы на архитектурные вопросы
 

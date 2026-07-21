@@ -8,8 +8,12 @@ from fastapi.testclient import TestClient
 
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.v1.import_review.dependencies import (
+    get_import_review_confirmation_service,
+    get_import_review_lifecycle_service,
     get_import_review_reader,
+    get_import_review_rule_application_service,
     get_import_review_transfer_service,
+    get_import_review_undo_service,
 )
 from app.features.imports.application.review.classification import (
     ImportReviewClassificationDto,
@@ -17,6 +21,15 @@ from app.features.imports.application.review.classification import (
     ImportReviewReferencesDto,
     ImportReviewRuleSuggestionDto,
     ImportReviewSelectionDto,
+)
+from app.features.imports.application.review.confirmation_commands import (
+    ConfirmImportReviewItemCommand,
+    ImportReviewConfirmationConflictError,
+    ImportReviewConfirmationResult,
+    ImportReviewConfirmationValidationError,
+)
+from app.features.imports.application.review.lifecycle_commands import (
+    ImportReviewLifecycleResult,
 )
 from app.features.imports.application.review.read_model import (
     ImportReviewAccountDto,
@@ -29,9 +42,16 @@ from app.features.imports.application.review.read_model import (
     ImportReviewReadModel,
     ImportReviewReadonlyReasonCode,
 )
+from app.features.imports.application.review.rule_commands import (
+    ImportReviewRuleApplicationResult,
+)
 from app.features.imports.application.review.transfer_commands import (
     ImportReviewTransferResult,
     MatchImportReviewRawRowCommand,
+)
+from app.features.imports.application.review.undo_commands import (
+    ImportReviewUndoResult,
+    UndoImportReviewPostingCommand,
 )
 from app.features.imports.application.review.validation_read_model import (
     ImportReviewBalanceChainDto,
@@ -42,6 +62,10 @@ from app.features.imports.application.review.validation_read_model import (
 )
 from app.features.imports.domain.review_classification import ReviewClassificationSource
 from app.features.imports.domain.review_confirmability import ReviewBlockingReasonCode
+from app.features.imports.domain.review_lifecycle import (
+    ImportReviewLifecycleAction,
+    ImportReviewLifecycleConflictError,
+)
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.domain.validation import StatementValidationStatus
 from app.features.imports.models import UploadedDocumentStatus
@@ -124,6 +148,10 @@ def test_import_review_returns_typed_queue_and_source_data() -> None:
         "canConfirm": False,
         "blockingReasonCodes": ["missing_category"],
     }
+    assert payload["items"][0]["posting"] == {
+        "operationId": None,
+        "canUndo": False,
+    }
     assert payload["references"] == {"categories": [], "properties": []}
     assert payload["validation"]["reasonCode"] == "control_totals_mismatch"
     assert payload["validation"]["calculatedTotalOutflow"] == "1250.50"
@@ -176,6 +204,44 @@ class TransferServiceStub:
         return self.result
 
 
+class LifecycleServiceStub:
+    def __init__(self, result=None, error=None) -> None:
+        self.result = result
+        self.error = error
+        self.command = None
+
+    async def execute(self, *, workspace_id, command):
+        self.command = command
+        if self.error is not None:
+            raise self.error
+        return self.result
+
+
+class PostingServiceStub:
+    def __init__(self, result=None, error=None) -> None:
+        self.result = result
+        self.error = error
+        self.command = None
+
+    async def execute(self, *, context, command):
+        self.command = command
+        if self.error is not None:
+            raise self.error
+        return self.result
+
+
+class RuleApplicationServiceStub:
+    def __init__(self, result: ImportReviewRuleApplicationResult) -> None:
+        self.result = result
+        self.workspace_id: UUID | None = None
+        self.document_id: UUID | None = None
+
+    async def execute(self, *, workspace_id: UUID, document_id: UUID):
+        self.workspace_id = workspace_id
+        self.document_id = document_id
+        return self.result
+
+
 class MultiReviewReaderStub:
     def __init__(self, reviews: list[ImportReviewReadModel]) -> None:
         self.reviews = {review.document.id: review for review in reviews}
@@ -220,6 +286,36 @@ def test_transfer_match_returns_both_affected_document_reviews() -> None:
     assert service.command.matched_item_id == paired_item_id
 
 
+def test_apply_rules_returns_summary_and_authoritative_review() -> None:
+    review = review_model()
+    item_id = review.items[0].id
+    service = RuleApplicationServiceStub(
+        ImportReviewRuleApplicationResult(
+            checked_count=1,
+            suggested_count=1,
+            updated_item_ids=frozenset({item_id}),
+        )
+    )
+    context = api_context(WorkspaceRole.OWNER)
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: context
+    app.dependency_overrides[get_import_review_rule_application_service] = lambda: service
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+
+    with TestClient(app) as client:
+        response = client.post(f"/api/v1/import-review/{review.document.id}/apply-rules")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["documentId"] == str(review.document.id)
+    assert payload["checkedCount"] == 1
+    assert payload["suggestedCount"] == 1
+    assert payload["updatedItemIds"] == [str(item_id)]
+    assert payload["review"]["document"]["id"] == str(review.document.id)
+    assert service.workspace_id == context.workspace.workspace.id
+    assert service.document_id == review.document.id
+
+
 def test_transfer_request_rejects_impossible_field_combination() -> None:
     review = review_model()
     service = TransferServiceStub()
@@ -260,6 +356,231 @@ def test_transfer_maps_stale_candidate_to_conflict() -> None:
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "import_review_transfer_stale"
+
+
+def test_lifecycle_action_returns_authoritative_review_snapshot() -> None:
+    review = review_model()
+    item = review.items[0]
+    service = LifecycleServiceStub(
+        result=ImportReviewLifecycleResult(
+            item_id=item.id,
+            document_id=review.document.id,
+            replayed=False,
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.OWNER)
+    app.dependency_overrides[get_import_review_lifecycle_service] = lambda: service
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{item.id}/lifecycle",
+            json={"action": "mark_unique", "expectedStatus": "possible_duplicate"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["itemId"] == str(item.id)
+    assert response.json()["review"]["document"]["id"] == str(review.document.id)
+    assert service.command is not None
+    assert service.command.action is ImportReviewLifecycleAction.MARK_UNIQUE
+    assert service.command.expected_status is RawTransactionStatus.POSSIBLE_DUPLICATE
+
+
+def test_lifecycle_stale_state_returns_typed_conflict() -> None:
+    review = review_model()
+    service = LifecycleServiceStub(error=ImportReviewLifecycleConflictError("changed"))
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.OWNER)
+    app.dependency_overrides[get_import_review_lifecycle_service] = lambda: service
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{review.items[0].id}/lifecycle",
+            json={"action": "ignore", "expectedStatus": "matched"},
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "import_review_lifecycle_conflict"
+
+
+def test_lifecycle_requires_expected_status() -> None:
+    review = review_model()
+    service = LifecycleServiceStub()
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.OWNER)
+    app.dependency_overrides[get_import_review_lifecycle_service] = lambda: service
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{review.items[0].id}/lifecycle",
+            json={"action": "ignore"},
+        )
+
+    assert response.status_code == 422
+    assert service.command is None
+
+
+def test_lifecycle_requires_write_permission() -> None:
+    review = review_model()
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.VIEWER)
+    app.dependency_overrides[get_import_review_lifecycle_service] = lambda: LifecycleServiceStub()
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+
+    with TestClient(app) as client:
+        forbidden = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{review.items[0].id}/lifecycle",
+            json={"action": "ignore", "expectedStatus": "matched"},
+        )
+
+    assert forbidden.status_code == 403
+
+
+def test_confirmation_returns_authoritative_review_and_typed_result() -> None:
+    review = review_model()
+    item = review.items[0]
+    operation_id = uuid4()
+    service = PostingServiceStub(
+        result=ImportReviewConfirmationResult(
+            document_id=review.document.id,
+            item_id=item.id,
+            operation_id=operation_id,
+            updated_item_ids=frozenset({item.id}),
+            replayed=False,
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.OWNER)
+    app.dependency_overrides[get_import_review_confirmation_service] = lambda: service
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{item.id}/confirm",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={
+                "operationType": "expense",
+                "categoryId": str(uuid4()),
+                "propertyId": None,
+                "expectedStatus": "matched",
+                "rememberRule": False,
+                "rulePattern": None,
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["operationId"] == str(operation_id)
+    assert response.json()["reviews"][0]["document"]["id"] == str(review.document.id)
+    assert isinstance(service.command, ConfirmImportReviewItemCommand)
+    assert service.command.expected_status is RawTransactionStatus.MATCHED
+
+
+def test_confirmation_maps_stale_and_capability_failures() -> None:
+    review = review_model()
+    item = review.items[0]
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.OWNER)
+    conflict = PostingServiceStub(error=ImportReviewConfirmationConflictError("stale"))
+    app.dependency_overrides[get_import_review_confirmation_service] = lambda: conflict
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+    request = {
+        "operationType": "expense",
+        "categoryId": str(uuid4()),
+        "expectedStatus": "matched",
+    }
+
+    with TestClient(app) as client:
+        stale = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{item.id}/confirm",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=request,
+        )
+
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "import_review_posting_conflict"
+
+    invalid = PostingServiceStub(
+        error=ImportReviewConfirmationValidationError(
+            blocking_reason_codes=(ReviewBlockingReasonCode.MISSING_CATEGORY,)
+        )
+    )
+    app.dependency_overrides[get_import_review_confirmation_service] = lambda: invalid
+    with TestClient(app) as client:
+        rejected = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{item.id}/confirm",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=request,
+        )
+
+    assert rejected.status_code == 422
+    assert rejected.json()["error"]["fieldErrors"] == {"item": ["missing_category"]}
+
+
+def test_confirmation_requires_idempotency_header_and_write_permission() -> None:
+    review = review_model()
+    item = review.items[0]
+    service = PostingServiceStub()
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.OWNER)
+    app.dependency_overrides[get_import_review_confirmation_service] = lambda: service
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+    request = {
+        "operationType": "expense",
+        "categoryId": str(uuid4()),
+        "expectedStatus": "matched",
+    }
+
+    with TestClient(app) as client:
+        missing_key = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{item.id}/confirm",
+            json=request,
+        )
+
+    assert missing_key.status_code == 422
+    assert service.command is None
+
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.VIEWER)
+    with TestClient(app) as client:
+        forbidden = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{item.id}/confirm",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=request,
+        )
+
+    assert forbidden.status_code == 403
+
+
+def test_undo_posting_returns_reconciled_review() -> None:
+    review = review_model()
+    item = review.items[0]
+    operation_id = uuid4()
+    service = PostingServiceStub(
+        result=ImportReviewUndoResult(
+            document_id=review.document.id,
+            item_id=item.id,
+            operation_id=operation_id,
+            affected_document_ids=frozenset({review.document.id}),
+            updated_item_ids=frozenset({item.id}),
+            replayed=False,
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.OWNER)
+    app.dependency_overrides[get_import_review_undo_service] = lambda: service
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{item.id}/undo-posting",
+            json={"expectedOperationId": str(operation_id)},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["operationId"] == str(operation_id)
+    assert isinstance(service.command, UndoImportReviewPostingCommand)
 
 
 def import_review_app(

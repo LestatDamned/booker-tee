@@ -1,6 +1,7 @@
 # Inventory поведения Import Review и аудит boundary
 
-Статус: актуализирован для Stage 06 2026-07-21.
+Статус: исторический baseline Stage 06 от 2026-07-21; описанный legacy runtime
+удалён после replacement gate 2026-07-22.
 
 ## Проверенный scope
 

@@ -12,7 +12,9 @@ from app.api.v1.import_review.schemas.responses import (
     ImportReviewDraftEvaluationApiResponse,
     ImportReviewExistingTransferCandidateApiResponse,
     ImportReviewItemApiResponse,
+    ImportReviewLifecycleApiResponse,
     ImportReviewNormalizedSourceApiResponse,
+    ImportReviewPostingApiResponse,
     ImportReviewPropertyReferenceApiResponse,
     ImportReviewQueueApiResponse,
     ImportReviewRawSourceApiResponse,
@@ -93,7 +95,14 @@ class ImportReviewResponseMapper:
                     rule_suggestion=ImportReviewResponseMapper._rule_suggestion(
                         item.rule_suggestion
                     ),
+                    posting=ImportReviewPostingApiResponse(
+                        operation_id=item.posting.operation_id,
+                        can_undo=item.posting.can_undo,
+                    ),
                     transfer=ImportReviewResponseMapper._transfer(item.transfer),
+                    lifecycle=ImportReviewLifecycleApiResponse(
+                        allowed_actions=list(item.lifecycle.allowed_actions),
+                    ),
                 )
                 for item in review.items
             ],

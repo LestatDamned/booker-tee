@@ -226,7 +226,7 @@ async def test_chat_event_service_completes_document_upload_after_account_choice
     assert response.buttons[0][1].callback_data == "status:show"
     assert response.buttons[0][2].text == "🌐 Web"
     assert response.buttons[0][2].url == (
-        f"https://booker.example/imports/documents/{uploaded_document.id}/review"
+        f"https://booker.example/app/imports/documents/{uploaded_document.id}/review"
     )
 
 

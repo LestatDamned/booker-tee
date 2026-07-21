@@ -35,19 +35,21 @@ class TransferSuggestionUseCase:
         workspace_id: UUID,
         raw_transactions: list[RawTransaction],
     ) -> dict[UUID, list[TransferSuggestion]]:
+        candidates = await self.imports.list_transfer_candidate_raw_transactions_for_sources(
+            workspace_id=workspace_id,
+            raw_transactions=raw_transactions,
+        )
         suggestions: dict[UUID, list[TransferSuggestion]] = {}
         for raw_transaction in raw_transactions:
-            if raw_transaction.linked_operation_id is not None:
-                continue
-
-            candidates = await self.imports.list_transfer_candidate_raw_transactions(
-                workspace_id=workspace_id,
-                raw_transaction=raw_transaction,
-            )
-            if candidates:
+            matching_candidates = [
+                candidate
+                for candidate in candidates
+                if self._raw_rows_can_match(raw_transaction, candidate)
+            ]
+            if matching_candidates:
                 suggestions[raw_transaction.id] = [
                     self._suggestion_from_pair(raw_transaction, candidate)
-                    for candidate in candidates
+                    for candidate in matching_candidates
                 ]
         return suggestions
 
@@ -57,15 +59,14 @@ class TransferSuggestionUseCase:
         workspace_id: UUID,
         raw_transactions: list[RawTransaction],
     ) -> dict[UUID, list[ExistingTransferSuggestion]]:
+        candidates = await self.ledger.list_manual_transfer_candidates_for_raw_transactions(
+            workspace_id=workspace_id,
+            raw_transactions=raw_transactions,
+        )
         suggestions: dict[UUID, list[ExistingTransferSuggestion]] = {}
         for raw_transaction in raw_transactions:
             if raw_transaction.linked_operation_id is not None:
                 continue
-
-            candidates = await self.ledger.list_manual_transfer_candidates_for_raw_transaction(
-                workspace_id=workspace_id,
-                raw_transaction=raw_transaction,
-            )
             raw_suggestions = [
                 suggestion
                 for candidate in candidates
@@ -82,6 +83,28 @@ class TransferSuggestionUseCase:
         return suggestions
 
     @staticmethod
+    def _raw_rows_can_match(
+        raw_transaction: RawTransaction,
+        candidate: RawTransaction,
+        day_window: int = 3,
+    ) -> bool:
+        source_account_id = raw_transaction_effective_account_id(raw_transaction)
+        candidate_account_id = raw_transaction_effective_account_id(candidate)
+        return (
+            raw_transaction.linked_operation_id is None
+            and source_account_id is not None
+            and candidate_account_id is not None
+            and source_account_id != candidate_account_id
+            and raw_transaction.amount is not None
+            and candidate.amount == -raw_transaction.amount
+            and raw_transaction.currency is not None
+            and candidate.currency == raw_transaction.currency
+            and raw_transaction.operation_date is not None
+            and candidate.operation_date is not None
+            and abs((candidate.operation_date - raw_transaction.operation_date).days) <= day_window
+        )
+
+    @staticmethod
     def _suggestion_from_pair(
         raw_transaction: RawTransaction,
         candidate: RawTransaction,
@@ -96,9 +119,18 @@ class TransferSuggestionUseCase:
     def _existing_suggestion_from_operation(
         raw_transaction: RawTransaction,
         operation: Operation,
+        day_window: int = 3,
     ) -> ExistingTransferSuggestion | None:
         account_id = raw_transaction_effective_account_id(raw_transaction)
-        if account_id is None:
+        if (
+            account_id is None
+            or raw_transaction.operation_date is None
+            or abs((operation.operation_date - raw_transaction.operation_date).days) > day_window
+            or any(
+                raw_transaction_effective_account_id(linked_raw) == account_id
+                for linked_raw in operation.raw_transactions
+            )
+        ):
             return None
         account_entry = next(
             (
@@ -118,10 +150,7 @@ class TransferSuggestionUseCase:
             (entry for entry in operation.money_entries if entry.account_id != account_id),
             None,
         )
-        if raw_transaction.operation_date:
-            day_distance = abs((operation.operation_date - raw_transaction.operation_date).days)
-        else:
-            day_distance = 0
+        day_distance = abs((operation.operation_date - raw_transaction.operation_date).days)
         return ExistingTransferSuggestion(
             operation=operation,
             account_entry=account_entry,

@@ -62,7 +62,7 @@ class ChatReviewUrlBuilder:
         if settings is None or settings.public_base_url is None:
             return None
         base_url = settings.public_base_url.rstrip("/")
-        return f"{base_url}/imports/documents/{document_id}/review"
+        return f"{base_url}/app/imports/documents/{document_id}/review"
 
     @staticmethod
     def build_raw_transaction_review_url(

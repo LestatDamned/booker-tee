@@ -8,7 +8,6 @@ from app.features.imports.models import RawTransactionStatus, UploadedDocumentSt
 from app.features.imports.presentation.document_page.presenter import DocumentDetailPresenter
 from app.features.imports.presentation.documents import ImportIndexPresenter, UploadPagePresenter
 from app.features.imports.presentation.mapping.models import MappingDocumentVM, MappingNextStepVM
-from app.features.imports.presentation.review.page import build_review_page_context
 from app.features.workspaces.models import (
     WorkspaceAuditEventType,
     WorkspaceInvitationStatus,
@@ -25,26 +24,6 @@ def render_template(template_name: str, **context: object) -> str:
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
     context.setdefault("css_version", "test-css-version")
     return templates.env.get_template(template_name).render(**context)
-
-
-def render_review_template(*, document: object) -> str:
-    templates = create_templates()
-    cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
-    page_context = build_review_page_context(
-        document=document,
-        accounts=[],
-        categories=[],
-        properties=[],
-        transfer_suggestions={},
-        existing_transfer_suggestions={},
-    )
-    return templates.env.get_template("imports/review.html").render(
-        **page_context.template_values(
-            app_name="Booker Tee",
-            workspace=SimpleNamespace(id=uuid4(), name="Personal"),
-        ),
-        css_version="test-css-version",
-    )
 
 
 def render_document_detail_template(*, view: object) -> str:
@@ -103,7 +82,7 @@ def test_import_index_guides_to_review_when_document_needs_attention() -> None:
     assert "следующий шаг" in html
     assert "import-page-next-step__action--primary" in html
     assert "Проверьте выписку" in html
-    assert f"/imports/documents/{document_id}/review" in html
+    assert f"/app/imports/documents/{document_id}/review" in html
     assert "import-document-card__action--primary" in html
     assert "import-document-card__technical" in html
     assert "<summary>ID</summary>" not in html
@@ -197,55 +176,9 @@ def test_document_detail_guides_to_review_when_rows_exist() -> None:
     )
 
     assert "Проверьте строки" in html
-    assert f"/imports/documents/{document_id}/review" in html
+    assert f"/app/imports/documents/{document_id}/review" in html
     assert "workflow-step-current" in html
     assert "Проверка" in html
-
-
-def test_review_page_guides_to_first_remaining_row() -> None:
-    document_id = uuid4()
-    confirmed_row = raw_row(RawTransactionStatus.CONFIRMED)
-    remaining_row = raw_row(RawTransactionStatus.NORMALIZED)
-    html = render_review_template(
-        document=SimpleNamespace(
-            id=document_id,
-            original_filename="statement.pdf",
-            status=UploadedDocumentStatus.REQUIRES_REVIEW,
-            parse_attempts=[],
-            raw_transactions=[confirmed_row, remaining_row],
-        ),
-    )
-
-    assert "Продолжайте проверку" in html
-    assert "Осталось обработать 1 из 2 строк." in html
-    assert "review-rule-hint" in html
-    assert "review-support-card" in html
-    assert "review-support-actions" in html
-    assert "Подсказки категорий можно применить к этой выписке." in html
-    assert 'href="/rules"' in html
-    assert f'action="/imports/documents/{document_id}/apply-rules"' in html
-    assert "применить" in html
-    assert f"#raw-{remaining_row.id}" in html
-    assert "workflow-step-current" in html
-
-
-def test_review_page_guides_from_empty_raw_rows_to_document() -> None:
-    document_id = uuid4()
-    html = render_review_template(
-        document=SimpleNamespace(
-            id=document_id,
-            original_filename="statement.pdf",
-            status=UploadedDocumentStatus.REQUIRES_REVIEW,
-            parse_attempts=[],
-            raw_transactions=[],
-        ),
-    )
-
-    assert "Сырых строк пока нет" in html
-    assert "возможно, нужно настроить колонки" in html
-    assert f"/imports/documents/{document_id}" in html
-    assert "/imports/upload" in html
-    assert "empty-state-copy" in html
 
 
 def test_dashboard_uses_guided_empty_states() -> None:
@@ -525,7 +458,7 @@ def test_dashboard_review_metric_links_to_first_document_requiring_review() -> N
     )
 
     assert "metric-review-action" in html
-    assert f'href="/imports/documents/{document_id}/review"' in html
+    assert f'href="/app/imports/documents/{document_id}/review"' in html
     assert "проверить строки" in html
 
 
@@ -579,25 +512,6 @@ def test_dashboard_hides_onboarding_checklist_after_setup_is_complete() -> None:
     assert "Откройте отчеты" in html
 
 
-def test_review_page_shows_review_panels_without_inline_safety_copy() -> None:
-    row = raw_row(RawTransactionStatus.NORMALIZED)
-    html = render_review_template(
-        document=SimpleNamespace(
-            id=uuid4(),
-            original_filename="statement.pdf",
-            status=UploadedDocumentStatus.REQUIRES_REVIEW,
-            parse_attempts=[],
-            raw_transactions=[row],
-        ),
-    )
-
-    assert "Категория" in html
-    assert "основной разбор строки" in html
-    assert "Перевод" in html
-    assert "если это перемещение между счетами" in html
-    assert "похожие описания должны получать такую же категорию" not in html
-
-
 def incomplete_dashboard_overview() -> SimpleNamespace:
     return SimpleNamespace(
         month_start="01.06.2026",
@@ -618,43 +532,6 @@ def incomplete_dashboard_overview() -> SimpleNamespace:
     )
 
 
-def test_review_page_shows_possible_duplicate_actions() -> None:
-    html = render_review_template(
-        document=SimpleNamespace(
-            id=uuid4(),
-            original_filename="statement.pdf",
-            status=UploadedDocumentStatus.REQUIRES_REVIEW,
-            parse_attempts=[],
-            raw_transactions=[raw_row(RawTransactionStatus.POSSIBLE_DUPLICATE)],
-        ),
-    )
-
-    assert "возможный дубль" in html
-    assert "Это новая операция" in html
-    assert "На проверку" in html
-    assert "Игнорировать" in html
-    assert "Сравнить" not in html
-
-
-def test_review_page_guides_to_reports_when_import_is_done() -> None:
-    html = render_review_template(
-        document=SimpleNamespace(
-            id=uuid4(),
-            original_filename="statement.pdf",
-            status=UploadedDocumentStatus.IMPORTED,
-            parse_attempts=[],
-            raw_transactions=[
-                raw_row(RawTransactionStatus.CONFIRMED),
-                raw_row(RawTransactionStatus.IGNORED),
-            ],
-        ),
-    )
-
-    assert "Импорт разобран" in html
-    assert "/reports" in html
-    assert html.count("workflow-step-done") >= 4
-
-
 def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
     document_id = uuid4()
     html = render_template(
@@ -664,7 +541,7 @@ def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
             document=MappingDocumentVM(
                 status_label="требует проверки",
                 filename="statement.pdf",
-                detail_url=f"/imports/documents/{document_id}",
+                detail_url=f"/app/imports/documents/{document_id}",
                 preview_url=f"/imports/documents/{document_id}/mapping",
                 import_url=f"/imports/documents/{document_id}/mapping/import",
             ),
@@ -674,7 +551,7 @@ def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
                     "Таблицы для настройки не найдены. Проверьте детали парсинга "
                     "или загрузите выписку заново."
                 ),
-                primary_href=f"/imports/documents/{document_id}",
+                primary_href=f"/app/imports/documents/{document_id}",
                 primary_label="открыть документ",
                 primary_icon="file-text",
                 secondary_href="/imports/upload",
@@ -689,7 +566,7 @@ def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
     assert "workflow-step-current" in html
     assert "Настройка" in html
     assert "Вернитесь к документу" in html
-    assert f"/imports/documents/{document_id}" in html
+    assert f"/app/imports/documents/{document_id}" in html
 
 
 def document_view(

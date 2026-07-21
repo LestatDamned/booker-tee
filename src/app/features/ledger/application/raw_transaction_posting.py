@@ -23,7 +23,7 @@ from app.features.ledger.domain.raw_transactions import (
     ensure_raw_transaction_can_post_as_transfer,
     require_raw_amount,
 )
-from app.features.ledger.errors import LedgerPostingError
+from app.features.ledger.errors import LedgerPostingError, RawTransactionDedupeConflictError
 from app.features.ledger.mapping.operations import (
     build_bank_pdf_operation,
     build_bank_pdf_transfer_operation,
@@ -58,6 +58,8 @@ class RawTransactionPoster:
         raw_transaction_id: UUID,
         category_id: UUID | None = None,
         property_id: UUID | None = None,
+        idempotency_key: UUID | None = None,
+        idempotency_fingerprint: str | None = None,
     ) -> Operation:
         return await self._post_raw_transaction(
             context=context,
@@ -65,6 +67,8 @@ class RawTransactionPoster:
             raw_transaction_id=raw_transaction_id,
             category_id=category_id,
             property_id=property_id,
+            idempotency_key=idempotency_key,
+            idempotency_fingerprint=idempotency_fingerprint,
         )
 
     async def post_raw_transaction_as_transfer(
@@ -228,6 +232,8 @@ class RawTransactionPoster:
         raw_transaction_id: UUID,
         category_id: UUID | None,
         property_id: UUID | None,
+        idempotency_key: UUID | None,
+        idempotency_fingerprint: str | None,
     ) -> Operation:
         raw_transaction = await self.imports.get_raw_transaction_for_workspace(
             context.workspace.id,
@@ -249,9 +255,7 @@ class RawTransactionPoster:
                 )
             )
             if has_confirmed_duplicate:
-                raise LedgerPostingError(
-                    "A confirmed raw transaction already uses this dedupe hash."
-                )
+                raise RawTransactionDedupeConflictError()
 
         plan = LedgerPostingPlan.from_raw_transaction(raw_transaction, account)
         suggested_category_id = (
@@ -280,6 +284,8 @@ class RawTransactionPoster:
                 plan=plan,
                 category=category,
                 property_=property_,
+                idempotency_key=idempotency_key,
+                idempotency_fingerprint=idempotency_fingerprint,
             )
         )
         await self.ledger.create_money_entry(

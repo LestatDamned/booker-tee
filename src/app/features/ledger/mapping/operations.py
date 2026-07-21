@@ -119,6 +119,8 @@ def build_bank_pdf_operation(
     plan: LedgerPostingPlan,
     category: Category,
     property_: Property | None,
+    idempotency_key: UUID | None = None,
+    idempotency_fingerprint: str | None = None,
 ) -> Operation:
     return _build_confirmed_operation(
         context=context,
@@ -129,6 +131,8 @@ def build_bank_pdf_operation(
         description=plan.description,
         operation_date=plan.operation_date,
         posting_date=plan.posting_date,
+        idempotency_key=str(idempotency_key) if idempotency_key else None,
+        idempotency_fingerprint=idempotency_fingerprint,
         extra_metadata={
             "source": "raw_transaction",
             "raw_transaction_id": str(raw_transaction.id),

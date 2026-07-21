@@ -445,10 +445,10 @@ def prepare_review_interaction_scenario(
         page.get_by_text("Предпросмотр транзакций").wait_for(timeout=PAGE_TIMEOUT_MS)
         page.locator('button[formaction$="/mapping/import"]').click()
         page.wait_for_url("**/imports/documents/**/review", timeout=PAGE_TIMEOUT_MS)
-        scenario_state["review_path"] = page.url.replace(base_url.rstrip("/"), "")
-        scenario_state["react_review_path"] = scenario_state["review_path"].replace(
-            "/imports/documents/",
+        scenario_state["react_review_path"] = page.url.replace(base_url.rstrip("/"), "")
+        scenario_state["historical_review_path"] = scenario_state["react_review_path"].replace(
             "/app/imports/documents/",
+            "/imports/documents/",
             1,
         )
     finally:
@@ -576,38 +576,12 @@ def collect_ux_assertions(
         if "Ожидающие приглашения" not in body_text:
             errors.append("workspaces page does not show seeded pending invitation")
 
-    if scenario == "review_interactions" and path == scenario_state.get("review_path"):
-        errors.extend(assert_review_interactions(page, scenario_state=scenario_state))
+    if scenario == "review_interactions" and path == scenario_state.get("historical_review_path"):
+        if "/app/imports/documents/" not in page.url:
+            errors.append("historical import review URL did not redirect to React")
 
-    if scenario == "review_interactions" and path == scenario_state.get(
-        "react_review_path"
-    ):
-        if page.get_by_role("heading", name="Проверка импорта", exact=True).count() == 0:
-            errors.append("React import review heading was not found")
-        if page.locator(".review-item, .review-row, .review-page").count() != 0:
-            errors.append("React import review rendered legacy review classes")
-        classification_panel = page.get_by_text("Разобрать строку", exact=True).first
-        if classification_panel.count() == 0:
-            errors.append("React import review classification panel was not found")
-        else:
-            classification_panel.click()
-            panel = classification_panel.locator("xpath=ancestor::details[1]")
-            if panel.get_by_label("Категория").count() == 0:
-                errors.append("React import review category draft field was not found")
-            if panel.get_by_label("Объект").count() == 0:
-                errors.append("React import review property draft field was not found")
-            operation_type = panel.get_by_label("Тип операции")
-            if operation_type.count() == 0:
-                errors.append("React import review operation type field was not found")
-            else:
-                operation_type.select_option("transfer")
-                if panel.get_by_label("Сопоставление").count() == 0:
-                    errors.append("React import review transfer matching field was not found")
-                if panel.get_by_role("button", name="Провести перевод").count() == 0:
-                    errors.append("React import review transfer action was not found")
-            expanded_overflow = collect_overflow(page)
-            if int(expanded_overflow["horizontalOverflowPx"]) > 1:
-                errors.append("React import review draft panel causes horizontal overflow")
+    if scenario == "review_interactions" and path == scenario_state.get("react_review_path"):
+        errors.extend(assert_react_import_review(page))
 
     if scenario == "button_audit":
         errors.extend(assert_safe_click_interactions(page, base_url=base_url))
@@ -973,9 +947,7 @@ def assert_react_manual_edit_conflict(
         concurrent_row.get_by_role("button", name="Исправить", exact=True).click(
             timeout=PAGE_TIMEOUT_MS
         )
-        concurrent_panel = concurrent_page.locator(
-            'section[id^="manual-operation-edit-panel-"]'
-        )
+        concurrent_panel = concurrent_page.locator('section[id^="manual-operation-edit-panel-"]')
         concurrent_panel.get_by_label("Описание").wait_for(
             state="visible",
             timeout=PAGE_TIMEOUT_MS,
@@ -1697,181 +1669,105 @@ def assert_dashboard_ui(page: Page) -> list[str]:
     return errors
 
 
-def assert_review_interactions(page: Page, *, scenario_state: dict[str, str]) -> list[str]:
+def assert_react_import_review(page: Page) -> list[str]:
     errors: list[str] = []
-    page.locator(".review-item").first.wait_for(timeout=PAGE_TIMEOUT_MS)
-    row = page.locator(".review-item").first
-    row_id = row.get_attribute("id") or ""
-    if not row_id:
-        errors.append("first review row has no stable id")
-        return errors
-    if row.locator(".review-item__ledger-summary--suggested").count() == 0:
-        errors.append("suggested review row does not show proposed outcome summary")
+    if page.get_by_role("heading", name="Проверка импорта", exact=True).count() == 0:
+        return ["React import review heading was not found"]
+    if page.locator(".review-item, .review-row, .review-page").count() != 0:
+        errors.append("React import review rendered legacy review classes")
+
+    apply_rules = page.get_by_role("button", name="Применить правила")
+    if apply_rules.count() == 0:
+        errors.append("React import review apply-rules action was not found")
     else:
-        suggested_summary = row.locator(".review-item__ledger-summary--suggested").first.inner_text(
-            timeout=PAGE_TIMEOUT_MS
-        )
-        if "предложено" not in suggested_summary.casefold():
-            errors.append("proposed outcome summary does not show suggested state")
-        rule_category_name = scenario_state.get("rule_category_name")
-        if rule_category_name and rule_category_name not in suggested_summary:
-            errors.append("proposed outcome summary does not show suggested category")
-
-    page.evaluate(
-        """
-        (rowId) => {
-          const row = document.getElementById(rowId);
-          if (row) {
-            row.scrollIntoView({ block: "center" });
-          }
-        }
-        """,
-        row_id,
-    )
-    page.wait_for_timeout(100)
-    before_top = locator_top(row)
-
-    category_toggle = row.locator(".review-panel__tab--category:visible").first
-    if category_toggle.count() == 0:
-        category_toggle = row.locator(".action-category_panel:visible").first
-    if category_toggle.count() == 0:
-        errors.append("category panel trigger was not found")
-        return errors
-    category_toggle.click()
-    if (
-        category_toggle.evaluate("element => element.classList.contains('review-panel__tab')")
-        and category_toggle.get_attribute("aria-expanded") != "true"
-    ):
-        errors.append("category panel did not open")
-    try:
-        row.locator(".review-panel__drawer:visible").first.wait_for(timeout=PAGE_TIMEOUT_MS)
-    except PlaywrightError:
-        pass
-    if row.locator(".review-panel__drawer:visible").count() != 1:
-        errors.append("category panel opening did not leave exactly one visible drawer")
-    try:
-        row.locator(".inline-create-button").first.wait_for(
-            state="visible",
-            timeout=PAGE_TIMEOUT_MS,
-        )
-    except PlaywrightError:
-        errors.append("category panel content did not load")
-        return errors
-
-    row.locator(".inline-create-button").first.click()
-    dialog = row.locator("dialog.review-category-dialog")
-    try:
-        dialog.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
-    except PlaywrightError:
-        errors.append("category dialog did not become visible")
-    else:
-        open_state = dialog.evaluate("(element) => element.open")
-        if not open_state:
-            errors.append("category dialog is visible but not open")
-        box = dialog.bounding_box()
-        if box:
-            viewport = page.viewport_size or {"width": 0, "height": 0}
-            center_x = box["x"] + box["width"] / 2
-            center_y = box["y"] + box["height"] / 2
-            if abs(center_x - viewport["width"] / 2) > max(120, viewport["width"] * 0.25):
-                errors.append("category dialog is not horizontally centered enough")
-            if abs(center_y - viewport["height"] / 2) > max(140, viewport["height"] * 0.3):
-                errors.append("category dialog is not vertically centered enough")
-
-        dialog.locator('button[type="button"]').filter(has_text="Отмена").click()
-        page.wait_for_timeout(100)
-        if dialog.evaluate("(element) => element.open"):
-            errors.append("category dialog did not close after cancel")
-
-    category_name = f"UI Audit Category {time.time_ns()}"
-    scenario_state["category_name"] = category_name
-    row.locator(".inline-create-button").first.click()
-    dialog.locator('input[name="name"]').fill(category_name)
-    with page.expect_response(lambda response: response.request.method == "POST"):
-        dialog.locator('button[type="submit"]').click()
-    page.wait_for_timeout(500)
-    refreshed_row = page.locator(f"#{row_id}")
-    if refreshed_row.count() == 0:
-        errors.append("review row disappeared after category creation")
-        return errors
-    refreshed_category_toggle = refreshed_row.locator(".review-panel__tab--category:visible").first
-    if refreshed_category_toggle.count() == 0:
-        refreshed_category_toggle = refreshed_row.locator(".action-category_panel:visible").first
-    if refreshed_category_toggle.count() == 0:
-        errors.append("category panel trigger was not found after category creation")
-    elif (
-        refreshed_category_toggle.evaluate(
-            "element => element.classList.contains('review-panel__tab')"
-        )
-        and refreshed_category_toggle.get_attribute("aria-expanded") != "true"
-    ):
-        errors.append("category panel did not stay open after category creation")
-    try:
-        refreshed_row.locator(".review-panel__drawer:visible").first.wait_for(
-            timeout=PAGE_TIMEOUT_MS
-        )
-    except PlaywrightError:
-        pass
-    if refreshed_row.locator(".review-panel__drawer:visible").count() != 1:
-        errors.append("category panel refresh did not leave exactly one visible drawer")
-    if refreshed_row.locator(f'text="{category_name}"').count() == 0:
-        errors.append("created category is not visible in refreshed review row")
-
-    confirm_button = (
-        refreshed_row.locator('button[type="submit"]').filter(has_text="Подтвердить").first
-    )
-    if confirm_button.count() == 0:
-        confirm_button = (
-            refreshed_row.locator('button[type="submit"]')
-            .filter(has_text="Сохранить и подтвердить")
-            .first
-        )
-    if confirm_button.count() == 0:
-        errors.append("confirm button was not found in review row")
-        return errors
-
-    before_top = locator_top(refreshed_row) or before_top
-    with page.expect_response(lambda response: response.request.method == "POST"):
-        confirm_button.click()
-    page.wait_for_timeout(700)
-    confirmed_row = page.locator(f"#{row_id}")
-    if confirmed_row.count() == 0:
-        errors.append("review row disappeared after HTMX confirm")
-        return errors
-    after_top = locator_top(confirmed_row)
-    if isinstance(before_top, (int, float)) and isinstance(after_top, (int, float)):
-        if abs(after_top - before_top) > 160:
-            errors.append(
-                f"review row jumped {abs(after_top - before_top):.0f}px after HTMX confirm"
+        apply_rules.click()
+        try:
+            page.get_by_text(re.compile(r"Проверено строк: \d+\.")).wait_for(
+                timeout=PAGE_TIMEOUT_MS
             )
-    if confirmed_row.locator(".review-item__ledger-summary").count() == 0:
-        errors.append("confirmed review row does not show operation reference")
-    correction_action = confirmed_row.locator(".review-actions__correction").first
-    if correction_action.count() == 0:
-        errors.append("confirmed review row does not expose correction action")
+        except PlaywrightError:
+            errors.append("React import review did not reconcile applied rules")
+
+    salary_item = page.get_by_role("heading", name="Зарплата", exact=True).locator(
+        "xpath=ancestor::article[1]"
+    )
+    try:
+        salary_item.wait_for(timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError:
+        return [*errors, "React import review salary row was not found"]
+    classification_panel = salary_item.get_by_text("Разобрать строку", exact=True)
+    if classification_panel.count() == 0:
+        return [*errors, "React import review classification panel was not found"]
+    classification_panel.click()
+    panel = classification_panel.locator("xpath=ancestor::details[1]")
+
+    ignore_action = salary_item.get_by_role("button", name="Игнорировать")
+    if ignore_action.count() == 0:
+        errors.append("React import review lifecycle action was not found")
     else:
-        correction_action.locator("summary").click()
-        undo_button = correction_action.locator("button.action-undo_posting").first
-        if undo_button.count() == 0:
-            errors.append("confirmed review row does not expose undo posting action")
+        ignore_action.click()
+        confirmation = salary_item.get_by_text(
+            "Игнорировать строку? Она не попадёт в официальный ledger.",
+            exact=True,
+        )
+        if confirmation.count() == 0:
+            errors.append("React import review danger confirmation was not shown")
+        cancel_action = salary_item.get_by_role("button", name="Отмена")
+        if cancel_action.count() == 0:
+            errors.append("React import review danger confirmation cannot be cancelled")
         else:
-            page.once("dialog", lambda dialog: dialog.dismiss())
-            undo_button.click()
-            page.wait_for_timeout(500)
-            if confirmed_row.locator(".review-item__ledger-summary--confirmed").count() == 0:
-                errors.append("undo posting continued after canceling confirmation dialog")
-    next_step_text = page.locator("#review-next-step").inner_text(timeout=PAGE_TIMEOUT_MS)
-    if "Осталось обработать 2 из 3 строк." not in next_step_text:
-        errors.append("review progress did not update after HTMX confirm")
+            if not cancel_action.evaluate("element => document.activeElement === element"):
+                errors.append("React import review danger confirmation did not receive focus")
+            cancel_action.click()
 
+    category = panel.get_by_label("Категория")
+    operation_type = panel.get_by_label("Тип операции")
+    if category.count() == 0:
+        errors.append("React import review category draft field was not found")
+    if panel.get_by_label("Объект").count() == 0:
+        errors.append("React import review property draft field was not found")
+    if operation_type.count() == 0:
+        errors.append("React import review operation type field was not found")
+    elif category.count() > 0:
+        operation_type.select_option("income")
+        category.select_option(label="Прочий доход")
+        panel.get_by_role("button", name="Проверить выбор").click()
+        confirm_action = panel.get_by_role("button", name="Подтвердить и провести")
+        try:
+            confirm_action.wait_for(timeout=PAGE_TIMEOUT_MS)
+        except PlaywrightError:
+            errors.append("React import review confirm action was not found")
+        else:
+            if panel.get_by_label("Запомнить как правило для похожих строк").count() == 0:
+                errors.append("React import review remember-rule control was not found")
+            confirm_action.click()
+            try:
+                page.get_by_role("heading", name="Зарплата", exact=True).locator(
+                    "xpath=ancestor::article[1]"
+                ).get_by_role("button", name="Отменить проведение").wait_for(
+                    timeout=PAGE_TIMEOUT_MS
+                )
+            except PlaywrightError:
+                errors.append("React import review did not expose undo after confirm")
+
+    transfer_item = page.get_by_role("heading", name="Перевод между счетами", exact=True).locator(
+        "xpath=ancestor::article[1]"
+    )
+    if transfer_item.count() == 0:
+        errors.append("React import review transfer row was not found")
+    else:
+        transfer_panel_toggle = transfer_item.get_by_text("Разобрать строку", exact=True)
+        transfer_panel_toggle.click()
+        transfer_panel = transfer_panel_toggle.locator("xpath=ancestor::details[1]")
+        transfer_panel.get_by_label("Тип операции").select_option("transfer")
+        if transfer_panel.get_by_label("Сопоставление").count() == 0:
+            errors.append("React import review transfer matching field was not found")
+        if transfer_panel.get_by_role("button", name="Провести перевод").count() == 0:
+            errors.append("React import review transfer action was not found")
+
+    if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
+        errors.append("React import review draft panel causes horizontal overflow")
     return errors
-
-
-def locator_top(locator: Any) -> float | None:
-    box = locator.bounding_box()
-    if box is None:
-        return None
-    return float(box["y"])
 
 
 def audit_page(
@@ -2053,8 +1949,13 @@ def run_audit(
                         "review_interactions",
                         "button_audit",
                         "design_audit",
-                    } and scenario_state.get("review_path"):
-                        dynamic_pages.append((scenario_state["review_path"], "review-interactions"))
+                    } and scenario_state.get("historical_review_path"):
+                        dynamic_pages.append(
+                            (
+                                scenario_state["historical_review_path"],
+                                "historical-import-review",
+                            )
+                        )
                     if scenario == "review_interactions" and scenario_state.get(
                         "react_review_path"
                     ):

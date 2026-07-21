@@ -1,6 +1,6 @@
 # Stage 07: Migration Waves And Final Cleanup
 
-Status: planned.
+Status: next.
 
 ## Goal
 

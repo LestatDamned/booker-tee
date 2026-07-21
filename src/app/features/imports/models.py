@@ -6,7 +6,18 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, Index, Numeric, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    Text,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
@@ -202,6 +213,14 @@ class RawTransaction(Base):
         Index("ix_raw_transactions_workspace_attempt", "workspace_id", "parse_attempt_id"),
         Index("ix_raw_transactions_workspace_status", "workspace_id", "status"),
         Index("ix_raw_transactions_workspace_dedupe_hash", "workspace_id", "dedupe_hash"),
+        Index(
+            "uq_raw_transactions_workspace_confirmed_dedupe_hash",
+            "workspace_id",
+            "dedupe_hash",
+            unique=True,
+            postgresql_where=text("status = 'confirmed' AND dedupe_hash IS NOT NULL"),
+            sqlite_where=text("status = 'confirmed' AND dedupe_hash IS NOT NULL"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)

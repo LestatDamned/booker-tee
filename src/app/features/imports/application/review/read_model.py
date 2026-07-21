@@ -25,6 +25,10 @@ from app.features.imports.application.review.validation_read_model import (
     ImportReviewValidationDto,
     build_import_review_validation,
 )
+from app.features.imports.domain.review_lifecycle import (
+    ImportReviewLifecycleSnapshot,
+    import_review_lifecycle_snapshot,
+)
 from app.features.imports.domain.review_queue import (
     is_review_terminal,
     is_reviewable,
@@ -32,6 +36,7 @@ from app.features.imports.domain.review_queue import (
 )
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import RawTransaction, UploadedDocument, UploadedDocumentStatus
+from app.features.ledger.domain.types import OperationStatus
 
 
 class ImportReviewDocumentSource(Protocol):
@@ -90,6 +95,18 @@ class ImportReviewNormalizedSourceDto:
 
 
 @dataclass(frozen=True)
+class ImportReviewPostingDto:
+    operation_id: UUID | None
+    can_undo: bool
+
+
+EMPTY_IMPORT_REVIEW_POSTING = ImportReviewPostingDto(
+    operation_id=None,
+    can_undo=False,
+)
+
+
+@dataclass(frozen=True)
 class ImportReviewItemDto:
     id: UUID
     row_index: int
@@ -103,7 +120,9 @@ class ImportReviewItemDto:
     selection: ImportReviewSelectionDto
     confirmability: ImportReviewConfirmabilityDto
     rule_suggestion: ImportReviewRuleSuggestionDto
+    posting: ImportReviewPostingDto = EMPTY_IMPORT_REVIEW_POSTING
     transfer: ImportReviewTransferOptionsDto = EMPTY_TRANSFER_OPTIONS
+    lifecycle: ImportReviewLifecycleSnapshot = ImportReviewLifecycleSnapshot(allowed_actions=())
 
 
 @dataclass(frozen=True)
@@ -273,7 +292,12 @@ def _item_dto(
         selection=draft.selection,
         confirmability=draft.confirmability,
         rule_suggestion=draft.rule_suggestion,
+        posting=_posting_dto(row),
         transfer=transfer,
+        lifecycle=import_review_lifecycle_snapshot(
+            status=status,
+            linked_operation_id=getattr(row, "linked_operation_id", None),
+        ),
     )
 
 
@@ -284,4 +308,15 @@ def _account_dto(account: Account | None) -> ImportReviewAccountDto | None:
         id=account.id,
         name=account.name,
         currency=account.currency,
+    )
+
+
+def _posting_dto(row: RawTransaction) -> ImportReviewPostingDto:
+    operation = getattr(row, "linked_operation", None)
+    return ImportReviewPostingDto(
+        operation_id=getattr(row, "linked_operation_id", None),
+        can_undo=(
+            operation is not None
+            and getattr(operation, "status", None) is OperationStatus.CONFIRMED
+        ),
     )

@@ -7,6 +7,9 @@ import { RequestState } from "../../ui/request-state/request-state";
 import type { ImportReviewDto } from "./api/import-review-api";
 import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
 import { ClassificationPanel } from "./classification-panel";
+import { LifecycleActions } from "./lifecycle-actions";
+import { UndoPostingAction } from "./posting-actions";
+import { RuleActions } from "./rule-actions";
 import styles from "./import-review.module.css";
 
 type ImportReviewPageProps = {
@@ -56,6 +59,12 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
             title="Проверка импорта"
           />
           <p className={styles.filename}>{currentReview.document.filename}</p>
+          <RuleActions
+            csrfToken={session.csrfToken}
+            documentId={currentReview.document.id}
+            onReviewReconciled={reconcileReview}
+            readonly={readonly}
+          />
         </div>
 
         <ReviewQueue review={currentReview} />
@@ -337,6 +346,20 @@ function ReviewItem({
           </span>
         </div>
       ))}
+      <LifecycleActions
+        csrfToken={csrfToken}
+        documentId={documentId}
+        item={item}
+        onReviewReconciled={onReviewReconciled}
+        readonly={readonly}
+      />
+      <UndoPostingAction
+        csrfToken={csrfToken}
+        documentId={documentId}
+        item={item}
+        onReviewReconciled={onReviewReconciled}
+        readonly={readonly}
+      />
       {!item.isTerminal ? (
         <ClassificationPanel
           categories={categories}

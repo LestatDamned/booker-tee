@@ -2,6 +2,11 @@ class LedgerPostingError(ValueError):
     pass
 
 
+class RawTransactionDedupeConflictError(LedgerPostingError):
+    def __init__(self) -> None:
+        super().__init__("A confirmed raw transaction already uses this dedupe hash.")
+
+
 class AccountUnavailableError(LedgerPostingError):
     def __init__(self) -> None:
         super().__init__("Account is not available in this workspace.")

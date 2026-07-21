@@ -42,6 +42,25 @@ class ImportRepository:
             document_id,
         )
 
+    async def get_document_for_workspace_for_update(
+        self,
+        workspace_id: UUID,
+        document_id: UUID,
+    ) -> UploadedDocument | None:
+        result = await self.session.execute(
+            select(UploadedDocument)
+            .options(
+                selectinload(UploadedDocument.parse_attempts),
+                selectinload(UploadedDocument.raw_transactions),
+            )
+            .where(
+                UploadedDocument.id == document_id,
+                UploadedDocument.workspace_id == workspace_id,
+            )
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     async def list_documents_for_workspace(self, workspace_id: UUID) -> list[UploadedDocument]:
         return await ImportQueryRepository(self.session).list_documents_for_workspace(workspace_id)
 
@@ -277,6 +296,79 @@ class ImportRepository:
                 RawTransaction.operation_date.between(
                     raw_transaction.operation_date - timedelta(days=day_window),
                     raw_transaction.operation_date + timedelta(days=day_window),
+                ),
+                RawTransaction.status.in_(
+                    [
+                        RawTransactionStatus.NORMALIZED,
+                        RawTransactionStatus.SUGGESTED,
+                        RawTransactionStatus.MATCHED,
+                        RawTransactionStatus.NEEDS_REVIEW,
+                        RawTransactionStatus.POSSIBLE_DUPLICATE,
+                    ]
+                ),
+            )
+            .order_by(RawTransaction.operation_date, RawTransaction.row_index)
+        )
+        return list(result.scalars().all())
+
+    async def list_transfer_candidate_raw_transactions_for_sources(
+        self,
+        *,
+        workspace_id: UUID,
+        raw_transactions: list[RawTransaction],
+        day_window: int = 3,
+    ) -> list[RawTransaction]:
+        eligible = [
+            raw_transaction
+            for raw_transaction in raw_transactions
+            if raw_transaction.linked_operation_id is None
+            and raw_transaction.amount is not None
+            and raw_transaction.currency is not None
+            and raw_transaction.operation_date is not None
+            and (raw_transaction.account_id or raw_transaction.uploaded_document.account_id)
+            is not None
+        ]
+        if not eligible:
+            return []
+
+        operation_dates = [
+            raw_transaction.operation_date
+            for raw_transaction in eligible
+            if raw_transaction.operation_date is not None
+        ]
+        amounts = {
+            -raw_transaction.amount
+            for raw_transaction in eligible
+            if raw_transaction.amount is not None
+        }
+        currencies = {
+            raw_transaction.currency
+            for raw_transaction in eligible
+            if raw_transaction.currency is not None
+        }
+        candidate_account_id = func.coalesce(
+            RawTransaction.account_id,
+            UploadedDocument.account_id,
+        )
+        result = await self.session.execute(
+            select(RawTransaction)
+            .join(UploadedDocument, UploadedDocument.id == RawTransaction.uploaded_document_id)
+            .options(
+                selectinload(RawTransaction.account),
+                selectinload(RawTransaction.uploaded_document).selectinload(
+                    UploadedDocument.account
+                ),
+            )
+            .where(
+                RawTransaction.workspace_id == workspace_id,
+                RawTransaction.id.not_in({item.id for item in eligible}),
+                RawTransaction.linked_operation_id.is_(None),
+                candidate_account_id.is_not(None),
+                RawTransaction.currency.in_(currencies),
+                RawTransaction.amount.in_(amounts),
+                RawTransaction.operation_date.between(
+                    min(operation_dates) - timedelta(days=day_window),
+                    max(operation_dates) + timedelta(days=day_window),
                 ),
                 RawTransaction.status.in_(
                     [

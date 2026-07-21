@@ -117,7 +117,7 @@ class DocumentDetailPresenter:
                     "Сырые строки извлечены. Подтвердите операции, отметьте переводы "
                     "и игнорируйте дубли."
                 ),
-                primary_href=f"/imports/documents/{view.id}/review",
+                primary_href=f"/app/imports/documents/{view.id}/review",
                 primary_label="открыть проверку",
                 primary_icon="clipboard-check",
             )

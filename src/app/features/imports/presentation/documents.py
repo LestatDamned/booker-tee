@@ -70,7 +70,7 @@ class ImportIndexPresenter:
         status = document.status
         status_value = str(getattr(status, "value", status))
         detail_url = f"/imports/documents/{document_id}"
-        review_url = f"{detail_url}/review"
+        review_url = f"/app{detail_url}/review"
         primary_href, primary_label, primary_icon, primary_tone = self.primary_action(
             status_value=status_value,
             detail_url=detail_url,

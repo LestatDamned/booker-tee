@@ -360,7 +360,7 @@ async def test_chat_event_service_returns_to_same_review_item(
     assert "📝 Описание: MAGNIT" in response.text
     assert response.buttons[0][0].callback_data == "rev:reviewtoken:conf"
     assert response.buttons[2][0].url == (
-        f"https://booker.example/imports/documents/{document_id}/review#raw-{raw_transaction_id}"
+        f"https://booker.example/app/imports/documents/{document_id}/review#raw-{raw_transaction_id}"
     )
 
 

@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImportReviewPage } from "./import-review-page";
 import {
+  completedItemId,
+  confirmedOperationId,
   expenseCategoryId,
   importReviewPayload,
   remainingItemId,
@@ -137,6 +139,53 @@ describe("import review page", () => {
     renderPage(review);
 
     expect(screen.getByText(/доступен только для чтения/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Отменить проведение" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Применить правила" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("applies document rules and reconciles all rows from the server", async () => {
+    const user = userEvent.setup();
+    const updated = importReviewPayload();
+    const updatedItem = updated.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!updatedItem) throw new Error("remaining fixture item is required");
+    updatedItem.ruleSuggestion = {
+      isActive: true,
+      wasAutoApplied: true,
+      ruleId: "a6f780bd-fc27-448e-aa66-9f20c478fb4f",
+    };
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            documentId: updated.document.id,
+            checkedCount: 1,
+            suggestedCount: 1,
+            updatedItemIds: [remainingItemId],
+            review: updated,
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage(importReviewPayload());
+
+    await user.click(screen.getByRole("button", { name: "Применить правила" }));
+
+    expect(
+      await screen.findByText("Проверено строк: 1. Предложений применено: 1."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Правило предложило значения/)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/apply-rules"),
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 
   it("keeps the local row draft after a network error and panel toggle", async () => {
@@ -247,7 +296,261 @@ describe("import review page", () => {
       }),
     );
   });
+
+  it("requires danger confirmation and reconciles duplicate lifecycle", async () => {
+    const user = userEvent.setup();
+    const review = possibleDuplicateReview();
+    const updated = possibleDuplicateReview();
+    const item = updated.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.status = "duplicate";
+    item.isTerminal = true;
+    item.isReviewable = false;
+    item.lifecycle.allowedActions = ["mark_unique", "needs_review", "ignore"];
+    updated.document.status = "imported";
+    updated.queue.completed = 2;
+    updated.queue.remaining = 0;
+    updated.queue.firstRemainingItemId = null;
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            itemId: remainingItemId,
+            documentId: updated.document.id,
+            replayed: false,
+            review: updated,
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage(review);
+
+    await user.click(screen.getByRole("button", { name: "Отметить дублем" }));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByText(/Пометить строку дублем/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Отмена" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Подтвердить" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Все строки обработаны" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Дубль")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/lifecycle"),
+      expect.objectContaining({
+        body: JSON.stringify({
+          action: "mark_duplicate",
+          expectedStatus: "possible_duplicate",
+        }),
+      }),
+    );
+  });
+
+  it("focuses a stale conflict and refreshes authoritative state", async () => {
+    const user = userEvent.setup();
+    const review = possibleDuplicateReview();
+    const refreshed = possibleDuplicateReview();
+    const refreshedItem = refreshed.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!refreshedItem) throw new Error("remaining fixture item is required");
+    refreshedItem.status = "ignored";
+    refreshedItem.isTerminal = true;
+    refreshedItem.isReviewable = false;
+    refreshedItem.lifecycle.allowedActions = ["needs_review"];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "import_review_lifecycle_conflict",
+              message: "Состояние строки уже изменилось. Обновите данные.",
+            },
+          }),
+          { status: 409 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(refreshed), { status: 200 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage(review);
+
+    await user.click(screen.getByRole("button", { name: "Игнорировать" }));
+    await user.click(screen.getByRole("button", { name: "Подтвердить" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Обновить строку" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Восстановить на проверку" }),
+    ).toBeInTheDocument();
+  });
+
+  it("confirms an evaluated expense only from the committed response", async () => {
+    const user = userEvent.setup();
+    const updated = importReviewPayload();
+    const item = updated.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.status = "confirmed";
+    item.isTerminal = true;
+    item.isReviewable = false;
+    item.selection.categoryId = expenseCategoryId;
+    item.confirmability = { canConfirm: false, blockingReasonCodes: [] };
+    item.posting = { operationId: confirmedOperationId, canUndo: true };
+    updated.queue.completed = 2;
+    updated.queue.remaining = 0;
+    updated.queue.firstRemainingItemId = null;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            itemId: remainingItemId,
+            classification: { operationType: "expense", source: "explicit" },
+            selection: { categoryId: expenseCategoryId, propertyId: null },
+            confirmability: { canConfirm: true, blockingReasonCodes: [] },
+            ruleSuggestion: {
+              isActive: false,
+              wasAutoApplied: false,
+              ruleId: null,
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            primaryDocumentId: updated.document.id,
+            itemId: remainingItemId,
+            operationId: confirmedOperationId,
+            updatedItemIds: [remainingItemId],
+            replayed: false,
+            reviews: [updated],
+          }),
+          { status: 200 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage(importReviewPayload());
+
+    await user.click(screen.getByText("Разобрать строку"));
+    await user.selectOptions(
+      screen.getByLabelText("Категория"),
+      expenseCategoryId,
+    );
+    await user.click(screen.getByRole("button", { name: "Проверить выбор" }));
+    const confirm = await screen.findByRole("button", {
+      name: "Подтвердить и провести",
+    });
+    expect(screen.getByText("Проверено как уникальное")).toBeInTheDocument();
+    await user.click(
+      screen.getByLabelText("Запомнить как правило для похожих строк"),
+    );
+    await user.type(
+      screen.getByLabelText("Шаблон правила, необязательно"),
+      "Магазин",
+    );
+    await user.click(confirm);
+
+    expect(
+      await screen.findByRole("heading", { name: "Все строки обработаны" }),
+    ).toBeInTheDocument();
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Idempotency-Key": expect.any(String),
+        }),
+        body: JSON.stringify({
+          operationType: "expense",
+          categoryId: expenseCategoryId,
+          propertyId: null,
+          expectedStatus: "matched",
+          rememberRule: true,
+          rulePattern: "Магазин",
+        }),
+      }),
+    );
+  });
+
+  it("requires explicit confirmation before undoing a posted operation", async () => {
+    const user = userEvent.setup();
+    const updated = importReviewPayload();
+    const item = updated.items.find(
+      (candidate) => candidate.id === completedItemId,
+    );
+    if (!item) throw new Error("completed fixture item is required");
+    item.status = "normalized";
+    item.isTerminal = false;
+    item.isReviewable = true;
+    item.posting = { operationId: null, canUndo: false };
+    updated.queue.completed = 0;
+    updated.queue.remaining = 2;
+    updated.queue.firstRemainingItemId = completedItemId;
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            primaryDocumentId: updated.document.id,
+            itemId: completedItemId,
+            operationId: confirmedOperationId,
+            updatedItemIds: [completedItemId],
+            replayed: false,
+            reviews: [updated],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage(importReviewPayload());
+
+    await user.click(
+      screen.getByRole("button", { name: "Отменить проведение" }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Оставить проведённой" }),
+    ).toHaveFocus();
+    await user.click(
+      screen.getByRole("button", { name: "Отменить проведение" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Осталось 2 из 2" }),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`/items/${completedItemId}/undo-posting`),
+      expect.objectContaining({
+        body: JSON.stringify({ expectedOperationId: confirmedOperationId }),
+      }),
+    );
+  });
 });
+
+function possibleDuplicateReview() {
+  const review = importReviewPayload();
+  const item = review.items.find(
+    (candidate) => candidate.id === remainingItemId,
+  );
+  if (!item) throw new Error("remaining fixture item is required");
+  item.status = "possible_duplicate";
+  item.lifecycle.allowedActions = [
+    "mark_unique",
+    "mark_duplicate",
+    "needs_review",
+    "ignore",
+  ];
+  return review;
+}
 
 function renderPage(review: ReturnType<typeof importReviewPayload>) {
   render(

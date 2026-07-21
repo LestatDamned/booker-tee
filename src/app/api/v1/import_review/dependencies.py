@@ -13,9 +13,19 @@ from app.features.imports.application.review.classification import (
     ImportReviewDraftEvaluator,
     ImportReviewReferenceReader,
 )
+from app.features.imports.application.review.confirmation_commands import (
+    ImportReviewConfirmationService,
+)
+from app.features.imports.application.review.lifecycle_commands import (
+    ImportReviewLifecycleService,
+)
 from app.features.imports.application.review.read_model import ImportReviewReader
+from app.features.imports.application.review.rule_commands import (
+    ImportReviewRuleApplicationService,
+)
 from app.features.imports.application.review.transfer_commands import ImportReviewTransferService
 from app.features.imports.application.review.transfers import ImportReviewTransferReader
+from app.features.imports.application.review.undo_commands import ImportReviewUndoService
 from app.features.imports.repository import ImportRepository
 from app.features.ledger.application.transfer_suggestions import TransferSuggestionUseCase
 from app.features.properties.service import PropertyService
@@ -42,6 +52,30 @@ def get_import_review_transfer_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ImportReviewTransferService:
     return ImportReviewTransferService(session)
+
+
+def get_import_review_lifecycle_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ImportReviewLifecycleService:
+    return ImportReviewLifecycleService(session)
+
+
+def get_import_review_confirmation_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ImportReviewConfirmationService:
+    return ImportReviewConfirmationService(session)
+
+
+def get_import_review_undo_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ImportReviewUndoService:
+    return ImportReviewUndoService(session)
+
+
+def get_import_review_rule_application_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ImportReviewRuleApplicationService:
+    return ImportReviewRuleApplicationService(session)
 
 
 def get_import_review_draft_evaluator(

@@ -1,11 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  applyRulesToImportReview,
+  confirmImportReviewItem,
   createImportReviewCategory,
   evaluateImportReviewDraft,
   postImportReviewTransfer,
+  updateImportReviewLifecycle,
+  undoImportReviewPosting,
 } from "./import-review-mutations";
-import { importReviewPayload } from "../test-support";
+import { confirmedOperationId, importReviewPayload } from "../test-support";
 
 describe("import review mutations", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -119,6 +123,159 @@ describe("import review mutations", () => {
           counterpartyAccountId: categoryId,
         }),
       }),
+    );
+  });
+
+  it("sends expected status with a typed lifecycle action", async () => {
+    const review = importReviewPayload();
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            itemId,
+            documentId,
+            replayed: false,
+            review,
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await updateImportReviewLifecycle(
+      documentId,
+      itemId,
+      { action: "mark_unique", expectedStatus: "possible_duplicate" },
+      "csrf-token",
+    );
+
+    expect(result.status).toBe("success");
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/import-review/${documentId}/items/${itemId}/lifecycle`,
+      expect.objectContaining({
+        body: JSON.stringify({
+          action: "mark_unique",
+          expectedStatus: "possible_duplicate",
+        }),
+      }),
+    );
+  });
+
+  it("sends confirm with expected status and idempotency key", async () => {
+    const review = importReviewPayload();
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            primaryDocumentId: documentId,
+            itemId,
+            operationId: confirmedOperationId,
+            updatedItemIds: [itemId],
+            replayed: false,
+            reviews: [review],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await confirmImportReviewItem(
+      documentId,
+      itemId,
+      {
+        operationType: "expense",
+        categoryId,
+        propertyId: null,
+        expectedStatus: "matched",
+        rememberRule: false,
+        rulePattern: null,
+      },
+      "csrf-token",
+      "cd66599a-3db7-46d8-b8f7-c463a2a0fd01",
+    );
+
+    expect(result.status).toBe("success");
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/import-review/${documentId}/items/${itemId}/confirm`,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Idempotency-Key": "cd66599a-3db7-46d8-b8f7-c463a2a0fd01",
+        }),
+        body: JSON.stringify({
+          operationType: "expense",
+          categoryId,
+          propertyId: null,
+          expectedStatus: "matched",
+          rememberRule: false,
+          rulePattern: null,
+        }),
+      }),
+    );
+  });
+
+  it("sends the expected linked operation when undoing posting", async () => {
+    const review = importReviewPayload();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              primaryDocumentId: documentId,
+              itemId,
+              operationId: confirmedOperationId,
+              updatedItemIds: [itemId],
+              replayed: false,
+              reviews: [review],
+            }),
+            { status: 200 },
+          ),
+        ),
+      ),
+    );
+
+    const result = await undoImportReviewPosting(
+      documentId,
+      itemId,
+      { expectedOperationId: confirmedOperationId },
+      "csrf-token",
+    );
+
+    expect(result.status).toBe("success");
+    expect(fetch).toHaveBeenCalledWith(
+      `/api/v1/import-review/${documentId}/items/${itemId}/undo-posting`,
+      expect.objectContaining({
+        body: JSON.stringify({ expectedOperationId: confirmedOperationId }),
+      }),
+    );
+  });
+
+  it("applies rules and validates the committed review snapshot", async () => {
+    const review = importReviewPayload();
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            documentId,
+            checkedCount: 1,
+            suggestedCount: 1,
+            updatedItemIds: [itemId],
+            review,
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await applyRulesToImportReview(documentId, "csrf-token");
+
+    expect(result.status).toBe("success");
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/import-review/${documentId}/apply-rules`,
+      expect.objectContaining({ body: "{}" }),
     );
   });
 });

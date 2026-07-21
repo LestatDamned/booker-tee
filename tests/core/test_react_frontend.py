@@ -49,3 +49,17 @@ def test_historical_manual_ledger_url_redirects_with_query(tmp_path: Path) -> No
 
     assert response.status_code == 307
     assert response.headers["location"] == "/app/ledger/manual?type=expense&page=2"
+
+
+def test_historical_import_review_url_redirects_with_query(tmp_path: Path) -> None:
+    app = FastAPI()
+    install_react_frontend(app, build_root=tmp_path / "missing")
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/imports/documents/document-id/review?source=chat",
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 307
+    assert response.headers["location"] == ("/app/imports/documents/document-id/review?source=chat")

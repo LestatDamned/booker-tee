@@ -1,10 +1,12 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from app.api.schemas import ApiRequestModel
 from app.features.categories.models import CategoryKind
+from app.features.imports.domain.review_lifecycle import ImportReviewLifecycleAction
+from app.features.imports.domain.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationType
 
 
@@ -40,3 +42,29 @@ ImportReviewTransferApiRequest = Annotated[
     | ImportReviewExistingTransferLinkApiRequest,
     Field(discriminator="kind"),
 ]
+
+
+class ImportReviewLifecycleApiRequest(ApiRequestModel):
+    action: ImportReviewLifecycleAction
+    expected_status: RawTransactionStatus
+
+
+class ImportReviewConfirmationApiRequest(ApiRequestModel):
+    operation_type: OperationType
+    category_id: UUID
+    property_id: UUID | None = None
+    expected_status: RawTransactionStatus
+    remember_rule: bool = False
+    rule_pattern: str | None = Field(default=None, max_length=255)
+
+    @model_validator(mode="after")
+    def validate_confirmation(self) -> "ImportReviewConfirmationApiRequest":
+        if self.operation_type not in {OperationType.INCOME, OperationType.EXPENSE}:
+            raise ValueError("Confirmation supports only income or expense.")
+        if self.rule_pattern is not None and not self.remember_rule:
+            raise ValueError("rulePattern requires rememberRule=true.")
+        return self
+
+
+class ImportReviewUndoApiRequest(ApiRequestModel):
+    expected_operation_id: UUID

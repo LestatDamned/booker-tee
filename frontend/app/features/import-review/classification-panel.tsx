@@ -10,6 +10,7 @@ import {
   type ImportReviewDraftEvaluationRequest,
 } from "./api/import-review-mutations";
 import styles from "./import-review.module.css";
+import { ConfirmPostingAction } from "./posting-actions";
 import { TransferPanel } from "./transfer-panel";
 
 type ClassificationPanelProps = {
@@ -188,6 +189,16 @@ export function ClassificationPanel({
           </p>
         ) : null}
         <DraftCapability dirty={dirty} evaluation={evaluation} />
+        {!readonly ? (
+          <ConfirmPostingAction
+            csrfToken={csrfToken}
+            dirty={dirty}
+            documentId={documentId}
+            evaluation={evaluation}
+            item={item}
+            onReviewReconciled={onReviewReconciled}
+          />
+        ) : null}
       </div>
     </details>
   );
@@ -457,6 +468,8 @@ function blockingReasonLabel(
     missing_currency: "Не определена валюта.",
     missing_source_account: "Не определён исходный счёт.",
     missing_operation_type: "Не выбран тип операции.",
+    operation_type_amount_mismatch:
+      "Выбранный тип не соответствует знаку суммы операции.",
     missing_category: "Для дохода или расхода выберите категорию.",
     uncategorized_category: "Системная категория «Без категории» не подходит.",
     transfer_accounts_required: "Для перевода нужны два счёта.",

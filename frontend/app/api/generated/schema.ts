@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/api/v1/import-review/{document_id}/items/{item_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Import Review Item */
+        post: operations["confirm_import_review_item_api_v1_import_review__document_id__items__item_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/import-review/{document_id}/items/{item_id}/undo-posting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo Import Review Posting */
+        post: operations["undo_import_review_posting_api_v1_import_review__document_id__items__item_id__undo_posting_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/import-review/{document_id}": {
         parameters: {
             query?: never;
@@ -15,6 +49,23 @@ export interface paths {
         get: operations["get_import_review_api_v1_import_review__document_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/import-review/{document_id}/apply-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply Rules To Import Review */
+        post: operations["apply_rules_to_import_review_api_v1_import_review__document_id__apply_rules_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -66,6 +117,23 @@ export interface paths {
         put?: never;
         /** Post Import Review Transfer */
         post: operations["post_import_review_transfer_api_v1_import_review__document_id__items__item_id__transfer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/import-review/{document_id}/items/{item_id}/lifecycle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Update Import Review Lifecycle */
+        post: operations["update_import_review_lifecycle_api_v1_import_review__document_id__items__item_id__lifecycle_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -568,108 +636,6 @@ export interface paths {
         put?: never;
         /** Import Document Mapping */
         post: operations["import_document_mapping_imports_documents__document_id__mapping_import_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/imports/documents/{document_id}/review": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Document Review */
-        get: operations["document_review_imports_documents__document_id__review_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/imports/documents/{document_id}/raw-transactions/{raw_transaction_id}/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Update Raw Transaction Status */
-        post: operations["update_raw_transaction_status_imports_documents__document_id__raw_transactions__raw_transaction_id__status_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/imports/documents/{document_id}/raw-transactions/{raw_transaction_id}/panels/{panel_type}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Review Raw Transaction Panel */
-        get: operations["review_raw_transaction_panel_imports_documents__document_id__raw_transactions__raw_transaction_id__panels__panel_type__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/imports/documents/{document_id}/raw-transactions/{raw_transaction_id}/undo-posting": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Undo Raw Transaction Posting */
-        post: operations["undo_raw_transaction_posting_imports_documents__document_id__raw_transactions__raw_transaction_id__undo_posting_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/imports/documents/{document_id}/raw-transactions/{raw_transaction_id}/categories": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Review Category */
-        post: operations["create_review_category_imports_documents__document_id__raw_transactions__raw_transaction_id__categories_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/imports/documents/{document_id}/apply-rules": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Apply Rules To Document */
-        post: operations["apply_rules_to_document_imports_documents__document_id__apply_rules_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1219,13 +1185,6 @@ export interface components {
             /** Address */
             address?: string | null;
         };
-        /** Body_create_review_category_imports_documents__document_id__raw_transactions__raw_transaction_id__categories_post */
-        Body_create_review_category_imports_documents__document_id__raw_transactions__raw_transaction_id__categories_post: {
-            /** Name */
-            name: string;
-            /** @default mixed */
-            kind: components["schemas"]["CategoryKind"];
-        };
         /** Body_create_rule_rules_post */
         Body_create_rule_rules_post: {
             /** Pattern */
@@ -1450,25 +1409,6 @@ export interface components {
             /** Address */
             address?: string | null;
         };
-        /** Body_update_raw_transaction_status_imports_documents__document_id__raw_transactions__raw_transaction_id__status_post */
-        Body_update_raw_transaction_status_imports_documents__document_id__raw_transactions__raw_transaction_id__status_post: {
-            /** Action */
-            action: string;
-            /** Category Id */
-            category_id?: string | null;
-            /** Counterparty Account Id */
-            counterparty_account_id?: string | null;
-            /** Matched Raw Transaction Id */
-            matched_raw_transaction_id?: string | null;
-            /** Matched Operation Id */
-            matched_operation_id?: string | null;
-            /** Property Id */
-            property_id?: string | null;
-            /** Remember Rule */
-            remember_rule?: string | null;
-            /** Rule Pattern */
-            rule_pattern?: string | null;
-        };
         /** Body_update_rule_rules__rule_id__post */
         Body_update_rule_rules__rule_id__post: {
             /** Pattern */
@@ -1590,6 +1530,25 @@ export interface components {
             /** Blockingreasoncodes */
             blockingReasonCodes: components["schemas"]["ReviewBlockingReasonCode"][];
         };
+        /** ImportReviewConfirmationApiRequest */
+        ImportReviewConfirmationApiRequest: {
+            operationType: components["schemas"]["OperationType"];
+            /**
+             * Categoryid
+             * Format: uuid
+             */
+            categoryId: string;
+            /** Propertyid */
+            propertyId?: string | null;
+            expectedStatus: components["schemas"]["RawTransactionStatus"];
+            /**
+             * Rememberrule
+             * @default false
+             */
+            rememberRule: boolean;
+            /** Rulepattern */
+            rulePattern?: string | null;
+        };
         /** ImportReviewDocumentApiResponse */
         ImportReviewDocumentApiResponse: {
             /**
@@ -1678,7 +1637,40 @@ export interface components {
             selection: components["schemas"]["ImportReviewSelectionApiResponse"];
             confirmability: components["schemas"]["ImportReviewConfirmabilityApiResponse"];
             ruleSuggestion: components["schemas"]["ImportReviewRuleSuggestionApiResponse"];
+            posting: components["schemas"]["ImportReviewPostingApiResponse"];
             transfer: components["schemas"]["ImportReviewTransferOptionsApiResponse"];
+            lifecycle: components["schemas"]["ImportReviewLifecycleApiResponse"];
+        };
+        /**
+         * ImportReviewLifecycleAction
+         * @enum {string}
+         */
+        ImportReviewLifecycleAction: "mark_unique" | "mark_duplicate" | "ignore" | "needs_review";
+        /** ImportReviewLifecycleApiRequest */
+        ImportReviewLifecycleApiRequest: {
+            action: components["schemas"]["ImportReviewLifecycleAction"];
+            expectedStatus: components["schemas"]["RawTransactionStatus"];
+        };
+        /** ImportReviewLifecycleApiResponse */
+        ImportReviewLifecycleApiResponse: {
+            /** Allowedactions */
+            allowedActions: components["schemas"]["ImportReviewLifecycleAction"][];
+        };
+        /** ImportReviewLifecycleMutationApiResponse */
+        ImportReviewLifecycleMutationApiResponse: {
+            /**
+             * Itemid
+             * Format: uuid
+             */
+            itemId: string;
+            /**
+             * Documentid
+             * Format: uuid
+             */
+            documentId: string;
+            /** Replayed */
+            replayed: boolean;
+            review: components["schemas"]["ImportReviewApiResponse"];
         };
         /** ImportReviewNewTransferApiRequest */
         ImportReviewNewTransferApiRequest: {
@@ -1707,6 +1699,37 @@ export interface components {
             currency: string | null;
             /** Balanceafter */
             balanceAfter: string | null;
+        };
+        /** ImportReviewPostingApiResponse */
+        ImportReviewPostingApiResponse: {
+            /** Operationid */
+            operationId: string | null;
+            /** Canundo */
+            canUndo: boolean;
+        };
+        /** ImportReviewPostingMutationApiResponse */
+        ImportReviewPostingMutationApiResponse: {
+            /**
+             * Primarydocumentid
+             * Format: uuid
+             */
+            primaryDocumentId: string;
+            /**
+             * Itemid
+             * Format: uuid
+             */
+            itemId: string;
+            /**
+             * Operationid
+             * Format: uuid
+             */
+            operationId: string;
+            /** Updateditemids */
+            updatedItemIds: string[];
+            /** Replayed */
+            replayed: boolean;
+            /** Reviews */
+            reviews: components["schemas"]["ImportReviewApiResponse"][];
         };
         /** ImportReviewPropertyReferenceApiResponse */
         ImportReviewPropertyReferenceApiResponse: {
@@ -1826,6 +1849,21 @@ export interface components {
          * @enum {string}
          */
         ImportReviewRowProblemCode: "balance_chain_mismatch";
+        /** ImportReviewRuleApplicationApiResponse */
+        ImportReviewRuleApplicationApiResponse: {
+            /**
+             * Documentid
+             * Format: uuid
+             */
+            documentId: string;
+            /** Checkedcount */
+            checkedCount: number;
+            /** Suggestedcount */
+            suggestedCount: number;
+            /** Updateditemids */
+            updatedItemIds: string[];
+            review: components["schemas"]["ImportReviewApiResponse"];
+        };
         /** ImportReviewRuleSuggestionApiResponse */
         ImportReviewRuleSuggestionApiResponse: {
             /** Isactive */
@@ -1882,6 +1920,14 @@ export interface components {
             rawRowCandidates: components["schemas"]["ImportReviewRawTransferCandidateApiResponse"][];
             /** Existingoperationcandidates */
             existingOperationCandidates: components["schemas"]["ImportReviewExistingTransferCandidateApiResponse"][];
+        };
+        /** ImportReviewUndoApiRequest */
+        ImportReviewUndoApiRequest: {
+            /**
+             * Expectedoperationid
+             * Format: uuid
+             */
+            expectedOperationId: string;
         };
         /** ImportReviewValidationApiResponse */
         ImportReviewValidationApiResponse: {
@@ -2195,7 +2241,7 @@ export interface components {
          * ReviewBlockingReasonCode
          * @enum {string}
          */
-        ReviewBlockingReasonCode: "terminal_state" | "failed_state" | "duplicate_review_required" | "normalization_error" | "missing_operation_date" | "missing_amount" | "missing_currency" | "missing_source_account" | "missing_operation_type" | "missing_category" | "uncategorized_category" | "transfer_accounts_required" | "same_transfer_account" | "unsupported_operation_type";
+        ReviewBlockingReasonCode: "terminal_state" | "failed_state" | "duplicate_review_required" | "normalization_error" | "missing_operation_date" | "missing_amount" | "missing_currency" | "missing_source_account" | "missing_operation_type" | "operation_type_amount_mismatch" | "missing_category" | "uncategorized_category" | "transfer_accounts_required" | "same_transfer_account" | "unsupported_operation_type";
         /**
          * ReviewClassificationSource
          * @enum {string}
@@ -2310,6 +2356,152 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    confirm_import_review_item_api_v1_import_review__document_id__items__item_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                document_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportReviewConfirmationApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportReviewPostingMutationApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    undo_import_review_posting_api_v1_import_review__document_id__items__item_id__undo_posting_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportReviewUndoApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportReviewPostingMutationApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_import_review_api_v1_import_review__document_id__get: {
         parameters: {
             query?: never;
@@ -2328,6 +2520,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportReviewApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_rules_to_import_review_api_v1_import_review__document_id__apply_rules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportReviewRuleApplicationApiResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -2519,6 +2769,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportReviewTransferMutationApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    update_import_review_lifecycle_api_v1_import_review__document_id__items__item_id__lifecycle_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportReviewLifecycleApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportReviewLifecycleMutationApiResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -4005,205 +4327,6 @@ export interface operations {
                 "application/x-www-form-urlencoded": components["schemas"]["Body_import_document_mapping_imports_documents__document_id__mapping_import_post"];
             };
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    document_review_imports_documents__document_id__review_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_raw_transaction_status_imports_documents__document_id__raw_transactions__raw_transaction_id__status_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-                raw_transaction_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_update_raw_transaction_status_imports_documents__document_id__raw_transactions__raw_transaction_id__status_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    review_raw_transaction_panel_imports_documents__document_id__raw_transactions__raw_transaction_id__panels__panel_type__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-                raw_transaction_id: string;
-                panel_type: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    undo_raw_transaction_posting_imports_documents__document_id__raw_transactions__raw_transaction_id__undo_posting_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-                raw_transaction_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_review_category_imports_documents__document_id__raw_transactions__raw_transaction_id__categories_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-                raw_transaction_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_create_review_category_imports_documents__document_id__raw_transactions__raw_transaction_id__categories_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    apply_rules_to_document_imports_documents__document_id__apply_rules_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

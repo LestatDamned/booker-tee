@@ -112,6 +112,20 @@ def test_rule_suggestion_status_does_not_block_but_possible_duplicate_does() -> 
     assert duplicate.blocking_reason_codes == (ReviewBlockingReasonCode.DUPLICATE_REVIEW_REQUIRED,)
 
 
+def test_explicit_income_expense_must_match_normalized_amount_sign() -> None:
+    income = resolve_review_classification(
+        explicit_operation_type=OperationType.INCOME,
+        suggested_operation_type=None,
+        amount=Decimal("-10.00"),
+    )
+
+    result = evaluate_review_confirmability(facts(income, category_id=uuid4()))
+
+    assert result.blocking_reason_codes == (
+        ReviewBlockingReasonCode.OPERATION_TYPE_AMOUNT_MISMATCH,
+    )
+
+
 def facts(
     classification,
     *,

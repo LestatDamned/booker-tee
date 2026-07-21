@@ -6,6 +6,7 @@ export const remainingItemId = "cb1b2959-b134-4a57-b2f4-7a7dfe8e8a42";
 export const expenseCategoryId = "078d4cda-d476-4bd6-b731-92d423d07c39";
 export const uncategorizedCategoryId = "5c1fed65-56a7-4210-b8db-e63401b411af";
 export const propertyId = "47d25198-3c11-4610-b02d-1df9aff0dc48";
+export const confirmedOperationId = "d8e31a25-7ebf-46f9-a587-b2d5a63bd7c3";
 
 export function importReviewPayload(): ImportReviewDto {
   return {
@@ -141,6 +142,11 @@ function importReviewItem(
       wasAutoApplied: false,
       ruleId: null,
     },
+    posting: {
+      operationId:
+        overrides.status === "confirmed" ? confirmedOperationId : null,
+      canUndo: overrides.status === "confirmed",
+    },
     transfer: {
       direction: "source_to_counterparty",
       accounts: [
@@ -152,6 +158,12 @@ function importReviewItem(
       ],
       rawRowCandidates: [],
       existingOperationCandidates: [],
+    },
+    lifecycle: {
+      allowedActions:
+        overrides.status === "matched"
+          ? ["mark_duplicate", "needs_review", "ignore"]
+          : [],
     },
   };
 }

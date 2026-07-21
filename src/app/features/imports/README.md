@@ -252,9 +252,6 @@ imports/
   routes/
     documents.py
     mapping.py
-    review.py
-    review_responses.py
-    form_values.py
 
   application/
     documents/
@@ -265,9 +262,16 @@ imports/
 
     review/
       actions.py
+      classification.py
+      confirmation_commands.py
+      lifecycle_commands.py
+      read_model.py
+      rule_commands.py
       status.py
+      transfer_commands.py
+      transfers.py
+      undo_commands.py
       validation_refresh.py
-      page_data.py
 
     pipelines/
       statement_import.py

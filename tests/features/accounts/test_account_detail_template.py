@@ -144,7 +144,7 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
                             icon="refresh",
                             placement="secondary",
                             action_type="link",
-                            url=f"/imports/documents/{document_id}/review#raw-{raw_transaction_id}",
+                            url=f"/app/imports/documents/{document_id}/review#raw-{raw_transaction_id}",
                         )
                     ],
                     edit_panel_id=f"account-movement-edit-panel-{operation_id}",
@@ -256,7 +256,7 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "Продукты" in html
     assert "ID операции" in html
     assert f"ID {operation_id}" in html
-    assert f"/imports/documents/{document_id}/review#raw-{raw_transaction_id}" in html
+    assert f"/app/imports/documents/{document_id}/review#raw-{raw_transaction_id}" in html
     assert "<th>операция</th>" not in html
     assert html.count('<span class="action-label ui-action__label">строка импорта</span>') == 1
 
@@ -276,7 +276,7 @@ def test_account_movement_edit_panel_lazy_loads_review_form() -> None:
             description='Списание средств по платежу СБП | ООО "ЛЕНТА"',
             category_id=category_id,
             property_id=property_id,
-            source_url=f"/imports/documents/{uuid4()}/review#raw-{uuid4()}",
+            source_url=f"/app/imports/documents/{uuid4()}/review#raw-{uuid4()}",
         )
     )
     html = templates.env.get_template("accounts/detail/_movement_edit_panel.html").render(

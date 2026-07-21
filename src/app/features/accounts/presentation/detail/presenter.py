@@ -306,7 +306,7 @@ class AccountDetailPresenter:
         raw_link = first_raw_link(operation.raw_transactions)
         if raw_link is None:
             return None
-        return f"/imports/documents/{raw_link.uploaded_document_id}/review#raw-{raw_link.id}"
+        return f"/app/imports/documents/{raw_link.uploaded_document_id}/review#raw-{raw_link.id}"
 
     @staticmethod
     def _filters_active(presenter_input: AccountDetailPresenterInput) -> bool:

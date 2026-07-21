@@ -1,14 +1,14 @@
 # Stage 06: Import Review Complexity Checkpoint
 
-Status: active.
+Status: completed.
 
 Индекс выполнения: [`import-review/README.md`](import-review/README.md).
 
 Актуальный inventory поведения и аудит application boundary записаны в
 [`import-review/INVENTORY.md`](import-review/INVENTORY.md). Queue/read model,
-validation/control totals и classification/category/property slices завершены;
-следующим идет transfer/matching. Legacy import review остается подключенным до
-финального replacement gate.
+validation/control totals, classification, transfer, lifecycle, confirm/post и
+cutover slices завершены. React является canonical import review, legacy
+presentation удалён после replacement gate.
 
 ## Goal
 
@@ -111,3 +111,27 @@ choose one of: simplify state/API boundary, supersede an ADR, or stop the React
 migration while current SSR still works.
 
 Next after Go: [`Stage 07`](STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md).
+
+## Completion Record
+
+Completed: 2026-07-22.
+
+Implemented: полный import review через typed application read/command models,
+versioned API и React; apply-rules, confirm/post/undo и historical redirect.
+
+Checks run: Ruff, ty, full pytest, frontend format/lint/style/type/test/build,
+Alembic head/offline migration SQL и Playwright 51-page desktop/tablet/mobile
+replacement gate.
+
+Intentional deviations: compatibility redirect и `/app` prefix остаются до
+общего routing cleanup; cache library не добавлена.
+
+Cleanup performed: legacy routes/responses, page-data facade,
+Presenter/ViewModels, templates, exclusive CSS/JS и implementation tests
+удалены. Evidence и Go-ответы записаны в
+[`import-review/07_CUTOVER_AND_CLEANUP.md`](import-review/07_CUTOVER_AND_CLEANUP.md)
+и [`import-review/MEASUREMENTS.md`](import-review/MEASUREMENTS.md).
+
+Learning notes updated: feature-local reconciliation оказалось достаточно;
+performance bottleneck находился в N+1 server queries и был устранён batch read,
+а не client cache.

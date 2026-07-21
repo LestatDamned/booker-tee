@@ -20,6 +20,7 @@ class ReviewBlockingReasonCode(StrEnum):
     MISSING_CURRENCY = "missing_currency"
     MISSING_SOURCE_ACCOUNT = "missing_source_account"
     MISSING_OPERATION_TYPE = "missing_operation_type"
+    OPERATION_TYPE_AMOUNT_MISMATCH = "operation_type_amount_mismatch"
     MISSING_CATEGORY = "missing_category"
     UNCATEGORIZED_CATEGORY = "uncategorized_category"
     TRANSFER_ACCOUNTS_REQUIRED = "transfer_accounts_required"
@@ -74,6 +75,11 @@ def evaluate_review_confirmability(
     if operation_type is None:
         reasons.append(ReviewBlockingReasonCode.MISSING_OPERATION_TYPE)
     elif operation_type in {OperationType.INCOME, OperationType.EXPENSE}:
+        if facts.amount is not None and (
+            (operation_type is OperationType.INCOME and facts.amount <= 0)
+            or (operation_type is OperationType.EXPENSE and facts.amount >= 0)
+        ):
+            reasons.append(ReviewBlockingReasonCode.OPERATION_TYPE_AMOUNT_MISMATCH)
         if facts.category_id is None:
             reasons.append(ReviewBlockingReasonCode.MISSING_CATEGORY)
         elif facts.category_is_uncategorized:

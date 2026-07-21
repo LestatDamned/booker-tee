@@ -8,7 +8,6 @@ from app.features.imports.domain.validation import (
 )
 from app.features.imports.models import RawTransactionStatus
 from app.features.imports.parsing.parser_types import StatementControlTotals
-from app.features.imports.presentation.review.page import balance_chain_problem_messages
 
 
 @dataclass(frozen=True)
@@ -160,24 +159,6 @@ def test_statement_validation_report_detects_balance_chain_mismatch() -> None:
     assert balance_chain["mismatch_count"] == 1
     assert mismatches[0]["expected_balance_after"] == "1070.00"
     assert mismatches[0]["actual_balance_after"] == "1060.00"
-
-
-def test_balance_chain_problem_messages_point_to_affected_rows() -> None:
-    messages = balance_chain_problem_messages(
-        {
-            "balance_chain": {
-                "mismatches": [
-                    {
-                        "row_index": 1,
-                        "expected_balance_after": "1070.00",
-                        "actual_balance_after": "1060.00",
-                    }
-                ]
-            }
-        }
-    )
-
-    assert messages == {1: ["остаток не сходится: ожидалось 1070.00, в строке 1060.00"]}
 
 
 def test_statement_validation_report_needs_review_for_uncertain_rows() -> None:

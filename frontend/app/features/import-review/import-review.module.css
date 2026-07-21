@@ -28,6 +28,34 @@
   overflow-wrap: anywhere;
 }
 
+.reviewTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-border-default);
+  padding-top: var(--space-4);
+}
+
+.reviewToolLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-inline-end: auto;
+}
+
+.reviewToolLinks a {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.ruleApplicationStatus {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
 .queue {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(10rem, 18rem) auto;
@@ -385,6 +413,57 @@
 
 .transferPreview span {
   color: var(--color-text-secondary);
+}
+
+.lifecycleActions {
+  display: grid;
+  gap: var(--space-3);
+  border-top: 1px solid var(--color-border-default);
+  padding-top: var(--space-4);
+}
+
+.lifecycleButtons,
+.lifecycleConfirmation > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.postingBox {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  margin-block: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.postingBox > label:not(.rememberRule) {
+  display: grid;
+  gap: var(--space-2);
+  width: min(100%, 32rem);
+}
+
+.rememberRule {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.lifecycleConfirmation {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid
+    color-mix(in srgb, var(--color-status-danger) 38%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-status-danger) 8%, transparent);
+  padding: var(--space-3);
+}
+
+.lifecycleConfirmation p {
+  margin: 0;
 }
 
 .draftStatus,
