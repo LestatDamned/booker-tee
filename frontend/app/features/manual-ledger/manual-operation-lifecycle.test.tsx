@@ -123,14 +123,13 @@ function operation(
   return {
     id: operationId,
     version,
+    operationType: "expense",
     operationDate: "2026-07-20",
     description: "Аренда за июль",
     status,
     money: {
       amount: "65000.00",
       currency: "RUB",
-      operationType: "expense",
-      entryDirection: "outflow",
     },
     account: { id: crypto.randomUUID(), name: "Основной счёт" },
     sourceAccount: null,

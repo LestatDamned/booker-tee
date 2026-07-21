@@ -6,7 +6,7 @@ import {
   toManualOperationRowModel,
 } from "./manual-ledger-model";
 
-type ManualOperationDto = components["schemas"]["ManualOperationResponse"];
+type ManualOperationDto = components["schemas"]["ManualOperationApiResponse"];
 
 describe("toManualOperationRowModel", () => {
   it("maps backend description directly into the primary row content", () => {
@@ -30,9 +30,8 @@ describe("toManualOperationRowModel", () => {
     dto.money = {
       amount: "65000.00",
       currency: "RUB",
-      operationType: "transfer",
-      entryDirection: "transfer",
     };
+    dto.operationType = "transfer";
     dto.account = null;
     dto.sourceAccount = { id: crypto.randomUUID(), name: "Карта" };
     dto.destinationAccount = { id: crypto.randomUUID(), name: "Накопительный" };
@@ -57,14 +56,13 @@ function operation(): ManualOperationDto {
   return {
     id: crypto.randomUUID(),
     version: 3,
+    operationType: "expense",
     operationDate: "2026-07-20",
     description: "Аренда за июль",
     status: "confirmed",
     money: {
       amount: "65000.00",
       currency: "RUB",
-      operationType: "expense",
-      entryDirection: "outflow",
     },
     account: { id: crypto.randomUUID(), name: "Основной счёт" },
     sourceAccount: null,

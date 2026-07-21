@@ -2,11 +2,12 @@ import { z } from "zod";
 
 import type { components } from "../../api/generated/schema";
 
-export type ManualLedgerDto = components["schemas"]["ManualLedgerListResponse"];
+export type ManualLedgerDto =
+  components["schemas"]["ManualLedgerListApiResponse"];
 export type ManualOperationDto =
-  components["schemas"]["ManualOperationResponse"];
+  components["schemas"]["ManualOperationApiResponse"];
 export type ManualOperationEditDto =
-  components["schemas"]["ManualOperationEditResponse"];
+  components["schemas"]["ManualOperationEditApiResponse"];
 
 const operationTypeSchema = z.enum([
   "income",
@@ -43,6 +44,7 @@ const filterOptionsSchema = z.object({
 export const manualOperationSchema: z.ZodType<ManualOperationDto> = z.object({
   id: z.uuid(),
   version: z.number().int(),
+  operationType: operationTypeSchema,
   operationDate: z.iso.date(),
   description: z.string(),
   status: operationStatusSchema,
@@ -50,8 +52,6 @@ export const manualOperationSchema: z.ZodType<ManualOperationDto> = z.object({
     .object({
       amount: z.string(),
       currency: z.string(),
-      operationType: operationTypeSchema,
-      entryDirection: z.enum(["inflow", "outflow", "transfer"]),
     })
     .nullable(),
   account: namedReferenceSchema.nullable(),

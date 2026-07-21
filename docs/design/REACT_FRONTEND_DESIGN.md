@@ -456,13 +456,12 @@ API schemas не являются:
 {
   "id": "e4d0...",
   "version": 4,
+  "operationType": "transfer",
   "operationDate": "2026-07-20",
   "description": "Перевод на вклад",
   "money": {
     "amount": "15000.00",
-    "currency": "RUB",
-    "operationType": "transfer",
-    "entryDirection": "outflow"
+    "currency": "RUB"
   },
   "status": "confirmed",
   "capabilities": {

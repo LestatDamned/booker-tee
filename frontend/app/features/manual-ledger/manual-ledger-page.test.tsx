@@ -57,11 +57,10 @@ describe("ManualLedgerPage", () => {
     const page = ledger();
     page.items[0] = {
       ...required(page.items[0], "fixture operation"),
+      operationType: "transfer",
       money: {
         amount: "15000.00",
         currency: "RUB",
-        operationType: "transfer",
-        entryDirection: "transfer",
       },
       account: null,
       category: null,
@@ -234,14 +233,13 @@ function ledger(): ManualLedgerDto {
       {
         id: operationId,
         version: 3,
+        operationType: "expense",
         operationDate: "2026-07-20",
         description: "Аренда за июль",
         status: "confirmed",
         money: {
           amount: "65000.00",
           currency: "RUB",
-          operationType: "expense",
-          entryDirection: "outflow",
         },
         account: { id: crypto.randomUUID(), name: "Основной счёт" },
         sourceAccount: null,

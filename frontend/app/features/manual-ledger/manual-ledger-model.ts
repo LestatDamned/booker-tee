@@ -3,7 +3,7 @@ import { formatMoneyAmount } from "../../shared/money/format-money";
 import type { BadgeTone } from "../../ui/badge/badge";
 import type { MoneyTone } from "../../ui/money-value/money-value";
 
-type ManualOperationDto = components["schemas"]["ManualOperationResponse"];
+type ManualOperationDto = components["schemas"]["ManualOperationApiResponse"];
 type OperationType = components["schemas"]["OperationType"];
 type OperationStatus = components["schemas"]["OperationStatus"];
 
@@ -52,9 +52,7 @@ const statusPresentation: Record<
 export function toManualOperationRowModel(
   operation: ManualOperationDto,
 ): ManualOperationRowModel {
-  const operationView = operation.money
-    ? operationPresentation[operation.money.operationType]
-    : operationPresentation.adjustment;
+  const operationView = operationPresentation[operation.operationType];
   const statusView = statusPresentation[operation.status];
   return {
     id: operation.id,
@@ -71,10 +69,10 @@ export function toManualOperationRowModel(
       ? {
           amount: formatMoneyAmount(
             operation.money.amount,
-            operation.money.operationType,
+            operation.operationType,
           ),
           currency: operation.money.currency,
-          tone: operation.money.operationType,
+          tone: operation.operationType,
         }
       : null,
     operationLabel: operationView.label,
@@ -83,7 +81,7 @@ export function toManualOperationRowModel(
     statusLabel: statusView.label,
     statusTone: statusView.tone,
     transferRouteLabel:
-      operation.money?.operationType === "transfer"
+      operation.operationType === "transfer"
         ? `${operation.sourceAccount?.name ?? "Счёт не найден"} → ${operation.destinationAccount?.name ?? "Счёт не найден"}`
         : null,
     version: operation.version,

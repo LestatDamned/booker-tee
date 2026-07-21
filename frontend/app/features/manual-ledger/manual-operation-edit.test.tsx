@@ -249,14 +249,13 @@ function editSnapshot({
     operation: {
       id: operationId,
       version,
+      operationType: "expense",
       operationDate: "2026-07-20",
       description,
       status: "confirmed",
       money: {
         amount: "65000.00",
         currency: "RUB",
-        operationType: "expense",
-        entryDirection: "outflow",
       },
       account: { id: accountId, name: "Основной счёт" },
       sourceAccount: null,
@@ -289,11 +288,10 @@ function transferEditSnapshot() {
     ...snapshot,
     operation: {
       ...snapshot.operation,
+      operationType: "transfer",
       money: {
         amount: "5000.00",
         currency: "RUB",
-        operationType: "transfer",
-        entryDirection: "transfer",
       },
       account: null,
       sourceAccount: { id: accountId, name: "Основной счёт" },

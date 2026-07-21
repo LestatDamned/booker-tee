@@ -2,11 +2,18 @@ from fastapi import status
 
 from app.api.errors import ApiError
 from app.features.ledger.errors import (
+    AccountUnavailableError,
+    CategoryUnavailableError,
+    InvalidAmountError,
     LedgerPostingError,
     ManualOperationLifecycleConflictError,
+    ManualOperationNotEditableError,
     ManualOperationNotFoundError,
     OperationIdempotencyConflictError,
     OperationVersionConflictError,
+    PropertyUnavailableError,
+    SameTransferAccountError,
+    TransferCurrencyMismatchError,
 )
 
 
@@ -36,42 +43,42 @@ def manual_ledger_mutation_error(error: LedgerPostingError) -> ApiError:
             message="Этот ключ повтора уже использован для другой операции.",
         )
     details = {
-        "Account is not available in this workspace.": (
+        AccountUnavailableError: (
             "account_unavailable",
             "Выбранный счёт недоступен в этом workspace.",
             "accountId",
         ),
-        "Category is not available in this workspace.": (
+        CategoryUnavailableError: (
             "category_unavailable",
             "Выбранная категория недоступна в этом workspace.",
             "categoryId",
         ),
-        "Property is not available in this workspace.": (
+        PropertyUnavailableError: (
             "property_unavailable",
             "Выбранный объект недоступен в этом workspace.",
             "propertyId",
         ),
-        "Amount must be positive.": (
+        InvalidAmountError: (
             "invalid_amount",
             "Сумма должна быть больше нуля.",
             "amount",
         ),
-        "Transfer accounts must be different.": (
+        SameTransferAccountError: (
             "same_transfer_account",
             "Счета отправления и назначения должны отличаться.",
             "destinationAccountId",
         ),
-        "Cross-currency transfers are not supported in MVP.": (
+        TransferCurrencyMismatchError: (
             "transfer_currency_mismatch",
             "Для перевода выберите счета в одной валюте.",
             "destinationAccountId",
         ),
-        "Only confirmed or draft manual operations can be edited.": (
+        ManualOperationNotEditableError: (
             "operation_not_editable",
             "Операцию в текущем состоянии нельзя редактировать.",
             "form",
         ),
-    }.get(str(error))
+    }.get(type(error))
     if details is None:
         return ApiError(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

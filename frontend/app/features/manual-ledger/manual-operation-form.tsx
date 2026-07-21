@@ -6,8 +6,8 @@ import type { ManualLedgerDto, ManualOperationDto } from "./manual-ledger-api";
 import styles from "./manual-ledger.module.css";
 
 export type ManualOperationType =
-  | components["schemas"]["ManualIncomeExpenseCreateRequest"]["operationType"]
-  | components["schemas"]["ManualTransferCreateRequest"]["operationType"];
+  | components["schemas"]["ManualIncomeExpenseCreateApiRequest"]["operationType"]
+  | components["schemas"]["ManualTransferCreateApiRequest"]["operationType"];
 
 export type ManualOperationDraft = {
   accountId: string;
@@ -244,8 +244,8 @@ export function emptyManualOperationDraft(): ManualOperationDraft {
 export function editDraftFromOperation(
   operation: ManualOperationDto,
 ): ManualOperationDraft | null {
-  const operationType = operation.money?.operationType;
-  if (!operation.money || !operationType || operationType === "adjustment") {
+  const operationType = operation.operationType;
+  if (!operation.money || operationType === "adjustment") {
     return null;
   }
   return {

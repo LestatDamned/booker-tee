@@ -3,7 +3,12 @@ from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
-from app.features.ledger.errors import LedgerPostingError
+from app.features.ledger.errors import (
+    InvalidAmountError,
+    LedgerPostingError,
+    SameTransferAccountError,
+    TransferCurrencyMismatchError,
+)
 from app.features.ledger.models import OperationType
 
 
@@ -72,19 +77,19 @@ def build_manual_transfer_amounts(
 
 def ensure_distinct_accounts(source_account_id: UUID, destination_account_id: UUID) -> None:
     if source_account_id == destination_account_id:
-        raise LedgerPostingError("Transfer accounts must be different.")
+        raise SameTransferAccountError()
 
 
 def normalize_positive_money(amount: Decimal) -> Decimal:
     normalized_amount = amount.quantize(Decimal("0.01"))
     if normalized_amount <= Decimal("0.00"):
-        raise LedgerPostingError("Amount must be positive.")
+        raise InvalidAmountError()
     return normalized_amount
 
 
 def ensure_same_currency(first_account: PostingAccount, second_account: PostingAccount) -> None:
     if first_account.currency != second_account.currency:
-        raise LedgerPostingError("Cross-currency transfers are not supported in the MVP.")
+        raise TransferCurrencyMismatchError()
 
 
 def require_uuid(value: UUID | None, message: str) -> UUID:

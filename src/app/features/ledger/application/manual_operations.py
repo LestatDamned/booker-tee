@@ -15,6 +15,7 @@ from app.features.ledger.domain.manual_idempotency import (
     manual_income_expense_fingerprint,
     manual_transfer_fingerprint,
 )
+from app.features.ledger.domain.manual_operation_lifecycle import manual_operation_actions
 from app.features.ledger.domain.money import (
     TransferAmounts,
     affects_profit_for_operation_type,
@@ -26,6 +27,7 @@ from app.features.ledger.domain.text import clean_description
 from app.features.ledger.errors import (
     LedgerPostingError,
     ManualOperationLifecycleConflictError,
+    ManualOperationNotEditableError,
     ManualOperationNotFoundError,
     OperationIdempotencyConflictError,
     OperationVersionConflictError,
@@ -225,11 +227,8 @@ class ManualOperationUseCase:
     ) -> Operation:
         try:
             operation = await self._get_manual_operation(context.workspace.id, command.operation_id)
-            if operation.status not in {
-                OperationStatus.CONFIRMED,
-                OperationStatus.DRAFT,
-            }:
-                raise LedgerPostingError("Only confirmed or draft manual operations can be edited.")
+            if not manual_operation_actions(operation.status).can_edit:
+                raise ManualOperationNotEditableError()
             self._ensure_expected_version(operation, command.expected_version)
             operation.type = command.operation_type
             operation.affects_profit = affects_profit_for_operation_type(command.operation_type)
@@ -277,7 +276,7 @@ class ManualOperationUseCase:
     ) -> Operation:
         operation = await self._get_manual_operation(context.workspace.id, operation_id)
         self._ensure_expected_version(operation, expected_version)
-        if operation.status != OperationStatus.CONFIRMED:
+        if not manual_operation_actions(operation.status).can_cancel:
             raise ManualOperationLifecycleConflictError(
                 "Only confirmed manual operations can be cancelled."
             )
@@ -295,7 +294,7 @@ class ManualOperationUseCase:
     ) -> Operation:
         operation = await self._get_manual_operation(context.workspace.id, operation_id)
         self._ensure_expected_version(operation, expected_version)
-        if operation.status != OperationStatus.IGNORED:
+        if not manual_operation_actions(operation.status).can_restore:
             raise ManualOperationLifecycleConflictError(
                 "Only cancelled manual operations can be restored."
             )
@@ -313,7 +312,7 @@ class ManualOperationUseCase:
     ) -> None:
         operation = await self._get_manual_operation(context.workspace.id, operation_id)
         self._ensure_expected_version(operation, expected_version)
-        if operation.status not in {OperationStatus.DRAFT, OperationStatus.IGNORED}:
+        if not manual_operation_actions(operation.status).can_delete:
             raise ManualOperationLifecycleConflictError(
                 "Cancel a manual operation before deleting it."
             )

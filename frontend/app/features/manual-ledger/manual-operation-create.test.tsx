@@ -366,19 +366,13 @@ function createdOperation(operationType: "income" | "expense" | "transfer") {
   return {
     id: operationId,
     version: 1,
+    operationType,
     operationDate: "2026-07-20",
     description: "Проценты по вкладу",
     status: "confirmed",
     money: {
       amount: "1250.50",
       currency: "RUB",
-      operationType,
-      entryDirection:
-        operationType === "income"
-          ? "inflow"
-          : operationType === "expense"
-            ? "outflow"
-            : "transfer",
     },
     account:
       operationType === "transfer"

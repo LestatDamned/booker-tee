@@ -8,7 +8,12 @@ from app.features.categories.models import Category
 from app.features.categories.service import CategoryError, CategoryService
 from app.features.imports.models import RawTransaction
 from app.features.ledger.domain.raw_transactions import raw_transaction_effective_account_id
-from app.features.ledger.errors import LedgerPostingError
+from app.features.ledger.errors import (
+    AccountUnavailableError,
+    CategoryUnavailableError,
+    LedgerPostingError,
+    PropertyUnavailableError,
+)
 from app.features.properties.models import Property
 from app.features.properties.service import PropertyError, PropertyService
 
@@ -22,7 +27,7 @@ class LedgerReferenceResolver:
     async def get_account(self, workspace_id: UUID, account_id: UUID) -> Account:
         account = await self.accounts.get_for_workspace(workspace_id, account_id)
         if account is None:
-            raise LedgerPostingError("Account is not available in this workspace.")
+            raise AccountUnavailableError()
         return account
 
     async def get_account_for_raw_transaction(
@@ -44,7 +49,7 @@ class LedgerReferenceResolver:
             if category_id is not None:
                 category = await self.categories.get_for_workspace(workspace_id, category_id)
                 if category is None:
-                    raise LedgerPostingError("Category is not available in this workspace.")
+                    raise CategoryUnavailableError()
                 return category
             return await self.categories.get_uncategorized(workspace_id)
         except CategoryError as exc:
@@ -64,4 +69,4 @@ class LedgerReferenceResolver:
         try:
             return await self.properties.get_for_workspace(workspace_id, property_id)
         except PropertyError as exc:
-            raise LedgerPostingError(str(exc)) from exc
+            raise PropertyUnavailableError() from exc

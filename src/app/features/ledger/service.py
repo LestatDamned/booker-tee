@@ -20,6 +20,7 @@ from app.features.ledger.application.listing import (
     ManualOperationFilters,
     normalize_pagination,
 )
+from app.features.ledger.application.manual_operation_dtos import ManualOperationReadDto
 from app.features.ledger.application.manual_operations import ManualOperationUseCase
 from app.features.ledger.application.raw_transaction_posting import RawTransactionPostingUseCase
 from app.features.ledger.application.transfer_suggestions import (
@@ -30,9 +31,9 @@ from app.features.ledger.application.transfer_suggestions import (
 from app.features.ledger.mapping.dto import (
     AccountLedgerDetailView,
     LedgerViewMapper,
-    ManualOperationView,
     OperationRefView,
 )
+from app.features.ledger.mapping.manual_operations import ManualOperationReadDtoMapper
 from app.features.ledger.models import Operation, OperationSource
 from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
@@ -105,7 +106,7 @@ class LedgerPostingService:
         workspace_id: UUID,
         filters: ManualOperationFilters | None = None,
         pagination: LedgerPagination | None = None,
-    ) -> tuple[list[ManualOperationView], LedgerPage]:
+    ) -> tuple[list[ManualOperationReadDto], LedgerPage]:
         normalized_filters = filters or ManualOperationFilters()
         normalized_pagination = pagination or normalize_pagination(1, 50)
         operation_count = await self.ledger.count_manual_operations_for_workspace(
@@ -118,7 +119,7 @@ class LedgerPostingService:
             pagination=normalized_pagination,
         )
         return (
-            [LedgerViewMapper.manual_operation_from_model(operation) for operation in operations],
+            [ManualOperationReadDtoMapper.from_model(operation) for operation in operations],
             LedgerPage(
                 page=normalized_pagination.page,
                 per_page=normalized_pagination.per_page,
@@ -131,11 +132,11 @@ class LedgerPostingService:
         *,
         workspace_id: UUID,
         operation_id: UUID,
-    ) -> ManualOperationView | None:
+    ) -> ManualOperationReadDto | None:
         operation = await self.ledger.get_operation_for_workspace(workspace_id, operation_id)
         if operation is None or operation.source != OperationSource.MANUAL:
             return None
-        return LedgerViewMapper.manual_operation_from_model(operation)
+        return ManualOperationReadDtoMapper.from_model(operation)
 
     async def get_imported_operation_review(
         self,

@@ -1453,8 +1453,8 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
-        /** ManualIncomeExpenseCreateRequest */
-        ManualIncomeExpenseCreateRequest: {
+        /** ManualIncomeExpenseCreateApiRequest */
+        ManualIncomeExpenseCreateApiRequest: {
             /** Amount */
             amount: string;
             /**
@@ -1482,8 +1482,8 @@ export interface components {
             /** Propertyid */
             propertyId?: string | null;
         };
-        /** ManualIncomeExpenseUpdateRequest */
-        ManualIncomeExpenseUpdateRequest: {
+        /** ManualIncomeExpenseUpdateApiRequest */
+        ManualIncomeExpenseUpdateApiRequest: {
             /** Amount */
             amount: string;
             /**
@@ -1513,8 +1513,8 @@ export interface components {
             /** Propertyid */
             propertyId?: string | null;
         };
-        /** ManualLedgerAccountReference */
-        ManualLedgerAccountReference: {
+        /** ManualLedgerAccountReferenceApiResponse */
+        ManualLedgerAccountReferenceApiResponse: {
             /**
              * Id
              * Format: uuid
@@ -1525,49 +1525,43 @@ export interface components {
             /** Currency */
             currency: string;
         };
-        /** ManualLedgerCapabilities */
-        ManualLedgerCapabilities: {
+        /** ManualLedgerCapabilitiesApiResponse */
+        ManualLedgerCapabilitiesApiResponse: {
             /** Cancreate */
             canCreate: boolean;
             /** Readonlyreason */
             readonlyReason?: string | null;
         };
-        /** ManualLedgerFilterOptions */
-        ManualLedgerFilterOptions: {
+        /** ManualLedgerFilterOptionsApiResponse */
+        ManualLedgerFilterOptionsApiResponse: {
             /** Accounts */
-            accounts: components["schemas"]["ManualLedgerAccountReference"][];
+            accounts: components["schemas"]["ManualLedgerAccountReferenceApiResponse"][];
             /** Categories */
-            categories: components["schemas"]["ManualLedgerNamedReference"][];
+            categories: components["schemas"]["ManualLedgerNamedReferenceApiResponse"][];
             /** Properties */
-            properties: components["schemas"]["ManualLedgerNamedReference"][];
+            properties: components["schemas"]["ManualLedgerNamedReferenceApiResponse"][];
             /** Perpage */
             perPage: number[];
         };
-        /** ManualLedgerListResponse */
-        ManualLedgerListResponse: {
+        /** ManualLedgerListApiResponse */
+        ManualLedgerListApiResponse: {
             /** Items */
-            items: components["schemas"]["ManualOperationResponse"][];
-            pagination: components["schemas"]["ManualLedgerPaginationResponse"];
-            filterOptions: components["schemas"]["ManualLedgerFilterOptions"];
-            capabilities: components["schemas"]["ManualLedgerCapabilities"];
+            items: components["schemas"]["ManualOperationApiResponse"][];
+            pagination: components["schemas"]["ManualLedgerPaginationApiResponse"];
+            filterOptions: components["schemas"]["ManualLedgerFilterOptionsApiResponse"];
+            capabilities: components["schemas"]["ManualLedgerCapabilitiesApiResponse"];
             /** Targetoperationid */
             targetOperationId?: string | null;
         };
-        /** ManualLedgerMoney */
-        ManualLedgerMoney: {
+        /** ManualLedgerMoneyApiResponse */
+        ManualLedgerMoneyApiResponse: {
             /** Amount */
             amount: string;
             /** Currency */
             currency: string;
-            operationType: components["schemas"]["OperationType"];
-            /**
-             * Entrydirection
-             * @enum {string}
-             */
-            entryDirection: "inflow" | "outflow" | "transfer";
         };
-        /** ManualLedgerNamedReference */
-        ManualLedgerNamedReference: {
+        /** ManualLedgerNamedReferenceApiResponse */
+        ManualLedgerNamedReferenceApiResponse: {
             /**
              * Id
              * Format: uuid
@@ -1576,8 +1570,8 @@ export interface components {
             /** Name */
             name: string;
         };
-        /** ManualLedgerPaginationResponse */
-        ManualLedgerPaginationResponse: {
+        /** ManualLedgerPaginationApiResponse */
+        ManualLedgerPaginationApiResponse: {
             /** Page */
             page: number;
             /** Perpage */
@@ -1591,8 +1585,34 @@ export interface components {
             /** Hasnext */
             hasNext: boolean;
         };
-        /** ManualOperationCapabilities */
-        ManualOperationCapabilities: {
+        /** ManualOperationApiResponse */
+        ManualOperationApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Version */
+            version: number;
+            operationType: components["schemas"]["OperationType"];
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /** Description */
+            description: string;
+            status: components["schemas"]["OperationStatus"];
+            money: components["schemas"]["ManualLedgerMoneyApiResponse"] | null;
+            account: components["schemas"]["ManualLedgerNamedReferenceApiResponse"] | null;
+            sourceAccount: components["schemas"]["ManualLedgerNamedReferenceApiResponse"] | null;
+            destinationAccount: components["schemas"]["ManualLedgerNamedReferenceApiResponse"] | null;
+            category: components["schemas"]["ManualLedgerNamedReferenceApiResponse"] | null;
+            property: components["schemas"]["ManualLedgerNamedReferenceApiResponse"] | null;
+            capabilities: components["schemas"]["ManualOperationCapabilitiesApiResponse"];
+        };
+        /** ManualOperationCapabilitiesApiResponse */
+        ManualOperationCapabilitiesApiResponse: {
             /** Canedit */
             canEdit: boolean;
             /** Cancancel */
@@ -1604,40 +1624,18 @@ export interface components {
             /** Readonlyreason */
             readonlyReason?: string | null;
         };
-        /** ManualOperationEditResponse */
-        ManualOperationEditResponse: {
-            operation: components["schemas"]["ManualOperationResponse"];
-            filterOptions: components["schemas"]["ManualLedgerFilterOptions"];
+        /** ManualOperationEditApiResponse */
+        ManualOperationEditApiResponse: {
+            operation: components["schemas"]["ManualOperationApiResponse"];
+            filterOptions: components["schemas"]["ManualLedgerFilterOptionsApiResponse"];
         };
-        /** ManualOperationLifecycleRequest */
-        ManualOperationLifecycleRequest: {
+        /** ManualOperationLifecycleApiRequest */
+        ManualOperationLifecycleApiRequest: {
             /** Version */
             version: number;
         };
-        /** ManualOperationResponse */
-        ManualOperationResponse: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Version */
-            version: number;
-            /** Operationdate */
-            operationDate: string;
-            /** Description */
-            description: string;
-            status: components["schemas"]["OperationStatus"];
-            money: components["schemas"]["ManualLedgerMoney"] | null;
-            account: components["schemas"]["ManualLedgerNamedReference"] | null;
-            sourceAccount: components["schemas"]["ManualLedgerNamedReference"] | null;
-            destinationAccount: components["schemas"]["ManualLedgerNamedReference"] | null;
-            category: components["schemas"]["ManualLedgerNamedReference"] | null;
-            property: components["schemas"]["ManualLedgerNamedReference"] | null;
-            capabilities: components["schemas"]["ManualOperationCapabilities"];
-        };
-        /** ManualTransferCreateRequest */
-        ManualTransferCreateRequest: {
+        /** ManualTransferCreateApiRequest */
+        ManualTransferCreateApiRequest: {
             /** Amount */
             amount: string;
             /**
@@ -1666,8 +1664,8 @@ export interface components {
              */
             destinationAccountId: string;
         };
-        /** ManualTransferUpdateRequest */
-        ManualTransferUpdateRequest: {
+        /** ManualTransferUpdateApiRequest */
+        ManualTransferUpdateApiRequest: {
             /** Amount */
             amount: string;
             /**
@@ -1839,7 +1837,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ManualLedgerListResponse"];
+                    "application/json": components["schemas"]["ManualLedgerListApiResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1864,7 +1862,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ManualIncomeExpenseCreateRequest"] | components["schemas"]["ManualTransferCreateRequest"];
+                "application/json": components["schemas"]["ManualIncomeExpenseCreateApiRequest"] | components["schemas"]["ManualTransferCreateApiRequest"];
             };
         };
         responses: {
@@ -1874,7 +1872,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ManualOperationResponse"];
+                    "application/json": components["schemas"]["ManualOperationApiResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -1932,7 +1930,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ManualOperationEditResponse"];
+                    "application/json": components["schemas"]["ManualOperationEditApiResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -1993,7 +1991,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ManualIncomeExpenseUpdateRequest"] | components["schemas"]["ManualTransferUpdateRequest"];
+                "application/json": components["schemas"]["ManualIncomeExpenseUpdateApiRequest"] | components["schemas"]["ManualTransferUpdateApiRequest"];
             };
         };
         responses: {
@@ -2003,7 +2001,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ManualOperationResponse"];
+                    "application/json": components["schemas"]["ManualOperationApiResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -2064,7 +2062,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ManualOperationLifecycleRequest"];
+                "application/json": components["schemas"]["ManualOperationLifecycleApiRequest"];
             };
         };
         responses: {
@@ -2133,7 +2131,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ManualOperationLifecycleRequest"];
+                "application/json": components["schemas"]["ManualOperationLifecycleApiRequest"];
             };
         };
         responses: {
@@ -2143,7 +2141,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ManualOperationResponse"];
+                    "application/json": components["schemas"]["ManualOperationApiResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -2204,7 +2202,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ManualOperationLifecycleRequest"];
+                "application/json": components["schemas"]["ManualOperationLifecycleApiRequest"];
             };
         };
         responses: {
@@ -2214,7 +2212,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ManualOperationResponse"];
+                    "application/json": components["schemas"]["ManualOperationApiResponse"];
                 };
             };
             /** @description Unauthorized */

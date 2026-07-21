@@ -7,11 +7,11 @@ import {
 } from "./manual-ledger-api";
 
 export type ManualOperationCreateRequest =
-  | components["schemas"]["ManualIncomeExpenseCreateRequest"]
-  | components["schemas"]["ManualTransferCreateRequest"];
+  | components["schemas"]["ManualIncomeExpenseCreateApiRequest"]
+  | components["schemas"]["ManualTransferCreateApiRequest"];
 export type ManualOperationUpdateRequest =
-  | components["schemas"]["ManualIncomeExpenseUpdateRequest"]
-  | components["schemas"]["ManualTransferUpdateRequest"];
+  | components["schemas"]["ManualIncomeExpenseUpdateApiRequest"]
+  | components["schemas"]["ManualTransferUpdateApiRequest"];
 export type ManualOperationLifecycleAction = "cancel" | "restore";
 const apiErrorSchema = z.object({
   error: z.object({

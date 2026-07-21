@@ -7,13 +7,10 @@ from uuid import UUID, uuid4
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import ApiRequestContext, get_api_request_context
-from app.api.v1.manual_ledger.references import ManualLedgerReferences
-from app.api.v1.manual_ledger.router import (
+from app.api.v1.manual_ledger.dependencies import (
     get_ledger_posting_service,
     get_manual_ledger_reference_reader,
 )
-from app.features.accounts.models import Account, AccountType
-from app.features.categories.models import Category, CategoryKind
 from app.features.ledger.application.commands import (
     CreateManualIncomeExpenseCommand,
     CreateManualTransferCommand,
@@ -24,19 +21,24 @@ from app.features.ledger.application.listing import (
     LedgerPagination,
     ManualOperationFilters,
 )
+from app.features.ledger.application.manual_operation_dtos import (
+    AccountReferenceReadDto,
+    ManualOperationMoneyReadDto,
+    ManualOperationReadDto,
+)
+from app.features.ledger.application.manual_operation_references import (
+    ManualLedgerAccountOptionDto,
+    ManualLedgerNamedOptionDto,
+    ManualLedgerReferenceOptionsDto,
+)
 from app.features.ledger.errors import (
+    AccountUnavailableError,
     LedgerPostingError,
     ManualOperationLifecycleConflictError,
     OperationIdempotencyConflictError,
     OperationVersionConflictError,
 )
-from app.features.ledger.mapping.dto import (
-    AccountView,
-    ManualOperationView,
-    OperationRefMoneyEntryView,
-)
 from app.features.ledger.models import OperationStatus, OperationType
-from app.features.properties.models import Property, PropertyStatus
 from app.features.users.models import User
 from app.features.workspaces.models import (
     Workspace,
@@ -50,7 +52,7 @@ from app.main import create_app
 
 
 class LedgerPostingServiceStub:
-    def __init__(self, operations: list[ManualOperationView]) -> None:
+    def __init__(self, operations: list[ManualOperationReadDto]) -> None:
         self.operations = operations
         self.workspace_ids: list[UUID] = []
         self.filters: list[ManualOperationFilters] = []
@@ -68,7 +70,7 @@ class LedgerPostingServiceStub:
         workspace_id: UUID,
         filters: ManualOperationFilters,
         pagination: LedgerPagination,
-    ) -> tuple[list[ManualOperationView], LedgerPage]:
+    ) -> tuple[list[ManualOperationReadDto], LedgerPage]:
         self.workspace_ids.append(workspace_id)
         self.filters.append(filters)
         self.paginations.append(pagination)
@@ -107,7 +109,7 @@ class LedgerPostingServiceStub:
         *,
         workspace_id: UUID,
         operation_id: UUID,
-    ) -> ManualOperationView | None:
+    ) -> ManualOperationReadDto | None:
         self.workspace_ids.append(workspace_id)
         return next(
             (operation for operation in self.operations if operation.id == operation_id),
@@ -196,13 +198,13 @@ class LedgerPostingServiceStub:
 class ManualLedgerReferenceReaderStub:
     def __init__(self) -> None:
         self.workspace_ids: list[UUID] = []
-        self.references = ManualLedgerReferences(
+        self.references = ManualLedgerReferenceOptionsDto(
             accounts=[],
             categories=[],
             properties=[],
         )
 
-    async def read(self, workspace_id: UUID) -> ManualLedgerReferences:
+    async def read(self, workspace_id: UUID) -> ManualLedgerReferenceOptionsDto:
         self.workspace_ids.append(workspace_id)
         return self.references
 
@@ -224,14 +226,13 @@ def test_manual_ledger_returns_decimal_money_and_explicit_semantics() -> None:
     assert payload["items"][0] == {
         "id": str(operation.id),
         "version": 3,
+        "operationType": "expense",
         "operationDate": "2026-07-20",
         "description": "Аренда за июль",
         "status": "confirmed",
         "money": {
             "amount": "65000.00",
             "currency": "RUB",
-            "operationType": "expense",
-            "entryDirection": "outflow",
         },
         "account": {
             "id": str(primary_account_id(operation)),
@@ -290,8 +291,7 @@ def test_manual_ledger_keeps_transfer_separate_from_income_and_expense() -> None
 
     money = response.json()["items"][0]["money"]
     assert money["amount"] == "65000.00"
-    assert money["operationType"] == "transfer"
-    assert money["entryDirection"] == "transfer"
+    assert response.json()["items"][0]["operationType"] == "transfer"
 
 
 def test_manual_ledger_tolerantly_normalizes_invalid_query_values() -> None:
@@ -394,7 +394,7 @@ def test_manual_income_create_dispatches_workspace_scoped_command() -> None:
 
     assert response.status_code == 201
     assert response.json()["id"] == str(operation.id)
-    assert response.json()["money"]["operationType"] == "income"
+    assert response.json()["operationType"] == "income"
     assert service.workspace_ids == [workspace_id, workspace_id]
     assert service.income_commands == [
         CreateManualIncomeExpenseCommand(
@@ -431,9 +431,8 @@ def test_manual_expense_create_preserves_expense_semantics() -> None:
     assert response.json()["money"] == {
         "amount": "65000.00",
         "currency": "RUB",
-        "operationType": "expense",
-        "entryDirection": "outflow",
     }
+    assert response.json()["operationType"] == "expense"
     assert service.workspace_ids == [workspace_id, workspace_id]
     assert service.income_commands[0].operation_type is OperationType.EXPENSE
     assert service.income_commands[0].amount == Decimal("881.12")
@@ -466,7 +465,7 @@ def test_manual_income_create_returns_field_errors_without_calling_service() -> 
 def test_manual_income_create_maps_workspace_reference_error() -> None:
     operation = manual_operation(OperationType.INCOME)
     app, service, _, _ = manual_ledger_app([operation])
-    service.create_error = LedgerPostingError("Account is not available in this workspace.")
+    service.create_error = AccountUnavailableError()
 
     with TestClient(app) as client:
         response = client.post(
@@ -534,10 +533,10 @@ def test_manual_transfer_create_dispatches_server_owned_transfer_command() -> No
     operation = manual_operation(OperationType.TRANSFER)
     app, service, _, workspace_id = manual_ledger_app([operation])
     idempotency_key = uuid4()
-    assert operation.source_entry is not None
-    assert operation.destination_entry is not None
-    source_account_id = operation.source_entry.account_id
-    destination_account_id = operation.destination_entry.account_id
+    assert operation.source_account is not None
+    assert operation.destination_account is not None
+    source_account_id = operation.source_account.id
+    destination_account_id = operation.destination_account.id
 
     with TestClient(app) as client:
         response = client.post(
@@ -557,9 +556,8 @@ def test_manual_transfer_create_dispatches_server_owned_transfer_command() -> No
     assert response.json()["money"] == {
         "amount": "65000.00",
         "currency": "RUB",
-        "operationType": "transfer",
-        "entryDirection": "transfer",
     }
+    assert response.json()["operationType"] == "transfer"
     assert service.workspace_ids == [workspace_id, workspace_id]
     assert service.transfer_commands == [
         CreateManualTransferCommand(
@@ -798,7 +796,7 @@ def test_manual_delete_requires_write_permission() -> None:
 
 
 def manual_ledger_app(
-    operations: list[ManualOperationView],
+    operations: list[ManualOperationReadDto],
     *,
     role: WorkspaceRole = WorkspaceRole.OWNER,
 ):
@@ -812,33 +810,25 @@ def manual_ledger_app(
     return app, service, reference_reader, context.workspace.workspace.id
 
 
-def filter_references(workspace_id: UUID) -> ManualLedgerReferences:
-    return ManualLedgerReferences(
+def filter_references(workspace_id: UUID) -> ManualLedgerReferenceOptionsDto:
+    return ManualLedgerReferenceOptionsDto(
         accounts=[
-            Account(
+            ManualLedgerAccountOptionDto(
                 id=uuid4(),
-                workspace_id=workspace_id,
                 name="Основной счёт",
-                type=AccountType.CHECKING,
                 currency="RUB",
-                initial_balance=Decimal("0.00"),
             )
         ],
         categories=[
-            Category(
+            ManualLedgerNamedOptionDto(
                 id=uuid4(),
-                workspace_id=workspace_id,
                 name="Аренда",
-                kind=CategoryKind.INCOME,
-                sort_order=100,
             )
         ],
         properties=[
-            Property(
+            ManualLedgerNamedOptionDto(
                 id=uuid4(),
-                workspace_id=workspace_id,
                 name="Квартира",
-                status=PropertyStatus.ACTIVE,
             )
         ],
     )
@@ -871,50 +861,37 @@ def api_context(*, role: WorkspaceRole) -> ApiRequestContext:
     )
 
 
-def manual_operation(operation_type: OperationType) -> ManualOperationView:
-    source_account = account_view("Основной счёт")
-    destination_account = account_view("Накопительный счёт")
-    primary_entry = OperationRefMoneyEntryView(
-        account_id=source_account.id,
-        account=source_account,
-        amount=Decimal("-65000.00"),
-    )
+def manual_operation(operation_type: OperationType) -> ManualOperationReadDto:
+    source_account = account_reference("Основной счёт")
+    destination_account = account_reference("Накопительный счёт")
     is_transfer = operation_type == OperationType.TRANSFER
-    return ManualOperationView(
+    return ManualOperationReadDto(
         id=uuid4(),
         version=3,
-        type=operation_type,
+        operation_type=operation_type,
         status=OperationStatus.CONFIRMED,
         operation_date=date(2026, 7, 20),
         description="Аренда за июль",
-        category_id=None,
-        property_id=None,
+        money=ManualOperationMoneyReadDto(
+            amount=Decimal("65000.00"),
+            currency="RUB",
+        ),
+        account=None if is_transfer else source_account,
+        source_account=source_account if is_transfer else None,
+        destination_account=destination_account if is_transfer else None,
         category=None,
         property=None,
-        primary_entry=primary_entry,
-        source_entry=primary_entry if is_transfer else None,
-        destination_entry=OperationRefMoneyEntryView(
-            account_id=destination_account.id,
-            account=destination_account,
-            amount=Decimal("65000.00"),
-        )
-        if is_transfer
-        else None,
-        edit_amount=Decimal("65000.00"),
     )
 
 
-def primary_account_id(operation: ManualOperationView) -> UUID:
-    assert operation.primary_entry is not None
-    return operation.primary_entry.account_id
+def primary_account_id(operation: ManualOperationReadDto) -> UUID:
+    assert operation.account is not None
+    return operation.account.id
 
 
-def account_view(name: str) -> AccountView:
-    return AccountView(
+def account_reference(name: str) -> AccountReferenceReadDto:
+    return AccountReferenceReadDto(
         id=uuid4(),
         name=name,
-        type=AccountType.CHECKING,
         currency="RUB",
-        is_active=True,
-        initial_balance=Decimal("0.00"),
     )
