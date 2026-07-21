@@ -52,6 +52,7 @@ coverage.xml
 cover/
 
 # React frontend
+/node_modules/
 frontend/node_modules/
 frontend/build/
 frontend/.react-router/

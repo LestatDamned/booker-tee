@@ -30,6 +30,7 @@ const requiredThemeTokens = [
   "--color-working-surface",
   "--color-target-surface",
   "--color-recent-surface",
+  "--color-overlay",
   "--shadow-surface",
 ];
 

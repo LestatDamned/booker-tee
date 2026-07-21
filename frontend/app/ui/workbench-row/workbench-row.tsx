@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 import { formatIsoDate } from "../../shared/date/format-date";
 import styles from "./workbench-row.module.css";
@@ -14,6 +14,7 @@ type WorkbenchRowProps = {
   expansionHidden?: boolean;
   id?: string;
   meta?: ReactNode;
+  onAction?: () => void;
   signals?: ReactNode;
   state?: WorkbenchRowState;
   value?: ReactNode;
@@ -28,16 +29,27 @@ export function WorkbenchRow({
   expansionHidden = false,
   id,
   meta,
+  onAction,
   signals,
   state = "default",
   value,
 }: WorkbenchRowProps) {
+  function notifyAction(event: MouseEvent<HTMLDivElement>) {
+    if (event.target instanceof Element && event.target.closest("button")) {
+      onAction?.();
+    }
+  }
+
   return (
     <article
+      aria-current={state === "target" ? "true" : undefined}
       className={`${styles.row} ${styles[state]}`}
       data-state={state}
       id={id}
     >
+      {state !== "default" ? (
+        <span className="visually-hidden">{rowStateLabel(state)}</span>
+      ) : null}
       <div className={styles.main}>
         <header className={styles.header}>
           <div>
@@ -54,7 +66,11 @@ export function WorkbenchRow({
         {meta ? <div className={styles.meta}>{meta}</div> : null}
         {signals ? <div className={styles.signals}>{signals}</div> : null}
       </div>
-      {aside ? <aside className={styles.aside}>{aside}</aside> : null}
+      {aside ? (
+        <div className={styles.aside} onClickCapture={notifyAction}>
+          {aside}
+        </div>
+      ) : null}
       {expansion ? (
         <div className={styles.expansion} hidden={expansionHidden}>
           {expansion}
@@ -62,4 +78,13 @@ export function WorkbenchRow({
       ) : null}
     </article>
   );
+}
+
+function rowStateLabel(state: Exclude<WorkbenchRowState, "default">): string {
+  const labels = {
+    recent: "Недавно изменённая операция.",
+    target: "Выбранная операция.",
+    working: "Операция открыта для работы.",
+  } satisfies Record<Exclude<WorkbenchRowState, "default">, string>;
+  return labels[state];
 }

@@ -2,7 +2,8 @@ import type { ComponentPropsWithRef, ReactNode } from "react";
 
 import styles from "./button.module.css";
 
-export type ButtonTone = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonTone =
+  "primary" | "secondary" | "ghost" | "dangerSecondary" | "danger";
 
 type ButtonProps = Omit<ComponentPropsWithRef<"button">, "className"> & {
   children: ReactNode;
@@ -29,6 +30,7 @@ export function Button({
       {...buttonProps}
       aria-busy={isLoading || undefined}
       className={classes}
+      data-tone={tone}
       disabled={disabled || isLoading}
       type={type}
     >

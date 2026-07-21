@@ -156,6 +156,40 @@ applied state и единственным источником для server req
 Setter планирует новый render. Поэтому сериализация выполняется из текущего
 state в submit handler, а не чтением DOM вручную.
 
+## Form composition: аналогия с Python
+
+`Field`, `Fieldset`, `FormSection`, `FormGrid` и `FormActions` — маленькие
+компоненты разметки. Они похожи на хорошо именованные Python-функции, которые
+задают общий протокол, но не знают бизнес-сценарий. Например, `Field` связывает
+label, hint и error, однако не знает, что `amount` является денежной суммой.
+
+Feature-компонент `ManualOperationFields` явно собирает эти части и хранит
+условие `operationType === "transfer"`. Поэтому бизнес-ветвление видно в одном
+месте, а повторяющиеся CSS и accessibility rules не копируются.
+
+Radio button — controlled input немного другого вида:
+
+```tsx
+<input
+  checked={draft.operationType === "expense"}
+  onChange={() => setDraft({ ...draft, operationType: "expense" })}
+  type="radio"
+/>
+```
+
+`checked` здесь играет ту же роль, что `value` у text input. Объект
+`{ ...draft, operationType: "expense" }` создаёт новый объект из старых полей с
+одной заменой; он не мутирует существующий draft. Это ближайший аналог
+`dataclasses.replace(draft, operation_type="expense")`.
+
+`fieldset` и `legend` — не декоративные обёртки. Browser и screen reader
+понимают, что несколько radio controls отвечают на один вопрос. CSS Grid только
+раскладывает поля и не должен менять их DOM-порядок.
+
+При server validation `FormErrorSummary` объявляет общую ошибку и даёт ссылки на
+поля, а inline error остаётся рядом с control. Это две разные задачи: быстро
+сообщить, что submit не удался, и объяснить, как исправить конкретное значение.
+
 ## Route splitting и отдельный loader module
 
 Production build React Router делит route module на отдельные chunks: код
@@ -220,10 +254,10 @@ retry.
 
 ## Lazy edit: snapshot и draft
 
-`ManualOperationEdit` не получает тяжёлую форму из list response. При первом
-открытии `useEffect` запускает GET edit snapshot, а `useRef` отмечает, что запрос
-уже был начат. Поэтому обычное закрытие и повторное открытие не загружают форму
-заново и сохраняют несохранённый draft.
+`ManualOperationEdit` не получает тяжёлую форму из list response. После открытия
+правой рабочей панели `useEffect` запускает GET edit snapshot, а `useRef`
+отмечает, что запрос уже был начат внутри текущего экземпляра формы. Закрытие
+панели размонтирует форму; следующее открытие намеренно получает свежую версию.
 
 Состояние edit panel — discriminated union: `idle`, `loading`, `load_error` или
 `ready`. Только ветка `ready` содержит одновременно server snapshot, изменяемый
@@ -288,10 +322,10 @@ total с backend. При `409` строка не исчезает и предл�
 
 ## Mutation lock, focus и retry
 
-Одна строка manual ledger владеет общим `mutationPending`. Дочерние edit,
-cancel/restore и delete сообщают о начале и завершении запроса через
-`onPendingChange`. Пока один запрос выполняется, конфликтующие кнопки этой строки
-disabled, но форма создания и соседние строки продолжают работать.
+Одна строка manual ledger владеет `mutationPending` для edit, lifecycle и delete
+действий. Поэтому редактор раскрывается внутри этой строки и использует тот же
+локальный lock. Форма create находится выше — в page-level `WorkbenchPanel` — и
+сообщает о pending-состоянии странице через `onPendingChange`.
 
 Python-аналогия — короткоживущий lock у одного aggregate instance. Граница
 аналогии: React lock улучшает UX и предотвращает обычный двойной click, но не
@@ -309,3 +343,27 @@ edit/lifecycle/delete — на server version.
 заменяет snapshot данными backend. Это похоже на повтор команды после
 `ConnectionError`: клиент не делает вывод, применена ли команда, только из факта
 разрыва соединения.
+
+## Состояние следует за областью действия
+
+Страница хранит три разных вида состояния отдельно:
+
+```ts
+const [createOpen, setCreateOpen] = useState(false);
+const [filtersOpen, setFiltersOpen] = useState(false);
+const [editingOperationId, setEditingOperationId] = useState<string | null>(
+  null,
+);
+```
+
+Python-аналог — два `bool` и `str | None`. Они разделены не случайно: создание —
+page-level dialog, фильтры — состояние коллекции, редактирование принадлежит
+конкретной строке. Один общий `panel.kind` создавал бы ложное впечатление, что у
+этих задач одинаковая геометрия и одинаковые правила.
+
+Сравнение `editingOperationId === operation.id` передаёт `isEditing` только одной
+строке. Строка рендерит editor через `WorkbenchRow.expansion`, поэтому форма
+остаётся рядом с датой, суммой и описанием изменяемой операции. `WorkbenchPanel`
+по-прежнему отвечает за dialog semantics создания, а строка — за закрытие своего
+editor и возврат focus. Это тот же принцип владения состоянием, что и в Python:
+состояние должно находиться у объекта с подходящей областью ответственности.

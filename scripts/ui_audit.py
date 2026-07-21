@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import socket
 import subprocess
 import sys
@@ -330,7 +331,7 @@ def prepare_realistic_scenario(
             timeout=PAGE_TIMEOUT_MS
         )
         create_form = page.locator("#manual-operation-create-panel")
-        create_form.locator("#manual-operation-type").select_option("expense")
+        create_form.get_by_role("radio", name="Расход", exact=True).check()
         create_form.locator("#manual-operation-account").select_option(
             label=f"{account_name} · RUB"
         )
@@ -608,7 +609,9 @@ def assert_react_manual_ledger(
             errors.extend(assert_react_manual_readonly(page, base_url=base_url))
             errors.extend(assert_react_manual_missing_session(page, base_url=base_url))
 
-    disclosure = page.get_by_role("button", name="Показать", exact=True)
+    disclosure = page.get_by_role("button", name="Показать фильтры", exact=True)
+    if page.locator("#manual-ledger-search").count() == 0:
+        errors.append("React manual ledger toolbar search was not found")
     if disclosure.count() == 0:
         errors.append("React manual ledger filter disclosure was not found")
     else:
@@ -620,7 +623,6 @@ def assert_react_manual_ledger(
             errors.append(f"React manual ledger filters did not open: {short_error(exc)}")
         else:
             for control_id in (
-                "manual-filter-search",
                 "manual-filter-date-from",
                 "manual-filter-date-to",
                 "manual-filter-type",
@@ -628,7 +630,6 @@ def assert_react_manual_ledger(
                 "manual-filter-account",
                 "manual-filter-category",
                 "manual-filter-property",
-                "manual-filter-per-page",
             ):
                 if panel.locator(f"#{control_id}").count() == 0:
                     errors.append(f"React manual ledger filter {control_id} was not found")
@@ -654,7 +655,7 @@ def assert_react_manual_ledger(
         target = page.locator('article[data-state="target"]')
         if target.count() != 1:
             errors.append("React manual ledger deep link did not mark one target row")
-        target_disclosure = page.get_by_role("button", name="Показать", exact=True)
+        target_disclosure = page.get_by_role("button", name="Показать фильтры", exact=True)
         if target_disclosure.count() == 1:
             target_disclosure.click(timeout=PAGE_TIMEOUT_MS)
         reset = page.get_by_role("link", name="Сбросить", exact=True)
@@ -664,7 +665,7 @@ def assert_react_manual_ledger(
             page.reload(wait_until="networkidle", timeout=PAGE_TIMEOUT_MS)
             if page.locator('article[data-state="target"]').count() != 1:
                 errors.append("React manual ledger refresh lost the target row")
-            filter_disclosure = page.get_by_role("button", name="Показать", exact=True)
+            filter_disclosure = page.get_by_role("button", name="Показать фильтры", exact=True)
             if filter_disclosure.count() == 1:
                 filter_disclosure.click(timeout=PAGE_TIMEOUT_MS)
             reset = page.get_by_role("link", name="Сбросить", exact=True)
@@ -741,7 +742,7 @@ def assert_react_manual_missing_session(page: Page, *, base_url: str) -> list[st
     browser = page.context.browser
     if browser is None:
         return ["React missing-session audit could not create an isolated browser context"]
-    context = browser.new_context(viewport=page.viewport_size)
+    context = browser.new_context(viewport=page.viewport_size, locale="ru-RU")
     session_page = context.new_page()
     try:
         session_page.goto(
@@ -774,7 +775,7 @@ def assert_react_manual_create(page: Page) -> list[str]:
     except PlaywrightError as exc:
         return [f"React manual income/expense form did not open: {short_error(exc)}"]
 
-    form.locator("#manual-operation-type").select_option("expense")
+    form.get_by_role("radio", name="Расход", exact=True).check()
     account = form.locator("#manual-operation-account")
     if account.locator("option").count() < 2:
         return ["React manual income/expense form has no account option"]
@@ -823,7 +824,7 @@ def assert_react_manual_create(page: Page) -> list[str]:
     disclosure = page.get_by_role("button", name="Добавить операцию", exact=True)
     disclosure.click(timeout=PAGE_TIMEOUT_MS)
     form = page.locator("#manual-operation-create-panel")
-    form.locator("#manual-operation-type").select_option("transfer")
+    form.get_by_role("radio", name="Перевод", exact=True).check()
     source_account = form.locator("#manual-operation-account")
     if source_account.locator("option").count() < 3:
         return [*errors, "React manual transfer form has fewer than two accounts"]
@@ -863,13 +864,13 @@ def assert_react_manual_edit(page: Page, *, check_conflict: bool) -> list[str]:
         return ["React manual edit target was not found"]
     row = heading.locator("xpath=ancestor::article[1]")
     row.get_by_role("button", name="Исправить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
-    panel = row.locator('section[id^="manual-operation-edit-panel-"]')
+    panel = page.locator('section[id^="manual-operation-edit-panel-"]')
     try:
-        panel.get_by_label("Сумма *").wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+        panel.get_by_label(re.compile(r"^Сумма")).wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
     except PlaywrightError as exc:
         return [f"React manual lazy edit did not load: {short_error(exc)}"]
 
-    amount = panel.get_by_label("Сумма *")
+    amount = panel.get_by_label(re.compile(r"^Сумма"))
     amount.fill("0")
     panel.get_by_role("button", name="Сохранить изменения", exact=True).click(
         timeout=PAGE_TIMEOUT_MS
@@ -920,7 +921,7 @@ def assert_react_manual_edit_conflict(
         "xpath=ancestor::article[1]"
     )
     row.get_by_role("button", name="Исправить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
-    panel = row.locator('section[id^="manual-operation-edit-panel-"]')
+    panel = page.locator('section[id^="manual-operation-edit-panel-"]')
     panel.get_by_label("Описание").wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
     user_draft = "UI audit: React stale draft"
     concurrent_value = "UI audit: React concurrent update"
@@ -937,7 +938,9 @@ def assert_react_manual_edit_conflict(
         concurrent_row.get_by_role("button", name="Исправить", exact=True).click(
             timeout=PAGE_TIMEOUT_MS
         )
-        concurrent_panel = concurrent_row.locator('section[id^="manual-operation-edit-panel-"]')
+        concurrent_panel = concurrent_page.locator(
+            'section[id^="manual-operation-edit-panel-"]'
+        )
         concurrent_panel.get_by_label("Описание").wait_for(
             state="visible",
             timeout=PAGE_TIMEOUT_MS,
@@ -970,7 +973,7 @@ def assert_react_manual_edit_conflict(
         )
         page.wait_for_function(
             """
-            expected => Array.from(document.querySelectorAll('input')).some(
+            expected => Array.from(document.querySelectorAll('input, textarea')).some(
               input => input.value === expected
             )
             """,
@@ -988,11 +991,17 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
     if heading.count() == 0:
         return ["React manual lifecycle target was not found"]
     row = heading.locator("xpath=ancestor::article[1]")
-    close_edit = row.get_by_role("button", name="Закрыть", exact=True)
+    close_edit = page.get_by_role("button", name="Закрыть", exact=True)
     if close_edit.count() == 1 and close_edit.is_visible():
         close_edit.click(timeout=PAGE_TIMEOUT_MS)
 
-    cancel = row.get_by_role("button", name="Отменить операцию", exact=True)
+    def reveal_action(name: str):
+        actions = row.locator("details")
+        if actions.count() == 1 and actions.get_attribute("open") is None:
+            row.get_by_text("Ещё действия", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+        return row.get_by_role("button", name=name, exact=True)
+
+    cancel = reveal_action("Отменить операцию")
     if cancel.count() == 0:
         return ["React manual cancel action was not exposed by capability"]
     cancel.click(timeout=PAGE_TIMEOUT_MS)
@@ -1020,9 +1029,7 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
         except PlaywrightError as exc:
             return [f"React manual lifecycle conflict did not refresh row: {short_error(exc)}"]
         row = refreshed_heading.locator("xpath=ancestor::article[1]")
-        row.get_by_role("button", name="Отменить операцию", exact=True).click(
-            timeout=PAGE_TIMEOUT_MS
-        )
+        reveal_action("Отменить операцию").click(timeout=PAGE_TIMEOUT_MS)
 
     try:
         row.get_by_role("button", name="Восстановить операцию", exact=True).wait_for(
@@ -1042,7 +1049,7 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
         timeout=PAGE_TIMEOUT_MS
     )
     try:
-        row.get_by_role("button", name="Отменить операцию", exact=True).wait_for(
+        reveal_action("Отменить операцию").wait_for(
             state="visible",
             timeout=PAGE_TIMEOUT_MS,
         )
@@ -1053,9 +1060,9 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
     except PlaywrightError as exc:
         return [f"React manual restore did not reconcile the row: {short_error(exc)}"]
 
-    row.get_by_role("button", name="Отменить операцию", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    reveal_action("Отменить операцию").click(timeout=PAGE_TIMEOUT_MS)
     try:
-        delete = row.get_by_role("button", name="Удалить окончательно", exact=True)
+        delete = reveal_action("Удалить окончательно")
         delete.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
     except PlaywrightError as exc:
         return [f"React manual delete capability was not reconciled: {short_error(exc)}"]
@@ -1070,9 +1077,7 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
     if row.count() != 1:
         return ["React manual delete cancellation removed the row"]
 
-    row.get_by_role("button", name="Удалить окончательно", exact=True).click(
-        timeout=PAGE_TIMEOUT_MS
-    )
+    reveal_action("Удалить окончательно").click(timeout=PAGE_TIMEOUT_MS)
     row.get_by_role("button", name="Да, удалить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
     try:
         row.wait_for(state="detached", timeout=PAGE_TIMEOUT_MS)
@@ -1963,7 +1968,10 @@ def run_audit(
         try:
             for viewport_name, width, height in VIEWPORTS:
                 print(f"Viewport: {viewport_name} ({width}x{height})", flush=True)
-                context = browser.new_context(viewport={"width": width, "height": height})
+                context = browser.new_context(
+                    viewport={"width": width, "height": height},
+                    locale="ru-RU",
+                )
                 try:
                     if authenticated:
                         authenticate_context(

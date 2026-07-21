@@ -78,6 +78,7 @@ function ThemePreview({ label, theme }: ThemePreviewProps) {
           <Button tone="primary">Создать операцию</Button>
           <Button>Фильтры</Button>
           <Button tone="ghost">Отмена</Button>
+          <Button tone="dangerSecondary">Отменить операцию</Button>
           <Button tone="danger">Удалить</Button>
           <Button disabled>Недоступно</Button>
           <Button isLoading>Сохраняем</Button>
@@ -129,7 +130,7 @@ function ThemePreview({ label, theme }: ThemePreviewProps) {
         <WorkbenchRow
           aside={
             <ActionStack
-              danger={<Button tone="danger">Отменить операцию</Button>}
+              danger={<Button tone="dangerSecondary">Отменить операцию</Button>}
               overflow={<Button tone="ghost">Открыть источник</Button>}
               primary={
                 <Button

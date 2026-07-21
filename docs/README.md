@@ -46,6 +46,7 @@ For financial/domain changes:
 | [`React implementation plan`](frontend/plan/README.md) | active execution plan | Current stage, deliverables, learning outcomes, checks and exit gates |
 | [`DESIGN.md`](design/DESIGN.md) | active design reference | General UI/UX rules, visual direction, financial UI patterns |
 | [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md) | active target frontend architecture | React/API boundary, UX contracts, migration strategy and repository cleanup manifest |
+| [`FORM_DESIGN.md`](design/FORM_DESIGN.md) | active React form specification | Reusable form composition, accessibility, creation/edit and filter contracts |
 | [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) | superseded SSR strategy / behavior reference | Изолированный SSR frontend и найденные при его проектировании контракты |
 | [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) | historical detailed UX specification | Повторяющиеся строки сущностей; переносимые interaction-контракты для React |
 | [`MANUAL_LEDGER_BASELINE.md`](design/MANUAL_LEDGER_BASELINE.md) | historical migration baseline | Наблюдаемый контракт `/ledger/manual` до React migration |
@@ -81,6 +82,8 @@ For financial/domain changes:
 - [`DESIGN.md`](design/DESIGN.md) — UI/UX principles and visual direction.
 - [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md) — активная
   целевая React/API архитектура, стратегия миграции и cleanup manifest.
+- [`FORM_DESIGN.md`](design/FORM_DESIGN.md) — композиция, доступность и
+  повторяющиеся UX-контракты React-форм и фильтров.
 - [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) — superseded
   стратегия параллельного SSR frontend; сохраняется как behavior reference.
 - [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) — историческая

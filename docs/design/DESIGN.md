@@ -638,6 +638,9 @@ Rules:
 Creation and repair forms should share a calm, predictable structure without
 forcing every form into one universal React component too early.
 
+The detailed React composition, accessibility and filter-state contract lives
+in [`FORM_DESIGN.md`](FORM_DESIGN.md).
+
 Use these conceptual form families:
 
 ```text

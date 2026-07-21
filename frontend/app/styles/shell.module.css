@@ -44,6 +44,10 @@
   padding: var(--space-6) var(--space-5);
 }
 
+.mobileHeader {
+  display: none;
+}
+
 .brand {
   display: block;
   margin-bottom: var(--space-7);
@@ -120,13 +124,62 @@
     display: none;
   }
 
+  .mobileHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    border-bottom: 1px solid var(--color-border-default);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .mobileHeader .brand {
+    margin: 0;
+  }
+
+  .mobileMenu {
+    position: relative;
+  }
+
+  .mobileMenu > summary {
+    min-height: var(--control-height);
+    align-content: center;
+    border: 1px solid var(--color-border-control);
+    border-radius: var(--radius-sm);
+    padding-inline: var(--space-4);
+    font-weight: 700;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .mobileMenu > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobileMenu nav {
+    position: absolute;
+    z-index: var(--z-header);
+    top: calc(100% + var(--space-2));
+    right: 0;
+    width: min(17rem, calc(100vw - 2 * var(--space-4)));
+    border: 1px solid var(--color-border-control);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-elevated);
+    box-shadow: var(--shadow-surface);
+    padding: var(--space-2);
+  }
+
   .workspace {
     padding: var(--space-5) var(--space-4);
   }
 
   .workspaceHeader {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .userChip {
+    padding: var(--space-2) var(--space-3);
   }
 
   .placeholderCard {

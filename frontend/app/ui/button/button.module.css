@@ -61,10 +61,30 @@
   color: var(--color-text-secondary);
 }
 
+.dangerSecondary {
+  border-color: color-mix(
+    in srgb,
+    var(--color-status-danger) 45%,
+    var(--color-border-default)
+  );
+  background: transparent;
+  color: var(--color-status-danger);
+}
+
+.dangerSecondary:hover:not(:disabled) {
+  border-color: var(--color-status-danger);
+  background: color-mix(in srgb, var(--color-status-danger) 10%, transparent);
+}
+
 .danger {
   border-color: var(--color-status-danger);
   background: color-mix(in srgb, var(--color-status-danger) 12%, transparent);
   color: var(--color-status-danger);
+}
+
+.danger:hover:not(:disabled) {
+  border-color: var(--color-status-danger);
+  background: color-mix(in srgb, var(--color-status-danger) 20%, transparent);
 }
 
 .button:disabled,

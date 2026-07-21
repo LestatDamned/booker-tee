@@ -1,0 +1,60 @@
+.dialog {
+  width: min(36rem, 100vw);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  padding: 0;
+}
+
+.dialog::backdrop {
+  background: var(--color-overlay);
+}
+
+.panel {
+  display: grid;
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+  border-left: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-surface);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--color-border-default);
+  padding: var(--space-4);
+}
+
+.header h2,
+.header p {
+  margin: 0;
+}
+
+.header h2 {
+  font-size: var(--font-size-lg);
+}
+
+.header p {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+@media (max-width: 35rem) {
+  .dialog {
+    width: 100vw;
+  }
+}

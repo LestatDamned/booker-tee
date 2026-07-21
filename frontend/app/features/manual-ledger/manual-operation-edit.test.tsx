@@ -12,24 +12,15 @@ const destinationAccountId = "2b78e790-f82f-46e7-814a-d22f9d7455c2";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("ManualOperationEdit", () => {
-  it("loads only after opening and preserves a hidden draft", async () => {
-    const user = userEvent.setup();
+  it("loads a fresh edit snapshot when the panel mounts", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(jsonResponse(editSnapshot(), 200));
     vi.stubGlobal("fetch", fetchMock);
-    const view = renderEdit({ isOpen: false });
+    renderEdit({});
 
-    expect(fetchMock).not.toHaveBeenCalled();
-    view.rerender(editTree({ isOpen: true }));
-    const description = await screen.findByLabelText("Описание");
-    await user.clear(description);
-    await user.type(description, "Несохранённое исправление");
-    view.rerender(editTree({ isOpen: false }));
-    view.rerender(editTree({ isOpen: true }));
-
-    expect(screen.getByLabelText("Описание")).toHaveValue(
-      "Несохранённое исправление",
+    expect(await screen.findByLabelText("Описание")).toHaveValue(
+      "Аренда за июль",
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -54,9 +45,9 @@ describe("ManualOperationEdit", () => {
         ),
       );
     vi.stubGlobal("fetch", fetchMock);
-    renderEdit({ isOpen: true });
+    renderEdit({});
 
-    const amount = await screen.findByLabelText("Сумма *");
+    const amount = await screen.findByLabelText(/^Сумма/);
     await user.clear(amount);
     await user.type(amount, "0");
     await user.click(
@@ -93,7 +84,7 @@ describe("ManualOperationEdit", () => {
         ),
       );
     vi.stubGlobal("fetch", fetchMock);
-    renderEdit({ isOpen: true });
+    renderEdit({});
 
     const description = await screen.findByLabelText("Описание");
     await user.clear(description);
@@ -135,7 +126,7 @@ describe("ManualOperationEdit", () => {
         ),
       );
     vi.stubGlobal("fetch", fetchMock);
-    renderEdit({ isOpen: true });
+    renderEdit({});
 
     const description = await screen.findByLabelText("Описание");
     await user.clear(description);
@@ -170,7 +161,7 @@ describe("ManualOperationEdit", () => {
         jsonResponse(editSnapshot({ version: 5 }).operation, 200),
       );
     vi.stubGlobal("fetch", fetchMock);
-    renderEdit({ isOpen: true, withLocation: true });
+    renderEdit({ withLocation: true });
 
     await screen.findByLabelText("Описание");
     await user.click(
@@ -202,7 +193,7 @@ describe("ManualOperationEdit", () => {
       .mockResolvedValueOnce(jsonResponse(snapshot, 200))
       .mockResolvedValueOnce(jsonResponse(snapshot.operation, 200));
     vi.stubGlobal("fetch", fetchMock);
-    renderEdit({ isOpen: true });
+    renderEdit({});
 
     await screen.findByLabelText("Счёт списания *");
     expect(screen.queryByLabelText("Категория")).not.toBeInTheDocument();
@@ -222,28 +213,15 @@ describe("ManualOperationEdit", () => {
   });
 });
 
-function renderEdit({
-  isOpen,
-  withLocation = false,
-}: {
-  isOpen: boolean;
-  withLocation?: boolean;
-}) {
-  return render(editTree({ isOpen, withLocation }));
+function renderEdit({ withLocation = false }: { withLocation?: boolean }) {
+  return render(editTree({ withLocation }));
 }
 
-function editTree({
-  isOpen,
-  withLocation = false,
-}: {
-  isOpen: boolean;
-  withLocation?: boolean;
-}) {
+function editTree({ withLocation = false }: { withLocation?: boolean }) {
   return (
     <MemoryRouter initialEntries={["/ledger/manual?type=expense&page=2"]}>
       <ManualOperationEdit
         csrfToken="csrf-token"
-        isOpen={isOpen}
         onClose={vi.fn()}
         operationId={operationId}
       />

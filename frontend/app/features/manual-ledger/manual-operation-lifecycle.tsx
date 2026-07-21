@@ -81,7 +81,7 @@ export function ManualOperationLifecycle({
         disabled={disabled}
         isLoading={state.status === "pending"}
         onClick={() => void changeStatus()}
-        tone={action === "restore" ? "primary" : "secondary"}
+        tone={action === "restore" ? "primary" : "dangerSecondary"}
       >
         {actionLabels[action]}
       </Button>

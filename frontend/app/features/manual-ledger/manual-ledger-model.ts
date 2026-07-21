@@ -96,14 +96,14 @@ export function manualOperationsTotalLabel(total: number): string {
 function operationMeta(operation: ManualOperationDto): string[] {
   if (operation.money?.operationType === "transfer") {
     return [
-      `${operation.sourceAccount?.name ?? "Счёт не найден"} → ${operation.destinationAccount?.name ?? "Счёт не найден"}`,
-      "не влияет на прибыль",
+      `Счета: ${operation.sourceAccount?.name ?? "не найден"} → ${operation.destinationAccount?.name ?? "не найден"}`,
+      "Не влияет на прибыль",
     ];
   }
 
   return [
-    operation.category?.name ?? "без категории",
-    operation.property?.name,
-    operation.account?.name,
+    `Категория: ${operation.category?.name ?? "без категории"}`,
+    operation.property ? `Объект: ${operation.property.name}` : null,
+    operation.account ? `Счёт: ${operation.account.name}` : null,
   ].filter((value): value is string => Boolean(value));
 }

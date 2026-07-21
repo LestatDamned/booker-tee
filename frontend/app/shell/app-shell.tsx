@@ -25,6 +25,22 @@ export function AppShell({ children, session }: AppShellProps) {
           </NavLink>
         </nav>
       </aside>
+      <header className={styles.mobileHeader}>
+        <NavLink className={styles.brand ?? ""} end to="/">
+          Booker Tee
+        </NavLink>
+        <details className={styles.mobileMenu}>
+          <summary>Меню</summary>
+          <nav aria-label="Мобильная навигация">
+            <NavLink className={navClassName} end to="/">
+              Обзор
+            </NavLink>
+            <NavLink className={navClassName} to="/ledger/manual">
+              Ручные операции
+            </NavLink>
+          </nav>
+        </details>
+      </header>
       <main className={styles.workspace}>
         <header className={styles.workspaceHeader}>
           <div>
@@ -33,13 +49,25 @@ export function AppShell({ children, session }: AppShellProps) {
           </div>
           <div className={styles.userChip}>
             <span>{session.user.name ?? session.user.email}</span>
-            <small>{session.membership.role}</small>
+            <small>{membershipRoleLabel(session.membership.role)}</small>
           </div>
         </header>
         {children}
       </main>
     </div>
   );
+}
+
+function membershipRoleLabel(role: SessionDto["membership"]["role"]): string {
+  const labels: Record<SessionDto["membership"]["role"], string> = {
+    owner: "Владелец",
+    admin: "Администратор",
+    editor: "Редактор",
+    viewer: "Только чтение",
+    uploader: "Загрузка данных",
+    analyst: "Аналитик",
+  };
+  return labels[role];
 }
 
 function navClassName({ isActive }: { isActive: boolean }) {

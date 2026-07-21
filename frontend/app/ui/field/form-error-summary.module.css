@@ -1,0 +1,28 @@
+.summary {
+  display: grid;
+  gap: var(--space-2);
+  border-inline-start: 0.25rem solid var(--color-status-danger);
+  background: color-mix(in srgb, var(--color-status-danger) 8%, transparent);
+  padding: var(--space-3) var(--space-4);
+}
+
+.summary :is(h3, h4),
+.summary p,
+.summary ul {
+  margin: 0;
+}
+
+.summary :is(h3, h4) {
+  color: var(--color-status-danger);
+  font-size: var(--font-size-md);
+}
+
+.summary ul {
+  display: grid;
+  gap: var(--space-1);
+  padding-inline-start: var(--space-5);
+}
+
+.summary a {
+  color: var(--color-text-primary);
+}

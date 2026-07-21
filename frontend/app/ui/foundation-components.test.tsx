@@ -7,6 +7,8 @@ import { Button } from "./button/button";
 import { IconButton } from "./button/icon-button";
 import { ExpansionPanel } from "./expansion-panel/expansion-panel";
 import { Field } from "./field/field";
+import { Fieldset } from "./field/fieldset";
+import { FormErrorSummary } from "./field/form-error-summary";
 import { MoneyValue } from "./money-value/money-value";
 import { RequestState } from "./request-state/request-state";
 import { WorkbenchRow } from "./workbench-row/workbench-row";
@@ -18,6 +20,22 @@ describe("foundation controls", () => {
     const button = screen.getByRole("button", { name: "Сохранить" });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("keeps reversible cancellation visually quieter than deletion", () => {
+    render(
+      <>
+        <Button tone="dangerSecondary">Отменить операцию</Button>
+        <Button tone="danger">Удалить окончательно</Button>
+      </>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Отменить операцию" }),
+    ).toHaveAttribute("data-tone", "dangerSecondary");
+    expect(
+      screen.getByRole("button", { name: "Удалить окончательно" }),
+    ).toHaveAttribute("data-tone", "danger");
   });
 
   it("requires an accessible label for an icon-only action", () => {
@@ -52,6 +70,36 @@ describe("foundation controls", () => {
       "id",
       "description-error",
     );
+  });
+
+  it("groups a short choice set and links summary errors to fields", () => {
+    render(
+      <>
+        <FormErrorSummary
+          errors={[
+            {
+              fieldId: "operation-expense",
+              label: "Тип операции",
+              message: "Выберите тип.",
+            },
+          ]}
+          message="Проверьте данные."
+        />
+        <Fieldset legend="Тип операции" required>
+          <label htmlFor="operation-expense">
+            <input id="operation-expense" name="type" type="radio" />
+            Расход
+          </label>
+        </Fieldset>
+      </>,
+    );
+
+    expect(
+      screen.getByRole("group", { name: "Тип операции" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Тип операции: Выберите тип." }),
+    ).toHaveAttribute("href", "#operation-expense");
   });
 });
 

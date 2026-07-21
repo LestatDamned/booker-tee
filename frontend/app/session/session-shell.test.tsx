@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
@@ -49,6 +49,13 @@ describe("SessionShell", () => {
 
     expect(screen.getByText("Personal ledger")).toBeInTheDocument();
     expect(screen.getByText("Max")).toBeInTheDocument();
+    expect(screen.getByText("Владелец")).toBeInTheDocument();
+    const mobileNavigation = screen.getByRole("navigation", {
+      name: "Мобильная навигация",
+    });
+    expect(
+      within(mobileNavigation).getByRole("link", { name: "Ручные операции" }),
+    ).toHaveAttribute("href", "/ledger/manual");
   });
 
   it("renders a recoverable API error", () => {

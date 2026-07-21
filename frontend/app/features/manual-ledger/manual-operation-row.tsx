@@ -1,42 +1,53 @@
 import { useRef, useState } from "react";
 
+import { ActionStack } from "../../ui/action-stack/action-stack";
 import { Badge } from "../../ui/badge/badge";
 import { Button } from "../../ui/button/button";
 import { MoneyValue } from "../../ui/money-value/money-value";
 import { WorkbenchRow } from "../../ui/workbench-row/workbench-row";
 import type { ManualOperationDto } from "./manual-ledger-api";
-import styles from "./manual-ledger.module.css";
 import type { ManualOperationRowModel } from "./manual-ledger-model";
 import { ManualOperationDelete } from "./manual-operation-delete";
 import { ManualOperationEdit } from "./manual-operation-edit";
 import { ManualOperationLifecycle } from "./manual-operation-lifecycle";
+import styles from "./manual-ledger.module.css";
 
 type ManualOperationRowProps = {
   csrfToken: string;
+  isEditing: boolean;
   isTargeted: boolean;
+  isWorking: boolean;
   onDeleted?: (operationId: string) => void;
+  onEdit: (operationId: string) => void;
+  onEditClosed: () => void;
   onRefresh?: () => void;
   onOperationUpdated?: (operation: ManualOperationDto) => void;
+  onWorkStarted: () => void;
   operation: ManualOperationRowModel;
 };
 
 export function ManualOperationRow({
   csrfToken,
+  isEditing,
   isTargeted,
+  isWorking,
   onDeleted,
+  onEdit,
+  onEditClosed,
   onRefresh,
   onOperationUpdated,
+  onWorkStarted,
   operation,
 }: ManualOperationRowProps) {
-  const [editOpen, setEditOpen] = useState(false);
   const [mutationPending, setMutationPending] = useState(false);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const editPanelId = `manual-operation-edit-panel-${operation.id}`;
 
   function closeEdit() {
-    setEditOpen(false);
+    onEditClosed();
     queueMicrotask(() => editButtonRef.current?.focus());
   }
+
   return (
     <WorkbenchRow
       aside={
@@ -44,66 +55,93 @@ export function ManualOperationRow({
         operation.canCancel ||
         operation.canRestore ||
         operation.canDelete ? (
-          <div className={styles.rowActions}>
-            {operation.canEdit ? (
-              <Button
-                aria-controls={editPanelId}
-                aria-expanded={editOpen}
-                disabled={mutationPending}
-                onClick={() => setEditOpen((current) => !current)}
-                ref={editButtonRef}
-                tone="secondary"
-              >
-                Исправить
-              </Button>
-            ) : null}
-            {operation.canCancel || operation.canRestore ? (
-              <ManualOperationLifecycle
-                action={operation.canCancel ? "cancel" : "restore"}
-                csrfToken={csrfToken}
-                disabled={mutationPending}
-                onPendingChange={setMutationPending}
-                {...(onRefresh === undefined ? {} : { onRefresh })}
-                {...(onOperationUpdated === undefined
-                  ? {}
-                  : { onUpdated: onOperationUpdated })}
-                operationId={operation.id}
-                version={operation.version}
-              />
-            ) : null}
-            {operation.canDelete ? (
-              <ManualOperationDelete
-                csrfToken={csrfToken}
-                disabled={mutationPending}
-                {...(onDeleted === undefined ? {} : { onDeleted })}
-                onPendingChange={setMutationPending}
-                {...(onRefresh === undefined ? {} : { onRefresh })}
-                operationId={operation.id}
-                version={operation.version}
-              />
-            ) : null}
-          </div>
+          <ActionStack
+            danger={
+              !isEditing && (operation.canCancel || operation.canDelete) ? (
+                <>
+                  {operation.canCancel ? (
+                    <ManualOperationLifecycle
+                      action="cancel"
+                      csrfToken={csrfToken}
+                      disabled={mutationPending}
+                      onPendingChange={setMutationPending}
+                      {...(onRefresh === undefined ? {} : { onRefresh })}
+                      {...(onOperationUpdated === undefined
+                        ? {}
+                        : { onUpdated: onOperationUpdated })}
+                      operationId={operation.id}
+                      version={operation.version}
+                    />
+                  ) : null}
+                  {operation.canDelete ? (
+                    <ManualOperationDelete
+                      csrfToken={csrfToken}
+                      disabled={mutationPending}
+                      {...(onDeleted === undefined ? {} : { onDeleted })}
+                      onPendingChange={setMutationPending}
+                      {...(onRefresh === undefined ? {} : { onRefresh })}
+                      operationId={operation.id}
+                      version={operation.version}
+                    />
+                  ) : null}
+                </>
+              ) : undefined
+            }
+            primary={
+              operation.canEdit ? (
+                <Button
+                  aria-controls={editPanelId}
+                  aria-expanded={isEditing}
+                  disabled={mutationPending}
+                  onClick={() =>
+                    isEditing ? closeEdit() : onEdit(operation.id)
+                  }
+                  ref={editButtonRef}
+                  tone="secondary"
+                >
+                  {isEditing ? "Закрыть" : "Исправить"}
+                </Button>
+              ) : operation.canRestore ? (
+                <ManualOperationLifecycle
+                  action="restore"
+                  csrfToken={csrfToken}
+                  disabled={mutationPending}
+                  onPendingChange={setMutationPending}
+                  {...(onRefresh === undefined ? {} : { onRefresh })}
+                  {...(onOperationUpdated === undefined
+                    ? {}
+                    : { onUpdated: onOperationUpdated })}
+                  operationId={operation.id}
+                  version={operation.version}
+                />
+              ) : undefined
+            }
+          />
         ) : undefined
       }
       date={operation.date}
       description={operation.description}
       id={operation.anchorId}
       expansion={
-        operation.canEdit ? (
-          <ManualOperationEdit
-            csrfToken={csrfToken}
-            disabled={mutationPending}
-            isOpen={editOpen}
-            onClose={closeEdit}
-            onPendingChange={setMutationPending}
-            {...(onOperationUpdated === undefined
-              ? {}
-              : { onUpdated: onOperationUpdated })}
-            operationId={operation.id}
-          />
+        operation.canEdit && isEditing ? (
+          <section
+            aria-labelledby={`${editPanelId}-title`}
+            className={styles.editExpansion}
+          >
+            <h3 id={`${editPanelId}-title`}>Исправить операцию</h3>
+            <ManualOperationEdit
+              csrfToken={csrfToken}
+              disabled={mutationPending}
+              onClose={closeEdit}
+              onPendingChange={setMutationPending}
+              {...(onOperationUpdated === undefined
+                ? {}
+                : { onUpdated: onOperationUpdated })}
+              operationId={operation.id}
+            />
+          </section>
         ) : undefined
       }
-      expansionHidden={!editOpen}
       meta={
         <>
           <Badge tone={operation.operationTone}>
@@ -115,7 +153,8 @@ export function ManualOperationRow({
           ))}
         </>
       }
-      state={isTargeted ? "target" : "default"}
+      onAction={onWorkStarted}
+      state={isWorking ? "working" : isTargeted ? "target" : "default"}
       value={
         operation.money ? (
           <MoneyValue

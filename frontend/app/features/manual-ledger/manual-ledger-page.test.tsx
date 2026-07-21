@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -65,6 +71,49 @@ describe("ManualLedgerPage", () => {
     ).toHaveAttribute("data-state", "target");
   });
 
+  it("moves the working state to the row whose action the user chooses", async () => {
+    const user = userEvent.setup();
+    const page = ledger();
+    const originalOperation = required(page.items.at(0), "fixture operation");
+    const firstOperation = deletableOperation(originalOperation);
+    const secondOperation = deletableOperation({
+      ...originalOperation,
+      id: crypto.randomUUID(),
+      description: "Вторая операция",
+    });
+    page.items = [firstOperation, secondOperation];
+    page.pagination.total = 2;
+
+    render(
+      <MemoryRouter initialEntries={["/app/ledger/manual"]}>
+        <ManualLedgerPage ledger={page} session={session} />
+      </MemoryRouter>,
+    );
+
+    const firstRow = required(
+      document.getElementById(`operation-${firstOperation.id}`),
+      "first operation row",
+    );
+    const secondRow = required(
+      document.getElementById(`operation-${secondOperation.id}`),
+      "second operation row",
+    );
+    const moreActions = screen.getAllByText("Ещё действия");
+    await user.click(required(moreActions.at(0), "first more actions"));
+    await user.click(
+      within(firstRow).getByRole("button", { name: "Удалить окончательно" }),
+    );
+    expect(firstRow).toHaveAttribute("data-state", "working");
+    expect(secondRow).toHaveAttribute("data-state", "default");
+
+    await user.click(required(moreActions.at(1), "second more actions"));
+    await user.click(
+      within(secondRow).getByRole("button", { name: "Удалить окончательно" }),
+    );
+    expect(firstRow).toHaveAttribute("data-state", "target");
+    expect(secondRow).toHaveAttribute("data-state", "working");
+  });
+
   it("locks conflicting actions on one row while leaving unrelated UI available", async () => {
     const user = userEvent.setup();
     const page = ledger();
@@ -80,6 +129,7 @@ describe("ManualLedgerPage", () => {
       </MemoryRouter>,
     );
 
+    await user.click(screen.getByText("Ещё действия"));
     const cancel = screen.getByRole("button", { name: "Отменить операцию" });
     fireEvent.click(cancel);
     fireEvent.click(cancel);
@@ -179,6 +229,29 @@ function ledger(): ManualLedgerDto {
     capabilities: { canCreate: true, readonlyReason: null },
     targetOperationId: operationId,
   };
+}
+
+function deletableOperation(
+  operation: ManualLedgerDto["items"][number],
+): ManualLedgerDto["items"][number] {
+  return {
+    ...operation,
+    status: "ignored",
+    capabilities: {
+      canEdit: false,
+      canCancel: false,
+      canRestore: false,
+      canDelete: true,
+      readonlyReason: null,
+    },
+  };
+}
+
+function required<T>(value: T | null | undefined, name: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Test fixture requires ${name}.`);
+  }
+  return value;
 }
 
 function jsonResponse(body: unknown, status: number): Response {

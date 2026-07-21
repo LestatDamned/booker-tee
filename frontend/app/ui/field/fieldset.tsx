@@ -1,35 +1,35 @@
 import type { ReactNode } from "react";
 
 import { FormError } from "./form-error";
-import styles from "./field.module.css";
+import styles from "./fieldset.module.css";
 
-type FieldProps = {
+type FieldsetProps = {
   children: ReactNode;
   error?: string;
   errorId?: string;
   hint?: string;
-  htmlFor: string;
-  label: ReactNode;
+  legend: string;
   required?: boolean;
 };
 
-export function Field({
+export function Fieldset({
   children,
   error,
   errorId,
   hint,
-  htmlFor,
-  label,
+  legend,
   required = false,
-}: FieldProps) {
+}: FieldsetProps) {
   return (
-    <div className={styles.field}>
-      <label className={styles.label} htmlFor={htmlFor}>
-        {label}
+    <fieldset
+      aria-describedby={error && errorId ? errorId : undefined}
+      className={styles.fieldset}
+    >
+      <legend className={styles.legend}>
+        {legend}
         {required ? <span aria-hidden="true"> *</span> : null}
-      </label>
-      {children}
-      {hint && !error ? <span className={styles.hint}>{hint}</span> : null}
+      </legend>
+      {hint && !error ? <p className={styles.hint}>{hint}</p> : null}
       {error ? (
         errorId ? (
           <FormError id={errorId}>{error}</FormError>
@@ -37,6 +37,7 @@ export function Field({
           <FormError>{error}</FormError>
         )
       ) : null}
-    </div>
+      {children}
+    </fieldset>
   );
 }

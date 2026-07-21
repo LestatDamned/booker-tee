@@ -9,6 +9,8 @@ import { useLocation, useNavigate } from "react-router";
 
 import { Button } from "../../ui/button/button";
 import { FormError } from "../../ui/field/form-error";
+import { FormErrorSummary } from "../../ui/field/form-error-summary";
+import { FormActions } from "../../ui/field/form-layout";
 import {
   loadManualOperationEdit,
   type ManualLedgerDto,
@@ -21,6 +23,7 @@ import {
 } from "./manual-ledger-mutations";
 import {
   editDraftFromOperation,
+  manualOperationErrorSummaryItems,
   ManualOperationFields,
   type ManualOperationDraft,
 } from "./manual-operation-form";
@@ -28,7 +31,6 @@ import styles from "./manual-ledger.module.css";
 
 type ManualOperationEditProps = {
   csrfToken: string;
-  isOpen: boolean;
   disabled?: boolean;
   onClose: () => void;
   onPendingChange?: (pending: boolean) => void;
@@ -62,7 +64,6 @@ type EditState =
 export function ManualOperationEdit({
   csrfToken,
   disabled = false,
-  isOpen,
   onClose,
   onPendingChange,
   onUpdated,
@@ -108,10 +109,10 @@ export function ManualOperationEdit({
   }, [operationId]);
 
   useEffect(() => {
-    if (isOpen && !requested.current) {
+    if (!requested.current) {
       void loadSnapshot();
     }
-  }, [isOpen, loadSnapshot]);
+  }, [loadSnapshot]);
 
   useEffect(() => {
     if (validationErrors !== null) {
@@ -156,9 +157,8 @@ export function ManualOperationEdit({
         search.get("operation_id") === result.operation.id;
       search.set("operation_id", result.operation.id);
       onUpdated?.(result.operation);
-      if (alreadyTargeted && onUpdated) {
-        onClose();
-      } else {
+      onClose();
+      if (!(alreadyTargeted && onUpdated)) {
         void navigate({
           pathname: location.pathname,
           search: `?${search.toString()}`,
@@ -198,23 +198,12 @@ export function ManualOperationEdit({
     onClose();
   }
 
-  const panelId = `manual-operation-edit-panel-${operationId}`;
   return (
     <section
       aria-busy={state.status === "loading"}
       className={styles.editPanel}
-      hidden={!isOpen}
-      id={panelId}
+      id={`manual-operation-edit-panel-${operationId}`}
     >
-      <div className={styles.editHeader}>
-        <div>
-          <h3>Исправить операцию</h3>
-          <p>Форма загружает свежую версию только при первом открытии.</p>
-        </div>
-        <Button disabled={disabled} onClick={onClose} tone="ghost">
-          Закрыть
-        </Button>
-      </div>
       {state.status === "idle" || state.status === "loading" ? (
         <p>Загружаем актуальные данные…</p>
       ) : null}
@@ -227,9 +216,23 @@ export function ManualOperationEdit({
         </div>
       ) : null}
       {state.status === "ready" ? (
-        <form onSubmit={submitOperation} ref={formRef}>
-          {state.submission.status === "validation_error" ||
-          state.submission.status === "conflict" ||
+        <form
+          className={styles.operationForm}
+          onSubmit={submitOperation}
+          ref={formRef}
+        >
+          {state.submission.status === "validation_error" ? (
+            <FormErrorSummary
+              errors={manualOperationErrorSummaryItems(
+                state.submission.fieldErrors,
+                `manual-operation-edit-${operationId}`,
+              )}
+              headingLevel={4}
+              message={state.submission.message}
+              title="Не удалось сохранить изменения"
+            />
+          ) : null}
+          {state.submission.status === "conflict" ||
           state.submission.status === "error" ? (
             <FormError announce>{state.submission.message}</FormError>
           ) : null}
@@ -249,10 +252,11 @@ export function ManualOperationEdit({
                 : {}
             }
             idPrefix={`manual-operation-edit-${operationId}`}
+            layout="expanded"
             onChange={(draft) => setState({ ...state, draft })}
             options={state.options}
           />
-          <div className={styles.createActions}>
+          <FormActions>
             <Button
               disabled={disabled}
               isLoading={state.submission.status === "pending"}
@@ -268,7 +272,7 @@ export function ManualOperationEdit({
             >
               Отмена
             </Button>
-          </div>
+          </FormActions>
         </form>
       ) : null}
     </section>
@@ -285,6 +289,9 @@ function updateRequest(
     description: draft.description,
     version,
   };
+  if (draft.operationType === "") {
+    throw new Error("Operation type is required before request mapping.");
+  }
   if (draft.operationType === "transfer") {
     return {
       ...common,

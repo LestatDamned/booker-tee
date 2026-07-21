@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 
 import { Button } from "../../ui/button/button";
-import { FormError } from "../../ui/field/form-error";
+import { FormErrorSummary } from "../../ui/field/form-error-summary";
+import { FormActions } from "../../ui/field/form-layout";
 import type { ManualLedgerDto } from "./manual-ledger-api";
 import { focusFirstInvalidField } from "./focus-invalid-field";
 import {
@@ -11,6 +12,7 @@ import {
 } from "./manual-ledger-mutations";
 import {
   emptyManualOperationDraft,
+  manualOperationErrorSummaryItems,
   ManualOperationFields,
   operationTypeLabel,
   type ManualOperationDraft,
@@ -18,8 +20,9 @@ import {
 import styles from "./manual-ledger.module.css";
 
 type ManualOperationCreateProps = {
-  canCreate: boolean;
   csrfToken: string;
+  onClose: () => void;
+  onPendingChange?: (pending: boolean) => void;
   options: ManualLedgerDto["filterOptions"];
 };
 
@@ -33,14 +36,13 @@ type SubmitState =
     };
 
 export function ManualOperationCreate({
-  canCreate,
   csrfToken,
+  onClose,
+  onPendingChange,
   options,
 }: ManualOperationCreateProps) {
   const navigate = useNavigate();
-  const disclosureRef = useRef<HTMLButtonElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState<ManualOperationDraft>(
     emptyManualOperationDraft,
   );
@@ -58,23 +60,21 @@ export function ManualOperationCreate({
     }
   }, [submitState]);
 
-  if (!canCreate) {
-    return null;
-  }
-
   async function submitOperation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitState.status === "pending") {
+    if (submitState.status === "pending" || draft.operationType === "") {
       return;
     }
     setSubmitState({ status: "pending" });
+    onPendingChange?.(true);
     const result = await createManualOperation(
       createRequest(draft),
       csrfToken,
       idempotencyKey,
     );
+    onPendingChange?.(false);
     if (result.status === "success") {
-      setIsOpen(false);
+      onClose();
       setDraft(emptyManualOperationDraft());
       setIdempotencyKey(newIdempotencyKey());
       setSubmitState({ status: "idle" });
@@ -101,8 +101,7 @@ export function ManualOperationCreate({
     setDraft(emptyManualOperationDraft());
     setIdempotencyKey(newIdempotencyKey());
     setSubmitState({ status: "idle" });
-    setIsOpen(false);
-    queueMicrotask(() => disclosureRef.current?.focus());
+    onClose();
   }
 
   const fieldErrors =
@@ -110,52 +109,43 @@ export function ManualOperationCreate({
   const pending = submitState.status === "pending";
 
   return (
-    <section className={styles.createRegion}>
-      <div className={styles.createHeader}>
-        <div>
-          <h2>Новая операция</h2>
-          <p>
-            Операция будет проверена и сохранена backend как подтверждённая.
-          </p>
-        </div>
-        <Button
-          aria-controls="manual-operation-create-panel"
-          aria-expanded={isOpen}
-          onClick={() => setIsOpen((current) => !current)}
-          ref={disclosureRef}
-          tone="primary"
-        >
-          {isOpen ? "Скрыть" : "Добавить операцию"}
-        </Button>
-      </div>
-
-      {isOpen ? (
-        <form
-          id="manual-operation-create-panel"
-          onSubmit={submitOperation}
-          ref={formRef}
-        >
-          {submitState.status === "error" ? (
-            <FormError announce>{submitState.message}</FormError>
-          ) : null}
-          <ManualOperationFields
-            draft={draft}
-            fieldErrors={fieldErrors}
-            idPrefix="manual-operation"
-            onChange={setDraft}
-            options={options}
-          />
-          <div className={styles.createActions}>
-            <Button isLoading={pending} tone="primary" type="submit">
-              Создать {operationTypeLabel(draft.operationType)}
-            </Button>
-            <Button disabled={pending} onClick={cancelDraft} tone="ghost">
-              Отмена
-            </Button>
-          </div>
-        </form>
+    <form
+      className={styles.operationForm}
+      id="manual-operation-create-panel"
+      onSubmit={submitOperation}
+      ref={formRef}
+    >
+      {submitState.status === "error" ? (
+        <FormErrorSummary
+          errors={manualOperationErrorSummaryItems(
+            fieldErrors,
+            "manual-operation",
+          )}
+          message={submitState.message}
+          title="Не удалось создать операцию"
+        />
       ) : null}
-    </section>
+      <ManualOperationFields
+        draft={draft}
+        fieldErrors={fieldErrors}
+        idPrefix="manual-operation"
+        onChange={setDraft}
+        options={options}
+      />
+      <FormActions>
+        <Button
+          disabled={draft.operationType === ""}
+          isLoading={pending}
+          tone="primary"
+          type="submit"
+        >
+          Создать {operationTypeLabel(draft.operationType)}
+        </Button>
+        <Button disabled={pending} onClick={cancelDraft} tone="ghost">
+          Отмена
+        </Button>
+      </FormActions>
+    </form>
   );
 }
 
@@ -167,6 +157,9 @@ function createRequest(
     operationDate: draft.operationDate,
     description: draft.description,
   };
+  if (draft.operationType === "") {
+    throw new Error("Operation type is required before request mapping.");
+  }
   if (draft.operationType === "transfer") {
     return {
       ...common,

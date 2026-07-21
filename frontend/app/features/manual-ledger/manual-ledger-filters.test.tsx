@@ -24,18 +24,16 @@ describe("ManualLedgerFilters", () => {
     );
 
     expect(screen.getByLabelText("Тип")).toHaveValue("expense");
-    expect(screen.getByLabelText("Описание")).toHaveValue("кофе");
     expect(screen.getByTestId("location-search")).toHaveTextContent("page=2");
 
-    await user.clear(screen.getByLabelText("Описание"));
-    await user.type(screen.getByLabelText("Описание"), "  аренда   июль  ");
+    await user.selectOptions(screen.getByLabelText("Статус"), "confirmed");
     expect(screen.getByTestId("location-search")).toHaveTextContent(
-      "search=кофе",
+      "type=expense&search=кофе&page=2&per_page=25",
     );
 
     await user.click(screen.getByRole("button", { name: "Применить" }));
     expect(screen.getByTestId("location-search")).toHaveTextContent(
-      "type=expense&search=%D0%B0%D1%80%D0%B5%D0%BD%D0%B4%D0%B0+%D0%B8%D1%8E%D0%BB%D1%8C&page=1&per_page=25",
+      "type=expense&status=confirmed&search=%D0%BA%D0%BE%D1%84%D0%B5&page=1&per_page=25",
     );
   });
 
@@ -43,13 +41,11 @@ describe("ManualLedgerFilters", () => {
     const draft = manualLedgerFilterDraft(
       "?type=wrong&account_id=wrong&date_from=wrong&per_page=999",
       filterOptions,
-      200,
     );
 
     expect(draft.operationType).toBe("");
     expect(draft.accountId).toBe("");
     expect(draft.dateFrom).toBe("");
-    expect(draft.perPage).toBe("200");
     expect(
       manualLedgerFiltersAreActive(
         "?type=wrong&date_from=wrong&account_id=wrong",
@@ -62,7 +58,11 @@ function FilterHarness() {
   const location = useLocation();
   return (
     <>
-      <ManualLedgerFilters options={filterOptions} paginationPerPage={25} />
+      <ManualLedgerFilters
+        onClose={() => undefined}
+        options={filterOptions}
+        perPage={25}
+      />
       <output data-testid="location-search">{location.search}</output>
     </>
   );

@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
@@ -14,6 +15,25 @@ const operationId = "61f1e242-9b4a-43e8-b9f8-4fb0627f771a";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("ManualOperationCreate", () => {
+  it("requires an explicit financial operation type", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+
+    await user.click(screen.getByRole("button", { name: "Добавить операцию" }));
+
+    expect(screen.getByRole("radio", { name: "Доход" })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: "Расход" })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: "Перевод" })).not.toBeChecked();
+    expect(
+      screen.getByRole("button", { name: "Создать операцию" }),
+    ).toBeDisabled();
+
+    await user.click(screen.getByRole("radio", { name: "Расход" }));
+    expect(
+      screen.getByRole("button", { name: "Создать расход" }),
+    ).toBeEnabled();
+  });
+
   it("sends decimal-string JSON with CSRF and navigates to the server result", async () => {
     const user = userEvent.setup();
     const fetchMock = vi
@@ -23,8 +43,9 @@ describe("ManualOperationCreate", () => {
     renderCreate();
 
     await user.click(screen.getByRole("button", { name: "Добавить операцию" }));
+    await user.click(screen.getByRole("radio", { name: "Доход" }));
     await user.selectOptions(screen.getByLabelText("Счёт *"), accountId);
-    await user.type(screen.getByLabelText("Сумма *"), "1250,50");
+    await user.type(screen.getByLabelText(/^Сумма/), "1250,50");
     fireEvent.change(screen.getByLabelText("Дата *"), {
       target: { value: "2026-07-20" },
     });
@@ -83,23 +104,24 @@ describe("ManualOperationCreate", () => {
     renderCreate();
 
     await user.click(screen.getByRole("button", { name: "Добавить операцию" }));
+    await user.click(screen.getByRole("radio", { name: "Доход" }));
     await user.selectOptions(screen.getByLabelText("Счёт *"), accountId);
-    await user.type(screen.getByLabelText("Сумма *"), "0");
+    await user.type(screen.getByLabelText(/^Сумма/), "0");
     await user.type(screen.getByLabelText("Описание"), "Несохранённый доход");
     await user.click(screen.getByRole("button", { name: "Создать доход" }));
 
     expect(
       await screen.findByText("Сумма должна быть больше нуля."),
     ).toBeVisible();
-    expect(screen.getByLabelText("Сумма *")).toHaveValue("0");
+    expect(screen.getByLabelText(/^Сумма/)).toHaveValue("0");
     expect(screen.getByLabelText("Описание")).toHaveValue(
       "Несохранённый доход",
     );
-    expect(screen.getByLabelText("Сумма *")).toHaveAttribute(
+    expect(screen.getByLabelText(/^Сумма/)).toHaveAttribute(
       "aria-describedby",
       "manual-operation-amount-error",
     );
-    expect(screen.getByLabelText("Сумма *")).toHaveFocus();
+    expect(screen.getByLabelText(/^Сумма/)).toHaveFocus();
   });
 
   it("keeps one pending request and restores the disclosure focus on cancel", async () => {
@@ -116,8 +138,9 @@ describe("ManualOperationCreate", () => {
       name: "Добавить операцию",
     });
     await user.click(disclosure);
+    await user.click(screen.getByRole("radio", { name: "Доход" }));
     await user.selectOptions(screen.getByLabelText("Счёт *"), accountId);
-    await user.type(screen.getByLabelText("Сумма *"), "10");
+    await user.type(screen.getByLabelText(/^Сумма/), "10");
     const form = document.getElementById("manual-operation-create-panel");
     if (!(form instanceof HTMLFormElement)) {
       throw new Error("Create form was not rendered.");
@@ -132,7 +155,7 @@ describe("ManualOperationCreate", () => {
     expect(screen.getByRole("button", { name: "Отмена" })).toBeDisabled();
     resolveRequest?.(jsonResponse(createdIncome(), 201));
     await waitFor(() =>
-      expect(screen.queryByLabelText("Сумма *")).not.toBeInTheDocument(),
+      expect(screen.queryByLabelText(/^Сумма/)).not.toBeInTheDocument(),
     );
 
     await user.click(disclosure);
@@ -150,8 +173,9 @@ describe("ManualOperationCreate", () => {
     renderCreate();
 
     await user.click(screen.getByRole("button", { name: "Добавить операцию" }));
+    await user.click(screen.getByRole("radio", { name: "Доход" }));
     await user.selectOptions(screen.getByLabelText("Счёт *"), accountId);
-    await user.type(screen.getByLabelText("Сумма *"), "10");
+    await user.type(screen.getByLabelText(/^Сумма/), "10");
     await user.type(screen.getByLabelText("Описание"), "Сетевой retry");
     await user.click(screen.getByRole("button", { name: "Создать доход" }));
 
@@ -173,12 +197,9 @@ describe("ManualOperationCreate", () => {
     renderCreate();
 
     await user.click(screen.getByRole("button", { name: "Добавить операцию" }));
-    await user.selectOptions(
-      screen.getByLabelText("Тип операции *"),
-      "expense",
-    );
+    await user.click(screen.getByRole("radio", { name: "Расход" }));
     await user.selectOptions(screen.getByLabelText("Счёт *"), accountId);
-    await user.type(screen.getByLabelText("Сумма *"), "881.12");
+    await user.type(screen.getByLabelText(/^Сумма/), "881.12");
     fireEvent.change(screen.getByLabelText("Дата *"), {
       target: { value: "2026-07-21" },
     });
@@ -222,10 +243,7 @@ describe("ManualOperationCreate", () => {
     renderCreate();
 
     await user.click(screen.getByRole("button", { name: "Добавить операцию" }));
-    await user.selectOptions(
-      screen.getByLabelText("Тип операции *"),
-      "transfer",
-    );
+    await user.click(screen.getByRole("radio", { name: "Перевод" }));
     expect(screen.queryByLabelText("Категория")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Объект")).not.toBeInTheDocument();
     await user.selectOptions(
@@ -236,7 +254,7 @@ describe("ManualOperationCreate", () => {
       screen.getByLabelText("Счёт зачисления *"),
       destinationAccountId,
     );
-    await user.type(screen.getByLabelText("Сумма *"), "5000");
+    await user.type(screen.getByLabelText(/^Сумма/), "5000");
     await user.type(screen.getByLabelText("Описание"), "На накопительный");
     await user.click(screen.getByRole("button", { name: "Создать перевод" }));
 
@@ -274,7 +292,7 @@ describe("ManualOperationCreate", () => {
 function renderCreate({ canCreate = true }: { canCreate?: boolean } = {}) {
   return render(
     <MemoryRouter initialEntries={["/ledger/manual"]}>
-      <ManualOperationCreate
+      <CreateHarness
         canCreate={canCreate}
         csrfToken="csrf-token"
         options={{
@@ -293,6 +311,32 @@ function renderCreate({ canCreate = true }: { canCreate?: boolean } = {}) {
       />
       <LocationProbe />
     </MemoryRouter>,
+  );
+}
+
+function CreateHarness(
+  props: Omit<React.ComponentProps<typeof ManualOperationCreate>, "onClose"> & {
+    canCreate: boolean;
+  },
+) {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const { canCreate, ...createProps } = props;
+  function close() {
+    setIsOpen(false);
+    queueMicrotask(() => triggerRef.current?.focus());
+  }
+  return (
+    <>
+      {canCreate ? (
+        <button onClick={() => setIsOpen(true)} ref={triggerRef}>
+          Добавить операцию
+        </button>
+      ) : null}
+      {isOpen ? (
+        <ManualOperationCreate {...createProps} onClose={close} />
+      ) : null}
+    </>
   );
 }
 

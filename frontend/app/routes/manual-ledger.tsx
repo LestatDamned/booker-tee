@@ -1,4 +1,4 @@
-import { useRevalidator } from "react-router";
+import { useNavigation, useRevalidator } from "react-router";
 
 import type { Route } from "./+types/manual-ledger";
 import type {
@@ -23,9 +23,11 @@ export default function ManualLedgerRoute({
   loaderData,
 }: Route.ComponentProps) {
   const revalidator = useRevalidator();
+  const navigation = useNavigation();
   return (
     <ManualLedgerRouteView
       loaderData={loaderData}
+      navigationPending={navigation.state !== "idle"}
       onOperationDeleted={() => void revalidator.revalidate()}
       onOperationUpdated={() => void revalidator.revalidate()}
       onRefresh={() => void revalidator.revalidate()}
@@ -35,11 +37,13 @@ export default function ManualLedgerRoute({
 
 export function ManualLedgerRouteView({
   loaderData,
+  navigationPending = false,
   onOperationDeleted,
   onOperationUpdated,
   onRefresh,
 }: {
   loaderData: Awaited<ReturnType<typeof loadManualLedgerRoute>>;
+  navigationPending?: boolean;
   onOperationDeleted?: (operationId: string) => void;
   onOperationUpdated?: (operation: ManualOperationDto) => void;
   onRefresh?: () => void;
@@ -67,6 +71,7 @@ export function ManualLedgerRouteView({
   return (
     <ManualLedgerPage
       ledger={ledger.ledger}
+      navigationPending={navigationPending}
       {...(onOperationDeleted === undefined ? {} : { onOperationDeleted })}
       {...(onOperationUpdated === undefined ? {} : { onOperationUpdated })}
       {...(onRefresh === undefined ? {} : { onRefresh })}

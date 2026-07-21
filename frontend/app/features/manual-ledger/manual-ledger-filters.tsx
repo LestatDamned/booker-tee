@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 
 import { Button } from "../../ui/button/button";
 import { Field } from "../../ui/field/field";
+import { FormActions } from "../../ui/field/form-layout";
 import type { ManualLedgerDto } from "./manual-ledger-api";
 import styles from "./manual-ledger.module.css";
 
@@ -14,7 +15,6 @@ export type ManualLedgerFilterDraft = {
   dateFrom: string;
   dateTo: string;
   operationType: string;
-  perPage: string;
   propertyId: string;
   search: string;
   status: string;
@@ -45,151 +45,149 @@ const filterNames = [
 ] as const;
 
 type ManualLedgerFiltersProps = {
+  navigationPending?: boolean;
+  onClose: () => void;
   options: FilterOptions;
-  paginationPerPage: number;
+  perPage: number;
 };
 
 export function ManualLedgerFilters({
+  navigationPending = false,
+  onClose,
   options,
-  paginationPerPage,
+  perPage,
 }: ManualLedgerFiltersProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const active = manualLedgerFiltersAreActive(location.search);
-  const [isOpen, setIsOpen] = useState(active);
   const [draft, setDraft] = useState(() =>
-    manualLedgerFilterDraft(location.search, options, paginationPerPage),
+    manualLedgerFilterDraft(location.search, options),
+  );
+  const [advancedOpen, setAdvancedOpen] = useState(() =>
+    classificationFiltersAreActive(draft),
   );
 
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    onClose();
     void navigate({
       pathname: location.pathname,
-      search: manualLedgerFilterSearch(draft),
+      search: manualLedgerFilterSearch(draft, perPage),
     });
   }
 
   return (
-    <section className={styles.filters}>
-      <div className={styles.filterHeader}>
+    <form
+      className={styles.filterForm}
+      id="manual-ledger-filter-panel"
+      onSubmit={applyFilters}
+    >
+      <div className={styles.filterGrid}>
         <div>
-          <h2>Фильтры</h2>
-          <p>
-            {active
-              ? "Фильтры применены к списку."
-              : "Показываем все операции."}
-          </p>
+          <FilterSelect
+            id="manual-filter-status"
+            label="Статус"
+            name="status"
+            onChange={(status) => setDraft({ ...draft, status })}
+            options={statuses}
+            value={draft.status}
+          />
         </div>
-        <Button
-          aria-controls="manual-ledger-filter-panel"
-          aria-expanded={isOpen}
-          onClick={() => setIsOpen((current) => !current)}
-        >
-          {isOpen ? "Скрыть" : "Показать"}
-        </Button>
+        <div>
+          <Field htmlFor="manual-filter-date-from" label="Дата от">
+            <input
+              id="manual-filter-date-from"
+              name="dateFrom"
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  dateFrom: event.currentTarget.value,
+                })
+              }
+              type="date"
+              value={draft.dateFrom}
+            />
+          </Field>
+        </div>
+        <div>
+          <Field htmlFor="manual-filter-date-to" label="Дата до">
+            <input
+              id="manual-filter-date-to"
+              name="dateTo"
+              onChange={(event) =>
+                setDraft({ ...draft, dateTo: event.currentTarget.value })
+              }
+              type="date"
+              value={draft.dateTo}
+            />
+          </Field>
+        </div>
       </div>
 
-      {isOpen ? (
-        <form id="manual-ledger-filter-panel" onSubmit={applyFilters}>
-          <div className={styles.filterGrid}>
-            <Field htmlFor="manual-filter-search" label="Описание">
-              <input
-                id="manual-filter-search"
-                onChange={(event) =>
-                  setDraft({ ...draft, search: event.currentTarget.value })
-                }
-                type="search"
-                value={draft.search}
-              />
-            </Field>
-            <Field htmlFor="manual-filter-date-from" label="Дата от">
-              <input
-                id="manual-filter-date-from"
-                onChange={(event) =>
-                  setDraft({ ...draft, dateFrom: event.currentTarget.value })
-                }
-                type="date"
-                value={draft.dateFrom}
-              />
-            </Field>
-            <Field htmlFor="manual-filter-date-to" label="Дата до">
-              <input
-                id="manual-filter-date-to"
-                onChange={(event) =>
-                  setDraft({ ...draft, dateTo: event.currentTarget.value })
-                }
-                type="date"
-                value={draft.dateTo}
-              />
-            </Field>
-            <FilterSelect
-              id="manual-filter-type"
-              label="Тип"
-              onChange={(operationType) =>
-                setDraft({ ...draft, operationType })
-              }
-              options={operationTypes}
-              value={draft.operationType}
-            />
-            <FilterSelect
-              id="manual-filter-status"
-              label="Статус"
-              onChange={(status) => setDraft({ ...draft, status })}
-              options={statuses}
-              value={draft.status}
-            />
-            <FilterSelect
-              id="manual-filter-account"
-              label="Счёт"
-              onChange={(accountId) => setDraft({ ...draft, accountId })}
-              options={options.accounts.map((account) => ({
-                value: account.id,
-                label: `${account.name} · ${account.currency}`,
-              }))}
-              value={draft.accountId}
-            />
-            <FilterSelect
-              id="manual-filter-category"
-              label="Категория"
-              onChange={(categoryId) => setDraft({ ...draft, categoryId })}
-              options={options.categories.map(referenceOption)}
-              value={draft.categoryId}
-            />
-            <FilterSelect
-              id="manual-filter-property"
-              label="Объект"
-              onChange={(propertyId) => setDraft({ ...draft, propertyId })}
-              options={options.properties.map(referenceOption)}
-              value={draft.propertyId}
-            />
-            <FilterSelect
-              id="manual-filter-per-page"
-              label="На странице"
-              onChange={(perPage) => setDraft({ ...draft, perPage })}
-              options={options.perPage.map((value) => ({
-                value: String(value),
-                label: String(value),
-              }))}
-              value={draft.perPage}
-            />
-          </div>
-          <div className={styles.filterActions}>
-            <Button tone="primary" type="submit">
-              Применить
-            </Button>
-            <Link className={styles.resetLink} to={location.pathname}>
-              Сбросить
-            </Link>
-          </div>
-        </form>
-      ) : null}
-    </section>
+      <details
+        className={styles.advancedFilters}
+        onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
+        open={advancedOpen}
+      >
+        <summary>Ещё фильтры</summary>
+        <div className={styles.filterGrid}>
+          <FilterSelect
+            id="manual-filter-type"
+            label="Тип"
+            name="operationType"
+            onChange={(operationType) => setDraft({ ...draft, operationType })}
+            options={operationTypes}
+            value={draft.operationType}
+          />
+          <FilterSelect
+            id="manual-filter-account"
+            label="Счёт"
+            name="accountId"
+            onChange={(accountId) => setDraft({ ...draft, accountId })}
+            options={options.accounts.map((account) => ({
+              value: account.id,
+              label: `${account.name} · ${account.currency}`,
+            }))}
+            value={draft.accountId}
+          />
+          <FilterSelect
+            id="manual-filter-category"
+            label="Категория"
+            name="categoryId"
+            onChange={(categoryId) => setDraft({ ...draft, categoryId })}
+            options={options.categories.map(referenceOption)}
+            value={draft.categoryId}
+          />
+          <FilterSelect
+            id="manual-filter-property"
+            label="Объект"
+            name="propertyId"
+            onChange={(propertyId) => setDraft({ ...draft, propertyId })}
+            options={options.properties.map(referenceOption)}
+            value={draft.propertyId}
+          />
+        </div>
+      </details>
+
+      <FormActions>
+        <Button isLoading={navigationPending} tone="primary" type="submit">
+          Применить
+        </Button>
+        <Link
+          className={styles.resetLink}
+          onClick={onClose}
+          to={location.pathname}
+        >
+          Сбросить
+        </Link>
+      </FormActions>
+    </form>
   );
 }
 
 type FilterSelectProps = {
   id: string;
   label: string;
+  name: string;
   onChange: (value: string) => void;
   options: { label: string; value: string }[];
   value: string;
@@ -198,6 +196,7 @@ type FilterSelectProps = {
 function FilterSelect({
   id,
   label,
+  name,
   onChange,
   options,
   value,
@@ -206,6 +205,7 @@ function FilterSelect({
     <Field htmlFor={id} label={label}>
       <select
         id={id}
+        name={name}
         onChange={(event) => onChange(event.currentTarget.value)}
         value={value}
       >
@@ -223,7 +223,6 @@ function FilterSelect({
 export function manualLedgerFilterDraft(
   currentSearch: string,
   options: FilterOptions,
-  paginationPerPage: number,
 ): ManualLedgerFilterDraft {
   const search = new URLSearchParams(currentSearch);
   return {
@@ -232,9 +231,6 @@ export function manualLedgerFilterDraft(
     dateFrom: validDate(search.get("date_from")),
     dateTo: validDate(search.get("date_to")),
     operationType: validOption(search.get("type"), operationTypes),
-    perPage:
-      validOption(search.get("per_page"), options.perPage) ||
-      String(paginationPerPage),
     propertyId: validOption(search.get("property_id"), options.properties),
     search: search.get("search") ?? "",
     status: validOption(search.get("status"), statuses),
@@ -243,6 +239,7 @@ export function manualLedgerFilterDraft(
 
 export function manualLedgerFilterSearch(
   draft: ManualLedgerFilterDraft,
+  perPage: number,
 ): string {
   const search = new URLSearchParams();
   append(search, "date_from", draft.dateFrom);
@@ -254,7 +251,7 @@ export function manualLedgerFilterSearch(
   append(search, "property_id", draft.propertyId);
   append(search, "search", draft.search.trim().replace(/\s+/g, " "));
   search.set("page", "1");
-  search.set("per_page", draft.perPage);
+  search.set("per_page", String(perPage));
   return `?${search.toString()}`;
 }
 
@@ -276,6 +273,69 @@ export function manualLedgerFiltersAreActive(currentSearch: string): boolean {
     }
     return Boolean(value?.trim());
   });
+}
+
+export function manualLedgerAppliedFilters(
+  currentSearch: string,
+  options: FilterOptions,
+): string[] {
+  const draft = manualLedgerFilterDraft(currentSearch, options);
+  const filters: string[] = [];
+  addAppliedFilter(filters, "От", draft.dateFrom);
+  addAppliedFilter(filters, "До", draft.dateTo);
+  addAppliedFilter(filters, "Статус", optionLabel(draft.status, statuses));
+  addAppliedFilter(
+    filters,
+    "Тип",
+    optionLabel(draft.operationType, operationTypes),
+  );
+  addAppliedFilter(
+    filters,
+    "Счёт",
+    optionLabel(draft.accountId, options.accounts),
+  );
+  addAppliedFilter(
+    filters,
+    "Категория",
+    optionLabel(draft.categoryId, options.categories),
+  );
+  addAppliedFilter(
+    filters,
+    "Объект",
+    optionLabel(draft.propertyId, options.properties),
+  );
+  return filters;
+}
+
+function classificationFiltersAreActive(draft: ManualLedgerFilterDraft) {
+  return Boolean(
+    draft.operationType ||
+    draft.accountId ||
+    draft.categoryId ||
+    draft.propertyId,
+  );
+}
+
+function addAppliedFilter(filters: string[], label: string, value: string) {
+  if (value) {
+    filters.push(`${label}: ${value}`);
+  }
+}
+
+function optionLabel(
+  value: string,
+  options: readonly (
+    { id: string; name: string } | { value: string; label: string }
+  )[],
+): string {
+  if (!value) {
+    return "";
+  }
+  const option = options.find((candidate) => optionValue(candidate) === value);
+  if (!option) {
+    return "";
+  }
+  return "name" in option ? option.name : option.label;
 }
 
 function append(search: URLSearchParams, name: string, value: string) {
