@@ -15,8 +15,8 @@ from app.features.ledger.application.listing import (
 from app.features.ledger.domain.types import OperationStatus, OperationType
 
 
-class ManualLedgerQuery(BaseModel):
-    """Tolerant normalized state of a manual-ledger list request."""
+class ManualLedgerListParameters(BaseModel):
+    """Tolerant normalized parameters of a manual-ledger list request."""
 
     model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
 
@@ -114,7 +114,7 @@ class ManualLedgerQuery(BaseModel):
             return default
 
 
-def parse_manual_ledger_query(
+def parse_manual_ledger_list_parameters(
     date_from: Annotated[str | None, Query()] = None,
     date_to: Annotated[str | None, Query()] = None,
     operation_type: Annotated[str | None, Query(alias="type")] = None,
@@ -126,8 +126,8 @@ def parse_manual_ledger_query(
     operation_id: Annotated[str | None, Query()] = None,
     page: Annotated[str | None, Query()] = None,
     per_page: Annotated[str | None, Query()] = None,
-) -> ManualLedgerQuery:
-    return ManualLedgerQuery.model_validate(
+) -> ManualLedgerListParameters:
+    return ManualLedgerListParameters.model_validate(
         {
             "date_from": date_from,
             "date_to": date_to,

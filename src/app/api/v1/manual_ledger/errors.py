@@ -92,7 +92,7 @@ MANUAL_LEDGER_API_ERRORS: dict[type[LedgerPostingError], ManualLedgerApiErrorSpe
 }
 
 
-def manual_operation_api_error(error: LedgerPostingError) -> ApiError:
+def manual_ledger_api_error(error: LedgerPostingError) -> ApiError:
     error_spec = MANUAL_LEDGER_API_ERRORS.get(type(error))
     if error_spec is None:
         raise error
