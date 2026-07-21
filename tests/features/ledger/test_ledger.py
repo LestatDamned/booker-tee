@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.imports.models import RawTransactionStatus
+from app.features.imports.domain.types import RawTransactionStatus
 from app.features.ledger.application.imported_operations import (
     ImportedOperationReviewUseCase,
     UpdateImportedOperationReviewFieldsCommand,
@@ -211,7 +211,7 @@ async def test_manual_create_rejects_idempotency_key_reuse_with_other_payload(
             command=command,
         )
 
-    assert session.rollbacks == 1
+    assert session.rollbacks == 0
 
 
 def test_ensure_balanced_transfer_rejects_unbalanced_entries() -> None:
@@ -232,7 +232,6 @@ def test_build_ledger_posting_plan_for_income_raw_row() -> None:
 
     assert plan.operation_type == OperationType.INCOME
     assert plan.amount == Decimal("100.00")
-    assert plan.affects_profit is True
     assert plan.description == "Rent"
 
 
@@ -413,6 +412,7 @@ async def test_imported_operation_review_update_changes_only_review_fields(monke
         source=OperationSource.BANK_PDF,
         type=OperationType.EXPENSE,
         status=OperationStatus.CONFIRMED,
+        version=3,
         category_id=None,
         property_id=None,
         description="Old",
@@ -421,7 +421,7 @@ async def test_imported_operation_review_update_changes_only_review_fields(monke
         raw_transactions=[raw_transaction],
         updated_by_user_id=None,
     )
-    session = SimpleNamespace(commits=0, rollbacks=0)
+    session = SimpleNamespace(commits=0, flushes=0, rollbacks=0)
 
     async def commit() -> None:
         session.commits += 1
@@ -429,7 +429,11 @@ async def test_imported_operation_review_update_changes_only_review_fields(monke
     async def rollback() -> None:
         session.rollbacks += 1
 
+    async def flush() -> None:
+        session.flushes += 1
+
     session.commit = commit
+    session.flush = flush
     session.rollback = rollback
 
     class FakeRepository:
@@ -474,10 +478,10 @@ async def test_imported_operation_review_update_changes_only_review_fields(monke
         ),
         command=UpdateImportedOperationReviewFieldsCommand(
             operation_id=operation_id,
+            expected_version=3,
             category_id=category_id,
             property_id=property_id,
             description="  New   label  ",
-            status=OperationStatus.NEEDS_REVIEW,
         ),
     )
 
@@ -485,7 +489,7 @@ async def test_imported_operation_review_update_changes_only_review_fields(monke
     assert operation.category_id == category_id
     assert operation.property_id == property_id
     assert operation.description == "New label"
-    assert operation.status == OperationStatus.NEEDS_REVIEW
+    assert operation.status == OperationStatus.CONFIRMED
     assert operation.updated_by_user_id == user_id
     assert operation.type == OperationType.EXPENSE
     assert operation.operation_date == date(2026, 6, 15)
@@ -493,6 +497,7 @@ async def test_imported_operation_review_update_changes_only_review_fields(monke
     assert operation.raw_transactions == [raw_transaction]
     assert money_entry.amount == Decimal("-120.00")
     assert session.commits == 1
+    assert session.flushes == 1
     assert session.rollbacks == 0
 
 
@@ -543,10 +548,10 @@ async def test_imported_operation_review_update_rejects_manual_source(monkeypatc
             ),
             command=UpdateImportedOperationReviewFieldsCommand(
                 operation_id=operation_id,
+                expected_version=1,
                 category_id=None,
                 property_id=None,
                 description="New",
-                status=OperationStatus.CONFIRMED,
             ),
         )
     assert session.commits == 0
@@ -638,7 +643,7 @@ async def test_manual_update_rejects_stale_expected_version_before_mutation(
             ),
         )
 
-    assert session.rollbacks == 1
+    assert session.rollbacks == 0
     assert not hasattr(operation, "description")
 
 
@@ -699,7 +704,7 @@ async def test_manual_update_rejects_ignored_operation_before_mutation(
             ),
         )
 
-    assert session.rollbacks == 1
+    assert session.rollbacks == 0
     assert not hasattr(operation, "description")
 
 
@@ -718,12 +723,12 @@ async def test_manual_cancel_and_restore_change_only_lifecycle_state(
         money_entries=money_entries,
         updated_by_user_id=None,
     )
-    session = SimpleNamespace(commits=0)
+    session = SimpleNamespace(flushes=0)
 
-    async def commit() -> None:
-        session.commits += 1
+    async def flush() -> None:
+        session.flushes += 1
 
-    session.commit = commit
+    session.flush = flush
 
     class FakeRepository:
         def __init__(self, _session: object) -> None:
@@ -763,7 +768,7 @@ async def test_manual_cancel_and_restore_change_only_lifecycle_state(
     await use_case.restore(context=context, operation_id=operation.id)
     assert operation.status is OperationStatus.CONFIRMED
     assert operation.money_entries is money_entries
-    assert session.commits == 2
+    assert session.flushes == 2
 
 
 @pytest.mark.asyncio
@@ -822,12 +827,12 @@ async def test_manual_delete_requires_deletable_state_and_expected_version(
         version=3,
     )
     deleted: list[object] = []
-    session = SimpleNamespace(commits=0)
+    session = SimpleNamespace(flushes=0)
 
-    async def commit() -> None:
-        session.commits += 1
+    async def flush() -> None:
+        session.flushes += 1
 
-    session.commit = commit
+    session.flush = flush
 
     class FakeRepository:
         def __init__(self, _session: object) -> None:
@@ -880,7 +885,7 @@ async def test_manual_delete_requires_deletable_state_and_expected_version(
         expected_version=4,
     )
     assert deleted == [operation]
-    assert session.commits == 1
+    assert session.flushes == 1
 
 
 @pytest.mark.asyncio

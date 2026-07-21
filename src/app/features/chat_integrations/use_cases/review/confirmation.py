@@ -37,7 +37,7 @@ from app.features.chat_integrations.use_cases.review.state import (
 )
 from app.features.imports.application.review.actions import (
     RawTransactionReviewCommand,
-    RawTransactionReviewUseCase,
+    RawTransactionReviewer,
 )
 from app.features.imports.errors import RawTransactionReviewError
 from app.features.imports.query_repository import ImportQueryRepository
@@ -450,7 +450,7 @@ class ChatReviewConfirmationService:
         property_id: UUID | None,
     ) -> ChatReviewActionResult:
         try:
-            await RawTransactionReviewUseCase(self.session, self.settings).handle(
+            await RawTransactionReviewer(self.session).handle(
                 context=context,
                 command=RawTransactionReviewCommand(
                     document_id=document_id,
@@ -461,7 +461,11 @@ class ChatReviewConfirmationService:
                 ),
             )
         except (LedgerPostingError, RawTransactionReviewError, ValueError) as exc:
+            await self.session.rollback()
             raise ChatReviewActionError(str(exc)) from exc
+        except Exception:
+            await self.session.rollback()
+            raise
 
         return ChatReviewActionResult(
             action_label="операция подтверждена",

@@ -98,7 +98,6 @@ class ManualOperationWriter:
                     entry_order=1,
                 )
             )
-            await self.session.commit()
             return operation
         except IntegrityError as error:
             return await self._recover_idempotent_race(
@@ -107,9 +106,6 @@ class ManualOperationWriter:
                 fingerprint=fingerprint,
                 integrity_error=error,
             )
-        except Exception:
-            await self.session.rollback()
-            raise
 
     async def create_transfer(
         self,
@@ -166,7 +162,6 @@ class ManualOperationWriter:
                     entry_order=2,
                 )
             )
-            await self.session.commit()
             return operation
         except IntegrityError as error:
             return await self._recover_idempotent_race(
@@ -175,9 +170,6 @@ class ManualOperationWriter:
                 fingerprint=fingerprint,
                 integrity_error=error,
             )
-        except Exception:
-            await self.session.rollback()
-            raise
 
     async def _find_idempotent_replay(
         self,
@@ -254,14 +246,10 @@ class ManualOperationWriter:
                     property_id=command.property_id,
                 )
 
-            await self.session.commit()
+            await self.session.flush()
             return operation
         except StaleDataError as error:
-            await self.session.rollback()
             raise OperationVersionConflictError() from error
-        except Exception:
-            await self.session.rollback()
-            raise
 
     async def cancel(
         self,
@@ -278,7 +266,7 @@ class ManualOperationWriter:
             )
         operation.status = OperationStatus.IGNORED
         operation.updated_by_user_id = context.user.id
-        await self._commit_versioned()
+        await self._flush_versioned()
         return operation
 
     async def restore(
@@ -296,7 +284,7 @@ class ManualOperationWriter:
             )
         operation.status = OperationStatus.CONFIRMED
         operation.updated_by_user_id = context.user.id
-        await self._commit_versioned()
+        await self._flush_versioned()
         return operation
 
     async def delete(
@@ -313,7 +301,7 @@ class ManualOperationWriter:
                 "Cancel a manual operation before deleting it."
             )
         await self.ledger.delete_operation(operation)
-        await self._commit_versioned()
+        await self._flush_versioned()
 
     async def _update_as_transfer(
         self,
@@ -421,9 +409,8 @@ class ManualOperationWriter:
         if expected_version is not None and operation.version != expected_version:
             raise OperationVersionConflictError()
 
-    async def _commit_versioned(self) -> None:
+    async def _flush_versioned(self) -> None:
         try:
-            await self.session.commit()
+            await self.session.flush()
         except StaleDataError as error:
-            await self.session.rollback()
             raise OperationVersionConflictError() from error

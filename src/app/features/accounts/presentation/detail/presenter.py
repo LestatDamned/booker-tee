@@ -22,6 +22,7 @@ from app.features.ledger.application.account_ledger import (
     OperationRefView,
     RawTransactionLinkView,
 )
+from app.features.ledger.domain.types import imported_operation_actions
 from app.features.ledger.models import OperationSource, OperationStatus, OperationType
 from app.templating import date_ru, ru_label
 
@@ -279,8 +280,8 @@ class AccountDetailPresenter:
             kind="импорт",
             title="Исправить операцию",
             form_action=f"/accounts/{account_id}/operations/{operation.id}/review-fields",
+            version=operation.version,
             description=operation.description or "",
-            status=operation.status,
             category_id=operation.category.id if operation.category else None,
             property_id=operation.property.id if operation.property else None,
             source_url=source_url,
@@ -292,7 +293,11 @@ class AccountDetailPresenter:
         operation: OperationRefView,
         presenter_input: AccountDetailPresenterInput,
     ) -> str | None:
-        if not presenter_input.can_write or operation.source != OperationSource.BANK_PDF:
+        if (
+            not presenter_input.can_write
+            or operation.source != OperationSource.BANK_PDF
+            or not imported_operation_actions(operation.status).can_edit_review_fields
+        ):
             return None
         return f"/accounts/{account_id}/operations/{operation.id}/review-fields/edit"
 

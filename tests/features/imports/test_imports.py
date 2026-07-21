@@ -251,7 +251,7 @@ async def test_review_status_marks_document_imported_when_last_row_is_ignored(
 
     assert raw_transaction.status == RawTransactionStatus.IGNORED
     assert document.status == UploadedDocumentStatus.IMPORTED
-    assert session.committed is True
+    assert session.committed is False
 
 
 def test_possible_duplicate_fingerprint_requires_normalized_fields() -> None:
@@ -447,7 +447,7 @@ async def test_confirm_with_remember_rule_reapplies_rules_to_document(
 
     calls: list[tuple[str, dict[str, object]]] = []
 
-    class FakeRawTransactionPostingUseCase:
+    class FakeRawTransactionPoster:
         def __init__(self, session: object) -> None:
             self.session = session
 
@@ -471,8 +471,8 @@ async def test_confirm_with_remember_rule_reapplies_rules_to_document(
 
     monkeypatch.setattr(
         review_actions,
-        "RawTransactionPostingUseCase",
-        FakeRawTransactionPostingUseCase,
+        "RawTransactionPoster",
+        FakeRawTransactionPoster,
     )
     monkeypatch.setattr(
         review_actions,
@@ -489,10 +489,17 @@ async def test_confirm_with_remember_rule_reapplies_rules_to_document(
     document_id = uuid4()
     raw_transaction_id = uuid4()
     category_id = uuid4()
-    use_case = review_actions.RawTransactionReviewUseCase(
-        session=cast(Any, object()),
-        settings=cast(Any, object()),
-    )
+    session = SimpleNamespace(commits=0, rollbacks=0)
+
+    async def commit() -> None:
+        session.commits += 1
+
+    async def rollback() -> None:
+        session.rollbacks += 1
+
+    session.commit = commit
+    session.rollback = rollback
+    use_case = review_actions.RawTransactionReviewUseCase(session=cast(Any, session))
 
     result = await use_case.handle(
         context=cast(
@@ -515,6 +522,73 @@ async def test_confirm_with_remember_rule_reapplies_rules_to_document(
         "workspace_id": workspace_id,
         "document_id": document_id,
     }
+    assert session.commits == 1
+    assert session.rollbacks == 0
+
+
+@pytest.mark.asyncio
+async def test_confirm_with_remember_rule_rolls_back_posting_when_rule_creation_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.features.imports.application.review import actions as review_actions
+
+    calls: list[str] = []
+
+    class FakeRawTransactionPoster:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def post_raw_transaction(self, **_kwargs: object) -> None:
+            calls.append("post")
+
+    class FailingTransactionRuleManagementUseCase:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def create_rule_from_raw_confirmation(self, **_kwargs: object) -> None:
+            calls.append("create_rule")
+            raise RuntimeError("rule failed")
+
+    monkeypatch.setattr(
+        review_actions,
+        "RawTransactionPoster",
+        FakeRawTransactionPoster,
+    )
+    monkeypatch.setattr(
+        review_actions,
+        "TransactionRuleManagementUseCase",
+        FailingTransactionRuleManagementUseCase,
+    )
+    session = SimpleNamespace(commits=0, rollbacks=0)
+
+    async def commit() -> None:
+        session.commits += 1
+
+    async def rollback() -> None:
+        session.rollbacks += 1
+
+    session.commit = commit
+    session.rollback = rollback
+    use_case = review_actions.RawTransactionReviewUseCase(session=cast(Any, session))
+
+    with pytest.raises(RuntimeError, match="rule failed"):
+        await use_case.handle(
+            context=cast(
+                Any,
+                SimpleNamespace(workspace=SimpleNamespace(id=uuid4())),
+            ),
+            command=review_actions.RawTransactionReviewCommand(
+                document_id=uuid4(),
+                raw_transaction_id=uuid4(),
+                action="confirm",
+                category_id=uuid4(),
+                remember_rule=True,
+            ),
+        )
+
+    assert calls == ["post", "create_rule"]
+    assert session.commits == 0
+    assert session.rollbacks == 1
 
 
 def raw_transaction_from_values(

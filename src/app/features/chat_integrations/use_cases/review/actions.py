@@ -174,7 +174,11 @@ class ChatReviewActionService:
                 action=review_action,
             )
         except RawTransactionReviewError as exc:
+            await self.session.rollback()
             raise ChatReviewActionError(str(exc)) from exc
+        except Exception:
+            await self.session.rollback()
+            raise
 
         await self.session.commit()
         return ChatReviewActionResult(

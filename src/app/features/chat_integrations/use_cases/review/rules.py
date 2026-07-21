@@ -200,8 +200,13 @@ class ChatReviewRuleSuggestionService:
                 workspace_id=context.workspace.id,
                 document_id=ChatReviewStateReader.read_document_id(state.state_payload),
             )
+            await self.session.commit()
         except TransactionRuleError as exc:
+            await self.session.rollback()
             raise ChatReviewActionError(str(exc)) from exc
+        except Exception:
+            await self.session.rollback()
+            raise
         return anchor
 
     async def _build_continuation_anchor(

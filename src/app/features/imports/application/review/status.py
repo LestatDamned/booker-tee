@@ -43,7 +43,6 @@ class RawTransactionReviewStatusUseCase:
             workspace_id=workspace_id,
             document_id=document_id,
         )
-        await self.session.commit()
         return document
 
 

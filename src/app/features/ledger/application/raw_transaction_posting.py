@@ -42,7 +42,7 @@ class TransferCounterparty:
     raw_transaction: RawTransaction | None
 
 
-class RawTransactionPostingUseCase:
+class RawTransactionPoster:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.imports = ImportRepository(session)
@@ -59,19 +59,13 @@ class RawTransactionPostingUseCase:
         category_id: UUID | None = None,
         property_id: UUID | None = None,
     ) -> Operation:
-        try:
-            operation = await self._post_raw_transaction(
-                context=context,
-                document_id=document_id,
-                raw_transaction_id=raw_transaction_id,
-                category_id=category_id,
-                property_id=property_id,
-            )
-            await self.session.commit()
-            return operation
-        except Exception:
-            await self.session.rollback()
-            raise
+        return await self._post_raw_transaction(
+            context=context,
+            document_id=document_id,
+            raw_transaction_id=raw_transaction_id,
+            category_id=category_id,
+            property_id=property_id,
+        )
 
     async def post_raw_transaction_as_transfer(
         self,
@@ -82,89 +76,86 @@ class RawTransactionPostingUseCase:
         counterparty_account_id: UUID | None,
         matched_raw_transaction_id: UUID | None,
     ) -> Operation:
-        try:
-            raw_transaction = await self.imports.get_raw_transaction_for_workspace(
-                context.workspace.id,
-                document_id,
-                raw_transaction_id,
+        raw_transaction = await self.imports.get_raw_transaction_for_workspace(
+            context.workspace.id,
+            document_id,
+            raw_transaction_id,
+        )
+        if raw_transaction is None:
+            raise LedgerPostingError("Raw transaction row was not found.")
+        ensure_raw_transaction_can_post_as_transfer(raw_transaction)
+        source_account = await self.references.get_account_for_raw_transaction(
+            context.workspace.id,
+            raw_transaction,
+        )
+        matched_raw_transaction = await self._resolve_matched_transfer_row(
+            context.workspace.id,
+            raw_transaction,
+            matched_raw_transaction_id,
+        )
+        counterparty = await self._resolve_transfer_counterparty(
+            workspace_id=context.workspace.id,
+            source_raw_transaction=raw_transaction,
+            source_account=source_account,
+            counterparty_account_id=counterparty_account_id,
+            matched_raw_transaction=matched_raw_transaction,
+        )
+        ensure_same_currency(source_account, counterparty.account)
+        ensure_balanced_transfer(require_raw_amount(raw_transaction), counterparty.amount)
+        transfer_category = await self.references.get_transfer_category(context.workspace.id)
+        operation = await self.ledger.create_operation(
+            build_bank_pdf_transfer_operation(
+                context=context,
+                raw_transaction=raw_transaction,
+                matched_raw_transaction=counterparty.raw_transaction,
+                transfer_category=transfer_category,
             )
-            if raw_transaction is None:
-                raise LedgerPostingError("Raw transaction row was not found.")
-            ensure_raw_transaction_can_post_as_transfer(raw_transaction)
-            source_account = await self.references.get_account_for_raw_transaction(
-                context.workspace.id,
-                raw_transaction,
+        )
+        await self.ledger.create_money_entry(
+            build_money_entry(
+                context=context,
+                operation=operation,
+                account=source_account,
+                amount=require_raw_amount(raw_transaction),
+                entry_order=1,
+                balance_after=raw_transaction.balance_after,
             )
-            matched_raw_transaction = await self._resolve_matched_transfer_row(
-                context.workspace.id,
-                raw_transaction,
-                matched_raw_transaction_id,
-            )
-            counterparty = await self._resolve_transfer_counterparty(
-                workspace_id=context.workspace.id,
-                source_raw_transaction=raw_transaction,
-                source_account=source_account,
-                counterparty_account_id=counterparty_account_id,
-                matched_raw_transaction=matched_raw_transaction,
-            )
-            ensure_same_currency(source_account, counterparty.account)
-            ensure_balanced_transfer(require_raw_amount(raw_transaction), counterparty.amount)
-            transfer_category = await self.references.get_transfer_category(context.workspace.id)
-            operation = await self.ledger.create_operation(
-                build_bank_pdf_transfer_operation(
-                    context=context,
-                    raw_transaction=raw_transaction,
-                    matched_raw_transaction=counterparty.raw_transaction,
-                    transfer_category=transfer_category,
-                )
-            )
-            await self.ledger.create_money_entry(
-                build_money_entry(
-                    context=context,
-                    operation=operation,
-                    account=source_account,
-                    amount=require_raw_amount(raw_transaction),
-                    entry_order=1,
-                    balance_after=raw_transaction.balance_after,
-                )
-            )
-            await self.ledger.create_money_entry(
-                build_money_entry(
-                    context=context,
-                    operation=operation,
-                    account=counterparty.account,
-                    amount=counterparty.amount,
-                    entry_order=2,
-                    balance_after=counterparty.raw_transaction.balance_after
+        )
+        await self.ledger.create_money_entry(
+            build_money_entry(
+                context=context,
+                operation=operation,
+                account=counterparty.account,
+                amount=counterparty.amount,
+                entry_order=2,
+                balance_after=(
+                    counterparty.raw_transaction.balance_after
                     if counterparty.raw_transaction
-                    else None,
-                )
+                    else None
+                ),
             )
+        )
+        await self.imports.link_raw_transaction_to_operation(
+            raw_transaction,
+            operation_id=operation.id,
+        )
+        affected_document_ids = {document_id}
+        if counterparty.raw_transaction is not None:
             await self.imports.link_raw_transaction_to_operation(
-                raw_transaction,
+                counterparty.raw_transaction,
                 operation_id=operation.id,
             )
-            affected_document_ids = {document_id}
-            if counterparty.raw_transaction is not None:
-                await self.imports.link_raw_transaction_to_operation(
-                    counterparty.raw_transaction,
-                    operation_id=operation.id,
-                )
-                affected_document_ids.add(counterparty.raw_transaction.uploaded_document_id)
-            for affected_document_id in affected_document_ids:
-                await self._refresh_document_validation(
-                    context.workspace.id,
-                    affected_document_id,
-                )
-                await self.document_status.mark_imported_if_complete(
-                    workspace_id=context.workspace.id,
-                    document_id=affected_document_id,
-                )
-            await self.session.commit()
-            return operation
-        except Exception:
-            await self.session.rollback()
-            raise
+            affected_document_ids.add(counterparty.raw_transaction.uploaded_document_id)
+        for affected_document_id in affected_document_ids:
+            await self._refresh_document_validation(
+                context.workspace.id,
+                affected_document_id,
+            )
+            await self.document_status.mark_imported_if_complete(
+                workspace_id=context.workspace.id,
+                document_id=affected_document_id,
+            )
+        return operation
 
     async def link_raw_transaction_to_existing_transfer(
         self,
@@ -174,41 +165,36 @@ class RawTransactionPostingUseCase:
         raw_transaction_id: UUID,
         operation_id: UUID,
     ) -> Operation:
-        try:
-            raw_transaction = await self.imports.get_raw_transaction_for_workspace(
-                context.workspace.id,
-                document_id,
-                raw_transaction_id,
-            )
-            if raw_transaction is None:
-                raise LedgerPostingError("Raw transaction row was not found.")
-            ensure_raw_transaction_can_post_as_transfer(raw_transaction)
+        raw_transaction = await self.imports.get_raw_transaction_for_workspace(
+            context.workspace.id,
+            document_id,
+            raw_transaction_id,
+        )
+        if raw_transaction is None:
+            raise LedgerPostingError("Raw transaction row was not found.")
+        ensure_raw_transaction_can_post_as_transfer(raw_transaction)
 
-            candidates = await self.ledger.list_manual_transfer_candidates_for_raw_transaction(
-                workspace_id=context.workspace.id,
-                raw_transaction=raw_transaction,
-            )
-            operation = next(
-                (candidate for candidate in candidates if candidate.id == operation_id),
-                None,
-            )
-            if operation is None:
-                raise LedgerPostingError("Manual transfer is not a transfer candidate.")
+        candidates = await self.ledger.list_manual_transfer_candidates_for_raw_transaction(
+            workspace_id=context.workspace.id,
+            raw_transaction=raw_transaction,
+        )
+        operation = next(
+            (candidate for candidate in candidates if candidate.id == operation_id),
+            None,
+        )
+        if operation is None:
+            raise LedgerPostingError("Manual transfer is not a transfer candidate.")
 
-            await self.imports.link_raw_transaction_to_operation(
-                raw_transaction,
-                operation_id=operation.id,
-            )
-            await self._refresh_document_validation(context.workspace.id, document_id)
-            await self.document_status.mark_imported_if_complete(
-                workspace_id=context.workspace.id,
-                document_id=document_id,
-            )
-            await self.session.commit()
-            return operation
-        except Exception:
-            await self.session.rollback()
-            raise
+        await self.imports.link_raw_transaction_to_operation(
+            raw_transaction,
+            operation_id=operation.id,
+        )
+        await self._refresh_document_validation(context.workspace.id, document_id)
+        await self.document_status.mark_imported_if_complete(
+            workspace_id=context.workspace.id,
+            document_id=document_id,
+        )
+        return operation
 
     async def _post_raw_transaction(
         self,

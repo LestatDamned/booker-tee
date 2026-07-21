@@ -38,3 +38,14 @@ def manual_operation_actions(status: OperationStatus) -> ManualOperationActions:
         can_restore=status == OperationStatus.IGNORED,
         can_delete=status in {OperationStatus.DRAFT, OperationStatus.IGNORED},
     )
+
+
+@dataclass(frozen=True)
+class ImportedOperationActions:
+    can_edit_review_fields: bool
+
+
+def imported_operation_actions(status: OperationStatus) -> ImportedOperationActions:
+    return ImportedOperationActions(
+        can_edit_review_fields=status == OperationStatus.CONFIRMED,
+    )

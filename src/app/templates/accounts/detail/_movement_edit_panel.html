@@ -9,18 +9,11 @@
   </div>
   <form class="row-drawer__form account-movement__drawer-form operation-form operation-form--drawer" method="post" action="{{ drawer.form_action }}">
     {{ csrf_input() }}
+    <input type="hidden" name="version" value="{{ drawer.version }}">
     <div class="operation-form__fields operation-form__fields--primary">
       <label class="field row-drawer__field row-drawer__field--description account-movement__description-field operation-form__field operation-form__field--description">
         <span>описание</span>
         <input name="description" value="{{ drawer.description }}" placeholder="Описание">
-      </label>
-      <label class="field row-drawer__field operation-form__field operation-form__field--status">
-        <span>статус</span>
-        <select name="status">
-          {% for status in operation_statuses | default([]) %}
-            <option value="{{ status.value }}" {% if drawer.status == status %}selected{% endif %}>{{ status | ru }}</option>
-          {% endfor %}
-        </select>
       </label>
     </div>
     <div class="operation-form__fields operation-form__fields--classification">

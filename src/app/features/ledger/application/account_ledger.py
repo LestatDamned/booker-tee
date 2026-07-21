@@ -61,6 +61,7 @@ class RawTransactionLinkView:
 @dataclass(frozen=True)
 class OperationRefView:
     id: UUID
+    version: int
     type: OperationType
     status: OperationStatus
     source: OperationSource
@@ -130,6 +131,7 @@ class LedgerViewMapper:
     def operation_ref_from_model(operation: Operation) -> OperationRefView:
         return OperationRefView(
             id=operation.id,
+            version=operation.version,
             type=operation.type,
             status=operation.status,
             source=operation.source,

@@ -1,4 +1,4 @@
-from app.features.imports.models import RawTransactionStatus
+from app.features.imports.domain.types import RawTransactionStatus
 from app.features.transaction_rules.domain.matching import (
     RuleApplicationTarget,
     RuleSuggestion,

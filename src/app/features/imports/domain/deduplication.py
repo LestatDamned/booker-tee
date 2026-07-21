@@ -2,7 +2,8 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.models import RawTransaction, RawTransactionStatus
+from app.features.imports.domain.types import RawTransactionStatus
+from app.features.imports.models import RawTransaction
 from app.features.imports.repository import ImportRepository
 
 RawTransactionFingerprint = tuple[UUID, date, Decimal, str]

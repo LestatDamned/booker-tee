@@ -4,10 +4,9 @@ from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
-from app.features.imports.models import RawTransactionStatus
+from app.features.imports.domain.types import RawTransactionStatus
 from app.features.ledger.domain.money import (
     PostingAccount,
-    affects_profit_for_operation_type,
     operation_type_for_amount,
 )
 from app.features.ledger.domain.types import OperationType
@@ -44,7 +43,6 @@ def raw_transaction_effective_account_id(raw_transaction: object) -> UUID | None
 @dataclass(frozen=True)
 class LedgerPostingPlan:
     operation_type: OperationType
-    affects_profit: bool
     amount: Decimal
     currency: str
     operation_date: date
@@ -78,7 +76,6 @@ class LedgerPostingPlan:
         operation_type = operation_type_for_amount(raw_transaction.amount)
         return cls(
             operation_type=operation_type,
-            affects_profit=affects_profit_for_operation_type(operation_type),
             amount=raw_transaction.amount,
             currency=raw_transaction.currency,
             operation_date=raw_transaction.operation_date,

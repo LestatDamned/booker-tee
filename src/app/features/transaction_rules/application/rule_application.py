@@ -44,7 +44,6 @@ class TransactionRuleApplicationUseCase:
             workspace_id=workspace_id,
             raw_transactions=document.raw_transactions,
         )
-        await self.session.commit()
         return summary
 
     async def apply_rules_to_raw_transactions(

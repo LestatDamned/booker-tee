@@ -44,7 +44,7 @@ class OperationIdempotencyConflictError(LedgerPostingError):
 
 class OperationVersionConflictError(LedgerPostingError):
     def __init__(self) -> None:
-        super().__init__("Manual operation changed after this edit form was loaded.")
+        super().__init__("Operation changed after this edit form was loaded.")
 
 
 class ManualOperationLifecycleConflictError(LedgerPostingError):
@@ -54,3 +54,13 @@ class ManualOperationLifecycleConflictError(LedgerPostingError):
 class ManualOperationNotEditableError(LedgerPostingError):
     def __init__(self) -> None:
         super().__init__("Only confirmed or draft manual operations can be edited.")
+
+
+class ImportedOperationNotFoundError(LedgerPostingError):
+    def __init__(self) -> None:
+        super().__init__("Imported operation was not found.")
+
+
+class ImportedOperationNotEditableError(LedgerPostingError):
+    def __init__(self) -> None:
+        super().__init__("Only confirmed imported operations can be edited.")

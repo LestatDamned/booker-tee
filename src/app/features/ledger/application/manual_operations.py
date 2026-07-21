@@ -1,6 +1,6 @@
-from collections.abc import Sequence
+from collections.abc import Awaitable, Sequence
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, TypeVar
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +27,8 @@ from app.features.ledger.errors import (
 from app.features.ledger.mapping.operations import ManualOperationReadDtoMapper
 from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
+
+WriteResult = TypeVar("WriteResult")
 
 
 class NamedReferenceRecord(Protocol):
@@ -111,6 +113,7 @@ class ManualLedgerReferenceReader:
 
 class ManualOperationService:
     def __init__(self, session: AsyncSession) -> None:
+        self._session = session
         self._ledger = LedgerRepository(session)
         self._writer = ManualOperationWriter(session)
 
@@ -172,12 +175,13 @@ class ManualOperationService:
         command: CreateManualOperationCommand,
     ) -> ManualOperationReadDto:
         if isinstance(command, CreateManualTransferCommand):
-            operation = await self._writer.create_transfer(context=context, command=command)
+            mutation = self._writer.create_transfer(context=context, command=command)
         else:
-            operation = await self._writer.create_income_expense(
+            mutation = self._writer.create_income_expense(
                 context=context,
                 command=command,
             )
+        operation = await self._commit(mutation)
         return await self._read_changed(context.workspace.id, operation.id)
 
     async def update(
@@ -186,7 +190,7 @@ class ManualOperationService:
         context: WorkspaceContext,
         command: UpdateManualOperationCommand,
     ) -> ManualOperationReadDto:
-        operation = await self._writer.update(context=context, command=command)
+        operation = await self._commit(self._writer.update(context=context, command=command))
         return await self._read_changed(context.workspace.id, operation.id)
 
     async def cancel(
@@ -196,10 +200,12 @@ class ManualOperationService:
         operation_id: UUID,
         expected_version: int,
     ) -> ManualOperationReadDto:
-        operation = await self._writer.cancel(
-            context=context,
-            operation_id=operation_id,
-            expected_version=expected_version,
+        operation = await self._commit(
+            self._writer.cancel(
+                context=context,
+                operation_id=operation_id,
+                expected_version=expected_version,
+            )
         )
         return await self._read_changed(context.workspace.id, operation.id)
 
@@ -210,10 +216,12 @@ class ManualOperationService:
         operation_id: UUID,
         expected_version: int,
     ) -> ManualOperationReadDto:
-        operation = await self._writer.restore(
-            context=context,
-            operation_id=operation_id,
-            expected_version=expected_version,
+        operation = await self._commit(
+            self._writer.restore(
+                context=context,
+                operation_id=operation_id,
+                expected_version=expected_version,
+            )
         )
         return await self._read_changed(context.workspace.id, operation.id)
 
@@ -224,11 +232,22 @@ class ManualOperationService:
         operation_id: UUID,
         expected_version: int,
     ) -> None:
-        await self._writer.delete(
-            context=context,
-            operation_id=operation_id,
-            expected_version=expected_version,
+        await self._commit(
+            self._writer.delete(
+                context=context,
+                operation_id=operation_id,
+                expected_version=expected_version,
+            )
         )
+
+    async def _commit(self, mutation: Awaitable[WriteResult]) -> WriteResult:
+        try:
+            result = await mutation
+            await self._session.commit()
+            return result
+        except Exception:
+            await self._session.rollback()
+            raise
 
     async def _read_changed(
         self,

@@ -53,8 +53,8 @@ class AccountMovementDrawerVM:
     kind: str
     title: str
     form_action: str
+    version: int
     description: str
-    status: OperationStatus
     category_id: UUID | None
     property_id: UUID | None
     source_url: str | None

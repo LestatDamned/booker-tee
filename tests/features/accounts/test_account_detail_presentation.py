@@ -177,6 +177,7 @@ def test_presenter_promotes_review_status_to_badge() -> None:
     assert [badge.label for badge in movement.badges] == ["нужна проверка", "без категории"]
     assert [badge.tone for badge in movement.badges] == ["needs_review", "warning"]
     assert movement.meta[-1].label == "нужна проверка"
+    assert movement.edit_form_url is None
 
 
 def test_presenter_detects_active_filters() -> None:
@@ -214,6 +215,7 @@ def operation_view(
 ) -> OperationRefView:
     return OperationRefView(
         id=uuid4(),
+        version=1,
         type=operation_type,
         status=status,
         source=source,

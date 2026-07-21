@@ -28,6 +28,12 @@ from app.features.ledger.application.listing import (
     LedgerPage,
     normalize_pagination,
 )
+from app.features.ledger.domain.types import imported_operation_actions
+from app.features.ledger.errors import (
+    ImportedOperationNotEditableError,
+    ImportedOperationNotFoundError,
+    OperationVersionConflictError,
+)
 from app.features.ledger.models import OperationSource, OperationStatus, OperationType
 from app.features.properties.service import PropertyService
 from app.features.workspaces.dependencies import (
@@ -254,6 +260,11 @@ async def imported_operation_review_fields_panel(
     )
     if operation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    if not imported_operation_actions(operation.status).can_edit_review_fields:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only confirmed imported operations can be edited.",
+        )
     categories = await CategoryService(session).list_or_seed_defaults(
         context.workspace.id,
         context.workspace.type,
@@ -270,7 +281,6 @@ async def imported_operation_review_fields_panel(
         {
             "categories": categories,
             "edit_panel": edit_panel,
-            "operation_statuses": list(OperationStatus),
             "properties": properties,
         },
     )
@@ -283,12 +293,10 @@ async def update_imported_operation_review_fields(
     operation_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
+    version: Annotated[int, Form()],
     description: Annotated[str | None, Form()] = None,
     category_id: Annotated[str | None, Form()] = None,
     property_id: Annotated[str | None, Form()] = None,
-    operation_status: Annotated[OperationStatus, Form(alias="status")] = (
-        OperationStatus.CONFIRMED
-    ),
 ) -> Response:
     account_operation = await AccountLedgerReader(session).get_imported_operation(
         workspace_id=context.workspace.id,
@@ -302,12 +310,16 @@ async def update_imported_operation_review_fields(
             context=context,
             command=UpdateImportedOperationReviewFieldsCommand(
                 operation_id=operation_id,
+                expected_version=version,
                 category_id=parse_optional_query_uuid(category_id, field_name="category_id"),
                 property_id=parse_optional_query_uuid(property_id, field_name="property_id"),
                 description=description,
-                status=operation_status,
             ),
         )
+    except ImportedOperationNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except (ImportedOperationNotEditableError, OperationVersionConflictError) as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if is_htmx(request):

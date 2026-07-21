@@ -272,8 +272,8 @@ def test_account_movement_edit_panel_lazy_loads_review_form() -> None:
             kind="imported",
             title="Исправить операцию",
             form_action=f"/accounts/{account_id}/operations/{operation_id}/review-fields",
+            version=7,
             description='Списание средств по платежу СБП | ООО "ЛЕНТА"',
-            status=OperationStatus.CONFIRMED,
             category_id=category_id,
             property_id=property_id,
             source_url=f"/imports/documents/{uuid4()}/review#raw-{uuid4()}",
@@ -282,7 +282,6 @@ def test_account_movement_edit_panel_lazy_loads_review_form() -> None:
     html = templates.env.get_template("accounts/detail/_movement_edit_panel.html").render(
         categories=[SimpleNamespace(id=category_id, name="Продукты")],
         edit_panel=drawer,
-        operation_statuses=list(OperationStatus),
         properties=[SimpleNamespace(id=property_id, name="Дом")],
     )
 
@@ -299,6 +298,8 @@ def test_account_movement_edit_panel_lazy_loads_review_form() -> None:
     assert "operation-form__footer--actions" in html
     assert "row-drawer__footer account-movement__drawer-submit" in html
     assert "сохранить изменения" in html
+    assert '<input type="hidden" name="version" value="7">' in html
+    assert 'name="status"' not in html
     assert "Исправить операцию" in html
     assert "Продукты" in html
     assert "Дом" in html

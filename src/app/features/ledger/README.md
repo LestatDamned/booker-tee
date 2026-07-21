@@ -13,6 +13,10 @@
 - все обращения к финансовым данным ограничены workspace;
 - raw import row не превращается в подтверждённую операцию вне application
   workflow;
+- review-поля импортированной операции исправляются только в статусе
+  `confirmed` и с проверкой ожидаемой версии;
+- lifecycle импортированной операции не меняется через correction form:
+  отмена posting выполняется отдельным undo workflow;
 - несколько записей одного workflow фиксируются атомарно.
 
 ## Основные потоки
@@ -24,7 +28,8 @@ manual ledger API / chat
   -> Operation + MoneyEntry[]
 
 raw transaction review
-  -> RawTransactionPostingUseCase
+  -> RawTransactionReviewUseCase / RawTransactionReviewer
+  -> RawTransactionPoster
   -> LedgerPostingPlan + operation mapping
   -> LedgerRepository + ImportRepository
   -> Operation + MoneyEntry[] + linked RawTransaction
@@ -58,7 +63,7 @@ ledger/
     money.py                   # signs, amounts, currency and balance rules
     raw_transactions.py        # posting plan and imported-row policies
     text.py                    # shared ledger text normalization
-    types.py                   # operation enums and manual lifecycle policy
+    types.py                   # operation enums and lifecycle/action policies
 
   mapping/
     operations.py              # ORM factories, fingerprints and read mapping
@@ -75,30 +80,39 @@ ledger/
 
 ### Application
 
-Application actors оркестрируют workflow, разрешают workspace-scoped references
-и владеют commit/rollback своих write-сценариев. Они могут использовать
-SQLAlchemy session и repositories, но не знают про HTTP, templates и API schemas.
+Application actors оркестрируют workflow и разрешают workspace-scoped references.
+Публичная transactional shell владеет commit/rollback всего пользовательского
+сценария; вложенные writers, reviewers и posters только изменяют session и делают
+flush. Они могут использовать SQLAlchemy session и repositories, но не знают про
+HTTP, templates и API schemas.
 
 Public actors читаются как `кто.что()`:
 
 ```text
 ManualOperationService.create(...)
 ManualOperationWriter.update(...)
-RawTransactionPostingUseCase.post_raw_transaction(...)
+RawTransactionReviewUseCase.handle(...)
+RawTransactionReviewer.handle(...)
+RawTransactionPoster.post_raw_transaction(...)
 ImportedOperationUndoUseCase.undo_raw_transaction_posting(...)
 TransferSuggestionUseCase.list_for_document(...)
 AccountLedgerReader.get_detail(...)
 ```
 
-Если application workflow вызывает другой write workflow, нужно отдельно
-проверить владельца transaction boundary: внутренний commit не должен случайно
-фиксировать несвязанные изменения вызывающего сценария.
+`ManualOperationService` владеет manual API transaction. `RawTransactionReviewUseCase`
+владеет SSR import-review transaction. Chat workflows используют вложенные writer /
+reviewer напрямую и атомарно фиксируют финансовое изменение вместе с consume chat
+state. Внутренний commit не должен появляться в этих actors.
 
 ### Domain
 
 Domain functions и value objects не зависят от HTTP или AsyncSession. Маленькие
 чистые вычисления остаются свободными функциями; class/actor нужен для workflow,
 state transition или объекта с собственным инвариантом.
+
+`RawTransactionStatus` принадлежит imports domain и объявлен в
+`imports/domain/types.py`. Ledger posting policy использует этот доменный тип,
+но не импортирует SQLAlchemy models модуля imports.
 
 Хорошие свободные функции:
 
@@ -116,6 +130,11 @@ clean_description(...)
 преобразования загруженного operation aggregate в manual read DTO. API mapping
 остаётся в API adapter.
 
+Manual и imported factories используют один внутренний confirmed-operation
+factory. Он централизованно задаёт `confirmed`, audit fields, `confirmed_at` и
+выводит `affects_profit` из `OperationType`. Source-specific factories отвечают
+только за команды, provenance metadata и нормализацию входных данных.
+
 ### Repository
 
 `LedgerRepository` выполняет только SQLAlchemy queries, add/delete/flush и не
@@ -127,20 +146,29 @@ Read queries можно вынести в `query_repository.py`, только к
 
 - `*Service` — публичный application facade для нескольких близких операций.
 - `*Writer` / `*UseCase` — write workflow с транзакционными эффектами.
+- `*Reviewer` / `*Poster` — вложенная mutation-логика без собственного commit.
 - `*Reader` — read-side orchestration и DTO projection.
 - `*Repository` — persistence API.
 - `*Command` — неизменяемое write-side намерение.
 - `*Dto` / `*View` — данные read-side boundary.
 - `*Plan` / `*Amounts` — чистый domain result с инвариантами.
 
-## Текущий cleanup backlog
+## Технический долг
 
-1. Добавить focused tests для transfer posting, undo и transfer suggestions.
-2. Сделать transaction ownership явным для вложенных review/chat workflows.
-3. Добавить lifecycle/version policy для correction импортированной операции.
-4. Убрать dependency domain raw-transaction policy от imports persistence enum.
-5. Удалить `AccountLedgerReader` и связанные legacy View types после React
-   cutover account screen.
+### Legacy account ledger read side
+
+`AccountLedgerReader` и связанные legacy View types остаются временным read-side
+adapter для SSR account screen. Их нельзя удалять или заменять новой общей
+абстракцией, пока у экрана есть runtime-потребитель.
+
+Долг можно погасить после React cutover account screen, когда:
+
+- React-экран получает account ledger через versioned API;
+- legacy account route, presenter и templates больше не используются;
+- API и React tests покрывают заменивший их read contract.
+
+До выполнения delete gate в этом коде делаются только исправления корректности
+и необходимые изменения контракта.
 
 Если структура или public actors изменяются, этот README обновляется в том же
 изменении.

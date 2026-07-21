@@ -38,7 +38,7 @@ from app.features.chat_integrations.use_cases.review.state import (
     ChatReviewStateClaimer,
     ChatReviewStateReader,
 )
-from app.features.imports.application.review.actions import RawTransactionReviewUseCase
+from app.features.imports.application.review.actions import RawTransactionReviewer
 from app.features.imports.errors import RawTransactionReviewError
 from app.features.imports.query_repository import ImportQueryRepository
 from app.features.ledger.application.transfer_suggestions import TransferSuggestionUseCase
@@ -328,12 +328,16 @@ class ChatReviewTransferService:
         command = ChatReviewTransferCommandBuilder.build_command(state.state_payload)
         await ChatReviewStateClaimer.claim_once(self.chat_integrations, state)
         try:
-            await RawTransactionReviewUseCase(self.session, self.settings).handle(
+            await RawTransactionReviewer(self.session).handle(
                 context=context,
                 command=command,
             )
         except (LedgerPostingError, RawTransactionReviewError, ValueError) as exc:
+            await self.session.rollback()
             raise ChatReviewActionError(str(exc)) from exc
+        except Exception:
+            await self.session.rollback()
+            raise
 
         await self.session.commit()
         return ChatReviewActionResult(

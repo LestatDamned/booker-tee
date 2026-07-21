@@ -1,5 +1,6 @@
 import hashlib
 import json
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from app.features.ledger.application.manual_contracts import (
     ManualOperationReadDto,
     NamedReferenceReadDto,
 )
+from app.features.ledger.domain.money import affects_profit_for_operation_type
 from app.features.ledger.domain.raw_transactions import (
     LedgerPostingPlan,
     require_raw_operation_date,
@@ -74,19 +76,14 @@ def build_manual_income_expense_operation(
     category: Category,
     property_: Property | None,
 ) -> Operation:
-    return Operation(
-        workspace_id=context.workspace.id,
-        type=command.operation_type,
-        status=OperationStatus.CONFIRMED,
-        affects_profit=True,
+    return _build_confirmed_operation(
+        context=context,
+        operation_type=command.operation_type,
+        source=OperationSource.MANUAL,
         category_id=category.id,
         property_id=property_.id if property_ else None,
         description=clean_description(command.description),
         operation_date=command.operation_date,
-        source=OperationSource.MANUAL,
-        created_by_user_id=context.user.id,
-        updated_by_user_id=context.user.id,
-        confirmed_at=utc_now(),
         idempotency_key=str(command.idempotency_key) if command.idempotency_key else None,
         idempotency_fingerprint=(
             manual_income_expense_fingerprint(command) if command.idempotency_key else None
@@ -100,18 +97,13 @@ def build_manual_transfer_operation(
     command: CreateManualTransferCommand,
     transfer_category: Category,
 ) -> Operation:
-    return Operation(
-        workspace_id=context.workspace.id,
-        type=OperationType.TRANSFER,
-        status=OperationStatus.CONFIRMED,
-        affects_profit=False,
+    return _build_confirmed_operation(
+        context=context,
+        operation_type=OperationType.TRANSFER,
+        source=OperationSource.MANUAL,
         category_id=transfer_category.id,
         description=clean_description(command.description),
         operation_date=command.operation_date,
-        source=OperationSource.MANUAL,
-        created_by_user_id=context.user.id,
-        updated_by_user_id=context.user.id,
-        confirmed_at=utc_now(),
         idempotency_key=str(command.idempotency_key) if command.idempotency_key else None,
         idempotency_fingerprint=(
             manual_transfer_fingerprint(command) if command.idempotency_key else None
@@ -128,20 +120,15 @@ def build_bank_pdf_operation(
     category: Category,
     property_: Property | None,
 ) -> Operation:
-    return Operation(
-        workspace_id=context.workspace.id,
-        type=plan.operation_type,
-        status=OperationStatus.CONFIRMED,
-        affects_profit=plan.affects_profit,
+    return _build_confirmed_operation(
+        context=context,
+        operation_type=plan.operation_type,
+        source=OperationSource.BANK_PDF,
         category_id=category.id,
         property_id=property_.id if property_ else None,
         description=plan.description,
         operation_date=plan.operation_date,
         posting_date=plan.posting_date,
-        source=OperationSource.BANK_PDF,
-        created_by_user_id=context.user.id,
-        updated_by_user_id=context.user.id,
-        confirmed_at=utc_now(),
         extra_metadata={
             "source": "raw_transaction",
             "raw_transaction_id": str(raw_transaction.id),
@@ -157,21 +144,16 @@ def build_bank_pdf_transfer_operation(
     matched_raw_transaction: RawTransaction | None,
     transfer_category: Category,
 ) -> Operation:
-    return Operation(
-        workspace_id=context.workspace.id,
-        type=OperationType.TRANSFER,
-        status=OperationStatus.CONFIRMED,
-        affects_profit=False,
+    return _build_confirmed_operation(
+        context=context,
+        operation_type=OperationType.TRANSFER,
+        source=OperationSource.BANK_PDF,
         category_id=transfer_category.id,
         description=clean_description(
             raw_transaction.description_normalized or raw_transaction.description_raw
         ),
         operation_date=require_raw_operation_date(raw_transaction),
         posting_date=raw_transaction.posting_date,
-        source=OperationSource.BANK_PDF,
-        created_by_user_id=context.user.id,
-        updated_by_user_id=context.user.id,
-        confirmed_at=utc_now(),
         extra_metadata={
             "source": "raw_transfer",
             "raw_transaction_id": str(raw_transaction.id),
@@ -179,6 +161,40 @@ def build_bank_pdf_transfer_operation(
             if matched_raw_transaction
             else None,
         },
+    )
+
+
+def _build_confirmed_operation(
+    *,
+    context: WorkspaceContext,
+    operation_type: OperationType,
+    source: OperationSource,
+    category_id: UUID,
+    description: str | None,
+    operation_date: date,
+    property_id: UUID | None = None,
+    posting_date: date | None = None,
+    idempotency_key: str | None = None,
+    idempotency_fingerprint: str | None = None,
+    extra_metadata: dict[str, object] | None = None,
+) -> Operation:
+    return Operation(
+        workspace_id=context.workspace.id,
+        type=operation_type,
+        status=OperationStatus.CONFIRMED,
+        affects_profit=affects_profit_for_operation_type(operation_type),
+        category_id=category_id,
+        property_id=property_id,
+        description=description,
+        operation_date=operation_date,
+        posting_date=posting_date,
+        source=source,
+        created_by_user_id=context.user.id,
+        updated_by_user_id=context.user.id,
+        confirmed_at=utc_now(),
+        idempotency_key=idempotency_key,
+        idempotency_fingerprint=idempotency_fingerprint,
+        extra_metadata=extra_metadata,
     )
 
 

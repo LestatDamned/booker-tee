@@ -116,7 +116,7 @@ async def update_raw_transaction_status(
     review_data_loader = ImportReviewPageDataLoader(session)
     response_renderer = ReviewActionResponseRenderer(review_data_loader)
     try:
-        result = await RawTransactionReviewUseCase(session, settings).handle(
+        result = await RawTransactionReviewUseCase(session).handle(
             context=context,
             command=command,
         )
@@ -303,11 +303,16 @@ async def apply_rules_to_document(
             workspace_id=context.workspace.id,
             document_id=document_id,
         )
+        await session.commit()
     except TransactionRuleError as exc:
+        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+    except Exception:
+        await session.rollback()
+        raise
     return RedirectResponse(
         url=f"/imports/documents/{document_id}/review",
         status_code=status.HTTP_303_SEE_OTHER,

@@ -212,28 +212,33 @@ class ChatManualOperationService:
         context: WorkspaceContext,
         selection: ChatManualConfirmationSelection,
     ) -> ChatManualOperationResult:
-        state = await self.states.get_by_token(
-            context=context,
-            action_token=selection.action_token,
-        )
-        if state.step != "confirm":
-            raise ChatManualOperationError("Stored manual operation step is invalid.")
+        try:
+            state = await self.states.get_by_token(
+                context=context,
+                action_token=selection.action_token,
+            )
+            if state.step != "confirm":
+                raise ChatManualOperationError("Stored manual operation step is invalid.")
 
-        confirmation = ChatManualOperationStateReader.read_confirmation(
-            state.state_payload,
-            action_token=selection.action_token,
-        )
-        operation = await self.operation_poster.post(
-            context=context,
-            payload=state.state_payload,
-            confirmation=confirmation,
-        )
+            confirmation = ChatManualOperationStateReader.read_confirmation(
+                state.state_payload,
+                action_token=selection.action_token,
+            )
+            operation = await self.operation_poster.post(
+                context=context,
+                payload=state.state_payload,
+                confirmation=confirmation,
+            )
 
-        await self.states.consume(state)
-        return ChatManualOperationResult(
-            operation_id=operation.id,
-            operation_type=confirmation.operation_type,
-            amount=confirmation.amount,
-            currency=confirmation.currency,
-            operation_date=confirmation.operation_date,
-        )
+            await self.states.consume(state)
+            await self.session.commit()
+            return ChatManualOperationResult(
+                operation_id=operation.id,
+                operation_type=confirmation.operation_type,
+                amount=confirmation.amount,
+                currency=confirmation.currency,
+                operation_date=confirmation.operation_date,
+            )
+        except Exception:
+            await self.session.rollback()
+            raise

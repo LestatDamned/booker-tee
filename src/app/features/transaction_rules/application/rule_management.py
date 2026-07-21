@@ -42,6 +42,20 @@ class TransactionRuleManagementUseCase:
         context: WorkspaceContext,
         command: CreateTransactionRuleCommand,
     ) -> TransactionRule:
+        try:
+            rule = await self._create_rule(context=context, command=command)
+            await self.session.commit()
+            return rule
+        except Exception:
+            await self.session.rollback()
+            raise
+
+    async def _create_rule(
+        self,
+        *,
+        context: WorkspaceContext,
+        command: CreateTransactionRuleCommand,
+    ) -> TransactionRule:
         category, property_ = await self._resolve_targets(
             workspace_id=context.workspace.id,
             category_id=command.category_id,
@@ -81,7 +95,6 @@ class TransactionRuleManagementUseCase:
                 created_by_user_id=context.user.id,
             )
         )
-        await self.session.commit()
         return rule
 
     async def update_rule(
@@ -156,7 +169,7 @@ class TransactionRuleManagementUseCase:
         if raw_transaction is None:
             raise TransactionRuleError("Raw transaction row was not found.")
         inferred_pattern = pattern or infer_rule_pattern(raw_transaction)
-        return await self.create_rule(
+        return await self._create_rule(
             context=context,
             command=CreateTransactionRuleCommand(
                 name=f"{inferred_pattern} -> category",

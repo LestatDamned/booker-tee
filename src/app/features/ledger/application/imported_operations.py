@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.features.imports.application.review.validation_refresh import (
     refresh_document_validation,
@@ -11,8 +12,17 @@ from app.features.imports.repository import ImportRepository
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.domain.raw_transactions import restored_raw_status_after_unlink
 from app.features.ledger.domain.text import clean_description
-from app.features.ledger.domain.types import OperationSource, OperationStatus
-from app.features.ledger.errors import LedgerPostingError
+from app.features.ledger.domain.types import (
+    OperationSource,
+    OperationStatus,
+    imported_operation_actions,
+)
+from app.features.ledger.errors import (
+    ImportedOperationNotEditableError,
+    ImportedOperationNotFoundError,
+    LedgerPostingError,
+    OperationVersionConflictError,
+)
 from app.features.ledger.models import Operation
 from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
@@ -21,10 +31,10 @@ from app.features.workspaces.service import WorkspaceContext
 @dataclass(frozen=True)
 class UpdateImportedOperationReviewFieldsCommand:
     operation_id: UUID
+    expected_version: int
     category_id: UUID | None
     property_id: UUID | None
     description: str | None
-    status: OperationStatus
 
 
 class ImportedOperationReviewUseCase:
@@ -44,6 +54,10 @@ class ImportedOperationReviewUseCase:
                 context.workspace.id,
                 command.operation_id,
             )
+            if not imported_operation_actions(operation.status).can_edit_review_fields:
+                raise ImportedOperationNotEditableError()
+            if operation.version != command.expected_version:
+                raise OperationVersionConflictError()
             category = await self.references.get_category_or_uncategorized(
                 context.workspace.id,
                 command.category_id,
@@ -55,10 +69,13 @@ class ImportedOperationReviewUseCase:
             operation.category_id = category.id
             operation.property_id = property_.id if property_ else None
             operation.description = clean_description(command.description)
-            operation.status = command.status
             operation.updated_by_user_id = context.user.id
+            await self.session.flush()
             await self.session.commit()
             return operation
+        except StaleDataError as error:
+            await self.session.rollback()
+            raise OperationVersionConflictError() from error
         except Exception:
             await self.session.rollback()
             raise
@@ -66,7 +83,7 @@ class ImportedOperationReviewUseCase:
     async def _get_imported_operation(self, workspace_id: UUID, operation_id: UUID) -> Operation:
         operation = await self.ledger.get_operation_for_workspace(workspace_id, operation_id)
         if operation is None:
-            raise LedgerPostingError("Imported operation was not found.")
+            raise ImportedOperationNotFoundError()
         if operation.source != OperationSource.BANK_PDF:
             raise LedgerPostingError("Only imported bank PDF operations can be changed here.")
         return operation

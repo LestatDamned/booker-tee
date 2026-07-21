@@ -3,9 +3,8 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.settings import Settings
 from app.features.imports.application.review.status import RawTransactionReviewStatusUseCase
-from app.features.ledger.application.raw_transaction_posting import RawTransactionPostingUseCase
+from app.features.ledger.application.raw_transaction_posting import RawTransactionPoster
 from app.features.transaction_rules.application.rule_application import (
     TransactionRuleApplicationUseCase,
 )
@@ -34,11 +33,11 @@ class RawTransactionReviewResult:
     updated_raw_transaction_ids: frozenset[UUID] = frozenset()
 
 
-class RawTransactionReviewUseCase:
-    def __init__(self, session: AsyncSession, settings: Settings) -> None:
+class RawTransactionReviewer:
+    def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.status_review = RawTransactionReviewStatusUseCase(session)
-        self.ledger = RawTransactionPostingUseCase(session)
+        self.ledger = RawTransactionPoster(session)
         self.rules = TransactionRuleManagementUseCase(session)
         self.rule_application = TransactionRuleApplicationUseCase(session)
 
@@ -123,3 +122,23 @@ class RawTransactionReviewUseCase:
         return RawTransactionReviewResult(
             updated_raw_transaction_ids=frozenset({command.matched_raw_transaction_id}),
         )
+
+
+class RawTransactionReviewUseCase:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.reviewer = RawTransactionReviewer(session)
+
+    async def handle(
+        self,
+        *,
+        context: WorkspaceContext,
+        command: RawTransactionReviewCommand,
+    ) -> RawTransactionReviewResult:
+        try:
+            result = await self.reviewer.handle(context=context, command=command)
+            await self.session.commit()
+            return result
+        except Exception:
+            await self.session.rollback()
+            raise

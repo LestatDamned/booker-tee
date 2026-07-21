@@ -83,8 +83,12 @@ class ChatManualOperationStateStore:
         return action_token
 
     async def consume(self, state: ChatConversationState) -> None:
-        await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
-        await self.session.commit()
+        consumed = await self.chat_integrations.try_consume_active_conversation_state(
+            state,
+            consumed_at=utc_now(),
+        )
+        if not consumed:
+            raise ChatManualOperationError("Действие устарело. Начни операцию заново.")
 
     async def _create_state(
         self,

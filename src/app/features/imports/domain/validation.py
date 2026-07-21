@@ -4,7 +4,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Protocol
 
-from app.features.imports.models import RawTransactionStatus
+from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.parsing.parser_types import StatementControlTotals
 
 MONEY_ZERO = Decimal("0.00")

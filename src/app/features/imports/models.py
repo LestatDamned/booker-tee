@@ -12,6 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
 
 from app.db.base import Base, utc_now
+from app.features.imports.domain.types import RawTransactionStatus
 from app.features.ledger.models import OperationType
 from app.features.workspaces.models import enum_values
 
@@ -48,19 +49,6 @@ class ParseAttemptStatus(StrEnum):
     SUCCESS = "success"
     REQUIRES_REVIEW = "requires_review"
     FAILED = "failed"
-
-
-class RawTransactionStatus(StrEnum):
-    EXTRACTED = "extracted"
-    NORMALIZED = "normalized"
-    SUGGESTED = "suggested"
-    NEEDS_REVIEW = "needs_review"
-    MATCHED = "matched"
-    IGNORED = "ignored"
-    DUPLICATE = "duplicate"
-    POSSIBLE_DUPLICATE = "possible_duplicate"
-    FAILED = "failed"
-    CONFIRMED = "confirmed"
 
 
 class ImportMappingTemplate(Base):

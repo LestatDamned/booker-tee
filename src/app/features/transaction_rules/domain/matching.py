@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
-from app.features.imports.models import RawTransactionStatus
+from app.features.imports.domain.types import RawTransactionStatus
 from app.features.ledger.models import OperationType
 from app.features.transaction_rules.domain.text import normalized_text
 from app.features.transaction_rules.models import (
