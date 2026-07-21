@@ -801,6 +801,17 @@ Feature-owned components:
 полей. Shared row владеет geometry и accessibility; feature владеет semantic
 content, state и actions.
 
+Для dense actionable collections `WorkbenchRow` использует flat geometry:
+одна внешняя граница workbench, разделители между rows и без card border,
+radius или shadow у каждой строки. Manual Ledger является reference
+implementation этого стандарта. Runtime-переключатель между card и flat
+вариантами не создаётся; отдельная card допустима только для standalone entity.
+
+`ManualOperationRow` всегда показывает цветной badge типа операции. Все
+категории используют один shared category tone. Transfer дополнительно
+показывает `source account -> destination account`; повторный текст
+`Не влияет на прибыль` не выводится.
+
 ### 8.6 ActionStack
 
 ```text

@@ -37,6 +37,29 @@ describe("manual ledger route", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("ignores the obsolete layout parameter in old links", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/v1/session") {
+        return Promise.resolve(jsonResponse(sessionPayload));
+      }
+      if (url === "/api/v1/manual-ledger?type=expense") {
+        return Promise.resolve(jsonResponse(ledgerPayload));
+      }
+      return Promise.resolve(new Response(null, { status: 404 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await loadManualLedgerRoute(
+      new Request(
+        "http://localhost/app/ledger/manual?type=expense&layout=flat",
+      ),
+    );
+
+    expect(result.ledger.status).toBe("success");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("renders the login state when either request is unauthenticated", () => {
     render(
       <MemoryRouter>

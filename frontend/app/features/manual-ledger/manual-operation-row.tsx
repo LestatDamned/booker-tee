@@ -142,17 +142,7 @@ export function ManualOperationRow({
           </section>
         ) : undefined
       }
-      meta={
-        <>
-          <Badge tone={operation.operationTone}>
-            {operation.operationLabel}
-          </Badge>
-          <Badge tone={operation.statusTone}>{operation.statusLabel}</Badge>
-          {operation.meta.map((label) => (
-            <span key={label}>{label}</span>
-          ))}
-        </>
-      }
+      meta={<OperationMeta operation={operation} />}
       onAction={onWorkStarted}
       state={isWorking ? "working" : isTargeted ? "target" : "default"}
       value={
@@ -165,5 +155,37 @@ export function ManualOperationRow({
         ) : undefined
       }
     />
+  );
+}
+
+function OperationMeta({ operation }: { operation: ManualOperationRowModel }) {
+  const problemStatus =
+    operation.statusTone === "warning" || operation.statusTone === "danger";
+  return (
+    <>
+      <Badge tone={operation.operationTone}>{operation.operationLabel}</Badge>
+      {operation.transferRouteLabel ? (
+        <Badge tone="transfer">{operation.transferRouteLabel}</Badge>
+      ) : (
+        <>
+          {operation.categoryLabel ? (
+            <Badge tone="category">{operation.categoryLabel}</Badge>
+          ) : (
+            <Badge tone="neutral">Без категории</Badge>
+          )}
+          {operation.propertyLabel ? (
+            <span>Объект: {operation.propertyLabel}</span>
+          ) : null}
+          {operation.accountLabel ? (
+            <span>Счёт: {operation.accountLabel}</span>
+          ) : null}
+        </>
+      )}
+      {problemStatus ? (
+        <Badge tone={operation.statusTone}>{operation.statusLabel}</Badge>
+      ) : (
+        <span className={styles.flatStatus}>{operation.statusLabel}</span>
+      )}
+    </>
   );
 }

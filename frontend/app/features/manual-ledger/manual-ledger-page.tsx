@@ -201,7 +201,11 @@ export function ManualLedgerPage({
             {navigationPending ? "Обновляем операции…" : ""}
           </span>
 
-          <section aria-label="Список операций" className={styles.listRegion}>
+          <section
+            aria-label="Список операций"
+            className={styles.listRegion}
+            data-empty={rows.length === 0 ? "true" : undefined}
+          >
             {rows.length === 0 ? (
               <RequestState
                 message={

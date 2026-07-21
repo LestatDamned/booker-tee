@@ -10,6 +10,7 @@ export type BadgeTone =
   | "income"
   | "expense"
   | "transfer"
+  | "category"
   | "adjustment";
 
 type BadgeProps = {

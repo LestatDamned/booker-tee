@@ -41,8 +41,9 @@ describe("toManualOperationRowModel", () => {
 
     expect(row.money?.tone).toBe("transfer");
     expect(row.money?.amount).toBe("65 000,00");
-    expect(row.meta).toContain("Счета: Карта → Накопительный");
-    expect(row.meta).toContain("Не влияет на прибыль");
+    expect(row.transferRouteLabel).toBe("Карта → Накопительный");
+    expect(row.accountLabel).toBeNull();
+    expect(row.categoryLabel).toBeNull();
   });
 
   it("uses readable Russian totals", () => {

@@ -14,14 +14,17 @@ export type ManualOperationRowModel = {
   canDelete: boolean;
   canEdit: boolean;
   canRestore: boolean;
+  accountLabel: string | null;
+  categoryLabel: string | null;
   date: string;
   description: string;
   money: { amount: string; currency: string; tone: MoneyTone } | null;
-  meta: string[];
   operationLabel: string;
   operationTone: BadgeTone;
+  propertyLabel: string | null;
   statusLabel: string;
   statusTone: BadgeTone;
+  transferRouteLabel: string | null;
   version: number;
 };
 
@@ -60,6 +63,8 @@ export function toManualOperationRowModel(
     canDelete: operation.capabilities.canDelete,
     canEdit: operation.capabilities.canEdit,
     canRestore: operation.capabilities.canRestore,
+    accountLabel: operation.account?.name ?? null,
+    categoryLabel: operation.category?.name ?? null,
     date: operation.operationDate,
     description: operation.description || "Без описания",
     money: operation.money
@@ -72,11 +77,15 @@ export function toManualOperationRowModel(
           tone: operation.money.operationType,
         }
       : null,
-    meta: operationMeta(operation),
     operationLabel: operationView.label,
     operationTone: operationView.tone,
+    propertyLabel: operation.property?.name ?? null,
     statusLabel: statusView.label,
     statusTone: statusView.tone,
+    transferRouteLabel:
+      operation.money?.operationType === "transfer"
+        ? `${operation.sourceAccount?.name ?? "Счёт не найден"} → ${operation.destinationAccount?.name ?? "Счёт не найден"}`
+        : null,
     version: operation.version,
   };
 }
@@ -91,19 +100,4 @@ export function manualOperationsTotalLabel(total: number): string {
     return `${total} ручные операции`;
   }
   return `${total} ручных операций`;
-}
-
-function operationMeta(operation: ManualOperationDto): string[] {
-  if (operation.money?.operationType === "transfer") {
-    return [
-      `Счета: ${operation.sourceAccount?.name ?? "не найден"} → ${operation.destinationAccount?.name ?? "не найден"}`,
-      "Не влияет на прибыль",
-    ];
-  }
-
-  return [
-    `Категория: ${operation.category?.name ?? "без категории"}`,
-    operation.property ? `Объект: ${operation.property.name}` : null,
-    operation.account ? `Счёт: ${operation.account.name}` : null,
-  ].filter((value): value is string => Boolean(value));
 }

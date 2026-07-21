@@ -4,11 +4,11 @@
     minmax(0, 1fr)
     minmax(var(--workbench-aside-min), var(--workbench-aside-max));
   gap: var(--space-4);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
+  border: 0;
+  border-bottom: 1px solid var(--color-border-default);
   background: var(--color-bg-surface);
-  box-shadow: var(--shadow-surface);
-  padding: var(--space-4);
+  box-shadow: none;
+  padding: var(--space-4) var(--space-5);
   scroll-margin-top: 5rem;
 }
 
@@ -81,20 +81,19 @@
 }
 
 .target {
-  border-color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
   background: var(--color-target-surface);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 28%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
 .working {
-  border-color: color-mix(
+  border-bottom-color: color-mix(
     in srgb,
     var(--color-money-profit) 62%,
     var(--color-border-default)
   );
   background: var(--color-working-surface);
-  box-shadow: 0 0 0 2px
-    color-mix(in srgb, var(--color-money-profit) 20%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-money-profit);
 }
 
 .default {
@@ -119,6 +118,10 @@
 }
 
 @media (max-width: 35rem) {
+  .row {
+    padding-inline: var(--space-3);
+  }
+
   .header {
     display: grid;
   }

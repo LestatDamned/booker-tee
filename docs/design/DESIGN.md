@@ -707,6 +707,28 @@ important signals only when action is needed
 secondary details collapsed
 ```
 
+### Flat Entity Collection Standard
+
+Manual Ledger establishes the default geometry for dense, actionable entity
+collections: one bounded workbench surface containing divider-separated flat
+rows. Individual rows do not add another card border, radius or shadow. This
+keeps the collection readable as one ledger and leaves emphasis for target,
+working and problem states.
+
+Operation meaning remains explicit and quickly scannable:
+
+- `доход`, `расход` and `перевод` always use their semantic colored badges;
+- every system and user category uses one shared category tone, never a
+  per-category palette;
+- transfers show both the `перевод` badge and a compact
+  `source account -> destination account` route badge;
+- the repeated `Не влияет на прибыль` explanation is omitted because transfer
+  semantics already guarantee it.
+
+Row editing expands within the same flat row and spans the workbench width.
+Do not add a runtime card/flat switch. Use an individually framed card only
+when an entity is genuinely standalone rather than part of a dense collection.
+
 The action area may change by mode, but its position and hierarchy should not:
 
 - review rows emphasize the decision: confirm, change, transfer, ignore;

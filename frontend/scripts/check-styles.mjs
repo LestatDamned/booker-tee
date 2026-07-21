@@ -27,6 +27,7 @@ const requiredThemeTokens = [
   "--color-money-transfer",
   "--color-money-profit",
   "--color-money-adjustment",
+  "--color-category",
   "--color-working-surface",
   "--color-target-surface",
   "--color-recent-surface",

@@ -37,6 +37,10 @@
   --badge-color: var(--color-money-transfer);
 }
 
+.category {
+  --badge-color: var(--color-category);
+}
+
 .adjustment {
   --badge-color: var(--color-money-adjustment);
 }

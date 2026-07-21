@@ -1,6 +1,8 @@
 .page {
-  max-width: var(--content-width);
+  width: 100%;
+  max-width: var(--page-max-width);
   margin-top: var(--space-7);
+  margin-inline: auto;
 }
 
 .workbench {
@@ -17,10 +19,14 @@
 
 .list {
   display: grid;
-  gap: var(--space-3);
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.list > li:last-child article {
+  border-bottom: 0;
 }
 
 .operationFormFields {
@@ -294,6 +300,15 @@
 .listRegion {
   background: var(--color-bg-canvas);
   padding: var(--space-4);
+}
+
+.listRegion:not([data-empty="true"]) {
+  background: var(--color-bg-surface);
+  padding: 0;
+}
+
+.flatStatus {
+  color: var(--color-text-secondary);
 }
 
 .navigationStatus {

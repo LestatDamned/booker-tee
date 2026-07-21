@@ -10,6 +10,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionDto } from "../../api/session";
+import badgeStyles from "../../ui/badge/badge.module.css";
 import type { ManualLedgerDto } from "./manual-ledger-api";
 import { ManualLedgerPage } from "./manual-ledger-page";
 
@@ -32,6 +33,52 @@ describe("ManualLedgerPage", () => {
     expect(screen.getByText("20.07.2026")).toBeInTheDocument();
     expect(screen.getByLabelText("−65 000,00 RUB")).toBeInTheDocument();
     expect(screen.getByText("расход")).toBeInTheDocument();
+  });
+
+  it("renders category metadata in the shared category tone", () => {
+    const page = ledger();
+    page.items[0] = {
+      ...required(page.items[0], "fixture operation"),
+      category: { id: crypto.randomUUID(), name: "Аренда" },
+    };
+    render(
+      <MemoryRouter initialEntries={["/app/ledger/manual?type=expense"]}>
+        <ManualLedgerPage ledger={page} session={session} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Аренда")).toBeInTheDocument();
+    expect(screen.getByText("Аренда")).toHaveClass(
+      required(badgeStyles.category, "category badge class"),
+    );
+  });
+
+  it("shows a compact transfer route without a repeated profit explanation", () => {
+    const page = ledger();
+    page.items[0] = {
+      ...required(page.items[0], "fixture operation"),
+      money: {
+        amount: "15000.00",
+        currency: "RUB",
+        operationType: "transfer",
+        entryDirection: "transfer",
+      },
+      account: null,
+      category: null,
+      sourceAccount: { id: crypto.randomUUID(), name: "ВТБ вклад" },
+      destinationAccount: {
+        id: crypto.randomUUID(),
+        name: "Экспобанк карта",
+      },
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/app/ledger/manual"]}>
+        <ManualLedgerPage ledger={page} session={session} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("ВТБ вклад → Экспобанк карта")).toBeInTheDocument();
+    expect(screen.queryByText("Не влияет на прибыль")).not.toBeInTheDocument();
   });
 
   it("preserves applied filters when building pagination URLs", () => {

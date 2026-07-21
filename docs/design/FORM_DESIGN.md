@@ -107,6 +107,8 @@ The page uses one bordered workbench rather than unrelated full-width sections.
 Its header, toolbar, expandable filters, operation collection and pagination
 footer share one visual boundary. Filters expand directly below the toolbar;
 their position and reading order remain the same on desktop and mobile.
+The operation collection is a flat, divider-separated list inside this
+boundary. Individual operation rows are not nested cards.
 
 ## Manual Ledger Workbench
 
