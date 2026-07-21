@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/import-review/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Import Review */
+        get: operations["get_import_review_api_v1_import_review__document_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/manual-ledger": {
         parameters: {
             query?: never;
@@ -1364,14 +1381,14 @@ export interface components {
         };
         /** Body_update_imported_operation_review_fields_accounts__account_id__operations__operation_id__review_fields_post */
         Body_update_imported_operation_review_fields_accounts__account_id__operations__operation_id__review_fields_post: {
+            /** Version */
+            version: number;
             /** Description */
             description?: string | null;
             /** Category Id */
             category_id?: string | null;
             /** Property Id */
             property_id?: string | null;
-            /** @default confirmed */
-            status: components["schemas"]["OperationStatus"];
         };
         /** Body_update_property_properties__property_id__post */
         Body_update_property_properties__property_id__post: {
@@ -1453,6 +1470,195 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** ImportReviewAccountApiResponse */
+        ImportReviewAccountApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+        };
+        /** ImportReviewApiResponse */
+        ImportReviewApiResponse: {
+            document: components["schemas"]["ImportReviewDocumentApiResponse"];
+            queue: components["schemas"]["ImportReviewQueueApiResponse"];
+            /** Items */
+            items: components["schemas"]["ImportReviewItemApiResponse"][];
+            validation: components["schemas"]["ImportReviewValidationApiResponse"] | null;
+            capabilities: components["schemas"]["ImportReviewCapabilitiesApiResponse"];
+        };
+        /** ImportReviewBalanceChainApiResponse */
+        ImportReviewBalanceChainApiResponse: {
+            status: components["schemas"]["StatementValidationStatus"];
+            /** Direction */
+            direction: string | null;
+            /** Checkedpaircount */
+            checkedPairCount: number;
+            /** Mismatchcount */
+            mismatchCount: number;
+        };
+        /** ImportReviewCapabilitiesApiResponse */
+        ImportReviewCapabilitiesApiResponse: {
+            /** Canwrite */
+            canWrite: boolean;
+            readonlyReasonCode: components["schemas"]["ImportReviewReadonlyReasonCode"] | null;
+        };
+        /** ImportReviewDocumentApiResponse */
+        ImportReviewDocumentApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Filename */
+            filename: string;
+            status: components["schemas"]["UploadedDocumentStatus"];
+            sourceAccount: components["schemas"]["ImportReviewAccountApiResponse"] | null;
+        };
+        /** ImportReviewItemApiResponse */
+        ImportReviewItemApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Rowindex */
+            rowIndex: number;
+            status: components["schemas"]["RawTransactionStatus"];
+            /** Isterminal */
+            isTerminal: boolean;
+            /** Isreviewable */
+            isReviewable: boolean;
+            sourceAccount: components["schemas"]["ImportReviewAccountApiResponse"] | null;
+            raw: components["schemas"]["ImportReviewRawSourceApiResponse"];
+            normalized: components["schemas"]["ImportReviewNormalizedSourceApiResponse"];
+        };
+        /** ImportReviewNormalizedSourceApiResponse */
+        ImportReviewNormalizedSourceApiResponse: {
+            /** Operationdate */
+            operationDate: string | null;
+            /** Postingdate */
+            postingDate: string | null;
+            /** Description */
+            description: string | null;
+            /** Amount */
+            amount: string | null;
+            /** Currency */
+            currency: string | null;
+            /** Balanceafter */
+            balanceAfter: string | null;
+        };
+        /** ImportReviewQueueApiResponse */
+        ImportReviewQueueApiResponse: {
+            /** Total */
+            total: number;
+            /** Completed */
+            completed: number;
+            /** Remaining */
+            remaining: number;
+            /** Firstremainingitemid */
+            firstRemainingItemId: string | null;
+            /** Ordereditemids */
+            orderedItemIds: string[];
+        };
+        /** ImportReviewRawSourceApiResponse */
+        ImportReviewRawSourceApiResponse: {
+            /** Operationdate */
+            operationDate: string | null;
+            /** Postingdate */
+            postingDate: string | null;
+            /** Description */
+            description: string | null;
+            /** Amount */
+            amount: string | null;
+            /** Currency */
+            currency: string | null;
+            /** Balanceafter */
+            balanceAfter: string | null;
+            /** Accounthint */
+            accountHint: string | null;
+        };
+        /**
+         * ImportReviewReadonlyReasonCode
+         * @enum {string}
+         */
+        ImportReviewReadonlyReasonCode: "financial_write_forbidden";
+        /** ImportReviewRowProblemApiResponse */
+        ImportReviewRowProblemApiResponse: {
+            /**
+             * Itemid
+             * Format: uuid
+             */
+            itemId: string;
+            /** Rowindex */
+            rowIndex: number;
+            /**
+             * Previousitemid
+             * Format: uuid
+             */
+            previousItemId: string;
+            /** Previousrowindex */
+            previousRowIndex: number;
+            code: components["schemas"]["ImportReviewRowProblemCode"];
+            /** Expectedbalanceafter */
+            expectedBalanceAfter: string;
+            /** Actualbalanceafter */
+            actualBalanceAfter: string;
+        };
+        /**
+         * ImportReviewRowProblemCode
+         * @enum {string}
+         */
+        ImportReviewRowProblemCode: "balance_chain_mismatch";
+        /** ImportReviewValidationApiResponse */
+        ImportReviewValidationApiResponse: {
+            status: components["schemas"]["StatementValidationStatus"];
+            reasonCode: components["schemas"]["ImportReviewValidationReasonCode"];
+            /** Currency */
+            currency: string | null;
+            /** Extractedcount */
+            extractedCount: number;
+            /** Normalizedcount */
+            normalizedCount: number;
+            /** Needsreviewcount */
+            needsReviewCount: number;
+            /** Calculatedtotalinflow */
+            calculatedTotalInflow: string;
+            /** Calculatedtotaloutflow */
+            calculatedTotalOutflow: string;
+            /** Ignoredtotalinflow */
+            ignoredTotalInflow: string;
+            /** Ignoredtotaloutflow */
+            ignoredTotalOutflow: string;
+            /** Statementtotalinflow */
+            statementTotalInflow: string | null;
+            /** Statementtotaloutflow */
+            statementTotalOutflow: string | null;
+            /** Openingbalance */
+            openingBalance: string | null;
+            /** Closingbalance */
+            closingBalance: string | null;
+            /** Inflowdifference */
+            inflowDifference: string | null;
+            /** Outflowdifference */
+            outflowDifference: string | null;
+            /** Unexplainedinflowdifference */
+            unexplainedInflowDifference: string | null;
+            /** Unexplainedoutflowdifference */
+            unexplainedOutflowDifference: string | null;
+            balanceChain: components["schemas"]["ImportReviewBalanceChainApiResponse"];
+            /** Rowproblems */
+            rowProblems: components["schemas"]["ImportReviewRowProblemApiResponse"][];
+        };
+        /**
+         * ImportReviewValidationReasonCode
+         * @enum {string}
+         */
+        ImportReviewValidationReasonCode: "totals_match" | "rows_need_review" | "balance_chain_mismatch" | "control_totals_unavailable" | "control_totals_mismatch" | "ignored_rows_explain_mismatch";
         /** ManualIncomeExpenseCreateApiRequest */
         ManualIncomeExpenseCreateApiRequest: {
             /** Amount */
@@ -1711,6 +1917,11 @@ export interface components {
          * @enum {string}
          */
         OperationType: "income" | "expense" | "transfer" | "adjustment";
+        /**
+         * RawTransactionStatus
+         * @enum {string}
+         */
+        RawTransactionStatus: "extracted" | "normalized" | "suggested" | "needs_review" | "matched" | "ignored" | "duplicate" | "possible_duplicate" | "failed" | "confirmed";
         /** SessionApiResponse */
         SessionApiResponse: {
             user: components["schemas"]["SessionUserApiResponse"];
@@ -1764,6 +1975,11 @@ export interface components {
             defaultCurrency: string;
         };
         /**
+         * StatementValidationStatus
+         * @enum {string}
+         */
+        StatementValidationStatus: "valid" | "mismatch" | "unavailable" | "needs_review";
+        /**
          * TransactionRuleApplicationMode
          * @enum {string}
          */
@@ -1773,6 +1989,11 @@ export interface components {
          * @enum {string}
          */
         TransactionRuleMatchType: "contains" | "exact";
+        /**
+         * UploadedDocumentStatus
+         * @enum {string}
+         */
+        UploadedDocumentStatus: "uploaded" | "pending_parse" | "parsing" | "parsed" | "requires_review" | "failed_to_parse" | "imported" | "ignored";
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1810,6 +2031,64 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_import_review_api_v1_import_review__document_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportReviewApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_manual_operations_api_v1_manual_ledger_get: {
         parameters: {
             query?: {
@@ -2561,7 +2840,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
                 "application/x-www-form-urlencoded": components["schemas"]["Body_update_imported_operation_review_fields_accounts__account_id__operations__operation_id__review_fields_post"];
             };

@@ -37,6 +37,9 @@ class ImportQueryRepository:
                 selectinload(UploadedDocument.account),
                 selectinload(UploadedDocument.parse_attempts),
                 selectinload(UploadedDocument.raw_transactions),
+                selectinload(UploadedDocument.raw_transactions).selectinload(
+                    RawTransaction.account
+                ),
                 selectinload(UploadedDocument.raw_transactions)
                 .selectinload(RawTransaction.linked_operation)
                 .selectinload(Operation.category),

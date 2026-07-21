@@ -446,6 +446,11 @@ def prepare_review_interaction_scenario(
         page.locator('button[formaction$="/mapping/import"]').click()
         page.wait_for_url("**/imports/documents/**/review", timeout=PAGE_TIMEOUT_MS)
         scenario_state["review_path"] = page.url.replace(base_url.rstrip("/"), "")
+        scenario_state["react_review_path"] = scenario_state["review_path"].replace(
+            "/imports/documents/",
+            "/app/imports/documents/",
+            1,
+        )
     finally:
         page.close()
 
@@ -573,6 +578,14 @@ def collect_ux_assertions(
 
     if scenario == "review_interactions" and path == scenario_state.get("review_path"):
         errors.extend(assert_review_interactions(page, scenario_state=scenario_state))
+
+    if scenario == "review_interactions" and path == scenario_state.get(
+        "react_review_path"
+    ):
+        if page.get_by_role("heading", name="Проверка импорта", exact=True).count() == 0:
+            errors.append("React import review heading was not found")
+        if page.locator(".review-item, .review-row, .review-page").count() != 0:
+            errors.append("React import review rendered legacy review classes")
 
     if scenario == "button_audit":
         errors.extend(assert_safe_click_interactions(page, base_url=base_url))
@@ -2020,6 +2033,15 @@ def run_audit(
                         "design_audit",
                     } and scenario_state.get("review_path"):
                         dynamic_pages.append((scenario_state["review_path"], "review-interactions"))
+                    if scenario == "review_interactions" and scenario_state.get(
+                        "react_review_path"
+                    ):
+                        dynamic_pages.append(
+                            (
+                                scenario_state["react_review_path"],
+                                "react-import-review",
+                            )
+                        )
                     if dynamic_pages:
                         pages = (*pages, *dynamic_pages)
                     if selected_paths:

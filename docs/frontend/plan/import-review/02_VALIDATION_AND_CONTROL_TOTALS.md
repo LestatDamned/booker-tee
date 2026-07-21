@@ -1,6 +1,6 @@
 # Slice 02: Validation и Control Totals
 
-Статус: planned.
+Статус: completed.
 
 ## Результат
 
@@ -31,3 +31,24 @@ totals, ignored amounts и balance-chain mismatches, сохраняя traceabili
 
 Validation truth остается в domain/application, raw data видимы, а React владеет
 только presentation wording/formatting.
+
+## Реализовано
+
+- Выделен общий application calculation boundary, который строит свежий domain
+  `StatementValidationReport` из строк документа и control totals последней
+  parse attempt. Read endpoint не зависит от persisted `validation_report_json`
+  и legacy `ReviewValidationPresenter`.
+- Typed read model и API отдают стабильные validation/reason/problem codes,
+  counts и decimal strings. Отдельно различаются необъясненный mismatch и
+  mismatch, полностью объясненный ignored-строками.
+- Balance-chain mismatch преобразуется из position index domain report в
+  стабильные current/previous item UUID и реальные `row_index` до API boundary.
+- React показывает validation summary, control totals, ignored/unexplained
+  суммы и row-level problem рядом с соответствующим UUID-якорем. TypeScript не
+  вычисляет status, confirmability или финансовую разницу.
+- Покрыты unavailable, needs-review, control-total mismatch,
+  ignored-as-explained и balance-chain cases; production build и responsive
+  Playwright audit на 1440/920/390 прошли.
+
+Consistency-правило остается обязательным для будущих mutation slices: после
+изменения строки response должен вернуть или инвалидировать validation summary.

@@ -1,6 +1,6 @@
 # Stage 06: child plans для Import Review
 
-Статус: активное планирование; production implementation еще не начат.
+Статус: active; Slice 01–02 completed, следующий — Slice 03.
 
 Этот каталог делит complexity checkpoint Stage 06 на пользовательские
 вертикальные slice. Каждый implementation slice проходит через application
@@ -20,15 +20,19 @@ read/command boundaries, versioned JSON API, React state/UI и тесты. Фа�
 
 ## Порядок child plans
 
-| Порядок | План                                                                               | Статус  | Пользовательский результат                                                  |
-| ------- | ---------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------- |
-| 1       | [`01_QUEUE_AND_READ_MODEL.md`](01_QUEUE_AND_READ_MODEL.md)                         | next    | Открывает стабильную React review queue на типизированном server read model |
-| 2       | [`02_VALIDATION_AND_CONTROL_TOTALS.md`](02_VALIDATION_AND_CONTROL_TOTALS.md)       | planned | Понимает validation источника и проблемы control totals                     |
-| 3       | [`03_CLASSIFICATION_CATEGORY_PROPERTY.md`](03_CLASSIFICATION_CATEGORY_PROPERTY.md) | planned | Безопасно разбирает classification, category и property                     |
-| 4       | [`04_TRANSFER_AND_MATCHING.md`](04_TRANSFER_AND_MATCHING.md)                       | planned | Создает или связывает transfer и видит обновление всех затронутых строк     |
-| 5       | [`05_DUPLICATE_AND_LIFECYCLE.md`](05_DUPLICATE_AND_LIFECYCLE.md)                   | planned | Разбирает duplicates и lifecycle строки через явные transitions             |
-| 6       | [`06_CONFIRM_POST_AND_CONSISTENCY.md`](06_CONFIRM_POST_AND_CONSISTENCY.md)         | planned | Подтверждает/posting ровно один раз и получает согласованное обновление     |
-| 7       | [`07_CUTOVER_AND_CLEANUP.md`](07_CUTOVER_AND_CLEANUP.md)                           | planned | Завершает реальный review в React и удаляет legacy только после parity      |
+| Порядок | План                                                                               | Статус  | Пользовательский результат                                              |
+| ------- | ---------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------- |
+| 1       | [`01_QUEUE_AND_READ_MODEL.md`](01_QUEUE_AND_READ_MODEL.md)                         | completed | Видит typed queue, raw/normalized rows и точный progress                 |
+| 2       | [`02_VALIDATION_AND_CONTROL_TOTALS.md`](02_VALIDATION_AND_CONTROL_TOTALS.md)       | completed | Понимает validation источника и проблемы control totals                 |
+| 3       | [`03_CLASSIFICATION_CATEGORY_PROPERTY.md`](03_CLASSIFICATION_CATEGORY_PROPERTY.md) | planned | Безопасно разбирает classification, category и property                 |
+| 4       | [`04_TRANSFER_AND_MATCHING.md`](04_TRANSFER_AND_MATCHING.md)                       | planned | Создает или связывает transfer и видит обновление всех затронутых строк |
+| 5       | [`05_DUPLICATE_AND_LIFECYCLE.md`](05_DUPLICATE_AND_LIFECYCLE.md)                   | planned | Разбирает duplicates и lifecycle строки через явные transitions         |
+| 6       | [`06_CONFIRM_POST_AND_CONSISTENCY.md`](06_CONFIRM_POST_AND_CONSISTENCY.md)         | planned | Подтверждает/posting ровно один раз и получает согласованное обновление |
+| 7       | [`07_CUTOVER_AND_CLEANUP.md`](07_CUTOVER_AND_CLEANUP.md)                           | planned | Завершает реальный review в React и удаляет legacy только после parity  |
+
+Текущий следующий шаг: Slice 03 — classification/category/property command
+boundary и локальный draft активной строки. Legacy review остается production
+путем для mutations и полного завершения workflow.
 
 ## Ограничения последовательности
 

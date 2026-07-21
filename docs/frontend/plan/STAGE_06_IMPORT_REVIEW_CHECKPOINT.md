@@ -5,9 +5,10 @@ Status: active.
 Индекс выполнения: [`import-review/README.md`](import-review/README.md).
 
 Актуальный inventory поведения и аудит application boundary записаны в
-[`import-review/INVENTORY.md`](import-review/INVENTORY.md). Production-работа
-начинается со slice queue и типизированного read model; legacy import review
-остается подключенным до финального replacement gate.
+[`import-review/INVENTORY.md`](import-review/INVENTORY.md). Queue/read model и
+validation/control totals slices завершены; следующим идет
+classification/category/property. Legacy import review остается подключенным до
+финального replacement gate.
 
 ## Goal
 

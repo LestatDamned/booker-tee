@@ -1,6 +1,6 @@
 # Slice 01: Queue и типизированный Read Model
 
-Статус: next.
+Статус: completed.
 
 ## Результат
 
@@ -47,3 +47,25 @@ legacy page остается production-путем для завершения r
 - React показывает realistic data через application -> API -> loader -> UI.
 - UI не подразумевает financial mutation или ложную confirmability.
 - Legacy review по-прежнему завершает workflow без изменений.
+
+## Progress
+
+Реализовано:
+
+- единая domain queue policy с `MATCHED` как reviewable status;
+- typed application reader без Presenter dependency и mutation на read;
+- workspace-scoped `GET /api/v1/import-review/{document_id}`;
+- generated TypeScript contract и runtime validation;
+- React route, queue progress, stable anchors, raw/normalized source summary,
+  readonly и request states;
+- backend, API, component/route tests и production build.
+
+Завершено browser gate:
+
+- realistic scenario проверен на 1440×1000, 920×900 и 390×844;
+- React route добавлен в общий Playwright UI audit для того же document UUID,
+  который создается legacy upload/mapping flow;
+- 51 page/viewport combination прошли без horizontal overflow, console/page/
+  request errors и UX assertion failures.
+
+Legacy route остается canonical для полного review workflow до Slice 07.
