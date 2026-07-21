@@ -70,6 +70,21 @@ class LedgerRepositoryStub:
     ) -> list[object]:
         return self.manual_transfer_candidates
 
+    async def get_operation_for_workspace_for_update(
+        self,
+        *,
+        workspace_id: UUID,
+        operation_id: UUID,
+    ) -> object | None:
+        return next(
+            (
+                candidate
+                for candidate in self.manual_transfer_candidates
+                if getattr(candidate, "id", None) == operation_id
+            ),
+            None,
+        )
+
 
 class ReferenceResolverStub:
     def __init__(self, account: Account) -> None:
@@ -388,6 +403,22 @@ class TransferImportRepositoryStub(ImportRepositoryStub):
         _raw_transaction_id: UUID,
     ) -> object | None:
         return self.matched
+
+    async def lock_raw_transactions_for_workspace(
+        self,
+        *,
+        workspace_id: UUID,
+        raw_transaction_ids: set[UUID],
+    ) -> list[object]:
+        rows = [self.raw_transaction]
+        if self.matched is not None:
+            rows.append(self.matched)
+        return [
+            row
+            for row in rows
+            if cast(Any, row).id in raw_transaction_ids
+            and cast(Any, row).workspace_id == workspace_id
+        ]
 
     async def list_transfer_candidate_raw_transactions(self, **_kwargs: object) -> list[object]:
         return [self.matched] if self.matched is not None else []

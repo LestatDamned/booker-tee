@@ -7,7 +7,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import ApiRequestContext, get_api_request_context
-from app.api.v1.import_review.dependencies import get_import_review_reader
+from app.api.v1.import_review.dependencies import (
+    get_import_review_reader,
+    get_import_review_transfer_service,
+)
 from app.features.imports.application.review.classification import (
     ImportReviewClassificationDto,
     ImportReviewConfirmabilityDto,
@@ -26,6 +29,10 @@ from app.features.imports.application.review.read_model import (
     ImportReviewReadModel,
     ImportReviewReadonlyReasonCode,
 )
+from app.features.imports.application.review.transfer_commands import (
+    ImportReviewTransferResult,
+    MatchImportReviewRawRowCommand,
+)
 from app.features.imports.application.review.validation_read_model import (
     ImportReviewBalanceChainDto,
     ImportReviewRowProblemCode,
@@ -39,6 +46,7 @@ from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.domain.validation import StatementValidationStatus
 from app.features.imports.models import UploadedDocumentStatus
 from app.features.ledger.domain.types import OperationType
+from app.features.ledger.errors import LedgerPostingError
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
     WorkspaceMemberStatus,
@@ -153,6 +161,105 @@ def test_import_review_hides_document_outside_workspace_as_not_found() -> None:
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "import_review_not_found"
     assert len(reader.workspace_ids) == 1
+
+
+class TransferServiceStub:
+    def __init__(self, result=None, error=None) -> None:
+        self.result = result
+        self.error = error
+        self.command = None
+
+    async def execute(self, *, context, command):
+        self.command = command
+        if self.error is not None:
+            raise self.error
+        return self.result
+
+
+class MultiReviewReaderStub:
+    def __init__(self, reviews: list[ImportReviewReadModel]) -> None:
+        self.reviews = {review.document.id: review for review in reviews}
+
+    async def read(self, *, workspace_id, document_id, can_write):
+        return self.reviews.get(document_id)
+
+
+def test_transfer_match_returns_both_affected_document_reviews() -> None:
+    primary = review_model()
+    paired = replace(
+        review_model(),
+        document=replace(review_model().document, id=uuid4()),
+    )
+    item_id = primary.items[0].id
+    paired_item_id = paired.items[0].id
+    result = ImportReviewTransferResult(
+        updated_item_ids=frozenset({item_id, paired_item_id}),
+        affected_document_ids=frozenset({primary.document.id, paired.document.id}),
+    )
+    service = TransferServiceStub(result=result)
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.OWNER)
+    app.dependency_overrides[get_import_review_transfer_service] = lambda: service
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub(
+        [primary, paired]
+    )
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/import-review/{primary.document.id}/items/{item_id}/transfer",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={"kind": "raw_row_match", "matchedItemId": str(paired_item_id)},
+        )
+
+    assert response.status_code == 200
+    assert {review["document"]["id"] for review in response.json()["reviews"]} == {
+        str(primary.document.id),
+        str(paired.document.id),
+    }
+    assert isinstance(service.command, MatchImportReviewRawRowCommand)
+    assert service.command.matched_item_id == paired_item_id
+
+
+def test_transfer_request_rejects_impossible_field_combination() -> None:
+    review = review_model()
+    service = TransferServiceStub()
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.OWNER)
+    app.dependency_overrides[get_import_review_transfer_service] = lambda: service
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{review.items[0].id}/transfer",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={
+                "kind": "new_transfer",
+                "counterpartyAccountId": str(uuid4()),
+                "matchedItemId": str(uuid4()),
+            },
+        )
+
+    assert response.status_code == 422
+    assert service.command is None
+
+
+def test_transfer_maps_stale_candidate_to_conflict() -> None:
+    review = review_model()
+    service = TransferServiceStub(error=LedgerPostingError("stale"))
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.OWNER)
+    app.dependency_overrides[get_import_review_transfer_service] = lambda: service
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{review.items[0].id}/transfer",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={"kind": "existing_operation_link", "operationId": str(uuid4())},
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "import_review_transfer_stale"
 
 
 def import_review_app(

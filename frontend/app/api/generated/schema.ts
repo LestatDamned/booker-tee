@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/import-review/{document_id}/items/{item_id}/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Import Review Transfer */
+        post: operations["post_import_review_transfer_api_v1_import_review__document_id__items__item_id__transfer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/manual-ledger": {
         parameters: {
             query?: never;
@@ -1605,6 +1622,41 @@ export interface components {
             confirmability: components["schemas"]["ImportReviewConfirmabilityApiResponse"];
             ruleSuggestion: components["schemas"]["ImportReviewRuleSuggestionApiResponse"];
         };
+        /** ImportReviewExistingTransferCandidateApiResponse */
+        ImportReviewExistingTransferCandidateApiResponse: {
+            /**
+             * Operationid
+             * Format: uuid
+             */
+            operationId: string;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /** Description */
+            description: string | null;
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+            counterpartyAccount: components["schemas"]["ImportReviewTransferAccountApiResponse"] | null;
+            /** Daydistance */
+            dayDistance: number;
+        };
+        /** ImportReviewExistingTransferLinkApiRequest */
+        ImportReviewExistingTransferLinkApiRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "existing_operation_link";
+            /**
+             * Operationid
+             * Format: uuid
+             */
+            operationId: string;
+        };
         /** ImportReviewItemApiResponse */
         ImportReviewItemApiResponse: {
             /**
@@ -1626,6 +1678,20 @@ export interface components {
             selection: components["schemas"]["ImportReviewSelectionApiResponse"];
             confirmability: components["schemas"]["ImportReviewConfirmabilityApiResponse"];
             ruleSuggestion: components["schemas"]["ImportReviewRuleSuggestionApiResponse"];
+            transfer: components["schemas"]["ImportReviewTransferOptionsApiResponse"];
+        };
+        /** ImportReviewNewTransferApiRequest */
+        ImportReviewNewTransferApiRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "new_transfer";
+            /**
+             * Counterpartyaccountid
+             * Format: uuid
+             */
+            counterpartyAccountId: string;
         };
         /** ImportReviewNormalizedSourceApiResponse */
         ImportReviewNormalizedSourceApiResponse: {
@@ -1665,6 +1731,19 @@ export interface components {
             /** Ordereditemids */
             orderedItemIds: string[];
         };
+        /** ImportReviewRawRowMatchApiRequest */
+        ImportReviewRawRowMatchApiRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "raw_row_match";
+            /**
+             * Matcheditemid
+             * Format: uuid
+             */
+            matchedItemId: string;
+        };
         /** ImportReviewRawSourceApiResponse */
         ImportReviewRawSourceApiResponse: {
             /** Operationdate */
@@ -1681,6 +1760,32 @@ export interface components {
             balanceAfter: string | null;
             /** Accounthint */
             accountHint: string | null;
+        };
+        /** ImportReviewRawTransferCandidateApiResponse */
+        ImportReviewRawTransferCandidateApiResponse: {
+            /**
+             * Itemid
+             * Format: uuid
+             */
+            itemId: string;
+            /**
+             * Documentid
+             * Format: uuid
+             */
+            documentId: string;
+            /** Rowindex */
+            rowIndex: number;
+            /** Operationdate */
+            operationDate: string | null;
+            /** Description */
+            description: string | null;
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+            account: components["schemas"]["ImportReviewTransferAccountApiResponse"];
+            /** Daydistance */
+            dayDistance: number;
         };
         /**
          * ImportReviewReadonlyReasonCode
@@ -1736,6 +1841,47 @@ export interface components {
             categoryId: string | null;
             /** Propertyid */
             propertyId: string | null;
+        };
+        /** ImportReviewTransferAccountApiResponse */
+        ImportReviewTransferAccountApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+        };
+        /**
+         * ImportReviewTransferDirection
+         * @enum {string}
+         */
+        ImportReviewTransferDirection: "source_to_counterparty" | "counterparty_to_source";
+        /** ImportReviewTransferMutationApiResponse */
+        ImportReviewTransferMutationApiResponse: {
+            /**
+             * Primarydocumentid
+             * Format: uuid
+             */
+            primaryDocumentId: string;
+            /** Updateditemids */
+            updatedItemIds: string[];
+            /** Validationdocumentids */
+            validationDocumentIds: string[];
+            /** Reviews */
+            reviews: components["schemas"]["ImportReviewApiResponse"][];
+        };
+        /** ImportReviewTransferOptionsApiResponse */
+        ImportReviewTransferOptionsApiResponse: {
+            direction: components["schemas"]["ImportReviewTransferDirection"] | null;
+            /** Accounts */
+            accounts: components["schemas"]["ImportReviewTransferAccountApiResponse"][];
+            /** Rawrowcandidates */
+            rawRowCandidates: components["schemas"]["ImportReviewRawTransferCandidateApiResponse"][];
+            /** Existingoperationcandidates */
+            existingOperationCandidates: components["schemas"]["ImportReviewExistingTransferCandidateApiResponse"][];
         };
         /** ImportReviewValidationApiResponse */
         ImportReviewValidationApiResponse: {
@@ -2330,6 +2476,80 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    post_import_review_transfer_api_v1_import_review__document_id__items__item_id__transfer_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                document_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportReviewNewTransferApiRequest"] | components["schemas"]["ImportReviewRawRowMatchApiRequest"] | components["schemas"]["ImportReviewExistingTransferLinkApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportReviewTransferMutationApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

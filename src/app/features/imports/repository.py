@@ -187,6 +187,7 @@ class ImportRepository:
                 RawTransaction.workspace_id == workspace_id,
                 RawTransaction.uploaded_document_id == document_id,
             )
+            .with_for_update()
         )
         return result.scalar_one_or_none()
 
@@ -206,8 +207,33 @@ class ImportRepository:
                 RawTransaction.id == raw_transaction_id,
                 RawTransaction.workspace_id == workspace_id,
             )
+            .with_for_update()
         )
         return result.scalar_one_or_none()
+
+    async def lock_raw_transactions_for_workspace(
+        self,
+        *,
+        workspace_id: UUID,
+        raw_transaction_ids: set[UUID],
+    ) -> list[RawTransaction]:
+        if not raw_transaction_ids:
+            return []
+        result = await self.session.execute(
+            select(RawTransaction)
+            .options(
+                selectinload(RawTransaction.uploaded_document).selectinload(
+                    UploadedDocument.account
+                ),
+            )
+            .where(
+                RawTransaction.workspace_id == workspace_id,
+                RawTransaction.id.in_(raw_transaction_ids),
+            )
+            .order_by(RawTransaction.id)
+            .with_for_update()
+        )
+        return list(result.scalars().all())
 
     async def list_transfer_candidate_raw_transactions(
         self,

@@ -141,5 +141,17 @@ function importReviewItem(
       wasAutoApplied: false,
       ruleId: null,
     },
+    transfer: {
+      direction: "source_to_counterparty",
+      accounts: [
+        {
+          id: "c145935c-67c6-4bf6-a0ce-64e5d611cf47",
+          name: "Накопительный счёт",
+          currency: "RUB",
+        },
+      ],
+      rawRowCandidates: [],
+      existingOperationCandidates: [],
+    },
   };
 }

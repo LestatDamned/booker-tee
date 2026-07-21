@@ -591,10 +591,20 @@ def collect_ux_assertions(
             errors.append("React import review classification panel was not found")
         else:
             classification_panel.click()
-            if page.get_by_label("Категория").count() == 0:
+            panel = classification_panel.locator("xpath=ancestor::details[1]")
+            if panel.get_by_label("Категория").count() == 0:
                 errors.append("React import review category draft field was not found")
-            if page.get_by_label("Объект").count() == 0:
+            if panel.get_by_label("Объект").count() == 0:
                 errors.append("React import review property draft field was not found")
+            operation_type = panel.get_by_label("Тип операции")
+            if operation_type.count() == 0:
+                errors.append("React import review operation type field was not found")
+            else:
+                operation_type.select_option("transfer")
+                if panel.get_by_label("Сопоставление").count() == 0:
+                    errors.append("React import review transfer matching field was not found")
+                if panel.get_by_role("button", name="Провести перевод").count() == 0:
+                    errors.append("React import review transfer action was not found")
             expanded_overflow = collect_overflow(page)
             if int(expanded_overflow["horizontalOverflowPx"]) > 1:
                 errors.append("React import review draft panel causes horizontal overflow")

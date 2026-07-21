@@ -192,6 +192,61 @@ describe("import review page", () => {
     expect(name).toHaveValue("Продукты");
     expect(name).toHaveFocus();
   });
+
+  it("reconciles the row and queue only from the committed transfer response", async () => {
+    const user = userEvent.setup();
+    const updated = importReviewPayload();
+    const item = updated.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.status = "confirmed";
+    item.isTerminal = true;
+    item.isReviewable = false;
+    updated.queue.completed = 2;
+    updated.queue.remaining = 0;
+    updated.queue.firstRemainingItemId = null;
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            primaryDocumentId: updated.document.id,
+            updatedItemIds: [remainingItemId],
+            validationDocumentIds: [updated.document.id],
+            reviews: [updated],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage(importReviewPayload());
+
+    const reviewPanel = screen.getAllByText("Разобрать строку")[0];
+    if (!reviewPanel) throw new Error("review panel is required");
+    await user.click(reviewPanel);
+    await user.selectOptions(screen.getByLabelText("Тип операции"), "transfer");
+    expect(
+      screen.getByText("Основной счёт → выбранный счёт"),
+    ).toBeInTheDocument();
+    await user.selectOptions(
+      screen.getByLabelText("Сопоставление"),
+      "account:c145935c-67c6-4bf6-a0ce-64e5d611cf47",
+    );
+    await user.click(screen.getByRole("button", { name: "Провести перевод" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Все строки обработаны" }),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`/items/${remainingItemId}/transfer`),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Idempotency-Key": expect.any(String),
+        }),
+      }),
+    );
+  });
 });
 
 function renderPage(review: ReturnType<typeof importReviewPayload>) {

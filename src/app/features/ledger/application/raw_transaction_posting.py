@@ -75,12 +75,26 @@ class RawTransactionPoster:
         raw_transaction_id: UUID,
         counterparty_account_id: UUID | None,
         matched_raw_transaction_id: UUID | None,
+        idempotency_key: UUID | None = None,
+        idempotency_fingerprint: str | None = None,
     ) -> Operation:
-        raw_transaction = await self.imports.get_raw_transaction_for_workspace(
-            context.workspace.id,
-            document_id,
-            raw_transaction_id,
-        )
+        matched_raw_transaction = None
+        if matched_raw_transaction_id is not None:
+            locked_rows = await self.imports.lock_raw_transactions_for_workspace(
+                workspace_id=context.workspace.id,
+                raw_transaction_ids={raw_transaction_id, matched_raw_transaction_id},
+            )
+            rows_by_id = {row.id: row for row in locked_rows}
+            raw_transaction = rows_by_id.get(raw_transaction_id)
+            matched_raw_transaction = rows_by_id.get(matched_raw_transaction_id)
+            if raw_transaction is None or raw_transaction.uploaded_document_id != document_id:
+                raw_transaction = None
+        else:
+            raw_transaction = await self.imports.get_raw_transaction_for_workspace(
+                context.workspace.id,
+                document_id,
+                raw_transaction_id,
+            )
         if raw_transaction is None:
             raise LedgerPostingError("Raw transaction row was not found.")
         ensure_raw_transaction_can_post_as_transfer(raw_transaction)
@@ -92,6 +106,7 @@ class RawTransactionPoster:
             context.workspace.id,
             raw_transaction,
             matched_raw_transaction_id,
+            matched_raw_transaction,
         )
         counterparty = await self._resolve_transfer_counterparty(
             workspace_id=context.workspace.id,
@@ -109,6 +124,8 @@ class RawTransactionPoster:
                 raw_transaction=raw_transaction,
                 matched_raw_transaction=counterparty.raw_transaction,
                 transfer_category=transfer_category,
+                idempotency_key=idempotency_key,
+                idempotency_fingerprint=idempotency_fingerprint,
             )
         )
         await self.ledger.create_money_entry(
@@ -173,6 +190,13 @@ class RawTransactionPoster:
         if raw_transaction is None:
             raise LedgerPostingError("Raw transaction row was not found.")
         ensure_raw_transaction_can_post_as_transfer(raw_transaction)
+
+        locked_operation = await self.ledger.get_operation_for_workspace_for_update(
+            workspace_id=context.workspace.id,
+            operation_id=operation_id,
+        )
+        if locked_operation is None:
+            raise LedgerPostingError("Manual transfer is not a transfer candidate.")
 
         candidates = await self.ledger.list_manual_transfer_candidates_for_raw_transaction(
             workspace_id=context.workspace.id,
@@ -294,13 +318,15 @@ class RawTransactionPoster:
         workspace_id: UUID,
         raw_transaction: RawTransaction,
         matched_raw_transaction_id: UUID | None,
+        matched_raw_transaction: RawTransaction | None = None,
     ) -> RawTransaction | None:
         if matched_raw_transaction_id is None:
             return None
-        matched_raw_transaction = await self.imports.get_raw_transaction_by_id_for_workspace(
-            workspace_id,
-            matched_raw_transaction_id,
-        )
+        if matched_raw_transaction is None:
+            matched_raw_transaction = await self.imports.get_raw_transaction_by_id_for_workspace(
+                workspace_id,
+                matched_raw_transaction_id,
+            )
         if matched_raw_transaction is None:
             raise LedgerPostingError("Matched raw transaction row was not found.")
         candidates = await self.imports.list_transfer_candidate_raw_transactions(

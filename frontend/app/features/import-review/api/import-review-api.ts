@@ -84,6 +84,41 @@ const ruleSuggestionSchema = z.object({
   wasAutoApplied: z.boolean(),
   ruleId: z.uuid().nullable(),
 });
+const transferAccountSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  currency: z.string(),
+});
+const transferOptionsSchema = z.object({
+  direction: z
+    .enum(["source_to_counterparty", "counterparty_to_source"])
+    .nullable(),
+  accounts: z.array(transferAccountSchema),
+  rawRowCandidates: z.array(
+    z.object({
+      itemId: z.uuid(),
+      documentId: z.uuid(),
+      rowIndex: z.number().int(),
+      operationDate: z.iso.date().nullable(),
+      description: z.string().nullable(),
+      amount: z.string(),
+      currency: z.string(),
+      account: transferAccountSchema,
+      dayDistance: z.number().int().nonnegative(),
+    }),
+  ),
+  existingOperationCandidates: z.array(
+    z.object({
+      operationId: z.uuid(),
+      operationDate: z.iso.date(),
+      description: z.string().nullable(),
+      amount: z.string(),
+      currency: z.string(),
+      counterpartyAccount: transferAccountSchema.nullable(),
+      dayDistance: z.number().int().nonnegative(),
+    }),
+  ),
+});
 export const importReviewCategoryReferenceSchema = z.object({
   id: z.uuid(),
   name: z.string(),
@@ -143,6 +178,7 @@ export const importReviewSchema: z.ZodType<ImportReviewDto> = z.object({
       selection: selectionSchema,
       confirmability: confirmabilitySchema,
       ruleSuggestion: ruleSuggestionSchema,
+      transfer: transferOptionsSchema,
     }),
   ),
   references: z.object({

@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Header, status
 
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.errors import ApiError, api_error_responses
@@ -9,17 +9,23 @@ from app.api.v1.import_review.dependencies import (
     get_import_review_category_creator,
     get_import_review_draft_evaluator,
     get_import_review_reader,
+    get_import_review_transfer_service,
     require_import_review_write_context,
 )
 from app.api.v1.import_review.mapping import ImportReviewResponseMapper
 from app.api.v1.import_review.schemas.requests import (
     ImportReviewCategoryCreateApiRequest,
     ImportReviewDraftEvaluationApiRequest,
+    ImportReviewExistingTransferLinkApiRequest,
+    ImportReviewNewTransferApiRequest,
+    ImportReviewRawRowMatchApiRequest,
+    ImportReviewTransferApiRequest,
 )
 from app.api.v1.import_review.schemas.responses import (
     ImportReviewApiResponse,
     ImportReviewCategoryReferenceApiResponse,
     ImportReviewDraftEvaluationApiResponse,
+    ImportReviewTransferMutationApiResponse,
 )
 from app.features.categories.service import CategoryError
 from app.features.imports.application.review.classification import (
@@ -28,6 +34,13 @@ from app.features.imports.application.review.classification import (
     ImportReviewDraftValidationError,
 )
 from app.features.imports.application.review.read_model import ImportReviewReader
+from app.features.imports.application.review.transfer_commands import (
+    CreateImportReviewTransferCommand,
+    ImportReviewTransferService,
+    LinkImportReviewExistingTransferCommand,
+    MatchImportReviewRawRowCommand,
+)
+from app.features.ledger.errors import LedgerPostingError
 from app.features.workspaces.permissions import permission_flags_for
 
 router = APIRouter(prefix="/import-review", tags=["import-review"])
@@ -148,6 +161,83 @@ async def create_import_review_category(
     if category is None:
         raise _review_item_not_found()
     return ImportReviewResponseMapper.category_reference(category)
+
+
+@router.post(
+    "/{document_id}/items/{item_id}/transfer",
+    response_model=ImportReviewTransferMutationApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def post_import_review_transfer(
+    document_id: UUID,
+    item_id: UUID,
+    request: ImportReviewTransferApiRequest,
+    context: Annotated[
+        ApiRequestContext,
+        Depends(require_import_review_write_context),
+    ],
+    transfers: Annotated[
+        ImportReviewTransferService,
+        Depends(get_import_review_transfer_service),
+    ],
+    reader: Annotated[ImportReviewReader, Depends(get_import_review_reader)],
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+) -> ImportReviewTransferMutationApiResponse:
+    if isinstance(request, ImportReviewNewTransferApiRequest):
+        command = CreateImportReviewTransferCommand(
+            document_id=document_id,
+            item_id=item_id,
+            counterparty_account_id=request.counterparty_account_id,
+            idempotency_key=idempotency_key,
+        )
+    elif isinstance(request, ImportReviewRawRowMatchApiRequest):
+        command = MatchImportReviewRawRowCommand(
+            document_id=document_id,
+            item_id=item_id,
+            matched_item_id=request.matched_item_id,
+            idempotency_key=idempotency_key,
+        )
+    elif isinstance(request, ImportReviewExistingTransferLinkApiRequest):
+        command = LinkImportReviewExistingTransferCommand(
+            document_id=document_id,
+            item_id=item_id,
+            operation_id=request.operation_id,
+            idempotency_key=idempotency_key,
+        )
+    else:
+        raise AssertionError("Unsupported import review transfer request.")
+
+    try:
+        result = await transfers.execute(context=context.workspace, command=command)
+    except LedgerPostingError as exc:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="import_review_transfer_stale",
+            message="Вариант перевода устарел или больше недоступен.",
+        ) from exc
+
+    reviews = []
+    for affected_document_id in sorted(result.affected_document_ids, key=str):
+        review = await reader.read(
+            workspace_id=context.workspace.workspace.id,
+            document_id=affected_document_id,
+            can_write=True,
+        )
+        if review is None:
+            raise RuntimeError("Affected import review disappeared after transfer commit.")
+        reviews.append(ImportReviewResponseMapper.response(review))
+    return ImportReviewTransferMutationApiResponse(
+        primary_document_id=document_id,
+        updated_item_ids=sorted(result.updated_item_ids, key=str),
+        validation_document_ids=sorted(result.affected_document_ids, key=str),
+        reviews=reviews,
+    )
 
 
 def _review_item_not_found() -> ApiError:

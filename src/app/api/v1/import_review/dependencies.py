@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.errors import ApiError
 from app.db.session import get_session
+from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
 from app.features.imports.application.review.classification import (
     ImportReviewCategoryCreator,
@@ -13,7 +14,10 @@ from app.features.imports.application.review.classification import (
     ImportReviewReferenceReader,
 )
 from app.features.imports.application.review.read_model import ImportReviewReader
+from app.features.imports.application.review.transfer_commands import ImportReviewTransferService
+from app.features.imports.application.review.transfers import ImportReviewTransferReader
 from app.features.imports.repository import ImportRepository
+from app.features.ledger.application.transfer_suggestions import TransferSuggestionUseCase
 from app.features.properties.service import PropertyService
 from app.features.workspaces.permissions import permission_flags_for
 
@@ -27,7 +31,17 @@ def get_import_review_reader(
             CategoryService(session),
             PropertyService(session),
         ),
+        ImportReviewTransferReader(
+            AccountService(session),
+            TransferSuggestionUseCase(session),
+        ),
     )
+
+
+def get_import_review_transfer_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ImportReviewTransferService:
+    return ImportReviewTransferService(session)
 
 
 def get_import_review_draft_evaluator(

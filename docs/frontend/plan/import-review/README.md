@@ -1,6 +1,6 @@
 # Stage 06: child plans для Import Review
 
-Статус: active; Slice 01–03 completed, следующий — Slice 04.
+Статус: active; Slice 01–04 completed, следующий — Slice 05.
 
 Этот каталог делит complexity checkpoint Stage 06 на пользовательские
 вертикальные slice. Каждый implementation slice проходит через application
@@ -25,14 +25,14 @@ read/command boundaries, versioned JSON API, React state/UI и тесты. Фа�
 | 1       | [`01_QUEUE_AND_READ_MODEL.md`](01_QUEUE_AND_READ_MODEL.md)                         | completed | Видит typed queue, raw/normalized rows и точный progress                 |
 | 2       | [`02_VALIDATION_AND_CONTROL_TOTALS.md`](02_VALIDATION_AND_CONTROL_TOTALS.md)       | completed | Понимает validation источника и проблемы control totals                 |
 | 3       | [`03_CLASSIFICATION_CATEGORY_PROPERTY.md`](03_CLASSIFICATION_CATEGORY_PROPERTY.md) | completed | Безопасно разбирает classification, category и property                 |
-| 4       | [`04_TRANSFER_AND_MATCHING.md`](04_TRANSFER_AND_MATCHING.md)                       | planned | Создает или связывает transfer и видит обновление всех затронутых строк |
+| 4       | [`04_TRANSFER_AND_MATCHING.md`](04_TRANSFER_AND_MATCHING.md)                       | completed | Создает или связывает transfer и видит обновление всех затронутых строк |
 | 5       | [`05_DUPLICATE_AND_LIFECYCLE.md`](05_DUPLICATE_AND_LIFECYCLE.md)                   | planned | Разбирает duplicates и lifecycle строки через явные transitions         |
 | 6       | [`06_CONFIRM_POST_AND_CONSISTENCY.md`](06_CONFIRM_POST_AND_CONSISTENCY.md)         | planned | Подтверждает/posting ровно один раз и получает согласованное обновление |
 | 7       | [`07_CUTOVER_AND_CLEANUP.md`](07_CUTOVER_AND_CLEANUP.md)                           | planned | Завершает реальный review в React и удаляет legacy только после parity  |
 
-Текущий следующий шаг: Slice 04 — transfer/matching read model и action-specific
-commands. Legacy review остается production путем для transfer, lifecycle,
-confirm/post и полного завершения workflow.
+Текущий следующий шаг: Slice 05 — duplicate/lifecycle transition policy и
+action-specific commands. Legacy review остается production путем для полного
+workflow до replacement gate Slice 07.
 
 ## Ограничения последовательности
 

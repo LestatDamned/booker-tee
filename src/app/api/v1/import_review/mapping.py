@@ -10,15 +10,19 @@ from app.api.v1.import_review.schemas.responses import (
     ImportReviewConfirmabilityApiResponse,
     ImportReviewDocumentApiResponse,
     ImportReviewDraftEvaluationApiResponse,
+    ImportReviewExistingTransferCandidateApiResponse,
     ImportReviewItemApiResponse,
     ImportReviewNormalizedSourceApiResponse,
     ImportReviewPropertyReferenceApiResponse,
     ImportReviewQueueApiResponse,
     ImportReviewRawSourceApiResponse,
+    ImportReviewRawTransferCandidateApiResponse,
     ImportReviewReferencesApiResponse,
     ImportReviewRowProblemApiResponse,
     ImportReviewRuleSuggestionApiResponse,
     ImportReviewSelectionApiResponse,
+    ImportReviewTransferAccountApiResponse,
+    ImportReviewTransferOptionsApiResponse,
     ImportReviewValidationApiResponse,
 )
 from app.features.imports.application.review.classification import (
@@ -32,6 +36,10 @@ from app.features.imports.application.review.classification import (
 from app.features.imports.application.review.read_model import (
     ImportReviewAccountDto,
     ImportReviewReadModel,
+)
+from app.features.imports.application.review.transfers import (
+    ImportReviewTransferAccountDto,
+    ImportReviewTransferOptionsDto,
 )
 
 
@@ -85,6 +93,7 @@ class ImportReviewResponseMapper:
                     rule_suggestion=ImportReviewResponseMapper._rule_suggestion(
                         item.rule_suggestion
                     ),
+                    transfer=ImportReviewResponseMapper._transfer(item.transfer),
                 )
                 for item in review.items
             ],
@@ -253,4 +262,55 @@ class ImportReviewResponseMapper:
             is_active=rule_suggestion.is_active,
             was_auto_applied=rule_suggestion.was_auto_applied,
             rule_id=rule_suggestion.rule_id,
+        )
+
+    @staticmethod
+    def _transfer(
+        transfer: ImportReviewTransferOptionsDto,
+    ) -> ImportReviewTransferOptionsApiResponse:
+        return ImportReviewTransferOptionsApiResponse(
+            direction=transfer.direction,
+            accounts=[
+                ImportReviewResponseMapper._transfer_account(item) for item in transfer.accounts
+            ],
+            raw_row_candidates=[
+                ImportReviewRawTransferCandidateApiResponse(
+                    item_id=item.item_id,
+                    document_id=item.document_id,
+                    row_index=item.row_index,
+                    operation_date=item.operation_date,
+                    description=item.description,
+                    amount=ImportReviewResponseMapper._decimal_required(item.amount),
+                    currency=item.currency,
+                    account=ImportReviewResponseMapper._transfer_account(item.account),
+                    day_distance=item.day_distance,
+                )
+                for item in transfer.raw_row_candidates
+            ],
+            existing_operation_candidates=[
+                ImportReviewExistingTransferCandidateApiResponse(
+                    operation_id=item.operation_id,
+                    operation_date=item.operation_date,
+                    description=item.description,
+                    amount=ImportReviewResponseMapper._decimal_required(item.amount),
+                    currency=item.currency,
+                    counterparty_account=(
+                        ImportReviewResponseMapper._transfer_account(item.counterparty_account)
+                        if item.counterparty_account is not None
+                        else None
+                    ),
+                    day_distance=item.day_distance,
+                )
+                for item in transfer.existing_operation_candidates
+            ],
+        )
+
+    @staticmethod
+    def _transfer_account(
+        account: ImportReviewTransferAccountDto,
+    ) -> ImportReviewTransferAccountApiResponse:
+        return ImportReviewTransferAccountApiResponse(
+            id=account.id,
+            name=account.name,
+            currency=account.currency,
         )

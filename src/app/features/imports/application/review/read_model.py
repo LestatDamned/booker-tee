@@ -16,6 +16,11 @@ from app.features.imports.application.review.classification import (
     ImportReviewSelectionDto,
     build_import_review_draft_evaluation,
 )
+from app.features.imports.application.review.transfers import (
+    EMPTY_TRANSFER_OPTIONS,
+    ImportReviewTransferOptionsDto,
+    ImportReviewTransferReader,
+)
 from app.features.imports.application.review.validation_read_model import (
     ImportReviewValidationDto,
     build_import_review_validation,
@@ -98,6 +103,7 @@ class ImportReviewItemDto:
     selection: ImportReviewSelectionDto
     confirmability: ImportReviewConfirmabilityDto
     rule_suggestion: ImportReviewRuleSuggestionDto
+    transfer: ImportReviewTransferOptionsDto = EMPTY_TRANSFER_OPTIONS
 
 
 @dataclass(frozen=True)
@@ -123,9 +129,11 @@ class ImportReviewReader:
         self,
         documents: ImportReviewDocumentSource,
         references: ImportReviewReferenceReader,
+        transfers: ImportReviewTransferReader | None = None,
     ) -> None:
         self._documents = documents
         self._references = references
+        self._transfers = transfers
 
     async def read(
         self,
@@ -138,10 +146,19 @@ class ImportReviewReader:
         if document is None:
             return None
         references = await self._references.read(workspace_id)
+        transfers = (
+            await self._transfers.read_for_document(
+                workspace_id=workspace_id,
+                document=document,
+            )
+            if self._transfers is not None
+            else {}
+        )
         return build_import_review_read_model(
             document,
             references=references,
             can_write=can_write,
+            transfers=transfers,
         )
 
 
@@ -150,6 +167,7 @@ def build_import_review_read_model(
     *,
     references: ImportReviewReferencesDto,
     can_write: bool,
+    transfers: dict[UUID, ImportReviewTransferOptionsDto] | None = None,
 ) -> ImportReviewReadModel:
     queue = review_queue_snapshot(document.raw_transactions)
     rows_by_id = {row.id: row for row in document.raw_transactions}
@@ -179,6 +197,7 @@ def build_import_review_read_model(
                     category.is_uncategorized if category is not None else False
                 ),
                 property_id=property_.id if property_ is not None else None,
+                transfer=(transfers or {}).get(row.id, EMPTY_TRANSFER_OPTIONS),
             )
         )
     return ImportReviewReadModel(
@@ -215,6 +234,7 @@ def _item_dto(
     category_id: UUID | None,
     category_is_uncategorized: bool,
     property_id: UUID | None,
+    transfer: ImportReviewTransferOptionsDto,
 ) -> ImportReviewItemDto:
     status = row.status
     draft: ImportReviewDraftEvaluationDto = build_import_review_draft_evaluation(
@@ -253,6 +273,7 @@ def _item_dto(
         selection=draft.selection,
         confirmability=draft.confirmability,
         rule_suggestion=draft.rule_suggestion,
+        transfer=transfer,
     )
 
 

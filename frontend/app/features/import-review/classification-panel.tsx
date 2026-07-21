@@ -10,6 +10,7 @@ import {
   type ImportReviewDraftEvaluationRequest,
 } from "./api/import-review-mutations";
 import styles from "./import-review.module.css";
+import { TransferPanel } from "./transfer-panel";
 
 type ClassificationPanelProps = {
   categories: ImportReviewDto["references"]["categories"];
@@ -17,6 +18,7 @@ type ClassificationPanelProps = {
   documentId: string;
   item: ImportReviewDto["items"][number];
   onCategoryCreated: (category: ImportReviewCategoryReferenceDto) => void;
+  onReviewReconciled: (review: ImportReviewDto) => void;
   properties: ImportReviewDto["references"]["properties"];
   readonly: boolean;
 };
@@ -27,6 +29,7 @@ export function ClassificationPanel({
   documentId,
   item,
   onCategoryCreated,
+  onReviewReconciled,
   properties,
   readonly,
 }: ClassificationPanelProps) {
@@ -167,6 +170,14 @@ export function ClassificationPanel({
                 onNameChange={setCategoryName}
                 onSubmit={handleCreateCategory}
                 pending={pending}
+              />
+            ) : null}
+            {draft.operationType === "transfer" ? (
+              <TransferPanel
+                csrfToken={csrfToken}
+                documentId={documentId}
+                item={item}
+                onReviewReconciled={onReviewReconciled}
               />
             ) : null}
           </>

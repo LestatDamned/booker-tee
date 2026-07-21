@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createImportReviewCategory,
   evaluateImportReviewDraft,
+  postImportReviewTransfer,
 } from "./import-review-mutations";
+import { importReviewPayload } from "../test-support";
 
 describe("import review mutations", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -77,6 +79,47 @@ describe("import review mutations", () => {
       message: "Категорию не удалось создать.",
       fieldErrors: { name: ["Название уже занято."] },
     });
+  });
+
+  it("sends a discriminated transfer command with a stable idempotency key", async () => {
+    const review = importReviewPayload();
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            primaryDocumentId: documentId,
+            updatedItemIds: [itemId],
+            validationDocumentIds: [documentId],
+            reviews: [review],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await postImportReviewTransfer(
+      documentId,
+      itemId,
+      { kind: "new_transfer", counterpartyAccountId: categoryId },
+      "csrf-token",
+      "cd66599a-3db7-46d8-b8f7-c463a2a0fd01",
+    );
+
+    expect(result.status).toBe("success");
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/import-review/${documentId}/items/${itemId}/transfer`,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Idempotency-Key": "cd66599a-3db7-46d8-b8f7-c463a2a0fd01",
+          "X-CSRF-Token": "csrf-token",
+        }),
+        body: JSON.stringify({
+          kind: "new_transfer",
+          counterpartyAccountId: categoryId,
+        }),
+      }),
+    );
   });
 });
 

@@ -76,6 +76,22 @@ class LedgerRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_operation_for_workspace_for_update(
+        self,
+        *,
+        workspace_id: UUID,
+        operation_id: UUID,
+    ) -> Operation | None:
+        result = await self.session.execute(
+            select(Operation)
+            .where(
+                Operation.id == operation_id,
+                Operation.workspace_id == workspace_id,
+            )
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     async def list_manual_operations_page_for_workspace(
         self,
         *,

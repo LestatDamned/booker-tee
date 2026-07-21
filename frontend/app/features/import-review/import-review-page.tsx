@@ -15,8 +15,24 @@ type ImportReviewPageProps = {
 };
 
 export function ImportReviewPage({ review, session }: ImportReviewPageProps) {
-  const readonly = !review.capabilities.canWrite;
+  return (
+    <ImportReviewPageState
+      key={review.document.id}
+      review={review}
+      session={session}
+    />
+  );
+}
+
+function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
+  const [currentReview, setCurrentReview] = useState(review);
+  const readonly = !currentReview.capabilities.canWrite;
   const [categories, setCategories] = useState(review.references.categories);
+
+  function reconcileReview(nextReview: ImportReviewDto) {
+    setCurrentReview(nextReview);
+    setCategories(nextReview.references.categories);
+  }
 
   function addCategory(category: ImportReviewCategoryReferenceDto) {
     setCategories((current) =>
@@ -36,17 +52,17 @@ export function ImportReviewPage({ review, session }: ImportReviewPageProps) {
                 ? "Этот review доступен только для чтения согласно вашей роли."
                 : "Сверьте исходные и нормализованные данные перед проведением."
             }
-            eyebrow={`Документ · ${review.document.status}`}
+            eyebrow={`Документ · ${currentReview.document.status}`}
             title="Проверка импорта"
           />
-          <p className={styles.filename}>{review.document.filename}</p>
+          <p className={styles.filename}>{currentReview.document.filename}</p>
         </div>
 
-        <ReviewQueue review={review} />
-        <ReviewValidation validation={review.validation} />
+        <ReviewQueue review={currentReview} />
+        <ReviewValidation validation={currentReview.validation} />
 
         <section aria-label="Строки импорта" className={styles.itemsRegion}>
-          {review.items.length === 0 ? (
+          {currentReview.items.length === 0 ? (
             <RequestState
               message="Вернитесь к документу и проверьте parsing или настройку колонок."
               status="empty"
@@ -54,19 +70,20 @@ export function ImportReviewPage({ review, session }: ImportReviewPageProps) {
             />
           ) : (
             <ol className={styles.items}>
-              {review.items.map((item) => (
+              {currentReview.items.map((item) => (
                 <li key={item.id}>
                   <ReviewItem
                     categories={categories}
-                    documentId={review.document.id}
+                    documentId={currentReview.document.id}
                     item={item}
                     onCategoryCreated={addCategory}
+                    onReviewReconciled={reconcileReview}
                     problems={
-                      review.validation?.rowProblems.filter(
+                      currentReview.validation?.rowProblems.filter(
                         (problem) => problem.itemId === item.id,
                       ) ?? []
                     }
-                    properties={review.references.properties}
+                    properties={currentReview.references.properties}
                     readonly={readonly}
                     csrfToken={session.csrfToken}
                   />
@@ -247,6 +264,7 @@ function ReviewItem({
   documentId,
   item,
   onCategoryCreated,
+  onReviewReconciled,
   problems,
   properties,
   readonly,
@@ -256,6 +274,7 @@ function ReviewItem({
   documentId: string;
   item: ImportReviewDto["items"][number];
   onCategoryCreated: (category: ImportReviewCategoryReferenceDto) => void;
+  onReviewReconciled: (review: ImportReviewDto) => void;
   problems: NonNullable<ImportReviewDto["validation"]>["rowProblems"];
   properties: ImportReviewDto["references"]["properties"];
   readonly: boolean;
@@ -325,6 +344,7 @@ function ReviewItem({
           documentId={documentId}
           item={item}
           onCategoryCreated={onCategoryCreated}
+          onReviewReconciled={onReviewReconciled}
           properties={properties}
           readonly={readonly}
         />

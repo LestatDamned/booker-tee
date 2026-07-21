@@ -1,6 +1,6 @@
 # Import Review в React
 
-## Поток данных Slice 01
+## Поток данных Slice 01–04
 
 ```text
 ImportReviewReader
@@ -8,6 +8,11 @@ ImportReviewReader
   -> generated OpenAPI type + Zod runtime validation
   -> React Router clientLoader
   -> ImportReviewPage
+
+ImportReviewTransferService
+  -> POST discriminated transfer command + Idempotency-Key
+  -> committed current/cross-document review snapshots
+  -> feature-local reconciliation
 ```
 
 `ImportReviewReader` возвращает финансовые и lifecycle facts. API переводит
@@ -20,8 +25,9 @@ ImportReviewReader
 - Database/application: persisted statuses, terminal/reviewable policy, порядок
   и progress queue, raw и normalized source values.
 - Route loader: загруженный server snapshot.
-- React component: в этом read-only slice нет собственной копии server state;
-  `<details>` и URL fragment используют встроенное browser state.
+- React component: local classification/transfer drafts, pending/error state и
+  current server snapshot после мутации. Confirmed financial state появляется
+  только из committed API response.
 
 ## TypeScript-аналогия для Python-разработчика
 
@@ -37,7 +43,7 @@ Python exception flow, TypeScript заставляет component разобра�
 
 ## Что пока намеренно отсутствует
 
-- classification и confirmability;
-- category/transfer panels и local drafts;
-- mutations, optimistic financial state и cache library;
+- duplicate/lifecycle actions;
+- обычный confirm/post для income и expense;
+- глобальная cache library и optimistic financial state;
 - redirect или удаление legacy import review.

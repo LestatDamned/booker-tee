@@ -1,6 +1,28 @@
 # Slice 04: Transfer и Matching
 
-Статус: planned.
+Статус: completed.
+
+## Реализовано
+
+- `ImportReviewTransferReader` формирует typed accounts, raw-row candidates,
+  existing manual transfer candidates и направление перевода. React не
+  вычисляет eligibility, currency или баланс сумм.
+- API принимает discriminated union из `new_transfer`, `raw_row_match` и
+  `existing_operation_link`; лишние сочетания полей отклоняет Pydantic.
+- Financial mutation требует `Idempotency-Key`. Новый и парный перевод хранят
+  ключ и fingerprint на `Operation`; повторное связывание с тем же existing
+  transfer распознаётся по persisted link.
+- Source и paired raw rows блокируются в стабильном UUID-порядке, а выбранный
+  manual transfer блокируется до повторной eligibility-проверки. Два
+  конкурентных запроса не могут провести одну строку дважды.
+- Committed response возвращает identifiers обеих строк, ids validation всех
+  затронутых документов и полные review snapshots для current и paired
+  document. React заменяет только current feature-local snapshot и не рисует
+  confirmed state заранее.
+- Stale или уже недоступный candidate возвращается как typed `409`; local
+  selection при ошибке сохраняется.
+- Legacy review route и его reviewer сохранены. Новый application service
+  использует существующий `RawTransactionPoster`, не дублируя ledger rules.
 
 ## Результат
 
@@ -35,3 +57,7 @@ Writer классифицирует строку как transfer, выбирае
 
 Smallest truthful consistency response доказан без HTMX OOB equivalent или новой
 cache library.
+
+Gate пройден: cross-document API test проверяет два возвращённых review,
+application tests проверяют фильтрацию accounts/candidates и idempotent replay,
+React test — reconciliation только после committed response.

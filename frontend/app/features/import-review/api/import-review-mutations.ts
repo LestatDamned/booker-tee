@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 import type { components } from "../../../api/generated/schema";
-import { importReviewCategoryReferenceSchema } from "./import-review-api";
+import {
+  importReviewCategoryReferenceSchema,
+  importReviewSchema,
+} from "./import-review-api";
 
 export type ImportReviewDraftEvaluationRequest =
   components["schemas"]["ImportReviewDraftEvaluationApiRequest"];
@@ -11,6 +14,12 @@ export type ImportReviewCategoryCreateRequest =
   components["schemas"]["ImportReviewCategoryCreateApiRequest"];
 export type ImportReviewCategoryReferenceDto =
   components["schemas"]["ImportReviewCategoryReferenceApiResponse"];
+export type ImportReviewTransferRequest =
+  | components["schemas"]["ImportReviewNewTransferApiRequest"]
+  | components["schemas"]["ImportReviewRawRowMatchApiRequest"]
+  | components["schemas"]["ImportReviewExistingTransferLinkApiRequest"];
+export type ImportReviewTransferMutationDto =
+  components["schemas"]["ImportReviewTransferMutationApiResponse"];
 
 const operationTypeSchema = z.enum([
   "income",
@@ -64,6 +73,13 @@ const apiErrorSchema = z.object({
     fieldErrors: z.record(z.string(), z.array(z.string())).nullish(),
   }),
 });
+const transferMutationSchema: z.ZodType<ImportReviewTransferMutationDto> =
+  z.object({
+    primaryDocumentId: z.uuid(),
+    updatedItemIds: z.array(z.uuid()),
+    validationDocumentIds: z.array(z.uuid()),
+    reviews: z.array(importReviewSchema),
+  });
 
 export type ImportReviewMutationResult<T> =
   | { status: "success"; data: T }
@@ -73,6 +89,7 @@ export type ImportReviewMutationResult<T> =
       message: string;
       fieldErrors: Record<string, string[]>;
     }
+  | { status: "conflict"; message: string }
   | { status: "error"; message: string };
 
 export async function evaluateImportReviewDraft(
@@ -103,11 +120,28 @@ export async function createImportReviewCategory(
   );
 }
 
+export async function postImportReviewTransfer(
+  documentId: string,
+  itemId: string,
+  request: ImportReviewTransferRequest,
+  csrfToken: string,
+  idempotencyKey: string,
+): Promise<ImportReviewMutationResult<ImportReviewTransferMutationDto>> {
+  return sendMutation(
+    `/api/v1/import-review/${documentId}/items/${itemId}/transfer`,
+    request,
+    csrfToken,
+    transferMutationSchema,
+    idempotencyKey,
+  );
+}
+
 async function sendMutation<T>(
   url: string,
   request: object,
   csrfToken: string,
   schema: z.ZodType<T>,
+  idempotencyKey?: string,
 ): Promise<ImportReviewMutationResult<T>> {
   try {
     const response = await fetch(url, {
@@ -117,6 +151,7 @@ async function sendMutation<T>(
         Accept: "application/json",
         "Content-Type": "application/json",
         "X-CSRF-Token": csrfToken,
+        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       },
       body: JSON.stringify(request),
     });
@@ -146,6 +181,9 @@ async function sendMutation<T>(
         message: error.data.error.message,
         fieldErrors: error.data.error.fieldErrors ?? {},
       };
+    }
+    if (response.status === 409) {
+      return { status: "conflict", message: error.data.error.message };
     }
     return { status: "error", message: error.data.error.message };
   } catch {

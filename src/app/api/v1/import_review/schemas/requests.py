@@ -1,3 +1,4 @@
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import Field
@@ -16,3 +17,26 @@ class ImportReviewDraftEvaluationApiRequest(ApiRequestModel):
 class ImportReviewCategoryCreateApiRequest(ApiRequestModel):
     name: str = Field(max_length=255)
     kind: CategoryKind
+
+
+class ImportReviewNewTransferApiRequest(ApiRequestModel):
+    kind: Literal["new_transfer"]
+    counterparty_account_id: UUID
+
+
+class ImportReviewRawRowMatchApiRequest(ApiRequestModel):
+    kind: Literal["raw_row_match"]
+    matched_item_id: UUID
+
+
+class ImportReviewExistingTransferLinkApiRequest(ApiRequestModel):
+    kind: Literal["existing_operation_link"]
+    operation_id: UUID
+
+
+ImportReviewTransferApiRequest = Annotated[
+    ImportReviewNewTransferApiRequest
+    | ImportReviewRawRowMatchApiRequest
+    | ImportReviewExistingTransferLinkApiRequest,
+    Field(discriminator="kind"),
+]

@@ -143,6 +143,8 @@ def build_bank_pdf_transfer_operation(
     raw_transaction: RawTransaction,
     matched_raw_transaction: RawTransaction | None,
     transfer_category: Category,
+    idempotency_key: UUID | None = None,
+    idempotency_fingerprint: str | None = None,
 ) -> Operation:
     return _build_confirmed_operation(
         context=context,
@@ -154,12 +156,19 @@ def build_bank_pdf_transfer_operation(
         ),
         operation_date=require_raw_operation_date(raw_transaction),
         posting_date=raw_transaction.posting_date,
+        idempotency_key=str(idempotency_key) if idempotency_key else None,
+        idempotency_fingerprint=idempotency_fingerprint,
         extra_metadata={
             "source": "raw_transfer",
             "raw_transaction_id": str(raw_transaction.id),
             "matched_raw_transaction_id": str(matched_raw_transaction.id)
             if matched_raw_transaction
             else None,
+            "matched_uploaded_document_id": (
+                str(matched_raw_transaction.uploaded_document_id)
+                if matched_raw_transaction
+                else None
+            ),
         },
     )
 

@@ -6,6 +6,7 @@ from app.features.categories.models import CategoryKind
 from app.features.imports.application.review.read_model import (
     ImportReviewReadonlyReasonCode,
 )
+from app.features.imports.application.review.transfers import ImportReviewTransferDirection
 from app.features.imports.application.review.validation_read_model import (
     ImportReviewRowProblemCode,
     ImportReviewValidationReasonCode,
@@ -77,6 +78,41 @@ class ImportReviewRuleSuggestionApiResponse(ApiModel):
     rule_id: UUID | None
 
 
+class ImportReviewTransferAccountApiResponse(ApiModel):
+    id: UUID
+    name: str
+    currency: str
+
+
+class ImportReviewRawTransferCandidateApiResponse(ApiModel):
+    item_id: UUID
+    document_id: UUID
+    row_index: int
+    operation_date: date | None
+    description: str | None
+    amount: str
+    currency: str
+    account: ImportReviewTransferAccountApiResponse
+    day_distance: int
+
+
+class ImportReviewExistingTransferCandidateApiResponse(ApiModel):
+    operation_id: UUID
+    operation_date: date
+    description: str | None
+    amount: str
+    currency: str
+    counterparty_account: ImportReviewTransferAccountApiResponse | None
+    day_distance: int
+
+
+class ImportReviewTransferOptionsApiResponse(ApiModel):
+    direction: ImportReviewTransferDirection | None
+    accounts: list[ImportReviewTransferAccountApiResponse]
+    raw_row_candidates: list[ImportReviewRawTransferCandidateApiResponse]
+    existing_operation_candidates: list[ImportReviewExistingTransferCandidateApiResponse]
+
+
 class ImportReviewItemApiResponse(ApiModel):
     id: UUID
     row_index: int
@@ -90,6 +126,7 @@ class ImportReviewItemApiResponse(ApiModel):
     selection: ImportReviewSelectionApiResponse
     confirmability: ImportReviewConfirmabilityApiResponse
     rule_suggestion: ImportReviewRuleSuggestionApiResponse
+    transfer: ImportReviewTransferOptionsApiResponse
 
 
 class ImportReviewCategoryReferenceApiResponse(ApiModel):
@@ -171,3 +208,10 @@ class ImportReviewDraftEvaluationApiResponse(ApiModel):
     selection: ImportReviewSelectionApiResponse
     confirmability: ImportReviewConfirmabilityApiResponse
     rule_suggestion: ImportReviewRuleSuggestionApiResponse
+
+
+class ImportReviewTransferMutationApiResponse(ApiModel):
+    primary_document_id: UUID
+    updated_item_ids: list[UUID]
+    validation_document_ids: list[UUID]
+    reviews: list[ImportReviewApiResponse]
