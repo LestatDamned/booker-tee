@@ -3,17 +3,22 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.features.accounts.models import Account, AccountType
+from app.features.accounts.repository import AccountRepository
 from app.features.categories.models import Category, CategoryKind
 from app.features.imports.models import RawTransaction
-from app.features.ledger.application.listing import LedgerPage
-from app.features.ledger.models import (
-    MoneyEntry,
-    Operation,
-    OperationSource,
-    OperationStatus,
-    OperationType,
+from app.features.ledger.application.listing import (
+    DEFAULT_PER_PAGE,
+    AccountEntryFilters,
+    LedgerPage,
+    LedgerPagination,
+    normalize_pagination,
 )
+from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
+from app.features.ledger.models import MoneyEntry, Operation
+from app.features.ledger.repository import LedgerRepository
 from app.features.properties.models import Property
 
 
@@ -188,3 +193,66 @@ class LedgerViewMapper:
             id=raw_transaction.id,
             uploaded_document_id=raw_transaction.uploaded_document_id,
         )
+
+
+class AccountLedgerReader:
+    """Read model used by the legacy account ledger screen."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._accounts = AccountRepository(session)
+        self._ledger = LedgerRepository(session)
+
+    async def get_detail(
+        self,
+        *,
+        workspace_id: UUID,
+        account_id: UUID,
+        filters: AccountEntryFilters | None = None,
+        pagination: LedgerPagination | None = None,
+    ) -> AccountLedgerDetailView | None:
+        account = await self._accounts.get_for_workspace(workspace_id, account_id)
+        if account is None:
+            return None
+        normalized_filters = filters or AccountEntryFilters()
+        normalized_pagination = pagination or normalize_pagination(1, DEFAULT_PER_PAGE)
+        entries_total = await self._ledger.get_confirmed_account_entries_total(
+            workspace_id=workspace_id,
+            account_id=account_id,
+        )
+        matching_count = await self._ledger.count_account_entries(
+            workspace_id=workspace_id,
+            account_id=account_id,
+            filters=normalized_filters,
+        )
+        entries = await self._ledger.list_account_entries(
+            workspace_id=workspace_id,
+            account_id=account_id,
+            filters=normalized_filters,
+            pagination=normalized_pagination,
+        )
+        return LedgerViewMapper.account_detail_from_parts(
+            account=account,
+            balance=(account.initial_balance + entries_total).quantize(Decimal("0.01")),
+            entries=entries,
+            page=LedgerPage(
+                page=normalized_pagination.page,
+                per_page=normalized_pagination.per_page,
+                total=matching_count,
+            ),
+        )
+
+    async def get_imported_operation(
+        self,
+        *,
+        workspace_id: UUID,
+        operation_id: UUID,
+        account_id: UUID | None = None,
+    ) -> OperationRefView | None:
+        operation = await self._ledger.get_operation_for_workspace(workspace_id, operation_id)
+        if operation is None or operation.source != OperationSource.BANK_PDF:
+            return None
+        if account_id is not None and all(
+            entry.account_id != account_id for entry in operation.money_entries
+        ):
+            return None
+        return LedgerViewMapper.operation_ref_from_model(operation)

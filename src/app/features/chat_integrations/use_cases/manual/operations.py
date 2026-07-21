@@ -45,7 +45,7 @@ from app.features.chat_integrations.use_cases.manual.state_reader import (
 from app.features.chat_integrations.use_cases.manual.state_store import (
     ChatManualOperationStateStore,
 )
-from app.features.ledger.application.manual_operations import ManualOperationUseCase
+from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.types import OperationType
 from app.features.workspaces.service import WorkspaceContext
 
@@ -55,7 +55,7 @@ class ChatManualOperationService:
         self.session = session
         self.accounts = AccountService(session)
         self.categories = CategoryService(session)
-        self.manual_operations = ManualOperationUseCase(session)
+        self.manual_operations = ManualOperationWriter(session)
         self.states = ChatManualOperationStateStore(session)
         self.account_selection = ChatManualAccountSelectionService(
             states=self.states,

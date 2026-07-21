@@ -6,10 +6,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
-import app.features.ledger.application.manual_operation_service as service_module
-from app.features.ledger.application.commands import CreateManualIncomeExpenseCommand
-from app.features.ledger.application.manual_operation_dtos import ManualOperationReadDto
-from app.features.ledger.application.manual_operation_service import ManualOperationService
+import app.features.ledger.application.manual_operations as service_module
+from app.features.ledger.application.manual_contracts import (
+    CreateManualIncomeExpenseCommand,
+    ManualOperationReadDto,
+)
+from app.features.ledger.application.manual_operations import ManualOperationService
 from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
 from app.features.workspaces.service import WorkspaceContext
 
@@ -44,7 +46,7 @@ async def test_create_returns_reloaded_read_dto(
             return persisted_operation
 
     monkeypatch.setattr(service_module, "LedgerRepository", FakeRepository)
-    monkeypatch.setattr(service_module, "ManualOperationUseCase", FakeUseCase)
+    monkeypatch.setattr(service_module, "ManualOperationWriter", FakeUseCase)
     monkeypatch.setattr(
         service_module.ManualOperationReadDtoMapper,
         "from_model",

@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from manual_ledger_support import manual_ledger_app, manual_operation, primary_account_id
 
-from app.features.ledger.application.commands import (
+from app.features.ledger.application.manual_contracts import (
     CreateManualIncomeExpenseCommand,
     CreateManualTransferCommand,
 )

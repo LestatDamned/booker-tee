@@ -5,7 +5,7 @@ from decimal import Decimal
 from fastapi.testclient import TestClient
 from manual_ledger_support import manual_ledger_app, manual_operation, primary_account_id
 
-from app.features.ledger.application.commands import UpdateManualIncomeExpenseCommand
+from app.features.ledger.application.manual_contracts import UpdateManualIncomeExpenseCommand
 from app.features.ledger.domain.types import OperationStatus, OperationType
 from app.features.ledger.errors import (
     ManualOperationLifecycleConflictError,

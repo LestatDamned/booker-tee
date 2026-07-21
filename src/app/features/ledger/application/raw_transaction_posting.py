@@ -5,12 +5,12 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.accounts.models import Account
+from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.review.validation_refresh import (
     refresh_document_validation,
 )
 from app.features.imports.models import RawTransaction
 from app.features.imports.repository import ImportRepository
-from app.features.ledger.application.imported_document_status import ImportedDocumentStatusUpdater
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.domain.money import (
     ensure_balanced_transfer,
@@ -24,7 +24,7 @@ from app.features.ledger.domain.raw_transactions import (
     require_raw_amount,
 )
 from app.features.ledger.errors import LedgerPostingError
-from app.features.ledger.mapping.operation_factory import (
+from app.features.ledger.mapping.operations import (
     build_bank_pdf_operation,
     build_bank_pdf_transfer_operation,
     build_money_entry,
@@ -226,12 +226,9 @@ class RawTransactionPostingUseCase:
         )
         if raw_transaction is None:
             raise LedgerPostingError("Raw transaction row was not found.")
-        if raw_transaction.account_id is None:
-            raise LedgerPostingError("Raw transaction row has no account.")
-
-        account = await self.references.get_account(
+        account = await self.references.get_account_for_raw_transaction(
             context.workspace.id,
-            raw_transaction.account_id,
+            raw_transaction,
         )
         if raw_transaction.dedupe_hash is not None:
             has_confirmed_duplicate = (

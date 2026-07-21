@@ -15,7 +15,7 @@ from app.api.v1.manual_ledger.schemas.requests import (
     ManualOperationUpdateApiRequest,
 )
 from app.api.v1.manual_ledger.schemas.responses import ManualOperationApiResponse
-from app.features.ledger.application.manual_operation_service import ManualOperationService
+from app.features.ledger.application.manual_operations import ManualOperationService
 from app.features.ledger.errors import LedgerPostingError
 
 router = APIRouter()

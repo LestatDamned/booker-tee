@@ -76,22 +76,6 @@ class LedgerRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_manual_operations_for_workspace(self, workspace_id: UUID) -> list[Operation]:
-        result = await self.session.execute(
-            select(Operation)
-            .options(
-                selectinload(Operation.category),
-                selectinload(Operation.property),
-                selectinload(Operation.money_entries).selectinload(MoneyEntry.account),
-            )
-            .where(
-                Operation.workspace_id == workspace_id,
-                Operation.source == OperationSource.MANUAL,
-            )
-            .order_by(Operation.operation_date.desc(), Operation.created_at.desc())
-        )
-        return list(result.scalars().all())
-
     async def list_manual_operations_page_for_workspace(
         self,
         *,

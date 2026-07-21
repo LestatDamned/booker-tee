@@ -14,7 +14,7 @@ from app.features.accounts.presentation.detail.models import (
     AccountMovementVM,
     OperationResultVM,
 )
-from app.features.ledger.mapping.dto import (
+from app.features.ledger.application.account_ledger import (
     AccountLedgerDetailView,
     AccountLedgerEntryView,
     AccountView,

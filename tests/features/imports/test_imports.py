@@ -447,7 +447,7 @@ async def test_confirm_with_remember_rule_reapplies_rules_to_document(
 
     calls: list[tuple[str, dict[str, object]]] = []
 
-    class FakeLedgerPostingService:
+    class FakeRawTransactionPostingUseCase:
         def __init__(self, session: object) -> None:
             self.session = session
 
@@ -469,7 +469,11 @@ async def test_confirm_with_remember_rule_reapplies_rules_to_document(
             calls.append(("apply_rules", kwargs))
             return SimpleNamespace(updated_raw_transaction_ids=frozenset({uuid4()}))
 
-    monkeypatch.setattr(review_actions, "LedgerPostingService", FakeLedgerPostingService)
+    monkeypatch.setattr(
+        review_actions,
+        "RawTransactionPostingUseCase",
+        FakeRawTransactionPostingUseCase,
+    )
     monkeypatch.setattr(
         review_actions,
         "TransactionRuleManagementUseCase",

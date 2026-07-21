@@ -14,11 +14,11 @@ from app.api.v1.manual_ledger.schemas.responses import (
     ManualOperationCapabilitiesApiResponse,
 )
 from app.features.ledger.application.listing import LedgerPage
-from app.features.ledger.application.manual_operation_dtos import ManualOperationReadDto
-from app.features.ledger.application.manual_operation_references import (
+from app.features.ledger.application.manual_contracts import ManualOperationReadDto
+from app.features.ledger.application.manual_operations import (
     ManualLedgerReferenceOptionsDto,
 )
-from app.features.ledger.domain.manual_operation_lifecycle import manual_operation_actions
+from app.features.ledger.domain.types import manual_operation_actions
 
 READONLY_REASON = "Ручные операции доступны только для просмотра согласно вашей роли."
 STATE_READONLY_REASON = "Действия недоступны для текущего состояния операции."

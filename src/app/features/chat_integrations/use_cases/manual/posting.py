@@ -3,11 +3,11 @@ from app.features.chat_integrations.use_cases.manual.dto import ChatManualOperat
 from app.features.chat_integrations.use_cases.manual.state_reader import (
     ChatManualOperationStateReader,
 )
-from app.features.ledger.application.commands import (
+from app.features.ledger.application.manual_contracts import (
     CreateManualIncomeExpenseCommand,
     CreateManualTransferCommand,
 )
-from app.features.ledger.application.manual_operations import ManualOperationUseCase
+from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.types import OperationType
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.models import Operation
@@ -15,7 +15,7 @@ from app.features.workspaces.service import WorkspaceContext
 
 
 class ChatManualOperationPoster:
-    def __init__(self, manual_operations: ManualOperationUseCase) -> None:
+    def __init__(self, manual_operations: ManualOperationWriter) -> None:
         self.manual_operations = manual_operations
 
     async def post(

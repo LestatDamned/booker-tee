@@ -8,16 +8,15 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.features.imports.models import RawTransactionStatus
-from app.features.ledger.application.commands import (
-    CreateManualIncomeExpenseCommand,
+from app.features.ledger.application.imported_operations import (
+    ImportedOperationReviewUseCase,
     UpdateImportedOperationReviewFieldsCommand,
+)
+from app.features.ledger.application.manual_contracts import (
+    CreateManualIncomeExpenseCommand,
     UpdateManualIncomeExpenseCommand,
 )
-from app.features.ledger.application.imported_operation_review import (
-    ImportedOperationReviewUseCase,
-)
-from app.features.ledger.application.manual_operations import ManualOperationUseCase
-from app.features.ledger.domain.manual_idempotency import manual_income_expense_fingerprint
+from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.money import (
     TransferAmounts,
     affects_profit_for_operation_type,
@@ -37,6 +36,7 @@ from app.features.ledger.errors import (
     OperationIdempotencyConflictError,
     OperationVersionConflictError,
 )
+from app.features.ledger.mapping.operations import manual_income_expense_fingerprint
 from app.features.ledger.models import Operation, OperationSource, OperationStatus, OperationType
 
 
@@ -154,10 +154,10 @@ async def test_manual_create_replays_matching_idempotency_key(
             return existing
 
     monkeypatch.setattr(
-        "app.features.ledger.application.manual_operations.LedgerRepository",
+        "app.features.ledger.application.manual_mutations.LedgerRepository",
         FakeRepository,
     )
-    result = await ManualOperationUseCase(cast(Any, object())).create_income_expense(
+    result = await ManualOperationWriter(cast(Any, object())).create_income_expense(
         context=cast(
             Any,
             SimpleNamespace(workspace=SimpleNamespace(id=workspace_id)),
@@ -198,12 +198,12 @@ async def test_manual_create_rejects_idempotency_key_reuse_with_other_payload(
             return SimpleNamespace(idempotency_fingerprint="different")
 
     monkeypatch.setattr(
-        "app.features.ledger.application.manual_operations.LedgerRepository",
+        "app.features.ledger.application.manual_mutations.LedgerRepository",
         FakeRepository,
     )
 
     with pytest.raises(OperationIdempotencyConflictError):
-        await ManualOperationUseCase(cast(Any, session)).create_income_expense(
+        await ManualOperationWriter(cast(Any, session)).create_income_expense(
             context=cast(
                 Any,
                 SimpleNamespace(workspace=SimpleNamespace(id=workspace_id)),
@@ -456,11 +456,11 @@ async def test_imported_operation_review_update_changes_only_review_fields(monke
             return SimpleNamespace(id=property_id)
 
     monkeypatch.setattr(
-        "app.features.ledger.application.imported_operation_review.LedgerRepository",
+        "app.features.ledger.application.imported_operations.LedgerRepository",
         FakeRepository,
     )
     monkeypatch.setattr(
-        "app.features.ledger.application.imported_operation_review.LedgerReferenceResolver",
+        "app.features.ledger.application.imported_operations.LedgerReferenceResolver",
         FakeReferences,
     )
 
@@ -524,11 +524,11 @@ async def test_imported_operation_review_update_rejects_manual_source(monkeypatc
             pass
 
     monkeypatch.setattr(
-        "app.features.ledger.application.imported_operation_review.LedgerRepository",
+        "app.features.ledger.application.imported_operations.LedgerRepository",
         FakeRepository,
     )
     monkeypatch.setattr(
-        "app.features.ledger.application.imported_operation_review.LedgerReferenceResolver",
+        "app.features.ledger.application.imported_operations.LedgerReferenceResolver",
         FakeReferences,
     )
 
@@ -569,11 +569,11 @@ async def test_manual_operation_use_case_rejects_imported_operation(monkeypatch)
             return operation
 
     monkeypatch.setattr(
-        "app.features.ledger.application.manual_operations.LedgerRepository",
+        "app.features.ledger.application.manual_mutations.LedgerRepository",
         FakeRepository,
     )
 
-    use_case = ManualOperationUseCase(cast(Any, object()))
+    use_case = ManualOperationWriter(cast(Any, object()))
     with pytest.raises(LedgerPostingError, match="Only manual operations"):
         await use_case._get_manual_operation(workspace_id, operation_id)
 
@@ -612,12 +612,12 @@ async def test_manual_update_rejects_stale_expected_version_before_mutation(
             return operation
 
     monkeypatch.setattr(
-        "app.features.ledger.application.manual_operations.LedgerRepository",
+        "app.features.ledger.application.manual_mutations.LedgerRepository",
         FakeRepository,
     )
 
     with pytest.raises(OperationVersionConflictError):
-        await ManualOperationUseCase(cast(Any, session)).update(
+        await ManualOperationWriter(cast(Any, session)).update(
             context=cast(
                 Any,
                 SimpleNamespace(
@@ -673,12 +673,12 @@ async def test_manual_update_rejects_ignored_operation_before_mutation(
             return operation
 
     monkeypatch.setattr(
-        "app.features.ledger.application.manual_operations.LedgerRepository",
+        "app.features.ledger.application.manual_mutations.LedgerRepository",
         FakeRepository,
     )
 
     with pytest.raises(LedgerPostingError, match="confirmed or draft"):
-        await ManualOperationUseCase(cast(Any, session)).update(
+        await ManualOperationWriter(cast(Any, session)).update(
             context=cast(
                 Any,
                 SimpleNamespace(
@@ -739,10 +739,10 @@ async def test_manual_cancel_and_restore_change_only_lifecycle_state(
             return operation
 
     monkeypatch.setattr(
-        "app.features.ledger.application.manual_operations.LedgerRepository",
+        "app.features.ledger.application.manual_mutations.LedgerRepository",
         FakeRepository,
     )
-    use_case = ManualOperationUseCase(cast(Any, session))
+    use_case = ManualOperationWriter(cast(Any, session))
     context = cast(
         Any,
         SimpleNamespace(
@@ -790,12 +790,12 @@ async def test_manual_cancel_rejects_stale_version_before_state_change(
             return operation
 
     monkeypatch.setattr(
-        "app.features.ledger.application.manual_operations.LedgerRepository",
+        "app.features.ledger.application.manual_mutations.LedgerRepository",
         FakeRepository,
     )
 
     with pytest.raises(OperationVersionConflictError):
-        await ManualOperationUseCase(cast(Any, object())).cancel(
+        await ManualOperationWriter(cast(Any, object())).cancel(
             context=cast(
                 Any,
                 SimpleNamespace(
@@ -844,10 +844,10 @@ async def test_manual_delete_requires_deletable_state_and_expected_version(
             deleted.append(operation_to_delete)
 
     monkeypatch.setattr(
-        "app.features.ledger.application.manual_operations.LedgerRepository",
+        "app.features.ledger.application.manual_mutations.LedgerRepository",
         FakeRepository,
     )
-    use_case = ManualOperationUseCase(cast(Any, session))
+    use_case = ManualOperationWriter(cast(Any, session))
     context = cast(
         Any,
         SimpleNamespace(
@@ -900,7 +900,7 @@ async def test_replacing_manual_money_entries_keeps_operation_state_current(
 
     session.delete = delete
     session.flush = flush
-    use_case = ManualOperationUseCase(cast(Any, session))
+    use_case = ManualOperationWriter(cast(Any, session))
     created_entries: list[object] = []
 
     async def create_money_entry(entry: object) -> object:

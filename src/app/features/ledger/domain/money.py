@@ -62,19 +62,6 @@ def manual_income_expense_amount(operation_type: OperationType, amount: Decimal)
     raise LedgerPostingError("Manual operation must be income or expense.")
 
 
-def build_manual_transfer_amounts(
-    *,
-    source_account_id: UUID,
-    destination_account_id: UUID,
-    amount: Decimal,
-) -> TransferAmounts:
-    return TransferAmounts.for_manual_transfer(
-        source_account_id=source_account_id,
-        destination_account_id=destination_account_id,
-        amount=amount,
-    )
-
-
 def ensure_distinct_accounts(source_account_id: UUID, destination_account_id: UUID) -> None:
     if source_account_id == destination_account_id:
         raise SameTransferAccountError()
@@ -90,12 +77,6 @@ def normalize_positive_money(amount: Decimal) -> Decimal:
 def ensure_same_currency(first_account: PostingAccount, second_account: PostingAccount) -> None:
     if first_account.currency != second_account.currency:
         raise TransferCurrencyMismatchError()
-
-
-def require_uuid(value: UUID | None, message: str) -> UUID:
-    if value is None:
-        raise LedgerPostingError(message)
-    return value
 
 
 def ensure_balanced_transfer(first_amount: Decimal, second_amount: Decimal) -> None:

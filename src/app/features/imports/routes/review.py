@@ -23,8 +23,8 @@ from app.features.imports.routes.review_responses import (
     ReviewActionResponseRenderer,
     ReviewActionResponseRequest,
 )
+from app.features.ledger.application.imported_operations import ImportedOperationUndoUseCase
 from app.features.ledger.errors import LedgerPostingError
-from app.features.ledger.service import LedgerPostingService
 from app.features.transaction_rules.application.rule_application import (
     TransactionRuleApplicationUseCase,
 )
@@ -221,7 +221,7 @@ async def undo_raw_transaction_posting(
     context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
 ) -> Response:
     try:
-        await LedgerPostingService(session).undo_raw_transaction_posting(
+        await ImportedOperationUndoUseCase(session).undo_raw_transaction_posting(
             context=context,
             document_id=document_id,
             raw_transaction_id=raw_transaction_id,

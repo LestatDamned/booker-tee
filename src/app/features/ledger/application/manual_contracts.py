@@ -58,9 +58,33 @@ UpdateManualOperationCommand = UpdateManualIncomeExpenseCommand | UpdateManualTr
 
 
 @dataclass(frozen=True)
-class UpdateImportedOperationReviewFieldsCommand:
-    operation_id: UUID
-    category_id: UUID | None
-    property_id: UUID | None
-    description: str | None
+class NamedReferenceReadDto:
+    id: UUID
+    name: str
+
+
+@dataclass(frozen=True)
+class AccountReferenceReadDto(NamedReferenceReadDto):
+    currency: str
+
+
+@dataclass(frozen=True)
+class ManualOperationMoneyReadDto:
+    amount: Decimal
+    currency: str
+
+
+@dataclass(frozen=True)
+class ManualOperationReadDto:
+    id: UUID
+    version: int
+    operation_type: OperationType
     status: OperationStatus
+    operation_date: date
+    description: str | None
+    money: ManualOperationMoneyReadDto | None
+    account: AccountReferenceReadDto | None
+    source_account: AccountReferenceReadDto | None
+    destination_account: AccountReferenceReadDto | None
+    category: NamedReferenceReadDto | None
+    property: NamedReferenceReadDto | None

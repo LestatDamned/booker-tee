@@ -105,13 +105,6 @@ TRANSFER_POSTABLE_RAW_STATUSES = {
 }
 
 
-def build_ledger_posting_plan(
-    raw_transaction: PostableRawTransaction,
-    account: PostingAccount,
-) -> LedgerPostingPlan:
-    return LedgerPostingPlan.from_raw_transaction(raw_transaction, account)
-
-
 def ensure_matched_transfer_account(
     matched_raw_transaction: PostableRawTransaction,
     selected_account_id: UUID | None,

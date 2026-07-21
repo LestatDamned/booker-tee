@@ -6,8 +6,7 @@ from app.features.accounts.models import AccountType
 from app.features.accounts.presentation.detail.models import AccountDetailPresenterInput
 from app.features.accounts.presentation.detail.presenter import AccountDetailPresenter
 from app.features.categories.models import CategoryKind
-from app.features.ledger.application.listing import LedgerPage
-from app.features.ledger.mapping.dto import (
+from app.features.ledger.application.account_ledger import (
     AccountLedgerDetailView,
     AccountLedgerEntryView,
     AccountView,
@@ -16,6 +15,7 @@ from app.features.ledger.mapping.dto import (
     OperationRefView,
     RawTransactionLinkView,
 )
+from app.features.ledger.application.listing import LedgerPage
 from app.features.ledger.models import OperationSource, OperationStatus, OperationType
 
 

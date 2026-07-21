@@ -1,10 +1,10 @@
 import pytest
 
-from app.features.ledger.domain.manual_operation_lifecycle import (
+from app.features.ledger.domain.types import (
     ManualOperationActions,
+    OperationStatus,
     manual_operation_actions,
 )
-from app.features.ledger.models import OperationStatus
 
 
 @pytest.mark.parametrize(

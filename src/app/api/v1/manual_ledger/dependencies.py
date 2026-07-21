@@ -6,10 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_session
 from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
-from app.features.ledger.application.manual_operation_references import (
+from app.features.ledger.application.manual_operations import (
     ManualLedgerReferenceReader,
+    ManualOperationService,
 )
-from app.features.ledger.application.manual_operation_service import ManualOperationService
 from app.features.properties.service import PropertyService
 
 

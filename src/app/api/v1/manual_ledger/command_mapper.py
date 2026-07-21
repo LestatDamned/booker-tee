@@ -6,7 +6,7 @@ from app.api.v1.manual_ledger.schemas.requests import (
     ManualTransferCreateApiRequest,
     ManualTransferUpdateApiRequest,
 )
-from app.features.ledger.application.commands import (
+from app.features.ledger.application.manual_contracts import (
     CreateManualIncomeExpenseCommand,
     CreateManualOperationCommand,
     CreateManualTransferCommand,

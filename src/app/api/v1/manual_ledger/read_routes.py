@@ -20,10 +20,10 @@ from app.api.v1.manual_ledger.schemas.responses import (
     ManualLedgerListApiResponse,
     ManualOperationEditApiResponse,
 )
-from app.features.ledger.application.manual_operation_references import (
+from app.features.ledger.application.manual_operations import (
     ManualLedgerReferenceReader,
+    ManualOperationService,
 )
-from app.features.ledger.application.manual_operation_service import ManualOperationService
 from app.features.ledger.errors import LedgerPostingError
 from app.features.workspaces.permissions import permission_flags_for
 

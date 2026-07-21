@@ -5,7 +5,7 @@ import pytest
 
 from app.features.accounts.models import Account, AccountType
 from app.features.categories.models import Category, CategoryKind
-from app.features.ledger.application.manual_operation_references import (
+from app.features.ledger.application.manual_operations import (
     ManualLedgerReferenceReader,
 )
 from app.features.properties.models import Property, PropertyStatus

@@ -15,15 +15,20 @@ from app.features.accounts.presentation.detail.models import AccountDetailPresen
 from app.features.accounts.presentation.detail.presenter import AccountDetailPresenter
 from app.features.accounts.service import AccountError, AccountService
 from app.features.categories.service import CategoryService
-from app.features.ledger.application.commands import UpdateImportedOperationReviewFieldsCommand
+from app.features.ledger.application.account_ledger import (
+    AccountLedgerEntryView,
+    AccountLedgerReader,
+)
+from app.features.ledger.application.imported_operations import (
+    ImportedOperationReviewUseCase,
+    UpdateImportedOperationReviewFieldsCommand,
+)
 from app.features.ledger.application.listing import (
     AccountEntryFilters,
     LedgerPage,
     normalize_pagination,
 )
-from app.features.ledger.mapping.dto import AccountLedgerEntryView
 from app.features.ledger.models import OperationSource, OperationStatus, OperationType
-from app.features.ledger.service import LedgerPostingService
 from app.features.properties.service import PropertyService
 from app.features.workspaces.dependencies import (
     get_current_workspace_context,
@@ -52,9 +57,9 @@ async def account_index(
 ) -> HTMLResponse:
     account_service = AccountService(session)
     accounts = await account_service.list_accounts(context.workspace.id)
-    ledger = LedgerPostingService(session)
+    ledger = AccountLedgerReader(session)
     account_details = [
-        await ledger.get_account_detail(workspace_id=context.workspace.id, account_id=account.id)
+        await ledger.get_detail(workspace_id=context.workspace.id, account_id=account.id)
         for account in accounts
     ]
     return templates.TemplateResponse(
@@ -102,7 +107,7 @@ async def account_detail(
         property_id=parse_optional_query_uuid(property_id, field_name="property_id"),
         search=clean_optional_query_text(search),
     )
-    detail = await LedgerPostingService(session).get_account_detail(
+    detail = await AccountLedgerReader(session).get_detail(
         workspace_id=context.workspace.id,
         account_id=account_id,
         filters=filters,
@@ -242,7 +247,7 @@ async def imported_operation_review_fields_panel(
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
 ) -> HTMLResponse:
-    operation = await LedgerPostingService(session).get_imported_operation_review(
+    operation = await AccountLedgerReader(session).get_imported_operation(
         workspace_id=context.workspace.id,
         operation_id=operation_id,
         account_id=account_id,
@@ -285,7 +290,7 @@ async def update_imported_operation_review_fields(
         OperationStatus.CONFIRMED
     ),
 ) -> Response:
-    account_operation = await LedgerPostingService(session).get_imported_operation_review(
+    account_operation = await AccountLedgerReader(session).get_imported_operation(
         workspace_id=context.workspace.id,
         operation_id=operation_id,
         account_id=account_id,
@@ -293,7 +298,7 @@ async def update_imported_operation_review_fields(
     if account_operation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     try:
-        operation = await LedgerPostingService(session).update_imported_operation_review_fields(
+        operation = await ImportedOperationReviewUseCase(session).update_review_fields(
             context=context,
             command=UpdateImportedOperationReviewFieldsCommand(
                 operation_id=operation_id,
@@ -332,7 +337,7 @@ async def account_movement_row_response(
     account_id: UUID,
     operation_id: UUID,
 ) -> HTMLResponse:
-    operation = await LedgerPostingService(session).get_imported_operation_review(
+    operation = await AccountLedgerReader(session).get_imported_operation(
         workspace_id=context.workspace.id,
         operation_id=operation_id,
         account_id=account_id,

@@ -3,7 +3,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 from app.features.accounts.models import Account, AccountType
-from app.features.ledger.mapping.manual_operations import ManualOperationReadDtoMapper
+from app.features.ledger.mapping.operations import ManualOperationReadDtoMapper
 from app.features.ledger.models import (
     MoneyEntry,
     Operation,
