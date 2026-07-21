@@ -1,6 +1,13 @@
 # Stage 06: Import Review Complexity Checkpoint
 
-Status: next.
+Status: active.
+
+Индекс выполнения: [`import-review/README.md`](import-review/README.md).
+
+Актуальный inventory поведения и аудит application boundary записаны в
+[`import-review/INVENTORY.md`](import-review/INVENTORY.md). Production-работа
+начинается со slice queue и типизированного read model; legacy import review
+остается подключенным до финального replacement gate.
 
 ## Goal
 

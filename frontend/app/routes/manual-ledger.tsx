@@ -4,8 +4,8 @@ import type { Route } from "./+types/manual-ledger";
 import type {
   ManualLedgerLoadResult,
   ManualOperationDto,
-} from "../features/manual-ledger/manual-ledger-api";
-import { ManualLedgerPage } from "../features/manual-ledger/manual-ledger-page";
+} from "../features/manual-ledger/api/manual-ledger-api";
+import { ManualLedgerPage } from "../features/manual-ledger/list/manual-ledger-page";
 import styles from "../styles/shell.module.css";
 import { loadManualLedgerRoute } from "./manual-ledger-loader";
 

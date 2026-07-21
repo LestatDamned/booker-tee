@@ -1,5 +1,5 @@
 import { loadSession } from "../api/session";
-import { loadManualLedger } from "../features/manual-ledger/manual-ledger-api";
+import { loadManualLedger } from "../features/manual-ledger/api/manual-ledger-api";
 
 export async function loadManualLedgerRoute(request: Request) {
   const search = manualLedgerApiSearch(new URL(request.url).search);
