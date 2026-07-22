@@ -16,7 +16,7 @@ from app.features.imports.domain.review_confirmability import ReviewBlockingReas
 from app.features.imports.domain.review_lifecycle import ImportReviewLifecycleAction
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import UploadedDocumentStatus
-from app.features.ledger.domain.types import OperationStatus
+from app.features.ledger.domain.types import OperationStatus, OperationType
 
 
 class DocumentSourceStub:
@@ -82,6 +82,8 @@ async def test_import_review_reader_builds_ordered_raw_and_normalized_rows() -> 
     assert result.items[1].posting.can_undo is False
     assert result.items[0].posting.operation_id is not None
     assert result.items[0].posting.can_undo is True
+    assert result.items[0].classification.operation_type is OperationType.TRANSFER
+    assert result.items[0].classification.source is ReviewClassificationSource.EXPLICIT
     assert (
         ReviewBlockingReasonCode.MISSING_CATEGORY
         in result.items[1].confirmability.blocking_reason_codes
@@ -104,6 +106,42 @@ async def test_import_review_reader_returns_none_for_unknown_document() -> None:
     )
 
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_confirmed_row_uses_linked_operation_instead_of_rule_suggestion() -> None:
+    workspace_id = uuid4()
+    document_id = uuid4()
+    operation_category_id = uuid4()
+    confirmed_row = row(uuid4(), 1, RawTransactionStatus.CONFIRMED)
+    confirmed_row.suggested_operation_type = OperationType.INCOME
+    confirmed_row.suggested_category_id = uuid4()
+    confirmed_row.linked_operation.type = OperationType.EXPENSE
+    confirmed_row.linked_operation.category_id = operation_category_id
+    confirmed_row.linked_operation.category = SimpleNamespace(system_key=None)
+    document = SimpleNamespace(
+        id=document_id,
+        original_filename="statement.pdf",
+        status=UploadedDocumentStatus.REQUIRES_REVIEW,
+        account=None,
+        account_id=None,
+        raw_transactions=[confirmed_row],
+    )
+
+    result = await ImportReviewReader(
+        cast(Any, DocumentSourceStub(document)),
+        cast(Any, ReferenceReaderStub()),
+    ).read(
+        workspace_id=workspace_id,
+        document_id=document_id,
+        can_write=True,
+    )
+
+    assert result is not None
+    item = result.items[0]
+    assert item.classification.operation_type is OperationType.EXPENSE
+    assert item.classification.source is ReviewClassificationSource.EXPLICIT
+    assert item.selection.category_id == operation_category_id
 
 
 def row(row_id: UUID, row_index: int, status: RawTransactionStatus) -> SimpleNamespace:
@@ -135,6 +173,14 @@ def row(row_id: UUID, row_index: int, status: RawTransactionStatus) -> SimpleNam
         raw_payload={},
         linked_operation_id=operation_id,
         linked_operation=(
-            SimpleNamespace(status=OperationStatus.CONFIRMED) if operation_id is not None else None
+            SimpleNamespace(
+                status=OperationStatus.CONFIRMED,
+                type=OperationType.TRANSFER,
+                category_id=None,
+                category=None,
+                property_id=None,
+            )
+            if operation_id is not None
+            else None
         ),
     )

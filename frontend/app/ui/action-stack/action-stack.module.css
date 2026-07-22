@@ -10,6 +10,22 @@
   width: 100%;
 }
 
+.horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.horizontal .group {
+  display: flex;
+  width: auto;
+}
+
+.horizontal .group > * {
+  width: auto;
+}
+
 .more {
   position: relative;
 }

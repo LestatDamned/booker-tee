@@ -84,6 +84,11 @@ const ruleSuggestionSchema = z.object({
   isActive: z.boolean(),
   wasAutoApplied: z.boolean(),
   ruleId: z.uuid().nullable(),
+  ruleName: z.string().nullable(),
+  pattern: z.string().nullable(),
+  operationType: operationTypeSchema.nullable(),
+  categoryId: z.uuid().nullable(),
+  propertyId: z.uuid().nullable(),
 });
 const transferAccountSchema = z.object({
   id: z.uuid(),

@@ -141,6 +141,11 @@ function importReviewItem(
       isActive: false,
       wasAutoApplied: false,
       ruleId: null,
+      ruleName: null,
+      pattern: null,
+      operationType: null,
+      categoryId: null,
+      propertyId: null,
     },
     posting: {
       operationId:

@@ -1872,6 +1872,15 @@ export interface components {
             wasAutoApplied: boolean;
             /** Ruleid */
             ruleId: string | null;
+            /** Rulename */
+            ruleName: string | null;
+            /** Pattern */
+            pattern: string | null;
+            operationType: components["schemas"]["OperationType"] | null;
+            /** Categoryid */
+            categoryId: string | null;
+            /** Propertyid */
+            propertyId: string | null;
         };
         /** ImportReviewSelectionApiResponse */
         ImportReviewSelectionApiResponse: {

@@ -12,6 +12,7 @@ from app.features.imports.application.review.classification import (
     ImportReviewCategoryCreator,
     ImportReviewDraftEvaluator,
     ImportReviewDraftValidationError,
+    rule_suggestion_dto,
 )
 from app.features.imports.domain.review_classification import ReviewClassificationSource
 from app.features.imports.domain.types import RawTransactionStatus
@@ -139,6 +140,36 @@ async def test_category_creator_does_not_create_for_unknown_review_item() -> Non
     assert writer.calls == 0
 
 
+def test_rule_suggestion_exposes_user_facing_rule_facts() -> None:
+    category_id = uuid4()
+    property_id = uuid4()
+    rule_id = uuid4()
+    item = row()
+    item.status = RawTransactionStatus.SUGGESTED
+    item.suggested_by_rule_id = rule_id
+    item.suggested_operation_type = OperationType.EXPENSE
+    item.suggested_category_id = category_id
+    item.suggested_property_id = property_id
+    item.raw_payload = {
+        "rule_suggestion": {
+            "rule_name": "Маркетплейсы",
+            "pattern": "OZON",
+            "application_mode": "auto_apply",
+        }
+    }
+
+    suggestion = rule_suggestion_dto(cast(Any, item))
+
+    assert suggestion.is_active is True
+    assert suggestion.was_auto_applied is True
+    assert suggestion.rule_id == rule_id
+    assert suggestion.rule_name == "Маркетплейсы"
+    assert suggestion.pattern == "OZON"
+    assert suggestion.operation_type is OperationType.EXPENSE
+    assert suggestion.category_id == category_id
+    assert suggestion.property_id == property_id
+
+
 def row() -> SimpleNamespace:
     return SimpleNamespace(
         id=uuid4(),
@@ -151,5 +182,7 @@ def row() -> SimpleNamespace:
         account_id=None,
         suggested_operation_type=OperationType.EXPENSE,
         suggested_by_rule_id=None,
+        suggested_category_id=None,
+        suggested_property_id=None,
         raw_payload={},
     )

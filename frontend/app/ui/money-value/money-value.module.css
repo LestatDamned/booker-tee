@@ -13,6 +13,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.prominent .amount {
+  font-size: var(--font-size-xl);
+}
+
 .currency {
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);

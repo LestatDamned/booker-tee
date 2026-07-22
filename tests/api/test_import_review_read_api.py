@@ -478,6 +478,32 @@ def test_confirmation_returns_authoritative_review_and_typed_result() -> None:
     assert service.command.expected_status is RawTransactionStatus.MATCHED
 
 
+def test_confirmation_requires_manual_pattern_when_creating_rule() -> None:
+    review = review_model()
+    item = review.items[0]
+    service = PostingServiceStub()
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.OWNER)
+    app.dependency_overrides[get_import_review_confirmation_service] = lambda: service
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{item.id}/confirm",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={
+                "operationType": "expense",
+                "categoryId": str(uuid4()),
+                "expectedStatus": "matched",
+                "rememberRule": True,
+                "rulePattern": "   ",
+            },
+        )
+
+    assert response.status_code == 422
+    assert service.command is None
+
+
 def test_confirmation_maps_stale_and_capability_failures() -> None:
     review = review_model()
     item = review.items[0]

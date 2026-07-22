@@ -27,9 +27,11 @@ export function ConfirmPostingAction({
   evaluation,
   item,
   onReviewReconciled,
+  variant = "panel",
 }: PostingActionProps & {
   dirty: boolean;
   evaluation: ImportReviewDraftEvaluationDto;
+  variant?: "panel" | "quick";
 }) {
   const [rememberRule, setRememberRule] = useState(false);
   const [rulePattern, setRulePattern] = useState("");
@@ -38,6 +40,7 @@ export function ConfirmPostingAction({
   const [conflict, setConflict] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const alertRef = useRef<HTMLParagraphElement>(null);
+  const rulePatternRef = useRef<HTMLInputElement>(null);
   const idempotencyKey = useRef(crypto.randomUUID());
   const selectionFingerprint = `${evaluation.classification.operationType}:${evaluation.selection.categoryId}:${evaluation.selection.propertyId}:${rememberRule}:${rulePattern}`;
 
@@ -63,6 +66,12 @@ export function ConfirmPostingAction({
   const confirmedCategoryId = categoryId;
 
   async function confirm() {
+    const cleanedRulePattern = rulePattern.trim();
+    if (rememberRule && !cleanedRulePattern) {
+      setError("Укажите текст, по которому определять похожие строки.");
+      queueMicrotask(() => rulePatternRef.current?.focus());
+      return;
+    }
     setPending(true);
     setError(null);
     setConflict(false);
@@ -75,7 +84,7 @@ export function ConfirmPostingAction({
         propertyId: evaluation.selection.propertyId,
         expectedStatus: item.status,
         rememberRule,
-        rulePattern: rememberRule && rulePattern.trim() ? rulePattern : null,
+        rulePattern: rememberRule ? cleanedRulePattern : null,
       },
       csrfToken,
       idempotencyKey.current,
@@ -112,6 +121,22 @@ export function ConfirmPostingAction({
     );
   }
 
+  if (variant === "quick") {
+    return (
+      <>
+        <Button
+          disabled={pending || refreshing}
+          isLoading={pending}
+          onClick={() => void confirm()}
+          tone="primary"
+        >
+          Подтвердить
+        </Button>
+        <PostingError error={error} ref={alertRef} />
+      </>
+    );
+  }
+
   return (
     <section aria-label="Подтверждение операции" className={styles.postingBox}>
       <label className={styles.rememberRule}>
@@ -121,18 +146,33 @@ export function ConfirmPostingAction({
           onChange={(event) => setRememberRule(event.target.checked)}
           type="checkbox"
         />
-        Запомнить как правило для похожих строк
+        Создать правило для похожих строк
       </label>
       {rememberRule ? (
-        <label>
-          Шаблон правила, необязательно
-          <input
-            disabled={pending}
-            onChange={(event) => setRulePattern(event.target.value)}
-            placeholder="Например, название магазина"
-            value={rulePattern}
-          />
-        </label>
+        <div className={styles.rulePatternField}>
+          <label>
+            Текст для определения <span aria-hidden="true">*</span>
+            <input
+              aria-describedby={`rule-pattern-help-${item.id}`}
+              disabled={pending}
+              onChange={(event) => setRulePattern(event.target.value)}
+              placeholder="Например, КРАСНОЕ&БЕЛОЕ"
+              ref={rulePatternRef}
+              required
+              value={rulePattern}
+            />
+          </label>
+          <p
+            className={styles.rulePatternHelp}
+            id={`rule-pattern-help-${item.id}`}
+          >
+            Введите устойчивый фрагмент самостоятельно. Описание из выписки: «
+            {item.normalized.description ??
+              item.raw.description ??
+              "без описания"}
+            ».
+          </p>
+        </div>
       ) : null}
       <Button
         disabled={pending || refreshing}
@@ -203,7 +243,10 @@ export function UndoPostingAction({
   }
 
   return (
-    <section aria-label="Проведённая операция" className={styles.postingBox}>
+    <section
+      aria-label="Проведённая операция"
+      className={`${styles.postingBox} ${styles.undoPostingBox}`}
+    >
       <p>Операция уже проведена в ledger.</p>
       {confirming ? (
         <div className={styles.lifecycleConfirmation} role="group">

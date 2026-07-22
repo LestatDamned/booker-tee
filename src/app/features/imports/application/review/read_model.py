@@ -36,7 +36,7 @@ from app.features.imports.domain.review_queue import (
 )
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import RawTransaction, UploadedDocument, UploadedDocumentStatus
-from app.features.ledger.domain.types import OperationStatus
+from app.features.ledger.domain.types import OperationStatus, OperationType
 
 
 class ImportReviewDocumentSource(Protocol):
@@ -196,26 +196,41 @@ def build_import_review_read_model(
     items: list[ImportReviewItemDto] = []
     for item_id in queue.ordered_item_ids:
         row = rows_by_id[item_id]
-        category = (
-            categories_by_id.get(row.suggested_category_id)
-            if row.suggested_category_id is not None
-            else None
-        )
-        property_ = (
-            properties_by_id.get(row.suggested_property_id)
-            if row.suggested_property_id is not None
-            else None
-        )
+        linked_operation = getattr(row, "linked_operation", None)
+        if linked_operation is not None:
+            category_id = getattr(linked_operation, "category_id", None)
+            category = getattr(linked_operation, "category", None)
+            property_id = getattr(linked_operation, "property_id", None)
+            explicit_operation_type = getattr(linked_operation, "type", None)
+        else:
+            category = (
+                categories_by_id.get(row.suggested_category_id)
+                if row.suggested_category_id is not None
+                else None
+            )
+            category_id = category.id if category is not None else None
+            property_ = (
+                properties_by_id.get(row.suggested_property_id)
+                if row.suggested_property_id is not None
+                else None
+            )
+            property_id = property_.id if property_ is not None else None
+            explicit_operation_type = None
         items.append(
             _item_dto(
                 row,
                 document=document,
                 document_account=document_account,
-                category_id=category.id if category is not None else None,
+                explicit_operation_type=explicit_operation_type,
+                category_id=category_id,
                 category_is_uncategorized=(
-                    category.is_uncategorized if category is not None else False
+                    getattr(category, "system_key", None) == "uncategorized"
+                    if linked_operation is not None
+                    else category.is_uncategorized
+                    if category is not None
+                    else False
                 ),
-                property_id=property_.id if property_ is not None else None,
+                property_id=property_id,
                 transfer=(transfers or {}).get(row.id, EMPTY_TRANSFER_OPTIONS),
             )
         )
@@ -250,6 +265,7 @@ def _item_dto(
     *,
     document: UploadedDocument,
     document_account: ImportReviewAccountDto | None,
+    explicit_operation_type: OperationType | None,
     category_id: UUID | None,
     category_is_uncategorized: bool,
     property_id: UUID | None,
@@ -259,7 +275,7 @@ def _item_dto(
     draft: ImportReviewDraftEvaluationDto = build_import_review_draft_evaluation(
         document=document,
         row=row,
-        explicit_operation_type=None,
+        explicit_operation_type=explicit_operation_type,
         category_id=category_id,
         property_id=property_id,
         category_is_uncategorized=category_is_uncategorized,

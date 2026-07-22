@@ -12,6 +12,66 @@
   scroll-margin-top: 5rem;
 }
 
+.table {
+  grid-template-columns:
+    minmax(7rem, 0.55fr)
+    minmax(16rem, 1.65fr)
+    minmax(13rem, 1.15fr)
+    minmax(8.5rem, 0.75fr)
+    minmax(10rem, auto);
+  align-items: center;
+  gap: 0;
+  padding: 0;
+}
+
+.table > .dateCell,
+.table > .descriptionCell,
+.table > .meta,
+.table > .value,
+.table > .aside {
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.table .date {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.table .description {
+  font-size: var(--font-size-md);
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.table .details {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+.table > .value {
+  justify-self: end;
+  text-align: right;
+}
+
+.table > .aside {
+  border-left: 0;
+}
+
+.table > .signals,
+.table > .expansion {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.table > .signals {
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.table > .expansion {
+  padding: 0 var(--space-4) var(--space-4);
+}
+
 .main,
 .aside {
   display: grid;
@@ -33,6 +93,18 @@
   overflow-wrap: anywhere;
   font-size: var(--font-size-lg);
   font-weight: 800;
+}
+
+.financialHierarchy .date {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-md);
+}
+
+.financialHierarchy .description {
+  max-width: 68ch;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .date {
@@ -100,7 +172,7 @@
   background: var(--color-bg-surface);
 }
 
-@media (max-width: 57.5rem) {
+@media (max-width: 75rem) {
   .row {
     grid-template-columns: 1fr;
   }
@@ -115,6 +187,36 @@
   .expansion {
     grid-column: auto;
   }
+
+  .table {
+    grid-template-columns: 7rem minmax(0, 1fr) minmax(10rem, auto);
+  }
+
+  .table > .descriptionCell {
+    grid-column: 2;
+  }
+
+  .table > .meta {
+    grid-column: 2;
+    padding-top: 0;
+  }
+
+  .table > .value {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .table > .aside {
+    grid-column: 3;
+    grid-row: 2;
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .table > .signals,
+  .table > .expansion {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 35rem) {
@@ -128,5 +230,47 @@
 
   .value {
     justify-self: start;
+  }
+
+  .table {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .table > .dateCell,
+  .table > .descriptionCell,
+  .table > .meta,
+  .table > .value,
+  .table > .aside {
+    padding: var(--space-3);
+  }
+
+  .table > .dateCell {
+    grid-column: 1;
+  }
+
+  .table > .value {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .table > .descriptionCell,
+  .table > .meta,
+  .table > .aside {
+    grid-column: 1 / -1;
+  }
+
+  .table > .descriptionCell {
+    grid-row: 2;
+    padding-top: 0;
+  }
+
+  .table > .meta {
+    grid-row: 3;
+  }
+
+  .table > .aside {
+    grid-row: 4;
+    padding-top: 0;
   }
 }

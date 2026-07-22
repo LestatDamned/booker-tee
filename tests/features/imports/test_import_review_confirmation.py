@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
@@ -189,6 +190,22 @@ async def test_confirmation_rechecks_amount_type_and_rolls_back_rule_failure() -
 
     assert session.commits == 0
     assert session.rollbacks == 1
+
+
+@pytest.mark.asyncio
+async def test_confirmation_requires_manual_rule_pattern_before_posting() -> None:
+    row = confirmable_row()
+    service = confirmation_service(SessionStub(), row)
+    command = confirmation_command(row, remember_rule=True)
+    command = replace(command, rule_pattern="   ")
+
+    with pytest.raises(ImportReviewConfirmationValidationError) as result:
+        await service.execute(context=workspace_context(), command=command)
+
+    assert result.value.field_errors == {
+        "rulePattern": ["Укажите текст, по которому определять похожие строки."]
+    }
+    assert cast(PosterStub, service._poster).calls == []
 
 
 def confirmation_service(

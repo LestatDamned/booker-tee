@@ -77,6 +77,11 @@ class ImportReviewRuleSuggestionApiResponse(ApiModel):
     is_active: bool
     was_auto_applied: bool
     rule_id: UUID | None
+    rule_name: str | None
+    pattern: str | None
+    operation_type: OperationType | None
+    category_id: UUID | None
+    property_id: UUID | None
 
 
 class ImportReviewPostingApiResponse(ApiModel):

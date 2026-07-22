@@ -14,6 +14,7 @@ import styles from "./import-review.module.css";
 type LifecycleAction = ImportReviewLifecycleRequest["action"];
 
 type LifecycleActionsProps = {
+  actions?: LifecycleAction[];
   csrfToken: string;
   documentId: string;
   item: ImportReviewDto["items"][number];
@@ -22,6 +23,7 @@ type LifecycleActionsProps = {
 };
 
 export function LifecycleActions({
+  actions,
   csrfToken,
   documentId,
   item,
@@ -47,7 +49,8 @@ export function LifecycleActions({
     if (error) alertRef.current?.focus();
   }, [error]);
 
-  if (readonly || item.lifecycle.allowedActions.length === 0) return null;
+  const visibleActions = actions ?? item.lifecycle.allowedActions;
+  if (readonly || visibleActions.length === 0) return null;
 
   async function run(action: LifecycleAction) {
     setPending(action);
@@ -114,7 +117,7 @@ export function LifecycleActions({
       className={styles.lifecycleActions}
     >
       <div className={styles.lifecycleButtons}>
-        {item.lifecycle.allowedActions.map((action) => (
+        {visibleActions.map((action) => (
           <Button
             disabled={pending !== null}
             isLoading={pending === action}

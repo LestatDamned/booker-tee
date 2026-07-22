@@ -63,6 +63,8 @@ class ImportReviewConfirmationApiRequest(ApiRequestModel):
             raise ValueError("Confirmation supports only income or expense.")
         if self.rule_pattern is not None and not self.remember_rule:
             raise ValueError("rulePattern requires rememberRule=true.")
+        if self.remember_rule and not (self.rule_pattern or "").strip():
+            raise ValueError("rulePattern is required when rememberRule=true.")
         return self
 
 

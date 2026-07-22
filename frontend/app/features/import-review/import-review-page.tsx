@@ -6,10 +6,9 @@ import { PageHeader } from "../../ui/page-header/page-header";
 import { RequestState } from "../../ui/request-state/request-state";
 import type { ImportReviewDto } from "./api/import-review-api";
 import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
-import { ClassificationPanel } from "./classification-panel";
-import { LifecycleActions } from "./lifecycle-actions";
-import { UndoPostingAction } from "./posting-actions";
+import { ReviewItem } from "./review-item";
 import { RuleActions } from "./rule-actions";
+import { StatementReconciliation } from "./statement-reconciliation";
 import styles from "./import-review.module.css";
 
 type ImportReviewPageProps = {
@@ -31,6 +30,8 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
   const [currentReview, setCurrentReview] = useState(review);
   const readonly = !currentReview.capabilities.canWrite;
   const [categories, setCategories] = useState(review.references.categories);
+  const [filter, setFilter] = useState<ReviewFilter>("all");
+  const visibleItems = filteredItems(currentReview, filter);
 
   function reconcileReview(nextReview: ImportReviewDto) {
     setCurrentReview(nextReview);
@@ -53,12 +54,16 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
             description={
               readonly
                 ? "Этот review доступен только для чтения согласно вашей роли."
-                : "Сверьте исходные и нормализованные данные перед проведением."
+                : "Проверьте финансовый смысл строк перед проведением операций."
             }
-            eyebrow={`Документ · ${currentReview.document.status}`}
-            title="Проверка импорта"
+            eyebrow={`Документ · ${documentStatusLabel(currentReview.document.status)}`}
+            title="Проверка выписки"
           />
-          <p className={styles.filename}>{currentReview.document.filename}</p>
+          <p className={styles.filename}>
+            {currentReview.document.sourceAccount?.name ?? "Счёт не определён"}
+            {" · "}
+            {currentReview.document.filename}
+          </p>
           <RuleActions
             csrfToken={session.csrfToken}
             documentId={currentReview.document.id}
@@ -68,18 +73,27 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
         </div>
 
         <ReviewQueue review={currentReview} />
-        <ReviewValidation validation={currentReview.validation} />
+        <StatementReconciliation validation={currentReview.validation} />
 
         <section aria-label="Строки импорта" className={styles.itemsRegion}>
+          {currentReview.items.length > 0 ? (
+            <div className={styles.queueToolbar}>
+              <ReviewFilters
+                filter={filter}
+                onChange={setFilter}
+                review={currentReview}
+              />
+            </div>
+          ) : null}
           {currentReview.items.length === 0 ? (
             <RequestState
-              message="Вернитесь к документу и проверьте parsing или настройку колонок."
+              message="Вернитесь к документу и проверьте парсинг или настройку колонок."
               status="empty"
               title="Сырых строк пока нет"
             />
           ) : (
             <ol className={styles.items}>
-              {currentReview.items.map((item) => (
+              {visibleItems.map((item) => (
                 <li key={item.id}>
                   <ReviewItem
                     categories={categories}
@@ -98,6 +112,15 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
                   />
                 </li>
               ))}
+              {visibleItems.length === 0 ? (
+                <li className={styles.filterEmpty}>
+                  <RequestState
+                    message="Выберите другой фильтр, чтобы увидеть остальные строки выписки."
+                    status="empty"
+                    title="В этом фильтре строк нет"
+                  />
+                </li>
+              ) : null}
             </ol>
           )}
         </section>
@@ -106,138 +129,14 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
   );
 }
 
-function ReviewValidation({
-  validation,
-}: {
-  validation: ImportReviewDto["validation"];
-}) {
-  if (!validation) {
-    return (
-      <section className={styles.validation}>
-        <p className={styles.queueLabel}>Контроль данных</p>
-        <h2>Проверка ещё не рассчитана</h2>
-        <p>Для документа пока нет завершённой попытки parsing.</p>
-      </section>
-    );
-  }
-
-  const copy = validationCopy(validation.reasonCode);
-  return (
-    <section
-      aria-labelledby="import-review-validation-title"
-      className={styles.validation}
-      data-status={validation.status}
-    >
-      <div className={styles.validationHeader}>
-        <div>
-          <p className={styles.queueLabel}>Контроль данных</p>
-          <h2 id="import-review-validation-title">{copy.title}</h2>
-          <p>{copy.description}</p>
-        </div>
-        <dl className={styles.validationCounts}>
-          <ValidationCount
-            label="Извлечено"
-            value={validation.extractedCount}
-          />
-          <ValidationCount
-            label="Нормализовано"
-            value={validation.normalizedCount}
-          />
-          <ValidationCount
-            label="Нужна проверка"
-            value={validation.needsReviewCount}
-          />
-        </dl>
-      </div>
-
-      <div
-        aria-label="Сверка контрольных итогов"
-        className={styles.totalsTableRegion}
-        tabIndex={0}
-      >
-        <table className={styles.totalsTable}>
-          <caption>Суммы строк и контрольные итоги выписки</caption>
-          <thead>
-            <tr>
-              <th scope="col">Поток</th>
-              <th scope="col">По строкам</th>
-              <th scope="col">Игнорируется</th>
-              <th scope="col">В выписке</th>
-              <th scope="col">Не объяснено</th>
-            </tr>
-          </thead>
-          <tbody>
-            <TotalsRow
-              calculated={validation.calculatedTotalInflow}
-              currency={validation.currency}
-              ignored={validation.ignoredTotalInflow}
-              label="Поступления"
-              statement={validation.statementTotalInflow}
-              unexplained={validation.unexplainedInflowDifference}
-            />
-            <TotalsRow
-              calculated={validation.calculatedTotalOutflow}
-              currency={validation.currency}
-              ignored={validation.ignoredTotalOutflow}
-              label="Списания"
-              statement={validation.statementTotalOutflow}
-              unexplained={validation.unexplainedOutflowDifference}
-            />
-          </tbody>
-        </table>
-      </div>
-
-      <p className={styles.balanceChain}>
-        Проверка цепочки остатков: {balanceChainLabel(validation.balanceChain)}
-      </p>
-    </section>
-  );
-}
-
-function ValidationCount({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
-}
-
-function TotalsRow({
-  calculated,
-  currency,
-  ignored,
-  label,
-  statement,
-  unexplained,
-}: {
-  calculated: string;
-  currency: string | null;
-  ignored: string;
-  label: string;
-  statement: string | null;
-  unexplained: string | null;
-}) {
-  return (
-    <tr>
-      <th scope="row">{label}</th>
-      <td>{moneyLabel(calculated, currency)}</td>
-      <td>{moneyLabel(ignored, currency)}</td>
-      <td>{moneyLabel(statement, currency)}</td>
-      <td>{moneyLabel(unexplained, currency)}</td>
-    </tr>
-  );
-}
-
 function ReviewQueue({ review }: { review: ImportReviewDto }) {
   const { queue } = review;
-  const complete = queue.total > 0 && queue.remaining === 0;
   const title =
     queue.total === 0
       ? "Строк для проверки пока нет"
-      : complete
+      : queue.remaining === 0
         ? "Все строки обработаны"
-        : `Осталось ${queue.remaining} из ${queue.total}`;
+        : `${queue.completed} из ${queue.total} разобрано`;
 
   return (
     <section
@@ -268,223 +167,93 @@ function ReviewQueue({ review }: { review: ImportReviewDto }) {
   );
 }
 
-function ReviewItem({
-  categories,
-  documentId,
-  item,
-  onCategoryCreated,
-  onReviewReconciled,
-  problems,
-  properties,
-  readonly,
-  csrfToken,
+type ReviewFilter = "all" | "pending" | "suggestions" | "problems" | "complete";
+
+function ReviewFilters({
+  filter,
+  onChange,
+  review,
 }: {
-  categories: ImportReviewDto["references"]["categories"];
-  documentId: string;
-  item: ImportReviewDto["items"][number];
-  onCategoryCreated: (category: ImportReviewCategoryReferenceDto) => void;
-  onReviewReconciled: (review: ImportReviewDto) => void;
-  problems: NonNullable<ImportReviewDto["validation"]>["rowProblems"];
-  properties: ImportReviewDto["references"]["properties"];
-  readonly: boolean;
-  csrfToken: string;
+  filter: ReviewFilter;
+  onChange: (filter: ReviewFilter) => void;
+  review: ImportReviewDto;
 }) {
-  const normalizedDescription =
-    item.normalized.description ?? item.raw.description ?? "Без описания";
-  const normalizedDate =
-    item.normalized.operationDate ?? item.raw.operationDate ?? "—";
-  const normalizedAmount = item.normalized.amount ?? item.raw.amount ?? "—";
-  const currency = item.normalized.currency ?? item.raw.currency ?? "";
-  return (
-    <article
-      className={styles.item}
-      data-terminal={item.isTerminal ? "true" : "false"}
-      id={`raw-${item.id}`}
-      tabIndex={-1}
-    >
-      <header className={styles.itemHeader}>
-        <div>
-          <p className={styles.rowIndex}>Строка {item.rowIndex}</p>
-          <h3>{normalizedDescription}</h3>
-        </div>
-        <div className={styles.money}>
-          <strong>{normalizedAmount}</strong>
-          <span>{currency}</span>
-        </div>
-      </header>
-      <dl className={styles.summary}>
-        <div>
-          <dt>Дата</dt>
-          <dd>{normalizedDate}</dd>
-        </div>
-        <div>
-          <dt>Счёт</dt>
-          <dd>{item.sourceAccount?.name ?? "Не определён"}</dd>
-        </div>
-        <div>
-          <dt>Статус</dt>
-          <dd>{statusLabel(item.status)}</dd>
-        </div>
-        <div>
-          <dt>Классификация</dt>
-          <dd>
-            {operationTypeLabel(item.classification.operationType)} ·{" "}
-            {classificationSourceLabel(item.classification.source)}
-          </dd>
-        </div>
-      </dl>
-      {problems.map((problem) => (
-        <div
-          className={styles.rowProblem}
-          key={`${problem.code}-${problem.itemId}`}
-        >
-          <strong>Нарушена цепочка остатков</strong>
-          <span>
-            После строки {problem.previousRowIndex} ожидался остаток{" "}
-            {moneyLabel(problem.expectedBalanceAfter, currency)}, получен{" "}
-            {moneyLabel(problem.actualBalanceAfter, currency)}.
-          </span>
-        </div>
-      ))}
-      <LifecycleActions
-        csrfToken={csrfToken}
-        documentId={documentId}
-        item={item}
-        onReviewReconciled={onReviewReconciled}
-        readonly={readonly}
-      />
-      <UndoPostingAction
-        csrfToken={csrfToken}
-        documentId={documentId}
-        item={item}
-        onReviewReconciled={onReviewReconciled}
-        readonly={readonly}
-      />
-      {!item.isTerminal ? (
-        <ClassificationPanel
-          categories={categories}
-          csrfToken={csrfToken}
-          documentId={documentId}
-          item={item}
-          onCategoryCreated={onCategoryCreated}
-          onReviewReconciled={onReviewReconciled}
-          properties={properties}
-          readonly={readonly}
-        />
-      ) : null}
-      <details className={styles.rawDetails}>
-        <summary>Исходные данные</summary>
-        <dl>
-          <RawValue label="Дата" value={item.raw.operationDate} />
-          <RawValue label="Описание" value={item.raw.description} />
-          <RawValue label="Сумма" value={item.raw.amount} />
-          <RawValue label="Валюта" value={item.raw.currency} />
-          <RawValue label="Остаток" value={item.raw.balanceAfter} />
-          <RawValue label="Подсказка счёта" value={item.raw.accountHint} />
-        </dl>
-      </details>
-    </article>
+  const problemIds = new Set(
+    review.validation?.rowProblems.map((problem) => problem.itemId) ?? [],
   );
-}
-
-function validationCopy(
-  reason: NonNullable<ImportReviewDto["validation"]>["reasonCode"],
-): { title: string; description: string } {
-  const copy: Record<typeof reason, { title: string; description: string }> = {
-    totals_match: {
-      title: "Контрольные итоги совпадают",
-      description: "Суммы нормализованных строк согласованы с выпиской.",
-    },
-    rows_need_review: {
-      title: "Есть строки с неопределёнными данными",
-      description:
-        "Сначала проверьте отмеченные строки, затем повторите сверку итогов.",
-    },
-    balance_chain_mismatch: {
-      title: "Нарушена цепочка остатков",
-      description:
-        "Один или несколько остатков не следуют из соседних операций.",
-    },
-    control_totals_unavailable: {
-      title: "Контрольные итоги недоступны",
-      description:
-        "Parser не извлёк суммы выписки; строки всё ещё доступны для ручной проверки.",
-    },
-    control_totals_mismatch: {
-      title: "Итоги не совпадают с выпиской",
-      description:
-        "Остаётся необъяснённая разница между строками и контрольными итогами.",
-    },
-    ignored_rows_explain_mismatch: {
-      title: "Разница объясняется игнорируемыми строками",
-      description:
-        "Суммы совпадают после учёта строк, исключённых из проведения.",
-    },
-  };
-  return copy[reason];
-}
-
-function moneyLabel(value: string | null, currency: string | null): string {
-  if (value === null) return "—";
-  return currency ? `${value} ${currency}` : value;
-}
-
-function balanceChainLabel(
-  balanceChain: NonNullable<ImportReviewDto["validation"]>["balanceChain"],
-): string {
-  if (balanceChain.status === "unavailable") return "недостаточно данных";
-  if (balanceChain.status === "mismatch") {
-    return `обнаружено несоответствий: ${balanceChain.mismatchCount}; проверено пар: ${balanceChain.checkedPairCount}`;
-  }
-  return `расхождений нет; проверено пар: ${balanceChain.checkedPairCount}`;
-}
-
-function operationTypeLabel(
-  operationType: ImportReviewDto["items"][number]["classification"]["operationType"],
-): string {
-  if (operationType === null) return "Тип не определён";
-  return {
-    income: "Доход",
-    expense: "Расход",
-    transfer: "Перевод",
-    adjustment: "Корректировка",
-  }[operationType];
-}
-
-function classificationSourceLabel(
-  source: ImportReviewDto["items"][number]["classification"]["source"],
-): string {
-  return {
-    explicit: "выбрано вручную",
-    suggested: "предложено правилом",
-    inferred: "определено по сумме",
-    unknown: "источник неизвестен",
-  }[source];
-}
-
-function RawValue({ label, value }: { label: string; value: string | null }) {
+  const filters: Array<{ label: string; value: ReviewFilter; count: number }> =
+    [
+      {
+        label: "Требуют решения",
+        value: "pending",
+        count: review.items.filter((item) => !item.isTerminal).length,
+      },
+      { label: "Все", value: "all", count: review.items.length },
+      {
+        label: "Проведено",
+        value: "complete",
+        count: review.items.filter((item) => item.isTerminal).length,
+      },
+      {
+        label: "С предложениями",
+        value: "suggestions",
+        count: review.items.filter((item) => item.ruleSuggestion.isActive)
+          .length,
+      },
+      {
+        label: "Проблемы",
+        value: "problems",
+        count: review.items.filter((item) => problemIds.has(item.id)).length,
+      },
+    ];
   return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value ?? "—"}</dd>
+    <div
+      aria-label="Фильтр строк выписки"
+      className={styles.reviewFilters}
+      role="group"
+    >
+      {filters.map((candidate) => (
+        <button
+          aria-pressed={candidate.value === filter}
+          key={candidate.value}
+          onClick={() => onChange(candidate.value)}
+          type="button"
+        >
+          {candidate.label} <span>{candidate.count}</span>
+        </button>
+      ))}
     </div>
   );
 }
 
-function statusLabel(
-  status: ImportReviewDto["items"][number]["status"],
+function filteredItems(review: ImportReviewDto, filter: ReviewFilter) {
+  if (filter === "pending")
+    return review.items.filter((item) => !item.isTerminal);
+  if (filter === "suggestions") {
+    return review.items.filter((item) => item.ruleSuggestion.isActive);
+  }
+  if (filter === "problems") {
+    const problemIds = new Set(
+      review.validation?.rowProblems.map((problem) => problem.itemId) ?? [],
+    );
+    return review.items.filter((item) => problemIds.has(item.id));
+  }
+  if (filter === "complete")
+    return review.items.filter((item) => item.isTerminal);
+  return review.items;
+}
+
+function documentStatusLabel(
+  status: ImportReviewDto["document"]["status"],
 ): string {
-  const labels: Record<ImportReviewDto["items"][number]["status"], string> = {
-    extracted: "Извлечено",
-    normalized: "Нормализовано",
-    suggested: "Есть предложение",
-    needs_review: "Нужна проверка",
-    matched: "Проверено как уникальное",
-    ignored: "Игнорируется",
-    duplicate: "Дубль",
-    possible_duplicate: "Возможный дубль",
-    failed: "Ошибка",
-    confirmed: "Подтверждено",
-  };
-  return labels[status];
+  return {
+    uploaded: "загружен",
+    pending_parse: "ожидает парсинга",
+    parsing: "обрабатывается",
+    parsed: "распознан",
+    requires_review: "нужна проверка",
+    failed_to_parse: "ошибка парсинга",
+    imported: "импортирован",
+    ignored: "игнорируется",
+  }[status];
 }

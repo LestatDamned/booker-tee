@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -18,9 +18,9 @@ describe("import review page", () => {
     renderPage(importReviewPayload());
 
     expect(
-      screen.getByRole("heading", { name: "Осталось 1 из 2" }),
+      screen.getByRole("heading", { name: "1 из 2 разобрано" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("value", "1");
     expect(
       screen.getByRole("link", { name: "К первой оставшейся строке" }),
     ).toHaveAttribute("href", `#raw-${remainingItemId}`);
@@ -31,10 +31,12 @@ describe("import review page", () => {
   it("shows raw source values without replacing normalized facts", () => {
     renderPage(importReviewPayload());
 
-    expect(screen.getAllByText("-1250.50")).toHaveLength(2);
-    expect(screen.getAllByText("Исходные данные")).toHaveLength(2);
-    expect(screen.getAllByText("-1250,50")).toHaveLength(2);
-    expect(screen.getAllByText("*1234")).toHaveLength(2);
+    expect(
+      screen.getAllByText(/Сверить с исходной строкой · данные нормализованы/),
+    ).toHaveLength(1);
+    expect(screen.getAllByText("После парсера").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("-1250,50")).toHaveLength(1);
+    expect(screen.getAllByText("*1234")).toHaveLength(1);
   });
 
   it("renders typed validation totals and a problem on the stable row anchor", () => {
@@ -44,16 +46,19 @@ describe("import review page", () => {
       screen.getByRole("heading", { name: "Нарушена цепочка остатков" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("table", {
-        name: "Суммы строк и контрольные итоги выписки",
-      }),
+      screen.getByRole("heading", { name: "Поступления" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/обнаружено несоответствий: 1; проверено пар: 1/),
+      screen.getByRole("heading", { name: "Списания" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("На начало")).not.toBeInTheDocument();
+    expect(screen.queryByText("На конец")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/несоответствий: 1; проверено переходов: 1/),
     ).toBeInTheDocument();
     const row = document.getElementById(`raw-${remainingItemId}`);
     expect(row).toHaveTextContent("После строки 1 ожидался остаток");
-    expect(row).toHaveTextContent("10050.50 RUB");
+    expect(row).toHaveTextContent("10 050,50 RUB");
   });
 
   it("explains unavailable totals without hiding raw rows", () => {
@@ -70,7 +75,7 @@ describe("import review page", () => {
     expect(
       screen.getByRole("heading", { name: "Контрольные итоги недоступны" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Исходные данные")).toHaveLength(2);
+    expect(screen.getAllByText(/Сверить с исходной строкой/)).toHaveLength(1);
   });
 
   it("distinguishes a mismatch explained by ignored rows", () => {
@@ -85,10 +90,38 @@ describe("import review page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Разница объясняется игнорируемыми строками",
+        name: "Разница объяснена исключёнными строками",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("50.50 RUB")).toBeInTheDocument();
+    expect(screen.getByText("50,50")).toBeInTheDocument();
+  });
+
+  it("shows committed operation facts separately from a stale rule suggestion", () => {
+    const review = importReviewPayload();
+    const item = review.items[0];
+    if (!item) throw new Error("completed fixture item is required");
+    item.classification = { operationType: "transfer", source: "explicit" };
+    item.selection = { categoryId: null, propertyId: null };
+    item.ruleSuggestion = {
+      isActive: true,
+      wasAutoApplied: false,
+      ruleId: null,
+      ruleName: "Ошибочное правило",
+      pattern: "Покупка",
+      operationType: "income",
+      categoryId: expenseCategoryId,
+      propertyId: null,
+    };
+
+    renderPage(review);
+
+    const row = document.getElementById(`raw-${completedItemId}`);
+    if (!row) throw new Error("completed row is required");
+    expect(within(row).getByText("перевод")).toBeInTheDocument();
+    expect(within(row).queryByText("Без категории")).not.toBeInTheDocument();
+    expect(
+      within(row).getByText(/Правило «Ошибочное правило»/),
+    ).toBeInTheDocument();
   });
 
   it("renders an explicit empty queue", () => {
@@ -158,6 +191,11 @@ describe("import review page", () => {
       isActive: true,
       wasAutoApplied: true,
       ruleId: "a6f780bd-fc27-448e-aa66-9f20c478fb4f",
+      ruleName: "Маркетплейсы",
+      pattern: "Покупка",
+      operationType: "expense",
+      categoryId: expenseCategoryId,
+      propertyId: null,
     };
     const fetchMock = vi.fn(() =>
       Promise.resolve(
@@ -181,11 +219,114 @@ describe("import review page", () => {
     expect(
       await screen.findByText("Проверено строк: 1. Предложений применено: 1."),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Правило предложило значения/)).toBeInTheDocument();
+    expect(screen.getByText(/Автоправило «Маркетплейсы»/)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/apply-rules"),
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+  it("confirms an auto-applied rule suggestion directly from the row", async () => {
+    const user = userEvent.setup();
+    const review = importReviewPayload();
+    const suggestedItem = review.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!suggestedItem) throw new Error("remaining fixture item is required");
+    suggestedItem.selection.categoryId = expenseCategoryId;
+    suggestedItem.confirmability = {
+      canConfirm: true,
+      blockingReasonCodes: [],
+    };
+    suggestedItem.ruleSuggestion = {
+      isActive: true,
+      wasAutoApplied: true,
+      ruleId: "a6f780bd-fc27-448e-aa66-9f20c478fb4f",
+      ruleName: "Маркетплейсы",
+      pattern: "Покупка",
+      operationType: "expense",
+      categoryId: expenseCategoryId,
+      propertyId: null,
+    };
+    const updated = importReviewPayload();
+    const updatedItem = updated.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!updatedItem) throw new Error("remaining fixture item is required");
+    updatedItem.status = "confirmed";
+    updatedItem.isTerminal = true;
+    updatedItem.isReviewable = false;
+    updatedItem.posting = {
+      operationId: confirmedOperationId,
+      canUndo: true,
+    };
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            primaryDocumentId: updated.document.id,
+            itemId: remainingItemId,
+            operationId: confirmedOperationId,
+            updatedItemIds: [remainingItemId],
+            replayed: false,
+            reviews: [updated],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage(review);
+
+    expect(
+      screen.getByRole("button", { name: "Изменить" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Подтвердить" }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`/items/${remainingItemId}/confirm`),
+      expect.objectContaining({
+        body: JSON.stringify({
+          operationType: "expense",
+          categoryId: expenseCategoryId,
+          propertyId: null,
+          expectedStatus: "matched",
+          rememberRule: false,
+          rulePattern: null,
+        }),
+      }),
+    );
+  });
+
+  it("requires the user to enter the rule matching text", async () => {
+    const user = userEvent.setup();
+    const review = importReviewPayload();
+    const item = review.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.selection.categoryId = expenseCategoryId;
+    item.confirmability = { canConfirm: true, blockingReasonCodes: [] };
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage(review);
+
+    await user.click(
+      screen.getByRole("button", { name: "Проверить и провести" }),
+    );
+    await user.click(
+      screen.getByLabelText("Создать правило для похожих строк"),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Подтвердить и провести" }),
+    );
+
+    const pattern = screen.getByLabelText("Текст для определения *");
+    expect(pattern).toHaveFocus();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Укажите текст, по которому определять похожие строки.",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("keeps the local row draft after a network error and panel toggle", async () => {
@@ -196,17 +337,18 @@ describe("import review page", () => {
     );
     renderPage(importReviewPayload());
 
-    const summary = screen.getByText("Разобрать строку");
-    await user.click(summary);
+    const reviewButton = screen.getByRole("button", {
+      name: "Выбрать категорию",
+    });
+    await user.click(reviewButton);
     const category = screen.getByLabelText("Категория");
     await user.selectOptions(category, expenseCategoryId);
-    await user.click(screen.getByRole("button", { name: "Проверить выбор" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Backend недоступен",
     );
-    await user.click(summary);
-    await user.click(summary);
+    await user.click(reviewButton);
+    await user.click(reviewButton);
     expect(screen.getByLabelText("Категория")).toHaveValue(expenseCategoryId);
   });
 
@@ -231,8 +373,8 @@ describe("import review page", () => {
     );
     renderPage(importReviewPayload());
 
-    await user.click(screen.getByText("Разобрать строку"));
-    await user.click(screen.getByRole("button", { name: "Новая категория" }));
+    await user.click(screen.getByRole("button", { name: "Выбрать категорию" }));
+    await user.click(screen.getByRole("button", { name: "Создать категорию" }));
     const name = screen.getByLabelText("Название категории");
     await user.type(name, "Продукты");
     await user.click(screen.getByRole("button", { name: "Создать и выбрать" }));
@@ -271,10 +413,8 @@ describe("import review page", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderPage(importReviewPayload());
 
-    const reviewPanel = screen.getAllByText("Разобрать строку")[0];
-    if (!reviewPanel) throw new Error("review panel is required");
-    await user.click(reviewPanel);
-    await user.selectOptions(screen.getByLabelText("Тип операции"), "transfer");
+    await user.click(screen.getByRole("button", { name: "Выбрать категорию" }));
+    await user.click(screen.getByRole("button", { name: "Сделать переводом" }));
     expect(
       screen.getByText("Основной счёт → выбранный счёт"),
     ).toBeInTheDocument();
@@ -329,7 +469,12 @@ describe("import review page", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderPage(review);
 
-    await user.click(screen.getByRole("button", { name: "Отметить дублем" }));
+    const row = document.getElementById(`raw-${remainingItemId}`);
+    if (!row) throw new Error("remaining row is required");
+    await user.click(within(row).getByText("Ещё действия"));
+    await user.click(
+      within(row).getByRole("button", { name: "Отметить дублем" }),
+    );
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.getByText(/Пометить строку дублем/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Отмена" })).toHaveFocus();
@@ -381,7 +526,10 @@ describe("import review page", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderPage(review);
 
-    await user.click(screen.getByRole("button", { name: "Игнорировать" }));
+    const row = document.getElementById(`raw-${remainingItemId}`);
+    if (!row) throw new Error("remaining row is required");
+    await user.click(within(row).getByText("Ещё действия"));
+    await user.click(within(row).getByRole("button", { name: "Игнорировать" }));
     await user.click(screen.getByRole("button", { name: "Подтвердить" }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveFocus();
@@ -421,6 +569,11 @@ describe("import review page", () => {
               isActive: false,
               wasAutoApplied: false,
               ruleId: null,
+              ruleName: null,
+              pattern: null,
+              operationType: null,
+              categoryId: null,
+              propertyId: null,
             },
           }),
           { status: 200 },
@@ -442,21 +595,20 @@ describe("import review page", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderPage(importReviewPayload());
 
-    await user.click(screen.getByText("Разобрать строку"));
+    await user.click(screen.getByRole("button", { name: "Выбрать категорию" }));
     await user.selectOptions(
       screen.getByLabelText("Категория"),
       expenseCategoryId,
     );
-    await user.click(screen.getByRole("button", { name: "Проверить выбор" }));
     const confirm = await screen.findByRole("button", {
       name: "Подтвердить и провести",
     });
     expect(screen.getByText("Проверено как уникальное")).toBeInTheDocument();
     await user.click(
-      screen.getByLabelText("Запомнить как правило для похожих строк"),
+      screen.getByLabelText("Создать правило для похожих строк"),
     );
     await user.type(
-      screen.getByLabelText("Шаблон правила, необязательно"),
+      screen.getByLabelText("Текст для определения *"),
       "Магазин",
     );
     await user.click(confirm);
@@ -525,7 +677,7 @@ describe("import review page", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "Осталось 2 из 2" }),
+      await screen.findByRole("heading", { name: "0 из 2 разобрано" }),
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining(`/items/${completedItemId}/undo-posting`),

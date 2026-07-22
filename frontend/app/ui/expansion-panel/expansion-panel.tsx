@@ -8,6 +8,7 @@ type ExpansionPanelProps = {
   id: string;
   isOpen: boolean;
   onClose: () => void;
+  showHeader?: boolean;
   title: string;
 };
 
@@ -16,22 +17,26 @@ export function ExpansionPanel({
   id,
   isOpen,
   onClose,
+  showHeader = true,
   title,
 }: ExpansionPanelProps) {
-  if (!isOpen) {
-    return null;
-  }
-
   return (
-    <section aria-live="polite" className={styles.panel} id={id}>
-      <header className={styles.header}>
-        <h3 className={styles.title}>{title}</h3>
-        <IconButton
-          aria-label="Закрыть панель"
-          icon="close"
-          onClick={onClose}
-        />
-      </header>
+    <section
+      aria-live="polite"
+      className={styles.panel}
+      hidden={!isOpen}
+      id={id}
+    >
+      {showHeader ? (
+        <header className={styles.header}>
+          <h3 className={styles.title}>{title}</h3>
+          <IconButton
+            aria-label="Закрыть панель"
+            icon="close"
+            onClick={onClose}
+          />
+        </header>
+      ) : null}
       <div className={styles.content}>{children}</div>
     </section>
   );

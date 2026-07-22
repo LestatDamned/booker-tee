@@ -9,6 +9,9 @@ read/command boundaries, versioned JSON API, React state/UI и тесты. Фа�
 
 ## Baseline и boundary
 
+Согласованное направление дальнейшего UX описано в
+[`UX_CONTRACT.md`](UX_CONTRACT.md).
+
 - [`INVENTORY.md`](INVENTORY.md) — baseline поведения до миграции, найденные
   ошибочно размещенные правила и минимальный application refactor.
 - Legacy route, Presenter, templates и HTMX responses работали параллельно до

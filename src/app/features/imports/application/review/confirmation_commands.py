@@ -117,6 +117,12 @@ class ImportReviewConfirmationService:
                         "operationType": ["Через confirm можно провести только доход или расход."]
                     }
                 )
+            if command.remember_rule and not (command.rule_pattern or "").strip():
+                raise ImportReviewConfirmationValidationError(
+                    field_errors={
+                        "rulePattern": ["Укажите текст, по которому определять похожие строки."]
+                    }
+                )
 
             category = await self._poster.references.get_required_import_category(
                 context.workspace.id,

@@ -271,6 +271,11 @@ class ImportReviewResponseMapper:
             is_active=rule_suggestion.is_active,
             was_auto_applied=rule_suggestion.was_auto_applied,
             rule_id=rule_suggestion.rule_id,
+            rule_name=rule_suggestion.rule_name,
+            pattern=rule_suggestion.pattern,
+            operation_type=rule_suggestion.operation_type,
+            category_id=rule_suggestion.category_id,
+            property_id=rule_suggestion.property_id,
         )
 
     @staticmethod

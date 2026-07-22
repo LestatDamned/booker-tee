@@ -1671,7 +1671,7 @@ def assert_dashboard_ui(page: Page) -> list[str]:
 
 def assert_react_import_review(page: Page) -> list[str]:
     errors: list[str] = []
-    if page.get_by_role("heading", name="Проверка импорта", exact=True).count() == 0:
+    if page.get_by_role("heading", name="Проверка выписки", exact=True).count() == 0:
         return ["React import review heading was not found"]
     if page.locator(".review-item, .review-row, .review-page").count() != 0:
         errors.append("React import review rendered legacy review classes")
@@ -1695,12 +1695,17 @@ def assert_react_import_review(page: Page) -> list[str]:
         salary_item.wait_for(timeout=PAGE_TIMEOUT_MS)
     except PlaywrightError:
         return [*errors, "React import review salary row was not found"]
-    classification_panel = salary_item.get_by_text("Разобрать строку", exact=True)
+    classification_panel = salary_item.get_by_role(
+        "button", name=re.compile(r"Выбрать категорию|Проверить предложение|Изменить")
+    ).first
     if classification_panel.count() == 0:
         return [*errors, "React import review classification panel was not found"]
     classification_panel.click()
-    panel = classification_panel.locator("xpath=ancestor::details[1]")
+    panel = salary_item.locator("section[id^='review-panel-']")
 
+    more_actions = salary_item.get_by_text("Ещё действия", exact=True)
+    if more_actions.count() > 0:
+        more_actions.click()
     ignore_action = salary_item.get_by_role("button", name="Игнорировать")
     if ignore_action.count() == 0:
         errors.append("React import review lifecycle action was not found")
@@ -1721,24 +1726,19 @@ def assert_react_import_review(page: Page) -> list[str]:
             cancel_action.click()
 
     category = panel.get_by_label("Категория")
-    operation_type = panel.get_by_label("Тип операции")
     if category.count() == 0:
         errors.append("React import review category draft field was not found")
     if panel.get_by_label("Объект").count() == 0:
         errors.append("React import review property draft field was not found")
-    if operation_type.count() == 0:
-        errors.append("React import review operation type field was not found")
-    elif category.count() > 0:
-        operation_type.select_option("income")
+    if category.count() > 0:
         category.select_option(label="Прочий доход")
-        panel.get_by_role("button", name="Проверить выбор").click()
         confirm_action = panel.get_by_role("button", name="Подтвердить и провести")
         try:
             confirm_action.wait_for(timeout=PAGE_TIMEOUT_MS)
         except PlaywrightError:
             errors.append("React import review confirm action was not found")
         else:
-            if panel.get_by_label("Запомнить как правило для похожих строк").count() == 0:
+            if panel.get_by_label("Создать правило для похожих строк").count() == 0:
                 errors.append("React import review remember-rule control was not found")
             confirm_action.click()
             try:
@@ -1756,10 +1756,12 @@ def assert_react_import_review(page: Page) -> list[str]:
     if transfer_item.count() == 0:
         errors.append("React import review transfer row was not found")
     else:
-        transfer_panel_toggle = transfer_item.get_by_text("Разобрать строку", exact=True)
+        transfer_panel_toggle = transfer_item.get_by_role(
+            "button", name=re.compile(r"Проверить перевод|Выбрать категорию|Изменить")
+        ).first
         transfer_panel_toggle.click()
-        transfer_panel = transfer_panel_toggle.locator("xpath=ancestor::details[1]")
-        transfer_panel.get_by_label("Тип операции").select_option("transfer")
+        transfer_panel = transfer_item.locator("section[id^='review-panel-']")
+        transfer_panel.get_by_role("button", name="Сделать переводом").click()
         if transfer_panel.get_by_label("Сопоставление").count() == 0:
             errors.append("React import review transfer matching field was not found")
         if transfer_panel.get_by_role("button", name="Провести перевод").count() == 0:

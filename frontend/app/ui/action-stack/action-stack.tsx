@@ -7,6 +7,7 @@ type ActionStackProps = {
   overflow?: ReactNode;
   primary?: ReactNode;
   secondary?: ReactNode;
+  orientation?: "column" | "row";
 };
 
 export function ActionStack({
@@ -14,9 +15,12 @@ export function ActionStack({
   overflow,
   primary,
   secondary,
+  orientation = "column",
 }: ActionStackProps) {
   return (
-    <div className={styles.stack}>
+    <div
+      className={`${styles.stack} ${orientation === "row" ? styles.horizontal : ""}`}
+    >
       {primary ? <div className={styles.group}>{primary}</div> : null}
       {secondary ? <div className={styles.group}>{secondary}</div> : null}
       {overflow || danger ? (

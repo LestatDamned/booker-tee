@@ -100,6 +100,11 @@ class ImportReviewRuleSuggestionDto:
     is_active: bool
     was_auto_applied: bool
     rule_id: UUID | None
+    rule_name: str | None = None
+    pattern: str | None = None
+    operation_type: OperationType | None = None
+    category_id: UUID | None = None
+    property_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -298,4 +303,16 @@ def rule_suggestion_dto(row: RawTransaction) -> ImportReviewRuleSuggestionDto:
         ),
         was_auto_applied=application_mode == "auto_apply",
         rule_id=row.suggested_by_rule_id,
+        rule_name=_suggestion_text(suggestion, "rule_name"),
+        pattern=_suggestion_text(suggestion, "pattern"),
+        operation_type=row.suggested_operation_type,
+        category_id=row.suggested_category_id,
+        property_id=row.suggested_property_id,
     )
+
+
+def _suggestion_text(suggestion: object, key: str) -> str | None:
+    if not isinstance(suggestion, dict):
+        return None
+    value = suggestion.get(key)
+    return value if isinstance(value, str) and value.strip() else None

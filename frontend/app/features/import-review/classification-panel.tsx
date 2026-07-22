@@ -51,6 +51,7 @@ export function ClassificationPanel({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [categoryName, setCategoryName] = useState("");
   const [categoryKind, setCategoryKind] = useState<
     ImportReviewCategoryReferenceDto["kind"]
@@ -58,15 +59,18 @@ export function ClassificationPanel({
   const categoryRef = useRef<HTMLSelectElement>(null);
   const propertyRef = useRef<HTMLSelectElement>(null);
   const categoryNameRef = useRef<HTMLInputElement>(null);
+  const evaluationRequestId = useRef(0);
 
   function updateDraft(next: ImportReviewDraftEvaluationRequest) {
     setDraft(next);
     setDirty(true);
     setError(null);
     setFieldErrors({});
+    void runEvaluation(next);
   }
 
   async function runEvaluation(nextDraft = draft) {
+    const requestId = ++evaluationRequestId.current;
     setPending(true);
     setError(null);
     setFieldErrors({});
@@ -76,6 +80,7 @@ export function ClassificationPanel({
       nextDraft,
       csrfToken,
     );
+    if (requestId !== evaluationRequestId.current) return;
     setPending(false);
     if (result.status === "success") {
       setEvaluation(result.data);
@@ -122,85 +127,92 @@ export function ClassificationPanel({
   }
 
   return (
-    <details className={styles.classificationPanel}>
-      <summary>Разобрать строку</summary>
-      <div className={styles.classificationPanelBody}>
-        {item.ruleSuggestion.isActive ? (
-          <p className={styles.ruleSuggestion}>
-            Правило предложило значения, но не подтвердило строку автоматически.
-          </p>
-        ) : null}
-        {readonly ? (
-          <p>Изменение classification недоступно для вашей роли.</p>
-        ) : (
-          <>
-            <DraftFields
-              categories={categories}
-              categoryRef={categoryRef}
-              draft={draft}
-              fieldErrors={fieldErrors}
-              itemId={item.id}
-              properties={properties}
-              propertyRef={propertyRef}
-              updateDraft={updateDraft}
+    <div className={styles.classificationPanelBody}>
+      {readonly ? (
+        <p>Изменение classification недоступно для вашей роли.</p>
+      ) : (
+        <>
+          {transferOpen ? (
+            <TransferPanel
+              csrfToken={csrfToken}
+              documentId={documentId}
+              item={item}
+              onReviewReconciled={onReviewReconciled}
             />
-            <div className={styles.draftActions}>
-              <Button
-                disabled={pending}
-                onClick={() => void runEvaluation()}
-                tone="primary"
-              >
-                {pending ? "Проверяем…" : "Проверить выбор"}
-              </Button>
-              <Button
-                aria-expanded={categoryEditorOpen}
-                disabled={pending}
-                onClick={() => setCategoryEditorOpen((open) => !open)}
-              >
-                Новая категория
-              </Button>
-            </div>
-            {categoryEditorOpen ? (
-              <CategoryEditor
-                categoryKind={categoryKind}
-                categoryName={categoryName}
-                categoryNameRef={categoryNameRef}
+          ) : (
+            <>
+              <DraftFields
+                categories={categories}
+                categoryRef={categoryRef}
+                draft={draft}
                 fieldErrors={fieldErrors}
                 itemId={item.id}
-                onKindChange={setCategoryKind}
-                onNameChange={setCategoryName}
-                onSubmit={handleCreateCategory}
-                pending={pending}
+                properties={properties}
+                propertyRef={propertyRef}
+                updateDraft={updateDraft}
               />
-            ) : null}
-            {draft.operationType === "transfer" ? (
-              <TransferPanel
-                csrfToken={csrfToken}
-                documentId={documentId}
-                item={item}
-                onReviewReconciled={onReviewReconciled}
-              />
-            ) : null}
-          </>
-        )}
-        {error ? (
-          <p className={styles.draftError} role="alert">
-            {error}
-          </p>
-        ) : null}
-        <DraftCapability dirty={dirty} evaluation={evaluation} />
-        {!readonly ? (
-          <ConfirmPostingAction
-            csrfToken={csrfToken}
-            dirty={dirty}
-            documentId={documentId}
-            evaluation={evaluation}
-            item={item}
-            onReviewReconciled={onReviewReconciled}
-          />
-        ) : null}
-      </div>
-    </details>
+              <div className={styles.secondaryReviewActions}>
+                <Button
+                  aria-expanded={categoryEditorOpen}
+                  disabled={pending}
+                  onClick={() => setCategoryEditorOpen((open) => !open)}
+                >
+                  Создать категорию
+                </Button>
+                <Button
+                  aria-expanded={transferOpen}
+                  disabled={pending}
+                  onClick={() => setTransferOpen(true)}
+                  tone="secondary"
+                >
+                  Сделать переводом
+                </Button>
+              </div>
+              {categoryEditorOpen ? (
+                <CategoryEditor
+                  categoryKind={categoryKind}
+                  categoryName={categoryName}
+                  categoryNameRef={categoryNameRef}
+                  fieldErrors={fieldErrors}
+                  itemId={item.id}
+                  onKindChange={setCategoryKind}
+                  onNameChange={setCategoryName}
+                  onSubmit={handleCreateCategory}
+                  pending={pending}
+                />
+              ) : null}
+            </>
+          )}
+          {transferOpen ? (
+            <Button onClick={() => setTransferOpen(false)}>
+              Вернуться к категоризации
+            </Button>
+          ) : null}
+        </>
+      )}
+      {error ? (
+        <p className={styles.draftError} role="alert">
+          {error}
+        </p>
+      ) : null}
+      {!transferOpen ? (
+        <DraftCapability
+          dirty={dirty}
+          evaluation={evaluation}
+          pending={pending}
+        />
+      ) : null}
+      {!readonly && !transferOpen ? (
+        <ConfirmPostingAction
+          csrfToken={csrfToken}
+          dirty={dirty}
+          documentId={documentId}
+          evaluation={evaluation}
+          item={item}
+          onReviewReconciled={onReviewReconciled}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -225,30 +237,15 @@ function DraftFields({
   propertyRef,
   updateDraft,
 }: DraftFieldsProps) {
+  const compatibleCategories = categories.filter(
+    (category) =>
+      draft.operationType === null ||
+      category.kind === "mixed" ||
+      category.kind === draft.operationType,
+  );
+
   return (
     <div className={styles.draftFields}>
-      <label>
-        Тип операции
-        <select
-          onChange={(event) =>
-            updateDraft({
-              ...draft,
-              operationType: event.target.value
-                ? (event.target.value as NonNullable<
-                    ImportReviewDraftEvaluationRequest["operationType"]
-                  >)
-                : null,
-            })
-          }
-          value={draft.operationType ?? ""}
-        >
-          <option value="">Определить автоматически</option>
-          <option value="income">Доход</option>
-          <option value="expense">Расход</option>
-          <option value="transfer">Перевод</option>
-          <option value="adjustment">Корректировка</option>
-        </select>
-      </label>
       <label>
         Категория
         <select
@@ -262,7 +259,7 @@ function DraftFields({
           value={draft.categoryId ?? ""}
         >
           <option value="">Выберите категорию</option>
-          {categories.map((category) => (
+          {compatibleCategories.map((category) => (
             <option key={category.id} value={category.id}>
               {category.name}
             </option>
@@ -368,22 +365,25 @@ function CategoryEditor({
 function DraftCapability({
   dirty,
   evaluation,
+  pending,
 }: {
   dirty: boolean;
   evaluation: ImportReviewDraftEvaluationDto;
+  pending: boolean;
 }) {
   if (dirty) {
     return (
       <p className={styles.draftStatus}>
-        Выбор изменён — проверьте его на сервере.
+        {pending
+          ? "Проверяем выбранный финансовый смысл…"
+          : "Исправьте выбор и повторите попытку."}
       </p>
     );
   }
   if (evaluation.confirmability.canConfirm) {
     return (
       <p className={styles.draftReady}>
-        Проверки выбора пройдены. Подтверждение будет добавлено в отдельном
-        slice.
+        Проверки выбора пройдены. Операцию можно подтвердить и провести.
       </p>
     );
   }
