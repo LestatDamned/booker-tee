@@ -58,105 +58,121 @@ export function ReviewItem({
   const canQuickConfirmSuggestion =
     item.ruleSuggestion.wasAutoApplied && item.confirmability.canConfirm;
   const reviewActionLabel = rowReviewActionLabel(item);
+  const outcome = reviewOutcomePresentation({
+    amount,
+    categories,
+    currency,
+    item,
+    properties,
+  });
 
   function closePanel() {
     setPanelOpen(false);
     queueMicrotask(() => reviewButtonRef.current?.focus());
   }
 
-  const aside = readonly ? undefined : primaryLifecycle.length ||
-    overflowLifecycle.length ||
-    dangerLifecycle.length ||
-    hasReviewPanel ||
-    item.posting.canUndo ? (
-    <ActionStack
-      danger={
-        dangerLifecycle.length || item.posting.canUndo ? (
-          <>
+  const actionStack =
+    !readonly &&
+    (primaryLifecycle.length ||
+      overflowLifecycle.length ||
+      dangerLifecycle.length ||
+      hasReviewPanel ||
+      item.posting.canUndo) ? (
+      <ActionStack
+        danger={
+          dangerLifecycle.length || item.posting.canUndo ? (
+            <>
+              <LifecycleActions
+                actions={dangerLifecycle}
+                csrfToken={csrfToken}
+                documentId={documentId}
+                item={item}
+                onReviewReconciled={onReviewReconciled}
+                readonly={readonly}
+              />
+              <UndoPostingAction
+                csrfToken={csrfToken}
+                documentId={documentId}
+                item={item}
+                onReviewReconciled={onReviewReconciled}
+                readonly={readonly}
+              />
+            </>
+          ) : undefined
+        }
+        overflow={
+          overflowLifecycle.length ? (
             <LifecycleActions
-              actions={dangerLifecycle}
+              actions={overflowLifecycle}
               csrfToken={csrfToken}
               documentId={documentId}
               item={item}
               onReviewReconciled={onReviewReconciled}
               readonly={readonly}
             />
-            <UndoPostingAction
+          ) : undefined
+        }
+        primary={
+          primaryLifecycle.length ? (
+            <LifecycleActions
+              actions={primaryLifecycle}
               csrfToken={csrfToken}
               documentId={documentId}
               item={item}
               onReviewReconciled={onReviewReconciled}
               readonly={readonly}
             />
-          </>
-        ) : undefined
-      }
-      overflow={
-        overflowLifecycle.length ? (
-          <LifecycleActions
-            actions={overflowLifecycle}
-            csrfToken={csrfToken}
-            documentId={documentId}
-            item={item}
-            onReviewReconciled={onReviewReconciled}
-            readonly={readonly}
-          />
-        ) : undefined
-      }
-      primary={
-        primaryLifecycle.length ? (
-          <LifecycleActions
-            actions={primaryLifecycle}
-            csrfToken={csrfToken}
-            documentId={documentId}
-            item={item}
-            onReviewReconciled={onReviewReconciled}
-            readonly={readonly}
-          />
-        ) : canQuickConfirmSuggestion ? (
-          <ConfirmPostingAction
-            csrfToken={csrfToken}
-            dirty={false}
-            documentId={documentId}
-            evaluation={{
-              itemId: item.id,
-              classification: item.classification,
-              selection: item.selection,
-              confirmability: item.confirmability,
-              ruleSuggestion: item.ruleSuggestion,
-            }}
-            item={item}
-            onReviewReconciled={onReviewReconciled}
-            variant="quick"
-          />
-        ) : hasReviewPanel ? (
-          <Button
-            aria-controls={panelId}
-            aria-expanded={panelOpen}
-            onClick={() => setPanelOpen((open) => !open)}
-            ref={reviewButtonRef}
-            tone="primary"
-          >
-            {reviewActionLabel}
-          </Button>
-        ) : undefined
-      }
-      secondary={
-        (primaryLifecycle.length || canQuickConfirmSuggestion) &&
-        hasReviewPanel ? (
-          <Button
-            aria-controls={panelId}
-            aria-expanded={panelOpen}
-            onClick={() => setPanelOpen((open) => !open)}
-            ref={reviewButtonRef}
-            tone="secondary"
-          >
-            Изменить
-          </Button>
-        ) : undefined
-      }
-    />
-  ) : undefined;
+          ) : canQuickConfirmSuggestion ? (
+            <ConfirmPostingAction
+              csrfToken={csrfToken}
+              dirty={false}
+              documentId={documentId}
+              evaluation={{
+                itemId: item.id,
+                classification: item.classification,
+                selection: item.selection,
+                confirmability: item.confirmability,
+                ruleSuggestion: item.ruleSuggestion,
+              }}
+              item={item}
+              onReviewReconciled={onReviewReconciled}
+              variant="quick"
+            />
+          ) : hasReviewPanel ? (
+            <Button
+              aria-controls={panelId}
+              aria-expanded={panelOpen}
+              onClick={() => setPanelOpen((open) => !open)}
+              ref={reviewButtonRef}
+              tone="primary"
+            >
+              {reviewActionLabel}
+            </Button>
+          ) : undefined
+        }
+        secondary={
+          (primaryLifecycle.length || canQuickConfirmSuggestion) &&
+          hasReviewPanel ? (
+            <Button
+              aria-controls={panelId}
+              aria-expanded={panelOpen}
+              onClick={() => setPanelOpen((open) => !open)}
+              ref={reviewButtonRef}
+              tone="secondary"
+            >
+              Изменить
+            </Button>
+          ) : undefined
+        }
+      />
+    ) : null;
+  const aside =
+    outcome || actionStack ? (
+      <div className={styles.outcomeRail}>
+        {outcome ? <ReviewOutcome outcome={outcome} /> : null}
+        {actionStack}
+      </div>
+    ) : undefined;
 
   return (
     <WorkbenchRow
@@ -233,6 +249,131 @@ export function ReviewItem({
   );
 }
 
+type ReviewOutcomePresentation = {
+  detail: string[];
+  label: string;
+  result: string;
+  resultKind: "money" | "route";
+  state: "confirmed" | "pending" | "incomplete";
+  tone: NonNullable<ReviewItemDto["classification"]["operationType"]>;
+};
+
+function ReviewOutcome({ outcome }: { outcome: ReviewOutcomePresentation }) {
+  return (
+    <section
+      aria-label="Итог операции"
+      className={styles.reviewOutcome}
+      data-result-kind={outcome.resultKind}
+      data-state={outcome.state}
+      data-tone={outcome.tone}
+    >
+      <span className={styles.outcomeLabel}>{outcome.label}</span>
+      <strong className={styles.outcomeResult}>{outcome.result}</strong>
+      {outcome.detail.map((detail) => (
+        <span className={styles.outcomeDetail} key={detail}>
+          {detail}
+        </span>
+      ))}
+    </section>
+  );
+}
+
+function reviewOutcomePresentation({
+  amount,
+  categories,
+  currency,
+  item,
+  properties,
+}: {
+  amount: string | null;
+  categories: ReviewItemProps["categories"];
+  currency: string;
+  item: ReviewItemDto;
+  properties: ReviewItemProps["properties"];
+}): ReviewOutcomePresentation | null {
+  const operationType = item.classification.operationType;
+  if (
+    operationType === null ||
+    (item.isTerminal && item.status !== "confirmed")
+  ) {
+    return null;
+  }
+
+  const state =
+    item.status === "confirmed"
+      ? "confirmed"
+      : item.confirmability.canConfirm
+        ? "pending"
+        : "incomplete";
+  const label = outcomeLabel(operationType, state === "confirmed");
+  const formattedAmount =
+    amount === null
+      ? "Сумма не распознана"
+      : `${formatOutcomeAmount(amount)}${currency ? ` ${currency}` : ""}`;
+
+  if (operationType === "transfer") {
+    return {
+      detail: [formattedAmount],
+      label,
+      result: transferOutcomeRoute(item),
+      resultKind: "route",
+      state,
+      tone: operationType,
+    };
+  }
+
+  const category = categories.find(
+    (candidate) => candidate.id === item.selection.categoryId,
+  );
+  const property = properties.find(
+    (candidate) => candidate.id === item.selection.propertyId,
+  );
+  const detail = [
+    category ? `Категория: ${category.name}` : "Категория не выбрана",
+  ];
+  if (property) detail.push(`Объект: ${property.name}`);
+  return {
+    detail,
+    label,
+    result: formattedAmount,
+    resultKind: "money",
+    state,
+    tone: operationType,
+  };
+}
+
+function outcomeLabel(
+  operationType: NonNullable<ReviewItemDto["classification"]["operationType"]>,
+  confirmed: boolean,
+): string {
+  if (operationType === "adjustment") {
+    return confirmed ? "Создана корректировка" : "Будет создана корректировка";
+  }
+  const noun = {
+    income: "доход",
+    expense: "расход",
+    transfer: "перевод",
+  }[operationType];
+  return confirmed ? `Создан ${noun}` : `Будет создан ${noun}`;
+}
+
+function transferOutcomeRoute(item: ReviewItemDto): string {
+  const source = item.sourceAccount?.name ?? "Исходный счёт не определён";
+  const counterparty =
+    item.status === "confirmed"
+      ? "Счёт перевода"
+      : item.transfer.direction === "counterparty_to_source"
+        ? "Не выбран счёт отправителя"
+        : "Не выбран счёт назначения";
+  if (item.transfer.direction === "source_to_counterparty") {
+    return `${source} → ${counterparty}`;
+  }
+  if (item.transfer.direction === "counterparty_to_source") {
+    return `${counterparty} → ${source}`;
+  }
+  return "Направление перевода не определено";
+}
+
 function ReviewItemMeta({
   categories,
   item,
@@ -269,12 +410,14 @@ function ReviewItemMeta({
       {property ? (
         <span className={styles.propertyFact}>Объект · {property.name}</span>
       ) : null}
-      <div className={styles.decisionSource}>
-        <span>{decisionSource.label}</span>
-        {decisionSource.detail ? (
-          <strong>{decisionSource.detail}</strong>
-        ) : null}
-      </div>
+      {decisionSource ? (
+        <div className={styles.decisionSource}>
+          <span>{decisionSource.label}</span>
+          {decisionSource.detail ? (
+            <strong>{decisionSource.detail}</strong>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -283,11 +426,8 @@ function decisionSourcePresentation(
   item: ReviewItemDto,
   suggestedCategory:
     ImportReviewDto["references"]["categories"][number] | undefined,
-): { detail: string | null; label: string } {
+): { detail: string | null; label: string } | null {
   if (item.ruleSuggestion.isActive) {
-    const ruleIdentity = item.ruleSuggestion.ruleName
-      ? ` «${item.ruleSuggestion.ruleName}»`
-      : "";
     const source = item.ruleSuggestion.pattern ?? item.ruleSuggestion.ruleName;
     const target =
       suggestedCategory?.name ??
@@ -295,7 +435,7 @@ function decisionSourcePresentation(
         ? operationPresentation(item.ruleSuggestion.operationType).label
         : null);
     return {
-      label: `Предложено правилом${ruleIdentity}`,
+      label: "Предложено правилом",
       detail: source && target ? `${source} → ${target}` : (source ?? target),
     };
   }
@@ -304,7 +444,7 @@ function decisionSourcePresentation(
     explicit: { detail: null, label: "Выбрано пользователем" },
     suggested: { detail: null, label: "Предложено системой" },
     inferred: { detail: null, label: "Тип определён по сумме" },
-    unknown: { detail: null, label: "Источник решения не определён" },
+    unknown: null,
   }[item.classification.source];
 }
 
@@ -339,6 +479,7 @@ function SourceSummary({
 function rowReviewActionLabel(item: ReviewItemDto): string {
   if (item.ruleSuggestion.isActive) return "Проверить предложение";
   if (
+    item.classification.operationType === "transfer" ||
     item.transfer.rawRowCandidates.length > 0 ||
     item.transfer.existingOperationCandidates.length > 0
   ) {
@@ -527,6 +668,10 @@ function formatPlainMoney(value: string): string {
   return formatReviewAmount(value, null);
 }
 
+function formatOutcomeAmount(value: string): string {
+  return formatReviewAmount(value, null).replace(/^[+−-]/, "");
+}
+
 function primaryLifecycleActions(item: ReviewItemDto): LifecycleAction[] {
   return item.status === "possible_duplicate" &&
     item.lifecycle.allowedActions.includes("mark_unique")
@@ -558,12 +703,12 @@ function statusTone(status: ReviewItemDto["status"]): BadgeTone {
 
 function statusLabel(status: ReviewItemDto["status"]): string {
   return {
-    extracted: "Извлечено",
-    normalized: "Нормализовано",
+    extracted: "Требует решения",
+    normalized: "Требует решения",
     suggested: "Есть предложение",
     needs_review: "Нужна проверка",
     matched: "Проверено как уникальное",
-    ignored: "Игнорируется",
+    ignored: "Исключено",
     duplicate: "Дубль",
     possible_duplicate: "Возможный дубль",
     failed: "Ошибка",

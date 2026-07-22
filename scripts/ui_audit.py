@@ -1761,8 +1761,8 @@ def assert_react_import_review(page: Page) -> list[str]:
         ).first
         transfer_panel_toggle.click()
         transfer_panel = transfer_item.locator("section[id^='review-panel-']")
-        transfer_panel.get_by_role("button", name="Сделать переводом").click()
-        if transfer_panel.get_by_label("Сопоставление").count() == 0:
+        transfer_panel.get_by_role("radio", name="Перевод").click()
+        if transfer_panel.get_by_label("Второй счёт или готовая пара").count() == 0:
             errors.append("React import review transfer matching field was not found")
         if transfer_panel.get_by_role("button", name="Провести перевод").count() == 0:
             errors.append("React import review transfer action was not found")

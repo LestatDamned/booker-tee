@@ -19,6 +19,7 @@ from app.features.ledger.application.transfer_suggestions import (
     ExistingTransferSuggestion,
     TransferSuggestion,
 )
+from app.features.ledger.domain.types import OperationType
 from app.features.ledger.errors import LedgerPostingError
 
 
@@ -99,6 +100,7 @@ async def test_transfer_reader_keeps_eligibility_and_direction_on_server() -> No
     )[row.id]
 
     assert options.direction is ImportReviewTransferDirection.SOURCE_TO_COUNTERPARTY
+    assert options.ordinary_operation_type is OperationType.EXPENSE
     assert [item.id for item in options.accounts] == [destination.id]
     assert options.raw_row_candidates[0].document_id == paired.uploaded_document_id
     assert options.raw_row_candidates[0].amount == Decimal("100.00")

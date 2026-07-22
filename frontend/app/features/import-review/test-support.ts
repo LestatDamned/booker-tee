@@ -154,6 +154,7 @@ function importReviewItem(
     },
     transfer: {
       direction: "source_to_counterparty",
+      ordinaryOperationType: "expense",
       accounts: [
         {
           id: "c145935c-67c6-4bf6-a0ce-64e5d611cf47",

@@ -99,6 +99,7 @@ const transferOptionsSchema = z.object({
   direction: z
     .enum(["source_to_counterparty", "counterparty_to_source"])
     .nullable(),
+  ordinaryOperationType: z.enum(["income", "expense"]).nullable(),
   accounts: z.array(transferAccountSchema),
   rawRowCandidates: z.array(
     z.object({

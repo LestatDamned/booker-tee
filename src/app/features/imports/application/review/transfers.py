@@ -2,15 +2,17 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
-from typing import Protocol
+from typing import Literal, Protocol
 from uuid import UUID
 
 from app.features.accounts.models import Account
+from app.features.imports.domain.review_classification import resolve_review_classification
 from app.features.imports.models import RawTransaction, UploadedDocument
 from app.features.ledger.application.transfer_suggestions import (
     ExistingTransferSuggestion,
     TransferSuggestion,
 )
+from app.features.ledger.domain.types import OperationType
 
 
 class ImportReviewTransferDirection(StrEnum):
@@ -52,6 +54,7 @@ class ImportReviewExistingTransferCandidateDto:
 @dataclass(frozen=True)
 class ImportReviewTransferOptionsDto:
     direction: ImportReviewTransferDirection | None
+    ordinary_operation_type: Literal[OperationType.INCOME, OperationType.EXPENSE] | None
     accounts: tuple[ImportReviewTransferAccountDto, ...]
     raw_row_candidates: tuple[ImportReviewRawTransferCandidateDto, ...]
     existing_operation_candidates: tuple[ImportReviewExistingTransferCandidateDto, ...]
@@ -59,6 +62,7 @@ class ImportReviewTransferOptionsDto:
 
 EMPTY_TRANSFER_OPTIONS = ImportReviewTransferOptionsDto(
     direction=None,
+    ordinary_operation_type=None,
     accounts=(),
     raw_row_candidates=(),
     existing_operation_candidates=(),
@@ -140,6 +144,7 @@ class ImportReviewTransferReader:
         )
         return ImportReviewTransferOptionsDto(
             direction=self._direction(row.amount),
+            ordinary_operation_type=self._ordinary_operation_type(row.amount),
             accounts=eligible_accounts,
             raw_row_candidates=tuple(
                 candidate
@@ -203,3 +208,18 @@ class ImportReviewTransferReader:
         if amount < 0:
             return ImportReviewTransferDirection.SOURCE_TO_COUNTERPARTY
         return ImportReviewTransferDirection.COUNTERPARTY_TO_SOURCE
+
+    @staticmethod
+    def _ordinary_operation_type(
+        amount: Decimal | None,
+    ) -> Literal[OperationType.INCOME, OperationType.EXPENSE] | None:
+        operation_type = resolve_review_classification(
+            explicit_operation_type=None,
+            suggested_operation_type=None,
+            amount=amount,
+        ).operation_type
+        if operation_type is OperationType.INCOME:
+            return OperationType.INCOME
+        if operation_type is OperationType.EXPENSE:
+            return OperationType.EXPENSE
+        return None

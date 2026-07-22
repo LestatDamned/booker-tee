@@ -1923,6 +1923,8 @@ export interface components {
         /** ImportReviewTransferOptionsApiResponse */
         ImportReviewTransferOptionsApiResponse: {
             direction: components["schemas"]["ImportReviewTransferDirection"] | null;
+            /** Ordinaryoperationtype */
+            ordinaryOperationType: ("income" | "expense") | null;
             /** Accounts */
             accounts: components["schemas"]["ImportReviewTransferAccountApiResponse"][];
             /** Rawrowcandidates */

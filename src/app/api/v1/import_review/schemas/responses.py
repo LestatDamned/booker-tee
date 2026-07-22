@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 from uuid import UUID
 
 from app.api.schemas import ApiModel
@@ -119,6 +120,7 @@ class ImportReviewExistingTransferCandidateApiResponse(ApiModel):
 
 class ImportReviewTransferOptionsApiResponse(ApiModel):
     direction: ImportReviewTransferDirection | None
+    ordinary_operation_type: Literal[OperationType.INCOME, OperationType.EXPENSE] | None
     accounts: list[ImportReviewTransferAccountApiResponse]
     raw_row_candidates: list[ImportReviewRawTransferCandidateApiResponse]
     existing_operation_candidates: list[ImportReviewExistingTransferCandidateApiResponse]

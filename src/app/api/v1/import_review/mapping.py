@@ -284,6 +284,7 @@ class ImportReviewResponseMapper:
     ) -> ImportReviewTransferOptionsApiResponse:
         return ImportReviewTransferOptionsApiResponse(
             direction=transfer.direction,
+            ordinary_operation_type=transfer.ordinary_operation_type,
             accounts=[
                 ImportReviewResponseMapper._transfer_account(item) for item in transfer.accounts
             ],

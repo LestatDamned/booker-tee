@@ -29,6 +29,7 @@ export function Badge({
   return (
     <span
       className={`${styles.badge} ${styles[tone]} ${styles[variant]}`}
+      data-tone={tone}
       data-variant={variant}
     >
       {children}

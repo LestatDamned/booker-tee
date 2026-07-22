@@ -13,6 +13,8 @@ type TransferPanelProps = {
   documentId: string;
   item: ImportReviewDto["items"][number];
   onReviewReconciled: (review: ImportReviewDto) => void;
+  onSelectionChange: (selection: string) => void;
+  selection: string;
 };
 
 export function TransferPanel({
@@ -20,14 +22,15 @@ export function TransferPanel({
   documentId,
   item,
   onReviewReconciled,
+  onSelectionChange,
+  selection,
 }: TransferPanelProps) {
-  const [selection, setSelection] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const idempotencyKey = useRef(crypto.randomUUID());
 
   function changeSelection(value: string) {
-    setSelection(value);
+    onSelectionChange(value);
     setError(null);
     idempotencyKey.current = crypto.randomUUID();
   }
@@ -86,10 +89,10 @@ export function TransferPanel({
     <section aria-label="Параметры перевода" className={styles.transferPanel}>
       <div className={styles.transferPreview}>
         <span>Направление</span>
-        <strong>{directionLabel(item)}</strong>
+        <strong>{directionLabel(item, selection)}</strong>
       </div>
       <label>
-        Сопоставление
+        Второй счёт или готовая пара
         <select
           disabled={pending}
           onChange={(event) => changeSelection(event.target.value)}
@@ -173,13 +176,43 @@ function transferRequest(
   return null;
 }
 
-function directionLabel(item: ImportReviewDto["items"][number]): string {
+function directionLabel(
+  item: ImportReviewDto["items"][number],
+  selection: string,
+): string {
   const source = item.sourceAccount?.name ?? "Счёт выписки";
+  const counterparty = selectedCounterparty(item, selection);
   if (item.transfer.direction === "source_to_counterparty") {
-    return `${source} → выбранный счёт`;
+    return `${source} → ${counterparty}`;
   }
   if (item.transfer.direction === "counterparty_to_source") {
-    return `Выбранный счёт → ${source}`;
+    return `${counterparty} → ${source}`;
   }
   return "Недостаточно данных";
+}
+
+function selectedCounterparty(
+  item: ImportReviewDto["items"][number],
+  selection: string,
+): string {
+  if (!selection) return "Не выбран второй счёт";
+  const [kind, id] = selection.split(":", 2);
+  if (kind === "account") {
+    return (
+      item.transfer.accounts.find((account) => account.id === id)?.name ??
+      "Второй счёт"
+    );
+  }
+  if (kind === "raw") {
+    return (
+      item.transfer.rawRowCandidates.find(
+        (candidate) => candidate.itemId === id,
+      )?.account.name ?? "Второй счёт"
+    );
+  }
+  return (
+    item.transfer.existingOperationCandidates.find(
+      (candidate) => candidate.operationId === id,
+    )?.counterpartyAccount?.name ?? "Второй счёт"
+  );
 }

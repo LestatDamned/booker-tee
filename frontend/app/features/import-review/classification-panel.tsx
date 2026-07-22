@@ -13,6 +13,8 @@ import styles from "./import-review.module.css";
 import { ConfirmPostingAction } from "./posting-actions";
 import { TransferPanel } from "./transfer-panel";
 
+type ReviewMode = "ordinary" | "transfer";
+
 type ClassificationPanelProps = {
   categories: ImportReviewDto["references"]["categories"];
   csrfToken: string;
@@ -35,7 +37,7 @@ export function ClassificationPanel({
   readonly,
 }: ClassificationPanelProps) {
   const [draft, setDraft] = useState<ImportReviewDraftEvaluationRequest>({
-    operationType: item.classification.operationType,
+    operationType: ordinaryOperationType(item),
     categoryId: item.selection.categoryId,
     propertyId: item.selection.propertyId,
   });
@@ -51,7 +53,10 @@ export function ClassificationPanel({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
-  const [transferOpen, setTransferOpen] = useState(false);
+  const [mode, setMode] = useState<ReviewMode>(
+    item.classification.operationType === "transfer" ? "transfer" : "ordinary",
+  );
+  const [transferSelection, setTransferSelection] = useState("");
   const [categoryName, setCategoryName] = useState("");
   const [categoryKind, setCategoryKind] = useState<
     ImportReviewCategoryReferenceDto["kind"]
@@ -126,18 +131,32 @@ export function ClassificationPanel({
     }
   }
 
+  function changeMode(nextMode: ReviewMode) {
+    setMode(nextMode);
+    setError(null);
+    setFieldErrors({});
+    if (nextMode === "ordinary") {
+      void runEvaluation(draft);
+    } else {
+      setCategoryEditorOpen(false);
+    }
+  }
+
   return (
     <div className={styles.classificationPanelBody}>
       {readonly ? (
         <p>Изменение classification недоступно для вашей роли.</p>
       ) : (
         <>
-          {transferOpen ? (
+          <OperationModeSwitch item={item} mode={mode} onChange={changeMode} />
+          {mode === "transfer" ? (
             <TransferPanel
               csrfToken={csrfToken}
               documentId={documentId}
               item={item}
               onReviewReconciled={onReviewReconciled}
+              onSelectionChange={setTransferSelection}
+              selection={transferSelection}
             />
           ) : (
             <>
@@ -159,14 +178,6 @@ export function ClassificationPanel({
                 >
                   Создать категорию
                 </Button>
-                <Button
-                  aria-expanded={transferOpen}
-                  disabled={pending}
-                  onClick={() => setTransferOpen(true)}
-                  tone="secondary"
-                >
-                  Сделать переводом
-                </Button>
               </div>
               {categoryEditorOpen ? (
                 <CategoryEditor
@@ -183,11 +194,6 @@ export function ClassificationPanel({
               ) : null}
             </>
           )}
-          {transferOpen ? (
-            <Button onClick={() => setTransferOpen(false)}>
-              Вернуться к категоризации
-            </Button>
-          ) : null}
         </>
       )}
       {error ? (
@@ -195,14 +201,14 @@ export function ClassificationPanel({
           {error}
         </p>
       ) : null}
-      {!transferOpen ? (
+      {mode === "ordinary" ? (
         <DraftCapability
           dirty={dirty}
           evaluation={evaluation}
           pending={pending}
         />
       ) : null}
-      {!readonly && !transferOpen ? (
+      {!readonly && mode === "ordinary" ? (
         <ConfirmPostingAction
           csrfToken={csrfToken}
           dirty={dirty}
@@ -213,6 +219,42 @@ export function ClassificationPanel({
         />
       ) : null}
     </div>
+  );
+}
+
+function OperationModeSwitch({
+  item,
+  mode,
+  onChange,
+}: {
+  item: ClassificationPanelProps["item"];
+  mode: ReviewMode;
+  onChange: (mode: ReviewMode) => void;
+}) {
+  return (
+    <fieldset className={styles.operationModeSwitch}>
+      <legend>Финансовый смысл</legend>
+      <div>
+        <label data-tone={item.transfer.ordinaryOperationType ?? "neutral"}>
+          <input
+            checked={mode === "ordinary"}
+            name={`operation-mode-${item.id}`}
+            onChange={() => onChange("ordinary")}
+            type="radio"
+          />
+          <span>{ordinaryOperationLabel(item)}</span>
+        </label>
+        <label data-tone="transfer">
+          <input
+            checked={mode === "transfer"}
+            name={`operation-mode-${item.id}`}
+            onChange={() => onChange("transfer")}
+            type="radio"
+          />
+          <span>Перевод</span>
+        </label>
+      </div>
+    </fieldset>
   );
 }
 
@@ -420,6 +462,27 @@ function defaultCategoryKind(
   return operationType === "income" || operationType === "expense"
     ? operationType
     : "mixed";
+}
+
+function ordinaryOperationType(
+  item: ClassificationPanelProps["item"],
+): "income" | "expense" | null {
+  if (
+    item.classification.operationType === "income" ||
+    item.classification.operationType === "expense"
+  ) {
+    return item.classification.operationType;
+  }
+  return item.transfer.ordinaryOperationType;
+}
+
+function ordinaryOperationLabel(
+  item: ClassificationPanelProps["item"],
+): string {
+  const operationType = ordinaryOperationType(item);
+  if (operationType === "income") return "Доход";
+  if (operationType === "expense") return "Расход";
+  return "Доход или расход";
 }
 
 function focusDraftField(

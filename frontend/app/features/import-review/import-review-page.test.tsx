@@ -9,6 +9,7 @@ import {
   confirmedOperationId,
   expenseCategoryId,
   importReviewPayload,
+  propertyId,
   remainingItemId,
 } from "./test-support";
 
@@ -131,9 +132,10 @@ describe("import review page", () => {
     if (!row) throw new Error("completed row is required");
     expect(within(row).getByText("Перевод")).toBeInTheDocument();
     expect(within(row).queryByText("Без категории")).not.toBeInTheDocument();
+    expect(within(row).getByText("Предложено правилом")).toBeInTheDocument();
     expect(
-      within(row).getByText(/Предложено правилом «Ошибочное правило»/),
-    ).toBeInTheDocument();
+      within(row).queryByText(/Предложено правилом «Ошибочное правило»/),
+    ).not.toBeInTheDocument();
     expect(within(row).getByText("Покупка → Продукты")).toBeInTheDocument();
     expect(within(row).getByText("Перевод")).toHaveAttribute(
       "data-variant",
@@ -150,10 +152,11 @@ describe("import review page", () => {
 
     const row = document.getElementById(`raw-${remainingItemId}`);
     if (!row) throw new Error("remaining row is required");
-    expect(within(row).getByText("Расход")).toHaveAttribute(
-      "data-variant",
-      "outline",
-    );
+    expect(
+      within(row)
+        .getAllByText("Расход")
+        .find((element) => element.getAttribute("data-variant") === "outline"),
+    ).toBeInTheDocument();
     expect(
       within(row)
         .getAllByText("Без категории")
@@ -164,6 +167,149 @@ describe("import review page", () => {
       "status",
     );
     expect(within(row).getByText("Тип определён по сумме")).toBeInTheDocument();
+  });
+
+  it("shows the financial outcome before actions", () => {
+    const review = importReviewPayload();
+    const item = review.items[1];
+    if (!item) throw new Error("remaining fixture item is required");
+    item.selection = {
+      categoryId: expenseCategoryId,
+      propertyId: review.references.properties[0]?.id ?? null,
+    };
+    item.confirmability = { canConfirm: true, blockingReasonCodes: [] };
+    item.ruleSuggestion.isActive = true;
+    item.ruleSuggestion.wasAutoApplied = true;
+
+    renderPage(review);
+
+    const row = document.getElementById(`raw-${remainingItemId}`);
+    if (!row) throw new Error("remaining row is required");
+    const outcome = within(row).getByRole("region", {
+      name: "Итог операции",
+    });
+    expect(outcome).toHaveTextContent("Будет создан расход");
+    expect(outcome).toHaveTextContent("1 250,50 RUB");
+    expect(outcome).not.toHaveTextContent("−1 250,50 RUB");
+    expect(outcome).toHaveTextContent("Категория: Продукты");
+    expect(outcome).toHaveTextContent("Объект: Квартира");
+    expect(outcome).toHaveAttribute("data-tone", "expense");
+    expect(
+      outcome.compareDocumentPosition(
+        within(row).getByRole("button", { name: "Подтвердить" }),
+      ),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("shows the created operation outcome for a confirmed row", () => {
+    const review = importReviewPayload();
+    const item = review.items[0];
+    if (!item) throw new Error("completed fixture item is required");
+    item.selection.categoryId = expenseCategoryId;
+
+    renderPage(review);
+
+    const row = document.getElementById(`raw-${completedItemId}`);
+    if (!row) throw new Error("completed row is required");
+    const outcome = within(row).getByRole("region", {
+      name: "Итог операции",
+    });
+    expect(outcome).toHaveTextContent("Создан расход");
+    expect(outcome).toHaveTextContent("1 250,50 RUB");
+    expect(outcome).toHaveTextContent("Категория: Продукты");
+  });
+
+  it("shows an explicit incomplete transfer route", () => {
+    const review = importReviewPayload();
+    const item = review.items[1];
+    if (!item) throw new Error("remaining fixture item is required");
+    item.classification = { operationType: "transfer", source: "explicit" };
+    item.selection = { categoryId: null, propertyId: null };
+
+    renderPage(review);
+
+    const row = document.getElementById(`raw-${remainingItemId}`);
+    if (!row) throw new Error("remaining row is required");
+    const outcome = within(row).getByRole("region", {
+      name: "Итог операции",
+    });
+    expect(outcome).toHaveTextContent("Будет создан перевод");
+    expect(outcome).toHaveTextContent(
+      "Основной счёт → Не выбран счёт назначения",
+    );
+    expect(outcome).toHaveTextContent("1 250,50 RUB");
+    expect(outcome).toHaveAttribute("data-tone", "transfer");
+  });
+
+  it("keeps the outcome visible without offering actions in readonly mode", () => {
+    const review = importReviewPayload();
+    review.capabilities = {
+      canWrite: false,
+      readonlyReasonCode: "financial_write_forbidden",
+    };
+
+    renderPage(review);
+
+    const row = document.getElementById(`raw-${remainingItemId}`);
+    if (!row) throw new Error("remaining row is required");
+    expect(
+      within(row).getByRole("region", { name: "Итог операции" }),
+    ).toHaveTextContent("Будет создан расход");
+    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["extracted", "Требует решения", "neutral"],
+    ["normalized", "Требует решения", "neutral"],
+    ["suggested", "Есть предложение", "neutral"],
+    ["needs_review", "Нужна проверка", "warning"],
+    ["matched", "Проверено как уникальное", "neutral"],
+    ["ignored", "Исключено", "neutral"],
+    ["duplicate", "Дубль", "danger"],
+    ["possible_duplicate", "Возможный дубль", "warning"],
+    ["failed", "Ошибка", "danger"],
+    ["confirmed", "Проведено", "success"],
+  ] as const)(
+    "presents the %s status as %s with the %s tone",
+    (status, label, tone) => {
+      const review = importReviewPayload();
+      const item = review.items[1];
+      if (!item) throw new Error("remaining fixture item is required");
+      item.status = status;
+
+      renderPage(review);
+
+      const row = document.getElementById(`raw-${remainingItemId}`);
+      if (!row) throw new Error("remaining row is required");
+      const statusBadge = within(row).getByText(label);
+      expect(statusBadge).toHaveAttribute("data-variant", "status");
+      expect(statusBadge).toHaveAttribute("data-tone", tone);
+    },
+  );
+
+  it("omits an unknown decision source instead of showing diagnostics", () => {
+    const review = importReviewPayload();
+    const item = review.items[1];
+    if (!item) throw new Error("remaining fixture item is required");
+    item.classification.source = "unknown";
+
+    renderPage(review);
+
+    const row = document.getElementById(`raw-${remainingItemId}`);
+    if (!row) throw new Error("remaining row is required");
+    expect(
+      within(row).queryByText("Источник решения не определён"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(row)
+        .getAllByText("Расход")
+        .find((element) => element.getAttribute("data-variant") === "outline"),
+    ).toBeInTheDocument();
+    expect(
+      within(row)
+        .getAllByText("Без категории")
+        .find((element) => element.getAttribute("data-tone") === "category"),
+    ).toBeInTheDocument();
   });
 
   it("renders an explicit empty queue", () => {
@@ -261,9 +407,7 @@ describe("import review page", () => {
     expect(
       await screen.findByText("Проверено строк: 1. Предложений применено: 1."),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Предложено правилом «Маркетплейсы»/),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Предложено правилом")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/apply-rules"),
       expect.objectContaining({ method: "POST" }),
@@ -396,6 +540,86 @@ describe("import review page", () => {
     expect(screen.getByLabelText("Категория")).toHaveValue(expenseCategoryId);
   });
 
+  it("keeps categorization and transfer drafts while switching financial meaning", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    renderPage(importReviewPayload());
+
+    const reviewButton = screen.getByRole("button", {
+      name: "Выбрать категорию",
+    });
+    await user.click(reviewButton);
+    await user.selectOptions(
+      screen.getByLabelText("Категория"),
+      expenseCategoryId,
+    );
+    await user.selectOptions(screen.getByLabelText("Объект"), propertyId);
+
+    await user.click(screen.getByRole("radio", { name: "Перевод" }));
+    const transferSelection = screen.getByLabelText(
+      "Второй счёт или готовая пара",
+    );
+    await user.selectOptions(
+      transferSelection,
+      "account:c145935c-67c6-4bf6-a0ce-64e5d611cf47",
+    );
+    expect(
+      screen.getByText("Основной счёт → Накопительный счёт"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "Расход" }));
+    expect(screen.getByLabelText("Категория")).toHaveValue(expenseCategoryId);
+    expect(screen.getByLabelText("Объект")).toHaveValue(propertyId);
+
+    await user.click(screen.getByRole("radio", { name: "Перевод" }));
+    expect(screen.getByLabelText("Второй счёт или готовая пара")).toHaveValue(
+      "account:c145935c-67c6-4bf6-a0ce-64e5d611cf47",
+    );
+    await user.click(reviewButton);
+    await user.click(reviewButton);
+    expect(screen.getByRole("radio", { name: "Перевод" })).toBeChecked();
+  });
+
+  it("switches the financial meaning radio group from the keyboard", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    renderPage(importReviewPayload());
+
+    await user.click(screen.getByRole("button", { name: "Выбрать категорию" }));
+    const ordinary = screen.getByRole("radio", { name: "Расход" });
+    ordinary.focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(screen.getByRole("radio", { name: "Перевод" })).toBeChecked();
+    expect(
+      screen.getByLabelText("Второй счёт или готовая пара"),
+    ).toBeInTheDocument();
+  });
+
+  it("opens a server-classified transfer in the transfer mode", async () => {
+    const user = userEvent.setup();
+    const review = importReviewPayload();
+    const item = review.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.classification = { operationType: "transfer", source: "suggested" };
+
+    renderPage(review);
+    await user.click(screen.getByRole("button", { name: "Проверить перевод" }));
+
+    expect(screen.getByRole("radio", { name: "Перевод" })).toBeChecked();
+    expect(
+      screen.getByLabelText("Второй счёт или готовая пара"),
+    ).toBeInTheDocument();
+  });
+
   it("keeps invalid category input and focuses the first invalid field", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
@@ -458,12 +682,12 @@ describe("import review page", () => {
     renderPage(importReviewPayload());
 
     await user.click(screen.getByRole("button", { name: "Выбрать категорию" }));
-    await user.click(screen.getByRole("button", { name: "Сделать переводом" }));
+    await user.click(screen.getByRole("radio", { name: "Перевод" }));
     expect(
-      screen.getByText("Основной счёт → выбранный счёт"),
+      screen.getByText("Основной счёт → Не выбран второй счёт"),
     ).toBeInTheDocument();
     await user.selectOptions(
-      screen.getByLabelText("Сопоставление"),
+      screen.getByLabelText("Второй счёт или готовая пара"),
       "account:c145935c-67c6-4bf6-a0ce-64e5d611cf47",
     );
     await user.click(screen.getByRole("button", { name: "Провести перевод" }));

@@ -12,6 +12,11 @@ read/command boundaries, versioned JSON API, React state/UI и тесты. Фа�
 Согласованное направление дальнейшего UX описано в
 [`UX_CONTRACT.md`](UX_CONTRACT.md).
 
+Активная поэтапная полировка уже мигрированной React-страницы ведётся в
+[`refactor/README.md`](refactor/README.md). Этот follow-up план фиксирует
+выполненные визуальные этапы и является рабочей точкой входа для следующих
+изменений Import Review.
+
 - [`INVENTORY.md`](INVENTORY.md) — baseline поведения до миграции, найденные
   ошибочно размещенные правила и минимальный application refactor.
 - Legacy route, Presenter, templates и HTMX responses работали параллельно до
@@ -31,7 +36,7 @@ read/command boundaries, versioned JSON API, React state/UI и тесты. Фа�
 | 4       | [`04_TRANSFER_AND_MATCHING.md`](04_TRANSFER_AND_MATCHING.md)                       | completed | Создает или связывает transfer и видит обновление всех затронутых строк |
 | 5       | [`05_DUPLICATE_AND_LIFECYCLE.md`](05_DUPLICATE_AND_LIFECYCLE.md)                   | completed | Разбирает duplicates и lifecycle строки через явные transitions         |
 | 6       | [`06_CONFIRM_POST_AND_CONSISTENCY.md`](06_CONFIRM_POST_AND_CONSISTENCY.md)         | completed | Подтверждает/posting ровно один раз и получает согласованное обновление |
-| 7       | [`07_CUTOVER_AND_CLEANUP.md`](07_CUTOVER_AND_CLEANUP.md)                           | completed | Реальный review работает в React, legacy presentation удалён           |
+| 7       | [`07_CUTOVER_AND_CLEANUP.md`](07_CUTOVER_AND_CLEANUP.md)                           | completed | Реальный review работает в React, legacy presentation удалён            |
 
 Stage 06 закрыт с Go-решением. Измерения и browser evidence записаны в
 [`MEASUREMENTS.md`](MEASUREMENTS.md); следующий global stage — Stage 07 migration
