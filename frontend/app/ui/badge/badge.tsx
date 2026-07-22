@@ -13,11 +13,25 @@ export type BadgeTone =
   | "category"
   | "adjustment";
 
+export type BadgeVariant = "outline" | "soft" | "status";
+
 type BadgeProps = {
   children: ReactNode;
   tone?: BadgeTone;
+  variant?: BadgeVariant;
 };
 
-export function Badge({ children, tone = "neutral" }: BadgeProps) {
-  return <span className={`${styles.badge} ${styles[tone]}`}>{children}</span>;
+export function Badge({
+  children,
+  tone = "neutral",
+  variant = "outline",
+}: BadgeProps) {
+  return (
+    <span
+      className={`${styles.badge} ${styles[tone]} ${styles[variant]}`}
+      data-variant={variant}
+    >
+      {children}
+    </span>
+  );
 }

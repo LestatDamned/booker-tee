@@ -13,6 +13,35 @@
   overflow-wrap: anywhere;
 }
 
+.outline {
+  background: color-mix(in srgb, var(--color-bg-elevated) 82%, transparent);
+}
+
+.soft {
+  border-color: color-mix(in srgb, var(--badge-color) 38%, transparent);
+  background: color-mix(in srgb, var(--badge-color) 12%, transparent);
+}
+
+.status {
+  min-height: auto;
+  gap: var(--space-2);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-family-sans);
+  font-weight: 650;
+}
+
+.status::before {
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: none;
+  border-radius: 50%;
+  background: currentcolor;
+  content: "";
+}
+
 .success {
   --badge-color: var(--color-status-success);
 }

@@ -129,11 +129,41 @@ describe("import review page", () => {
 
     const row = document.getElementById(`raw-${completedItemId}`);
     if (!row) throw new Error("completed row is required");
-    expect(within(row).getByText("перевод")).toBeInTheDocument();
+    expect(within(row).getByText("Перевод")).toBeInTheDocument();
     expect(within(row).queryByText("Без категории")).not.toBeInTheDocument();
     expect(
-      within(row).getByText(/Правило «Ошибочное правило»/),
+      within(row).getByText(/Предложено правилом «Ошибочное правило»/),
     ).toBeInTheDocument();
+    expect(within(row).getByText("Покупка → Продукты")).toBeInTheDocument();
+    expect(within(row).getByText("Перевод")).toHaveAttribute(
+      "data-variant",
+      "outline",
+    );
+    expect(within(row).getByText("Проведено")).toHaveAttribute(
+      "data-variant",
+      "status",
+    );
+  });
+
+  it("renders category, status, and decision source as distinct row facts", () => {
+    renderPage(importReviewPayload());
+
+    const row = document.getElementById(`raw-${remainingItemId}`);
+    if (!row) throw new Error("remaining row is required");
+    expect(within(row).getByText("Расход")).toHaveAttribute(
+      "data-variant",
+      "outline",
+    );
+    expect(
+      within(row)
+        .getAllByText("Без категории")
+        .find((element) => element.getAttribute("data-variant") === "soft"),
+    ).toBeInTheDocument();
+    expect(within(row).getByText("Проверено как уникальное")).toHaveAttribute(
+      "data-variant",
+      "status",
+    );
+    expect(within(row).getByText("Тип определён по сумме")).toBeInTheDocument();
   });
 
   it("renders an explicit empty queue", () => {
@@ -231,7 +261,9 @@ describe("import review page", () => {
     expect(
       await screen.findByText("Проверено строк: 1. Предложений применено: 1."),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Автоправило «Маркетплейсы»/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Предложено правилом «Маркетплейсы»/),
+    ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/apply-rules"),
       expect.objectContaining({ method: "POST" }),

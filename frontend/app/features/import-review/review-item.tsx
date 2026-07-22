@@ -249,30 +249,63 @@ function ReviewItemMeta({
   const property = properties.find(
     (candidate) => candidate.id === item.selection.propertyId,
   );
-  const problemStatus = statusTone(item.status);
+  const suggestedCategory = categories.find(
+    (candidate) => candidate.id === item.ruleSuggestion.categoryId,
+  );
+  const decisionSource = decisionSourcePresentation(item, suggestedCategory);
   return (
     <div className={styles.meaningSummary}>
-      <div>
+      <div className={styles.meaningBadges}>
         <Badge tone={type.tone}>{type.label}</Badge>
         {item.classification.operationType !== "transfer" ? (
-          <span className={styles.categoryName}>
+          <Badge tone="category" variant="soft">
             {category?.name ?? "Без категории"}
-          </span>
+          </Badge>
+        ) : null}
+        <Badge tone={statusTone(item.status)} variant="status">
+          {statusLabel(item.status)}
+        </Badge>
+      </div>
+      {property ? (
+        <span className={styles.propertyFact}>Объект · {property.name}</span>
+      ) : null}
+      <div className={styles.decisionSource}>
+        <span>{decisionSource.label}</span>
+        {decisionSource.detail ? (
+          <strong>{decisionSource.detail}</strong>
         ) : null}
       </div>
-      {property ? <span>Объект: {property.name}</span> : null}
-      {item.ruleSuggestion.isActive && item.ruleSuggestion.ruleName ? (
-        <span>
-          {item.ruleSuggestion.wasAutoApplied ? "Автоправило" : "Правило"} «
-          {item.ruleSuggestion.ruleName}»
-        </span>
-      ) : problemStatus === "warning" || problemStatus === "danger" ? (
-        <Badge tone={problemStatus}>{statusLabel(item.status)}</Badge>
-      ) : (
-        <span className={styles.flatStatus}>{statusLabel(item.status)}</span>
-      )}
     </div>
   );
+}
+
+function decisionSourcePresentation(
+  item: ReviewItemDto,
+  suggestedCategory:
+    ImportReviewDto["references"]["categories"][number] | undefined,
+): { detail: string | null; label: string } {
+  if (item.ruleSuggestion.isActive) {
+    const ruleIdentity = item.ruleSuggestion.ruleName
+      ? ` «${item.ruleSuggestion.ruleName}»`
+      : "";
+    const source = item.ruleSuggestion.pattern ?? item.ruleSuggestion.ruleName;
+    const target =
+      suggestedCategory?.name ??
+      (item.ruleSuggestion.operationType
+        ? operationPresentation(item.ruleSuggestion.operationType).label
+        : null);
+    return {
+      label: `Предложено правилом${ruleIdentity}`,
+      detail: source && target ? `${source} → ${target}` : (source ?? target),
+    };
+  }
+
+  return {
+    explicit: { detail: null, label: "Выбрано пользователем" },
+    suggested: { detail: null, label: "Предложено системой" },
+    inferred: { detail: null, label: "Тип определён по сумме" },
+    unknown: { detail: null, label: "Источник решения не определён" },
+  }[item.classification.source];
 }
 
 function SourceSummary({
@@ -452,10 +485,10 @@ function operationPresentation(
   if (operationType === null)
     return { label: "Тип не определён", tone: "neutral" };
   const presentation = {
-    income: { label: "доход", tone: "income" },
-    expense: { label: "расход", tone: "expense" },
-    transfer: { label: "перевод", tone: "transfer" },
-    adjustment: { label: "корректировка", tone: "adjustment" },
+    income: { label: "Доход", tone: "income" },
+    expense: { label: "Расход", tone: "expense" },
+    transfer: { label: "Перевод", tone: "transfer" },
+    adjustment: { label: "Корректировка", tone: "adjustment" },
   } satisfies Record<
     NonNullable<ReviewItemDto["classification"]["operationType"]>,
     { label: string; tone: BadgeTone }
