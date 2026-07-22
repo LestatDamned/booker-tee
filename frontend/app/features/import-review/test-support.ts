@@ -155,6 +155,12 @@ function importReviewItem(
     transfer: {
       direction: "source_to_counterparty",
       ordinaryOperationType: "expense",
+      sourceAccount: {
+        id: "4958dd80-af47-4131-8f16-16c0ca04f63c",
+        name: "Основной счёт",
+        currency: "RUB",
+      },
+      counterpartyAccount: null,
       accounts: [
         {
           id: "c145935c-67c6-4bf6-a0ce-64e5d611cf47",

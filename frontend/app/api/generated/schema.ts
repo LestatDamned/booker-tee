@@ -1925,6 +1925,8 @@ export interface components {
             direction: components["schemas"]["ImportReviewTransferDirection"] | null;
             /** Ordinaryoperationtype */
             ordinaryOperationType: ("income" | "expense") | null;
+            sourceAccount: components["schemas"]["ImportReviewTransferAccountApiResponse"] | null;
+            counterpartyAccount: components["schemas"]["ImportReviewTransferAccountApiResponse"] | null;
             /** Accounts */
             accounts: components["schemas"]["ImportReviewTransferAccountApiResponse"][];
             /** Rawrowcandidates */

@@ -187,7 +187,10 @@ function directionLabel(
   item: ImportReviewDto["items"][number],
   selection: string,
 ): string {
-  const source = item.sourceAccount?.name ?? "Счёт выписки";
+  const source =
+    item.transfer.sourceAccount?.name ??
+    item.sourceAccount?.name ??
+    "Счёт выписки";
   const counterparty = selectedCounterparty(item, selection);
   if (item.transfer.direction === "source_to_counterparty") {
     return `${source} → ${counterparty}`;

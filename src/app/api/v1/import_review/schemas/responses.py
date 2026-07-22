@@ -121,6 +121,8 @@ class ImportReviewExistingTransferCandidateApiResponse(ApiModel):
 class ImportReviewTransferOptionsApiResponse(ApiModel):
     direction: ImportReviewTransferDirection | None
     ordinary_operation_type: Literal[OperationType.INCOME, OperationType.EXPENSE] | None
+    source_account: ImportReviewTransferAccountApiResponse | None
+    counterparty_account: ImportReviewTransferAccountApiResponse | None
     accounts: list[ImportReviewTransferAccountApiResponse]
     raw_row_candidates: list[ImportReviewRawTransferCandidateApiResponse]
     existing_operation_candidates: list[ImportReviewExistingTransferCandidateApiResponse]

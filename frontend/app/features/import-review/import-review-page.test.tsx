@@ -40,6 +40,7 @@ describe("import review page", () => {
 
     const row = document.getElementById(`raw-${remainingItemId}`);
     if (!row) throw new Error("remaining row is required");
+    expect(within(row).queryByText(/По карте \*1234/)).not.toBeInTheDocument();
     await user.click(within(row).getByText("Ещё действия"));
     const sourceAction = within(row).getByRole("button", {
       name: "Исходные данные",
@@ -253,6 +254,30 @@ describe("import review page", () => {
     );
     expect(outcome).toHaveTextContent("1 250,50 RUB");
     expect(outcome).toHaveAttribute("data-tone", "transfer");
+  });
+
+  it("shows both persisted account names for a confirmed transfer", () => {
+    const review = importReviewPayload();
+    const item = review.items[0];
+    if (!item) throw new Error("completed fixture item is required");
+    item.classification = { operationType: "transfer", source: "explicit" };
+    item.selection = { categoryId: null, propertyId: null };
+    item.transfer.counterpartyAccount = {
+      id: "c145935c-67c6-4bf6-a0ce-64e5d611cf47",
+      name: "Накопительный счёт",
+      currency: "RUB",
+    };
+
+    renderPage(review);
+
+    const row = document.getElementById(`raw-${completedItemId}`);
+    if (!row) throw new Error("completed row is required");
+    const outcome = within(row).getByRole("region", {
+      name: "Итог операции",
+    });
+    expect(outcome).toHaveTextContent("Создан перевод");
+    expect(outcome).toHaveTextContent("Основной счёт → Накопительный счёт");
+    expect(outcome).not.toHaveTextContent("Счёт перевода");
   });
 
   it("keeps the outcome visible without offering actions in readonly mode", () => {

@@ -285,6 +285,16 @@ class ImportReviewResponseMapper:
         return ImportReviewTransferOptionsApiResponse(
             direction=transfer.direction,
             ordinary_operation_type=transfer.ordinary_operation_type,
+            source_account=(
+                ImportReviewResponseMapper._transfer_account(transfer.source_account)
+                if transfer.source_account is not None
+                else None
+            ),
+            counterparty_account=(
+                ImportReviewResponseMapper._transfer_account(transfer.counterparty_account)
+                if transfer.counterparty_account is not None
+                else None
+            ),
             accounts=[
                 ImportReviewResponseMapper._transfer_account(item) for item in transfer.accounts
             ],

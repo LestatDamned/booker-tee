@@ -246,15 +246,7 @@ export function ReviewItem({
       }
       financialHierarchy
       id={`raw-${item.id}`}
-      details={
-        item.raw.accountHint || item.sourceAccount ? (
-          <span>
-            {item.raw.accountHint ? `По карте ${item.raw.accountHint}` : ""}
-            {item.raw.accountHint && item.sourceAccount ? " · " : ""}
-            {item.sourceAccount?.name ?? ""}
-          </span>
-        ) : undefined
-      }
+      details={item.sourceAccount?.name}
       meta={
         <ReviewItemMeta
           categories={categories}
@@ -402,13 +394,15 @@ function outcomeLabel(
 }
 
 function transferOutcomeRoute(item: ReviewItemDto): string {
-  const source = item.sourceAccount?.name ?? "Исходный счёт не определён";
+  const source =
+    item.transfer.sourceAccount?.name ??
+    item.sourceAccount?.name ??
+    "Исходный счёт не определён";
   const counterparty =
-    item.status === "confirmed"
-      ? "Счёт перевода"
-      : item.transfer.direction === "counterparty_to_source"
-        ? "Не выбран счёт отправителя"
-        : "Не выбран счёт назначения";
+    item.transfer.counterpartyAccount?.name ??
+    (item.transfer.direction === "counterparty_to_source"
+      ? "Не выбран счёт отправителя"
+      : "Не выбран счёт назначения");
   if (item.transfer.direction === "source_to_counterparty") {
     return `${source} → ${counterparty}`;
   }

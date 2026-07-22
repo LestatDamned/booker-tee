@@ -1,6 +1,6 @@
 # Этап 8. Пользовательские названия счетов и направление перевода
 
-Статус: pending.
+Статус: completed.
 
 ## Цель
 
@@ -20,8 +20,31 @@
 
 ## Критерии готовности
 
-- [ ] В обычной строке нет автоматически составленного имени счёта.
-- [ ] Confirmed и draft transfer показывают обе стороны маршрута.
-- [ ] Missing destination явно объяснён.
-- [ ] Workspace isolation покрыта backend tests.
-- [ ] Полные реквизиты доступны только в техническом раскрытии.
+- [x] В обычной строке нет автоматически составленного имени счёта.
+- [x] Confirmed и draft transfer показывают обе стороны маршрута.
+- [x] Missing destination явно объяснён.
+- [x] Workspace isolation покрыта backend tests.
+- [x] Полные реквизиты доступны только в техническом раскрытии.
+
+## Реализация
+
+- Read model и API возвращают `sourceAccount` и `counterpartyAccount` как
+  workspace-scoped ссылки на реальные счета.
+- Для подтверждённого перевода второй счёт определяется по уже загруженным
+  `MoneyEntry`; дополнительных запросов и вычисления financial truth в React
+  нет.
+- Draft показывает выбранный счёт в редакторе, а при отсутствии выбора —
+  явное `Не выбран счёт назначения` или `Не выбран счёт отправителя`.
+- React использует только `Account.name`; реквизиты выписки остаются в
+  раскрытии исходных данных.
+
+## Проверки
+
+- Backend: Ruff lint, ty и `547 passed` в pytest.
+- Frontend: Prettier, ESLint, styles check, TypeScript, `127 passed` в Vitest и
+  production build.
+- Browser audit `review_interactions`: `51` страница на `1440×1000`, `920×900`
+  и `390×844`, без overflow, console/page errors и failed requests.
+- Глобальный `ruff format --check .` по-прежнему находит четыре ранее
+  неотформатированных файла вне scope этапа; изменённые Python-файлы
+  отформатированы и проходят Ruff.

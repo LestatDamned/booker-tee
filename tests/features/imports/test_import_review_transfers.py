@@ -47,9 +47,9 @@ class SuggestionSourceStub:
 async def test_transfer_reader_keeps_eligibility_and_direction_on_server() -> None:
     workspace_id = uuid4()
     document_id = uuid4()
-    source = account("Карта", "RUB")
-    destination = account("Депозит", "RUB")
-    foreign_currency = account("Евро", "EUR")
+    source = account("Карта", "RUB", workspace_id)
+    destination = account("Депозит", "RUB", workspace_id)
+    foreign_currency = account("Евро", "EUR", workspace_id)
     row = raw_row(document_id, source, Decimal("-100.00"), 1)
     paired = raw_row(uuid4(), destination, Decimal("100.00"), 7)
     counterparty_entry = SimpleNamespace(account=destination)
@@ -101,11 +101,73 @@ async def test_transfer_reader_keeps_eligibility_and_direction_on_server() -> No
 
     assert options.direction is ImportReviewTransferDirection.SOURCE_TO_COUNTERPARTY
     assert options.ordinary_operation_type is OperationType.EXPENSE
+    assert options.source_account is not None
+    assert options.source_account.id == source.id
+    assert options.counterparty_account is None
     assert [item.id for item in options.accounts] == [destination.id]
     assert options.raw_row_candidates[0].document_id == paired.uploaded_document_id
     assert options.raw_row_candidates[0].amount == Decimal("100.00")
     assert options.existing_operation_candidates[0].counterparty_account is not None
     assert options.existing_operation_candidates[0].counterparty_account.id == destination.id
+
+
+@pytest.mark.asyncio
+async def test_transfer_reader_exposes_confirmed_counterparty_from_same_workspace_only() -> None:
+    workspace_id = uuid4()
+    foreign_workspace_id = uuid4()
+    document_id = uuid4()
+    source = account("Карта", "RUB", workspace_id)
+    destination = account("Накопительный", "RUB", workspace_id)
+    foreign = account("Чужой счёт", "RUB", foreign_workspace_id)
+    row = raw_row(document_id, source, Decimal("-100.00"), 1)
+    row.linked_operation = SimpleNamespace(
+        type=OperationType.TRANSFER,
+        workspace_id=workspace_id,
+        money_entries=[
+            SimpleNamespace(
+                workspace_id=workspace_id,
+                account_id=source.id,
+                account=source,
+            ),
+            SimpleNamespace(
+                workspace_id=workspace_id,
+                account_id=destination.id,
+                account=destination,
+            ),
+        ],
+    )
+    document = SimpleNamespace(
+        id=document_id,
+        account=source,
+        account_id=source.id,
+        raw_transactions=[row],
+    )
+    reader = ImportReviewTransferReader(
+        cast(Any, AccountSourceStub([source, destination, foreign])),
+        cast(Any, SuggestionSourceStub({}, {})),
+    )
+
+    options = (
+        await reader.read_for_document(
+            workspace_id=workspace_id,
+            document=cast(Any, document),
+        )
+    )[row.id]
+
+    assert options.source_account is not None
+    assert options.source_account.name == "Карта"
+    assert options.counterparty_account is not None
+    assert options.counterparty_account.name == "Накопительный"
+    assert foreign.id not in {item.id for item in options.accounts}
+
+    row.linked_operation.workspace_id = foreign_workspace_id
+    isolated_options = (
+        await reader.read_for_document(
+            workspace_id=workspace_id,
+            document=cast(Any, document),
+        )
+    )[row.id]
+    assert isolated_options.counterparty_account is None
 
 
 @pytest.mark.asyncio
@@ -164,8 +226,13 @@ async def test_transfer_service_rejects_reused_key_with_another_payload() -> Non
         )
 
 
-def account(name: str, currency: str) -> SimpleNamespace:
-    return SimpleNamespace(id=uuid4(), name=name, currency=currency)
+def account(name: str, currency: str, workspace_id) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=uuid4(),
+        name=name,
+        currency=currency,
+        workspace_id=workspace_id,
+    )
 
 
 def raw_row(
@@ -187,6 +254,7 @@ def raw_row(
         description_raw=None,
         amount=amount,
         currency="RUB",
+        linked_operation=None,
     )
 
 

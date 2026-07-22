@@ -49,6 +49,11 @@ from app.features.imports.application.review.transfer_commands import (
     ImportReviewTransferResult,
     MatchImportReviewRawRowCommand,
 )
+from app.features.imports.application.review.transfers import (
+    ImportReviewTransferAccountDto,
+    ImportReviewTransferDirection,
+    ImportReviewTransferOptionsDto,
+)
 from app.features.imports.application.review.undo_commands import (
     ImportReviewUndoResult,
     UndoImportReviewPostingCommand,
@@ -178,6 +183,51 @@ def test_import_review_exposes_readonly_capability_for_viewer() -> None:
         "readonlyReasonCode": "financial_write_forbidden",
     }
     assert reader.can_write_values == [False]
+
+
+def test_import_review_exposes_transfer_account_references() -> None:
+    review = review_model()
+    assert review.document.source_account is not None
+    source = ImportReviewTransferAccountDto(
+        id=review.document.source_account.id,
+        name=review.document.source_account.name,
+        currency=review.document.source_account.currency,
+    )
+    counterparty = ImportReviewTransferAccountDto(
+        id=uuid4(),
+        name="Накопительный счёт",
+        currency="RUB",
+    )
+    item = replace(
+        review.items[0],
+        transfer=ImportReviewTransferOptionsDto(
+            direction=ImportReviewTransferDirection.SOURCE_TO_COUNTERPARTY,
+            ordinary_operation_type=OperationType.EXPENSE,
+            source_account=source,
+            counterparty_account=counterparty,
+            accounts=(),
+            raw_row_candidates=(),
+            existing_operation_candidates=(),
+        ),
+    )
+    review = replace(review, items=[item])
+    app, _, _ = import_review_app(review)
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/import-review/{review.document.id}")
+
+    assert response.status_code == 200
+    transfer = response.json()["items"][0]["transfer"]
+    assert transfer["sourceAccount"] == {
+        "id": str(source.id),
+        "name": "Основной",
+        "currency": "RUB",
+    }
+    assert transfer["counterpartyAccount"] == {
+        "id": str(counterparty.id),
+        "name": "Накопительный счёт",
+        "currency": "RUB",
+    }
 
 
 def test_import_review_hides_document_outside_workspace_as_not_found() -> None:

@@ -55,6 +55,8 @@ class ImportReviewExistingTransferCandidateDto:
 class ImportReviewTransferOptionsDto:
     direction: ImportReviewTransferDirection | None
     ordinary_operation_type: Literal[OperationType.INCOME, OperationType.EXPENSE] | None
+    source_account: ImportReviewTransferAccountDto | None
+    counterparty_account: ImportReviewTransferAccountDto | None
     accounts: tuple[ImportReviewTransferAccountDto, ...]
     raw_row_candidates: tuple[ImportReviewRawTransferCandidateDto, ...]
     existing_operation_candidates: tuple[ImportReviewExistingTransferCandidateDto, ...]
@@ -63,6 +65,8 @@ class ImportReviewTransferOptionsDto:
 EMPTY_TRANSFER_OPTIONS = ImportReviewTransferOptionsDto(
     direction=None,
     ordinary_operation_type=None,
+    source_account=None,
+    counterparty_account=None,
     accounts=(),
     raw_row_candidates=(),
     existing_operation_candidates=(),
@@ -116,6 +120,7 @@ class ImportReviewTransferReader:
         return {
             row.id: self._options(
                 row,
+                workspace_id=workspace_id,
                 document=document,
                 accounts=accounts,
                 raw_suggestions=raw_suggestions.get(row.id, []),
@@ -128,23 +133,32 @@ class ImportReviewTransferReader:
         self,
         row: RawTransaction,
         *,
+        workspace_id: UUID,
         document: UploadedDocument,
         accounts: list[Account],
         raw_suggestions: list[TransferSuggestion],
         existing_suggestions: list[ExistingTransferSuggestion],
     ) -> ImportReviewTransferOptionsDto:
         source_account_id = row.account_id or document.account_id
+        source_account = row.account or document.account
         currency = row.currency
         eligible_accounts = tuple(
             self._account(account)
             for account in accounts
-            if account.id != source_account_id
+            if account.workspace_id == workspace_id
+            and account.id != source_account_id
             and currency is not None
             and account.currency == currency
         )
         return ImportReviewTransferOptionsDto(
             direction=self._direction(row.amount),
             ordinary_operation_type=self._ordinary_operation_type(row.amount),
+            source_account=self._workspace_account(source_account, workspace_id),
+            counterparty_account=self._confirmed_counterparty_account(
+                row,
+                workspace_id=workspace_id,
+                source_account_id=source_account_id,
+            ),
             accounts=eligible_accounts,
             raw_row_candidates=tuple(
                 candidate
@@ -192,6 +206,42 @@ class ImportReviewTransferReader:
             ),
             day_distance=suggestion.day_distance,
         )
+
+    def _confirmed_counterparty_account(
+        self,
+        row: RawTransaction,
+        *,
+        workspace_id: UUID,
+        source_account_id: UUID | None,
+    ) -> ImportReviewTransferAccountDto | None:
+        operation = getattr(row, "linked_operation", None)
+        if (
+            operation is None
+            or operation.type is not OperationType.TRANSFER
+            or operation.workspace_id != workspace_id
+            or source_account_id is None
+        ):
+            return None
+        counterparty_entry = next(
+            (
+                entry
+                for entry in operation.money_entries
+                if entry.workspace_id == workspace_id and entry.account_id != source_account_id
+            ),
+            None,
+        )
+        if counterparty_entry is None:
+            return None
+        return self._workspace_account(counterparty_entry.account, workspace_id)
+
+    def _workspace_account(
+        self,
+        account: Account | None,
+        workspace_id: UUID,
+    ) -> ImportReviewTransferAccountDto | None:
+        if account is None or account.workspace_id != workspace_id:
+            return None
+        return self._account(account)
 
     @staticmethod
     def _account(account: Account) -> ImportReviewTransferAccountDto:
