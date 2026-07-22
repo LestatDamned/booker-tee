@@ -12,6 +12,7 @@ type TransferPanelProps = {
   csrfToken: string;
   documentId: string;
   item: ImportReviewDto["items"][number];
+  onCancel: () => void;
   onReviewReconciled: (review: ImportReviewDto) => void;
   onSelectionChange: (selection: string) => void;
   selection: string;
@@ -21,6 +22,7 @@ export function TransferPanel({
   csrfToken,
   documentId,
   item,
+  onCancel,
   onReviewReconciled,
   onSelectionChange,
   selection,
@@ -143,13 +145,18 @@ export function TransferPanel({
       item.transfer.existingOperationCandidates.length === 0 ? (
         <p>Подходящих счетов, строк или ручных переводов не найдено.</p>
       ) : null}
-      <Button
-        disabled={pending || !selection}
-        onClick={() => void submit()}
-        tone="primary"
-      >
-        {pending ? "Проводим…" : "Провести перевод"}
-      </Button>
+      <div className={styles.editorActions}>
+        <Button
+          disabled={pending || !selection}
+          onClick={() => void submit()}
+          tone="primary"
+        >
+          {pending ? "Проводим…" : "Провести перевод"}
+        </Button>
+        <Button disabled={pending} onClick={onCancel}>
+          Отмена
+        </Button>
+      </div>
       {error ? (
         <p className={styles.draftError} role="alert">
           {error}

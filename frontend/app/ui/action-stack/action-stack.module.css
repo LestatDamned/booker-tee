@@ -51,11 +51,27 @@
   background: var(--color-bg-interactive);
 }
 
+.more > summary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.more[open] > summary {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-interactive);
+  color: var(--color-text-primary);
+}
+
 .menu {
+  position: absolute;
+  z-index: 2;
+  inset-inline-end: 0;
+  width: min(20rem, calc(100vw - var(--space-6)));
   margin-top: var(--space-2);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-md);
   background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-surface);
   padding: var(--space-2);
 }
 
@@ -63,4 +79,10 @@
   border-top: 1px solid var(--color-border-default);
   margin-top: var(--space-1);
   padding-top: var(--space-3);
+}
+
+.dangerLabel {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
 }

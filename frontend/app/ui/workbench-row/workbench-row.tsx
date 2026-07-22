@@ -4,6 +4,8 @@ import { formatIsoDate } from "../../shared/date/format-date";
 import styles from "./workbench-row.module.css";
 
 type WorkbenchRowState = "default" | "recent" | "target" | "working";
+type WorkbenchRowWorkflowState =
+  "default" | "problem" | "review" | "settled" | "suggestion";
 
 type WorkbenchRowProps = {
   aside?: ReactNode;
@@ -21,6 +23,7 @@ type WorkbenchRowProps = {
   state?: WorkbenchRowState;
   tabIndex?: number;
   value?: ReactNode;
+  workflowState?: WorkbenchRowWorkflowState;
 };
 
 export function WorkbenchRow({
@@ -39,6 +42,7 @@ export function WorkbenchRow({
   state = "default",
   tabIndex,
   value,
+  workflowState = "default",
 }: WorkbenchRowProps) {
   function notifyAction(event: MouseEvent<HTMLDivElement>) {
     if (event.target instanceof Element && event.target.closest("button")) {
@@ -56,8 +60,9 @@ export function WorkbenchRow({
     return (
       <article
         aria-current={state === "target" ? "true" : undefined}
-        className={`${styles.row} ${styles.table} ${styles[state]} ${financialHierarchy ? styles.financialHierarchy : ""}`}
+        className={`${styles.row} ${styles.table} ${styles[state]} ${styles[workflowState]} ${financialHierarchy ? styles.financialHierarchy : ""}`}
         data-state={state}
+        data-workflow-state={workflowState}
         id={id}
         tabIndex={tabIndex}
       >
@@ -91,8 +96,9 @@ export function WorkbenchRow({
   return (
     <article
       aria-current={state === "target" ? "true" : undefined}
-      className={`${styles.row} ${styles[state]} ${financialHierarchy ? styles.financialHierarchy : ""}`}
+      className={`${styles.row} ${styles[state]} ${styles[workflowState]} ${financialHierarchy ? styles.financialHierarchy : ""}`}
       data-state={state}
+      data-workflow-state={workflowState}
       id={id}
       tabIndex={tabIndex}
     >

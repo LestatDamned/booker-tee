@@ -18,6 +18,7 @@ type LifecycleActionsProps = {
   csrfToken: string;
   documentId: string;
   item: ImportReviewDto["items"][number];
+  onMenuDismiss?: () => void;
   onReviewReconciled: (review: ImportReviewDto) => void;
   readonly: boolean;
 };
@@ -27,6 +28,7 @@ export function LifecycleActions({
   csrfToken,
   documentId,
   item,
+  onMenuDismiss,
   onReviewReconciled,
   readonly,
 }: LifecycleActionsProps) {
@@ -65,6 +67,7 @@ export function LifecycleActions({
     setPending(null);
     setConfirmation(null);
     if (result.status === "success") {
+      onMenuDismiss?.();
       onReviewReconciled(result.data.review);
       return;
     }
@@ -91,6 +94,7 @@ export function LifecycleActions({
     setPending(null);
     if (result.status === "success") {
       setConflict(false);
+      onMenuDismiss?.();
       onReviewReconciled(result.review);
       return;
     }
@@ -135,7 +139,10 @@ export function LifecycleActions({
           <div>
             <Button
               disabled={pending !== null}
-              onClick={() => setConfirmation(null)}
+              onClick={() => {
+                setConfirmation(null);
+                onMenuDismiss?.();
+              }}
               ref={cancelConfirmationRef}
             >
               Отмена

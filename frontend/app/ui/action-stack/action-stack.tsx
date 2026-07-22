@@ -4,6 +4,8 @@ import styles from "./action-stack.module.css";
 
 type ActionStackProps = {
   danger?: ReactNode;
+  disclosureOpen?: boolean;
+  onDisclosureChange?: (open: boolean) => void;
   overflow?: ReactNode;
   primary?: ReactNode;
   secondary?: ReactNode;
@@ -12,6 +14,8 @@ type ActionStackProps = {
 
 export function ActionStack({
   danger,
+  disclosureOpen,
+  onDisclosureChange,
   overflow,
   primary,
   secondary,
@@ -24,12 +28,17 @@ export function ActionStack({
       {primary ? <div className={styles.group}>{primary}</div> : null}
       {secondary ? <div className={styles.group}>{secondary}</div> : null}
       {overflow || danger ? (
-        <details className={styles.more}>
+        <details
+          className={styles.more}
+          onToggle={(event) => onDisclosureChange?.(event.currentTarget.open)}
+          {...(disclosureOpen === undefined ? {} : { open: disclosureOpen })}
+        >
           <summary>Ещё действия</summary>
           <div className={styles.menu}>
             {overflow ? <div className={styles.group}>{overflow}</div> : null}
             {danger ? (
               <div aria-label="Опасные действия" className={styles.danger}>
+                <span className={styles.dangerLabel}>Опасные действия</span>
                 {danger}
               </div>
             ) : null}

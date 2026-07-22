@@ -34,15 +34,27 @@ describe("import review page", () => {
     expect(screen.getByText("Проверено как уникальное")).toBeInTheDocument();
   });
 
-  it("shows raw source values without replacing normalized facts", () => {
+  it("shows raw source values from the secondary technical action", async () => {
+    const user = userEvent.setup();
     renderPage(importReviewPayload());
 
+    const row = document.getElementById(`raw-${remainingItemId}`);
+    if (!row) throw new Error("remaining row is required");
+    await user.click(within(row).getByText("Ещё действия"));
+    const sourceAction = within(row).getByRole("button", {
+      name: "Исходные данные",
+    });
+    expect(sourceAction).toHaveAttribute("aria-expanded", "false");
+    await user.click(sourceAction);
+
     expect(
-      screen.getAllByText(/Сверить с исходной строкой · данные нормализованы/),
-    ).toHaveLength(1);
-    expect(screen.getAllByText("После парсера").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("-1250,50")).toHaveLength(1);
-    expect(screen.getAllByText("*1234")).toHaveLength(1);
+      within(row).getByRole("heading", { name: "Исходные данные строки 2" }),
+    ).toBeInTheDocument();
+    expect(sourceAction).toHaveAttribute("aria-expanded", "true");
+    expect(within(row).getByText("Данные нормализованы")).toBeInTheDocument();
+    expect(within(row).getAllByText("После парсера").length).toBeGreaterThan(0);
+    expect(within(row).getByText("-1250,50")).toBeInTheDocument();
+    expect(within(row).getByText("*1234")).toBeInTheDocument();
   });
 
   it("renders typed validation totals and a problem on the stable row anchor", () => {
@@ -83,7 +95,9 @@ describe("import review page", () => {
         name: "Недостаточно данных для сверки",
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/Сверить с исходной строкой/)).toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", { name: "Исходные данные" }),
+    ).toHaveLength(2);
   });
 
   it("distinguishes a mismatch explained by ignored rows", () => {
@@ -255,7 +269,15 @@ describe("import review page", () => {
     expect(
       within(row).getByRole("region", { name: "Итог операции" }),
     ).toHaveTextContent("Будет создан расход");
-    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
+    expect(
+      within(row).queryByRole("button", { name: "Подтвердить" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(row).queryByRole("button", { name: "Изменить" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(row).getByRole("button", { name: "Исходные данные" }),
+    ).toBeInTheDocument();
   });
 
   it.each([
@@ -310,6 +332,55 @@ describe("import review page", () => {
         .getAllByText("Без категории")
         .find((element) => element.getAttribute("data-tone") === "category"),
     ).toBeInTheDocument();
+  });
+
+  it.each([
+    ["confirmed", "settled", false],
+    ["suggested", "suggestion", false],
+    ["needs_review", "review", false],
+    ["matched", "problem", true],
+  ] as const)(
+    "gives a %s row the separate %s workflow treatment",
+    (status, workflowState, withProblem) => {
+      const review = importReviewPayload();
+      const item = review.items[1];
+      if (!item || !review.validation) {
+        throw new Error("remaining review fixture is required");
+      }
+      item.status = status;
+      item.isTerminal = status === "confirmed";
+      item.isReviewable = status !== "confirmed";
+      item.ruleSuggestion.isActive = status === "suggested";
+      if (!withProblem) review.validation.rowProblems = [];
+
+      renderPage(review);
+
+      expect(document.getElementById(`raw-${remainingItemId}`)).toHaveAttribute(
+        "data-workflow-state",
+        workflowState,
+      );
+    },
+  );
+
+  it("uses native keyboard disclosure semantics for secondary actions", async () => {
+    const user = userEvent.setup();
+    renderPage(importReviewPayload());
+    const row = document.getElementById(`raw-${remainingItemId}`);
+    if (!row) throw new Error("remaining row is required");
+    const disclosure = within(row).getByText("Ещё действия");
+
+    disclosure.focus();
+    expect(disclosure).toHaveFocus();
+    expect(disclosure.tagName).toBe("SUMMARY");
+    await user.click(disclosure);
+    expect(disclosure.closest("details")).toHaveAttribute("open");
+    const sourceAction = within(row).getByRole("button", {
+      name: "Исходные данные",
+    });
+    await user.click(sourceAction);
+
+    expect(sourceAction).toHaveAttribute("aria-expanded", "true");
+    expect(row).toHaveAttribute("data-state", "working");
   });
 
   it("renders an explicit empty queue", () => {
@@ -503,18 +574,88 @@ describe("import review page", () => {
       screen.getByRole("button", { name: "Проверить и провести" }),
     );
     await user.click(
-      screen.getByLabelText("Создать правило для похожих строк"),
+      screen.getByLabelText("Применять это решение к похожим строкам"),
     );
     await user.click(
       screen.getByRole("button", { name: "Подтвердить и провести" }),
     );
 
-    const pattern = screen.getByLabelText("Текст для определения *");
+    const pattern = screen.getByLabelText("Фрагмент описания *");
     expect(pattern).toHaveFocus();
+    expect(pattern).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Укажите текст, по которому определять похожие строки.",
+      "Вставьте фрагмент описания, по которому применять правило.",
     );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("shows the raw description and previews only the manual rule fragment", async () => {
+    const user = userEvent.setup();
+    const review = importReviewPayload();
+    const item = review.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.raw.description =
+      "28/06/2026 KRASNOE&BELOE карта 5017 операция 177979632694";
+    item.normalized.description = "KRASNOE&BELOE";
+    item.selection.categoryId = expenseCategoryId;
+    item.confirmability = { canConfirm: true, blockingReasonCodes: [] };
+    renderPage(review);
+
+    await user.click(
+      screen.getByRole("button", { name: "Проверить и провести" }),
+    );
+    await user.click(
+      screen.getByLabelText("Применять это решение к похожим строкам"),
+    );
+
+    const posting = screen.getByLabelText("Подтверждение операции");
+    expect(
+      within(posting).getByText(
+        "28/06/2026 KRASNOE&BELOE карта 5017 операция 177979632694",
+      ),
+    ).toBeInTheDocument();
+    const pattern = screen.getByLabelText("Фрагмент описания *");
+    expect(pattern).toHaveValue("");
+    await user.type(pattern, "KRASNOE&BELOE");
+    expect(within(posting).getByLabelText("Итог правила")).toHaveTextContent(
+      "Если описание содержит «KRASNOE&BELOE» → категория «Продукты»",
+    );
+  });
+
+  it("discards rule opt-in and pattern on explicit editor cancel", async () => {
+    const user = userEvent.setup();
+    const review = importReviewPayload();
+    const item = review.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.selection.categoryId = expenseCategoryId;
+    item.confirmability = { canConfirm: true, blockingReasonCodes: [] };
+    renderPage(review);
+
+    const reviewButton = screen.getByRole("button", {
+      name: "Проверить и провести",
+    });
+    await user.click(reviewButton);
+    const rememberRule = screen.getByLabelText(
+      "Применять это решение к похожим строкам",
+    );
+    await user.click(rememberRule);
+    await user.type(
+      screen.getByLabelText("Фрагмент описания *"),
+      "KRASNOE&BELOE",
+    );
+    await user.click(screen.getByRole("button", { name: "Отмена" }));
+    await user.click(reviewButton);
+
+    expect(
+      screen.getByLabelText("Применять это решение к похожим строкам"),
+    ).not.toBeChecked();
+    expect(
+      screen.queryByLabelText("Фрагмент описания *"),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the local row draft after a network error and panel toggle", async () => {
@@ -538,6 +679,84 @@ describe("import review page", () => {
     await user.click(reviewButton);
     await user.click(reviewButton);
     expect(screen.getByLabelText("Категория")).toHaveValue(expenseCategoryId);
+  });
+
+  it("resets the editor to server state on explicit cancel", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    renderPage(importReviewPayload());
+
+    const reviewButton = screen.getByRole("button", {
+      name: "Выбрать категорию",
+    });
+    await user.click(reviewButton);
+    await user.selectOptions(
+      screen.getByLabelText("Категория"),
+      expenseCategoryId,
+    );
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Отмена" }));
+    expect(reviewButton).toHaveFocus();
+    await user.click(reviewButton);
+
+    expect(screen.getByLabelText("Категория")).toHaveValue("");
+    expect(screen.getByRole("radio", { name: "Расход" })).toBeChecked();
+  });
+
+  it("discards the local transfer mode and account on explicit cancel", async () => {
+    const user = userEvent.setup();
+    renderPage(importReviewPayload());
+
+    const reviewButton = screen.getByRole("button", {
+      name: "Выбрать категорию",
+    });
+    await user.click(reviewButton);
+    await user.click(screen.getByRole("radio", { name: "Перевод" }));
+    await user.selectOptions(
+      screen.getByLabelText("Второй счёт или готовая пара"),
+      "account:c145935c-67c6-4bf6-a0ce-64e5d611cf47",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Отмена" }));
+    await user.click(reviewButton);
+    expect(screen.getByRole("radio", { name: "Расход" })).toBeChecked();
+
+    await user.click(screen.getByRole("radio", { name: "Перевод" }));
+    expect(screen.getByLabelText("Второй счёт или готовая пара")).toHaveValue(
+      "",
+    );
+  });
+
+  it("uses the active confirm action instead of a persistent success message", async () => {
+    const user = userEvent.setup();
+    const review = importReviewPayload();
+    const item = review.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.selection.categoryId = expenseCategoryId;
+    item.confirmability = { canConfirm: true, blockingReasonCodes: [] };
+    renderPage(review);
+
+    await user.click(
+      screen.getByRole("button", { name: "Проверить и провести" }),
+    );
+
+    expect(
+      screen.queryByText(/Проверки выбора пройдены/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Подтвердить и провести" }),
+    ).toBeEnabled();
+    const panel = document.getElementById(`review-panel-${remainingItemId}`);
+    if (!panel) throw new Error("review panel is required");
+    expect(within(panel).getByLabelText("Итог операции")).toHaveTextContent(
+      "Расход — Продукты",
+    );
   });
 
   it("keeps categorization and transfer drafts while switching financial meaning", async () => {
@@ -873,17 +1092,18 @@ describe("import review page", () => {
     });
     expect(screen.getByText("Проверено как уникальное")).toBeInTheDocument();
     await user.click(
-      screen.getByLabelText("Создать правило для похожих строк"),
+      screen.getByLabelText("Применять это решение к похожим строкам"),
     );
-    await user.type(
-      screen.getByLabelText("Текст для определения *"),
-      "Магазин",
-    );
+    await user.type(screen.getByLabelText("Фрагмент описания *"), "Магазин");
     await user.click(confirm);
 
     expect(
       await screen.findByRole("heading", { name: "Все строки обработаны" }),
     ).toBeInTheDocument();
+    expect(document.getElementById(`raw-${remainingItemId}`)).toHaveAttribute(
+      "data-state",
+      "default",
+    );
     expect(fetchMock.mock.calls[1]?.[1]).toEqual(
       expect.objectContaining({
         headers: expect.objectContaining({

@@ -152,6 +152,43 @@
   background: var(--color-recent-surface);
 }
 
+.default {
+  background: var(--color-bg-surface);
+}
+
+.settled {
+  background: color-mix(
+    in srgb,
+    var(--color-bg-surface) 72%,
+    var(--color-bg-canvas)
+  );
+}
+
+.suggestion {
+  background: color-mix(
+    in srgb,
+    var(--color-accent) 4%,
+    var(--color-bg-surface)
+  );
+}
+
+.review {
+  background: color-mix(
+    in srgb,
+    var(--color-status-warning) 3%,
+    var(--color-bg-surface)
+  );
+}
+
+.problem {
+  background: color-mix(
+    in srgb,
+    var(--color-status-warning) 5%,
+    var(--color-bg-surface)
+  );
+  box-shadow: inset 3px 0 0 var(--color-status-warning);
+}
+
 .target {
   border-bottom-color: var(--color-accent);
   background: var(--color-target-surface);
@@ -159,17 +196,13 @@
 }
 
 .working {
-  border-bottom-color: color-mix(
+  border-bottom-color: var(--color-accent);
+  background: color-mix(
     in srgb,
-    var(--color-money-profit) 62%,
-    var(--color-border-default)
+    var(--color-accent) 8%,
+    var(--color-bg-surface)
   );
-  background: var(--color-working-surface);
-  box-shadow: inset 3px 0 0 var(--color-money-profit);
-}
-
-.default {
-  background: var(--color-bg-surface);
+  box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
 @media (max-width: 75rem) {

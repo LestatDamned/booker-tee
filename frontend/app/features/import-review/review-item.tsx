@@ -43,9 +43,13 @@ export function ReviewItem({
   properties,
   readonly,
 }: ReviewItemProps) {
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [sourceOpen, setSourceOpen] = useState(false);
   const reviewButtonRef = useRef<HTMLButtonElement>(null);
+  const sourceButtonRef = useRef<HTMLButtonElement>(null);
   const panelId = `review-panel-${item.id}`;
+  const sourcePanelId = `source-panel-${item.id}`;
   const operationType = item.classification.operationType;
   const amount = item.normalized.amount ?? item.raw.amount;
   const currency = item.normalized.currency ?? item.raw.currency ?? "";
@@ -71,101 +75,128 @@ export function ReviewItem({
     queueMicrotask(() => reviewButtonRef.current?.focus());
   }
 
-  const actionStack =
-    !readonly &&
-    (primaryLifecycle.length ||
-      overflowLifecycle.length ||
-      dangerLifecycle.length ||
-      hasReviewPanel ||
-      item.posting.canUndo) ? (
-      <ActionStack
-        danger={
-          dangerLifecycle.length || item.posting.canUndo ? (
-            <>
-              <LifecycleActions
-                actions={dangerLifecycle}
-                csrfToken={csrfToken}
-                documentId={documentId}
-                item={item}
-                onReviewReconciled={onReviewReconciled}
-                readonly={readonly}
-              />
-              <UndoPostingAction
-                csrfToken={csrfToken}
-                documentId={documentId}
-                item={item}
-                onReviewReconciled={onReviewReconciled}
-                readonly={readonly}
-              />
-            </>
-          ) : undefined
-        }
-        overflow={
-          overflowLifecycle.length ? (
+  function toggleReviewPanel() {
+    setActionsOpen(false);
+    setSourceOpen(false);
+    setPanelOpen((open) => !open);
+  }
+
+  function toggleSourcePanel() {
+    setActionsOpen(false);
+    setPanelOpen(false);
+    setSourceOpen((open) => !open);
+  }
+
+  function closeSourcePanel() {
+    setSourceOpen(false);
+    queueMicrotask(() => sourceButtonRef.current?.focus());
+  }
+
+  const actionStack = (
+    <ActionStack
+      danger={
+        !readonly && (dangerLifecycle.length || item.posting.canUndo) ? (
+          <>
+            <LifecycleActions
+              actions={dangerLifecycle}
+              csrfToken={csrfToken}
+              documentId={documentId}
+              item={item}
+              onMenuDismiss={() => setActionsOpen(false)}
+              onReviewReconciled={onReviewReconciled}
+              readonly={readonly}
+            />
+            <UndoPostingAction
+              csrfToken={csrfToken}
+              documentId={documentId}
+              item={item}
+              onMenuDismiss={() => setActionsOpen(false)}
+              onReviewReconciled={onReviewReconciled}
+              readonly={readonly}
+            />
+          </>
+        ) : undefined
+      }
+      disclosureOpen={actionsOpen}
+      onDisclosureChange={setActionsOpen}
+      overflow={
+        <>
+          {!readonly && overflowLifecycle.length ? (
             <LifecycleActions
               actions={overflowLifecycle}
               csrfToken={csrfToken}
               documentId={documentId}
               item={item}
+              onMenuDismiss={() => setActionsOpen(false)}
               onReviewReconciled={onReviewReconciled}
               readonly={readonly}
             />
-          ) : undefined
-        }
-        primary={
-          primaryLifecycle.length ? (
-            <LifecycleActions
-              actions={primaryLifecycle}
-              csrfToken={csrfToken}
-              documentId={documentId}
-              item={item}
-              onReviewReconciled={onReviewReconciled}
-              readonly={readonly}
-            />
-          ) : canQuickConfirmSuggestion ? (
-            <ConfirmPostingAction
-              csrfToken={csrfToken}
-              dirty={false}
-              documentId={documentId}
-              evaluation={{
-                itemId: item.id,
-                classification: item.classification,
-                selection: item.selection,
-                confirmability: item.confirmability,
-                ruleSuggestion: item.ruleSuggestion,
-              }}
-              item={item}
-              onReviewReconciled={onReviewReconciled}
-              variant="quick"
-            />
-          ) : hasReviewPanel ? (
-            <Button
-              aria-controls={panelId}
-              aria-expanded={panelOpen}
-              onClick={() => setPanelOpen((open) => !open)}
-              ref={reviewButtonRef}
-              tone="primary"
-            >
-              {reviewActionLabel}
-            </Button>
-          ) : undefined
-        }
-        secondary={
-          (primaryLifecycle.length || canQuickConfirmSuggestion) &&
-          hasReviewPanel ? (
-            <Button
-              aria-controls={panelId}
-              aria-expanded={panelOpen}
-              onClick={() => setPanelOpen((open) => !open)}
-              ref={reviewButtonRef}
-              tone="secondary"
-            >
-              Изменить
-            </Button>
-          ) : undefined
-        }
-      />
-    ) : null;
+          ) : null}
+          <Button
+            aria-controls={sourcePanelId}
+            aria-expanded={sourceOpen}
+            onClick={toggleSourcePanel}
+            ref={sourceButtonRef}
+          >
+            Исходные данные
+          </Button>
+        </>
+      }
+      primary={
+        readonly ? undefined : primaryLifecycle.length ? (
+          <LifecycleActions
+            actions={primaryLifecycle}
+            csrfToken={csrfToken}
+            documentId={documentId}
+            item={item}
+            onReviewReconciled={onReviewReconciled}
+            readonly={readonly}
+          />
+        ) : canQuickConfirmSuggestion ? (
+          <ConfirmPostingAction
+            csrfToken={csrfToken}
+            dirty={false}
+            documentId={documentId}
+            evaluation={{
+              itemId: item.id,
+              classification: item.classification,
+              selection: item.selection,
+              confirmability: item.confirmability,
+              ruleSuggestion: item.ruleSuggestion,
+            }}
+            item={item}
+            onReviewReconciled={onReviewReconciled}
+            variant="quick"
+          />
+        ) : hasReviewPanel ? (
+          <Button
+            aria-controls={panelId}
+            aria-expanded={panelOpen}
+            onClick={toggleReviewPanel}
+            ref={reviewButtonRef}
+            tone="primary"
+          >
+            {reviewActionLabel}
+          </Button>
+        ) : undefined
+      }
+      secondary={
+        !readonly &&
+        (primaryLifecycle.length || canQuickConfirmSuggestion) &&
+        hasReviewPanel ? (
+          <Button
+            aria-controls={panelId}
+            aria-expanded={panelOpen}
+            onClick={toggleReviewPanel}
+            ref={reviewButtonRef}
+            tone="secondary"
+          >
+            Изменить
+          </Button>
+        ) : undefined
+      }
+    />
+  );
   const aside =
     outcome || actionStack ? (
       <div className={styles.outcomeRail}>
@@ -182,26 +213,36 @@ export function ReviewItem({
         : {})}
       description={description}
       expansion={
-        hasReviewPanel ? (
+        <>
+          {hasReviewPanel ? (
+            <ExpansionPanel
+              id={panelId}
+              isOpen={panelOpen}
+              onClose={closePanel}
+              title={`Разобрать строку ${item.rowIndex}`}
+            >
+              <ClassificationPanel
+                categories={categories}
+                csrfToken={csrfToken}
+                documentId={documentId}
+                item={item}
+                onCancel={closePanel}
+                onCategoryCreated={onCategoryCreated}
+                onReviewReconciled={onReviewReconciled}
+                properties={properties}
+                readonly={readonly}
+              />
+            </ExpansionPanel>
+          ) : null}
           <ExpansionPanel
-            id={panelId}
-            isOpen={panelOpen}
-            onClose={closePanel}
-            title={`Разобрать строку ${item.rowIndex}`}
+            id={sourcePanelId}
+            isOpen={sourceOpen}
+            onClose={closeSourcePanel}
+            title={`Исходные данные строки ${item.rowIndex}`}
           >
-            <ClassificationPanel
-              categories={categories}
-              csrfToken={csrfToken}
-              documentId={documentId}
-              item={item}
-              onCategoryCreated={onCategoryCreated}
-              onReviewReconciled={onReviewReconciled}
-              properties={properties}
-              readonly={readonly}
-            />
             <SourceSummary currency={currency} item={item} />
           </ExpansionPanel>
-        ) : undefined
+        </>
       }
       financialHierarchy
       id={`raw-${item.id}`}
@@ -232,7 +273,9 @@ export function ReviewItem({
             ))
           : undefined
       }
-      state={panelOpen ? "working" : "default"}
+      state={
+        (hasReviewPanel && panelOpen) || sourceOpen ? "working" : "default"
+      }
       tabIndex={-1}
       value={
         amount !== null ? (
@@ -245,6 +288,7 @@ export function ReviewItem({
           <span className={styles.missingMoney}>Сумма не распознана</span>
         )
       }
+      workflowState={rowWorkflowState(item, problems)}
     />
   );
 }
@@ -457,22 +501,21 @@ function SourceSummary({
 }) {
   const normalizedChanged = hasNormalizedChanges(item);
   return (
-    <div className={styles.sourceSummary}>
-      <span>Строка {item.rowIndex}</span>
-      {item.normalized.balanceAfter ? (
+    <>
+      <div className={styles.sourceSummary}>
+        <span>Строка {item.rowIndex}</span>
+        {item.normalized.balanceAfter ? (
+          <span>
+            Остаток после строки:{" "}
+            {formatPlainMoney(item.normalized.balanceAfter)} {currency}
+          </span>
+        ) : null}
         <span>
-          Остаток после строки: {formatPlainMoney(item.normalized.balanceAfter)}{" "}
-          {currency}
+          {normalizedChanged ? "Данные нормализованы" : "Без нормализации"}
         </span>
-      ) : null}
-      <details className={styles.sourceDetails}>
-        <summary>
-          Сверить с исходной строкой
-          {normalizedChanged ? " · данные нормализованы" : ""}
-        </summary>
-        <SourceComparison item={item} compact />
-      </details>
-    </div>
+      </div>
+      <SourceComparison item={item} compact />
+    </>
   );
 }
 
@@ -670,6 +713,25 @@ function formatPlainMoney(value: string): string {
 
 function formatOutcomeAmount(value: string): string {
   return formatReviewAmount(value, null).replace(/^[+−-]/, "");
+}
+
+function rowWorkflowState(
+  item: ReviewItemDto,
+  problems: RowProblem[],
+): "default" | "problem" | "review" | "settled" | "suggestion" {
+  if (problems.length > 0 || item.status === "failed") return "problem";
+  if (item.status === "confirmed") return "settled";
+  if (item.ruleSuggestion.isActive || item.status === "suggested") {
+    return "suggestion";
+  }
+  if (
+    item.isReviewable ||
+    item.status === "needs_review" ||
+    item.status === "possible_duplicate"
+  ) {
+    return "review";
+  }
+  return "default";
 }
 
 function primaryLifecycleActions(item: ReviewItemDto): LifecycleAction[] {

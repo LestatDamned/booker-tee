@@ -20,6 +20,7 @@ type ClassificationPanelProps = {
   csrfToken: string;
   documentId: string;
   item: ImportReviewDto["items"][number];
+  onCancel: () => void;
   onCategoryCreated: (category: ImportReviewCategoryReferenceDto) => void;
   onReviewReconciled: (review: ImportReviewDto) => void;
   properties: ImportReviewDto["references"]["properties"];
@@ -31,6 +32,7 @@ export function ClassificationPanel({
   csrfToken,
   documentId,
   item,
+  onCancel,
   onCategoryCreated,
   onReviewReconciled,
   properties,
@@ -53,6 +55,7 @@ export function ClassificationPanel({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
+  const [editorResetVersion, setEditorResetVersion] = useState(0);
   const [mode, setMode] = useState<ReviewMode>(
     item.classification.operationType === "transfer" ? "transfer" : "ordinary",
   );
@@ -65,6 +68,7 @@ export function ClassificationPanel({
   const propertyRef = useRef<HTMLSelectElement>(null);
   const categoryNameRef = useRef<HTMLInputElement>(null);
   const evaluationRequestId = useRef(0);
+  const categoryRequestId = useRef(0);
 
   function updateDraft(next: ImportReviewDraftEvaluationRequest) {
     setDraft(next);
@@ -105,6 +109,7 @@ export function ClassificationPanel({
 
   async function handleCreateCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const requestId = ++categoryRequestId.current;
     setPending(true);
     setError(null);
     setFieldErrors({});
@@ -114,6 +119,7 @@ export function ClassificationPanel({
       { name: categoryName, kind: categoryKind },
       csrfToken,
     );
+    if (requestId !== categoryRequestId.current) return;
     setPending(false);
     if (result.status === "success") {
       onCategoryCreated(result.data);
@@ -142,6 +148,28 @@ export function ClassificationPanel({
     }
   }
 
+  function cancelChanges() {
+    evaluationRequestId.current += 1;
+    categoryRequestId.current += 1;
+    setDraft(serverDraft(item));
+    setEvaluation(serverEvaluation(item));
+    setDirty(false);
+    setPending(false);
+    setError(null);
+    setFieldErrors({});
+    setCategoryEditorOpen(false);
+    setCategoryName("");
+    setCategoryKind(defaultCategoryKind(item.classification.operationType));
+    setMode(
+      item.classification.operationType === "transfer"
+        ? "transfer"
+        : "ordinary",
+    );
+    setTransferSelection("");
+    setEditorResetVersion((version) => version + 1);
+    onCancel();
+  }
+
   return (
     <div className={styles.classificationPanelBody}>
       {readonly ? (
@@ -151,9 +179,11 @@ export function ClassificationPanel({
           <OperationModeSwitch item={item} mode={mode} onChange={changeMode} />
           {mode === "transfer" ? (
             <TransferPanel
+              key={editorResetVersion}
               csrfToken={csrfToken}
               documentId={documentId}
               item={item}
+              onCancel={cancelChanges}
               onReviewReconciled={onReviewReconciled}
               onSelectionChange={setTransferSelection}
               selection={transferSelection}
@@ -166,19 +196,13 @@ export function ClassificationPanel({
                 draft={draft}
                 fieldErrors={fieldErrors}
                 itemId={item.id}
+                onCreateCategory={() => setCategoryEditorOpen((open) => !open)}
+                categoryEditorOpen={categoryEditorOpen}
+                pending={pending}
                 properties={properties}
                 propertyRef={propertyRef}
                 updateDraft={updateDraft}
               />
-              <div className={styles.secondaryReviewActions}>
-                <Button
-                  aria-expanded={categoryEditorOpen}
-                  disabled={pending}
-                  onClick={() => setCategoryEditorOpen((open) => !open)}
-                >
-                  Создать категорию
-                </Button>
-              </div>
               {categoryEditorOpen ? (
                 <CategoryEditor
                   categoryKind={categoryKind}
@@ -192,6 +216,13 @@ export function ClassificationPanel({
                   pending={pending}
                 />
               ) : null}
+              <OrdinaryOutcome
+                categories={categories}
+                dirty={dirty}
+                evaluation={evaluation}
+                pending={pending}
+                properties={properties}
+              />
             </>
           )}
         </>
@@ -210,11 +241,18 @@ export function ClassificationPanel({
       ) : null}
       {!readonly && mode === "ordinary" ? (
         <ConfirmPostingAction
+          categoryName={
+            categories.find(
+              (category) => category.id === evaluation.selection.categoryId,
+            )?.name ?? "Выбранная категория"
+          }
           csrfToken={csrfToken}
           dirty={dirty}
           documentId={documentId}
           evaluation={evaluation}
           item={item}
+          key={editorResetVersion}
+          onCancel={cancelChanges}
           onReviewReconciled={onReviewReconciled}
         />
       ) : null}
@@ -260,10 +298,13 @@ function OperationModeSwitch({
 
 type DraftFieldsProps = {
   categories: ClassificationPanelProps["categories"];
+  categoryEditorOpen: boolean;
   categoryRef: RefObject<HTMLSelectElement | null>;
   draft: ImportReviewDraftEvaluationRequest;
   fieldErrors: Record<string, string[]>;
   itemId: string;
+  onCreateCategory: () => void;
+  pending: boolean;
   properties: ClassificationPanelProps["properties"];
   propertyRef: RefObject<HTMLSelectElement | null>;
   updateDraft: (draft: ImportReviewDraftEvaluationRequest) => void;
@@ -271,10 +312,13 @@ type DraftFieldsProps = {
 
 function DraftFields({
   categories,
+  categoryEditorOpen,
   categoryRef,
   draft,
   fieldErrors,
   itemId,
+  onCreateCategory,
+  pending,
   properties,
   propertyRef,
   updateDraft,
@@ -288,12 +332,25 @@ function DraftFields({
 
   return (
     <div className={styles.draftFields}>
-      <label>
-        Категория
+      <div className={styles.editorField}>
+        <div className={styles.editorFieldHeader}>
+          <label htmlFor={`category-${itemId}`}>Категория</label>
+          <Button
+            aria-controls={`category-editor-${itemId}`}
+            aria-expanded={categoryEditorOpen}
+            className={styles.editorFieldAction ?? ""}
+            disabled={pending}
+            onClick={onCreateCategory}
+            tone="ghost"
+          >
+            Создать категорию
+          </Button>
+        </div>
         <select
           aria-describedby={
             fieldErrors.categoryId ? `category-error-${itemId}` : undefined
           }
+          id={`category-${itemId}`}
           onChange={(event) =>
             updateDraft({ ...draft, categoryId: event.target.value || null })
           }
@@ -311,13 +368,14 @@ function DraftFields({
           errors={fieldErrors.categoryId}
           id={`category-error-${itemId}`}
         />
-      </label>
-      <label>
-        Объект
+      </div>
+      <div className={styles.editorField}>
+        <label htmlFor={`property-${itemId}`}>Объект</label>
         <select
           aria-describedby={
             fieldErrors.propertyId ? `property-error-${itemId}` : undefined
           }
+          id={`property-${itemId}`}
           onChange={(event) =>
             updateDraft({ ...draft, propertyId: event.target.value || null })
           }
@@ -335,7 +393,7 @@ function DraftFields({
           errors={fieldErrors.propertyId}
           id={`property-error-${itemId}`}
         />
-      </label>
+      </div>
     </div>
   );
 }
@@ -364,7 +422,11 @@ function CategoryEditor({
   pending,
 }: CategoryEditorProps) {
   return (
-    <form className={styles.categoryEditor} onSubmit={onSubmit}>
+    <form
+      className={styles.categoryEditor}
+      id={`category-editor-${itemId}`}
+      onSubmit={onSubmit}
+    >
       <label>
         Название категории
         <input
@@ -423,11 +485,7 @@ function DraftCapability({
     );
   }
   if (evaluation.confirmability.canConfirm) {
-    return (
-      <p className={styles.draftReady}>
-        Проверки выбора пройдены. Операцию можно подтвердить и провести.
-      </p>
-    );
+    return null;
   }
   return (
     <div className={styles.draftStatus}>
@@ -437,6 +495,48 @@ function DraftCapability({
           <li key={reason}>{blockingReasonLabel(reason)}</li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function OrdinaryOutcome({
+  categories,
+  dirty,
+  evaluation,
+  pending,
+  properties,
+}: {
+  categories: ClassificationPanelProps["categories"];
+  dirty: boolean;
+  evaluation: ImportReviewDraftEvaluationDto;
+  pending: boolean;
+  properties: ClassificationPanelProps["properties"];
+}) {
+  if (dirty) {
+    return pending ? (
+      <p className={styles.editorOutcomePending}>Обновляем итог…</p>
+    ) : null;
+  }
+  const operationType = evaluation.classification.operationType;
+  const category = categories.find(
+    (candidate) => candidate.id === evaluation.selection.categoryId,
+  );
+  const property = properties.find(
+    (candidate) => candidate.id === evaluation.selection.propertyId,
+  );
+
+  return (
+    <div className={styles.editorOutcome} aria-label="Итог операции">
+      <span>Итог:</span>
+      <strong>
+        {operationType === "income"
+          ? "Доход"
+          : operationType === "expense"
+            ? "Расход"
+            : "Тип не выбран"}
+        {category ? ` — ${category.name}` : " — категория не выбрана"}
+      </strong>
+      <small>{property ? `, объект: ${property.name}` : ", без объекта"}</small>
     </div>
   );
 }
@@ -474,6 +574,28 @@ function ordinaryOperationType(
     return item.classification.operationType;
   }
   return item.transfer.ordinaryOperationType;
+}
+
+function serverDraft(
+  item: ClassificationPanelProps["item"],
+): ImportReviewDraftEvaluationRequest {
+  return {
+    operationType: ordinaryOperationType(item),
+    categoryId: item.selection.categoryId,
+    propertyId: item.selection.propertyId,
+  };
+}
+
+function serverEvaluation(
+  item: ClassificationPanelProps["item"],
+): ImportReviewDraftEvaluationDto {
+  return {
+    itemId: item.id,
+    classification: item.classification,
+    selection: item.selection,
+    confirmability: item.confirmability,
+    ruleSuggestion: item.ruleSuggestion,
+  };
 }
 
 function ordinaryOperationLabel(

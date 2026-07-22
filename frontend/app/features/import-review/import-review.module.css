@@ -261,13 +261,6 @@
   margin-top: var(--space-3);
 }
 
-.sourceDetails > summary {
-  width: fit-content;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  font-weight: 700;
-}
-
 .flowComparisons {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -540,10 +533,6 @@
   font-size: var(--font-size-sm);
 }
 
-.sourceDetails {
-  flex-basis: 100%;
-}
-
 .decisionComparison {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -713,11 +702,8 @@
 
 .classificationPanelBody {
   display: grid;
-  gap: var(--space-4);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-bg-elevated) 72%, transparent);
-  padding: var(--space-4);
+  gap: var(--space-3);
+  width: min(100%, 58rem);
 }
 
 .classificationPanelBody p {
@@ -748,7 +734,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-1);
-  max-width: 28rem;
+  max-width: 24rem;
   border: 1px solid var(--color-border-control);
   border-radius: var(--radius-sm);
   background: var(--color-bg-canvas);
@@ -772,13 +758,13 @@
 }
 
 .operationModeSwitch label[data-tone="income"]:has(input:checked) {
-  background: color-mix(in srgb, var(--color-status-success) 14%, transparent);
+  background: color-mix(in srgb, var(--color-status-success) 7%, transparent);
   box-shadow: inset 0 0 0 1px var(--color-status-success);
   color: var(--color-status-success);
 }
 
 .operationModeSwitch label[data-tone="expense"]:has(input:checked) {
-  background: color-mix(in srgb, var(--color-status-danger) 14%, transparent);
+  background: color-mix(in srgb, var(--color-status-danger) 7%, transparent);
   box-shadow: inset 0 0 0 1px var(--color-status-danger);
   color: var(--color-status-danger);
 }
@@ -790,7 +776,7 @@
 }
 
 .operationModeSwitch label[data-tone="transfer"]:has(input:checked) {
-  background: color-mix(in srgb, var(--color-money-transfer) 14%, transparent);
+  background: color-mix(in srgb, var(--color-money-transfer) 7%, transparent);
   box-shadow: inset 0 0 0 1px var(--color-money-transfer);
   color: var(--color-money-transfer);
 }
@@ -818,13 +804,25 @@
   gap: var(--space-3);
 }
 
-.draftFields label,
+.editorField,
 .categoryEditor label {
   display: grid;
   gap: var(--space-2);
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 700;
+}
+
+.editorFieldHeader {
+  display: flex;
+  min-height: var(--control-height);
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-2);
+}
+
+.editorFieldAction {
+  padding-inline: var(--space-2);
 }
 
 .draftFields select,
@@ -841,19 +839,15 @@
 }
 
 .draftActions,
-.secondaryReviewActions {
+.editorActions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-.secondaryReviewActions {
-  padding-top: var(--space-1);
-}
-
 .categoryEditor {
   border-top: 1px solid var(--color-border-default);
-  padding-top: var(--space-4);
+  padding-top: var(--space-3);
 }
 
 .categoryEditor > button {
@@ -883,18 +877,13 @@
   padding: var(--space-2) var(--space-3);
 }
 
-.transferPanel > button {
-  justify-self: start;
-}
-
 .transferPreview {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-2);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-surface);
-  padding: var(--space-3);
+  border-inline-start: 0.2rem solid var(--color-money-transfer);
+  padding: var(--space-2) var(--space-3);
 }
 
 .transferPreview span {
@@ -916,7 +905,7 @@
 .postingBox {
   display: grid;
   justify-items: start;
-  gap: var(--space-3);
+  gap: var(--space-2);
   margin-block: 0;
   padding: 0;
   border: 0;
@@ -932,17 +921,78 @@
 }
 
 .postingBox > label:not(.rememberRule),
-.rulePatternField,
-.rulePatternField > label {
+.ruleDefinition > label {
   display: grid;
   gap: var(--space-2);
-  width: min(100%, 32rem);
+}
+
+.rulePatternField {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.9fr);
+  gap: var(--space-4);
+  width: 100%;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-bg-canvas) 55%, transparent);
+  padding: var(--space-3);
+}
+
+.ruleDefinition {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.rulePatternField input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  padding: var(--space-2) var(--space-3);
 }
 
 .rulePatternHelp {
   color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.rulePatternLabel {
+  color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.ruleSourceDescription,
+.rulePreview {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.ruleSourceDescription span,
+.ruleSourceDescription small,
+.rulePreview span,
+.rulePreview small {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.ruleSourceDescription p {
+  max-height: 6.5rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
   line-height: 1.5;
+  user-select: text;
+}
+
+.rulePreview strong {
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-sm);
 }
 
 .rememberRule {
@@ -966,7 +1016,6 @@
 }
 
 .draftStatus,
-.draftReady,
 .draftError {
   border-radius: var(--radius-sm);
   padding: var(--space-3);
@@ -982,14 +1031,28 @@
   padding-inline-start: var(--space-5);
 }
 
-.draftReady {
-  border-inline-start: 0.2rem solid var(--color-status-success);
-  background: color-mix(in srgb, var(--color-status-success) 10%, transparent);
-}
-
 .draftError,
 .fieldError {
   color: var(--color-status-danger);
+}
+
+.editorOutcome,
+.editorOutcomePending {
+  margin: 0;
+  padding-block: var(--space-1);
+}
+
+.editorOutcome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.editorOutcome span,
+.editorOutcome small,
+.editorOutcomePending {
+  color: var(--color-text-secondary);
 }
 
 .draftError {
@@ -1027,6 +1090,10 @@
 
   .sourceComparisonGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rulePatternField {
+    grid-template-columns: 1fr;
   }
 
   .queueToolbar {

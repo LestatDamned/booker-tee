@@ -1705,7 +1705,15 @@ def assert_react_import_review(page: Page) -> list[str]:
 
     more_actions = salary_item.get_by_text("Ещё действия", exact=True)
     if more_actions.count() > 0:
-        more_actions.click()
+        more_actions.focus()
+        more_actions.press("Enter")
+        if not more_actions.locator("xpath=ancestor::details[1]").evaluate(
+            "element => element.open"
+        ):
+            errors.append("React import review more-actions disclosure is not keyboard operable")
+    source_action = salary_item.get_by_role("button", name="Исходные данные")
+    if source_action.count() == 0:
+        errors.append("React import review technical source action was not found")
     ignore_action = salary_item.get_by_role("button", name="Игнорировать")
     if ignore_action.count() == 0:
         errors.append("React import review lifecycle action was not found")
@@ -1717,7 +1725,7 @@ def assert_react_import_review(page: Page) -> list[str]:
         )
         if confirmation.count() == 0:
             errors.append("React import review danger confirmation was not shown")
-        cancel_action = salary_item.get_by_role("button", name="Отмена")
+        cancel_action = salary_item.locator("button:focus").filter(has_text="Отмена")
         if cancel_action.count() == 0:
             errors.append("React import review danger confirmation cannot be cancelled")
         else:
@@ -1738,15 +1746,33 @@ def assert_react_import_review(page: Page) -> list[str]:
         except PlaywrightError:
             errors.append("React import review confirm action was not found")
         else:
-            if panel.get_by_label("Создать правило для похожих строк").count() == 0:
+            remember_rule = panel.get_by_label("Применять это решение к похожим строкам")
+            if remember_rule.count() == 0:
                 errors.append("React import review remember-rule control was not found")
+            else:
+                remember_rule.click()
+                rule_pattern = panel.get_by_label("Фрагмент описания *")
+                if rule_pattern.count() == 0:
+                    errors.append("React import review manual rule pattern field was not found")
+                else:
+                    if rule_pattern.input_value() != "":
+                        errors.append("React import review rule pattern was filled automatically")
+                    rule_pattern.fill("Зарплата")
+                    rule_preview = panel.get_by_label("Итог правила")
+                    if rule_preview.count() == 0 or "Зарплата" not in rule_preview.inner_text():
+                        errors.append("React import review rule preview was not updated")
             confirm_action.click()
             try:
-                page.get_by_role("heading", name="Зарплата", exact=True).locator(
-                    "xpath=ancestor::article[1]"
-                ).get_by_role("button", name="Отменить проведение").wait_for(
+                confirmed_salary_item = page.get_by_role(
+                    "heading", name="Зарплата", exact=True
+                ).locator("xpath=ancestor::article[1]")
+                confirmed_salary_item.get_by_text("Ещё действия", exact=True).click(
                     timeout=PAGE_TIMEOUT_MS
                 )
+                confirmed_salary_item.get_by_role("button", name="Отменить проведение").wait_for(
+                    timeout=PAGE_TIMEOUT_MS
+                )
+                confirmed_salary_item.get_by_text("Ещё действия", exact=True).click()
             except PlaywrightError:
                 errors.append("React import review did not expose undo after confirm")
 
@@ -1766,6 +1792,23 @@ def assert_react_import_review(page: Page) -> list[str]:
             errors.append("React import review transfer matching field was not found")
         if transfer_panel.get_by_role("button", name="Провести перевод").count() == 0:
             errors.append("React import review transfer action was not found")
+        transfer_panel_toggle.click()
+
+    rule_item = page.get_by_role("heading", name="OZON Маркетплейс", exact=True).locator(
+        "xpath=ancestor::article[1]"
+    )
+    if rule_item.count() == 0:
+        errors.append("React import review rule-preview row was not found")
+    else:
+        rule_item.get_by_role(
+            "button",
+            name=re.compile(r"Проверить предложение|Проверить и провести|Изменить"),
+        ).first.click()
+        rule_panel = rule_item.locator("section[id^='review-panel-']")
+        rule_panel.get_by_label("Применять это решение к похожим строкам").click()
+        rule_panel.get_by_label("Фрагмент описания *").fill("OZON")
+        if "OZON" not in rule_panel.get_by_label("Итог правила").inner_text():
+            errors.append("React import review final rule preview is not visible")
 
     if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
         errors.append("React import review draft panel causes horizontal overflow")

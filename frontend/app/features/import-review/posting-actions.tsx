@@ -13,19 +13,25 @@ import {
 import styles from "./import-review.module.css";
 
 type PostingActionProps = {
+  categoryName?: string;
   csrfToken: string;
   documentId: string;
   item: ImportReviewDto["items"][number];
+  onCancel?: () => void;
+  onMenuDismiss?: () => void;
   onReviewReconciled: (review: ImportReviewDto) => void;
   readonly?: boolean;
 };
 
 export function ConfirmPostingAction({
+  categoryName = "Выбранная категория",
   csrfToken,
   dirty,
   documentId,
   evaluation,
   item,
+  onCancel,
+  onMenuDismiss,
   onReviewReconciled,
   variant = "panel",
 }: PostingActionProps & {
@@ -35,6 +41,7 @@ export function ConfirmPostingAction({
 }) {
   const [rememberRule, setRememberRule] = useState(false);
   const [rulePattern, setRulePattern] = useState("");
+  const [rulePatternError, setRulePatternError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [conflict, setConflict] = useState(false);
@@ -60,7 +67,11 @@ export function ConfirmPostingAction({
     (operationType !== "income" && operationType !== "expense") ||
     categoryId === null
   ) {
-    return null;
+    return variant === "panel" && onCancel ? (
+      <div className={styles.editorActions}>
+        <Button onClick={onCancel}>Отмена</Button>
+      </div>
+    ) : null;
   }
   const confirmedOperationType = operationType;
   const confirmedCategoryId = categoryId;
@@ -68,12 +79,16 @@ export function ConfirmPostingAction({
   async function confirm() {
     const cleanedRulePattern = rulePattern.trim();
     if (rememberRule && !cleanedRulePattern) {
-      setError("Укажите текст, по которому определять похожие строки.");
+      setRulePatternError(
+        "Вставьте фрагмент описания, по которому применять правило.",
+      );
+      setError(null);
       queueMicrotask(() => rulePatternRef.current?.focus());
       return;
     }
     setPending(true);
     setError(null);
+    setRulePatternError(null);
     setConflict(false);
     const result = await confirmImportReviewItem(
       documentId,
@@ -91,6 +106,7 @@ export function ConfirmPostingAction({
     );
     setPending(false);
     if (result.status === "success") {
+      onMenuDismiss?.();
       const review = result.data.reviews.find(
         (candidate) => candidate.document.id === documentId,
       );
@@ -101,6 +117,14 @@ export function ConfirmPostingAction({
       return;
     }
     if (result.status === "conflict") setConflict(true);
+    if (
+      result.status === "validation_error" &&
+      result.fieldErrors.rulePattern?.length
+    ) {
+      setRulePatternError(result.fieldErrors.rulePattern.join(" "));
+      queueMicrotask(() => rulePatternRef.current?.focus());
+      return;
+    }
     setError(postingError(result));
   }
 
@@ -143,45 +167,86 @@ export function ConfirmPostingAction({
         <input
           checked={rememberRule}
           disabled={pending}
-          onChange={(event) => setRememberRule(event.target.checked)}
+          onChange={(event) => {
+            setRememberRule(event.target.checked);
+            setRulePatternError(null);
+            setError(null);
+          }}
           type="checkbox"
         />
-        Создать правило для похожих строк
+        Применять это решение к похожим строкам
       </label>
       {rememberRule ? (
         <div className={styles.rulePatternField}>
-          <label>
-            Текст для определения <span aria-hidden="true">*</span>
-            <input
-              aria-describedby={`rule-pattern-help-${item.id}`}
-              disabled={pending}
-              onChange={(event) => setRulePattern(event.target.value)}
-              placeholder="Например, КРАСНОЕ&БЕЛОЕ"
-              ref={rulePatternRef}
-              required
-              value={rulePattern}
-            />
-          </label>
-          <p
-            className={styles.rulePatternHelp}
-            id={`rule-pattern-help-${item.id}`}
-          >
-            Введите устойчивый фрагмент самостоятельно. Описание из выписки: «
-            {item.normalized.description ??
-              item.raw.description ??
-              "без описания"}
-            ».
-          </p>
+          <div className={styles.ruleSourceDescription}>
+            <span>Исходное описание</span>
+            <p>
+              {item.raw.description ??
+                item.normalized.description ??
+                "Без описания"}
+            </p>
+          </div>
+          <div className={styles.ruleDefinition}>
+            <label>
+              <span className={styles.rulePatternLabel}>
+                Фрагмент описания <span aria-hidden="true">*</span>
+              </span>
+              <input
+                aria-describedby={`${`rule-pattern-help-${item.id}`} ${
+                  rulePatternError ? `rule-pattern-error-${item.id}` : ""
+                }`.trim()}
+                aria-invalid={rulePatternError ? true : undefined}
+                autoComplete="off"
+                disabled={pending}
+                maxLength={255}
+                onChange={(event) => {
+                  setRulePattern(event.target.value);
+                  setRulePatternError(null);
+                  setError(null);
+                }}
+                placeholder="Например, KRASNOE&BELOE"
+                ref={rulePatternRef}
+                required
+                value={rulePattern}
+              />
+            </label>
+            <p
+              className={styles.rulePatternHelp}
+              id={`rule-pattern-help-${item.id}`}
+            >
+              Скопируйте устойчивую часть без даты, суммы и реквизитов.
+            </p>
+            {rulePatternError ? (
+              <p
+                className={styles.fieldError}
+                id={`rule-pattern-error-${item.id}`}
+                role="alert"
+              >
+                {rulePatternError}
+              </p>
+            ) : null}
+            <div className={styles.rulePreview} aria-label="Итог правила">
+              <span>Правило:</span>
+              <strong>
+                Если описание содержит «{rulePattern.trim() || "…"}» → категория
+                «{categoryName}»
+              </strong>
+              <small>Только предложит категорию — без автопроведения.</small>
+            </div>
+          </div>
         </div>
       ) : null}
-      <Button
-        disabled={pending || refreshing}
-        isLoading={pending}
-        onClick={() => void confirm()}
-        tone="primary"
-      >
-        Подтвердить и провести
-      </Button>
+      <div className={styles.editorActions}>
+        <Button
+          disabled={pending || refreshing}
+          isLoading={pending}
+          onClick={() => void confirm()}
+          tone="primary"
+        >
+          Подтвердить и провести
+        </Button>
+        {onCancel ? <Button onClick={onCancel}>Отмена</Button> : null}
+      </div>
       <PostingError error={error} ref={alertRef} />
       {conflict ? (
         <Button
@@ -200,6 +265,7 @@ export function UndoPostingAction({
   csrfToken,
   documentId,
   item,
+  onMenuDismiss,
   onReviewReconciled,
   readonly = false,
 }: PostingActionProps) {
@@ -233,6 +299,7 @@ export function UndoPostingAction({
     setPending(false);
     setConfirming(false);
     if (result.status === "success") {
+      onMenuDismiss?.();
       const review = result.data.reviews.find(
         (candidate) => candidate.document.id === documentId,
       );
@@ -252,7 +319,13 @@ export function UndoPostingAction({
         <div className={styles.lifecycleConfirmation} role="group">
           <p>Отменить проведение и вернуть строку в очередь проверки?</p>
           <div>
-            <Button onClick={() => setConfirming(false)} ref={cancelRef}>
+            <Button
+              onClick={() => {
+                setConfirming(false);
+                onMenuDismiss?.();
+              }}
+              ref={cancelRef}
+            >
               Оставить проведённой
             </Button>
             <Button
