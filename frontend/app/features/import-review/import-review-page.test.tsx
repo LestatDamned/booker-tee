@@ -34,6 +34,94 @@ describe("import review page", () => {
     expect(screen.getByText("Проверено как уникальное")).toBeInTheDocument();
   });
 
+  it("opens the unresolved queue first and preserves filter counts and pressed state", async () => {
+    const user = userEvent.setup();
+    const review = importReviewPayload();
+    const remainingItem = review.items.find(
+      (item) => item.id === remainingItemId,
+    );
+    if (!remainingItem) throw new Error("remaining fixture item is required");
+    remainingItem.ruleSuggestion.isActive = true;
+    renderPage(review);
+
+    const pending = screen.getByRole("button", {
+      name: "Требуют решения 1",
+    });
+    const suggestions = screen.getByRole("button", {
+      name: "Предложения 1",
+    });
+    const problems = screen.getByRole("button", { name: "Проблемы 1" });
+    const complete = screen.getByRole("button", { name: "Завершённые 1" });
+    const all = screen.getByRole("button", { name: "Все строки 2" });
+
+    expect(pending).toHaveAttribute("aria-pressed", "true");
+    expect(all).toHaveAttribute("aria-pressed", "false");
+    expect(document.getElementById(`raw-${remainingItemId}`)).not.toBeNull();
+    expect(document.getElementById(`raw-${completedItemId}`)).toBeNull();
+
+    for (const filter of [suggestions, problems, complete, all, pending]) {
+      await user.click(filter);
+      expect(filter).toHaveAttribute("aria-pressed", "true");
+    }
+
+    await user.click(complete);
+    expect(document.getElementById(`raw-${completedItemId}`)).not.toBeNull();
+    expect(document.getElementById(`raw-${remainingItemId}`)).toBeNull();
+    await user.click(all);
+    expect(document.getElementById(`raw-${completedItemId}`)).not.toBeNull();
+    expect(document.getElementById(`raw-${remainingItemId}`)).not.toBeNull();
+  });
+
+  it.each([
+    ["pending", "Требуют решения 0", "Нет строк, требующих решения"],
+    ["suggestions", "Предложения 0", "Нет предложений"],
+    ["problems", "Проблемы 0", "Нет проблемных строк"],
+    ["complete", "Завершённые 0", "Нет завершённых строк"],
+  ] as const)(
+    "shows focused empty copy for the %s filter",
+    async (filter, buttonName, emptyTitle) => {
+      const user = userEvent.setup();
+      const review = importReviewPayload();
+      if (filter === "pending") {
+        review.items = review.items.filter((item) => item.isTerminal);
+      }
+      if (filter === "problems" && review.validation) {
+        review.validation.rowProblems = [];
+      }
+      if (filter === "complete") {
+        review.items.forEach((item) => {
+          item.isTerminal = false;
+        });
+      }
+      renderPage(review);
+
+      const filterButton = screen.getByRole("button", { name: buttonName });
+      if (filter !== "pending") await user.click(filterButton);
+
+      expect(filterButton).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByText(emptyTitle)).toBeInTheDocument();
+    },
+  );
+
+  it("keeps internal row identity out of the ordinary review copy", async () => {
+    const user = userEvent.setup();
+    const review = importReviewPayload();
+    const item = review.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.rowIndex = 0;
+    renderPage(review);
+
+    expect(screen.queryByText("Разобрать строку 0")).not.toBeInTheDocument();
+    expect(screen.getByText("*1234")).not.toBeVisible();
+    expect(screen.getAllByText("Основной счёт")).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Выбрать категорию" }));
+    expect(
+      screen.getByRole("heading", { name: "Проверить операцию" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows raw source values from the secondary technical action", async () => {
     const user = userEvent.setup();
     renderPage(importReviewPayload());
@@ -53,7 +141,9 @@ describe("import review page", () => {
     ).toBeInTheDocument();
     expect(sourceAction).toHaveAttribute("aria-expanded", "true");
     expect(within(row).getByText("Данные нормализованы")).toBeInTheDocument();
-    expect(within(row).getAllByText("После парсера").length).toBeGreaterThan(0);
+    expect(within(row).getAllByText("После обработки").length).toBeGreaterThan(
+      0,
+    );
     expect(within(row).getByText("-1250,50")).toBeInTheDocument();
     expect(within(row).getByText("*1234")).toBeInTheDocument();
   });
@@ -80,7 +170,8 @@ describe("import review page", () => {
     expect(row).toHaveTextContent("10 050,50 RUB");
   });
 
-  it("explains unavailable totals without hiding raw rows", () => {
+  it("explains unavailable totals without hiding raw rows", async () => {
+    const user = userEvent.setup();
     const review = importReviewPayload();
     if (!review.validation) throw new Error("validation fixture is required");
     review.validation.status = "unavailable";
@@ -90,6 +181,8 @@ describe("import review page", () => {
     review.validation.rowProblems = [];
 
     renderPage(review);
+
+    await user.click(screen.getByRole("button", { name: "Все строки 2" }));
 
     expect(
       screen.getByRole("heading", {
@@ -124,7 +217,8 @@ describe("import review page", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows committed operation facts separately from a stale rule suggestion", () => {
+  it("shows committed operation facts separately from a stale rule suggestion", async () => {
+    const user = userEvent.setup();
     const review = importReviewPayload();
     const item = review.items[0];
     if (!item) throw new Error("completed fixture item is required");
@@ -142,6 +236,8 @@ describe("import review page", () => {
     };
 
     renderPage(review);
+
+    await user.click(screen.getByRole("button", { name: "Завершённые 1" }));
 
     const row = document.getElementById(`raw-${completedItemId}`);
     if (!row) throw new Error("completed row is required");
@@ -216,13 +312,16 @@ describe("import review page", () => {
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
-  it("shows the created operation outcome for a confirmed row", () => {
+  it("shows the created operation outcome for a confirmed row", async () => {
+    const user = userEvent.setup();
     const review = importReviewPayload();
     const item = review.items[0];
     if (!item) throw new Error("completed fixture item is required");
     item.selection.categoryId = expenseCategoryId;
 
     renderPage(review);
+
+    await user.click(screen.getByRole("button", { name: "Завершённые 1" }));
 
     const row = document.getElementById(`raw-${completedItemId}`);
     if (!row) throw new Error("completed row is required");
@@ -256,7 +355,8 @@ describe("import review page", () => {
     expect(outcome).toHaveAttribute("data-tone", "transfer");
   });
 
-  it("shows both persisted account names for a confirmed transfer", () => {
+  it("shows both persisted account names for a confirmed transfer", async () => {
+    const user = userEvent.setup();
     const review = importReviewPayload();
     const item = review.items[0];
     if (!item) throw new Error("completed fixture item is required");
@@ -269,6 +369,8 @@ describe("import review page", () => {
     };
 
     renderPage(review);
+
+    await user.click(screen.getByRole("button", { name: "Завершённые 1" }));
 
     const row = document.getElementById(`raw-${completedItemId}`);
     if (!row) throw new Error("completed row is required");
@@ -298,7 +400,7 @@ describe("import review page", () => {
       within(row).queryByRole("button", { name: "Подтвердить" }),
     ).not.toBeInTheDocument();
     expect(
-      within(row).queryByRole("button", { name: "Изменить" }),
+      within(row).queryByRole("button", { name: "Изменить операцию" }),
     ).not.toBeInTheDocument();
     expect(
       within(row).getByRole("button", { name: "Исходные данные" }),
@@ -366,7 +468,8 @@ describe("import review page", () => {
     ["matched", "problem", true],
   ] as const)(
     "gives a %s row the separate %s workflow treatment",
-    (status, workflowState, withProblem) => {
+    async (status, workflowState, withProblem) => {
+      const user = userEvent.setup();
       const review = importReviewPayload();
       const item = review.items[1];
       if (!item || !review.validation) {
@@ -379,6 +482,10 @@ describe("import review page", () => {
       if (!withProblem) review.validation.rowProblems = [];
 
       renderPage(review);
+
+      if (status === "confirmed") {
+        await user.click(screen.getByRole("button", { name: "Завершённые 2" }));
+      }
 
       expect(document.getElementById(`raw-${remainingItemId}`)).toHaveAttribute(
         "data-workflow-state",
@@ -424,7 +531,9 @@ describe("import review page", () => {
     expect(
       screen.getByRole("heading", { name: "Строк для проверки пока нет" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Сырых строк пока нет")).toBeInTheDocument();
+    expect(
+      screen.getByText("Операций для проверки пока нет"),
+    ).toBeInTheDocument();
   });
 
   it("renders a completed queue without a next-row link", () => {
@@ -563,7 +672,7 @@ describe("import review page", () => {
     renderPage(review);
 
     expect(
-      screen.getByRole("button", { name: "Изменить" }),
+      screen.getByRole("button", { name: "Изменить операцию" }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Подтвердить" }));
 
@@ -596,7 +705,7 @@ describe("import review page", () => {
     renderPage(review);
 
     await user.click(
-      screen.getByRole("button", { name: "Проверить и провести" }),
+      screen.getByRole("button", { name: "Проверить операцию" }),
     );
     await user.click(
       screen.getByLabelText("Применять это решение к похожим строкам"),
@@ -629,7 +738,7 @@ describe("import review page", () => {
     renderPage(review);
 
     await user.click(
-      screen.getByRole("button", { name: "Проверить и провести" }),
+      screen.getByRole("button", { name: "Проверить операцию" }),
     );
     await user.click(
       screen.getByLabelText("Применять это решение к похожим строкам"),
@@ -661,7 +770,7 @@ describe("import review page", () => {
     renderPage(review);
 
     const reviewButton = screen.getByRole("button", {
-      name: "Проверить и провести",
+      name: "Проверить операцию",
     });
     await user.click(reviewButton);
     const rememberRule = screen.getByLabelText(
@@ -768,7 +877,7 @@ describe("import review page", () => {
     renderPage(review);
 
     await user.click(
-      screen.getByRole("button", { name: "Проверить и провести" }),
+      screen.getByRole("button", { name: "Проверить операцию" }),
     );
 
     expect(
@@ -995,6 +1104,7 @@ describe("import review page", () => {
     expect(
       await screen.findByRole("heading", { name: "Все строки обработаны" }),
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Завершённые 2" }));
     expect(screen.getByText("Дубль")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/lifecycle"),
@@ -1046,6 +1156,10 @@ describe("import review page", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveFocus();
     await user.click(screen.getByRole("button", { name: "Обновить строку" }));
+    await user.click(screen.getByRole("button", { name: "Завершённые 2" }));
+    const refreshedRow = document.getElementById(`raw-${remainingItemId}`);
+    if (!refreshedRow) throw new Error("refreshed row is required");
+    await user.click(within(refreshedRow).getByText("Ещё действия"));
 
     expect(
       await screen.findByRole("button", { name: "Восстановить на проверку" }),
@@ -1125,6 +1239,8 @@ describe("import review page", () => {
     expect(
       await screen.findByRole("heading", { name: "Все строки обработаны" }),
     ).toBeInTheDocument();
+    expect(document.getElementById(`raw-${remainingItemId}`)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Завершённые 2" }));
     expect(document.getElementById(`raw-${remainingItemId}`)).toHaveAttribute(
       "data-state",
       "default",
@@ -1177,6 +1293,8 @@ describe("import review page", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     renderPage(importReviewPayload());
+
+    await user.click(screen.getByRole("button", { name: "Завершённые 1" }));
 
     await user.click(
       screen.getByRole("button", { name: "Отменить проведение" }),

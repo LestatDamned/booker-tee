@@ -24,6 +24,7 @@ type ReviewItemProps = {
   categories: ImportReviewDto["references"]["categories"];
   csrfToken: string;
   documentId: string;
+  documentSourceAccountName: string | null;
   item: ReviewItemDto;
   onCategoryCreated: (category: ImportReviewCategoryReferenceDto) => void;
   onReviewReconciled: (review: ImportReviewDto) => void;
@@ -36,6 +37,7 @@ export function ReviewItem({
   categories,
   csrfToken,
   documentId,
+  documentSourceAccountName,
   item,
   onCategoryCreated,
   onReviewReconciled,
@@ -191,7 +193,7 @@ export function ReviewItem({
             ref={reviewButtonRef}
             tone="secondary"
           >
-            Изменить
+            Изменить операцию
           </Button>
         ) : undefined
       }
@@ -219,7 +221,7 @@ export function ReviewItem({
               id={panelId}
               isOpen={panelOpen}
               onClose={closePanel}
-              title={`Разобрать строку ${item.rowIndex}`}
+              title="Проверить операцию"
             >
               <ClassificationPanel
                 categories={categories}
@@ -246,7 +248,11 @@ export function ReviewItem({
       }
       financialHierarchy
       id={`raw-${item.id}`}
-      details={item.sourceAccount?.name}
+      details={
+        item.sourceAccount?.name !== documentSourceAccountName
+          ? item.sourceAccount?.name
+          : undefined
+      }
       meta={
         <ReviewItemMeta
           categories={categories}
@@ -523,7 +529,7 @@ function rowReviewActionLabel(item: ReviewItemDto): string {
     return "Проверить перевод";
   }
   if (item.selection.categoryId === null) return "Выбрать категорию";
-  return "Проверить и провести";
+  return "Проверить операцию";
 }
 
 function RowProblemSignal({
@@ -633,7 +639,7 @@ function SourceValue({
           <dd>{raw ?? "—"}</dd>
         </div>
         <div>
-          <dt>После парсера</dt>
+          <dt>После обработки</dt>
           <dd>{normalized ?? "—"}</dd>
         </div>
       </dl>

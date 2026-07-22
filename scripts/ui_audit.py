@@ -1763,6 +1763,9 @@ def assert_react_import_review(page: Page) -> list[str]:
                         errors.append("React import review rule preview was not updated")
             confirm_action.click()
             try:
+                page.get_by_role("button", name=re.compile(r"^Завершённые \d+$")).click(
+                    timeout=PAGE_TIMEOUT_MS
+                )
                 confirmed_salary_item = page.get_by_role(
                     "heading", name="Зарплата", exact=True
                 ).locator("xpath=ancestor::article[1]")
@@ -1773,6 +1776,9 @@ def assert_react_import_review(page: Page) -> list[str]:
                     timeout=PAGE_TIMEOUT_MS
                 )
                 confirmed_salary_item.get_by_text("Ещё действия", exact=True).click()
+                page.get_by_role("button", name=re.compile(r"^Требуют решения \d+$")).click(
+                    timeout=PAGE_TIMEOUT_MS
+                )
             except PlaywrightError:
                 errors.append("React import review did not expose undo after confirm")
 

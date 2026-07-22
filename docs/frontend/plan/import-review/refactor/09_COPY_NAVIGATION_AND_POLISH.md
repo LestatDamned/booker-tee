@@ -216,10 +216,12 @@ focused tests, relevant checks и screenshot evidence. Новые plan-файл�
 
 ### 9A. Copy и рабочий фильтр
 
-- [ ] Открывать `Требуют решения` как основной рабочий filter.
-- [ ] Упростить labels, status, empty/error copy и убрать внутренний row index.
-- [ ] Сократить повторение source account и технических facts.
-- [ ] Сохранить counts и `aria-pressed` semantics.
+Статус slice: completed 2026-07-23.
+
+- [x] Открывать `Требуют решения` как основной рабочий filter.
+- [x] Упростить labels, status, empty/error copy и убрать внутренний row index.
+- [x] Сократить повторение source account и технических facts.
+- [x] Сохранить counts и `aria-pressed` semantics.
 
 ### 9B. Иерархия строки и outcome
 

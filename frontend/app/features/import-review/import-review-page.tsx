@@ -29,7 +29,7 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
   const [currentReview, setCurrentReview] = useState(review);
   const readonly = !currentReview.capabilities.canWrite;
   const [categories, setCategories] = useState(review.references.categories);
-  const [filter, setFilter] = useState<ReviewFilter>("all");
+  const [filter, setFilter] = useState<ReviewFilter>("pending");
   const visibleItems = filteredItems(currentReview, filter);
 
   function reconcileReview(nextReview: ImportReviewDto) {
@@ -92,9 +92,9 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
           ) : null}
           {currentReview.items.length === 0 ? (
             <RequestState
-              message="Вернитесь к документу и проверьте парсинг или настройку колонок."
+              message="Вернитесь к документу и проверьте результат распознавания."
               status="empty"
-              title="Сырых строк пока нет"
+              title="Операций для проверки пока нет"
             />
           ) : (
             <ol className={styles.items}>
@@ -103,6 +103,9 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
                   <ReviewItem
                     categories={categories}
                     documentId={currentReview.document.id}
+                    documentSourceAccountName={
+                      currentReview.document.sourceAccount?.name ?? null
+                    }
                     item={item}
                     onCategoryCreated={addCategory}
                     onReviewReconciled={reconcileReview}
@@ -120,9 +123,9 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
               {visibleItems.length === 0 ? (
                 <li className={styles.filterEmpty}>
                   <RequestState
-                    message="Выберите другой фильтр, чтобы увидеть остальные строки выписки."
+                    message={filterEmptyCopy[filter].message}
                     status="empty"
-                    title="В этом фильтре строк нет"
+                    title={filterEmptyCopy[filter].title}
                   />
                 </li>
               ) : null}
@@ -194,14 +197,8 @@ function ReviewFilters({
         value: "pending",
         count: review.items.filter((item) => !item.isTerminal).length,
       },
-      { label: "Все", value: "all", count: review.items.length },
       {
-        label: "Проведено",
-        value: "complete",
-        count: review.items.filter((item) => item.isTerminal).length,
-      },
-      {
-        label: "С предложениями",
+        label: "Предложения",
         value: "suggestions",
         count: review.items.filter((item) => item.ruleSuggestion.isActive)
           .length,
@@ -211,6 +208,12 @@ function ReviewFilters({
         value: "problems",
         count: review.items.filter((item) => problemIds.has(item.id)).length,
       },
+      {
+        label: "Завершённые",
+        value: "complete",
+        count: review.items.filter((item) => item.isTerminal).length,
+      },
+      { label: "Все строки", value: "all", count: review.items.length },
     ];
   return (
     <div
@@ -231,6 +234,33 @@ function ReviewFilters({
     </div>
   );
 }
+
+const filterEmptyCopy: Record<
+  ReviewFilter,
+  { message: string; title: string }
+> = {
+  pending: {
+    title: "Нет строк, требующих решения",
+    message: "Все строки обработаны. Завершённые операции доступны отдельно.",
+  },
+  suggestions: {
+    title: "Нет предложений",
+    message: "Правила пока не предложили решений для строк этой выписки.",
+  },
+  problems: {
+    title: "Нет проблемных строк",
+    message: "В строках выписки не найдено проблем сверки.",
+  },
+  complete: {
+    title: "Нет завершённых строк",
+    message:
+      "Проведённые, исключённые и отмеченные дублями строки появятся здесь.",
+  },
+  all: {
+    title: "В выписке нет строк",
+    message: "Вернитесь к документу и проверьте результат распознавания.",
+  },
+};
 
 function filteredItems(review: ImportReviewDto, filter: ReviewFilter) {
   if (filter === "pending")
@@ -254,11 +284,11 @@ function documentStatusLabel(
 ): string {
   return {
     uploaded: "загружен",
-    pending_parse: "ожидает парсинга",
+    pending_parse: "ожидает обработки",
     parsing: "обрабатывается",
     parsed: "распознан",
     requires_review: "нужна проверка",
-    failed_to_parse: "ошибка парсинга",
+    failed_to_parse: "не удалось обработать",
     imported: "импортирован",
     ignored: "игнорируется",
   }[status];
