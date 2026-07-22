@@ -2,33 +2,17 @@
   display: grid;
   width: 100%;
   max-width: var(--page-max-width);
-  gap: var(--space-5);
-  margin-block: var(--space-7);
+  gap: var(--space-4);
+  margin-block: var(--space-5);
   margin-inline: auto;
 }
 
-.header,
-.queue,
-.validation,
+.reviewSummary,
 .itemsRegion {
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
   box-shadow: var(--shadow-surface);
-}
-
-.reviewHeader {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: var(--space-6);
-  padding: var(--space-2) 0;
-}
-
-.reviewHeader h1 {
-  margin: 0;
-  font-size: clamp(1.6rem, 2.4vw, 2.15rem);
-  line-height: 1.1;
 }
 
 .documentContext,
@@ -38,34 +22,53 @@
 }
 
 .documentContext {
-  font-family: var(--font-family-mono);
   font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.documentContext strong {
+  color: var(--color-text-primary);
+  font-weight: 700;
 }
 
 .readonlyNotice {
   color: var(--color-status-warning);
 }
 
-.header {
-  padding: var(--space-5);
+.summaryHeader {
+  display: grid;
+  grid-template-columns: minmax(20rem, 1fr) minmax(28rem, 42rem);
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-5);
 }
 
-.filename {
-  margin: var(--space-3) 0 0;
-  color: var(--color-text-secondary);
-  font-family: var(--font-family-mono);
-  overflow-wrap: anywhere;
+.summaryIdentity {
+  min-width: 0;
+}
+
+.summaryIdentity h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2vw, 1.85rem);
+  line-height: 1.15;
+}
+
+.summaryBody {
+  display: grid;
+  grid-template-columns: minmax(17rem, 0.75fr) minmax(0, 2fr);
+  border-top: 1px solid var(--color-border-default);
 }
 
 .reviewTools {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-3);
-  margin-top: var(--space-4);
+  margin: 0;
+  width: 100%;
   border: 0;
-  border-top: 1px solid var(--color-border-default);
-  padding: var(--space-4) 0 0;
+  padding: 0;
 }
 
 .reviewToolLinks {
@@ -84,52 +87,43 @@
   flex-basis: 100%;
   margin: 0;
   color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  text-align: right;
 }
 
 .queue {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(10rem, 18rem) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-5);
-  padding: var(--space-4) var(--space-5);
+  gap: var(--space-2) var(--space-4);
+  border-inline-end: 1px solid var(--color-border-default);
+  padding: var(--space-3) var(--space-4);
 }
 
 .queue h2 {
   margin: 0;
+  font-size: var(--font-size-md);
 }
 
-.validation {
+.queueMetric {
   display: grid;
-  gap: 0;
-  padding: 0;
+  gap: var(--space-1);
 }
 
-.validation[data-status="mismatch"],
-.validation[data-status="needs_review"] {
-  box-shadow: var(--shadow-surface);
+.queueMetric p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
 }
 
-.validation h2,
-.validation p {
-  margin-block: 0;
+.queueMetric strong {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-lg);
+  font-variant-numeric: tabular-nums;
 }
 
-.validationHeader {
+.reconciliation {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-5);
-}
-
-.validationHeader > div:first-child {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.validationTitleRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
 }
 
 .reconciliationStatus {
@@ -139,16 +133,20 @@
   width: fit-content;
   border: 1px solid currentcolor;
   border-radius: var(--radius-pill);
-  color: var(--color-status-success);
   padding: var(--space-1) var(--space-3);
   font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
   font-weight: 700;
 }
 
+.reconciliationStatus h2 {
+  margin: 0;
+  font: inherit;
+}
+
 .reconciliationOverview {
   display: grid;
-  grid-template-columns: repeat(2, minmax(12rem, 1fr)) minmax(15rem, 0.8fr);
+  grid-template-columns: repeat(2, minmax(9rem, 0.7fr)) minmax(14rem, 1.25fr);
   align-items: stretch;
 }
 
@@ -156,9 +154,9 @@
 .reconciliationOutcome {
   display: grid;
   align-content: center;
-  gap: var(--space-2);
-  min-height: 6.5rem;
-  padding: var(--space-4) var(--space-5);
+  gap: var(--space-1);
+  min-height: 5rem;
+  padding: var(--space-3) var(--space-4);
 }
 
 .flowTotal + .flowTotal,
@@ -167,7 +165,7 @@
 }
 
 .flowTotal h3,
-.reconciliationOutcome h2 {
+.reconciliationOutcome p {
   margin: 0;
 }
 
@@ -181,10 +179,22 @@
   justify-items: start;
 }
 
-.reconciliationOutcome h2 {
+.reconciliationOutcome p {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   line-height: 1.4;
+}
+
+.reconciliation[data-tone="success"] .reconciliationStatus {
+  color: var(--color-status-success);
+}
+
+.reconciliation[data-tone="warning"] .reconciliationStatus {
+  color: var(--color-status-warning);
+}
+
+.reconciliation[data-tone="neutral"] .reconciliationStatus {
+  color: var(--color-text-secondary);
 }
 
 .reconciliationDetails {
@@ -209,15 +219,6 @@
   padding: var(--space-4) var(--space-5);
 }
 
-.validation[data-status="mismatch"] .reconciliationStatus,
-.validation[data-status="needs_review"] .reconciliationStatus {
-  color: var(--color-status-warning);
-}
-
-.validation[data-status="unavailable"] .reconciliationStatus {
-  color: var(--color-text-secondary);
-}
-
 .validationCounts {
   display: grid;
   grid-template-columns: repeat(3, minmax(5rem, 1fr));
@@ -239,8 +240,25 @@
 .validationCounts dd {
   margin: 0;
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: 700;
+}
+
+.technicalReconciliationDetails {
+  border-top: 1px solid var(--color-border-default);
+  padding-top: var(--space-3);
+}
+
+.technicalReconciliationDetails > summary {
+  width: fit-content;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.technicalReconciliationDetails .validationCounts {
+  margin-top: var(--space-3);
 }
 
 .sourceDetails > summary {
@@ -298,11 +316,6 @@
   font-size: var(--font-size-sm);
 }
 
-.queue h2 {
-  margin: 0;
-}
-
-.queueLabel,
 .sectionEyebrow {
   margin: 0 0 var(--space-1);
   color: var(--color-accent);
@@ -315,10 +328,8 @@
 
 .queueProgress {
   display: grid;
+  grid-column: 1 / -1;
   width: 100%;
-  gap: var(--space-2);
-  color: var(--color-text-secondary);
-  font-family: var(--font-family-mono);
 }
 
 .queueProgress progress {
@@ -327,8 +338,9 @@
 }
 
 .nextLink {
+  grid-column: 1 / -1;
   color: var(--color-accent);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: 700;
 }
 
@@ -861,12 +873,22 @@
 }
 
 @media (max-width: 57.5rem) {
-  .queue {
-    grid-template-columns: minmax(0, 1fr) minmax(10rem, 16rem);
+  .summaryHeader,
+  .summaryBody {
+    grid-template-columns: 1fr;
   }
 
-  .nextLink {
-    grid-column: 1 / -1;
+  .reviewTools {
+    justify-content: flex-start;
+  }
+
+  .ruleApplicationStatus {
+    text-align: left;
+  }
+
+  .queue {
+    border-bottom: 1px solid var(--color-border-default);
+    border-inline-end: 0;
   }
 
   .draftFields,
@@ -893,14 +915,18 @@
     margin-block: var(--space-5);
   }
 
-  .reviewHeader {
-    align-items: start;
+  .summaryHeader {
+    padding: var(--space-4);
+  }
+
+  .reviewTools,
+  .reviewToolLinks {
+    align-items: stretch;
     flex-direction: column;
   }
 
-  .queueProgress {
+  .reviewTools > button {
     width: 100%;
-    text-align: left;
   }
 
   .reconciliationOverview {
@@ -909,7 +935,7 @@
 
   .flowTotal,
   .reconciliationOutcome {
-    min-height: 5.5rem;
+    min-height: 4.5rem;
     padding: var(--space-3);
   }
 

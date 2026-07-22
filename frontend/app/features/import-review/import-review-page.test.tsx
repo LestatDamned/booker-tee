@@ -22,8 +22,13 @@ describe("import review page", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("progressbar")).toHaveAttribute("value", "1");
     expect(
-      screen.getByRole("link", { name: "К первой оставшейся строке" }),
+      screen.getByRole("link", { name: "Следующая нерешённая строка" }),
     ).toHaveAttribute("href", `#raw-${remainingItemId}`);
+    expect(
+      screen.getByRole("heading", { name: "Проверка выписки" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("statement.pdf")).toBeInTheDocument();
+    expect(screen.getByLabelText("Требуют решения")).toHaveTextContent("1");
     expect(document.getElementById(`raw-${remainingItemId}`)).not.toBeNull();
     expect(screen.getByText("Проверено как уникальное")).toBeInTheDocument();
   });
@@ -43,7 +48,7 @@ describe("import review page", () => {
     renderPage(importReviewPayload());
 
     expect(
-      screen.getByRole("heading", { name: "Нарушена цепочка остатков" }),
+      screen.getByRole("heading", { name: "Есть необъяснённая разница" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Поступления" }),
@@ -73,7 +78,9 @@ describe("import review page", () => {
     renderPage(review);
 
     expect(
-      screen.getByRole("heading", { name: "Контрольные итоги недоступны" }),
+      screen.getByRole("heading", {
+        name: "Недостаточно данных для сверки",
+      }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Сверить с исходной строкой/)).toHaveLength(1);
   });
@@ -90,10 +97,15 @@ describe("import review page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Разница объяснена исключёнными строками",
+        name: "Разница объяснена",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("50,50")).toBeInTheDocument();
+    expect(
+      screen.getByText("Исключено: 50,50 RUB из списаний."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Есть необъяснённая разница"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows committed operation facts separately from a stale rule suggestion", () => {
@@ -158,7 +170,7 @@ describe("import review page", () => {
       screen.getByRole("heading", { name: "Все строки обработаны" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "К первой оставшейся строке" }),
+      screen.queryByRole("link", { name: "Следующая нерешённая строка" }),
     ).not.toBeInTheDocument();
   });
 
@@ -171,7 +183,7 @@ describe("import review page", () => {
 
     renderPage(review);
 
-    expect(screen.getByText(/доступен только для чтения/)).toBeInTheDocument();
+    expect(screen.getByText(/только для чтения/)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Отменить проведение" }),
     ).not.toBeInTheDocument();

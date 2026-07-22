@@ -2,7 +2,6 @@ import { useState } from "react";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
-import { PageHeader } from "../../ui/page-header/page-header";
 import { RequestState } from "../../ui/request-state/request-state";
 import type { ImportReviewDto } from "./api/import-review-api";
 import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
@@ -49,31 +48,37 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
   return (
     <AppShell session={session}>
       <section className={styles.page}>
-        <div className={styles.header}>
-          <PageHeader
-            description={
-              readonly
-                ? "Этот review доступен только для чтения согласно вашей роли."
-                : "Проверьте финансовый смысл строк перед проведением операций."
-            }
-            eyebrow={`Документ · ${documentStatusLabel(currentReview.document.status)}`}
-            title="Проверка выписки"
-          />
-          <p className={styles.filename}>
-            {currentReview.document.sourceAccount?.name ?? "Счёт не определён"}
-            {" · "}
-            {currentReview.document.filename}
-          </p>
-          <RuleActions
-            csrfToken={session.csrfToken}
-            documentId={currentReview.document.id}
-            onReviewReconciled={reconcileReview}
-            readonly={readonly}
-          />
-        </div>
-
-        <ReviewQueue review={currentReview} />
-        <StatementReconciliation validation={currentReview.validation} />
+        <section className={styles.reviewSummary}>
+          <header className={styles.summaryHeader}>
+            <div className={styles.summaryIdentity}>
+              <p className={styles.sectionEyebrow}>
+                Документ · {documentStatusLabel(currentReview.document.status)}
+              </p>
+              <h1>Проверка выписки</h1>
+              <p className={styles.documentContext}>
+                <strong>{currentReview.document.filename}</strong>
+                <span aria-hidden="true"> · </span>
+                {currentReview.document.sourceAccount?.name ??
+                  "Счёт не определён"}
+              </p>
+              {readonly ? (
+                <p className={styles.readonlyNotice}>
+                  Доступно только для чтения.
+                </p>
+              ) : null}
+            </div>
+            <RuleActions
+              csrfToken={session.csrfToken}
+              documentId={currentReview.document.id}
+              onReviewReconciled={reconcileReview}
+              readonly={readonly}
+            />
+          </header>
+          <div className={styles.summaryBody}>
+            <ReviewQueue review={currentReview} />
+            <StatementReconciliation validation={currentReview.validation} />
+          </div>
+        </section>
 
         <section aria-label="Строки импорта" className={styles.itemsRegion}>
           {currentReview.items.length > 0 ? (
@@ -143,24 +148,25 @@ function ReviewQueue({ review }: { review: ImportReviewDto }) {
       aria-labelledby="import-review-queue-title"
       className={styles.queue}
     >
-      <div>
-        <p className={styles.queueLabel}>Очередь проверки</p>
+      <div className={styles.queueMetric}>
+        <p>Прогресс</p>
         <h2 id="import-review-queue-title">{title}</h2>
       </div>
-      <div className={styles.queueProgress}>
-        <span>
-          {queue.completed} / {queue.total}
-        </span>
+      <div aria-label="Прогресс проверки" className={styles.queueProgress}>
         <progress max={Math.max(queue.total, 1)} value={queue.completed}>
           {queue.completed} из {queue.total}
         </progress>
+      </div>
+      <div aria-label="Требуют решения" className={styles.queueMetric}>
+        <p>Требуют решения</p>
+        <strong>{queue.remaining}</strong>
       </div>
       {queue.firstRemainingItemId ? (
         <a
           className={styles.nextLink}
           href={`#raw-${queue.firstRemainingItemId}`}
         >
-          К первой оставшейся строке
+          Следующая нерешённая строка
         </a>
       ) : null}
     </section>

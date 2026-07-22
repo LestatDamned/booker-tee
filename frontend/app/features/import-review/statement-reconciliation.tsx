@@ -12,21 +12,24 @@ export function StatementReconciliation({
 }) {
   if (!validation) {
     return (
-      <section className={styles.validation}>
-        <p className={styles.sectionEyebrow}>Сверка выписки</p>
-        <h2>Проверка ещё не рассчитана</h2>
-        <p>Для документа пока нет завершённой попытки парсинга.</p>
+      <section className={styles.reconciliation} data-tone="neutral">
+        <div className={styles.reconciliationOutcome}>
+          <span className={styles.reconciliationStatus}>
+            <span aria-hidden="true">–</span>
+            Недостаточно данных для сверки
+          </span>
+          <p>Итоги выписки пока недоступны.</p>
+        </div>
       </section>
     );
   }
 
-  const copy = validationCopy(validation.reasonCode);
-  const statusLabel = reconciliationStatusLabel(validation.status);
+  const presentation = reconciliationPresentation(validation);
   return (
     <section
       aria-labelledby="import-review-validation-title"
-      className={styles.validation}
-      data-status={validation.status}
+      className={styles.reconciliation}
+      data-tone={presentation.tone}
     >
       <div className={styles.reconciliationOverview}>
         <FlowTotal
@@ -48,37 +51,22 @@ export function StatementReconciliation({
         />
         <div className={styles.reconciliationOutcome}>
           <span className={styles.reconciliationStatus}>
-            <span aria-hidden="true">{statusSymbol(validation.status)}</span>
-            {statusLabel}
+            <span aria-hidden="true">{statusSymbol(presentation.tone)}</span>
+            <h2 id="import-review-validation-title">{presentation.label}</h2>
           </span>
-          <h2 id="import-review-validation-title">{copy.title}</h2>
+          <p>{presentation.description}</p>
         </div>
       </div>
 
       <details className={styles.reconciliationDetails}>
         <summary>Подробнее о сверке</summary>
         <div className={styles.reconciliationDetailsBody}>
-          <p>{copy.description}</p>
-          <dl className={styles.validationCounts}>
-            <ValidationCount
-              label="Строк извлечено"
-              value={validation.extractedCount}
-            />
-            <ValidationCount
-              label="Нормализовано"
-              value={validation.normalizedCount}
-            />
-            <ValidationCount
-              label="Ошибки данных"
-              value={validation.needsReviewCount}
-            />
-          </dl>
           <div className={styles.flowComparisons}>
             <FlowComparison
               calculated={validation.calculatedTotalInflow}
               currency={validation.currency}
               ignored={validation.ignoredTotalInflow}
-              label="Как сошлись поступления"
+              label="Сверка поступлений"
               statement={validation.statementTotalInflow}
               tone="income"
               unexplained={validation.unexplainedInflowDifference}
@@ -87,7 +75,7 @@ export function StatementReconciliation({
               calculated={validation.calculatedTotalOutflow}
               currency={validation.currency}
               ignored={validation.ignoredTotalOutflow}
-              label="Как сошлись списания"
+              label="Сверка списаний"
               statement={validation.statementTotalOutflow}
               tone="expense"
               unexplained={validation.unexplainedOutflowDifference}
@@ -97,6 +85,23 @@ export function StatementReconciliation({
             <strong>Цепочка остатков:</strong>{" "}
             {balanceChainLabel(validation.balanceChain)}
           </p>
+          <details className={styles.technicalReconciliationDetails}>
+            <summary>Технические данные</summary>
+            <dl className={styles.validationCounts}>
+              <ValidationCount
+                label="Строк извлечено"
+                value={validation.extractedCount}
+              />
+              <ValidationCount
+                label="Нормализовано"
+                value={validation.normalizedCount}
+              />
+              <ValidationCount
+                label="Требуют проверки"
+                value={validation.needsReviewCount}
+              />
+            </dl>
+          </details>
         </div>
       </details>
     </section>
@@ -120,7 +125,6 @@ function FlowTotal({
       <MoneyValue
         amount={formatStatementAmount(amount)}
         currency={currency ?? ""}
-        size="prominent"
         tone={tone}
       />
     </section>
@@ -160,20 +164,24 @@ function FlowComparison({
         <MoneyFact
           amount={calculated}
           currency={currency}
-          label="По строкам"
+          label="По распознанным строкам"
           tone={tone}
         />
-        <MoneyFact amount={ignored} currency={currency} label="Исключено" />
+        <MoneyFact
+          amount={ignored}
+          currency={currency}
+          label="Исключённые строки"
+        />
         <MoneyFact
           amount={statement}
           currency={currency}
-          label="В выписке"
+          label="Итог в выписке"
           tone={tone}
         />
         <MoneyFact
           amount={unexplained}
           currency={currency}
-          label="Не объяснено"
+          label="Необъяснённая разница"
           warning={unexplained !== null && !isZero(unexplained)}
         />
       </dl>
@@ -224,55 +232,78 @@ function isZero(value: string): boolean {
   return /^-?0+(?:\.0+)?$/.test(value);
 }
 
-function reconciliationStatusLabel(
-  status: PresentValidation["status"],
-): string {
-  if (status === "valid") return "Сошлось";
-  if (status === "mismatch") return "Есть расхождение";
-  if (status === "needs_review") return "Нужна проверка";
-  return "Недостаточно данных";
-}
+type ReconciliationTone = "success" | "warning" | "neutral";
 
-function statusSymbol(status: PresentValidation["status"]): string {
-  if (status === "valid") return "✓";
-  if (status === "mismatch" || status === "needs_review") return "!";
+function statusSymbol(tone: ReconciliationTone): string {
+  if (tone === "success") return "✓";
+  if (tone === "warning") return "!";
   return "–";
 }
 
-function validationCopy(reason: PresentValidation["reasonCode"]): {
-  title: string;
+function reconciliationPresentation(validation: PresentValidation): {
+  label: string;
   description: string;
+  tone: ReconciliationTone;
 } {
+  if (validation.reasonCode === "totals_match") {
+    return {
+      label: "Сверка сошлась",
+      description: "Суммы строк совпадают с итогами выписки.",
+      tone: "success",
+    };
+  }
+  if (validation.reasonCode === "ignored_rows_explain_mismatch") {
+    return {
+      label: "Разница объяснена",
+      description: ignoredRowsDescription(validation),
+      tone: "success",
+    };
+  }
+  if (
+    validation.reasonCode === "control_totals_unavailable" ||
+    validation.reasonCode === "rows_need_review"
+  ) {
+    return {
+      label: "Недостаточно данных для сверки",
+      description:
+        validation.reasonCode === "rows_need_review"
+          ? "Сначала проверьте строки с нераспознанными данными."
+          : "Итоги выписки не были распознаны.",
+      tone: "neutral",
+    };
+  }
   return {
-    totals_match: {
-      title: "Итоги выписки сошлись",
-      description: "Суммы строк и контрольные итоги согласованы.",
-    },
-    rows_need_review: {
-      title: "Не все данные распознаны",
-      description: "Проверьте отмеченные строки, затем вернитесь к сверке.",
-    },
-    balance_chain_mismatch: {
-      title: "Нарушена цепочка остатков",
-      description:
-        "Один или несколько остатков не следуют из соседних операций.",
-    },
-    control_totals_unavailable: {
-      title: "Контрольные итоги недоступны",
-      description:
-        "Парсер не извлёк итоги выписки, но строки можно проверить вручную.",
-    },
-    control_totals_mismatch: {
-      title: "Итоги не совпадают с выпиской",
-      description:
-        "Между найденными строками и итогами выписки остаётся разница.",
-    },
-    ignored_rows_explain_mismatch: {
-      title: "Разница объяснена исключёнными строками",
-      description:
-        "Итоги совпадают после учёта строк, исключённых из проведения.",
-    },
-  }[reason];
+    label: "Есть необъяснённая разница",
+    description:
+      validation.reasonCode === "balance_chain_mismatch"
+        ? "Нарушена последовательность остатков между строками."
+        : "Суммы строк не совпадают с итогами выписки.",
+    tone: "warning",
+  };
+}
+
+function ignoredRowsDescription(validation: PresentValidation): string {
+  const inflowIgnored = !isZero(validation.ignoredTotalInflow);
+  const outflowIgnored = !isZero(validation.ignoredTotalOutflow);
+  const currency = validation.currency ? ` ${validation.currency}` : "";
+  if (
+    inflowIgnored &&
+    outflowIgnored &&
+    validation.ignoredTotalInflow === validation.ignoredTotalOutflow
+  ) {
+    return `${formatStatementAmount(validation.ignoredTotalInflow)}${currency} исключено из поступлений и списаний.`;
+  }
+  const parts = [
+    inflowIgnored
+      ? `${formatStatementAmount(validation.ignoredTotalInflow)}${currency} из поступлений`
+      : null,
+    outflowIgnored
+      ? `${formatStatementAmount(validation.ignoredTotalOutflow)}${currency} из списаний`
+      : null,
+  ].filter((part): part is string => part !== null);
+  return parts.length > 0
+    ? `Исключено: ${parts.join(", ")}.`
+    : "Разница полностью объяснена исключёнными строками.";
 }
 
 function balanceChainLabel(
