@@ -18,7 +18,7 @@ workflows вертикальными slices и удалить второй по�
 ### Wave A: core financial views
 
 1. account detail/ledger;
-2. import documents and mapping;
+2. [import documents and mapping](import-documents-and-mapping/README.md);
 3. reports.
 
 ### Wave B: reference and rule workflows
