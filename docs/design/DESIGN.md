@@ -1118,6 +1118,7 @@ uv run python scripts/ui_audit.py --authenticated
 uv run python scripts/ui_audit.py --scenario realistic
 uv run python scripts/ui_audit.py --scenario review_interactions
 uv run python scripts/ui_audit.py --scenario design_audit
+uv run python scripts/ui_audit.py --scenario theme_audit --theme catppuccin-latte
 ```
 
 Use `--base-url` when the app is already running:
@@ -1130,6 +1131,10 @@ For everyday UI refactor checks, prefer `--scenario realistic`. It creates real
 financial/import data and checks desktop/mobile core pages without the expensive
 full button-click sweep. Reserve `button_audit` for deliberate action-system
 changes or a final broader pass; it is intentionally slow.
+
+`theme_audit` forces one root palette without adding a production preference
+switcher. Combine it with `--path` using a URL or stable page label to capture a
+focused cross-viewport theme screenshot set.
 
 Minimum checks:
 

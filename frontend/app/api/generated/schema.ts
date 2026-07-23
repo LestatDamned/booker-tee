@@ -1581,6 +1581,51 @@ export interface components {
             confirmability: components["schemas"]["ImportReviewConfirmabilityApiResponse"];
             ruleSuggestion: components["schemas"]["ImportReviewRuleSuggestionApiResponse"];
         };
+        /** ImportReviewDuplicateCandidateApiResponse */
+        ImportReviewDuplicateCandidateApiResponse: {
+            /**
+             * Itemid
+             * Format: uuid
+             */
+            itemId: string;
+            /**
+             * Documentid
+             * Format: uuid
+             */
+            documentId: string;
+            /** Documentfilename */
+            documentFilename: string;
+            /** Operationid */
+            operationId: string | null;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /** Description */
+            description: string | null;
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+        };
+        /** ImportReviewDuplicateEvidenceApiResponse */
+        ImportReviewDuplicateEvidenceApiResponse: {
+            reasonCode: components["schemas"]["ImportReviewDuplicateMatchReasonCode"];
+            /** Matchingfields */
+            matchingFields: components["schemas"]["ImportReviewDuplicateMatchingField"][];
+            candidate: components["schemas"]["ImportReviewDuplicateCandidateApiResponse"];
+        };
+        /**
+         * ImportReviewDuplicateMatchReasonCode
+         * @enum {string}
+         */
+        ImportReviewDuplicateMatchReasonCode: "same_account_date_amount_currency";
+        /**
+         * ImportReviewDuplicateMatchingField
+         * @enum {string}
+         */
+        ImportReviewDuplicateMatchingField: "account" | "operation_date" | "amount" | "currency";
         /** ImportReviewExistingTransferCandidateApiResponse */
         ImportReviewExistingTransferCandidateApiResponse: {
             /**
@@ -1640,6 +1685,7 @@ export interface components {
             posting: components["schemas"]["ImportReviewPostingApiResponse"];
             transfer: components["schemas"]["ImportReviewTransferOptionsApiResponse"];
             lifecycle: components["schemas"]["ImportReviewLifecycleApiResponse"];
+            duplicateEvidence: components["schemas"]["ImportReviewDuplicateEvidenceApiResponse"] | null;
         };
         /**
          * ImportReviewLifecycleAction

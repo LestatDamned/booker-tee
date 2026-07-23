@@ -92,21 +92,21 @@
 }
 
 .operationTypeChoice[data-operation-type="income"]:has(input:checked) {
-  background: color-mix(in srgb, var(--color-status-success) 16%, transparent);
-  box-shadow: inset 0 0 0 1px var(--color-status-success);
-  color: var(--color-status-success);
+  background: color-mix(in srgb, var(--color-money-income) 16%, transparent);
+  box-shadow: inset 0 0 0 1px var(--color-money-income);
+  color: var(--color-money-income);
 }
 
 .operationTypeChoice[data-operation-type="expense"]:has(input:checked) {
-  background: color-mix(in srgb, var(--color-status-danger) 16%, transparent);
-  box-shadow: inset 0 0 0 1px var(--color-status-danger);
-  color: var(--color-status-danger);
+  background: color-mix(in srgb, var(--color-money-expense) 16%, transparent);
+  box-shadow: inset 0 0 0 1px var(--color-money-expense);
+  color: var(--color-money-expense);
 }
 
 .operationTypeChoice[data-operation-type="transfer"]:has(input:checked) {
-  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
-  box-shadow: inset 0 0 0 1px var(--color-accent);
-  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-money-transfer) 16%, transparent);
+  box-shadow: inset 0 0 0 1px var(--color-money-transfer);
+  color: var(--color-money-transfer);
 }
 
 .operationTypeChoice:has(input:focus-visible) {

@@ -1,0 +1,52 @@
+:root,
+[data-theme="catppuccin-mocha"] {
+  color-scheme: dark;
+
+  --palette-crust: #11111b;
+  --palette-mantle: #181825;
+  --palette-base: #1e1e2e;
+  --palette-surface-0: #313244;
+  --palette-surface-1: #45475a;
+  --palette-overlay-0: #6c7086;
+  --palette-text: #cdd6f4;
+  --palette-subtext-0: #a6adc8;
+  --palette-blue: #89b4fa;
+  --palette-sapphire: #74c7ec;
+  --palette-green: #a6e3a1;
+  --palette-yellow: #f9e2af;
+  --palette-red: #f38ba8;
+  --palette-mauve: #cba6f7;
+  --palette-working: #27253b;
+  --palette-target: #242a3d;
+  --palette-recent: #263542;
+  --palette-overlay: rgb(0 0 0 / 42%);
+  --palette-shadow: rgb(0 0 0 / 18%);
+
+  --color-bg-canvas: var(--palette-crust);
+  --color-bg-surface: var(--palette-mantle);
+  --color-bg-elevated: var(--palette-base);
+  --color-bg-interactive: var(--palette-surface-0);
+  --color-text-primary: var(--palette-text);
+  --color-text-secondary: var(--palette-subtext-0);
+  --color-text-inverse: var(--palette-crust);
+  --color-border-default: var(--palette-surface-1);
+  --color-border-control: var(--palette-overlay-0);
+  --color-border-strong: var(--palette-overlay-0);
+  --color-focus-ring: var(--palette-blue);
+  --color-accent: var(--palette-blue);
+  --color-accent-strong: var(--palette-sapphire);
+  --color-status-success: var(--palette-green);
+  --color-status-warning: var(--palette-yellow);
+  --color-status-danger: var(--palette-red);
+  --color-money-income: var(--palette-green);
+  --color-money-expense: var(--palette-red);
+  --color-money-transfer: var(--palette-blue);
+  --color-money-profit: var(--palette-mauve);
+  --color-money-adjustment: var(--palette-yellow);
+  --color-category: var(--palette-mauve);
+  --color-working-surface: var(--palette-working);
+  --color-target-surface: var(--palette-target);
+  --color-recent-surface: var(--palette-recent);
+  --color-overlay: var(--palette-overlay);
+  --shadow-surface: 0 18px 50px var(--palette-shadow);
+}

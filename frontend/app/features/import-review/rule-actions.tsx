@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "../../ui/button/button";
 import type { ImportReviewDto } from "./api/import-review-api";
 import { applyRulesToImportReview } from "./api/import-review-mutations";
+import { focusNextReviewItem } from "./focus-next-review-item";
 import styles from "./import-review.module.css";
 
 type RuleActionsProps = {
@@ -35,6 +36,7 @@ export function RuleActions({
     setPending(false);
     if (result.status === "success") {
       onReviewReconciled(result.data.review);
+      focusNextReviewItem(result.data.review);
       setMessage(ruleApplicationMessage(result.data));
       return;
     }

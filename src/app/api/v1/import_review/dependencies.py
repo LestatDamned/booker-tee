@@ -16,6 +16,7 @@ from app.features.imports.application.review.classification import (
 from app.features.imports.application.review.confirmation_commands import (
     ImportReviewConfirmationService,
 )
+from app.features.imports.application.review.duplicates import ImportReviewDuplicateReader
 from app.features.imports.application.review.lifecycle_commands import (
     ImportReviewLifecycleService,
 )
@@ -45,6 +46,7 @@ def get_import_review_reader(
             AccountService(session),
             TransferSuggestionUseCase(session),
         ),
+        ImportReviewDuplicateReader(ImportRepository(session)),
     )
 
 

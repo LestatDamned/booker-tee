@@ -177,5 +177,6 @@ function importReviewItem(
           ? ["mark_duplicate", "needs_review", "ignore"]
           : [],
     },
+    duplicateEvidence: null,
   };
 }

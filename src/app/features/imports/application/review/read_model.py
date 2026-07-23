@@ -16,6 +16,10 @@ from app.features.imports.application.review.classification import (
     ImportReviewSelectionDto,
     build_import_review_draft_evaluation,
 )
+from app.features.imports.application.review.duplicates import (
+    ImportReviewDuplicateEvidenceDto,
+    ImportReviewDuplicateReader,
+)
 from app.features.imports.application.review.transfers import (
     EMPTY_TRANSFER_OPTIONS,
     ImportReviewTransferOptionsDto,
@@ -123,6 +127,7 @@ class ImportReviewItemDto:
     posting: ImportReviewPostingDto = EMPTY_IMPORT_REVIEW_POSTING
     transfer: ImportReviewTransferOptionsDto = EMPTY_TRANSFER_OPTIONS
     lifecycle: ImportReviewLifecycleSnapshot = ImportReviewLifecycleSnapshot(allowed_actions=())
+    duplicate_evidence: ImportReviewDuplicateEvidenceDto | None = None
 
 
 @dataclass(frozen=True)
@@ -149,10 +154,12 @@ class ImportReviewReader:
         documents: ImportReviewDocumentSource,
         references: ImportReviewReferenceReader,
         transfers: ImportReviewTransferReader | None = None,
+        duplicates: ImportReviewDuplicateReader | None = None,
     ) -> None:
         self._documents = documents
         self._references = references
         self._transfers = transfers
+        self._duplicates = duplicates
 
     async def read(
         self,
@@ -173,11 +180,20 @@ class ImportReviewReader:
             if self._transfers is not None
             else {}
         )
+        duplicates = (
+            await self._duplicates.read_for_document(
+                workspace_id=workspace_id,
+                document=document,
+            )
+            if self._duplicates is not None
+            else {}
+        )
         return build_import_review_read_model(
             document,
             references=references,
             can_write=can_write,
             transfers=transfers,
+            duplicates=duplicates,
         )
 
 
@@ -187,6 +203,7 @@ def build_import_review_read_model(
     references: ImportReviewReferencesDto,
     can_write: bool,
     transfers: dict[UUID, ImportReviewTransferOptionsDto] | None = None,
+    duplicates: dict[UUID, ImportReviewDuplicateEvidenceDto] | None = None,
 ) -> ImportReviewReadModel:
     queue = review_queue_snapshot(document.raw_transactions)
     rows_by_id = {row.id: row for row in document.raw_transactions}
@@ -232,6 +249,7 @@ def build_import_review_read_model(
                 ),
                 property_id=property_id,
                 transfer=(transfers or {}).get(row.id, EMPTY_TRANSFER_OPTIONS),
+                duplicate_evidence=(duplicates or {}).get(row.id),
             )
         )
     return ImportReviewReadModel(
@@ -270,6 +288,7 @@ def _item_dto(
     category_is_uncategorized: bool,
     property_id: UUID | None,
     transfer: ImportReviewTransferOptionsDto,
+    duplicate_evidence: ImportReviewDuplicateEvidenceDto | None,
 ) -> ImportReviewItemDto:
     status = row.status
     draft: ImportReviewDraftEvaluationDto = build_import_review_draft_evaluation(
@@ -314,6 +333,7 @@ def _item_dto(
             status=status,
             linked_operation_id=getattr(row, "linked_operation_id", None),
         ),
+        duplicate_evidence=duplicate_evidence,
     )
 
 

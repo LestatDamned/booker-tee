@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from hashlib import sha256
 from io import BytesIO
@@ -39,6 +40,7 @@ from app.features.imports.parsing.support.normalization import (
     parse_bank_date,
 )
 from app.features.imports.query_repository import REVIEWABLE_RAW_TRANSACTION_STATUSES
+from app.features.imports.repository import ImportRepository
 
 
 def test_sanitize_filename_removes_paths_and_unsafe_characters() -> None:
@@ -172,6 +174,41 @@ def test_reviewable_raw_transaction_statuses_include_normalized_rows() -> None:
     assert RawTransactionStatus.CONFIRMED not in REVIEWABLE_RAW_TRANSACTION_STATUSES
     assert RawTransactionStatus.IGNORED not in REVIEWABLE_RAW_TRANSACTION_STATUSES
     assert RawTransactionStatus.DUPLICATE not in REVIEWABLE_RAW_TRANSACTION_STATUSES
+
+
+@pytest.mark.asyncio
+async def test_duplicate_candidate_query_is_workspace_and_document_scoped() -> None:
+    workspace_id = uuid4()
+    document_id = uuid4()
+    account_id = uuid4()
+
+    class ResultStub:
+        def scalars(self) -> Any:
+            return self
+
+        def all(self) -> list[object]:
+            return []
+
+    class SessionStub:
+        statement: object | None = None
+
+        async def execute(self, statement: object) -> ResultStub:
+            self.statement = statement
+            return ResultStub()
+
+    session = SessionStub()
+    await ImportRepository(cast(Any, session)).list_possible_duplicate_candidates(
+        workspace_id=workspace_id,
+        fingerprints={(account_id, date(2026, 7, 20), Decimal("-1250.50"), "RUB")},
+        exclude_document_id=document_id,
+    )
+
+    assert session.statement is not None
+    compiled = cast(Any, session.statement).compile()
+    assert workspace_id in compiled.params.values()
+    assert document_id in compiled.params.values()
+    assert "raw_transactions.workspace_id" in str(compiled)
+    assert "raw_transactions.uploaded_document_id !=" in str(compiled)
 
 
 @pytest.mark.asyncio

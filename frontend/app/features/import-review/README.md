@@ -49,6 +49,12 @@ Confirm повторно проверяет references и capability внутр�
 - React component: local classification/transfer drafts, pending/error state и
   current server snapshot после мутации. Confirmed financial state появляется
   только из committed API response.
+- React Router URL: рабочий `filter` и раскрытый объём очереди `rows`; browser
+  Back/Forward восстанавливает navigation context без global store.
+
+Большая очередь сначала рендерит 50 строк и раскрывается блоками по 50 через
+`Показать ещё`. Server ordering и payload не меняются; pagination и
+virtualization library не вводятся без новых production evidence.
 
 ## TypeScript-аналогия для Python-разработчика
 

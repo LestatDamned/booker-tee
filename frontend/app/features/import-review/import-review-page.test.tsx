@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImportReviewPage } from "./import-review-page";
@@ -72,6 +72,40 @@ describe("import review page", () => {
     expect(document.getElementById(`raw-${remainingItemId}`)).not.toBeNull();
   });
 
+  it("keeps imports active and stores the review filter in the URL", async () => {
+    const user = userEvent.setup();
+    const review = importReviewPayload();
+    renderPage(
+      review,
+      `/imports/documents/${review.document.id}/review?from=imports&filter=complete`,
+    );
+
+    for (const importsLink of screen.getAllByRole("link", {
+      name: "Импорты",
+    })) {
+      expect(importsLink).toHaveAttribute("href", "/imports");
+      expect(importsLink).toHaveAttribute("aria-current", "page");
+    }
+    expect(
+      screen.getByRole("button", { name: "Завершённые 1" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(document.getElementById(`raw-${completedItemId}`)).not.toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Проблемы 1" }));
+    let currentSearch = new URLSearchParams(
+      screen.getByTestId("current-search").textContent ?? "",
+    );
+    expect(currentSearch.get("from")).toBe("imports");
+    expect(currentSearch.get("filter")).toBe("problems");
+
+    await user.click(screen.getByRole("button", { name: "Требуют решения 1" }));
+    currentSearch = new URLSearchParams(
+      screen.getByTestId("current-search").textContent ?? "",
+    );
+    expect(currentSearch.get("from")).toBe("imports");
+    expect(currentSearch.has("filter")).toBe(false);
+  });
+
   it.each([
     ["pending", "Требуют решения 0", "Нет строк, требующих решения"],
     ["suggestions", "Предложения 0", "Нет предложений"],
@@ -120,6 +154,45 @@ describe("import review page", () => {
     expect(
       screen.getByRole("heading", { name: "Проверить операцию" }),
     ).toBeInTheDocument();
+  });
+
+  it("keeps operation context in the editor and secondary sections collapsed", async () => {
+    const user = userEvent.setup();
+    const review = importReviewPayload();
+    const item = review.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.selection.categoryId = expenseCategoryId;
+    item.confirmability = { canConfirm: true, blockingReasonCodes: [] };
+    renderPage(review);
+
+    await user.click(
+      screen.getByRole("button", { name: "Проверить операцию" }),
+    );
+
+    const context = screen.getByLabelText("Контекст текущей операции");
+    expect(context).toHaveTextContent("Текущая операция");
+    expect(context).toHaveTextContent("20.07.2026");
+    expect(context).toHaveTextContent("Покупка в магазине");
+    expect(context).toHaveTextContent("−1 250,50");
+
+    const ruleSummary = screen.getByText("Правило для похожих операций");
+    const ruleDisclosure = ruleSummary.closest("details");
+    expect(ruleDisclosure).not.toHaveAttribute("open");
+    const decision = screen.getByLabelText("Решение по операции");
+    expect(
+      within(decision)
+        .getByLabelText("Итог операции")
+        .compareDocumentPosition(
+          within(decision).getByRole("button", {
+            name: "Подтвердить и провести",
+          }),
+        ),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(
+      screen.getByRole("button", { name: "Исходные данные" }),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 
   it("shows raw source values from the secondary technical action", async () => {
@@ -252,10 +325,11 @@ describe("import review page", () => {
       "data-variant",
       "outline",
     );
-    expect(within(row).getByText("Проведено")).toHaveAttribute(
-      "data-variant",
-      "status",
-    );
+    const workflowStatus = within(row)
+      .getAllByText("Проведено")
+      .find((element) => element.getAttribute("data-tone") === "success");
+    expect(workflowStatus).toBeInTheDocument();
+    expect(workflowStatus).not.toHaveAttribute("data-variant");
   });
 
   it("renders category, status, and decision source as distinct row facts", () => {
@@ -273,10 +347,9 @@ describe("import review page", () => {
         .getAllByText("Без категории")
         .find((element) => element.getAttribute("data-variant") === "soft"),
     ).toBeInTheDocument();
-    expect(within(row).getByText("Проверено как уникальное")).toHaveAttribute(
-      "data-variant",
-      "status",
-    );
+    expect(
+      within(row).getByText("Проверено как уникальное"),
+    ).not.toHaveAttribute("data-variant");
     expect(within(row).getByText("Тип определён по сумме")).toBeInTheDocument();
   });
 
@@ -299,12 +372,13 @@ describe("import review page", () => {
     const outcome = within(row).getByRole("region", {
       name: "Итог операции",
     });
-    expect(outcome).toHaveTextContent("Будет создан расход");
-    expect(outcome).toHaveTextContent("1 250,50 RUB");
-    expect(outcome).not.toHaveTextContent("−1 250,50 RUB");
-    expect(outcome).toHaveTextContent("Категория: Продукты");
+    expect(outcome).toHaveTextContent("Готово к проведению");
+    expect(outcome).toHaveTextContent("Расход → Продукты");
+    expect(outcome).not.toHaveTextContent("1 250,50 RUB");
     expect(outcome).toHaveTextContent("Объект: Квартира");
+    expect(outcome).toHaveAttribute("data-state", "pending");
     expect(outcome).toHaveAttribute("data-tone", "expense");
+    expect(within(row).getAllByLabelText(/1.250,50 RUB/)).toHaveLength(1);
     expect(
       outcome.compareDocumentPosition(
         within(row).getByRole("button", { name: "Подтвердить" }),
@@ -328,9 +402,10 @@ describe("import review page", () => {
     const outcome = within(row).getByRole("region", {
       name: "Итог операции",
     });
-    expect(outcome).toHaveTextContent("Создан расход");
-    expect(outcome).toHaveTextContent("1 250,50 RUB");
-    expect(outcome).toHaveTextContent("Категория: Продукты");
+    expect(outcome).toHaveTextContent("Проведено");
+    expect(outcome).toHaveTextContent("Расход → Продукты");
+    expect(outcome).not.toHaveTextContent("1 250,50 RUB");
+    expect(outcome).toHaveAttribute("data-state", "confirmed");
   });
 
   it("shows an explicit incomplete transfer route", () => {
@@ -347,11 +422,12 @@ describe("import review page", () => {
     const outcome = within(row).getByRole("region", {
       name: "Итог операции",
     });
-    expect(outcome).toHaveTextContent("Будет создан перевод");
+    expect(outcome).toHaveTextContent("Предварительный результат");
     expect(outcome).toHaveTextContent(
       "Основной счёт → Не выбран счёт назначения",
     );
-    expect(outcome).toHaveTextContent("1 250,50 RUB");
+    expect(outcome).not.toHaveTextContent("1 250,50 RUB");
+    expect(outcome).toHaveAttribute("data-state", "incomplete");
     expect(outcome).toHaveAttribute("data-tone", "transfer");
   });
 
@@ -377,7 +453,7 @@ describe("import review page", () => {
     const outcome = within(row).getByRole("region", {
       name: "Итог операции",
     });
-    expect(outcome).toHaveTextContent("Создан перевод");
+    expect(outcome).toHaveTextContent("Проведено");
     expect(outcome).toHaveTextContent("Основной счёт → Накопительный счёт");
     expect(outcome).not.toHaveTextContent("Счёт перевода");
   });
@@ -395,7 +471,7 @@ describe("import review page", () => {
     if (!row) throw new Error("remaining row is required");
     expect(
       within(row).getByRole("region", { name: "Итог операции" }),
-    ).toHaveTextContent("Будет создан расход");
+    ).toHaveTextContent("Предварительный результат");
     expect(
       within(row).queryByRole("button", { name: "Подтвердить" }),
     ).not.toBeInTheDocument();
@@ -430,11 +506,61 @@ describe("import review page", () => {
 
       const row = document.getElementById(`raw-${remainingItemId}`);
       if (!row) throw new Error("remaining row is required");
-      const statusBadge = within(row).getByText(label);
-      expect(statusBadge).toHaveAttribute("data-variant", "status");
-      expect(statusBadge).toHaveAttribute("data-tone", tone);
+      const workflowStatus = within(row)
+        .getAllByText(label)
+        .find((element) => element.getAttribute("data-tone") === tone);
+      expect(workflowStatus).toBeInTheDocument();
+      expect(workflowStatus).not.toHaveAttribute("data-variant");
+      expect(workflowStatus).toHaveAttribute("data-tone", tone);
     },
   );
+
+  it.each([
+    ["missing_category", "Выберите категорию"],
+    ["missing_amount", "Не определена сумма"],
+    ["duplicate_review_required", "Проверьте возможный дубль"],
+    ["transfer_accounts_required", "Выберите второй счёт перевода"],
+  ] as const)(
+    "shows the %s blocking reason before opening the editor",
+    (reasonCode, reasonLabel) => {
+      const review = importReviewPayload();
+      const item = review.items[1];
+      if (!item) throw new Error("remaining fixture item is required");
+      item.confirmability = {
+        canConfirm: false,
+        blockingReasonCodes: [reasonCode],
+      };
+
+      renderPage(review);
+
+      const row = document.getElementById(`raw-${remainingItemId}`);
+      if (!row) throw new Error("remaining row is required");
+      const blocker = within(row).getByLabelText("Что мешает подтверждению");
+      expect(blocker).toHaveTextContent(reasonLabel);
+      expect(
+        blocker.compareDocumentPosition(
+          within(row).getByRole("region", {
+            name: "Итог операции",
+          }),
+        ),
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    },
+  );
+
+  it("omits the blocking reason when the server allows confirmation", () => {
+    const review = importReviewPayload();
+    const item = review.items[1];
+    if (!item) throw new Error("remaining fixture item is required");
+    item.confirmability = { canConfirm: true, blockingReasonCodes: [] };
+
+    renderPage(review);
+
+    const row = document.getElementById(`raw-${remainingItemId}`);
+    if (!row) throw new Error("remaining row is required");
+    expect(
+      within(row).queryByLabelText("Что мешает подтверждению"),
+    ).not.toBeInTheDocument();
+  });
 
   it("omits an unknown decision source instead of showing diagnostics", () => {
     const review = importReviewPayload();
@@ -707,6 +833,7 @@ describe("import review page", () => {
     await user.click(
       screen.getByRole("button", { name: "Проверить операцию" }),
     );
+    await user.click(screen.getByText("Правило для похожих операций"));
     await user.click(
       screen.getByLabelText("Применять это решение к похожим строкам"),
     );
@@ -740,6 +867,7 @@ describe("import review page", () => {
     await user.click(
       screen.getByRole("button", { name: "Проверить операцию" }),
     );
+    await user.click(screen.getByText("Правило для похожих операций"));
     await user.click(
       screen.getByLabelText("Применять это решение к похожим строкам"),
     );
@@ -773,6 +901,7 @@ describe("import review page", () => {
       name: "Проверить операцию",
     });
     await user.click(reviewButton);
+    await user.click(screen.getByText("Правило для похожих операций"));
     const rememberRule = screen.getByLabelText(
       "Применять это решение к похожим строкам",
     );
@@ -1092,7 +1221,6 @@ describe("import review page", () => {
 
     const row = document.getElementById(`raw-${remainingItemId}`);
     if (!row) throw new Error("remaining row is required");
-    await user.click(within(row).getByText("Ещё действия"));
     await user.click(
       within(row).getByRole("button", { name: "Отметить дублем" }),
     );
@@ -1115,6 +1243,89 @@ describe("import review page", () => {
         }),
       }),
     );
+  });
+
+  it("shows server-owned duplicate evidence and both explicit decisions", () => {
+    renderPage(possibleDuplicateReview());
+
+    const row = document.getElementById(`raw-${remainingItemId}`);
+    if (!row) throw new Error("remaining row is required");
+    const comparison = within(row).getByRole("region", {
+      name: "Возможный дубль",
+    });
+    expect(comparison).toHaveTextContent("Совпали: счёт, дата, сумма, валюта.");
+    expect(comparison).toHaveTextContent("Текущая строка");
+    expect(comparison).toHaveTextContent("Найденный кандидат");
+    expect(comparison).toHaveTextContent("Покупка в магазине");
+    expect(comparison).toHaveTextContent("Покупка в супермаркете");
+    expect(
+      within(comparison).getByRole("link", { name: "previous-statement.xlsx" }),
+    ).toHaveAttribute(
+      "href",
+      "/imports/documents/2aecac73-98a3-468b-bd75-ac89445f908e",
+    );
+    expect(
+      within(row).getByRole("button", { name: "Это новая операция" }),
+    ).toBeInTheDocument();
+    expect(
+      within(row).getByRole("button", { name: "Отметить дублем" }),
+    ).toBeInTheDocument();
+    expect(
+      within(row).queryByLabelText("Что мешает подтверждению"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers retry after a lifecycle network error", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    renderPage(possibleDuplicateReview());
+
+    await user.click(
+      screen.getByRole("button", { name: "Это новая операция" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Проверьте соединение и повторите действие",
+    );
+    expect(
+      screen.getByRole("button", { name: "Повторить действие" }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers authoritative refresh after a lifecycle validation error", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                code: "validation_error",
+                message: "Данные строки больше не подходят для этого действия.",
+                fieldErrors: {},
+              },
+            }),
+            { status: 422 },
+          ),
+        ),
+      ),
+    );
+    renderPage(possibleDuplicateReview());
+
+    await user.click(
+      screen.getByRole("button", { name: "Это новая операция" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Обновите строку и проверьте данные",
+    );
+    expect(
+      screen.getByRole("button", { name: "Обновить строку" }),
+    ).toBeInTheDocument();
   });
 
   it("focuses a stale conflict and refreshes authoritative state", async () => {
@@ -1230,6 +1441,7 @@ describe("import review page", () => {
       name: "Подтвердить и провести",
     });
     expect(screen.getByText("Проверено как уникальное")).toBeInTheDocument();
+    await user.click(screen.getByText("Правило для похожих операций"));
     await user.click(
       screen.getByLabelText("Применять это решение к похожим строкам"),
     );
@@ -1332,15 +1544,42 @@ function possibleDuplicateReview() {
     "needs_review",
     "ignore",
   ];
+  item.confirmability = {
+    canConfirm: false,
+    blockingReasonCodes: ["duplicate_review_required"],
+  };
+  item.duplicateEvidence = {
+    reasonCode: "same_account_date_amount_currency",
+    matchingFields: ["account", "operation_date", "amount", "currency"],
+    candidate: {
+      itemId: "32f1f811-6a21-4c9c-a12a-fc1bb72b782d",
+      documentId: "2aecac73-98a3-468b-bd75-ac89445f908e",
+      documentFilename: "previous-statement.xlsx",
+      operationId: null,
+      operationDate: "2026-07-20",
+      description: "Покупка в супермаркете",
+      amount: "-1250.50",
+      currency: "RUB",
+    },
+  };
   return review;
 }
 
-function renderPage(review: ReturnType<typeof importReviewPayload>) {
+function renderPage(
+  review: ReturnType<typeof importReviewPayload>,
+  route = "/",
+) {
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[route]}>
       <ImportReviewPage review={review} session={sessionPayload} />
+      <LocationProbe />
     </MemoryRouter>,
   );
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="current-search">{location.search}</output>;
 }
 
 const sessionPayload = {

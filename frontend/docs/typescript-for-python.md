@@ -82,8 +82,10 @@ React render и без ветвления TypeScript-кода.
 а не передаётся как явный аргумент функции.
 
 Semantic token называет роль (`--color-status-danger`), а не оттенок (`red-400`).
-Raw palette разрешена только в `themes.css`. Component CSS использует роли,
-поэтому новая тема не копирует geometry.
+Raw palette разрешена только в отдельных файлах `app/styles/themes/`. Их
+`index.css` подключает Mocha, Latte и контрастную test theme, а style checker
+автоматически проверяет общий semantic contract и WCAG contrast pairs.
+Component CSS использует роли, поэтому новая тема не копирует geometry.
 
 ## CSS Modules
 

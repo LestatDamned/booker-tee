@@ -12,10 +12,11 @@ import { RequestState } from "../ui/request-state/request-state";
 import { WorkbenchRow } from "../ui/workbench-row/workbench-row";
 import styles from "./foundation-gallery.module.css";
 
-type ThemeName = "catppuccin-mocha" | "test";
+type ThemeName = "catppuccin-mocha" | "catppuccin-latte" | "test";
 
 const themes: ReadonlyArray<{ label: string; name: ThemeName }> = [
   { label: "Catppuccin Mocha", name: "catppuccin-mocha" },
+  { label: "Catppuccin Latte", name: "catppuccin-latte" },
   { label: "Plain test theme", name: "test" },
 ];
 
@@ -28,7 +29,7 @@ export function FoundationGallery() {
             Вернуться в приложение
           </a>
         }
-        description="Одинаковая геометрия в двух темах. Здесь проверяются только устойчивые shared responsibilities."
+        description="Одинаковая геометрия в трёх темах. Здесь проверяются только устойчивые shared responsibilities."
         eyebrow="Stage 02"
         title="React UI foundation"
       />

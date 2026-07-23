@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router";
+import { NavLink, useLocation } from "react-router";
 
 import type { SessionDto } from "../api/session";
 import styles from "../styles/shell.module.css";
@@ -10,6 +10,9 @@ type AppShellProps = {
 };
 
 export function AppShell({ children, session }: AppShellProps) {
+  const location = useLocation();
+  const importsActive = location.pathname.startsWith("/imports");
+
   return (
     <div className={styles.appShell}>
       <aside className={styles.sidebar}>
@@ -23,6 +26,13 @@ export function AppShell({ children, session }: AppShellProps) {
           <NavLink className={navClassName} to="/ledger/manual">
             Ручные операции
           </NavLink>
+          <a
+            aria-current={importsActive ? "page" : undefined}
+            className={externalNavClassName(importsActive)}
+            href="/imports"
+          >
+            Импорты
+          </a>
         </nav>
       </aside>
       <header className={styles.mobileHeader}>
@@ -38,6 +48,13 @@ export function AppShell({ children, session }: AppShellProps) {
             <NavLink className={navClassName} to="/ledger/manual">
               Ручные операции
             </NavLink>
+            <a
+              aria-current={importsActive ? "page" : undefined}
+              className={externalNavClassName(importsActive)}
+              href="/imports"
+            >
+              Импорты
+            </a>
           </nav>
         </details>
       </header>
@@ -72,4 +89,8 @@ function membershipRoleLabel(role: SessionDto["membership"]["role"]): string {
 
 function navClassName({ isActive }: { isActive: boolean }) {
   return `${styles.navItem} ${isActive ? styles.navItemActive : ""}`;
+}
+
+function externalNavClassName(isActive: boolean) {
+  return navClassName({ isActive });
 }

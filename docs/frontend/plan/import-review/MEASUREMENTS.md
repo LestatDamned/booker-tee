@@ -60,3 +60,34 @@ historical redirect. React сценарий реально выполняет:
 Go: feature-local state и полные committed snapshots достаточны. Cache/state
 library не нужна; обнаруженная performance проблема была в server query shape и
 исправлена на владельце данных, а не клиентским cache.
+
+## Stage 09E: большая очередь
+
+Дополнительно измерено 2026-07-23 на синтетическом browser payload из 250
+неразобранных строк. Это локальный engineering baseline, а не production SLA.
+Один и тот же typed response раскрывался на desktop `1440×1000`, tablet
+`920×900` и mobile `390×844`.
+
+До ограничения initial DOM полный список создавал около `46 900` DOM nodes.
+Локально он становился готов за `418–523 ms`, но такой DOM избыточен как
+начальное состояние даже при приемлемом времени render.
+
+После введения feature-local `Показать ещё`:
+
+| Метрика | Desktop | Tablet | Mobile |
+| --- | ---: | ---: | ---: |
+| Payload | 403,519 bytes | 402,766 bytes | 402,766 bytes |
+| Initial visible rows | 50 | 50 | 50 |
+| Initial ready | 292.1 ms | 287.0 ms | 256.4 ms |
+| Initial DOM nodes | 9,507 | 9,507 | 9,507 |
+| Явное раскрытие до 250 rows | 1,637.2 ms | 1,496.4 ms | 1,542.6 ms |
+| Expanded DOM nodes | 46,903 | 46,903 | 46,903 |
+| Scroll settle | 15.7 ms | 26.2 ms | 8.0 ms |
+| Long tasks | 0 | 0 | 0 |
+
+Решение: server pagination и virtualization dependency пока не вводятся.
+Очередь сохраняет server ordering и полный financial payload, но сначала
+рендерит 50 строк. Пользователь раскрывает следующие блоки по 50 строк, а
+visible count хранится в `rows` query parameter вместе с рабочим `filter`.
+Browser Back/Forward восстанавливает оба navigation context без отдельного
+global store.

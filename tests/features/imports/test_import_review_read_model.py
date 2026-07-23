@@ -36,6 +36,24 @@ class ReferenceReaderStub:
         return ImportReviewReferencesDto(categories=(), properties=())
 
 
+class DuplicateSourceStub:
+    def __init__(self, candidates: list[object]) -> None:
+        self.candidates = candidates
+        self.workspace_ids: list[UUID] = []
+        self.exclude_document_ids: list[UUID] = []
+
+    async def list_possible_duplicate_candidates(
+        self,
+        *,
+        workspace_id: UUID,
+        fingerprints: object,
+        exclude_document_id: UUID,
+    ) -> list[object]:
+        self.workspace_ids.append(workspace_id)
+        self.exclude_document_ids.append(exclude_document_id)
+        return self.candidates
+
+
 @pytest.mark.asyncio
 async def test_import_review_reader_builds_ordered_raw_and_normalized_rows() -> None:
     workspace_id = uuid4()
@@ -106,6 +124,55 @@ async def test_import_review_reader_returns_none_for_unknown_document() -> None:
     )
 
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_possible_duplicate_evidence_is_built_from_workspace_scoped_candidate() -> None:
+    from app.features.imports.application.review.duplicates import (
+        ImportReviewDuplicateReader,
+    )
+
+    workspace_id = uuid4()
+    document_id = uuid4()
+    candidate_document_id = uuid4()
+    account_id = uuid4()
+    target = row(uuid4(), 1, RawTransactionStatus.POSSIBLE_DUPLICATE)
+    target.account_id = account_id
+    candidate = row(uuid4(), 4, RawTransactionStatus.CONFIRMED)
+    candidate.account_id = account_id
+    candidate.uploaded_document_id = candidate_document_id
+    candidate.uploaded_document = SimpleNamespace(
+        id=candidate_document_id,
+        original_filename="previous-statement.pdf",
+    )
+    document = SimpleNamespace(
+        id=document_id,
+        original_filename="statement.pdf",
+        status=UploadedDocumentStatus.REQUIRES_REVIEW,
+        account=None,
+        account_id=None,
+        raw_transactions=[target],
+    )
+    duplicate_source = DuplicateSourceStub([candidate])
+
+    result = await ImportReviewReader(
+        cast(Any, DocumentSourceStub(document)),
+        cast(Any, ReferenceReaderStub()),
+        duplicates=ImportReviewDuplicateReader(cast(Any, duplicate_source)),
+    ).read(
+        workspace_id=workspace_id,
+        document_id=document_id,
+        can_write=True,
+    )
+
+    assert result is not None
+    evidence = result.items[0].duplicate_evidence
+    assert evidence is not None
+    assert evidence.candidate.item_id == candidate.id
+    assert evidence.candidate.document_filename == "previous-statement.pdf"
+    assert evidence.candidate.operation_id == candidate.linked_operation_id
+    assert duplicate_source.workspace_ids == [workspace_id]
+    assert duplicate_source.exclude_document_ids == [document_id]
 
 
 @pytest.mark.asyncio

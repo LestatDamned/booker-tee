@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
+import { Button } from "../../ui/button/button";
 import { RequestState } from "../../ui/request-state/request-state";
 import type { ImportReviewDto } from "./api/import-review-api";
 import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
@@ -29,8 +31,37 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
   const [currentReview, setCurrentReview] = useState(review);
   const readonly = !currentReview.capabilities.canWrite;
   const [categories, setCategories] = useState(review.references.categories);
-  const [filter, setFilter] = useState<ReviewFilter>("pending");
-  const visibleItems = filteredItems(currentReview, filter);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filter = reviewFilterFromSearch(searchParams.get("filter"));
+  const filteredReviewItems = filteredItems(currentReview, filter);
+  const visibleRowCount = visibleRowCountFromSearch(searchParams.get("rows"));
+  const visibleItems = filteredReviewItems.slice(0, visibleRowCount);
+  const hiddenItemCount = filteredReviewItems.length - visibleItems.length;
+
+  function changeFilter(nextFilter: ReviewFilter) {
+    const nextSearchParams = new URLSearchParams(searchParams);
+    if (nextFilter === "pending") {
+      nextSearchParams.delete("filter");
+    } else {
+      nextSearchParams.set("filter", nextFilter);
+    }
+    nextSearchParams.delete("rows");
+    setSearchParams(nextSearchParams, { preventScrollReset: true });
+  }
+
+  function showMoreRows() {
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.set(
+      "rows",
+      String(
+        Math.min(
+          visibleRowCount + VISIBLE_ROW_STEP,
+          filteredReviewItems.length,
+        ),
+      ),
+    );
+    setSearchParams(nextSearchParams, { preventScrollReset: true });
+  }
 
   function reconcileReview(nextReview: ImportReviewDto) {
     setCurrentReview(nextReview);
@@ -85,7 +116,7 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
             <div className={styles.queueToolbar}>
               <ReviewFilters
                 filter={filter}
-                onChange={setFilter}
+                onChange={changeFilter}
                 review={currentReview}
               />
             </div>
@@ -131,6 +162,16 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
               ) : null}
             </ol>
           )}
+          {hiddenItemCount > 0 ? (
+            <div className={styles.queueMore}>
+              <p>
+                Показано {visibleItems.length} из {filteredReviewItems.length}
+              </p>
+              <Button onClick={showMoreRows} tone="secondary">
+                Показать ещё {Math.min(VISIBLE_ROW_STEP, hiddenItemCount)}
+              </Button>
+            </div>
+          ) : null}
         </section>
       </section>
     </AppShell>
@@ -177,6 +218,28 @@ function ReviewQueue({ review }: { review: ImportReviewDto }) {
 }
 
 type ReviewFilter = "all" | "pending" | "suggestions" | "problems" | "complete";
+const VISIBLE_ROW_STEP = 50;
+
+function reviewFilterFromSearch(value: string | null): ReviewFilter {
+  if (
+    value === "all" ||
+    value === "suggestions" ||
+    value === "problems" ||
+    value === "complete"
+  ) {
+    return value;
+  }
+  return "pending";
+}
+
+function visibleRowCountFromSearch(value: string | null): number {
+  if (value === null) return VISIBLE_ROW_STEP;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isSafeInteger(parsed) || parsed < VISIBLE_ROW_STEP) {
+    return VISIBLE_ROW_STEP;
+  }
+  return parsed;
+}
 
 function ReviewFilters({
   filter,

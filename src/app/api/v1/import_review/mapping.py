@@ -10,6 +10,8 @@ from app.api.v1.import_review.schemas.responses import (
     ImportReviewConfirmabilityApiResponse,
     ImportReviewDocumentApiResponse,
     ImportReviewDraftEvaluationApiResponse,
+    ImportReviewDuplicateCandidateApiResponse,
+    ImportReviewDuplicateEvidenceApiResponse,
     ImportReviewExistingTransferCandidateApiResponse,
     ImportReviewItemApiResponse,
     ImportReviewLifecycleApiResponse,
@@ -102,6 +104,28 @@ class ImportReviewResponseMapper:
                     transfer=ImportReviewResponseMapper._transfer(item.transfer),
                     lifecycle=ImportReviewLifecycleApiResponse(
                         allowed_actions=list(item.lifecycle.allowed_actions),
+                    ),
+                    duplicate_evidence=(
+                        ImportReviewDuplicateEvidenceApiResponse(
+                            reason_code=item.duplicate_evidence.reason_code,
+                            matching_fields=list(item.duplicate_evidence.matching_fields),
+                            candidate=ImportReviewDuplicateCandidateApiResponse(
+                                item_id=item.duplicate_evidence.candidate.item_id,
+                                document_id=item.duplicate_evidence.candidate.document_id,
+                                document_filename=(
+                                    item.duplicate_evidence.candidate.document_filename
+                                ),
+                                operation_id=item.duplicate_evidence.candidate.operation_id,
+                                operation_date=(item.duplicate_evidence.candidate.operation_date),
+                                description=item.duplicate_evidence.candidate.description,
+                                amount=ImportReviewResponseMapper._decimal_required(
+                                    item.duplicate_evidence.candidate.amount
+                                ),
+                                currency=item.duplicate_evidence.candidate.currency,
+                            ),
+                        )
+                        if item.duplicate_evidence is not None
+                        else None
                     ),
                 )
                 for item in review.items

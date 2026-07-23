@@ -204,6 +204,7 @@ uv run python scripts/ui_audit.py
 uv run python scripts/ui_audit.py --scenario realistic
 uv run python scripts/ui_audit.py --scenario review_interactions
 uv run python scripts/ui_audit.py --scenario design_audit
+uv run python scripts/ui_audit.py --scenario theme_audit --theme catppuccin-latte
 ```
 
 ## Server Runtime Settings

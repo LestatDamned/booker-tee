@@ -9,6 +9,7 @@ import {
   updateImportReviewLifecycle,
   type ImportReviewLifecycleRequest,
 } from "./api/import-review-mutations";
+import { focusNextReviewItem } from "./focus-next-review-item";
 import styles from "./import-review.module.css";
 
 type LifecycleAction = ImportReviewLifecycleRequest["action"];
@@ -40,6 +41,9 @@ export function LifecycleActions({
   );
   const [conflict, setConflict] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recovery, setRecovery] = useState<
+    { kind: "refresh" } | { kind: "retry"; action: LifecycleAction } | null
+  >(null);
   const cancelConfirmationRef = useRef<HTMLButtonElement>(null);
   const alertRef = useRef<HTMLParagraphElement>(null);
 
@@ -58,6 +62,7 @@ export function LifecycleActions({
     setPending(action);
     setError(null);
     setConflict(false);
+    setRecovery(null);
     const result = await updateImportReviewLifecycle(
       documentId,
       item.id,
@@ -69,15 +74,23 @@ export function LifecycleActions({
     if (result.status === "success") {
       onMenuDismiss?.();
       onReviewReconciled(result.data.review);
+      focusNextReviewItem(result.data.review);
       return;
     }
     if (result.status === "conflict") {
       setConflict(true);
-      setError(result.message);
+      setRecovery({ kind: "refresh" });
+      setError(`${result.message} Загрузите актуальное состояние строки.`);
       return;
     }
-    if (result.status === "validation_error" || result.status === "error") {
-      setError(result.message);
+    if (result.status === "validation_error") {
+      setRecovery({ kind: "refresh" });
+      setError(`${result.message} Обновите строку и проверьте данные.`);
+      return;
+    }
+    if (result.status === "error") {
+      setRecovery({ kind: "retry", action });
+      setError(`${result.message} Проверьте соединение и повторите действие.`);
       return;
     }
     setError(
@@ -90,6 +103,7 @@ export function LifecycleActions({
   async function refresh() {
     setPending("refresh");
     setError(null);
+    setRecovery(null);
     const result = await loadImportReview(documentId);
     setPending(null);
     if (result.status === "success") {
@@ -100,14 +114,16 @@ export function LifecycleActions({
     }
     setError(
       result.status === "error"
-        ? result.message
+        ? `${result.message} Проверьте соединение и повторите обновление.`
         : "Не удалось обновить состояние import review.",
     );
+    setRecovery({ kind: "refresh" });
   }
 
   function requestAction(action: LifecycleAction) {
     setError(null);
     setConflict(false);
+    setRecovery(null);
     if (isDangerAction(action)) {
       setConfirmation(action);
       return;
@@ -167,7 +183,16 @@ export function LifecycleActions({
           {error}
         </p>
       ) : null}
-      {conflict ? (
+      {recovery?.kind === "retry" ? (
+        <Button
+          isLoading={pending === recovery.action}
+          onClick={() => void run(recovery.action)}
+          tone="primary"
+        >
+          Повторить действие
+        </Button>
+      ) : null}
+      {recovery?.kind === "refresh" || conflict ? (
         <Button
           isLoading={pending === "refresh"}
           onClick={() => void refresh()}

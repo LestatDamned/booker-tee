@@ -7,11 +7,13 @@ import socket
 import subprocess
 import sys
 import time
+from copy import deepcopy
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
 from urllib.request import urlopen
+from uuid import UUID
 
 from openpyxl import Workbook
 from playwright.sync_api import BrowserContext, Page, Route, sync_playwright
@@ -46,6 +48,7 @@ PAGES: tuple[tuple[str, str], ...] = (
 AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/dashboard", "dashboard"),
     ("/app/ledger/manual", "react-manual-ledger"),
+    ("/app/foundation", "react-foundation"),
     ("/accounts", "accounts"),
     ("/ledger/manual", "manual-ledger-redirect"),
     ("/imports", "imports"),
@@ -64,6 +67,8 @@ VIEWPORTS: tuple[tuple[str, int, int], ...] = (
     ("mobile", 390, 844),
 )
 
+THEMES: tuple[str, ...] = ("catppuccin-mocha", "catppuccin-latte", "test")
+
 
 @dataclass(frozen=True)
 class PageAuditResult:
@@ -78,6 +83,7 @@ class PageAuditResult:
     failed_requests: list[str]
     ux_assertion_errors: list[str]
     overflow_offenders: list[dict[str, Any]]
+    performance_metrics: dict[str, float | int]
     error: str | None = None
 
     @property
@@ -134,6 +140,7 @@ def parse_args() -> argparse.Namespace:
             "review_interactions",
             "button_audit",
             "design_audit",
+            "theme_audit",
         ),
         default="empty",
         help="Data scenario to prepare before auditing authenticated pages.",
@@ -142,7 +149,15 @@ def parse_args() -> argparse.Namespace:
         "--path",
         action="append",
         dest="paths",
-        help="Audit only this path. Repeat the option to select several paths.",
+        help=(
+            "Audit only this path or stable page label. Repeat the option to select several pages."
+        ),
+    )
+    parser.add_argument(
+        "--theme",
+        choices=THEMES,
+        default="catppuccin-mocha",
+        help="Force one React theme for screenshots and browser checks.",
     )
     return parser.parse_args()
 
@@ -534,6 +549,7 @@ def collect_ux_assertions(
     path: str,
     scenario: str,
     scenario_state: dict[str, str],
+    theme: str,
 ) -> list[str]:
     errors: list[str] = []
     if path in {"/", "/dashboard"}:
@@ -588,6 +604,42 @@ def collect_ux_assertions(
 
     if scenario == "design_audit":
         errors.extend(assert_design_quality(page, path=path))
+
+    if scenario == "theme_audit":
+        errors.extend(
+            assert_react_theme(
+                page,
+                path=path,
+                scenario_state=scenario_state,
+                theme=theme,
+            )
+        )
+
+    return errors
+
+
+def assert_react_theme(
+    page: Page,
+    *,
+    path: str,
+    scenario_state: dict[str, str],
+    theme: str,
+) -> list[str]:
+    errors: list[str] = []
+    active_theme = page.locator("html").get_attribute("data-theme")
+    if active_theme != theme:
+        errors.append(f"React root theme is {active_theme!r}; expected {theme!r}")
+
+    if path == "/app/foundation":
+        preview_themes = page.locator("section[data-theme]").evaluate_all(
+            "(elements) => elements.map((element) => element.dataset.theme)"
+        )
+        if preview_themes != list(THEMES):
+            errors.append(f"foundation gallery themes are {preview_themes!r}; expected {THEMES!r}")
+
+    if path == scenario_state.get("react_review_path"):
+        if page.get_by_role("heading", name="Проверка выписки", exact=True).count() == 0:
+            errors.append("React import review heading was not found")
 
     return errors
 
@@ -1675,6 +1727,73 @@ def assert_react_import_review(page: Page) -> list[str]:
         return ["React import review heading was not found"]
     if page.locator(".review-item, .review-row, .review-page").count() != 0:
         errors.append("React import review rendered legacy review classes")
+    imports_links = page.locator('a[href="/imports"]').filter(has_text="Импорты")
+    if imports_links.count() != 2:
+        errors.append("React import review imports navigation was not found")
+    else:
+        for index in range(imports_links.count()):
+            imports_link = imports_links.nth(index)
+            if imports_link.get_attribute("href") != "/imports":
+                errors.append("React import review imports navigation has the wrong target")
+            if imports_link.get_attribute("aria-current") != "page":
+                errors.append("React import review imports navigation is not active")
+
+    completed_filter = page.get_by_role("button", name=re.compile(r"^Завершённые \d+$"))
+    pending_filter = page.get_by_role("button", name=re.compile(r"^Требуют решения \d+$"))
+    completed_filter.click()
+    try:
+        page.wait_for_function(
+            "() => new URLSearchParams(location.search).get('filter') === 'complete'",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError:
+        errors.append(f"React import review filter did not enter URL state: {page.url}")
+    else:
+        page.go_back(wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
+        page.wait_for_function(
+            "() => !new URLSearchParams(location.search).has('filter')",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        page.wait_for_function(
+            """
+            () => Array.from(document.querySelectorAll('button[aria-pressed="true"]'))
+              .some((button) => button.textContent?.includes("Требуют решения"))
+            """,
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        if pending_filter.get_attribute("aria-pressed") != "true":
+            errors.append("React import review Back did not restore the pending filter")
+        page.go_forward(wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
+        page.wait_for_function(
+            "() => new URLSearchParams(location.search).get('filter') === 'complete'",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        page.wait_for_function(
+            """
+            () => Array.from(document.querySelectorAll('button[aria-pressed="true"]'))
+              .some((button) => button.textContent?.includes("Завершённые"))
+            """,
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        if completed_filter.get_attribute("aria-pressed") != "true":
+            errors.append("React import review Forward did not restore the completed filter")
+    pending_filter.click()
+    try:
+        page.wait_for_function(
+            "() => !new URLSearchParams(location.search).has('filter')",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        page.wait_for_function(
+            """
+            () => Array.from(document.querySelectorAll('button[aria-pressed="true"]'))
+              .some((button) => button.textContent?.includes("Требуют решения"))
+            """,
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError:
+        pass
+    if "filter=" in page.url:
+        errors.append("React import review default filter remained in the URL")
 
     apply_rules = page.get_by_role("button", name="Применить правила")
     if apply_rules.count() == 0:
@@ -1702,6 +1821,11 @@ def assert_react_import_review(page: Page) -> list[str]:
         return [*errors, "React import review classification panel was not found"]
     classification_panel.click()
     panel = salary_item.locator("section[id^='review-panel-']")
+    operation_context = panel.get_by_label("Контекст текущей операции")
+    viewport = page.viewport_size
+    if viewport is not None and viewport["width"] <= 720:
+        if operation_context.count() == 0 or not operation_context.is_visible():
+            errors.append("React import review mobile editor lost operation context")
 
     more_actions = salary_item.get_by_text("Ещё действия", exact=True)
     if more_actions.count() > 0:
@@ -1746,6 +1870,22 @@ def assert_react_import_review(page: Page) -> list[str]:
         except PlaywrightError:
             errors.append("React import review confirm action was not found")
         else:
+            confirm_box = confirm_action.bounding_box()
+            if confirm_box is None or confirm_box["height"] < 44:
+                errors.append("React import review confirm touch target is below 44px")
+            rule_summary = panel.get_by_text("Правило для похожих операций", exact=True)
+            rule_details = rule_summary.locator("xpath=ancestor::details[1]")
+            if rule_details.evaluate("element => element.open"):
+                errors.append("React import review rule disclosure is open by default")
+            summary_box = rule_summary.bounding_box()
+            if summary_box is None or summary_box["height"] < 44:
+                errors.append("React import review rule touch target is below 44px")
+            rule_summary.focus()
+            rule_summary.press("Enter")
+            if not rule_summary.evaluate("element => document.activeElement === element"):
+                errors.append("React import review rule disclosure lost keyboard focus")
+            if not rule_details.evaluate("element => element.open"):
+                errors.append("React import review rule disclosure is not keyboard operable")
             remember_rule = panel.get_by_label("Применять это решение к похожим строкам")
             if remember_rule.count() == 0:
                 errors.append("React import review remember-rule control was not found")
@@ -1763,6 +1903,12 @@ def assert_react_import_review(page: Page) -> list[str]:
                         errors.append("React import review rule preview was not updated")
             confirm_action.click()
             try:
+                page.wait_for_function(
+                    """
+                    () => document.activeElement?.matches('article[id^="raw-"]')
+                    """,
+                    timeout=PAGE_TIMEOUT_MS,
+                )
                 page.get_by_role("button", name=re.compile(r"^Завершённые \d+$")).click(
                     timeout=PAGE_TIMEOUT_MS
                 )
@@ -1779,8 +1925,17 @@ def assert_react_import_review(page: Page) -> list[str]:
                 page.get_by_role("button", name=re.compile(r"^Требуют решения \d+$")).click(
                     timeout=PAGE_TIMEOUT_MS
                 )
+                page.wait_for_function(
+                    """
+                    () => Array.from(document.querySelectorAll('button[aria-pressed="true"]'))
+                      .some((button) => button.textContent?.includes("Требуют решения"))
+                    """,
+                    timeout=PAGE_TIMEOUT_MS,
+                )
             except PlaywrightError:
-                errors.append("React import review did not expose undo after confirm")
+                errors.append(
+                    "React import review did not focus the next row or expose undo after confirm"
+                )
 
     transfer_item = page.get_by_role("heading", name="Перевод между счетами", exact=True).locator(
         "xpath=ancestor::article[1]"
@@ -1811,6 +1966,7 @@ def assert_react_import_review(page: Page) -> list[str]:
             name=re.compile(r"Проверить предложение|Проверить и провести|Изменить"),
         ).first.click()
         rule_panel = rule_item.locator("section[id^='review-panel-']")
+        rule_panel.get_by_text("Правило для похожих операций", exact=True).click()
         rule_panel.get_by_label("Применять это решение к похожим строкам").click()
         rule_panel.get_by_label("Фрагмент описания *").fill("OZON")
         if "OZON" not in rule_panel.get_by_label("Итог правила").inner_text():
@@ -1819,6 +1975,151 @@ def assert_react_import_review(page: Page) -> list[str]:
     if int(collect_overflow(page)["horizontalOverflowPx"]) > 1:
         errors.append("React import review draft panel causes horizontal overflow")
     return errors
+
+
+def measure_large_import_review_queue(
+    page: Page,
+    *,
+    row_count: int = 250,
+) -> tuple[list[str], dict[str, float | int]]:
+    errors: list[str] = []
+    metrics: dict[str, float | int] = {}
+    large_page = page.context.new_page()
+    payload_bytes = 0
+
+    def expand_review(route: Route) -> None:
+        nonlocal payload_bytes
+        response = route.fetch()
+        payload = response.json()
+        source_items = payload.get("items", [])
+        if not source_items:
+            route.fulfill(response=response, json=payload)
+            return
+        template = next(
+            (item for item in source_items if not item.get("isTerminal")),
+            source_items[0],
+        )
+        items: list[dict[str, Any]] = []
+        item_ids: list[str] = []
+        for index in range(row_count):
+            item = deepcopy(template)
+            item_id = str(UUID(f"00000000-0000-4000-8000-{10_000 + index:012x}"))
+            item["id"] = item_id
+            item["rowIndex"] = index + 1
+            item["status"] = "needs_review"
+            item["isTerminal"] = False
+            item["isReviewable"] = True
+            item["normalized"]["description"] = f"Измеряемая операция {index + 1}"
+            item["raw"]["description"] = f"Измеряемая операция {index + 1}"
+            item["ruleSuggestion"] = {
+                "isActive": False,
+                "wasAutoApplied": False,
+                "ruleId": None,
+                "ruleName": None,
+                "pattern": None,
+                "operationType": None,
+                "categoryId": None,
+                "propertyId": None,
+            }
+            item["posting"] = {"operationId": None, "canUndo": False}
+            item["duplicateEvidence"] = None
+            item["transfer"]["rawRowCandidates"] = []
+            item["transfer"]["existingOperationCandidates"] = []
+            items.append(item)
+            item_ids.append(item_id)
+        payload["items"] = items
+        payload["queue"] = {
+            "total": row_count,
+            "completed": 0,
+            "remaining": row_count,
+            "firstRemainingItemId": item_ids[0],
+            "orderedItemIds": item_ids,
+        }
+        validation = payload.get("validation")
+        if validation is not None:
+            validation["extractedCount"] = row_count
+            validation["normalizedCount"] = row_count
+            validation["needsReviewCount"] = row_count
+            validation["rowProblems"] = []
+        payload_bytes = len(
+            json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        )
+        route.fulfill(response=response, json=payload)
+
+    large_page.route("**/api/v1/import-review/*", expand_review)
+    started_at = time.perf_counter()
+    try:
+        large_page.goto(
+            page.url.split("?", 1)[0],
+            wait_until="domcontentloaded",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        large_page.wait_for_function(
+            """
+            (expectedCount) =>
+              document.querySelectorAll('article[id^="raw-"]').length === expectedCount
+            """,
+            arg=min(50, row_count),
+            timeout=PAGE_TIMEOUT_MS,
+        )
+        initial_render_ms = (time.perf_counter() - started_at) * 1_000
+        initial_dom_nodes = large_page.evaluate("() => document.getElementsByTagName('*').length")
+        expanded_at = time.perf_counter()
+        for expected_count in range(100, row_count + 1, 50):
+            large_page.get_by_role("button", name=re.compile(r"^Показать ещё \d+$")).click()
+            large_page.wait_for_function(
+                """
+                (expectedCount) =>
+                  document.querySelectorAll('article[id^="raw-"]').length === expectedCount
+                """,
+                arg=min(expected_count, row_count),
+                timeout=PAGE_TIMEOUT_MS,
+            )
+        expanded_render_ms = (time.perf_counter() - expanded_at) * 1_000
+        browser_metrics = large_page.evaluate(
+            """
+            async () => {
+              const scrollStartedAt = performance.now();
+              window.scrollTo({ top: document.documentElement.scrollHeight });
+              await new Promise((resolve) =>
+                requestAnimationFrame(() => requestAnimationFrame(resolve))
+              );
+              const longTasks = performance.getEntriesByType("longtask");
+              return {
+                domNodes: document.getElementsByTagName("*").length,
+                scrollSettleMs: performance.now() - scrollStartedAt,
+                longTaskCount: longTasks.length,
+                longTaskTotalMs: longTasks.reduce(
+                  (total, entry) => total + entry.duration,
+                  0,
+                ),
+              };
+            }
+            """
+        )
+        metrics = {
+            "queueRows": row_count,
+            "payloadBytes": payload_bytes,
+            "initialVisibleRows": min(50, row_count),
+            "initialRenderReadyMs": round(initial_render_ms, 1),
+            "initialDomNodes": int(initial_dom_nodes),
+            "expandedRenderReadyMs": round(expanded_render_ms, 1),
+            "expandedDomNodes": int(browser_metrics["domNodes"]),
+            "scrollSettleMs": round(float(browser_metrics["scrollSettleMs"]), 1),
+            "longTaskCount": int(browser_metrics["longTaskCount"]),
+            "longTaskTotalMs": round(float(browser_metrics["longTaskTotalMs"]), 1),
+        }
+        if int(collect_overflow(large_page)["horizontalOverflowPx"]) > 1:
+            errors.append("Large React import review queue causes horizontal overflow")
+    except PlaywrightError as exc:
+        body_excerpt = large_page.locator("body").inner_text()[:300]
+        errors.append(
+            "Large React import review queue did not render: "
+            f"{short_error(exc)}; page={body_excerpt!r}"
+        )
+    finally:
+        large_page.close()
+    return errors, metrics
 
 
 def audit_page(
@@ -1831,6 +2132,7 @@ def audit_page(
     output_dir: Path,
     scenario: str,
     scenario_state: dict[str, str],
+    theme: str,
 ) -> PageAuditResult:
     console_errors: list[str] = []
     page_errors: list[str] = []
@@ -1852,6 +2154,7 @@ def audit_page(
     horizontal_overflow_px = 0
     overflow_offenders: list[dict[str, Any]] = []
     ux_assertion_errors: list[str] = []
+    performance_metrics: dict[str, float | int] = {}
     error_text: str | None = None
 
     try:
@@ -1859,6 +2162,10 @@ def audit_page(
             build_url(base_url, path),
             wait_until="domcontentloaded",
             timeout=PAGE_TIMEOUT_MS,
+        )
+        page.evaluate(
+            "(theme) => { document.documentElement.dataset.theme = theme; }",
+            theme,
         )
         page.wait_for_timeout(300)
         status = response.status if response is not None else None
@@ -1873,7 +2180,11 @@ def audit_page(
             path=path,
             scenario=scenario,
             scenario_state=scenario_state,
+            theme=theme,
         )
+        if scenario == "review_interactions" and path == scenario_state.get("react_review_path"):
+            measurement_errors, performance_metrics = measure_large_import_review_queue(page)
+            ux_assertion_errors.extend(measurement_errors)
         console_errors = remove_expected_console_error(
             console_errors,
             path=path,
@@ -1900,6 +2211,7 @@ def audit_page(
         failed_requests=failed_requests,
         ux_assertion_errors=ux_assertion_errors,
         overflow_offenders=overflow_offenders,
+        performance_metrics=performance_metrics,
         error=error_text,
     )
 
@@ -1941,6 +2253,7 @@ def run_audit(
     auth_password: str,
     scenario: str,
     selected_paths: tuple[str, ...],
+    theme: str,
 ) -> list[PageAuditResult]:
     output_dir.mkdir(parents=True, exist_ok=True)
     results: list[PageAuditResult] = []
@@ -1972,7 +2285,12 @@ def run_audit(
                             output_dir=output_dir,
                             viewport_name=viewport_name,
                         )
-                    elif scenario in {"review_interactions", "button_audit", "design_audit"}:
+                    elif scenario in {
+                        "review_interactions",
+                        "button_audit",
+                        "design_audit",
+                        "theme_audit",
+                    }:
                         scenario_state = prepare_review_interaction_scenario(
                             context,
                             base_url=base_url,
@@ -2000,6 +2318,7 @@ def run_audit(
                         "review_interactions",
                         "button_audit",
                         "design_audit",
+                        "theme_audit",
                     } and scenario_state.get("historical_review_path"):
                         dynamic_pages.append(
                             (
@@ -2007,9 +2326,11 @@ def run_audit(
                                 "historical-import-review",
                             )
                         )
-                    if scenario == "review_interactions" and scenario_state.get(
-                        "react_review_path"
-                    ):
+                    if scenario in {
+                        "review_interactions",
+                        "design_audit",
+                        "theme_audit",
+                    } and (scenario_state.get("react_review_path")):
                         dynamic_pages.append(
                             (
                                 scenario_state["react_review_path"],
@@ -2019,7 +2340,11 @@ def run_audit(
                     if dynamic_pages:
                         pages = (*pages, *dynamic_pages)
                     if selected_paths:
-                        pages = tuple(page for page in pages if page[0] in selected_paths)
+                        pages = tuple(
+                            page
+                            for page in pages
+                            if page[0] in selected_paths or page[1] in selected_paths
+                        )
                     for path, label in pages:
                         print(f" - {path}", flush=True)
                         page = context.new_page()
@@ -2034,6 +2359,7 @@ def run_audit(
                                     output_dir=output_dir,
                                     scenario=scenario,
                                     scenario_state=scenario_state,
+                                    theme=theme,
                                 )
                             )
                         finally:
@@ -2045,11 +2371,18 @@ def run_audit(
     return results
 
 
-def write_report(results: list[PageAuditResult], output_dir: Path, *, scenario: str) -> Path:
+def write_report(
+    results: list[PageAuditResult],
+    output_dir: Path,
+    *,
+    scenario: str,
+    theme: str,
+) -> Path:
     report_path = output_dir / "report.json"
     payload = {
         "passed": all(result.passed for result in results),
         "scenario": scenario,
+        "theme": theme,
         "results": [asdict(result) for result in results],
     }
     report_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -2113,8 +2446,14 @@ def main() -> int:
             auth_password=args.auth_password,
             scenario=args.scenario,
             selected_paths=tuple(args.paths or ()),
+            theme=args.theme,
         )
-        report_path = write_report(results, output_dir, scenario=args.scenario)
+        report_path = write_report(
+            results,
+            output_dir,
+            scenario=args.scenario,
+            theme=args.theme,
+        )
         print_summary(results, report_path)
         return 0 if all(result.passed for result in results) else 1
     finally:

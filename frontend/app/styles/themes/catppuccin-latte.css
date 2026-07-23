@@ -1,0 +1,52 @@
+[data-theme="catppuccin-latte"] {
+  color-scheme: light;
+
+  --palette-crust: #dce0e8;
+  --palette-mantle: #e6e9ef;
+  --palette-base: #eff1f5;
+  --palette-surface: #ffffff;
+  --palette-surface-0: #ccd0da;
+  --palette-surface-1: #bcc0cc;
+  --palette-overlay-2: #7c7f93;
+  --palette-text: #4c4f69;
+  --palette-subtext-1: #5c5f77;
+  --palette-blue: #1e66f5;
+  --palette-blue-strong: #174ea6;
+  --palette-green-accessible: #348623;
+  --palette-yellow-accessible: #8c6500;
+  --palette-red: #d20f39;
+  --palette-mauve: #8839ef;
+  --palette-working: #eee8f6;
+  --palette-target: #e4ebfa;
+  --palette-recent: #e1efef;
+  --palette-overlay: rgb(76 79 105 / 30%);
+  --palette-shadow: rgb(76 79 105 / 14%);
+
+  --color-bg-canvas: var(--palette-base);
+  --color-bg-surface: var(--palette-surface);
+  --color-bg-elevated: var(--palette-mantle);
+  --color-bg-interactive: var(--palette-surface-0);
+  --color-text-primary: var(--palette-text);
+  --color-text-secondary: var(--palette-subtext-1);
+  --color-text-inverse: var(--palette-surface);
+  --color-border-default: var(--palette-surface-1);
+  --color-border-control: var(--palette-overlay-2);
+  --color-border-strong: var(--palette-overlay-2);
+  --color-focus-ring: var(--palette-blue);
+  --color-accent: var(--palette-blue);
+  --color-accent-strong: var(--palette-blue-strong);
+  --color-status-success: var(--palette-green-accessible);
+  --color-status-warning: var(--palette-yellow-accessible);
+  --color-status-danger: var(--palette-red);
+  --color-money-income: var(--palette-green-accessible);
+  --color-money-expense: var(--palette-red);
+  --color-money-transfer: var(--palette-blue);
+  --color-money-profit: var(--palette-mauve);
+  --color-money-adjustment: var(--palette-yellow-accessible);
+  --color-category: var(--palette-mauve);
+  --color-working-surface: var(--palette-working);
+  --color-target-surface: var(--palette-target);
+  --color-recent-surface: var(--palette-recent);
+  --color-overlay: var(--palette-overlay);
+  --shadow-surface: 0 18px 50px var(--palette-shadow);
+}

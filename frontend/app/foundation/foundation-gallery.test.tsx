@@ -13,10 +13,15 @@ describe("FoundationGallery", () => {
     const closeButtons = screen.getAllByRole("button", {
       name: "Закрыть панель",
     });
-    const [firstEditButton, secondEditButton] = editButtons;
+    const [firstEditButton, secondEditButton, thirdEditButton] = editButtons;
     const [firstCloseButton] = closeButtons;
-    if (!firstEditButton || !secondEditButton || !firstCloseButton) {
-      throw new Error("Both theme fixtures must render their panel controls.");
+    if (
+      !firstEditButton ||
+      !secondEditButton ||
+      !thirdEditButton ||
+      !firstCloseButton
+    ) {
+      throw new Error("All theme fixtures must render their panel controls.");
     }
 
     fireEvent.click(firstCloseButton);
@@ -24,5 +29,6 @@ describe("FoundationGallery", () => {
     await waitFor(() => expect(firstEditButton).toHaveFocus());
     expect(firstEditButton).toHaveAttribute("aria-expanded", "false");
     expect(secondEditButton).toHaveAttribute("aria-expanded", "true");
+    expect(thirdEditButton).toHaveAttribute("aria-expanded", "true");
   });
 });

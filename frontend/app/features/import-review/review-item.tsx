@@ -10,6 +10,7 @@ import { WorkbenchRow } from "../../ui/workbench-row/workbench-row";
 import type { ImportReviewDto } from "./api/import-review-api";
 import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
 import { ClassificationPanel } from "./classification-panel";
+import { DuplicateComparison } from "./duplicate-comparison";
 import styles from "./import-review.module.css";
 import { LifecycleActions } from "./lifecycle-actions";
 import { ConfirmPostingAction, UndoPostingAction } from "./posting-actions";
@@ -58,6 +59,7 @@ export function ReviewItem({
   const description =
     item.normalized.description ?? item.raw.description ?? "Без описания";
   const primaryLifecycle = primaryLifecycleActions(item);
+  const secondaryLifecycle = secondaryLifecycleActions(item);
   const overflowLifecycle = overflowLifecycleActions(item);
   const dangerLifecycle = dangerLifecycleActions(item);
   const hasReviewPanel = !item.isTerminal;
@@ -65,12 +67,11 @@ export function ReviewItem({
     item.ruleSuggestion.wasAutoApplied && item.confirmability.canConfirm;
   const reviewActionLabel = rowReviewActionLabel(item);
   const outcome = reviewOutcomePresentation({
-    amount,
     categories,
-    currency,
     item,
     properties,
   });
+  const blockingReason = reviewBlockingReason(item);
 
   function closePanel() {
     setPanelOpen(false);
@@ -183,9 +184,18 @@ export function ReviewItem({
         ) : undefined
       }
       secondary={
-        !readonly &&
-        (primaryLifecycle.length || canQuickConfirmSuggestion) &&
-        hasReviewPanel ? (
+        !readonly && secondaryLifecycle.length ? (
+          <LifecycleActions
+            actions={secondaryLifecycle}
+            csrfToken={csrfToken}
+            documentId={documentId}
+            item={item}
+            onReviewReconciled={onReviewReconciled}
+            readonly={readonly}
+          />
+        ) : !readonly &&
+          (primaryLifecycle.length || canQuickConfirmSuggestion) &&
+          hasReviewPanel ? (
           <Button
             aria-controls={panelId}
             aria-expanded={panelOpen}
@@ -223,6 +233,12 @@ export function ReviewItem({
               onClose={closePanel}
               title="Проверить операцию"
             >
+              <ReviewItemContext
+                amount={amount}
+                currency={currency}
+                description={description}
+                item={item}
+              />
               <ClassificationPanel
                 categories={categories}
                 csrfToken={csrfToken}
@@ -261,15 +277,21 @@ export function ReviewItem({
         />
       }
       signals={
-        problems.length > 0
-          ? problems.map((problem) => (
+        item.duplicateEvidence || blockingReason || problems.length > 0 ? (
+          <>
+            <DuplicateComparison item={item} />
+            {blockingReason && item.duplicateEvidence === null ? (
+              <ReviewBlockingReason reason={blockingReason} />
+            ) : null}
+            {problems.map((problem) => (
               <RowProblemSignal
                 currency={currency}
                 key={`${problem.code}-${problem.itemId}`}
                 problem={problem}
               />
-            ))
-          : undefined
+            ))}
+          </>
+        ) : undefined
       }
       state={
         (hasReviewPanel && panelOpen) || sourceOpen ? "working" : "default"
@@ -291,11 +313,53 @@ export function ReviewItem({
   );
 }
 
+function ReviewItemContext({
+  amount,
+  currency,
+  description,
+  item,
+}: {
+  amount: string | null;
+  currency: string;
+  description: string;
+  item: ReviewItemDto;
+}) {
+  const operationDate = item.normalized.operationDate
+    ? formatIsoDate(item.normalized.operationDate)
+    : (item.raw.operationDate ?? "Дата не распознана");
+
+  return (
+    <aside
+      aria-label="Контекст текущей операции"
+      className={styles.reviewItemContext}
+    >
+      <span className={styles.reviewItemContextLabel}>Текущая операция</span>
+      <span className={styles.reviewItemContextDate}>{operationDate}</span>
+      <strong className={styles.reviewItemContextDescription}>
+        {description}
+      </strong>
+      <span
+        className={styles.reviewItemContextAmount}
+        data-tone={item.classification.operationType ?? "neutral"}
+      >
+        {amount !== null ? (
+          <>
+            {formatReviewAmount(amount, item.classification.operationType)}{" "}
+            <small>{currency}</small>
+          </>
+        ) : (
+          "Сумма не распознана"
+        )}
+      </span>
+    </aside>
+  );
+}
+
 type ReviewOutcomePresentation = {
   detail: string[];
   label: string;
   result: string;
-  resultKind: "money" | "route";
+  resultKind: "meaning" | "route";
   state: "confirmed" | "pending" | "incomplete";
   tone: NonNullable<ReviewItemDto["classification"]["operationType"]>;
 };
@@ -321,15 +385,11 @@ function ReviewOutcome({ outcome }: { outcome: ReviewOutcomePresentation }) {
 }
 
 function reviewOutcomePresentation({
-  amount,
   categories,
-  currency,
   item,
   properties,
 }: {
-  amount: string | null;
   categories: ReviewItemProps["categories"];
-  currency: string;
   item: ReviewItemDto;
   properties: ReviewItemProps["properties"];
 }): ReviewOutcomePresentation | null {
@@ -347,15 +407,11 @@ function reviewOutcomePresentation({
       : item.confirmability.canConfirm
         ? "pending"
         : "incomplete";
-  const label = outcomeLabel(operationType, state === "confirmed");
-  const formattedAmount =
-    amount === null
-      ? "Сумма не распознана"
-      : `${formatOutcomeAmount(amount)}${currency ? ` ${currency}` : ""}`;
+  const label = outcomeLabel(state);
 
   if (operationType === "transfer") {
     return {
-      detail: [formattedAmount],
+      detail: [],
       label,
       result: transferOutcomeRoute(item),
       resultKind: "route",
@@ -370,33 +426,28 @@ function reviewOutcomePresentation({
   const property = properties.find(
     (candidate) => candidate.id === item.selection.propertyId,
   );
-  const detail = [
-    category ? `Категория: ${category.name}` : "Категория не выбрана",
-  ];
+  const operation = operationPresentation(operationType).label;
+  const detail: string[] = [];
   if (property) detail.push(`Объект: ${property.name}`);
   return {
     detail,
     label,
-    result: formattedAmount,
-    resultKind: "money",
+    result:
+      operationType === "income" || operationType === "expense"
+        ? `${operation} → ${category?.name ?? "категория не выбрана"}`
+        : operation,
+    resultKind: "meaning",
     state,
     tone: operationType,
   };
 }
 
-function outcomeLabel(
-  operationType: NonNullable<ReviewItemDto["classification"]["operationType"]>,
-  confirmed: boolean,
-): string {
-  if (operationType === "adjustment") {
-    return confirmed ? "Создана корректировка" : "Будет создана корректировка";
-  }
-  const noun = {
-    income: "доход",
-    expense: "расход",
-    transfer: "перевод",
-  }[operationType];
-  return confirmed ? `Создан ${noun}` : `Будет создан ${noun}`;
+function outcomeLabel(state: ReviewOutcomePresentation["state"]): string {
+  return {
+    incomplete: "Предварительный результат",
+    pending: "Готово к проведению",
+    confirmed: "Проведено",
+  }[state];
 }
 
 function transferOutcomeRoute(item: ReviewItemDto): string {
@@ -447,9 +498,12 @@ function ReviewItemMeta({
             {category?.name ?? "Без категории"}
           </Badge>
         ) : null}
-        <Badge tone={statusTone(item.status)} variant="status">
+        <span
+          className={styles.workflowStatus}
+          data-tone={statusTone(item.status)}
+        >
           {statusLabel(item.status)}
-        </Badge>
+        </span>
       </div>
       {property ? (
         <span className={styles.propertyFact}>Объект · {property.name}</span>
@@ -530,6 +584,38 @@ function rowReviewActionLabel(item: ReviewItemDto): string {
   }
   if (item.selection.categoryId === null) return "Выбрать категорию";
   return "Проверить операцию";
+}
+
+function ReviewBlockingReason({ reason }: { reason: string }) {
+  return (
+    <div aria-label="Что мешает подтверждению" className={styles.reviewBlocker}>
+      <span>Что мешает подтверждению</span>
+      <strong>{reason}</strong>
+    </div>
+  );
+}
+
+function reviewBlockingReason(item: ReviewItemDto): string | null {
+  if (item.isTerminal || item.confirmability.canConfirm) return null;
+  const reason = item.confirmability.blockingReasonCodes[0];
+  if (!reason) return null;
+  return {
+    terminal_state: "Строка уже завершена",
+    failed_state: "Исправьте ошибку строки",
+    duplicate_review_required: "Проверьте возможный дубль",
+    normalization_error: "Проверьте распознанные данные",
+    missing_operation_date: "Не определена дата операции",
+    missing_amount: "Не определена сумма",
+    missing_currency: "Не определена валюта",
+    missing_source_account: "Не определён исходный счёт",
+    missing_operation_type: "Выберите тип операции",
+    operation_type_amount_mismatch: "Проверьте тип операции",
+    missing_category: "Выберите категорию",
+    uncategorized_category: "Выберите конкретную категорию",
+    transfer_accounts_required: "Выберите второй счёт перевода",
+    same_transfer_account: "Счета перевода должны отличаться",
+    unsupported_operation_type: "Этот тип нельзя провести из импорта",
+  }[reason];
 }
 
 function RowProblemSignal({
@@ -711,10 +797,6 @@ function formatPlainMoney(value: string): string {
   return formatReviewAmount(value, null);
 }
 
-function formatOutcomeAmount(value: string): string {
-  return formatReviewAmount(value, null).replace(/^[+−-]/, "");
-}
-
 function rowWorkflowState(
   item: ReviewItemDto,
   problems: RowProblem[],
@@ -743,15 +825,26 @@ function primaryLifecycleActions(item: ReviewItemDto): LifecycleAction[] {
 
 function dangerLifecycleActions(item: ReviewItemDto): LifecycleAction[] {
   return item.lifecycle.allowedActions.filter(
-    (action) => action === "mark_duplicate" || action === "ignore",
+    (action) =>
+      action === "ignore" ||
+      (action === "mark_duplicate" && item.status !== "possible_duplicate"),
   );
+}
+
+function secondaryLifecycleActions(item: ReviewItemDto): LifecycleAction[] {
+  return item.status === "possible_duplicate" &&
+    item.lifecycle.allowedActions.includes("mark_duplicate")
+    ? ["mark_duplicate"]
+    : [];
 }
 
 function overflowLifecycleActions(item: ReviewItemDto): LifecycleAction[] {
   const primary = new Set(primaryLifecycleActions(item));
+  const secondary = new Set(secondaryLifecycleActions(item));
   const danger = new Set(dangerLifecycleActions(item));
   return item.lifecycle.allowedActions.filter(
-    (action) => !primary.has(action) && !danger.has(action),
+    (action) =>
+      !primary.has(action) && !secondary.has(action) && !danger.has(action),
   );
 }
 

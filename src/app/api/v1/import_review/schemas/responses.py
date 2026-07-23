@@ -4,6 +4,10 @@ from uuid import UUID
 
 from app.api.schemas import ApiModel
 from app.features.categories.models import CategoryKind
+from app.features.imports.application.review.duplicates import (
+    ImportReviewDuplicateMatchingField,
+    ImportReviewDuplicateMatchReasonCode,
+)
 from app.features.imports.application.review.read_model import (
     ImportReviewReadonlyReasonCode,
 )
@@ -132,6 +136,23 @@ class ImportReviewLifecycleApiResponse(ApiModel):
     allowed_actions: list[ImportReviewLifecycleAction]
 
 
+class ImportReviewDuplicateCandidateApiResponse(ApiModel):
+    item_id: UUID
+    document_id: UUID
+    document_filename: str
+    operation_id: UUID | None
+    operation_date: date
+    description: str | None
+    amount: str
+    currency: str
+
+
+class ImportReviewDuplicateEvidenceApiResponse(ApiModel):
+    reason_code: ImportReviewDuplicateMatchReasonCode
+    matching_fields: list[ImportReviewDuplicateMatchingField]
+    candidate: ImportReviewDuplicateCandidateApiResponse
+
+
 class ImportReviewItemApiResponse(ApiModel):
     id: UUID
     row_index: int
@@ -148,6 +169,7 @@ class ImportReviewItemApiResponse(ApiModel):
     posting: ImportReviewPostingApiResponse
     transfer: ImportReviewTransferOptionsApiResponse
     lifecycle: ImportReviewLifecycleApiResponse
+    duplicate_evidence: ImportReviewDuplicateEvidenceApiResponse | None
 
 
 class ImportReviewCategoryReferenceApiResponse(ApiModel):

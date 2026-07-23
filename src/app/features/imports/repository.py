@@ -17,6 +17,8 @@ from app.features.imports.models import (
 )
 from app.features.imports.query_repository import ImportQueryRepository
 
+RawTransactionFingerprint = tuple[UUID, date, Decimal, str]
+
 
 class ImportRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -168,6 +170,53 @@ class ImportRepository:
                 if fingerprint in fingerprints:
                     matches.add(fingerprint)
         return matches
+
+    async def list_possible_duplicate_candidates(
+        self,
+        *,
+        workspace_id: UUID,
+        fingerprints: set[RawTransactionFingerprint],
+        exclude_document_id: UUID,
+    ) -> list[RawTransaction]:
+        if not fingerprints:
+            return []
+
+        account_ids = {fingerprint[0] for fingerprint in fingerprints}
+        operation_dates = {fingerprint[1] for fingerprint in fingerprints}
+        amounts = {fingerprint[2] for fingerprint in fingerprints}
+        currencies = {fingerprint[3] for fingerprint in fingerprints}
+        result = await self.session.execute(
+            select(RawTransaction)
+            .join(UploadedDocument)
+            .options(selectinload(RawTransaction.uploaded_document))
+            .where(
+                RawTransaction.workspace_id == workspace_id,
+                RawTransaction.uploaded_document_id != exclude_document_id,
+                RawTransaction.account_id.in_(account_ids),
+                RawTransaction.operation_date.in_(operation_dates),
+                RawTransaction.amount.in_(amounts),
+                RawTransaction.currency.in_(currencies),
+                RawTransaction.status.not_in(
+                    [
+                        RawTransactionStatus.DUPLICATE,
+                        RawTransactionStatus.IGNORED,
+                        RawTransactionStatus.FAILED,
+                    ]
+                ),
+            )
+            .order_by(UploadedDocument.created_at.desc(), RawTransaction.row_index)
+        )
+        return [
+            candidate
+            for candidate in result.scalars().all()
+            if (
+                candidate.account_id,
+                candidate.operation_date,
+                candidate.amount,
+                candidate.currency,
+            )
+            in fingerprints
+        ]
 
     async def has_confirmed_raw_transaction_with_dedupe_hash(
         self,

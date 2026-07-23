@@ -28,6 +28,12 @@ from app.features.imports.application.review.confirmation_commands import (
     ImportReviewConfirmationResult,
     ImportReviewConfirmationValidationError,
 )
+from app.features.imports.application.review.duplicates import (
+    ImportReviewDuplicateCandidateDto,
+    ImportReviewDuplicateEvidenceDto,
+    ImportReviewDuplicateMatchingField,
+    ImportReviewDuplicateMatchReasonCode,
+)
 from app.features.imports.application.review.lifecycle_commands import (
     ImportReviewLifecycleResult,
 )
@@ -157,6 +163,7 @@ def test_import_review_returns_typed_queue_and_source_data() -> None:
         "operationId": None,
         "canUndo": False,
     }
+    assert payload["items"][0]["duplicateEvidence"] is None
     assert payload["references"] == {"categories": [], "properties": []}
     assert payload["validation"]["reasonCode"] == "control_totals_mismatch"
     assert payload["validation"]["calculatedTotalOutflow"] == "1250.50"
@@ -227,6 +234,57 @@ def test_import_review_exposes_transfer_account_references() -> None:
         "id": str(counterparty.id),
         "name": "Накопительный счёт",
         "currency": "RUB",
+    }
+
+
+def test_import_review_exposes_server_owned_duplicate_evidence() -> None:
+    review = review_model()
+    candidate_document_id = uuid4()
+    candidate_item_id = uuid4()
+    item = replace(
+        review.items[0],
+        status=RawTransactionStatus.POSSIBLE_DUPLICATE,
+        duplicate_evidence=ImportReviewDuplicateEvidenceDto(
+            reason_code=(ImportReviewDuplicateMatchReasonCode.SAME_ACCOUNT_DATE_AMOUNT_CURRENCY),
+            matching_fields=(
+                ImportReviewDuplicateMatchingField.ACCOUNT,
+                ImportReviewDuplicateMatchingField.OPERATION_DATE,
+                ImportReviewDuplicateMatchingField.AMOUNT,
+                ImportReviewDuplicateMatchingField.CURRENCY,
+            ),
+            candidate=ImportReviewDuplicateCandidateDto(
+                item_id=candidate_item_id,
+                document_id=candidate_document_id,
+                document_filename="previous-statement.pdf",
+                operation_id=None,
+                operation_date=date(2026, 7, 20),
+                description="Покупка",
+                amount=Decimal("-1250.50"),
+                currency="RUB",
+            ),
+        ),
+    )
+    review = replace(review, items=[item])
+    app, _, _ = import_review_app(review)
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/import-review/{review.document.id}")
+
+    assert response.status_code == 200
+    evidence = response.json()["items"][0]["duplicateEvidence"]
+    assert evidence == {
+        "reasonCode": "same_account_date_amount_currency",
+        "matchingFields": ["account", "operation_date", "amount", "currency"],
+        "candidate": {
+            "itemId": str(candidate_item_id),
+            "documentId": str(candidate_document_id),
+            "documentFilename": "previous-statement.pdf",
+            "operationId": None,
+            "operationDate": "2026-07-20",
+            "description": "Покупка",
+            "amount": "-1250.50",
+            "currency": "RUB",
+        },
     }
 
 

@@ -1,6 +1,6 @@
 # Этап 9. UX/UI-полировка и сменные темы
 
-Статус: accepted direction, pending implementation.
+Статус: completed 2026-07-23.
 
 Принято: 2026-07-23 по результатам UX/UI-аудита текущей React-страницы.
 
@@ -225,40 +225,50 @@ focused tests, relevant checks и screenshot evidence. Новые plan-файл�
 
 ### 9B. Иерархия строки и outcome
 
-- [ ] Оставить один главный денежный акцент.
-- [ ] Различить preliminary, ready и committed outcome.
-- [ ] Показать blocking reason до открытия editor.
-- [ ] Уменьшить конкуренцию badge, source, outcome и action rail.
+Статус slice: completed 2026-07-23.
+
+- [x] Оставить один главный денежный акцент.
+- [x] Различить preliminary, ready и committed outcome.
+- [x] Показать blocking reason до открытия editor.
+- [x] Уменьшить конкуренцию badge, source, outcome и action rail.
 
 ### 9C. Duplicate evidence и recovery
 
-- [ ] Показать сравнение possible duplicate с кандидатом.
-- [ ] Объяснить причину совпадения без client-owned policy.
-- [ ] Для network, stale и validation errors показать конкретный recovery path.
-- [ ] При необходимости расширить API/read model и workspace isolation tests.
+Статус slice: completed 2026-07-23.
+
+- [x] Показать сравнение possible duplicate с кандидатом.
+- [x] Объяснить причину совпадения без client-owned policy.
+- [x] Для network, stale и validation errors показать конкретный recovery path.
+- [x] При необходимости расширить API/read model и workspace isolation tests.
 
 ### 9D. Компактный editor и mobile
 
-- [ ] Сохранить контекст текущей операции при длинном editor.
-- [ ] Сблизить live outcome и confirm action.
-- [ ] Оставить rule/raw sections progressive.
-- [ ] Проверить focus, touch targets и отсутствие overflow.
+Статус slice: completed 2026-07-23.
+
+- [x] Сохранить контекст текущей операции при длинном editor.
+- [x] Сблизить live outcome и confirm action.
+- [x] Оставить rule/raw sections progressive.
+- [x] Проверить focus, touch targets и отсутствие overflow.
 
 ### 9E. Navigation и большие очереди
 
-- [ ] Добавить путь к импортам и корректный active state в AppShell.
-- [ ] Сохранять filter/navigation context.
-- [ ] Переводить пользователя к следующей нерешённой строке после success.
-- [ ] Измерить большие документы до решения о pagination/virtualization.
+Статус slice: completed 2026-07-23.
+
+- [x] Добавить путь к импортам и корректный active state в AppShell.
+- [x] Сохранять filter/navigation context.
+- [x] Переводить пользователя к следующей нерешённой строке после success.
+- [x] Измерить большие документы до решения о pagination/virtualization.
 
 ### 9F. Theme split и Catppuccin Latte
 
-- [ ] Разделить theme files без изменения component geometry.
-- [ ] Добавить Catppuccin Latte как второй production palette contract.
-- [ ] Перевести financial controls с status tokens на money tokens, где это
+Статус slice: completed 2026-07-23.
+
+- [x] Разделить theme files без изменения component geometry.
+- [x] Добавить Catppuccin Latte как второй production palette contract.
+- [x] Перевести financial controls с status tokens на money tokens, где это
       соответствует смыслу.
-- [ ] Расширить style checker автоматическим discovery и contrast validation.
-- [ ] Проверить foundation gallery и Import Review в Mocha, Latte и test theme.
+- [x] Расширить style checker автоматическим discovery и contrast validation.
+- [x] Проверить foundation gallery и Import Review в Mocha, Latte и test theme.
 
 ## Целевые формулировки
 
@@ -273,18 +283,18 @@ focused tests, relevant checks и screenshot evidence. Новые plan-файл�
 
 ## Definition of Done
 
-- [ ] Пользователь за один scan понимает problem, proposed outcome и next action.
-- [ ] Possible duplicate имеет достаточное evidence для осознанного решения.
-- [ ] Preliminary UI не обещает создание неподтверждаемой операции.
-- [ ] В ordinary flow нет parser/internal terminology без пользовательской
+- [x] Пользователь за один scan понимает problem, proposed outcome и next action.
+- [x] Possible duplicate имеет достаточное evidence для осознанного решения.
+- [x] Preliminary UI не обещает создание неподтверждаемой операции.
+- [x] В ordinary flow нет parser/internal terminology без пользовательской
       пользы.
-- [ ] Filters однозначны, unresolved-first и имеют корректные counts/semantics.
-- [ ] Active navigation видна, но спокойнее рабочей области.
-- [ ] Component CSS не содержит raw palette и не знает имя темы.
-- [ ] Mocha, Latte и test определяют полный semantic token contract.
-- [ ] Contrast, focus, touch targets и reduced motion проверены для каждой темы.
-- [ ] Нет overflow на `390×844`, `920×900`, `1440×1000`.
-- [ ] Пройдены format, lint, style, type, feature tests, build и relevant UI
+- [x] Filters однозначны, unresolved-first и имеют корректные counts/semantics.
+- [x] Active navigation видна, но спокойнее рабочей области.
+- [x] Component CSS не содержит raw palette и не знает имя темы.
+- [x] Mocha, Latte и test определяют полный semantic token contract.
+- [x] Contrast, focus, touch targets и reduced motion проверены для каждой темы.
+- [x] Нет overflow на `390×844`, `920×900`, `1440×1000`.
+- [x] Пройдены format, lint, style, type, feature tests, build и relevant UI
       audit.
-- [ ] Зафиксирован финальный desktop/tablet/mobile screenshot set для обеих
+- [x] Зафиксирован финальный desktop/tablet/mobile screenshot set для обеих
       production themes.

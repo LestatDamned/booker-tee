@@ -6,6 +6,7 @@ import {
   postImportReviewTransfer,
   type ImportReviewTransferRequest,
 } from "./api/import-review-mutations";
+import { focusNextReviewItem } from "./focus-next-review-item";
 import styles from "./import-review.module.css";
 
 type TransferPanelProps = {
@@ -62,6 +63,7 @@ export function TransferPanel({
         return;
       }
       onReviewReconciled(current);
+      focusNextReviewItem(current);
       return;
     }
     if (result.status === "conflict") {

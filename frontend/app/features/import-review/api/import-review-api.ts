@@ -197,6 +197,24 @@ export const importReviewSchema: z.ZodType<ImportReviewDto> = z.object({
           z.enum(["mark_unique", "mark_duplicate", "ignore", "needs_review"]),
         ),
       }),
+      duplicateEvidence: z
+        .object({
+          reasonCode: z.literal("same_account_date_amount_currency"),
+          matchingFields: z.array(
+            z.enum(["account", "operation_date", "amount", "currency"]),
+          ),
+          candidate: z.object({
+            itemId: z.uuid(),
+            documentId: z.uuid(),
+            documentFilename: z.string(),
+            operationId: z.uuid().nullable(),
+            operationDate: z.iso.date(),
+            description: z.string().nullable(),
+            amount: z.string(),
+            currency: z.string(),
+          }),
+        })
+        .nullable(),
     }),
   ),
   references: z.object({

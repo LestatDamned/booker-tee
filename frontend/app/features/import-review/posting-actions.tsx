@@ -10,6 +10,7 @@ import {
   type ImportReviewDraftEvaluationDto,
   undoImportReviewPosting,
 } from "./api/import-review-mutations";
+import { focusNextReviewItem } from "./focus-next-review-item";
 import styles from "./import-review.module.css";
 
 type PostingActionProps = {
@@ -163,79 +164,6 @@ export function ConfirmPostingAction({
 
   return (
     <section aria-label="Подтверждение операции" className={styles.postingBox}>
-      <label className={styles.rememberRule}>
-        <input
-          checked={rememberRule}
-          disabled={pending}
-          onChange={(event) => {
-            setRememberRule(event.target.checked);
-            setRulePatternError(null);
-            setError(null);
-          }}
-          type="checkbox"
-        />
-        Применять это решение к похожим строкам
-      </label>
-      {rememberRule ? (
-        <div className={styles.rulePatternField}>
-          <div className={styles.ruleSourceDescription}>
-            <span>Исходное описание</span>
-            <p>
-              {item.raw.description ??
-                item.normalized.description ??
-                "Без описания"}
-            </p>
-          </div>
-          <div className={styles.ruleDefinition}>
-            <label>
-              <span className={styles.rulePatternLabel}>
-                Фрагмент описания <span aria-hidden="true">*</span>
-              </span>
-              <input
-                aria-describedby={`${`rule-pattern-help-${item.id}`} ${
-                  rulePatternError ? `rule-pattern-error-${item.id}` : ""
-                }`.trim()}
-                aria-invalid={rulePatternError ? true : undefined}
-                autoComplete="off"
-                disabled={pending}
-                maxLength={255}
-                onChange={(event) => {
-                  setRulePattern(event.target.value);
-                  setRulePatternError(null);
-                  setError(null);
-                }}
-                placeholder="Например, KRASNOE&BELOE"
-                ref={rulePatternRef}
-                required
-                value={rulePattern}
-              />
-            </label>
-            <p
-              className={styles.rulePatternHelp}
-              id={`rule-pattern-help-${item.id}`}
-            >
-              Скопируйте устойчивую часть без даты, суммы и реквизитов.
-            </p>
-            {rulePatternError ? (
-              <p
-                className={styles.fieldError}
-                id={`rule-pattern-error-${item.id}`}
-                role="alert"
-              >
-                {rulePatternError}
-              </p>
-            ) : null}
-            <div className={styles.rulePreview} aria-label="Итог правила">
-              <span>Правило:</span>
-              <strong>
-                Если описание содержит «{rulePattern.trim() || "…"}» → категория
-                «{categoryName}»
-              </strong>
-              <small>Только предложит категорию — без автопроведения.</small>
-            </div>
-          </div>
-        </div>
-      ) : null}
       <div className={styles.editorActions}>
         <Button
           disabled={pending || refreshing}
@@ -247,6 +175,86 @@ export function ConfirmPostingAction({
         </Button>
         {onCancel ? <Button onClick={onCancel}>Отмена</Button> : null}
       </div>
+      <details className={styles.ruleDisclosure}>
+        <summary>Правило для похожих операций</summary>
+        <div className={styles.ruleDisclosureBody}>
+          <label className={styles.rememberRule}>
+            <input
+              checked={rememberRule}
+              disabled={pending}
+              onChange={(event) => {
+                setRememberRule(event.target.checked);
+                setRulePatternError(null);
+                setError(null);
+              }}
+              type="checkbox"
+            />
+            Применять это решение к похожим строкам
+          </label>
+          {rememberRule ? (
+            <div className={styles.rulePatternField}>
+              <div className={styles.ruleSourceDescription}>
+                <span>Исходное описание</span>
+                <p>
+                  {item.raw.description ??
+                    item.normalized.description ??
+                    "Без описания"}
+                </p>
+              </div>
+              <div className={styles.ruleDefinition}>
+                <label>
+                  <span className={styles.rulePatternLabel}>
+                    Фрагмент описания <span aria-hidden="true">*</span>
+                  </span>
+                  <input
+                    aria-describedby={`${`rule-pattern-help-${item.id}`} ${
+                      rulePatternError ? `rule-pattern-error-${item.id}` : ""
+                    }`.trim()}
+                    aria-invalid={rulePatternError ? true : undefined}
+                    autoComplete="off"
+                    disabled={pending}
+                    maxLength={255}
+                    onChange={(event) => {
+                      setRulePattern(event.target.value);
+                      setRulePatternError(null);
+                      setError(null);
+                    }}
+                    placeholder="Например, KRASNOE&BELOE"
+                    ref={rulePatternRef}
+                    required
+                    value={rulePattern}
+                  />
+                </label>
+                <p
+                  className={styles.rulePatternHelp}
+                  id={`rule-pattern-help-${item.id}`}
+                >
+                  Скопируйте устойчивую часть без даты, суммы и реквизитов.
+                </p>
+                {rulePatternError ? (
+                  <p
+                    className={styles.fieldError}
+                    id={`rule-pattern-error-${item.id}`}
+                    role="alert"
+                  >
+                    {rulePatternError}
+                  </p>
+                ) : null}
+                <div className={styles.rulePreview} aria-label="Итог правила">
+                  <span>Правило:</span>
+                  <strong>
+                    Если описание содержит «{rulePattern.trim() || "…"}» →
+                    категория «{categoryName}»
+                  </strong>
+                  <small>
+                    Только предложит категорию — без автопроведения.
+                  </small>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </details>
       <PostingError error={error} ref={alertRef} />
       {conflict ? (
         <Button
@@ -303,7 +311,10 @@ export function UndoPostingAction({
       const review = result.data.reviews.find(
         (candidate) => candidate.document.id === documentId,
       );
-      if (review) onReviewReconciled(review);
+      if (review) {
+        onReviewReconciled(review);
+        focusNextReviewItem(review);
+      }
       return;
     }
     setError(postingError(result));
@@ -370,13 +381,4 @@ function postingError(result: { status: string; message?: string }): string {
     return "Недостаточно прав для проведения операции.";
   }
   return result.message ?? "Операцию не удалось изменить.";
-}
-
-function focusNextReviewItem(review: ImportReviewDto) {
-  if (!review.queue.firstRemainingItemId) return;
-  window.setTimeout(() => {
-    document
-      .getElementById(`raw-${review.queue.firstRemainingItemId}`)
-      ?.focus();
-  });
 }

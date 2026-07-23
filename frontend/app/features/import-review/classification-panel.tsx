@@ -216,45 +216,61 @@ export function ClassificationPanel({
                   pending={pending}
                 />
               ) : null}
-              <OrdinaryOutcome
-                categories={categories}
-                dirty={dirty}
-                evaluation={evaluation}
-                pending={pending}
-                properties={properties}
-              />
             </>
           )}
         </>
       )}
       {error ? (
-        <p className={styles.draftError} role="alert">
-          {error}
-        </p>
+        <div className={styles.errorRecovery}>
+          <p className={styles.draftError} role="alert">
+            {error}
+          </p>
+          {Object.keys(fieldErrors).length === 0 && mode === "ordinary" ? (
+            <Button
+              disabled={pending}
+              onClick={() => void runEvaluation(draft)}
+              tone="secondary"
+            >
+              Повторить проверку
+            </Button>
+          ) : null}
+        </div>
       ) : null}
       {mode === "ordinary" ? (
-        <DraftCapability
-          dirty={dirty}
-          evaluation={evaluation}
-          pending={pending}
-        />
-      ) : null}
-      {!readonly && mode === "ordinary" ? (
-        <ConfirmPostingAction
-          categoryName={
-            categories.find(
-              (category) => category.id === evaluation.selection.categoryId,
-            )?.name ?? "Выбранная категория"
-          }
-          csrfToken={csrfToken}
-          dirty={dirty}
-          documentId={documentId}
-          evaluation={evaluation}
-          item={item}
-          key={editorResetVersion}
-          onCancel={cancelChanges}
-          onReviewReconciled={onReviewReconciled}
-        />
+        <section
+          aria-label="Решение по операции"
+          className={styles.reviewDecisionSummary}
+        >
+          <OrdinaryOutcome
+            categories={categories}
+            dirty={dirty}
+            evaluation={evaluation}
+            pending={pending}
+            properties={properties}
+          />
+          <DraftCapability
+            dirty={dirty}
+            evaluation={evaluation}
+            pending={pending}
+          />
+          {!readonly ? (
+            <ConfirmPostingAction
+              categoryName={
+                categories.find(
+                  (category) => category.id === evaluation.selection.categoryId,
+                )?.name ?? "Выбранная категория"
+              }
+              csrfToken={csrfToken}
+              dirty={dirty}
+              documentId={documentId}
+              evaluation={evaluation}
+              item={item}
+              key={editorResetVersion}
+              onCancel={cancelChanges}
+              onReviewReconciled={onReviewReconciled}
+            />
+          ) : null}
+        </section>
       ) : null}
     </div>
   );
