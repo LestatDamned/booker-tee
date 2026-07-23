@@ -173,6 +173,24 @@ The top-level layout should separate:
 - reference data: categories, properties, rules;
 - system/admin: users, workspaces, integrations.
 
+On desktop, global context and navigation live in one persistent left sidebar:
+
+```text
+brand
+current workspace
+grouped work / analysis / reference navigation
+current user and role
+```
+
+Workspace and user context must not consume a separate row above every working
+screen. The workspace card links to workspace management; the user card links
+to profile. Do not show a chevron or switcher affordance until an actual
+workspace-switching interaction exists.
+
+On mobile, the same hierarchy moves into one keyboard-operable menu. The compact
+top bar may repeat only the short workspace name for orientation; the page
+content must not duplicate the desktop context header.
+
 Primary global action:
 
 ```text

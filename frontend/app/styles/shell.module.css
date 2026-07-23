@@ -11,7 +11,9 @@
   line-height: 1.6;
 }
 
-.eyebrow {
+.eyebrow,
+.contextEyebrow,
+.navGroupLabel {
   color: var(--color-accent);
   font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
@@ -36,12 +38,24 @@
 .appShell {
   display: grid;
   min-height: 100vh;
-  grid-template-columns: 15rem 1fr;
+  grid-template-columns: 16rem minmax(0, 1fr);
 }
 
 .sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  flex-direction: column;
+  overflow: hidden;
   border-right: 1px solid var(--color-border-default);
-  padding: var(--space-6) var(--space-5);
+  background: color-mix(
+    in srgb,
+    var(--color-bg-canvas) 88%,
+    var(--color-bg-surface)
+  );
+  padding: var(--space-5) var(--space-4);
 }
 
 .mobileHeader {
@@ -50,63 +64,176 @@
 
 .brand {
   display: block;
-  margin-bottom: var(--space-7);
+  width: fit-content;
+  margin: 0 0 var(--space-5) var(--space-2);
   color: var(--color-accent);
   font-family: var(--font-family-mono);
   font-weight: 800;
   text-decoration: none;
 }
 
-.navItem {
-  display: block;
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  color: var(--color-text-secondary);
-  text-decoration: none;
-}
-
-.navItemActive {
-  border-radius: var(--radius-md);
-  background: var(--color-bg-surface);
-  color: var(--color-text-primary);
-}
-
-.workspace {
-  min-width: 0;
-  padding: var(--space-6);
-}
-
-.workspaceHeader {
+.shellContext {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-5);
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
 }
 
-.workspaceName {
-  margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: 800;
+.workspaceCard,
+.userCard {
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease;
 }
 
-.userChip {
+.workspaceCard {
   display: grid;
   gap: var(--space-1);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-md);
   background: var(--color-bg-surface);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3);
 }
 
-.userChip small {
+.workspaceCard:hover,
+.userCard:hover {
+  border-color: var(--color-border-control);
+  background: var(--color-bg-interactive);
+}
+
+.workspaceCard strong,
+.workspaceCard small,
+.userIdentity strong,
+.userIdentity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspaceCard strong {
+  font-size: var(--font-size-md);
+}
+
+.workspaceCard small,
+.userIdentity small {
   color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.sidebar nav,
+.mobileMenuPanel nav {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.navGroup,
+.navList {
+  display: grid;
+}
+
+.navGroup {
+  gap: var(--space-1);
+}
+
+.navGroupLabel {
+  margin: 0;
+  padding-inline: var(--space-3);
+  color: var(--color-text-secondary);
+  letter-spacing: 0.06em;
+}
+
+.navList {
+  gap: var(--space-1);
+}
+
+.navItem {
+  display: flex;
+  min-height: var(--control-height);
+  align-items: center;
+  gap: var(--space-3);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  font-weight: 650;
+  text-decoration: none;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
+}
+
+.navItem:hover {
+  background: var(--color-bg-interactive);
+  color: var(--color-text-primary);
+}
+
+.navItemActive {
+  background: var(--color-bg-surface);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+  color: var(--color-text-primary);
+}
+
+.navIcon,
+.menuIcon {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex: none;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.userCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-height);
+  margin-top: auto;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+
+.userAvatar {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-elevated);
+  color: var(--color-accent);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.userIdentity {
+  display: grid;
+  min-width: 0;
+  gap: 0.1rem;
+}
+
+.contextArrow {
+  color: var(--color-text-secondary);
+}
+
+.workspace {
+  min-width: 0;
+  padding: var(--space-5) var(--space-6) var(--space-6);
 }
 
 .placeholderCard {
   max-width: 46rem;
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-lg);
-  margin-top: var(--space-8);
+  margin-top: var(--space-5);
   background: var(--color-bg-surface);
   padding: var(--space-6);
 }
@@ -114,6 +241,20 @@
 .placeholderCard p:last-child {
   color: var(--color-text-secondary);
   line-height: 1.6;
+}
+
+@media (max-width: 70rem) and (min-width: 45.01rem) {
+  .appShell {
+    grid-template-columns: 13.5rem minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding-inline: var(--space-3);
+  }
+
+  .workspace {
+    padding-inline: var(--space-4);
+  }
 }
 
 @media (max-width: 45rem) {
@@ -126,11 +267,19 @@
   }
 
   .mobileHeader {
-    display: flex;
+    position: sticky;
+    z-index: var(--z-header);
+    top: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4);
+    gap: var(--space-3);
     border-bottom: 1px solid var(--color-border-default);
+    background: color-mix(
+      in srgb,
+      var(--color-bg-canvas) 92%,
+      var(--color-bg-surface)
+    );
     padding: var(--space-3) var(--space-4);
   }
 
@@ -138,16 +287,30 @@
     margin: 0;
   }
 
+  .mobileWorkspace {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: 650;
+    text-align: right;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .mobileMenu {
     position: relative;
   }
 
   .mobileMenu > summary {
+    display: flex;
     min-height: var(--control-height);
-    align-content: center;
+    align-items: center;
+    gap: var(--space-2);
     border: 1px solid var(--color-border-control);
     border-radius: var(--radius-sm);
-    padding-inline: var(--space-4);
+    padding-inline: var(--space-3);
     font-weight: 700;
     list-style: none;
     cursor: pointer;
@@ -157,34 +320,38 @@
     display: none;
   }
 
-  .mobileMenu nav {
+  .mobileMenuPanel {
     position: absolute;
     z-index: var(--z-header);
     top: calc(100% + var(--space-2));
     right: 0;
-    width: min(17rem, calc(100vw - 2 * var(--space-4)));
+    width: min(20rem, calc(100vw - 2 * var(--space-4)));
+    max-height: calc(100dvh - 5.5rem);
+    overflow-y: auto;
     border: 1px solid var(--color-border-control);
     border-radius: var(--radius-md);
     background: var(--color-bg-elevated);
     box-shadow: var(--shadow-surface);
-    padding: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .mobileMenuPanel nav {
+    margin-top: var(--space-4);
+  }
+
+  .mobileMenuPanel .userCard {
+    margin-top: var(--space-4);
+    border-top-color: var(--color-border-default);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    padding-top: var(--space-3);
   }
 
   .workspace {
-    padding: var(--space-5) var(--space-4);
-  }
-
-  .workspaceHeader {
-    align-items: center;
-    gap: var(--space-3);
-  }
-
-  .userChip {
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-4);
   }
 
   .placeholderCard {
-    margin-top: var(--space-6);
+    margin-top: var(--space-4);
     padding: var(--space-5);
   }
 }
