@@ -9,7 +9,10 @@ import type { ImportReviewDto } from "./api/import-review-api";
 import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
 import { ReviewItem } from "./review-item";
 import { RuleActions } from "./rule-actions";
-import { StatementReconciliation } from "./statement-reconciliation";
+import {
+  ReconciliationStatus,
+  StatementReconciliation,
+} from "./statement-reconciliation";
 import styles from "./import-review.module.css";
 
 type ImportReviewPageProps = {
@@ -106,7 +109,10 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
             />
           </header>
           <div className={styles.summaryBody}>
-            <ReviewQueue review={currentReview} />
+            <div className={styles.summaryControlStrip}>
+              <ReviewQueue review={currentReview} />
+              <ReconciliationStatus validation={currentReview.validation} />
+            </div>
             <StatementReconciliation validation={currentReview.validation} />
           </div>
         </section>
@@ -192,27 +198,34 @@ function ReviewQueue({ review }: { review: ImportReviewDto }) {
       aria-labelledby="import-review-queue-title"
       className={styles.queue}
     >
-      <div className={styles.queueMetric}>
-        <p>Прогресс</p>
-        <h2 id="import-review-queue-title">{title}</h2>
+      <div className={styles.queueProgressSummary}>
+        <div className={styles.queueMetric}>
+          <p>Прогресс</p>
+          <h2 id="import-review-queue-title">{title}</h2>
+        </div>
+        <div aria-label="Прогресс проверки" className={styles.queueProgress}>
+          <progress max={Math.max(queue.total, 1)} value={queue.completed}>
+            {queue.completed} из {queue.total}
+          </progress>
+        </div>
       </div>
-      <div aria-label="Прогресс проверки" className={styles.queueProgress}>
-        <progress max={Math.max(queue.total, 1)} value={queue.completed}>
-          {queue.completed} из {queue.total}
-        </progress>
-      </div>
-      <div aria-label="Требуют решения" className={styles.queueMetric}>
-        <p>Требуют решения</p>
-        <strong>{queue.remaining}</strong>
-      </div>
-      {queue.firstRemainingItemId ? (
-        <a
-          className={styles.nextLink}
-          href={`#raw-${queue.firstRemainingItemId}`}
+      <div className={styles.queueDecision}>
+        <div
+          aria-label="Требуют решения"
+          className={styles.queueDecisionMetric}
         >
-          Следующая нерешённая строка
-        </a>
-      ) : null}
+          <p>Требуют решения</p>
+          <strong>{queue.remaining}</strong>
+        </div>
+        {queue.firstRemainingItemId ? (
+          <a
+            className={styles.nextLink}
+            href={`#raw-${queue.firstRemainingItemId}`}
+          >
+            Следующая нерешённая строка
+          </a>
+        ) : null}
+      </div>
     </section>
   );
 }

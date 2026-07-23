@@ -19,7 +19,7 @@
 
 .documentContext,
 .readonlyNotice {
-  margin: var(--space-2) 0 0;
+  margin: var(--space-1) 0 0;
   color: var(--color-text-secondary);
 }
 
@@ -41,8 +41,8 @@
   display: grid;
   grid-template-columns: minmax(20rem, 1fr) minmax(28rem, 42rem);
   align-items: center;
-  gap: var(--space-5);
-  padding: var(--space-4) var(--space-5);
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
 }
 
 .summaryIdentity {
@@ -57,8 +57,12 @@
 
 .summaryBody {
   display: grid;
-  grid-template-columns: minmax(17rem, 0.75fr) minmax(0, 2fr);
   border-top: 1px solid var(--color-border-default);
+}
+
+.summaryControlStrip {
+  display: grid;
+  grid-template-columns: minmax(30rem, 1.1fr) minmax(28rem, 1fr);
 }
 
 .reviewTools {
@@ -95,21 +99,27 @@
 
 .queue {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(18rem, 1fr) auto;
   align-items: center;
-  gap: var(--space-2) var(--space-4);
-  border-inline-end: 1px solid var(--color-border-default);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
 }
 
 .queue h2 {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 .queueMetric {
   display: grid;
   gap: var(--space-1);
+}
+
+.queueProgressSummary {
+  display: grid;
+  grid-template-columns: auto minmax(7rem, 1fr);
+  align-items: center;
+  gap: var(--space-3);
 }
 
 .queueMetric p {
@@ -120,12 +130,49 @@
 
 .queueMetric strong {
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-variant-numeric: tabular-nums;
+}
+
+.queueDecision {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.queueDecisionMetric {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.queueDecisionMetric p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
 }
 
 .reconciliation {
   display: grid;
+  min-width: 0;
+}
+
+.reconciliationSummary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  border-inline-start: 1px solid var(--color-border-default);
+  padding: var(--space-2) var(--space-4);
+}
+
+.reconciliationEyebrow {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .reconciliationStatus {
@@ -146,39 +193,15 @@
   font: inherit;
 }
 
-.reconciliationOverview {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(9rem, 0.7fr)) minmax(14rem, 1.25fr);
-  align-items: stretch;
-}
-
-.flowTotal,
 .reconciliationOutcome {
-  display: grid;
-  align-content: center;
-  gap: var(--space-1);
-  min-height: 5rem;
-  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
 }
 
-.flowTotal + .flowTotal,
-.reconciliationOutcome {
-  border-inline-start: 1px solid var(--color-border-default);
-}
-
-.flowTotal h3,
 .reconciliationOutcome p {
   margin: 0;
-}
-
-.flowTotal h3 {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-}
-
-.reconciliationOutcome {
-  justify-items: start;
 }
 
 .reconciliationOutcome p {
@@ -187,38 +210,40 @@
   line-height: 1.4;
 }
 
-.reconciliation[data-tone="success"] .reconciliationStatus {
+.reconciliationSummary[data-tone="success"] .reconciliationStatus {
   color: var(--color-status-success);
 }
 
-.reconciliation[data-tone="warning"] .reconciliationStatus {
+.reconciliationSummary[data-tone="warning"] .reconciliationStatus {
   color: var(--color-status-warning);
 }
 
-.reconciliation[data-tone="neutral"] .reconciliationStatus {
+.reconciliationSummary[data-tone="neutral"] .reconciliationStatus {
   color: var(--color-text-secondary);
 }
 
-.reconciliationDetails {
+.technicalReconciliationDetails {
   border-top: 1px solid var(--color-border-default);
 }
 
-.reconciliationDetails > summary {
+.technicalReconciliationDetails > summary {
   width: fit-content;
   min-height: var(--control-height);
   align-content: center;
-  margin-inline: var(--space-5);
+  margin-inline: var(--space-4);
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 700;
   cursor: pointer;
 }
 
-.reconciliationDetailsBody {
+.technicalReconciliationBody {
   display: grid;
-  gap: var(--space-4);
+  grid-template-columns: minmax(12rem, 1fr) minmax(18rem, 1.25fr);
+  align-items: start;
+  gap: var(--space-3);
   border-top: 1px solid var(--color-border-default);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-4);
 }
 
 .validationCounts {
@@ -246,67 +271,86 @@
   font-weight: 700;
 }
 
-.technicalReconciliationDetails {
+.flowTable {
+  width: 100%;
   border-top: 1px solid var(--color-border-default);
-  padding-top: var(--space-3);
+  border-collapse: collapse;
+  table-layout: fixed;
 }
 
-.technicalReconciliationDetails > summary {
-  width: fit-content;
+.flowTableCaption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.flowTable th,
+.flowTable td {
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+  vertical-align: baseline;
+}
+
+.flowTable thead th {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
 }
 
-.technicalReconciliationDetails .validationCounts {
-  margin-top: var(--space-3);
-}
-
-.flowComparisons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
+.flowTable thead th:first-child,
+.flowComparison > th {
+  width: 9rem;
+  padding-inline-start: var(--space-4);
 }
 
 .flowComparison {
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
+  border-top: 1px solid var(--color-border-default);
 }
 
 .flowComparison h3 {
-  margin: 0 0 var(--space-3);
-  font-size: var(--font-size-md);
-}
-
-.flowComparison dl {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
   margin: 0;
+  font-size: var(--font-size-sm);
 }
 
-.flowComparison dl > div {
-  display: grid;
-  gap: var(--space-1);
+.flowOperatorColumn,
+.flowOperator {
+  width: 1.5rem;
 }
 
-.flowComparison dt {
+.moneyFact {
+  min-width: 8rem;
+}
+
+.moneyFactValue {
+  display: block;
+}
+
+.flowOperator {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  text-align: center !important;
+  line-height: var(--line-height-body);
 }
 
-.flowComparison dd {
-  margin: 0;
+.flowDifferenceColumn,
+.moneyFactDifference {
+  border-inline-start: 1px solid var(--color-border-default);
 }
 
 .moneyFactWarning {
   border-inline-start: 3px solid var(--color-status-warning);
+  background: color-mix(in srgb, var(--color-status-warning) 8%, transparent);
   padding-inline-start: var(--space-2);
 }
 
 .balanceChain {
+  margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
 }
@@ -323,7 +367,6 @@
 
 .queueProgress {
   display: grid;
-  grid-column: 1 / -1;
   width: 100%;
 }
 
@@ -333,10 +376,10 @@
 }
 
 .nextLink {
-  grid-column: 1 / -1;
   color: var(--color-accent);
   font-size: var(--font-size-xs);
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .itemsRegion {
@@ -1268,12 +1311,22 @@
   font-weight: 600;
 }
 
-@media (max-width: 57.5rem) {
+@media (max-width: 70rem) {
   .summaryHeader,
-  .summaryBody {
+  .summaryControlStrip {
     grid-template-columns: 1fr;
   }
 
+  .queue {
+    border-bottom: 1px solid var(--color-border-default);
+  }
+
+  .reconciliationSummary {
+    border-inline-start: 0;
+  }
+}
+
+@media (max-width: 57.5rem) {
   .reviewTools {
     justify-content: flex-start;
   }
@@ -1284,11 +1337,6 @@
 
   .duplicateComparison > header {
     display: grid;
-  }
-
-  .queue {
-    border-bottom: 1px solid var(--color-border-default);
-    border-inline-end: 0;
   }
 
   .draftFields,
@@ -1311,6 +1359,92 @@
 
   .itemsHeader {
     display: none;
+  }
+
+  .flowTable,
+  .flowTable tbody {
+    display: grid;
+  }
+
+  .flowTable {
+    table-layout: auto;
+  }
+
+  .flowTable thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .flowComparison {
+    display: grid;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .flowComparison > th {
+    width: auto;
+    padding: 0 0 var(--space-1);
+  }
+
+  .moneyFact {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-width: 0;
+    padding: var(--space-1) 0;
+  }
+
+  .moneyFact::before {
+    content: attr(data-label);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+  }
+
+  .flowOperator {
+    width: auto;
+    padding: 0;
+    text-align: start !important;
+    line-height: 1;
+  }
+
+  .flowOperator:not(.flowOperatorEquals) {
+    display: none;
+  }
+
+  .moneyFactIgnored .moneyFactValue::before {
+    content: "+";
+    margin-inline-end: var(--space-2);
+    color: var(--color-text-secondary);
+    font-family: var(--font-family-mono);
+    font-weight: 700;
+  }
+
+  .flowOperatorEquals {
+    width: 100%;
+    min-height: 0;
+    height: 0;
+    overflow: hidden;
+    margin-block: var(--space-1);
+    border-top: 1px solid var(--color-border-default);
+    background: transparent;
+    color: transparent;
+    font-size: 0;
+    line-height: 0;
+  }
+
+  .moneyFactStatement {
+    padding-block-start: var(--space-1);
+  }
+
+  .moneyFactDifference {
+    border-top: 1px solid var(--color-border-default);
+    border-inline-start: 0;
+    padding-block-start: var(--space-2);
   }
 }
 
@@ -1400,7 +1534,7 @@
   }
 
   .summaryHeader {
-    padding: var(--space-4);
+    padding: var(--space-3);
   }
 
   .reviewTools,
@@ -1413,20 +1547,45 @@
     width: 100%;
   }
 
-  .reconciliationOverview {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .queue {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-3);
   }
 
-  .flowTotal,
-  .reconciliationOutcome {
-    min-height: 4.5rem;
+  .queueProgressSummary {
+    grid-column: 1 / -1;
+  }
+
+  .queueDecisionMetric {
+    display: flex;
+  }
+
+  .queueDecision {
+    grid-column: 1 / -1;
+    align-items: baseline;
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-content: space-between;
+  }
+
+  .queueDecision .nextLink {
+    justify-self: end;
+    white-space: normal;
+  }
+
+  .reconciliationSummary {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
     padding: var(--space-3);
   }
 
   .reconciliationOutcome {
-    grid-column: 1 / -1;
-    border-top: 1px solid var(--color-border-default);
-    border-inline-start: 0;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .technicalReconciliationBody {
+    grid-template-columns: 1fr;
   }
 
   .reviewFilters {
@@ -1462,14 +1621,9 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .flowComparisons,
   .decisionComparison,
   .sourceComparisonGrid {
     grid-template-columns: 1fr;
-  }
-
-  .flowComparison dl {
-    grid-template-columns: 1fr 1fr;
   }
 
   .ruleSuggestionSignal,

@@ -2122,6 +2122,43 @@ def measure_large_import_review_queue(
     return errors, metrics
 
 
+def install_explained_reconciliation_fixture(page: Page) -> None:
+    def explain_reconciliation(route: Route) -> None:
+        response = route.fetch()
+        payload = response.json()
+        validation = payload.get("validation")
+        if validation is None:
+            route.fulfill(response=response, json=payload)
+            return
+        validation.update(
+            {
+                "status": "valid",
+                "reasonCode": "ignored_rows_explain_mismatch",
+                "currency": "RUB",
+                "calculatedTotalInflow": "54807.89",
+                "calculatedTotalOutflow": "71768.09",
+                "ignoredTotalInflow": "50000.00",
+                "ignoredTotalOutflow": "50000.00",
+                "statementTotalInflow": "104807.89",
+                "statementTotalOutflow": "121768.09",
+                "inflowDifference": "50000.00",
+                "outflowDifference": "50000.00",
+                "unexplainedInflowDifference": "0.00",
+                "unexplainedOutflowDifference": "0.00",
+                "balanceChain": {
+                    "status": "valid",
+                    "direction": "ascending",
+                    "checkedPairCount": 2,
+                    "mismatchCount": 0,
+                },
+                "rowProblems": [],
+            }
+        )
+        route.fulfill(response=response, json=payload)
+
+    page.route("**/api/v1/import-review/*", explain_reconciliation)
+
+
 def audit_page(
     page: Page,
     *,
@@ -2158,6 +2195,8 @@ def audit_page(
     error_text: str | None = None
 
     try:
+        if scenario == "theme_audit" and path == scenario_state.get("react_review_path"):
+            install_explained_reconciliation_fixture(page)
         response = page.goto(
             build_url(base_url, path),
             wait_until="domcontentloaded",

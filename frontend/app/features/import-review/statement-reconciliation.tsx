@@ -5,128 +5,111 @@ import styles from "./import-review.module.css";
 type Validation = ImportReviewDto["validation"];
 type PresentValidation = NonNullable<Validation>;
 
+export function ReconciliationStatus({
+  validation,
+}: {
+  validation: Validation;
+}) {
+  const presentation = validation
+    ? reconciliationPresentation(validation)
+    : {
+        label: "Недостаточно данных для сверки",
+        description: "Итоги выписки пока недоступны.",
+        tone: "neutral" as const,
+      };
+
+  return (
+    <section
+      aria-labelledby="import-review-validation-title"
+      className={styles.reconciliationSummary}
+      data-tone={presentation.tone}
+    >
+      <p className={styles.reconciliationEyebrow}>Сверка итогов</p>
+      <div className={styles.reconciliationOutcome}>
+        <span className={styles.reconciliationStatus}>
+          <span aria-hidden="true">{statusSymbol(presentation.tone)}</span>
+          <h2 id="import-review-validation-title">{presentation.label}</h2>
+        </span>
+        <p>{presentation.description}</p>
+      </div>
+    </section>
+  );
+}
+
 export function StatementReconciliation({
   validation,
 }: {
   validation: Validation;
 }) {
-  if (!validation) {
-    return (
-      <section className={styles.reconciliation} data-tone="neutral">
-        <div className={styles.reconciliationOutcome}>
-          <span className={styles.reconciliationStatus}>
-            <span aria-hidden="true">–</span>
-            Недостаточно данных для сверки
-          </span>
-          <p>Итоги выписки пока недоступны.</p>
-        </div>
-      </section>
-    );
-  }
+  if (!validation) return null;
 
-  const presentation = reconciliationPresentation(validation);
   return (
     <section
-      aria-labelledby="import-review-validation-title"
+      aria-label="Суммы поступлений и списаний"
       className={styles.reconciliation}
-      data-tone={presentation.tone}
     >
-      <div className={styles.reconciliationOverview}>
-        <FlowTotal
-          amount={
-            validation.statementTotalInflow ?? validation.calculatedTotalInflow
-          }
-          currency={validation.currency}
-          label="Поступления"
-          tone="income"
-        />
-        <FlowTotal
-          amount={
-            validation.statementTotalOutflow ??
-            validation.calculatedTotalOutflow
-          }
-          currency={validation.currency}
-          label="Списания"
-          tone="expense"
-        />
-        <div className={styles.reconciliationOutcome}>
-          <span className={styles.reconciliationStatus}>
-            <span aria-hidden="true">{statusSymbol(presentation.tone)}</span>
-            <h2 id="import-review-validation-title">{presentation.label}</h2>
-          </span>
-          <p>{presentation.description}</p>
-        </div>
-      </div>
+      <table className={styles.flowTable}>
+        <caption className={styles.flowTableCaption}>
+          Контрольные суммы выписки
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Движение</th>
+            <th scope="col">По распознанным строкам</th>
+            <th aria-hidden="true" className={styles.flowOperatorColumn} />
+            <th scope="col">Исключённые строки</th>
+            <th aria-hidden="true" className={styles.flowOperatorColumn} />
+            <th scope="col">Итог в выписке</th>
+            <th className={styles.flowDifferenceColumn} scope="col">
+              Разница
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <FlowComparison
+            calculated={validation.calculatedTotalInflow}
+            currency={validation.currency}
+            ignored={validation.ignoredTotalInflow}
+            label="Поступления"
+            statement={validation.statementTotalInflow}
+            tone="income"
+            unexplained={validation.unexplainedInflowDifference}
+          />
+          <FlowComparison
+            calculated={validation.calculatedTotalOutflow}
+            currency={validation.currency}
+            ignored={validation.ignoredTotalOutflow}
+            label="Списания"
+            statement={validation.statementTotalOutflow}
+            tone="expense"
+            unexplained={validation.unexplainedOutflowDifference}
+          />
+        </tbody>
+      </table>
 
-      <details className={styles.reconciliationDetails}>
-        <summary>Подробнее о сверке</summary>
-        <div className={styles.reconciliationDetailsBody}>
-          <div className={styles.flowComparisons}>
-            <FlowComparison
-              calculated={validation.calculatedTotalInflow}
-              currency={validation.currency}
-              ignored={validation.ignoredTotalInflow}
-              label="Сверка поступлений"
-              statement={validation.statementTotalInflow}
-              tone="income"
-              unexplained={validation.unexplainedInflowDifference}
-            />
-            <FlowComparison
-              calculated={validation.calculatedTotalOutflow}
-              currency={validation.currency}
-              ignored={validation.ignoredTotalOutflow}
-              label="Сверка списаний"
-              statement={validation.statementTotalOutflow}
-              tone="expense"
-              unexplained={validation.unexplainedOutflowDifference}
-            />
-          </div>
+      <details className={styles.technicalReconciliationDetails}>
+        <summary>Технические данные</summary>
+        <div className={styles.technicalReconciliationBody}>
           <p className={styles.balanceChain}>
             <strong>Цепочка остатков:</strong>{" "}
             {balanceChainLabel(validation.balanceChain)}
           </p>
-          <details className={styles.technicalReconciliationDetails}>
-            <summary>Технические данные</summary>
-            <dl className={styles.validationCounts}>
-              <ValidationCount
-                label="Строк извлечено"
-                value={validation.extractedCount}
-              />
-              <ValidationCount
-                label="Нормализовано"
-                value={validation.normalizedCount}
-              />
-              <ValidationCount
-                label="Требуют проверки"
-                value={validation.needsReviewCount}
-              />
-            </dl>
-          </details>
+          <dl className={styles.validationCounts}>
+            <ValidationCount
+              label="Строк извлечено"
+              value={validation.extractedCount}
+            />
+            <ValidationCount
+              label="Нормализовано"
+              value={validation.normalizedCount}
+            />
+            <ValidationCount
+              label="Требуют проверки"
+              value={validation.needsReviewCount}
+            />
+          </dl>
         </div>
       </details>
-    </section>
-  );
-}
-
-function FlowTotal({
-  amount,
-  currency,
-  label,
-  tone,
-}: {
-  amount: string;
-  currency: string | null;
-  label: string;
-  tone: "income" | "expense";
-}) {
-  return (
-    <section className={styles.flowTotal}>
-      <h3>{label}</h3>
-      <MoneyValue
-        amount={formatStatementAmount(amount)}
-        currency={currency ?? ""}
-        tone={tone}
-      />
     </section>
   );
 }
@@ -158,34 +141,47 @@ function FlowComparison({
   unexplained: string | null;
 }) {
   return (
-    <section className={styles.flowComparison}>
-      <h3>{label}</h3>
-      <dl>
-        <MoneyFact
-          amount={calculated}
-          currency={currency}
-          label="По распознанным строкам"
-          tone={tone}
-        />
-        <MoneyFact
-          amount={ignored}
-          currency={currency}
-          label="Исключённые строки"
-        />
-        <MoneyFact
-          amount={statement}
-          currency={currency}
-          label="Итог в выписке"
-          tone={tone}
-        />
-        <MoneyFact
-          amount={unexplained}
-          currency={currency}
-          label="Необъяснённая разница"
-          warning={unexplained !== null && !isZero(unexplained)}
-        />
-      </dl>
-    </section>
+    <tr className={styles.flowComparison}>
+      <th scope="row">
+        <h3>{label}</h3>
+      </th>
+      <MoneyFact
+        amount={calculated}
+        currency={currency}
+        label="По распознанным строкам"
+        role="calculated"
+        tone={tone}
+      />
+      <td aria-hidden="true" className={styles.flowOperator}>
+        +
+      </td>
+      <MoneyFact
+        amount={ignored}
+        currency={currency}
+        label="Исключённые строки"
+        role="ignored"
+      />
+      <td
+        aria-hidden="true"
+        className={`${styles.flowOperator} ${styles.flowOperatorEquals}`}
+      >
+        =
+      </td>
+      <MoneyFact
+        amount={statement}
+        currency={currency}
+        label="Итог в выписке"
+        role="statement"
+        tone={tone}
+      />
+      <MoneyFact
+        amount={unexplained}
+        currency={currency}
+        label="Разница"
+        role="difference"
+        warning={unexplained !== null && !isZero(unexplained)}
+      />
+    </tr>
   );
 }
 
@@ -193,19 +189,27 @@ function MoneyFact({
   amount,
   currency,
   label,
+  role,
   tone = "neutral",
   warning = false,
 }: {
   amount: string | null;
   currency: string | null;
   label: string;
+  role: "calculated" | "difference" | "ignored" | "statement";
   tone?: "neutral" | "income" | "expense";
   warning?: boolean;
 }) {
+  const classNames = [
+    styles.moneyFact,
+    styles[`moneyFact${capitalize(role)}`],
+    warning ? styles.moneyFactWarning : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <div className={warning ? styles.moneyFactWarning : undefined}>
-      <dt>{label}</dt>
-      <dd>
+    <td className={classNames} data-label={label}>
+      <span className={styles.moneyFactValue}>
         {amount === null ? (
           "—"
         ) : (
@@ -215,9 +219,13 @@ function MoneyFact({
             tone={tone}
           />
         )}
-      </dd>
-    </div>
+      </span>
+    </td>
   );
+}
+
+function capitalize(value: string): string {
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 }
 
 function formatStatementAmount(value: string): string {
@@ -272,12 +280,16 @@ function reconciliationPresentation(validation: PresentValidation): {
       tone: "neutral",
     };
   }
+  if (validation.reasonCode === "balance_chain_mismatch") {
+    return {
+      label: "Остаток после операции не сходится",
+      description: "Ожидаемый остаток отличается от указанного в выписке.",
+      tone: "warning",
+    };
+  }
   return {
     label: "Есть необъяснённая разница",
-    description:
-      validation.reasonCode === "balance_chain_mismatch"
-        ? "Нарушена последовательность остатков между строками."
-        : "Суммы строк не совпадают с итогами выписки.",
+    description: "Суммы строк не совпадают с итогами выписки.",
     tone: "warning",
   };
 }

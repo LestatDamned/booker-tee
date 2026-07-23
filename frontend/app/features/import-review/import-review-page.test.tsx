@@ -221,20 +221,38 @@ describe("import review page", () => {
     expect(within(row).getByText("*1234")).toBeInTheDocument();
   });
 
-  it("renders typed validation totals and a problem on the stable row anchor", () => {
+  it("shows reconciliation formulas before technical details", async () => {
+    const user = userEvent.setup();
     renderPage(importReviewPayload());
 
     expect(
-      screen.getByRole("heading", { name: "Есть необъяснённая разница" }),
+      screen.getByRole("heading", {
+        name: "Остаток после операции не сходится",
+      }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Сверка итогов")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Поступления" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Списания" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("table", { name: "Контрольные суммы выписки" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("По распознанным строкам")).toBeInTheDocument();
+    expect(screen.getByText("Исключённые строки")).toBeInTheDocument();
+    expect(screen.getByText("Итог в выписке")).toBeInTheDocument();
+    expect(screen.getByText("Разница")).toBeInTheDocument();
+    expect(screen.queryByText("Подробнее о сверке")).not.toBeInTheDocument();
     expect(screen.queryByText("На начало")).not.toBeInTheDocument();
     expect(screen.queryByText("На конец")).not.toBeInTheDocument();
+
+    const technicalSummary = screen.getByText("Технические данные");
+    const technicalDetails = technicalSummary.closest("details");
+    expect(technicalDetails).not.toHaveAttribute("open");
+    await user.click(technicalSummary);
+    expect(technicalDetails).toHaveAttribute("open");
     expect(
       screen.getByText(/несоответствий: 1; проверено переходов: 1/),
     ).toBeInTheDocument();
@@ -271,7 +289,13 @@ describe("import review page", () => {
     const review = importReviewPayload();
     if (!review.validation) throw new Error("validation fixture is required");
     review.validation.reasonCode = "ignored_rows_explain_mismatch";
-    review.validation.ignoredTotalOutflow = "50.50";
+    review.validation.calculatedTotalInflow = "54807.89";
+    review.validation.calculatedTotalOutflow = "71768.09";
+    review.validation.ignoredTotalInflow = "50000.00";
+    review.validation.ignoredTotalOutflow = "50000.00";
+    review.validation.statementTotalInflow = "104807.89";
+    review.validation.statementTotalOutflow = "121768.09";
+    review.validation.unexplainedInflowDifference = "0.00";
     review.validation.unexplainedOutflowDifference = "0.00";
     review.validation.rowProblems = [];
 
@@ -283,8 +307,20 @@ describe("import review page", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Исключено: 50,50 RUB из списаний."),
+      screen.getByText("50 000,00 RUB исключено из поступлений и списаний."),
     ).toBeInTheDocument();
+    const inflow = screen
+      .getByRole("heading", { name: "Поступления" })
+      .closest("tr");
+    const outflow = screen
+      .getByRole("heading", { name: "Списания" })
+      .closest("tr");
+    expect(inflow).toHaveTextContent("54 807,89");
+    expect(inflow).toHaveTextContent("50 000,00");
+    expect(inflow).toHaveTextContent("104 807,89");
+    expect(inflow).toHaveTextContent("0,00");
+    expect(outflow).toHaveTextContent("71 768,09");
+    expect(outflow).toHaveTextContent("121 768,09");
     expect(
       screen.queryByText("Есть необъяснённая разница"),
     ).not.toBeInTheDocument();
