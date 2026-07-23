@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
 
 import { Button } from "../../ui/button/button";
+import { Field } from "../../ui/field/field";
 import type { ImportReviewDto } from "./api/import-review-api";
 import {
   postImportReviewTransfer,
   type ImportReviewTransferRequest,
 } from "./api/import-review-mutations";
-import styles from "./import-review.module.css";
+import styles from "./import-review-editor.module.css";
 
 type TransferPanelProps = {
   csrfToken: string;
@@ -93,10 +94,13 @@ export function TransferPanel({
         <span>Направление</span>
         <strong>{directionLabel(item, selection)}</strong>
       </div>
-      <label>
-        Второй счёт или готовая пара
+      <Field
+        htmlFor={`transfer-selection-${item.id}`}
+        label="Второй счёт или готовая пара"
+      >
         <select
           disabled={pending}
+          id={`transfer-selection-${item.id}`}
           onChange={(event) => changeSelection(event.target.value)}
           value={selection}
         >
@@ -139,7 +143,7 @@ export function TransferPanel({
             </optgroup>
           ) : null}
         </select>
-      </label>
+      </Field>
       {item.transfer.accounts.length === 0 &&
       item.transfer.rawRowCandidates.length === 0 &&
       item.transfer.existingOperationCandidates.length === 0 ? (

@@ -15,7 +15,7 @@ import {
   ReconciliationStatus,
   StatementReconciliation,
 } from "./statement-reconciliation";
-import styles from "./import-review.module.css";
+import styles from "./import-review-page.module.css";
 
 type ImportReviewPageProps = {
   review: ImportReviewDto;

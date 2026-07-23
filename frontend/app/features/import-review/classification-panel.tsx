@@ -1,6 +1,7 @@
 import { type FormEvent, type RefObject, useRef, useState } from "react";
 
 import { Button } from "../../ui/button/button";
+import { Field } from "../../ui/field/field";
 import { SearchableSelect } from "../../ui/searchable-select/searchable-select";
 import type { ImportReviewDto } from "./api/import-review-api";
 import {
@@ -11,7 +12,7 @@ import {
   type ImportReviewDraftEvaluationRequest,
   type ImportReviewMutationResult,
 } from "./api/import-review-mutations";
-import styles from "./import-review.module.css";
+import styles from "./import-review-editor.module.css";
 import { ConfirmPostingAction } from "./posting-actions";
 import { TransferPanel } from "./transfer-panel";
 
@@ -344,8 +345,12 @@ function DraftFields({
 
   return (
     <div className={styles.draftFields}>
-      <div className={styles.editorField}>
-        <label htmlFor={`category-${itemId}`}>Категория</label>
+      <Field
+        error={fieldErrors.categoryId?.join(" ")}
+        errorId={`category-error-${itemId}`}
+        htmlFor={`category-${itemId}`}
+        label="Категория"
+      >
         <div className={styles.editorFieldControl}>
           <SearchableSelect
             aria-describedby={
@@ -379,13 +384,13 @@ function DraftFields({
             + Новая
           </Button>
         </div>
-        <FieldError
-          errors={fieldErrors.categoryId}
-          id={`category-error-${itemId}`}
-        />
-      </div>
-      <div className={styles.editorField}>
-        <label htmlFor={`property-${itemId}`}>Объект</label>
+      </Field>
+      <Field
+        error={fieldErrors.propertyId?.join(" ")}
+        errorId={`property-error-${itemId}`}
+        htmlFor={`property-${itemId}`}
+        label="Объект"
+      >
         <select
           aria-describedby={
             fieldErrors.propertyId ? `property-error-${itemId}` : undefined
@@ -405,11 +410,7 @@ function DraftFields({
             </option>
           ))}
         </select>
-        <FieldError
-          errors={fieldErrors.propertyId}
-          id={`property-error-${itemId}`}
-        />
-      </div>
+      </Field>
     </div>
   );
 }
@@ -443,25 +444,26 @@ function CategoryEditor({
       id={`category-editor-${itemId}`}
       onSubmit={onSubmit}
     >
-      <label>
-        Название категории
+      <Field
+        error={fieldErrors.name?.join(" ")}
+        errorId={`category-name-error-${itemId}`}
+        htmlFor={`category-name-${itemId}`}
+        label="Название категории"
+      >
         <input
           aria-describedby={
             fieldErrors.name ? `category-name-error-${itemId}` : undefined
           }
           aria-invalid={Boolean(fieldErrors.name)}
+          id={`category-name-${itemId}`}
           onChange={(event) => onNameChange(event.target.value)}
           ref={categoryNameRef}
           value={categoryName}
         />
-        <FieldError
-          errors={fieldErrors.name}
-          id={`category-name-error-${itemId}`}
-        />
-      </label>
-      <label>
-        Вид категории
+      </Field>
+      <Field htmlFor={`category-kind-${itemId}`} label="Вид категории">
         <select
+          id={`category-kind-${itemId}`}
           onChange={(event) =>
             onKindChange(parseCategoryKind(event.target.value))
           }
@@ -473,7 +475,7 @@ function CategoryEditor({
           <option value="transfer">Перевод</option>
           <option value="adjustment">Корректировка</option>
         </select>
-      </label>
+      </Field>
       <Button disabled={pending} icon="plus" tone="primary" type="submit">
         Создать и выбрать
       </Button>
@@ -493,21 +495,6 @@ function DraftCapability({
     <p className={styles.draftStatus} role="status">
       Проверяем выбор…
     </p>
-  );
-}
-
-function FieldError({
-  errors,
-  id,
-}: {
-  errors: string[] | undefined;
-  id: string;
-}) {
-  if (!errors?.length) return null;
-  return (
-    <span className={styles.fieldError} id={id}>
-      {errors.join(" ")}
-    </span>
   );
 }
 

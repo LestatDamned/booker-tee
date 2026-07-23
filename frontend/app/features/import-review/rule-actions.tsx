@@ -4,7 +4,7 @@ import { Button } from "../../ui/button/button";
 import { Icon } from "../../ui/icon/icon";
 import type { ImportReviewDto } from "./api/import-review-api";
 import { applyRulesToImportReview } from "./api/import-review-mutations";
-import styles from "./import-review.module.css";
+import styles from "./import-review-page.module.css";
 
 type RuleActionsProps = {
   csrfToken: string;

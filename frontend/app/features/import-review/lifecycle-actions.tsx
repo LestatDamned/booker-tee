@@ -9,7 +9,7 @@ import {
   updateImportReviewLifecycle,
   type ImportReviewLifecycleRequest,
 } from "./api/import-review-mutations";
-import styles from "./import-review.module.css";
+import styles from "./import-review-editor.module.css";
 
 type LifecycleAction = ImportReviewLifecycleRequest["action"];
 

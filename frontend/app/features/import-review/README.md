@@ -35,6 +35,14 @@ Browser navigation
 только за labels, layout, раскрытие raw details и переход к первой оставшейся
 строке.
 
+UI разделён по устойчивым причинам изменения:
+
+- `review-item.tsx` собирает строку, действия и expansion panels;
+- `review-item-presentation.tsx` владеет labels, status/outcome mappings и
+  lifecycle presentation;
+- `source-comparison.tsx` показывает raw и normalized evidence;
+- page, row и editor используют отдельные CSS Modules.
+
 Confirm повторно проверяет references и capability внутри server transaction.
 `expectedStatus` защищает от stale draft, а `Idempotency-Key` позволяет безопасно
 повторить тот же запрос после потери ответа. Это похоже на Python command object
@@ -61,7 +69,9 @@ virtualization library не вводятся без новых production eviden
 `ImportReviewDto` похож на type annotation для Pydantic response, а Zod schema —
 на `model_validate()` для неизвестного JSON во время выполнения. Generated type
 сам по себе не проверяет network response: TypeScript types исчезают после
-компиляции, поэтому boundary выполняет `safeParse()`.
+компиляции, поэтому boundary выполняет `safeParse()`. Решение и альтернативы
+зафиксированы в
+[`ADR-0005`](../../../../docs/architecture/decisions/0005-generated-types-and-runtime-validation.md).
 
 Discriminated union `ImportReviewLoadResult` похож на явный набор dataclass
 results для success/unauthenticated/forbidden/not-found/error. В отличие от

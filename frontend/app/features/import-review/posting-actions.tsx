@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
+import { Field } from "../../ui/field/field";
 import { Icon } from "../../ui/icon/icon";
 import {
   loadImportReview,
@@ -13,7 +14,7 @@ import {
   type ImportReviewMutationResult,
   undoImportReviewPosting,
 } from "./api/import-review-mutations";
-import styles from "./import-review.module.css";
+import styles from "./import-review-editor.module.css";
 
 type PostingActionProps = {
   categoryName?: string;
@@ -161,11 +162,17 @@ export function ConfirmPostingAction({
   return (
     <section aria-label="Подтверждение операции" className={styles.postingBox}>
       <div className={styles.rulePatternField}>
-        <label>
-          <span className={styles.rulePatternLabel}>
-            <Icon name="automation" size={16} />
-            Автоправило <small>· необязательно</small>
-          </span>
+        <Field
+          error={rulePatternError ?? undefined}
+          errorId={`rule-pattern-error-${item.id}`}
+          htmlFor={`rule-pattern-${item.id}`}
+          label={
+            <span className={styles.rulePatternLabel}>
+              <Icon name="automation" size={16} />
+              Автоправило <small>· необязательно</small>
+            </span>
+          }
+        >
           <input
             aria-describedby={
               rulePatternError ? `rule-pattern-error-${item.id}` : undefined
@@ -173,6 +180,7 @@ export function ConfirmPostingAction({
             aria-invalid={rulePatternError ? true : undefined}
             autoComplete="off"
             disabled={pending}
+            id={`rule-pattern-${item.id}`}
             maxLength={255}
             onChange={(event) => {
               setRulePattern(event.target.value);
@@ -183,16 +191,7 @@ export function ConfirmPostingAction({
             ref={rulePatternRef}
             value={rulePattern}
           />
-        </label>
-        {rulePatternError ? (
-          <p
-            className={styles.fieldError}
-            id={`rule-pattern-error-${item.id}`}
-            role="alert"
-          >
-            {rulePatternError}
-          </p>
-        ) : null}
+        </Field>
         {rememberRule ? (
           <p className={styles.rulePreview} aria-label="Итог правила">
             <strong>{cleanedRulePattern}</strong>

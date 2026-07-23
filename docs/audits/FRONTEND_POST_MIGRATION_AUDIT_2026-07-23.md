@@ -979,6 +979,24 @@ desktop/920/mobile, API contract tests.
 Критерий: нет файлов, рассказывающих несколько несвязанных историй; behavior и
 bundle geometry не изменены.
 
+Completed: 2026-07-23.
+
+Implemented:
+
+- `review-item.tsx` разделён на composition, presentation и source comparison;
+- feature CSS разделён на page, row и editor modules;
+- classification, category, transfer и posting fields используют shared
+  `Field`;
+- loader/query cancellation закрыт в этапе 1;
+- подход к generated DTO и runtime Zod зафиксирован в ADR-0005.
+
+Checks run: frontend format, lint, styles, OpenAPI drift, typecheck, 157 tests,
+production build и 23 Import Review API contract tests.
+
+Intentional deviations: автоматизированного browser/visual harness для
+desktop/920/mobile в репозитории нет; ручной visual regression остаётся
+отдельным gate перед следующим UI-changing slice.
+
 ### Этап 3 — SSR legacy
 
 Для этих двух страниц удалять больше почти нечего.

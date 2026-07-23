@@ -1,6 +1,6 @@
 import { formatIsoDate } from "../../shared/date/format-date";
 import type { ImportReviewDto } from "./api/import-review-api";
-import styles from "./import-review.module.css";
+import styles from "./review-item.module.css";
 
 type ReviewItemDto = ImportReviewDto["items"][number];
 
