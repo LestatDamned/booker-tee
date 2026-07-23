@@ -7,8 +7,8 @@
   gap: var(--space-2);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  background: var(--color-bg-interactive);
-  color: var(--color-text-primary);
+  background: var(--color-action-secondary);
+  color: var(--color-on-action-secondary);
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -21,38 +21,71 @@
 }
 
 .iconButton {
+  position: relative;
   width: var(--control-height);
   padding: 0;
 }
 
-.iconButton svg {
-  width: 1.2rem;
-  height: 1.2rem;
-  fill: none;
-  stroke: currentcolor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2;
+.iconButton::after {
+  position: absolute;
+  z-index: 20;
+  bottom: calc(100% + var(--space-2));
+  left: 50%;
+  width: max-content;
+  max-width: 14rem;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  content: attr(data-tooltip);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.35;
+  opacity: 0;
+  padding: var(--space-1) var(--space-2);
+  pointer-events: none;
+  transform: translate(-50%, var(--space-1));
+  transition:
+    opacity var(--duration-fast) ease,
+    transform var(--duration-fast) ease;
+  white-space: nowrap;
+}
+
+.iconButton:hover::after,
+.iconButton:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .button:hover:not(:disabled),
 .iconButton:hover:not(:disabled) {
-  border-color: var(--color-accent);
+  border-color: var(--color-interactive-active);
   background: color-mix(
     in srgb,
-    var(--color-bg-interactive) 78%,
-    var(--color-accent)
+    var(--color-action-secondary) 82%,
+    var(--color-interactive-active)
   );
 }
 
 .primary {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  border-color: var(--color-action-primary);
+  background: var(--color-action-primary);
+  color: var(--color-on-action-primary);
+}
+
+.primary:hover:not(:disabled) {
+  border-color: var(--color-brand);
+  background: color-mix(
+    in srgb,
+    var(--color-action-primary) 84%,
+    var(--color-brand)
+  );
 }
 
 .secondary {
-  background: transparent;
+  background: var(--color-action-secondary);
+  color: var(--color-on-action-secondary);
 }
 
 .ghost {

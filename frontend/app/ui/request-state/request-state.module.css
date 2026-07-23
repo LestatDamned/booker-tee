@@ -14,7 +14,7 @@
   width: 0.85rem;
   height: 0.85rem;
   border: 2px solid var(--color-border-strong);
-  border-top-color: var(--color-accent);
+  border-top-color: var(--color-information);
   border-radius: var(--radius-pill);
   animation: request-state-spin 800ms linear infinite;
 }

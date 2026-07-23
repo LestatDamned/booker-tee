@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ActionStack } from "./action-stack/action-stack";
@@ -11,6 +11,8 @@ import { Fieldset } from "./field/fieldset";
 import { FormErrorSummary } from "./field/form-error-summary";
 import { MoneyValue } from "./money-value/money-value";
 import { RequestState } from "./request-state/request-state";
+import { StatusLabel } from "./status-label/status-label";
+import { Tag } from "./tag/tag";
 import { WorkbenchRow } from "./workbench-row/workbench-row";
 
 describe("foundation controls", () => {
@@ -112,8 +114,33 @@ describe("financial presentation primitives", () => {
   });
 
   it("renders status text independently of its visual tone", () => {
-    render(<Badge tone="warning">требует проверки</Badge>);
+    render(<StatusLabel tone="warning">требует проверки</StatusLabel>);
     expect(screen.getByText("требует проверки")).toBeInTheDocument();
+  });
+
+  it("exposes automation as a project-wide semantic status role", () => {
+    render(<StatusLabel tone="automation">автоправило</StatusLabel>);
+    expect(screen.getByText("автоправило")).toHaveAttribute(
+      "data-tone",
+      "automation",
+    );
+  });
+
+  it("keeps category tags and numeric badges as separate semantics", () => {
+    render(
+      <>
+        <Tag tone="category">Продукты</Tag>
+        <span>
+          Требуют решения <Badge>3</Badge>
+        </span>
+      </>,
+    );
+
+    expect(screen.getByText("Продукты")).toHaveAttribute(
+      "data-tone",
+      "category",
+    );
+    expect(screen.getByText("3")).toBeInTheDocument();
   });
 });
 
@@ -176,16 +203,46 @@ describe("request and workbench composition", () => {
     expect(screen.getByLabelText("Опасные действия")).toBeInTheDocument();
   });
 
+  it("keeps one action menu open and provides explicit escape routes", async () => {
+    render(
+      <>
+        <ActionStack overflow={<Button>Первое действие</Button>} />
+        <ActionStack overflow={<Button>Второе действие</Button>} />
+      </>,
+    );
+
+    const triggers = screen.getAllByRole("button", {
+      name: "Ещё действия",
+    });
+    const firstTrigger = triggers[0];
+    const secondTrigger = triggers[1];
+    if (!firstTrigger || !secondTrigger) {
+      throw new Error("action menu triggers are required");
+    }
+
+    fireEvent.click(firstTrigger);
+    expect(screen.getByText("Первое действие")).toBeInTheDocument();
+
+    fireEvent.click(secondTrigger);
+    expect(screen.queryByText("Первое действие")).not.toBeInTheDocument();
+    expect(screen.getByText("Второе действие")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByText("Второе действие")).not.toBeInTheDocument();
+    await waitFor(() => expect(secondTrigger).toHaveFocus());
+  });
+
   it.each([
     ["recent", "Недавно"],
     ["target", "Текущая строка"],
     ["working", "В работе"],
   ] as const)(
-    "shows the %s row state without relying on color",
+    "keeps the %s row state without adding a layout marker",
     (state, label) => {
       render(<WorkbenchRow description="Операция" state={state} />);
 
-      expect(screen.getByText(label)).toBeVisible();
+      expect(screen.getByRole("article")).toHaveAttribute("data-state", state);
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
     },
   );
 });

@@ -82,6 +82,7 @@ export function ManualOperationLifecycle({
         isLoading={state.status === "pending"}
         onClick={() => void changeStatus()}
         tone={action === "restore" ? "primary" : "dangerSecondary"}
+        icon="undo"
       >
         {actionLabels[action]}
       </Button>
@@ -89,7 +90,7 @@ export function ManualOperationLifecycle({
         <div className={styles.lifecycleFeedback}>
           <FormError announce>{state.message}</FormError>
           {state.status === "conflict" && onRefresh ? (
-            <Button onClick={refresh} tone="ghost">
+            <Button icon="retry" onClick={refresh} tone="ghost">
               Обновить строку
             </Button>
           ) : null}

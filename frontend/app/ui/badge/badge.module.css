@@ -1,81 +1,18 @@
 .badge {
-  --badge-tone: var(--color-accent);
-
   display: inline-flex;
-  width: fit-content;
-  min-height: 1.75rem;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
   align-items: center;
-  border: 1px solid var(--badge-tone);
+  justify-content: center;
+  border: 1px solid
+    color-mix(in srgb, var(--color-information) 48%, transparent);
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--color-bg-elevated) 82%, transparent);
+  background: color-mix(in srgb, var(--color-information) 14%, transparent);
   color: var(--color-text-primary);
-  padding-inline: var(--space-3);
+  padding-inline: var(--space-2);
   font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
-  overflow-wrap: anywhere;
-}
-
-.outline {
-  background: color-mix(in srgb, var(--color-bg-elevated) 82%, transparent);
-}
-
-.soft {
-  border-color: color-mix(in srgb, var(--badge-tone) 48%, transparent);
-  background: color-mix(in srgb, var(--badge-tone) 12%, transparent);
-}
-
-.status {
-  min-height: auto;
-  gap: var(--space-2);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  padding: 0;
-  font-family: var(--font-family-sans);
-  font-weight: 650;
-}
-
-.status::before {
-  width: 0.45rem;
-  height: 0.45rem;
-  flex: none;
-  border-radius: 50%;
-  background: var(--badge-tone);
-  content: "";
-}
-
-.success {
-  --badge-tone: var(--color-status-success);
-}
-
-.warning {
-  --badge-tone: var(--color-status-warning);
-}
-
-.danger {
-  --badge-tone: var(--color-status-danger);
-}
-
-.income {
-  --badge-tone: var(--color-money-income);
-}
-
-.expense {
-  --badge-tone: var(--color-money-expense);
-}
-
-.transfer {
-  --badge-tone: var(--color-money-transfer);
-}
-
-.category {
-  --badge-tone: var(--color-category);
-}
-
-.adjustment {
-  --badge-tone: var(--color-money-adjustment);
-}
-
-.neutral {
-  --badge-tone: var(--color-accent);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }

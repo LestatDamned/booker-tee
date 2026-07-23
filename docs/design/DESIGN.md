@@ -471,14 +471,52 @@ Surface0–2       controls and elevated surface elements
 Text             body and headline text
 Subtext0/1       labels and supporting text
 Overlay1         subtle non-essential content
-Blue             links, actions and active interactive state
+Blue             links and compact recent state
 Green/Yellow/Red success, warning and danger
 Overlay2 at 25%  browser text selection
 Rosewater        text caret
 ```
 
-Booker Tee may use financial Green, Red, Blue and Mauve as persistent product
-semantics. A financial label must still state its meaning; color is
+Booker Tee follows the Catppuccin DaisyUI role split without depending on
+DaisyUI itself:
+
+```text
+primary action       Lavender
+secondary action     Surface0
+brand                Mauve
+brand detail         Rosewater
+active / working     Lavender; accessible Mauve override in Latte
+automation           Pink
+information          Sky
+links / recent       Blue
+neutral              Overlay1 or an accessible neutral foreground
+```
+
+The semantic contract deliberately has no universal `--color-accent`. A single
+accent token must not control buttons, navigation, selection, automation,
+information and transient row states at the same time. Components and feature
+styles use the narrow role that explains why color is present:
+
+```text
+--color-action-primary
+--color-action-secondary
+--color-brand
+--color-brand-detail
+--color-interactive-active
+--color-information
+--color-automation
+--color-working
+--color-recent
+--color-neutral
+```
+
+Only theme files may reference `--ctp-*` or raw palette values. Shared
+components own the visual implementation of their roles; feature code chooses
+semantic variants such as `primary`, `automation`, `warning`, or `transfer`
+instead of choosing a palette color.
+
+Booker Tee may use financial Green, Red, Sapphire and Mauve as persistent
+product semantics. A financial label must still state its meaning; color is
 reinforcement, not the only signal.
 
 Official palette values are immutable. If an official Latte foreground does not
@@ -543,7 +581,8 @@ Visual semantics:
    readable but not compete with primary content.
 3. Selected/current/focused working entities must not rely on border or glow
    alone. They need a visible surface change, structural separation, or an
-   explicit label.
+   explicit label. Dense workbench rows should prefer a stable surface change
+   that does not add or remove content from the row.
 4. Persistent current context should prefer structural clarity first: if an item
    defines where the user is working, separate it from peer items with a heading
    such as `Текущее ...` / `Другие ...`, then use color as reinforcement.
@@ -590,7 +629,8 @@ selected
   color: Overlay2 at 25% over the owning workflow surface
 
 target
-  structure: visible `Текущая строка` marker and aria-current
+  structure: stable selection surface, outline and aria-current; no marker that
+             changes row geometry
   color: Overlay2 at 25% plus an Overlay2 outline
   behavior: navigation destination only; do not rename it to selected
 
@@ -599,8 +639,8 @@ focus
   color: outline/ring only
 
 recent
-  structure: compact visible `Недавно` pill near the affected row
-  color: Blue pill; do not recolor the whole row or use success Green
+  structure: temporary non-layout highlight that calmly fades away
+  color: Blue overlay and outline; do not use success Green
 
 problem
   structure: explain what needs attention near the entity
@@ -616,15 +656,15 @@ Workbench row color channels compose instead of replacing one another:
 ```text
 workflow surface   default / review / problem / settled
 semantic rail      warning / danger when the row needs attention
-ephemeral overlay  target / working
-visible marker     target / working / recent
+ephemeral overlay  target / working / recent
 keyboard focus     focus-visible outline
 ```
 
 `problem` owns its warning rail even while the row is `working` or `target`.
 Temporary state must not replace that rail through CSS source order. `working`
 uses a Blue 8% overlay and Blue outline; `target` and anchor navigation use the
-official Overlay2 25% selection treatment. `recent` uses only a Blue pill.
+official Overlay2 25% selection treatment. `recent` uses a temporary Blue
+overlay and outline that fade without changing row geometry.
 
 For `:target` and URL-anchor return states, preserve the entity's semantic left
 edge when it exists. A target highlight may adjust the top/right/bottom border,
@@ -948,6 +988,21 @@ danger
 
 Do not create a new status style on each page.
 
+React uses three separate primitives:
+
+```text
+Badge        numeric tally only
+Tag          operation type, category or other classification
+StatusLabel  durable state, warning, error or automation signal
+```
+
+`Tag` is read-only unless a feature deliberately renders a real button or
+link. Small tags normally contain text only; decorative icons are not added to
+every category or operation type. `StatusLabel` combines a short label with a
+shared status icon when the state needs stronger recognition. Calm neutral
+metadata may omit the icon. A warning or error uses text and an icon in
+addition to color.
+
 ---
 
 ## 8. Action Hierarchy
@@ -1070,9 +1125,16 @@ rare actions -> "Еще" / action menu
 Every icon-only button must have:
 
 - `aria-label`;
-- `title`;
+- a short tooltip visible on pointer hover and keyboard focus;
 - stable touch target, at least 44x44px;
 - one consistent icon style.
+
+React uses `@phosphor-icons/react` through the shared `Icon` renderer. Feature
+code chooses a project-owned semantic icon name and does not render raw inline
+SVG. Regular 16–20px icons are the default. Duotone icons are reserved for
+larger empty or onboarding states, not mixed into ordinary controls. Structural
+emoji are not used; financial arrows and mathematical operators remain text
+when they are part of the data notation.
 
 Stable UI concepts:
 

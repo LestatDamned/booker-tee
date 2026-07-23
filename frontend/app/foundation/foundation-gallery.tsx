@@ -9,6 +9,8 @@ import { Field } from "../ui/field/field";
 import { MoneyValue } from "../ui/money-value/money-value";
 import { PageHeader } from "../ui/page-header/page-header";
 import { RequestState } from "../ui/request-state/request-state";
+import { StatusLabel } from "../ui/status-label/status-label";
+import { Tag } from "../ui/tag/tag";
 import { WorkbenchRow } from "../ui/workbench-row/workbench-row";
 import styles from "./foundation-gallery.module.css";
 
@@ -70,20 +72,48 @@ function ThemePreview({ label, theme }: ThemePreviewProps) {
           <p className={styles.themeLabel}>Theme</p>
           <h2>{label}</h2>
         </div>
-        <Badge tone="success">token contract complete</Badge>
+        <StatusLabel tone="success">token contract complete</StatusLabel>
       </header>
 
       <section className={styles.section}>
         <h3>Controls</h3>
         <div className={styles.controls}>
-          <Button tone="primary">Создать операцию</Button>
-          <Button>Фильтры</Button>
+          <Button icon="plus" tone="primary">
+            Создать операцию
+          </Button>
+          <Button icon="filter">Фильтры</Button>
           <Button tone="ghost">Отмена</Button>
           <Button tone="dangerSecondary">Отменить операцию</Button>
-          <Button tone="danger">Удалить</Button>
+          <Button icon="delete" tone="danger">
+            Удалить
+          </Button>
           <Button disabled>Недоступно</Button>
           <Button isLoading>Сохраняем</Button>
           <IconButton aria-label="Редактировать пример" icon="edit" />
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <h3>Semantic color roles</h3>
+        <div className={styles.roleGrid}>
+          <span className={`${styles.roleChip} ${styles.rolePrimary}`}>
+            Primary · Lavender
+          </span>
+          <span className={`${styles.roleChip} ${styles.roleBrand}`}>
+            Brand · Mauve
+          </span>
+          <span className={`${styles.roleChip} ${styles.roleAutomation}`}>
+            Automation · Pink
+          </span>
+          <span className={`${styles.roleChip} ${styles.roleInformation}`}>
+            Information · Sky
+          </span>
+          <span className={`${styles.roleChip} ${styles.roleRecent}`}>
+            Recent · Blue
+          </span>
+          <span className={`${styles.roleChip} ${styles.roleTransfer}`}>
+            Transfer · Sapphire
+          </span>
         </div>
       </section>
 
@@ -120,9 +150,20 @@ function ThemePreview({ label, theme }: ThemePreviewProps) {
           <MoneyValue amount="25 000,00" currency="RUB" tone="transfer" />
         </div>
         <div className={styles.controls}>
-          <Badge>подтверждено</Badge>
-          <Badge tone="warning">требует проверки</Badge>
-          <Badge tone="transfer">перевод</Badge>
+          <StatusLabel tone="success">подтверждено</StatusLabel>
+          <StatusLabel tone="automation" variant="soft">
+            автоправило
+          </StatusLabel>
+          <StatusLabel tone="warning" variant="soft">
+            требует проверки
+          </StatusLabel>
+          <Tag tone="transfer">перевод</Tag>
+          <Tag tone="category" variant="soft">
+            продукты
+          </Tag>
+          <span className={styles.countExample}>
+            Требуют решения <Badge label="3 строки требуют решения">3</Badge>
+          </span>
         </div>
       </section>
 
@@ -166,7 +207,7 @@ function ThemePreview({ label, theme }: ThemePreviewProps) {
           }
           meta={
             <>
-              <Badge tone="expense">расход</Badge>
+              <Tag tone="expense">расход</Tag>
               <span>Основной счёт</span>
             </>
           }
@@ -189,7 +230,7 @@ function ThemePreview({ label, theme }: ThemePreviewProps) {
         <WorkbenchRow
           date="2026-07-18"
           description="Недавно обновлённая операция"
-          meta={<span>Состояние подтверждено текстом</span>}
+          meta={<span>Временная подсветка без сдвига строки</span>}
           state="recent"
           value={
             <MoneyValue amount="−4 890,50" currency="RUB" tone="expense" />

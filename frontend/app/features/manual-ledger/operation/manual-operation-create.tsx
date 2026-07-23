@@ -138,6 +138,7 @@ export function ManualOperationCreate({
           isLoading={pending}
           tone="primary"
           type="submit"
+          icon="plus"
         >
           Создать {operationTypeLabel(draft.operationType)}
         </Button>

@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
+import { Badge } from "../../ui/badge/badge";
 import { Button } from "../../ui/button/button";
+import { Icon } from "../../ui/icon/icon";
 import { RequestState } from "../../ui/request-state/request-state";
 import type { ImportReviewDto } from "./api/import-review-api";
 import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
@@ -40,16 +42,85 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
   const visibleRowCount = visibleRowCountFromSearch(searchParams.get("rows"));
   const visibleItems = filteredReviewItems.slice(0, visibleRowCount);
   const hiddenItemCount = filteredReviewItems.length - visibleItems.length;
+  const [navigationAnchorId, setNavigationAnchorId] = useState<string | null>(
+    null,
+  );
+  const visibleItemKey = visibleItems.map((item) => item.id).join("|");
+
+  useEffect(() => {
+    let animationFrame = 0;
+    const visibleItemIds = visibleItemKey ? visibleItemKey.split("|") : [];
+
+    function updateAnchorFromViewport() {
+      const viewportMarker = 64;
+      const visibleRows = visibleItemIds
+        .map((id) => ({
+          id,
+          row: document.getElementById(`raw-${id}`),
+        }))
+        .filter(
+          (
+            candidate,
+          ): candidate is {
+            id: string;
+            row: HTMLElement;
+          } => candidate.row instanceof HTMLElement,
+        )
+        .map(({ id, row }) => ({ id, rect: row.getBoundingClientRect() }))
+        .filter(({ rect }) => rect.bottom > viewportMarker);
+      const current =
+        visibleRows.find(
+          ({ rect }) =>
+            rect.top <= viewportMarker && rect.bottom > viewportMarker,
+        ) ?? visibleRows[0];
+      if (current) setNavigationAnchorId(current.id);
+    }
+
+    function scheduleViewportUpdate() {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(updateAnchorFromViewport);
+    }
+
+    updateAnchorFromViewport();
+    window.addEventListener("scroll", scheduleViewportUpdate, {
+      passive: true,
+    });
+    window.addEventListener("resize", scheduleViewportUpdate);
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("scroll", scheduleViewportUpdate);
+      window.removeEventListener("resize", scheduleViewportUpdate);
+    };
+  }, [visibleItemKey]);
 
   function changeFilter(nextFilter: ReviewFilter) {
     const nextSearchParams = new URLSearchParams(searchParams);
-    if (nextFilter === "pending") {
+    if (nextFilter === "all") {
       nextSearchParams.delete("filter");
     } else {
       nextSearchParams.set("filter", nextFilter);
     }
     nextSearchParams.delete("rows");
     setSearchParams(nextSearchParams, { preventScrollReset: true });
+  }
+
+  function navigateToReviewItem(itemId: string) {
+    const targetIndex = filteredReviewItems.findIndex(
+      (item) => item.id === itemId,
+    );
+    if (targetIndex >= visibleRowCount) {
+      const nextSearchParams = new URLSearchParams(searchParams);
+      const requiredRowCount =
+        Math.ceil((targetIndex + 1) / VISIBLE_ROW_STEP) * VISIBLE_ROW_STEP;
+      nextSearchParams.set("rows", String(requiredRowCount));
+      setSearchParams(nextSearchParams, { preventScrollReset: true });
+    }
+    setNavigationAnchorId(itemId);
+    window.setTimeout(() => {
+      const target = document.getElementById(`raw-${itemId}`);
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: "nearest" });
+    });
   }
 
   function showMoreRows() {
@@ -109,15 +180,18 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
             />
           </header>
           <div className={styles.summaryBody}>
-            <div className={styles.summaryControlStrip}>
-              <ReviewQueue review={currentReview} />
-              <ReconciliationStatus validation={currentReview.validation} />
-            </div>
+            <ReconciliationStatus validation={currentReview.validation} />
             <StatementReconciliation validation={currentReview.validation} />
           </div>
         </section>
 
         <section aria-label="Строки импорта" className={styles.itemsRegion}>
+          <ReviewNavigator
+            anchorItemId={navigationAnchorId}
+            filter={filter}
+            onNavigate={navigateToReviewItem}
+            review={currentReview}
+          />
           {currentReview.items.length > 0 ? (
             <div className={styles.queueToolbar}>
               <ReviewFilters
@@ -136,7 +210,11 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
           ) : (
             <ol className={styles.items}>
               {visibleItems.map((item) => (
-                <li key={item.id}>
+                <li
+                  key={item.id}
+                  onFocusCapture={() => setNavigationAnchorId(item.id)}
+                  onPointerDown={() => setNavigationAnchorId(item.id)}
+                >
                   <ReviewItem
                     categories={categories}
                     documentId={currentReview.document.id}
@@ -184,8 +262,33 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
   );
 }
 
-function ReviewQueue({ review }: { review: ImportReviewDto }) {
+function ReviewNavigator({
+  anchorItemId,
+  filter,
+  onNavigate,
+  review,
+}: {
+  anchorItemId: string | null;
+  filter: ReviewFilter;
+  onNavigate: (itemId: string) => void;
+  review: ImportReviewDto;
+}) {
   const { queue } = review;
+  const itemsById = new Map(review.items.map((item) => [item.id, item]));
+  const anchorIndex =
+    anchorItemId === null ? -1 : queue.orderedItemIds.indexOf(anchorItemId);
+  const previousItemId =
+    anchorIndex < 0
+      ? null
+      : ([...queue.orderedItemIds]
+          .slice(0, anchorIndex)
+          .reverse()
+          .find((id) => !itemsById.get(id)?.isTerminal) ?? null);
+  const nextItemId =
+    queue.orderedItemIds
+      .slice(anchorIndex + 1)
+      .find((id) => !itemsById.get(id)?.isTerminal) ?? null;
+  const navigationAvailable = filter === "all" || filter === "pending";
   const title =
     queue.total === 0
       ? "Строк для проверки пока нет"
@@ -217,13 +320,34 @@ function ReviewQueue({ review }: { review: ImportReviewDto }) {
           <p>Требуют решения</p>
           <strong>{queue.remaining}</strong>
         </div>
-        {queue.firstRemainingItemId ? (
-          <a
-            className={styles.nextLink}
-            href={`#raw-${queue.firstRemainingItemId}`}
+        {navigationAvailable ? (
+          <div
+            aria-label="Навигация по нерешённым строкам"
+            className={styles.queueNavigation}
           >
-            Следующая нерешённая строка
-          </a>
+            <button
+              aria-label="Предыдущая нерешённая строка"
+              disabled={previousItemId === null}
+              onClick={() => {
+                if (previousItemId) onNavigate(previousItemId);
+              }}
+              type="button"
+            >
+              <Icon className={styles.queueNavigationUp} name="expand" />
+              <span>Выше</span>
+            </button>
+            <button
+              aria-label="Следующая нерешённая строка"
+              disabled={nextItemId === null}
+              onClick={() => {
+                if (nextItemId) onNavigate(nextItemId);
+              }}
+              type="button"
+            >
+              <Icon name="expand" />
+              <span>Ниже</span>
+            </button>
+          </div>
         ) : null}
       </div>
     </section>
@@ -235,14 +359,14 @@ const VISIBLE_ROW_STEP = 50;
 
 function reviewFilterFromSearch(value: string | null): ReviewFilter {
   if (
-    value === "all" ||
+    value === "pending" ||
     value === "suggestions" ||
     value === "problems" ||
     value === "complete"
   ) {
     return value;
   }
-  return "pending";
+  return "all";
 }
 
 function visibleRowCountFromSearch(value: string | null): number {
@@ -268,6 +392,7 @@ function ReviewFilters({
   );
   const filters: Array<{ label: string; value: ReviewFilter; count: number }> =
     [
+      { label: "Все", value: "all", count: review.items.length },
       {
         label: "Требуют решения",
         value: "pending",
@@ -289,7 +414,6 @@ function ReviewFilters({
         value: "complete",
         count: review.items.filter((item) => item.isTerminal).length,
       },
-      { label: "Все строки", value: "all", count: review.items.length },
     ];
   return (
     <div
@@ -304,7 +428,7 @@ function ReviewFilters({
           onClick={() => onChange(candidate.value)}
           type="button"
         >
-          {candidate.label} <span>{candidate.count}</span>
+          {candidate.label} <Badge>{candidate.count}</Badge>
         </button>
       ))}
     </div>

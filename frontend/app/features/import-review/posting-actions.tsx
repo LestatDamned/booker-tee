@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../../ui/button/button";
+import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
+import { Icon } from "../../ui/icon/icon";
 import {
   loadImportReview,
   type ImportReviewDto,
@@ -10,7 +12,6 @@ import {
   type ImportReviewDraftEvaluationDto,
   undoImportReviewPosting,
 } from "./api/import-review-mutations";
-import { focusNextReviewItem } from "./focus-next-review-item";
 import styles from "./import-review.module.css";
 
 type PostingActionProps = {
@@ -107,7 +108,6 @@ export function ConfirmPostingAction({
       );
       if (review) {
         onReviewReconciled(review);
-        focusNextReviewItem(review);
       }
       return;
     }
@@ -148,6 +148,7 @@ export function ConfirmPostingAction({
           isLoading={pending}
           onClick={() => void confirm()}
           tone="primary"
+          icon="check"
         >
           Подтвердить
         </Button>
@@ -161,6 +162,7 @@ export function ConfirmPostingAction({
       <div className={styles.rulePatternField}>
         <label>
           <span className={styles.rulePatternLabel}>
+            <Icon name="automation" size={16} />
             Автоправило <small>· необязательно</small>
           </span>
           <input
@@ -208,6 +210,7 @@ export function ConfirmPostingAction({
           isLoading={pending}
           onClick={() => void confirm()}
           tone="primary"
+          icon={rememberRule ? "automation" : "check"}
         >
           {rememberRule ? "Провести с правилом" : "Провести"}
         </Button>
@@ -218,6 +221,7 @@ export function ConfirmPostingAction({
           isLoading={refreshing}
           onClick={() => void refresh()}
           tone="secondary"
+          icon="retry"
         >
           Обновить строку
         </Button>
@@ -237,12 +241,8 @@ export function UndoPostingAction({
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const cancelRef = useRef<HTMLButtonElement>(null);
   const alertRef = useRef<HTMLParagraphElement>(null);
 
-  useEffect(() => {
-    if (confirming) cancelRef.current?.focus();
-  }, [confirming]);
   useEffect(() => {
     if (error) alertRef.current?.focus();
   }, [error]);
@@ -262,15 +262,14 @@ export function UndoPostingAction({
       csrfToken,
     );
     setPending(false);
-    setConfirming(false);
     if (result.status === "success") {
+      setConfirming(false);
       onMenuDismiss?.();
       const review = result.data.reviews.find(
         (candidate) => candidate.document.id === documentId,
       );
       if (review) {
         onReviewReconciled(review);
-        focusNextReviewItem(review);
       }
       return;
     }
@@ -278,40 +277,33 @@ export function UndoPostingAction({
   }
 
   return (
-    <section
-      aria-label="Проведённая операция"
-      className={`${styles.postingBox} ${styles.undoPostingBox}`}
-    >
-      <p>Операция уже проведена в ledger.</p>
+    <>
+      <Button
+        icon="undo"
+        onClick={() => {
+          setError(null);
+          setConfirming(true);
+        }}
+        tone="dangerSecondary"
+      >
+        Вернуть на проверку
+      </Button>
       {confirming ? (
-        <div className={styles.lifecycleConfirmation} role="group">
-          <p>Отменить проведение и вернуть строку в очередь проверки?</p>
-          <div>
-            <Button
-              onClick={() => {
-                setConfirming(false);
-                onMenuDismiss?.();
-              }}
-              ref={cancelRef}
-            >
-              Оставить проведённой
-            </Button>
-            <Button
-              isLoading={pending}
-              onClick={() => void undo()}
-              tone="danger"
-            >
-              Отменить проведение
-            </Button>
-          </div>
-        </div>
+        <ConfirmationDialog
+          confirmLabel="Вернуть на проверку"
+          description="Проведение будет отменено. Строка снова появится среди операций, требующих решения."
+          disabled={pending}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => void undo()}
+          pending={pending}
+          title="Вернуть операцию на проверку?"
+        >
+          <PostingError error={error} ref={alertRef} />
+        </ConfirmationDialog>
       ) : (
-        <Button onClick={() => setConfirming(true)} tone="dangerSecondary">
-          Отменить проведение
-        </Button>
+        <PostingError error={error} ref={alertRef} />
       )}
-      <PostingError error={error} ref={alertRef} />
-    </section>
+    </>
   );
 }
 

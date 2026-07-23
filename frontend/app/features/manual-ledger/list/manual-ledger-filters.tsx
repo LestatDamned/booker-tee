@@ -141,7 +141,12 @@ export function ManualLedgerFilters({
       </details>
 
       <FormActions>
-        <Button isLoading={navigationPending} tone="primary" type="submit">
+        <Button
+          icon="filterApply"
+          isLoading={navigationPending}
+          tone="primary"
+          type="submit"
+        >
           Применить
         </Button>
         <Link

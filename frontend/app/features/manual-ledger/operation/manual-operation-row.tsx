@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 
 import { ActionStack } from "../../../ui/action-stack/action-stack";
-import { Badge } from "../../../ui/badge/badge";
 import { Button } from "../../../ui/button/button";
 import { MoneyValue } from "../../../ui/money-value/money-value";
+import { StatusLabel } from "../../../ui/status-label/status-label";
+import { Tag } from "../../../ui/tag/tag";
 import { WorkbenchRow } from "../../../ui/workbench-row/workbench-row";
 import type { ManualOperationDto } from "../api/manual-ledger-api";
 import type { ManualOperationRowModel } from "./manual-ledger-model";
@@ -98,6 +99,7 @@ export function ManualOperationRow({
                   }
                   ref={editButtonRef}
                   tone="secondary"
+                  icon="edit"
                 >
                   {isEditing ? "Закрыть" : "Исправить"}
                 </Button>
@@ -163,15 +165,15 @@ function OperationMeta({ operation }: { operation: ManualOperationRowModel }) {
     operation.statusTone === "warning" || operation.statusTone === "danger";
   return (
     <>
-      <Badge tone={operation.operationTone}>{operation.operationLabel}</Badge>
+      <Tag tone={operation.operationTone}>{operation.operationLabel}</Tag>
       {operation.transferRouteLabel ? (
-        <Badge tone="transfer">{operation.transferRouteLabel}</Badge>
+        <Tag tone="transfer">{operation.transferRouteLabel}</Tag>
       ) : (
         <>
           {operation.categoryLabel ? (
-            <Badge tone="category">{operation.categoryLabel}</Badge>
+            <Tag tone="category">{operation.categoryLabel}</Tag>
           ) : (
-            <Badge tone="neutral">Без категории</Badge>
+            <Tag tone="neutral">Без категории</Tag>
           )}
           {operation.propertyLabel ? (
             <span>Объект: {operation.propertyLabel}</span>
@@ -181,11 +183,12 @@ function OperationMeta({ operation }: { operation: ManualOperationRowModel }) {
           ) : null}
         </>
       )}
-      {problemStatus ? (
-        <Badge tone={operation.statusTone}>{operation.statusLabel}</Badge>
-      ) : (
-        <span className={styles.flatStatus}>{operation.statusLabel}</span>
-      )}
+      <StatusLabel
+        tone={operation.statusTone}
+        variant={problemStatus ? "soft" : "plain"}
+      >
+        {operation.statusLabel}
+      </StatusLabel>
     </>
   );
 }

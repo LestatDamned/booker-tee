@@ -3,6 +3,7 @@
   --row-state-overlay: transparent;
   --row-surface: var(--color-bg-surface);
 
+  position: relative;
   display: grid;
   grid-template-columns:
     minmax(0, 1fr)
@@ -16,6 +17,23 @@
   box-shadow: inset 3px 0 0 var(--row-rail);
   padding: var(--space-4) var(--space-5);
   scroll-margin-top: 5rem;
+  isolation: isolate;
+}
+
+.row > * {
+  position: relative;
+  z-index: 1;
+}
+
+.row::after {
+  position: absolute;
+  z-index: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  content: "";
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .table {
@@ -154,22 +172,12 @@
   min-width: 0;
 }
 
-.stateMarker {
-  grid-column: 1 / -1;
-  width: fit-content;
-  border: 1px solid var(--color-accent);
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
-  color: var(--color-text-primary);
-  padding: 0.15rem var(--space-2);
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-}
-
-.recent,
 .default {
   --row-state-overlay: transparent;
+}
+
+.recent::after {
+  animation: recent-highlight 4s ease-out both;
 }
 
 .settled {
@@ -183,7 +191,7 @@
 .suggestion {
   --row-surface: color-mix(
     in srgb,
-    var(--color-accent) 4%,
+    var(--color-information) 4%,
     var(--color-bg-surface)
   );
 }
@@ -218,11 +226,26 @@
 }
 
 .working {
-  --row-state-overlay: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  --row-state-overlay: color-mix(in srgb, var(--color-working) 8%, transparent);
 
-  border-bottom-color: var(--color-accent);
-  outline: 1px solid var(--color-accent);
+  border-bottom-color: var(--color-working);
+  outline: 1px solid var(--color-working);
   outline-offset: -1px;
+}
+
+@keyframes recent-highlight {
+  0%,
+  25% {
+    border-color: var(--color-recent);
+    background: color-mix(in srgb, var(--color-recent) 10%, transparent);
+    opacity: 1;
+  }
+
+  100% {
+    border-color: transparent;
+    background: transparent;
+    opacity: 0;
+  }
 }
 
 @media (max-width: 75rem) {

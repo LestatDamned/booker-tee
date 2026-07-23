@@ -9,7 +9,6 @@ import {
   updateImportReviewLifecycle,
   type ImportReviewLifecycleRequest,
 } from "./api/import-review-mutations";
-import { focusNextReviewItem } from "./focus-next-review-item";
 import styles from "./import-review.module.css";
 
 type LifecycleAction = ImportReviewLifecycleRequest["action"];
@@ -74,7 +73,6 @@ export function LifecycleActions({
     if (result.status === "success") {
       onMenuDismiss?.();
       onReviewReconciled(result.data.review);
-      focusNextReviewItem(result.data.review);
       return;
     }
     if (result.status === "conflict") {

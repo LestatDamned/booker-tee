@@ -15,7 +15,7 @@ import {
 
 describe("import review page", () => {
   afterEach(() => vi.unstubAllGlobals());
-  it("renders queue progress and links to the first remaining row", () => {
+  it("renders queue progress and unresolved-row navigation", () => {
     renderPage(importReviewPayload());
 
     expect(
@@ -23,8 +23,11 @@ describe("import review page", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("progressbar")).toHaveAttribute("value", "1");
     expect(
-      screen.getByRole("link", { name: "Следующая нерешённая строка" }),
-    ).toHaveAttribute("href", `#raw-${remainingItemId}`);
+      screen.getByRole("button", { name: "Предыдущая нерешённая строка" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Следующая нерешённая строка" }),
+    ).toBeEnabled();
     expect(
       screen.getByRole("heading", { name: "Проверка выписки" }),
     ).toBeInTheDocument();
@@ -34,7 +37,7 @@ describe("import review page", () => {
     expect(screen.getByText("Проверено как уникальное")).toBeInTheDocument();
   });
 
-  it("opens the unresolved queue first and preserves filter counts and pressed state", async () => {
+  it("opens all rows first and preserves filter counts and pressed state", async () => {
     const user = userEvent.setup();
     const review = importReviewPayload();
     const remainingItem = review.items.find(
@@ -52,14 +55,14 @@ describe("import review page", () => {
     });
     const problems = screen.getByRole("button", { name: "Проблемы 1" });
     const complete = screen.getByRole("button", { name: "Завершённые 1" });
-    const all = screen.getByRole("button", { name: "Все строки 2" });
+    const all = screen.getByRole("button", { name: "Все 2" });
 
-    expect(pending).toHaveAttribute("aria-pressed", "true");
-    expect(all).toHaveAttribute("aria-pressed", "false");
+    expect(all).toHaveAttribute("aria-pressed", "true");
+    expect(pending).toHaveAttribute("aria-pressed", "false");
     expect(document.getElementById(`raw-${remainingItemId}`)).not.toBeNull();
-    expect(document.getElementById(`raw-${completedItemId}`)).toBeNull();
+    expect(document.getElementById(`raw-${completedItemId}`)).not.toBeNull();
 
-    for (const filter of [suggestions, problems, complete, all, pending]) {
+    for (const filter of [pending, suggestions, problems, complete, all]) {
       await user.click(filter);
       expect(filter).toHaveAttribute("aria-pressed", "true");
     }
@@ -103,6 +106,13 @@ describe("import review page", () => {
       screen.getByTestId("current-search").textContent ?? "",
     );
     expect(currentSearch.get("from")).toBe("imports");
+    expect(currentSearch.get("filter")).toBe("pending");
+
+    await user.click(screen.getByRole("button", { name: "Все 2" }));
+    currentSearch = new URLSearchParams(
+      screen.getByTestId("current-search").textContent ?? "",
+    );
+    expect(currentSearch.get("from")).toBe("imports");
     expect(currentSearch.has("filter")).toBe(false);
   });
 
@@ -127,7 +137,7 @@ describe("import review page", () => {
           item.isTerminal = false;
         });
       }
-      renderPage(review);
+      renderPage(review, filter === "pending" ? "/?filter=pending" : "/");
 
       const filterButton = screen.getByRole("button", { name: buttonName });
       if (filter !== "pending") await user.click(filterButton);
@@ -145,7 +155,7 @@ describe("import review page", () => {
     );
     if (!item) throw new Error("remaining fixture item is required");
     item.rowIndex = 0;
-    renderPage(review);
+    renderPage(review, "/?filter=pending");
 
     expect(screen.queryByText("Разобрать строку 0")).not.toBeInTheDocument();
     expect(screen.getByText("*1234")).not.toBeVisible();
@@ -154,6 +164,14 @@ describe("import review page", () => {
     expect(
       screen.getByRole("heading", { name: "Операция" }),
     ).toBeInTheDocument();
+    const panel = document.getElementById(`review-panel-${remainingItemId}`);
+    if (!panel) throw new Error("review panel is required");
+    expect(
+      within(panel).queryByText("Что мешает подтверждению:"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(panel).queryByText("Для дохода или расхода выберите категорию."),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps operation context and the optional auto-rule visible", async () => {
@@ -165,7 +183,7 @@ describe("import review page", () => {
     if (!item) throw new Error("remaining fixture item is required");
     item.selection.categoryId = expenseCategoryId;
     item.confirmability = { canConfirm: true, blockingReasonCodes: [] };
-    renderPage(review);
+    renderPage(review, "/?filter=pending");
 
     await user.click(
       screen.getByRole("button", { name: "Проверить операцию" }),
@@ -189,7 +207,7 @@ describe("import review page", () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
     expect(
-      screen.getByRole("button", { name: "Исходные данные" }),
+      screen.getByRole("button", { name: "Ещё действия" }),
     ).toHaveAttribute("aria-expanded", "false");
   });
 
@@ -201,7 +219,7 @@ describe("import review page", () => {
     if (!row) throw new Error("remaining row is required");
     expect(within(row).queryByText(/По карте \*1234/)).not.toBeInTheDocument();
     await user.click(within(row).getByText("Ещё действия"));
-    const sourceAction = within(row).getByRole("button", {
+    const sourceAction = screen.getByRole("button", {
       name: "Исходные данные",
     });
     expect(sourceAction).toHaveAttribute("aria-expanded", "false");
@@ -210,7 +228,6 @@ describe("import review page", () => {
     expect(
       within(row).getByRole("heading", { name: "Исходные данные строки 2" }),
     ).toBeInTheDocument();
-    expect(sourceAction).toHaveAttribute("aria-expanded", "true");
     expect(within(row).getByText("Данные нормализованы")).toBeInTheDocument();
     expect(within(row).getAllByText("После обработки").length).toBeGreaterThan(
       0,
@@ -259,8 +276,7 @@ describe("import review page", () => {
     expect(row).toHaveTextContent("10 050,50 RUB");
   });
 
-  it("explains unavailable totals without hiding raw rows", async () => {
-    const user = userEvent.setup();
+  it("explains unavailable totals without hiding raw rows", () => {
     const review = importReviewPayload();
     if (!review.validation) throw new Error("validation fixture is required");
     review.validation.status = "unavailable";
@@ -271,15 +287,13 @@ describe("import review page", () => {
 
     renderPage(review);
 
-    await user.click(screen.getByRole("button", { name: "Все строки 2" }));
-
     expect(
       screen.getByRole("heading", {
         name: "Недостаточно данных для сверки",
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("button", { name: "Исходные данные" }),
+      screen.getAllByRole("button", { name: "Ещё действия" }),
     ).toHaveLength(2);
   });
 
@@ -492,7 +506,8 @@ describe("import review page", () => {
     expect(outcome).not.toHaveTextContent("Счёт перевода");
   });
 
-  it("keeps the outcome visible without offering actions in readonly mode", () => {
+  it("keeps the outcome visible without offering write actions in readonly mode", async () => {
+    const user = userEvent.setup();
     const review = importReviewPayload();
     review.capabilities = {
       canWrite: false,
@@ -512,8 +527,9 @@ describe("import review page", () => {
     expect(
       within(row).queryByRole("button", { name: "Изменить операцию" }),
     ).not.toBeInTheDocument();
+    await user.click(within(row).getByRole("button", { name: "Ещё действия" }));
     expect(
-      within(row).getByRole("button", { name: "Исходные данные" }),
+      screen.getByRole("button", { name: "Исходные данные" }),
     ).toBeInTheDocument();
   });
 
@@ -544,7 +560,11 @@ describe("import review page", () => {
         .getAllByText(label)
         .find((element) => element.getAttribute("data-tone") === tone);
       expect(workflowStatus).toBeInTheDocument();
-      expect(workflowStatus).not.toHaveAttribute("data-variant");
+      if (tone === "warning" || tone === "danger") {
+        expect(workflowStatus).toHaveAttribute("data-variant", "soft");
+      } else {
+        expect(workflowStatus).not.toHaveAttribute("data-variant");
+      }
       expect(workflowStatus).toHaveAttribute("data-tone", tone);
     },
   );
@@ -654,24 +674,28 @@ describe("import review page", () => {
     },
   );
 
-  it("uses native keyboard disclosure semantics for secondary actions", async () => {
+  it("uses accessible disclosure semantics for secondary actions", async () => {
     const user = userEvent.setup();
     renderPage(importReviewPayload());
     const row = document.getElementById(`raw-${remainingItemId}`);
     if (!row) throw new Error("remaining row is required");
-    const disclosure = within(row).getByText("Ещё действия");
+    const disclosure = within(row).getByRole("button", {
+      name: "Ещё действия",
+    });
 
     disclosure.focus();
     expect(disclosure).toHaveFocus();
-    expect(disclosure.tagName).toBe("SUMMARY");
+    expect(disclosure.tagName).toBe("BUTTON");
     await user.click(disclosure);
-    expect(disclosure.closest("details")).toHaveAttribute("open");
-    const sourceAction = within(row).getByRole("button", {
+    expect(disclosure).toHaveAttribute("aria-expanded", "true");
+    const sourceAction = screen.getByRole("button", {
       name: "Исходные данные",
     });
     await user.click(sourceAction);
 
-    expect(sourceAction).toHaveAttribute("aria-expanded", "true");
+    expect(
+      within(row).getByRole("heading", { name: "Исходные данные строки 2" }),
+    ).toBeInTheDocument();
     expect(row).toHaveAttribute("data-state", "working");
   });
 
@@ -959,15 +983,43 @@ describe("import review page", () => {
       name: "Выбрать категорию",
     });
     await user.click(reviewButton);
-    const category = screen.getByLabelText("Категория");
-    await user.selectOptions(category, expenseCategoryId);
+    await chooseCategory(user, "Продукты");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Backend недоступен",
     );
     await user.click(reviewButton);
     await user.click(reviewButton);
-    expect(screen.getByLabelText("Категория")).toHaveValue(expenseCategoryId);
+    expect(screen.getByLabelText("Категория")).toHaveValue("Продукты");
+  });
+
+  it("filters categories and supports keyboard selection", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    renderPage(importReviewPayload());
+
+    await user.click(screen.getByRole("button", { name: "Выбрать категорию" }));
+    const category = screen.getByRole("combobox", { name: "Категория" });
+    await user.click(category);
+    expect(category).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("listbox").parentElement?.parentElement).toBe(
+      document.body,
+    );
+
+    await user.type(category, "прод");
+    expect(
+      screen.getByRole("option", { name: "Продукты" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Без категории" }),
+    ).not.toBeInTheDocument();
+
+    await user.keyboard("{Enter}");
+    expect(category).toHaveValue("Продукты");
+    expect(category).toHaveAttribute("aria-expanded", "false");
   });
 
   it("resets the editor to server state on explicit cancel", async () => {
@@ -982,17 +1034,16 @@ describe("import review page", () => {
       name: "Выбрать категорию",
     });
     await user.click(reviewButton);
-    await user.selectOptions(
-      screen.getByLabelText("Категория"),
-      expenseCategoryId,
-    );
+    await chooseCategory(user, "Продукты");
     expect(await screen.findByRole("alert")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Отмена" }));
     expect(reviewButton).toHaveFocus();
     await user.click(reviewButton);
 
-    expect(screen.getByLabelText("Категория")).toHaveValue("");
+    expect(screen.getByLabelText("Категория")).toHaveValue(
+      "Выберите категорию",
+    );
     expect(screen.getByRole("radio", { name: "Расход" })).toBeChecked();
   });
 
@@ -1056,10 +1107,7 @@ describe("import review page", () => {
       name: "Выбрать категорию",
     });
     await user.click(reviewButton);
-    await user.selectOptions(
-      screen.getByLabelText("Категория"),
-      expenseCategoryId,
-    );
+    await chooseCategory(user, "Продукты");
     await user.selectOptions(screen.getByLabelText("Объект"), propertyId);
 
     await user.click(screen.getByRole("radio", { name: "Перевод" }));
@@ -1075,7 +1123,7 @@ describe("import review page", () => {
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("radio", { name: "Расход" }));
-    expect(screen.getByLabelText("Категория")).toHaveValue(expenseCategoryId);
+    expect(screen.getByLabelText("Категория")).toHaveValue("Продукты");
     expect(screen.getByLabelText("Объект")).toHaveValue(propertyId);
 
     await user.click(screen.getByRole("radio", { name: "Перевод" }));
@@ -1122,6 +1170,40 @@ describe("import review page", () => {
     expect(
       screen.getByLabelText("Второй счёт или готовая пара"),
     ).toBeInTheDocument();
+  });
+
+  it("keeps category selection primary when an ordinary operation has a transfer candidate", () => {
+    const review = importReviewPayload();
+    const item = review.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.transfer.rawRowCandidates = [
+      {
+        itemId: "19a27f5a-8de0-4be3-b934-1ce813d2593a",
+        documentId: "7f5ff7ba-f79e-4f30-9ee1-b25257dfed67",
+        rowIndex: 3,
+        operationDate: "2026-07-21",
+        description: "Возможная парная операция",
+        amount: "1250.50",
+        currency: "RUB",
+        account: {
+          id: "c145935c-67c-4bf6-a0ce-64e5d611cf47",
+          name: "Накопительный счёт",
+          currency: "RUB",
+        },
+        dayDistance: 1,
+      },
+    ];
+
+    renderPage(review);
+
+    expect(
+      screen.getByRole("button", { name: "Выбрать категорию" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Проверить перевод" }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps invalid category input and focuses the first invalid field", async () => {
@@ -1394,7 +1476,7 @@ describe("import review page", () => {
     const row = document.getElementById(`raw-${remainingItemId}`);
     if (!row) throw new Error("remaining row is required");
     await user.click(within(row).getByText("Ещё действия"));
-    await user.click(within(row).getByRole("button", { name: "Игнорировать" }));
+    await user.click(screen.getByRole("button", { name: "Игнорировать" }));
     await user.click(screen.getByRole("button", { name: "Подтвердить" }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveFocus();
@@ -1465,10 +1547,7 @@ describe("import review page", () => {
     renderPage(importReviewPayload());
 
     await user.click(screen.getByRole("button", { name: "Выбрать категорию" }));
-    await user.selectOptions(
-      screen.getByLabelText("Категория"),
-      expenseCategoryId,
-    );
+    await chooseCategory(user, "Продукты");
     const confirm = await screen.findByRole("button", {
       name: "Провести",
     });
@@ -1482,8 +1561,6 @@ describe("import review page", () => {
     expect(
       await screen.findByRole("heading", { name: "Все строки обработаны" }),
     ).toBeInTheDocument();
-    expect(document.getElementById(`raw-${remainingItemId}`)).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Завершённые 2" }));
     expect(document.getElementById(`raw-${remainingItemId}`)).toHaveAttribute(
       "data-state",
       "default",
@@ -1538,16 +1615,21 @@ describe("import review page", () => {
     renderPage(importReviewPayload());
 
     await user.click(screen.getByRole("button", { name: "Завершённые 1" }));
+    await user.click(screen.getByRole("button", { name: "Ещё действия" }));
 
     await user.click(
-      screen.getByRole("button", { name: "Отменить проведение" }),
+      screen.getByRole("button", { name: "Вернуть на проверку" }),
     );
     expect(fetchMock).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog", {
+      name: "Вернуть операцию на проверку?",
+    });
+    expect(dialog).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Оставить проведённой" }),
+      within(dialog).getByRole("button", { name: "Отмена" }),
     ).toHaveFocus();
     await user.click(
-      screen.getByRole("button", { name: "Отменить проведение" }),
+      within(dialog).getByRole("button", { name: "Вернуть на проверку" }),
     );
 
     expect(
@@ -1611,6 +1693,16 @@ function renderPage(
 function LocationProbe() {
   const location = useLocation();
   return <output data-testid="current-search">{location.search}</output>;
+}
+
+async function chooseCategory(
+  user: ReturnType<typeof userEvent.setup>,
+  categoryName: string,
+) {
+  const category = screen.getByRole("combobox", { name: "Категория" });
+  await user.click(category);
+  await user.type(category, categoryName.slice(0, 4));
+  await user.click(screen.getByRole("option", { name: categoryName }));
 }
 
 const sessionPayload = {

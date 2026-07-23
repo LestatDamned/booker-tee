@@ -54,7 +54,7 @@ export function ManualLedgerSearch({
         type="search"
         value={draft}
       />
-      <Button disabled={disabled} type="submit">
+      <Button disabled={disabled} icon="search" type="submit">
         Найти
       </Button>
     </form>

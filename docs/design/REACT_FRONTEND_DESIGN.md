@@ -912,6 +912,8 @@ PageActions
 Button
 IconButton
 Badge
+Tag
+StatusLabel
 MoneyValue
 Field
 FormError

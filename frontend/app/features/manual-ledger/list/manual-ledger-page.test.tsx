@@ -1,16 +1,10 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionDto } from "../../../api/session";
-import badgeStyles from "../../../ui/badge/badge.module.css";
+import tagStyles from "../../../ui/tag/tag.module.css";
 import type { ManualLedgerDto } from "../api/manual-ledger-api";
 import { ManualLedgerPage } from "./manual-ledger-page";
 
@@ -32,7 +26,7 @@ describe("ManualLedgerPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("20.07.2026")).toBeInTheDocument();
     expect(screen.getByLabelText("−65 000,00 RUB")).toBeInTheDocument();
-    expect(screen.getByText("расход")).toBeInTheDocument();
+    expect(screen.getByText("Расход")).toBeInTheDocument();
   });
 
   it("renders category metadata in the shared category tone", () => {
@@ -49,7 +43,7 @@ describe("ManualLedgerPage", () => {
 
     expect(screen.getByText("Аренда")).toBeInTheDocument();
     expect(screen.getByText("Аренда")).toHaveClass(
-      required(badgeStyles.category, "category badge class"),
+      required(tagStyles.category, "category tag class"),
     );
   });
 
@@ -115,7 +109,7 @@ describe("ManualLedgerPage", () => {
     expect(
       document.getElementById(`operation-${page.targetOperationId}`),
     ).toHaveAttribute("data-state", "target");
-    expect(screen.getByText("Текущая строка")).toBeVisible();
+    expect(screen.queryByText("Текущая строка")).not.toBeInTheDocument();
   });
 
   it("moves the working state to the row whose action the user chooses", async () => {
@@ -148,14 +142,14 @@ describe("ManualLedgerPage", () => {
     const moreActions = screen.getAllByText("Ещё действия");
     await user.click(required(moreActions.at(0), "first more actions"));
     await user.click(
-      within(firstRow).getByRole("button", { name: "Удалить окончательно" }),
+      screen.getByRole("button", { name: "Удалить окончательно" }),
     );
     expect(firstRow).toHaveAttribute("data-state", "working");
     expect(secondRow).toHaveAttribute("data-state", "default");
 
     await user.click(required(moreActions.at(1), "second more actions"));
     await user.click(
-      within(secondRow).getByRole("button", { name: "Удалить окончательно" }),
+      screen.getByRole("button", { name: "Удалить окончательно" }),
     );
     expect(firstRow).toHaveAttribute("data-state", "target");
     expect(secondRow).toHaveAttribute("data-state", "working");

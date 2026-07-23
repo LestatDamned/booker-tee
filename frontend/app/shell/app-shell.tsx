@@ -2,6 +2,7 @@ import { useRef, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router";
 
 import type { SessionDto } from "../api/session";
+import { Icon, type IconName } from "../ui/icon/icon";
 import styles from "../styles/shell.module.css";
 
 type AppShellProps = {
@@ -9,19 +10,9 @@ type AppShellProps = {
   session: SessionDto;
 };
 
-type NavIconName =
-  | "accounts"
-  | "categories"
-  | "home"
-  | "imports"
-  | "operations"
-  | "properties"
-  | "reports"
-  | "rules";
-
 type NavigationItem = {
   href: string;
-  icon: NavIconName;
+  icon: IconName;
   label: string;
   reactRoute?: boolean;
 };
@@ -110,7 +101,7 @@ export function AppShell({ children, session }: AppShellProps) {
           ref={mobileMenuRef}
         >
           <summary>
-            <MenuIcon />
+            <Icon className={styles.menuIcon} name="menu" size={20} />
             <span>Меню</span>
           </summary>
           <div className={styles.mobileMenuPanel}>
@@ -171,7 +162,7 @@ function ShellContext({
           <small>{membershipRoleLabel(session.membership.role)}</small>
         </span>
         <span aria-hidden="true" className={styles.contextArrow}>
-          →
+          <Icon name="forward" size={16} />
         </span>
       </a>
     </div>
@@ -217,7 +208,7 @@ function ShellNavigationItem({
 }) {
   const content = (
     <>
-      <NavIcon name={item.icon} />
+      <Icon className={styles.navIcon} name={item.icon} size={20} />
       <span>{item.label}</span>
     </>
   );
@@ -282,31 +273,4 @@ function navClassName({ isActive }: { isActive: boolean }) {
 
 function externalNavClassName(isActive: boolean) {
   return navClassName({ isActive });
-}
-
-const navIconPaths: Record<NavIconName, string> = {
-  accounts: "M3 7h18v12H3zM3 10h18M7 15h4",
-  categories: "M4 5h9l7 7-8 8-8-8V5zM8 9h.01",
-  home: "M3 11.5 12 4l9 7.5V20h-6v-5H9v5H3z",
-  imports: "M12 3v12M7 10l5 5 5-5M4 20h16",
-  operations: "M4 7h16M7 4 4 7l3 3M20 17H4m13-3 3 3-3 3",
-  properties: "M4 20V8l8-5 8 5v12M9 20v-5h6v5M8 10h.01M12 10h.01M16 10h.01",
-  reports: "M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7M3 20h18",
-  rules: "M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6",
-};
-
-function NavIcon({ name }: { name: NavIconName }) {
-  return (
-    <svg aria-hidden="true" className={styles.navIcon} viewBox="0 0 24 24">
-      <path d={navIconPaths[name]} />
-    </svg>
-  );
-}
-
-function MenuIcon() {
-  return (
-    <svg aria-hidden="true" className={styles.menuIcon} viewBox="0 0 24 24">
-      <path d="M4 7h16M4 12h16M4 17h16" />
-    </svg>
-  );
 }

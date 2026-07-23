@@ -2,10 +2,14 @@ import { useRef, useState } from "react";
 
 import { formatIsoDate } from "../../shared/date/format-date";
 import { ActionStack } from "../../ui/action-stack/action-stack";
-import { Badge, type BadgeTone } from "../../ui/badge/badge";
 import { Button } from "../../ui/button/button";
 import { ExpansionPanel } from "../../ui/expansion-panel/expansion-panel";
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
+import {
+  StatusLabel,
+  type StatusTone,
+} from "../../ui/status-label/status-label";
+import { Tag, type TagTone } from "../../ui/tag/tag";
 import { WorkbenchRow } from "../../ui/workbench-row/workbench-row";
 import type { ImportReviewDto } from "./api/import-review-api";
 import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
@@ -140,6 +144,7 @@ export function ReviewItem({
             aria-expanded={sourceOpen}
             onClick={toggleSourcePanel}
             ref={sourceButtonRef}
+            icon="source"
           >
             Исходные данные
           </Button>
@@ -178,6 +183,7 @@ export function ReviewItem({
             onClick={toggleReviewPanel}
             ref={reviewButtonRef}
             tone="primary"
+            icon="edit"
           >
             {reviewActionLabel}
           </Button>
@@ -202,6 +208,7 @@ export function ReviewItem({
             onClick={toggleReviewPanel}
             ref={reviewButtonRef}
             tone="secondary"
+            icon="edit"
           >
             Изменить операцию
           </Button>
@@ -492,18 +499,19 @@ function ReviewItemMeta({
   return (
     <div className={styles.meaningSummary}>
       <div className={styles.meaningBadges}>
-        <Badge tone={type.tone}>{type.label}</Badge>
+        <Tag tone={type.tone}>{type.label}</Tag>
         {item.classification.operationType !== "transfer" ? (
-          <Badge tone="category" variant="soft">
+          <Tag tone="category" variant="soft">
             {category?.name ?? "Без категории"}
-          </Badge>
+          </Tag>
         ) : null}
-        <span
-          className={styles.workflowStatus}
-          data-tone={statusTone(item.status)}
+        <StatusLabel
+          showIcon={statusTone(item.status) !== "neutral"}
+          tone={statusTone(item.status)}
+          variant={statusNeedsAttention(item.status) ? "soft" : "plain"}
         >
           {statusLabel(item.status)}
-        </span>
+        </StatusLabel>
       </div>
       {property ? (
         <span className={styles.propertyFact}>Объект · {property.name}</span>
@@ -575,11 +583,7 @@ function SourceSummary({
 
 function rowReviewActionLabel(item: ReviewItemDto): string {
   if (item.ruleSuggestion.isActive) return "Проверить предложение";
-  if (
-    item.classification.operationType === "transfer" ||
-    item.transfer.rawRowCandidates.length > 0 ||
-    item.transfer.existingOperationCandidates.length > 0
-  ) {
+  if (item.classification.operationType === "transfer") {
     return "Проверить перевод";
   }
   if (item.selection.categoryId === null) return "Выбрать категорию";
@@ -657,9 +661,13 @@ function SourceComparison({
             <h4>Исходные и нормализованные данные</h4>
           </div>
           {hasNormalizedChanges(item) ? (
-            <Badge tone="warning">Есть изменения</Badge>
+            <StatusLabel tone="warning" variant="soft">
+              Есть изменения
+            </StatusLabel>
           ) : (
-            <Badge tone="neutral">Без изменений</Badge>
+            <StatusLabel showIcon={false} tone="neutral">
+              Без изменений
+            </StatusLabel>
           )}
         </header>
       ) : null}
@@ -750,7 +758,7 @@ function operationPresentation(
   operationType: ReviewItemDto["classification"]["operationType"],
 ): {
   label: string;
-  tone: BadgeTone;
+  tone: TagTone;
 } {
   if (operationType === null)
     return { label: "Тип не определён", tone: "neutral" };
@@ -761,7 +769,7 @@ function operationPresentation(
     adjustment: { label: "Корректировка", tone: "adjustment" },
   } satisfies Record<
     NonNullable<ReviewItemDto["classification"]["operationType"]>,
-    { label: string; tone: BadgeTone }
+    { label: string; tone: TagTone }
   >;
   return presentation[operationType];
 }
@@ -848,12 +856,21 @@ function overflowLifecycleActions(item: ReviewItemDto): LifecycleAction[] {
   );
 }
 
-function statusTone(status: ReviewItemDto["status"]): BadgeTone {
+function statusTone(status: ReviewItemDto["status"]): StatusTone {
   if (status === "failed" || status === "duplicate") return "danger";
   if (status === "needs_review" || status === "possible_duplicate")
     return "warning";
   if (status === "confirmed") return "success";
   return "neutral";
+}
+
+function statusNeedsAttention(status: ReviewItemDto["status"]): boolean {
+  return (
+    status === "failed" ||
+    status === "duplicate" ||
+    status === "needs_review" ||
+    status === "possible_duplicate"
+  );
 }
 
 function statusLabel(status: ReviewItemDto["status"]): string {

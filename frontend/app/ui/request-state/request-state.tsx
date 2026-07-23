@@ -26,7 +26,9 @@ export function RequestState(props: RequestStateProps) {
       <span>{props.message}</span>
       {isError && props.onRetry ? (
         <div>
-          <Button onClick={props.onRetry}>Повторить</Button>
+          <Button icon="retry" onClick={props.onRetry}>
+            Повторить
+          </Button>
         </div>
       ) : null}
     </section>

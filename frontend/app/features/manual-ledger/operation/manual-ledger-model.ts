@@ -1,7 +1,8 @@
 import type { components } from "../../../api/generated/schema";
 import { formatMoneyAmount } from "../../../shared/money/format-money";
-import type { BadgeTone } from "../../../ui/badge/badge";
 import type { MoneyTone } from "../../../ui/money-value/money-value";
+import type { StatusTone } from "../../../ui/status-label/status-label";
+import type { TagTone } from "../../../ui/tag/tag";
 
 type ManualOperationDto = components["schemas"]["ManualOperationApiResponse"];
 type OperationType = components["schemas"]["OperationType"];
@@ -20,33 +21,33 @@ export type ManualOperationRowModel = {
   description: string;
   money: { amount: string; currency: string; tone: MoneyTone } | null;
   operationLabel: string;
-  operationTone: BadgeTone;
+  operationTone: TagTone;
   propertyLabel: string | null;
   statusLabel: string;
-  statusTone: BadgeTone;
+  statusTone: StatusTone;
   transferRouteLabel: string | null;
   version: number;
 };
 
 const operationPresentation: Record<
   OperationType,
-  { label: string; tone: BadgeTone }
+  { label: string; tone: TagTone }
 > = {
-  income: { label: "доход", tone: "income" },
-  expense: { label: "расход", tone: "expense" },
-  transfer: { label: "перевод", tone: "transfer" },
-  adjustment: { label: "корректировка", tone: "adjustment" },
+  income: { label: "Доход", tone: "income" },
+  expense: { label: "Расход", tone: "expense" },
+  transfer: { label: "Перевод", tone: "transfer" },
+  adjustment: { label: "Корректировка", tone: "adjustment" },
 };
 
 const statusPresentation: Record<
   OperationStatus,
-  { label: string; tone: BadgeTone }
+  { label: string; tone: StatusTone }
 > = {
-  draft: { label: "черновик", tone: "warning" },
-  needs_review: { label: "нужна проверка", tone: "warning" },
-  confirmed: { label: "подтверждено", tone: "success" },
-  ignored: { label: "отменено", tone: "neutral" },
-  duplicate: { label: "дубликат", tone: "danger" },
+  draft: { label: "Черновик", tone: "warning" },
+  needs_review: { label: "Нужна проверка", tone: "warning" },
+  confirmed: { label: "Подтверждено", tone: "success" },
+  ignored: { label: "Отменено", tone: "neutral" },
+  duplicate: { label: "Дубликат", tone: "danger" },
 };
 
 export function toManualOperationRowModel(

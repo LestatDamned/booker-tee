@@ -1,0 +1,51 @@
+.tag {
+  --tag-tone: var(--color-neutral);
+
+  display: inline-flex;
+  width: fit-content;
+  min-height: 1.75rem;
+  align-items: center;
+  border: 1px solid var(--tag-tone);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-bg-elevated) 82%, transparent);
+  color: var(--color-text-primary);
+  padding-inline: var(--space-3);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.soft {
+  border-color: color-mix(in srgb, var(--tag-tone) 48%, transparent);
+  background: color-mix(in srgb, var(--tag-tone) 12%, transparent);
+}
+
+.income {
+  --tag-tone: var(--color-money-income);
+}
+
+.expense {
+  --tag-tone: var(--color-money-expense);
+}
+
+.transfer {
+  --tag-tone: var(--color-money-transfer);
+}
+
+.category {
+  --tag-tone: var(--color-category);
+}
+
+.automation {
+  --tag-tone: var(--color-automation);
+}
+
+.adjustment {
+  --tag-tone: var(--color-money-adjustment);
+}
+
+.neutral {
+  --tag-tone: var(--color-neutral);
+}

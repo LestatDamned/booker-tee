@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../../ui/button/button";
+import { Icon } from "../../ui/icon/icon";
 import type { ImportReviewDto } from "./api/import-review-api";
 import { applyRulesToImportReview } from "./api/import-review-mutations";
-import { focusNextReviewItem } from "./focus-next-review-item";
 import styles from "./import-review.module.css";
 
 type RuleActionsProps = {
@@ -36,7 +36,6 @@ export function RuleActions({
     setPending(false);
     if (result.status === "success") {
       onReviewReconciled(result.data.review);
-      focusNextReviewItem(result.data.review);
       setMessage(ruleApplicationMessage(result.data));
       return;
     }
@@ -64,8 +63,14 @@ export function RuleActions({
   return (
     <div className={styles.reviewTools}>
       <div className={styles.reviewToolLinks}>
-        <a href={`/imports/documents/${documentId}`}>Открыть документ</a>
-        <a href="/transaction-rules">Открыть правила</a>
+        <a href={`/imports/documents/${documentId}`}>
+          <Icon name="source" size={16} />
+          Открыть документ
+        </a>
+        <a href="/transaction-rules">
+          <Icon name="rules" size={16} />
+          Открыть правила
+        </a>
       </div>
       {!readonly ? (
         <Button
@@ -73,6 +78,7 @@ export function RuleActions({
           isLoading={pending}
           onClick={() => void applyRules()}
           tone="secondary"
+          icon="filterApply"
         >
           Применить правила
         </Button>

@@ -33,8 +33,12 @@
    * Catppuccin permits legibility overrides. These are Booker Tee foreground
    * corrections, not replacements for the canonical palette above.
    */
-  --accessible-on-blue: #ffffff;
+  --accessible-on-lavender: #181825;
   --accessible-blue-text: #174ea6;
+  --accessible-mauve-text: #762bcf;
+  --accessible-pink-text: #9d2f80;
+  --accessible-sapphire-text: #176f82;
+  --accessible-sky-text: #096f8f;
   --accessible-subtext: #55586f;
   --accessible-green-text: #338323;
   --accessible-yellow-text: #8c6500;
@@ -53,22 +57,31 @@
   --color-text-primary: var(--ctp-text);
   --color-text-secondary: var(--accessible-subtext);
   --color-text-muted: var(--ctp-subtext-0);
-  --color-on-accent: var(--accessible-on-blue);
+  --color-brand: var(--accessible-mauve-text);
+  --color-brand-detail: var(--ctp-rosewater);
+  --color-action-primary: var(--ctp-lavender);
+  --color-on-action-primary: var(--accessible-on-lavender);
+  --color-action-secondary: var(--ctp-surface-0);
+  --color-on-action-secondary: var(--ctp-text);
+  --color-interactive-active: var(--accessible-mauve-text);
+  --color-information: var(--accessible-sky-text);
+  --color-automation: var(--accessible-pink-text);
+  --color-working: var(--accessible-mauve-text);
+  --color-recent: var(--ctp-blue);
+  --color-neutral: var(--ctp-subtext-0);
   --color-link: var(--accessible-blue-text);
   --color-border-default: var(--ctp-surface-1);
   --color-border-control: var(--ctp-overlay-2);
   --color-border-strong: var(--ctp-overlay-2);
-  --color-focus-ring: var(--ctp-blue);
+  --color-focus-ring: var(--accessible-mauve-text);
   --color-selection: var(--ctp-overlay-2);
   --color-caret: var(--ctp-rosewater);
-  --color-accent: var(--ctp-blue);
-  --color-accent-strong: var(--accessible-blue-text);
   --color-status-success: var(--accessible-success-text);
   --color-status-warning: var(--accessible-warning-text);
   --color-status-danger: var(--accessible-danger-text);
   --color-money-income: var(--accessible-green-text);
   --color-money-expense: var(--ctp-red);
-  --color-money-transfer: var(--accessible-blue-text);
+  --color-money-transfer: var(--accessible-sapphire-text);
   --color-money-profit: var(--ctp-mauve);
   --color-money-adjustment: var(--accessible-yellow-text);
   --color-category: var(--ctp-mauve);

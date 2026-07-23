@@ -17,7 +17,18 @@ const requiredThemeTokens = [
   "--color-text-primary",
   "--color-text-secondary",
   "--color-text-muted",
-  "--color-on-accent",
+  "--color-brand",
+  "--color-brand-detail",
+  "--color-action-primary",
+  "--color-on-action-primary",
+  "--color-action-secondary",
+  "--color-on-action-secondary",
+  "--color-interactive-active",
+  "--color-information",
+  "--color-automation",
+  "--color-working",
+  "--color-recent",
+  "--color-neutral",
   "--color-link",
   "--color-border-default",
   "--color-border-control",
@@ -25,8 +36,6 @@ const requiredThemeTokens = [
   "--color-focus-ring",
   "--color-selection",
   "--color-caret",
-  "--color-accent",
-  "--color-accent-strong",
   "--color-status-success",
   "--color-status-warning",
   "--color-status-danger",
@@ -109,7 +118,11 @@ const officialCatppuccinRoleReferences = {
   "--color-text-primary": "var(--ctp-text)",
   "--color-selection": "var(--ctp-overlay-2)",
   "--color-caret": "var(--ctp-rosewater)",
-  "--color-accent": "var(--ctp-blue)",
+  "--color-brand-detail": "var(--ctp-rosewater)",
+  "--color-action-primary": "var(--ctp-lavender)",
+  "--color-action-secondary": "var(--ctp-surface-0)",
+  "--color-on-action-secondary": "var(--ctp-text)",
+  "--color-recent": "var(--ctp-blue)",
 };
 
 const contrastChecks = [
@@ -126,8 +139,12 @@ const contrastChecks = [
   {
     foregrounds: [
       "--color-focus-ring",
-      "--color-accent",
-      "--color-accent-strong",
+      "--color-interactive-active",
+      "--color-information",
+      "--color-automation",
+      "--color-working",
+      "--color-recent",
+      "--color-neutral",
       "--color-border-control",
       "--color-border-strong",
     ],
@@ -167,10 +184,22 @@ const contrastChecks = [
     purpose: "large financial text or non-text state",
   },
   {
-    foregrounds: ["--color-on-accent"],
-    backgrounds: ["--color-accent"],
+    foregrounds: ["--color-brand"],
+    backgrounds: ["--color-bg-canvas", "--color-bg-shell"],
+    minimum: 4.5,
+    purpose: "brand text",
+  },
+  {
+    foregrounds: ["--color-on-action-primary"],
+    backgrounds: ["--color-action-primary"],
     minimum: 4.5,
     purpose: "primary action text",
+  },
+  {
+    foregrounds: ["--color-on-action-secondary"],
+    backgrounds: ["--color-action-secondary"],
+    minimum: 4.5,
+    purpose: "secondary action text",
   },
   {
     foregrounds: ["--color-link"],
@@ -335,6 +364,8 @@ function validateOfficialCatppuccinPalette(themeName, declarations) {
 const cssFiles = await findFiles(appRoot, (path) => extname(path) === ".css");
 const cssModules = cssFiles.filter((path) => path.endsWith(".module.css"));
 const rawPalettePattern = /#[0-9a-f]{3,8}\b|(?:rgb|hsl)a?\(/i;
+const primitiveTokenPattern = /var\(--(?:ctp|palette)-/;
+const legacyAccentPattern = /var\(--color-(?:on-)?accent(?:-strong)?\)/;
 
 for (const path of cssFiles) {
   if (dirname(path) === themesRoot) {
@@ -344,6 +375,36 @@ for (const path of cssFiles) {
   if (rawPalettePattern.test(content)) {
     throw new Error(
       `Raw palette value found outside theme directory: ${relative(frontendRoot, path)}`,
+    );
+  }
+  if (primitiveTokenPattern.test(content)) {
+    throw new Error(
+      `Primitive palette token found outside theme directory: ${relative(frontendRoot, path)}`,
+    );
+  }
+  if (legacyAccentPattern.test(content)) {
+    throw new Error(
+      `Legacy universal accent token found in ${relative(frontendRoot, path)}; use a named semantic role.`,
+    );
+  }
+}
+
+const sourceFiles = await findFiles(appRoot, (path) =>
+  [".ts", ".tsx"].includes(extname(path)),
+);
+const rawInlineSvgPattern = /<svg(?:\s|>)/i;
+const emojiPattern = /\p{Extended_Pictographic}/u;
+
+for (const path of sourceFiles) {
+  const content = await readFile(path, "utf8");
+  if (rawInlineSvgPattern.test(content)) {
+    throw new Error(
+      `Raw inline SVG found in ${relative(frontendRoot, path)}; use the shared Icon renderer.`,
+    );
+  }
+  if (emojiPattern.test(content)) {
+    throw new Error(
+      `Emoji found in ${relative(frontendRoot, path)}; structural UI uses shared SVG icons.`,
     );
   }
 }

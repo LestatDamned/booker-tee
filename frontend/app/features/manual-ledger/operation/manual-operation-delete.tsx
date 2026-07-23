@@ -60,6 +60,7 @@ export function ManualOperationDelete({
         disabled={disabled}
         onClick={() => setState({ status: "confirming" })}
         tone="danger"
+        icon="delete"
       >
         Удалить окончательно
       </Button>
@@ -71,11 +72,15 @@ export function ManualOperationDelete({
       <div className={styles.deleteConfirmation}>
         <FormError announce>{state.message}</FormError>
         {state.status === "conflict" && onRefresh ? (
-          <Button onClick={refresh} tone="ghost">
+          <Button icon="retry" onClick={refresh} tone="ghost">
             Обновить строку
           </Button>
         ) : (
-          <Button onClick={() => setState({ status: "idle" })} tone="ghost">
+          <Button
+            icon="retry"
+            onClick={() => setState({ status: "idle" })}
+            tone="ghost"
+          >
             Повторить
           </Button>
         )}
@@ -95,6 +100,7 @@ export function ManualOperationDelete({
           isLoading={state.status === "pending"}
           onClick={() => void confirmDelete()}
           tone="danger"
+          icon="delete"
         >
           Да, удалить
         </Button>

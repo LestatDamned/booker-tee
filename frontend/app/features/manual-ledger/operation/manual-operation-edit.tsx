@@ -210,7 +210,11 @@ export function ManualOperationEdit({
       {state.status === "load_error" ? (
         <div className={styles.editFeedback}>
           <FormError announce>{state.message}</FormError>
-          <Button onClick={() => void loadSnapshot()} tone="secondary">
+          <Button
+            icon="retry"
+            onClick={() => void loadSnapshot()}
+            tone="secondary"
+          >
             Повторить загрузку
           </Button>
         </div>
@@ -239,7 +243,11 @@ export function ManualOperationEdit({
           {state.submission.status === "conflict" ? (
             <div className={styles.editFeedback}>
               <p>Ваш draft сохранён. Загрузка актуальной версии заменит его.</p>
-              <Button onClick={() => void loadSnapshot()} tone="secondary">
+              <Button
+                icon="retry"
+                onClick={() => void loadSnapshot()}
+                tone="secondary"
+              >
                 Загрузить актуальную версию
               </Button>
             </div>
@@ -262,6 +270,7 @@ export function ManualOperationEdit({
               isLoading={state.submission.status === "pending"}
               tone="primary"
               type="submit"
+              icon="check"
             >
               Сохранить изменения
             </Button>

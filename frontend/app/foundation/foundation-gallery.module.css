@@ -70,6 +70,69 @@
   gap: var(--space-2);
 }
 
+.countExample {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+}
+
+.roleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-2);
+}
+
+.roleChip {
+  --role-color: var(--color-neutral);
+
+  display: flex;
+  min-height: var(--control-height);
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--role-color) 48%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--role-color) 10%, transparent);
+  padding-inline: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.roleChip::before {
+  width: 0.65rem;
+  height: 0.65rem;
+  flex: none;
+  border-radius: 0.15rem;
+  background: var(--role-color);
+  content: "";
+}
+
+.rolePrimary {
+  --role-color: var(--color-action-primary);
+}
+
+.roleBrand {
+  --role-color: var(--color-brand);
+}
+
+.roleAutomation {
+  --role-color: var(--color-automation);
+}
+
+.roleInformation {
+  --role-color: var(--color-information);
+}
+
+.roleRecent {
+  --role-color: var(--color-recent);
+}
+
+.roleTransfer {
+  --role-color: var(--color-money-transfer);
+}
+
 .moneyGrid {
   gap: var(--space-5);
 }

@@ -1,6 +1,7 @@
 import { type FormEvent, type RefObject, useRef, useState } from "react";
 
 import { Button } from "../../ui/button/button";
+import { SearchableSelect } from "../../ui/searchable-select/searchable-select";
 import type { ImportReviewDto } from "./api/import-review-api";
 import {
   createImportReviewCategory,
@@ -64,7 +65,7 @@ export function ClassificationPanel({
   const [categoryKind, setCategoryKind] = useState<
     ImportReviewCategoryReferenceDto["kind"]
   >(defaultCategoryKind(item.classification.operationType));
-  const categoryRef = useRef<HTMLSelectElement>(null);
+  const categoryRef = useRef<HTMLInputElement>(null);
   const propertyRef = useRef<HTMLSelectElement>(null);
   const categoryNameRef = useRef<HTMLInputElement>(null);
   const evaluationRequestId = useRef(0);
@@ -241,11 +242,7 @@ export function ClassificationPanel({
           aria-label="Решение по операции"
           className={styles.reviewDecisionSummary}
         >
-          <DraftCapability
-            dirty={dirty}
-            evaluation={evaluation}
-            pending={pending}
-          />
+          <DraftCapability dirty={dirty} pending={pending} />
           {!readonly ? (
             <ConfirmPostingAction
               categoryName={
@@ -313,7 +310,7 @@ function OperationModeSwitch({
 type DraftFieldsProps = {
   categories: ClassificationPanelProps["categories"];
   categoryEditorOpen: boolean;
-  categoryRef: RefObject<HTMLSelectElement | null>;
+  categoryRef: RefObject<HTMLInputElement | null>;
   draft: ImportReviewDraftEvaluationRequest;
   fieldErrors: Record<string, string[]>;
   itemId: string;
@@ -349,24 +346,25 @@ function DraftFields({
       <div className={styles.editorField}>
         <label htmlFor={`category-${itemId}`}>Категория</label>
         <div className={styles.editorFieldControl}>
-          <select
+          <SearchableSelect
             aria-describedby={
               fieldErrors.categoryId ? `category-error-${itemId}` : undefined
             }
             id={`category-${itemId}`}
-            onChange={(event) =>
-              updateDraft({ ...draft, categoryId: event.target.value || null })
+            inputRef={categoryRef}
+            onChange={(value) =>
+              updateDraft({ ...draft, categoryId: value || null })
             }
-            ref={categoryRef}
+            options={[
+              { label: "Выберите категорию", value: "" },
+              ...compatibleCategories.map((category) => ({
+                label: category.name,
+                value: category.id,
+              })),
+            ]}
+            placeholder="Найти категорию"
             value={draft.categoryId ?? ""}
-          >
-            <option value="">Выберите категорию</option>
-            {compatibleCategories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+          />
           <Button
             aria-label="Создать категорию"
             aria-controls={`category-editor-${itemId}`}
@@ -474,7 +472,7 @@ function CategoryEditor({
           <option value="adjustment">Корректировка</option>
         </select>
       </label>
-      <Button disabled={pending} tone="primary" type="submit">
+      <Button disabled={pending} icon="plus" tone="primary" type="submit">
         Создать и выбрать
       </Button>
     </form>
@@ -483,34 +481,16 @@ function CategoryEditor({
 
 function DraftCapability({
   dirty,
-  evaluation,
   pending,
 }: {
   dirty: boolean;
-  evaluation: ImportReviewDraftEvaluationDto;
   pending: boolean;
 }) {
-  if (dirty) {
-    return (
-      <p className={styles.draftStatus}>
-        {pending
-          ? "Проверяем выбранный финансовый смысл…"
-          : "Исправьте выбор и повторите попытку."}
-      </p>
-    );
-  }
-  if (evaluation.confirmability.canConfirm) {
-    return null;
-  }
+  if (!dirty || !pending) return null;
   return (
-    <div className={styles.draftStatus}>
-      <strong>Что мешает подтверждению:</strong>
-      <ul>
-        {evaluation.confirmability.blockingReasonCodes.map((reason) => (
-          <li key={reason}>{blockingReasonLabel(reason)}</li>
-        ))}
-      </ul>
-    </div>
+    <p className={styles.draftStatus} role="status">
+      Проверяем выбор…
+    </p>
   );
 }
 
@@ -582,7 +562,7 @@ function ordinaryOperationLabel(
 
 function focusDraftField(
   fieldErrors: Record<string, string[]>,
-  category: HTMLSelectElement | null,
+  category: HTMLInputElement | null,
   property: HTMLSelectElement | null,
 ) {
   if (fieldErrors.categoryId) category?.focus();
@@ -611,27 +591,4 @@ function categoryMutationError(result: {
   if (result.status === "forbidden")
     return "Недостаточно прав для создания категории.";
   return result.message ?? "Категорию не удалось создать.";
-}
-
-function blockingReasonLabel(
-  reason: ImportReviewDraftEvaluationDto["confirmability"]["blockingReasonCodes"][number],
-): string {
-  return {
-    terminal_state: "Строка уже завершена.",
-    failed_state: "Строка находится в состоянии ошибки.",
-    duplicate_review_required: "Сначала разберите возможный дубль.",
-    normalization_error: "Исправьте ошибку нормализации.",
-    missing_operation_date: "Не определена дата операции.",
-    missing_amount: "Не определена сумма.",
-    missing_currency: "Не определена валюта.",
-    missing_source_account: "Не определён исходный счёт.",
-    missing_operation_type: "Не выбран тип операции.",
-    operation_type_amount_mismatch:
-      "Выбранный тип не соответствует знаку суммы операции.",
-    missing_category: "Для дохода или расхода выберите категорию.",
-    uncategorized_category: "Системная категория «Без категории» не подходит.",
-    transfer_accounts_required: "Для перевода нужны два счёта.",
-    same_transfer_account: "Счета перевода должны отличаться.",
-    unsupported_operation_type: "Этот тип пока нельзя подтвердить из импорта.",
-  }[reason];
 }

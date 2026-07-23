@@ -3,7 +3,9 @@ import { Link, useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../../api/session";
 import { AppShell } from "../../../shell/app-shell";
+import { Badge } from "../../../ui/badge/badge";
 import { Button } from "../../../ui/button/button";
+import { Icon } from "../../../ui/icon/icon";
 import { PageHeader } from "../../../ui/page-header/page-header";
 import { RequestState } from "../../../ui/request-state/request-state";
 import { WorkbenchPanel } from "../../../ui/workbench-panel/workbench-panel";
@@ -167,10 +169,11 @@ export function ManualLedgerPage({
                 aria-expanded={filtersOpen}
                 disabled={editingOperationId !== null || navigationPending}
                 onClick={() => setFiltersOpen((current) => !current)}
+                icon="filter"
               >
                 {filtersOpen ? "Скрыть фильтры" : "Показать фильтры"}
                 {appliedFilters.length > 0 ? (
-                  <span aria-hidden="true"> ({appliedFilters.length})</span>
+                  <Badge>{appliedFilters.length}</Badge>
                 ) : null}
               </Button>
               {ledger.capabilities.canCreate ? (
@@ -179,6 +182,7 @@ export function ManualLedgerPage({
                   disabled={editingOperationId !== null}
                   onClick={() => setCreateOpen(true)}
                   tone="primary"
+                  icon="plus"
                 >
                   Добавить операцию
                 </Button>
@@ -288,6 +292,7 @@ export function ManualLedgerPage({
                           ledger.pagination.page - 1,
                         )}
                       >
+                        <Icon name="back" size={16} />
                         Назад
                       </Link>
                     ) : null}
@@ -328,6 +333,7 @@ export function ManualLedgerPage({
                         )}
                       >
                         Дальше
+                        <Icon name="forward" size={16} />
                       </Link>
                     ) : null}
                   </li>

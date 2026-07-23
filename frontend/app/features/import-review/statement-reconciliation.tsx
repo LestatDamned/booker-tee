@@ -1,4 +1,5 @@
 import { MoneyValue } from "../../ui/money-value/money-value";
+import { Icon, type IconName } from "../../ui/icon/icon";
 import type { ImportReviewDto } from "./api/import-review-api";
 import styles from "./import-review.module.css";
 
@@ -27,7 +28,7 @@ export function ReconciliationStatus({
       <p className={styles.reconciliationEyebrow}>Сверка итогов</p>
       <div className={styles.reconciliationOutcome}>
         <span className={styles.reconciliationStatus}>
-          <span aria-hidden="true">{statusSymbol(presentation.tone)}</span>
+          <Icon name={statusIcon(presentation.tone)} size={16} weight="bold" />
           <h2 id="import-review-validation-title">{presentation.label}</h2>
         </span>
         <p>{presentation.description}</p>
@@ -242,10 +243,10 @@ function isZero(value: string): boolean {
 
 type ReconciliationTone = "success" | "warning" | "neutral";
 
-function statusSymbol(tone: ReconciliationTone): string {
-  if (tone === "success") return "✓";
-  if (tone === "warning") return "!";
-  return "–";
+function statusIcon(tone: ReconciliationTone): IconName {
+  if (tone === "success") return "check";
+  if (tone === "warning") return "warning";
+  return "neutral";
 }
 
 function reconciliationPresentation(validation: PresentValidation): {
