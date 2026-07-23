@@ -17,8 +17,8 @@ workflows вертикальными slices и удалить второй по�
 
 ### Wave A: core financial views
 
-1. account detail/ledger;
-2. [import documents and mapping](import-documents-and-mapping/README.md);
+1. [import documents and mapping](import-documents-and-mapping/README.md);
+2. account detail/ledger;
 3. reports.
 
 ### Wave B: reference and rule workflows
@@ -64,13 +64,13 @@ for unrelated workflows.
 
 After the last authenticated workflow:
 
-- keep the Stage 05 removal of `src/app/web/` and `/_next` verified by consumer
-  search;
+- verify that `src/app/web/` and `/_next` have no runtime consumers or source
+  files;
 - delete remaining authenticated legacy Jinja routes/templates/presenters;
 - delete HTMX/Alpine/vendor scripts with no public/auth consumer;
 - delete legacy global CSS after its last consumer;
 - simplify `scripts/ui_audit.py` to current frontend scenarios;
-- archive superseded SSR design documents outside active reading order;
+- keep superseded SSR design documents out of the active repository;
 - remove transitional `/app` prefix if canonical routing decision requires it;
 - decide separately whether public/login/signup remain minimal SSR or migrate.
 

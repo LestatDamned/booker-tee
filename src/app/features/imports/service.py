@@ -16,9 +16,6 @@ class ImportService:
     def __init__(self, session: AsyncSession) -> None:
         self.queries = ImportQueryRepository(session)
 
-    async def list_documents(self, workspace_id: UUID) -> list[UploadedDocument]:
-        return await self.queries.list_documents_for_workspace(workspace_id)
-
     async def get_document(self, workspace_id: UUID, document_id: UUID) -> UploadedDocument | None:
         return await self.queries.get_document_for_workspace(workspace_id, document_id)
 

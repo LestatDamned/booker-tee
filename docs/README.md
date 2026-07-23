@@ -1,107 +1,62 @@
-# Booker Tee Docs
+# Booker Tee Documentation
 
-This directory keeps long-lived product, domain, architecture, design, guide, and integration documents out of the repository root.
+Статус: актуальный индекс документации.
 
-Root files are intentionally limited to:
+Документация хранит только действующие решения и текущие планы. Завершённые
+планы, миграционные снимки и superseded-спецификации удаляются: история остаётся
+в Git.
 
-- [`README.md`](../README.md) — project overview and local setup.
-- [`AGENTS.md`](../AGENTS.md) — instructions for Codex and other coding agents.
+## Как читать
 
-## Reading Order
+Для любой задачи:
 
-Do not read every document for every task. Start from the smallest relevant set.
+1. [`AGENTS.md`](../AGENTS.md);
+2. этот индекс;
+3. один профильный документ;
+4. код и тесты как окончательная проверка фактического состояния.
 
-For any coding task:
+Не загружайте все документы одновременно.
 
-1. [`AGENTS.md`](../AGENTS.md)
-2. This file
-3. One or two task-specific documents from the table below
-4. Relevant code
+## Источники истины
 
-Для работ по новому frontend и миграции с SSR:
+| Область    | Документ                                                      | Когда читать                                   |
+| ---------- | ------------------------------------------------------------- | ---------------------------------------------- |
+| Продукт    | [`PROJECT_VISION.md`](product/PROJECT_VISION.md)              | Scope, пользователи, продуктовые принципы      |
+| Приоритеты | [`ROADMAP.md`](product/ROADMAP.md)                            | Что делать после текущей задачи                |
+| Финансы    | [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md)                   | Сущности, статусы, инварианты                  |
+| Код        | [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md)             | Слои, границы features, transactions, security |
+| UI/UX      | [`DESIGN.md`](design/DESIGN.md)                               | Визуальный и interaction-контракт              |
+| React/API  | [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md) | Текущая browser-архитектура и cutover          |
+| Формы      | [`FORM_DESIGN.md`](design/FORM_DESIGN.md)                     | React form composition и accessibility         |
+| Решения    | [`decisions/README.md`](architecture/decisions/README.md)     | Принятые ADR                                   |
+| Исполнение | [`frontend/plan/README.md`](frontend/plan/README.md)          | Текущий migration stage                        |
 
-1. [`React implementation plan`](frontend/plan/README.md) и только текущий
-   stage-файл
-2. [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md)
-3. [`DESIGN.md`](design/DESIGN.md)
-4. [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md), especially application,
-   domain, repository, API adapter and feature boundary rules
-5. [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) только как
-   подробный источник UX-контрактов повторяющихся строк сущностей
+## Операционные документы
 
-For financial/domain changes:
+- [`ALPHA_TESTING.md`](guides/ALPHA_TESTING.md) — локальный запуск и smoke flow.
+- [`USER_GUIDE.md`](guides/USER_GUIDE.md) — короткая карта пользовательских
+  сценариев и терминов.
+- [`CHAT_INTEGRATIONS.md`](integrations/CHAT_INTEGRATIONS.md) — действующая
+  граница Telegram/chat integration.
+- [`UNKNOWN_STATEMENT_IMPORTER.md`](integrations/UNKNOWN_STATEMENT_IMPORTER.md) —
+  fallback и mapping неизвестных выписок.
 
-1. [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md)
-2. [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md)
-3. Product docs only if the change affects scope or roadmap
+## Текущий frontend plan
 
-## Document Status
+Stages 0–6 завершены: React runtime, JSON API, visual foundation, manual ledger
+и Import Review работают в React. Активное направление — Stage 7, миграция
+оставшихся authenticated workflows.
 
-| Document | Status | Read When |
-| --- | --- | --- |
-| [`PROJECT_VISION.md`](product/PROJECT_VISION.md) | active product compass | Product positioning, target users, major UX/domain decisions |
-| [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md) | active source of truth | Database models, ledger behavior, imports, reports, financial correctness |
-| [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md) | active architecture reference | Code structure, feature boundaries, services/repositories/presentation layer |
-| [`Architecture decisions`](architecture/decisions/README.md) | accepted ADR index | React runtime, API boundary, CSS/themes and learning contract decisions |
-| [`React implementation plan`](frontend/plan/README.md) | active execution plan | Current stage, deliverables, learning outcomes, checks and exit gates |
-| [`DESIGN.md`](design/DESIGN.md) | active design reference | General UI/UX rules, visual direction, financial UI patterns |
-| [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md) | active target frontend architecture | React/API boundary, UX contracts, migration strategy and repository cleanup manifest |
-| [`FORM_DESIGN.md`](design/FORM_DESIGN.md) | active React form specification | Reusable form composition, accessibility, creation/edit and filter contracts |
-| [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) | superseded SSR strategy / behavior reference | Изолированный SSR frontend и найденные при его проектировании контракты |
-| [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) | historical detailed UX specification | Повторяющиеся строки сущностей; переносимые interaction-контракты для React |
-| [`MANUAL_LEDGER_BASELINE.md`](design/MANUAL_LEDGER_BASELINE.md) | historical migration baseline | Наблюдаемый контракт `/ledger/manual` до React migration |
-| [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md) | earlier refactor reference | Existing import-review behavior and presentation discoveries |
-| [`MVP.md`](product/MVP.md) | historical baseline / guardrails | Preventing regressions in the completed parser-first MVP |
-| [`ROADMAP.md`](product/ROADMAP.md) | planning reference | Future sequencing, not a current task list |
-| [`FUTURE_IDEAS.md`](product/FUTURE_IDEAS.md) | parked ideas | Only when discussing post-core features |
-| [`USER_GUIDE.md`](guides/USER_GUIDE.md) | guide/reference | User-facing wording and onboarding/help flows |
-| [`ALPHA_TESTING.md`](guides/ALPHA_TESTING.md) | guide/reference | Manual alpha testing |
-| [`CHAT_INTEGRATIONS.md`](integrations/CHAT_INTEGRATIONS.md) | future/partial integration plan | Chat/Telegram work only |
-| [`UNKNOWN_STATEMENT_IMPORTER.md`](integrations/UNKNOWN_STATEMENT_IMPORTER.md) | active reference | Unknown bank statement mapping/import work |
+- [`STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md`](frontend/plan/STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md)
+- [`Import documents and mapping`](frontend/plan/import-documents-and-mapping/README.md)
 
-## Product
+## Правила поддержки
 
-- [`PROJECT_VISION.md`](product/PROJECT_VISION.md) — product compass.
-- [`MVP.md`](product/MVP.md) — historical parser-first MVP baseline and guardrails.
-- [`ROADMAP.md`](product/ROADMAP.md) — preferred evolution order.
-- [`FUTURE_IDEAS.md`](product/FUTURE_IDEAS.md) — parked post-MVP ideas.
-
-## Domain
-
-- [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md) — financial entities and invariants.
-
-## Architecture
-
-- [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md) — code structure, progressive
-  feature architecture, feature boundaries, and data flow.
-- [`Architecture decisions`](architecture/decisions/README.md) — concise accepted
-  React migration decisions and their consequences.
-
-## Design
-
-- [`DESIGN.md`](design/DESIGN.md) — UI/UX principles and visual direction.
-- [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md) — активная
-  целевая React/API архитектура, стратегия миграции и cleanup manifest.
-- [`FORM_DESIGN.md`](design/FORM_DESIGN.md) — композиция, доступность и
-  повторяющиеся UX-контракты React-форм и фильтров.
-- [`FRONTEND_NEXT_DESIGN.md`](design/FRONTEND_NEXT_DESIGN.md) — superseded
-  стратегия параллельного SSR frontend; сохраняется как behavior reference.
-- [`WORKBENCH_ROW_DESIGN.md`](design/WORKBENCH_ROW_DESIGN.md) — историческая
-  подробная спецификация поведения повторяющихся строк сущностей.
-- [`REFACTOR_PROJECT_DESIGN.md`](design/REFACTOR_PROJECT_DESIGN.md) — справочный
-  документ предыдущего import-review рефакторинга и найденного поведения.
-
-## Frontend
-
-- [`React implementation plan`](frontend/plan/README.md) — последовательность
-  stages и указатель на ближайший исполняемый этап.
-
-## Guides
-
-- [`USER_GUIDE.md`](guides/USER_GUIDE.md) — in-product guidance plan.
-- [`ALPHA_TESTING.md`](guides/ALPHA_TESTING.md) — alpha tester flow and feedback checklist.
-
-## Integrations
-
-- [`CHAT_INTEGRATIONS.md`](integrations/CHAT_INTEGRATIONS.md) — chat integration plan.
-- [`UNKNOWN_STATEMENT_IMPORTER.md`](integrations/UNKNOWN_STATEMENT_IMPORTER.md) — unknown statement import plan.
+- Один факт имеет один основной документ.
+- Кодовые имена, маршруты и статусы сверяются с текущим кодом.
+- Completed plan сворачивается в короткую запись в index и удаляется.
+- Новый документ создаётся только если у него есть отдельный долгоживущий
+  consumer.
+- Временные audits и measurements живут в task artifacts или Git history, а не
+  в активном `docs/`.
+- Битые ссылки и ссылки на удалённые реализации не допускаются.

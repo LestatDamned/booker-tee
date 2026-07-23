@@ -51,6 +51,15 @@ def install_react_frontend(
             status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         )
 
+    async def historical_imports_redirect(request: Request) -> RedirectResponse:
+        target = "/app/imports"
+        if request.url.query:
+            target = f"{target}?{request.url.query}"
+        return RedirectResponse(
+            url=target,
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        )
+
     app.add_api_route(
         "/ledger/manual",
         historical_manual_ledger_redirect,
@@ -60,6 +69,12 @@ def install_react_frontend(
     app.add_api_route(
         "/imports/documents/{document_id}/review",
         historical_import_review_redirect,
+        methods=["GET"],
+        include_in_schema=False,
+    )
+    app.add_api_route(
+        "/imports",
+        historical_imports_redirect,
         methods=["GET"],
         include_in_schema=False,
     )

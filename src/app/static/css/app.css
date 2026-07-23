@@ -607,83 +607,6 @@ p {
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
-.import-document-list {
-  display: grid;
-  gap: 10px;
-}
-
-.import-document-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
-  gap: 14px;
-  align-items: start;
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-left: 3px solid var(--accent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  padding: 12px;
-}
-
-.import-document-card--requires_review,
-.import-document-card--pending_parse,
-.import-document-card--failed_to_parse {
-  border-left-color: var(--warning);
-}
-
-.import-document-card--imported {
-  border-left-color: var(--green);
-}
-
-.import-document-card--ignored {
-  border-left-color: var(--muted);
-}
-
-.import-document-card__main,
-.import-document-card__actions {
-  min-width: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.import-document-card__title {
-  min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.import-document-card__title strong {
-  min-width: min(240px, 100%);
-  color: var(--text);
-  font-size: 1rem;
-}
-
-.import-document-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  color: var(--muted);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
-}
-
-.import-document-card__technical {
-  justify-self: start;
-}
-
-.import-document-card__technical summary {
-  min-height: 24px;
-  color: color-mix(in srgb, var(--muted) 82%, var(--border));
-  font-size: 0.7rem;
-}
-
-.import-document-card__action,
-.import-document-card__actions .button {
-  width: 100%;
-}
-
 .import-page-actions {
   display: flex;
   flex-wrap: wrap;
@@ -5106,8 +5029,7 @@ html:not(.entity-target-cleared) .rule-card:target {
     grid-template-columns: 1fr;
   }
 
-  .import-index-summary,
-  .import-document-card {
+  .import-index-summary {
     grid-template-columns: 1fr;
   }
 

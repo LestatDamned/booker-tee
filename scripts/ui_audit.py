@@ -438,13 +438,11 @@ def prepare_review_interaction_scenario(
         detail_url = page.url
         if "/imports/documents/" not in detail_url:
             page.goto(build_url(base_url, "/imports"), wait_until="domcontentloaded")
-            document_card = page.locator(".import-document-card, .entity-card").filter(
+            document_record = page.locator("tr:visible, article:visible").filter(
                 has_text=scenario_state["document_name"]
             )
-            document_card.wait_for(timeout=PAGE_TIMEOUT_MS)
-            document_card.locator('a[href*="/imports/documents/"]').filter(
-                has_text="детали"
-            ).first.click()
+            document_record.wait_for(timeout=PAGE_TIMEOUT_MS)
+            document_record.locator('a[href^="/imports/documents/"]').first.click()
             page.wait_for_url("**/imports/documents/**", timeout=PAGE_TIMEOUT_MS)
             detail_url = page.url
 

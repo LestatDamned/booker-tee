@@ -1,72 +1,69 @@
 # React Frontend Implementation Plan
 
-Статус: active execution plan.
+Статус: active execution index.
 
-Этот каталог отвечает на вопрос «что реализуем следующим и по каким критериям
-этап завершен».
+Этот каталог содержит только текущую миграцию. Детальные completed stage plans
+удалены; их результат зафиксирован ниже, а implementation history остаётся в
+Git и коде.
 
-Не дублировать здесь:
-
-- product UX — см. [`DESIGN.md`](../../design/DESIGN.md);
-- target architecture и cleanup manifest — см.
-  [`REACT_FRONTEND_DESIGN.md`](../../design/REACT_FRONTEND_DESIGN.md);
-- причины технических решений — см.
-  [`Architecture Decision Records`](../../architecture/decisions/README.md);
-- financial invariants — см. [`DOMAIN_MODEL.md`](../../domain/DOMAIN_MODEL.md).
-
-## Current Position
+## Current position
 
 ```text
-Stage 0  completed
-Stage 1  completed
-Stage 2  completed
-Stage 3  completed
-Stage 4  completed
-Stage 5  completed
-Stage 6  completed
-Stage 7  next
+Stages 0–6 completed
+Stage 7 next
+Current prepared workflow: import documents and mapping
 ```
 
-| Stage                                                 | Status    | Outcome                                                      |
-| ----------------------------------------------------- | --------- | ------------------------------------------------------------ |
-| [`00`](STAGE_00_DECISIONS_AND_FREEZE.md)              | completed | React decision, ADR and SSR freeze are explicit              |
-| [`01`](STAGE_01_RUNTIME_AND_API_FOUNDATION.md)        | completed | React builds, FastAPI exposes safe session/API foundation    |
-| [`02`](STAGE_02_VISUAL_FOUNDATION.md)                 | completed | Tokens, themes and shared geometry are proven                |
-| [`03`](STAGE_03_MANUAL_LEDGER_READ.md)                | completed | Manual ledger list works read-only through JSON API          |
-| [`04`](STAGE_04_MANUAL_LEDGER_MUTATIONS.md)           | completed | Full manual create/edit/lifecycle works in React             |
-| [`05`](STAGE_05_MANUAL_LEDGER_CUTOVER.md)             | completed | React is canonical; two manual SSR slices are deleted        |
-| [`06`](STAGE_06_IMPORT_REVIEW_CHECKPOINT.md)          | completed | React import review canonical; legacy review presentation deleted |
-| [`07`](STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md) | next      | Remaining workflows migrate and authenticated SSR is removed |
+## Completed outcomes
 
-## Status Rules
+| Stage | Outcome                                                                     |
+| ----- | --------------------------------------------------------------------------- |
+| 0     | React SPA, versioned API, CSS/themes и learning decisions приняты в ADR     |
+| 1     | React build и safe session/API foundation работают                          |
+| 2     | Semantic tokens, themes и shared UI foundation проверены                    |
+| 3–5   | Manual Ledger полностью работает в React; legacy mutation UI удалён         |
+| 6     | Import Review полностью работает в React; legacy review presentation удалён |
 
-- `planned` — sequence is accepted, implementation has not started;
-- `next` — ближайший этап, prerequisites выполнены;
-- `active` — сейчас меняется production code; одновременно только один stage;
-- `blocked` — exit gate невозможно выполнить без отдельного решения;
-- `completed` — все exit gates выполнены и checks реально запущены;
-- `superseded` — новый plan явно заменил этот stage.
+Подробные контракты завершённых features находятся рядом с кодом:
 
-При старте этапа обновить его status и таблицу выше. Не отмечать `completed` по
-проценту выполненных checklist items: важен пользовательский outcome и exit gate.
+- `frontend/app/features/manual-ledger/README.md`;
+- `frontend/app/features/import-review/README.md`;
+- server application/domain tests.
 
-## Execution Rules
+## Current stage
 
-1. Один stage выполняется маленькими reviewable slices.
-2. Каждый slice проходит `API/application -> frontend state -> UI -> tests`, если
-   его outcome пересекает все эти границы.
-3. Domain/application код не переписывается ради удобства React.
-4. Legacy остается доступным до replacement gate, но не получает новые shared
-   abstractions.
-5. Cleanup является частью stage, а не неопределенным будущим долгом.
-6. Нетривиальный TS/React concept объясняется через Python-аналогию и границы
-   этой аналогии.
-7. Если stage становится слишком большим, он делится на child plan до написания
-   связанного production-кода; global stage sequence не меняется молча.
+[`STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md`](STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md)
+мигрирует остальные authenticated workflows и удаляет второй presentation
+stack.
 
-## Stage Completion Record
+Подготовленный child stage:
 
-При завершении в stage-файле добавить короткий блок:
+- [`Import documents and mapping`](import-documents-and-mapping/README.md).
+
+## Status rules
+
+- `planned` — scope принят, implementation не начат;
+- `next` — ближайший stage/workflow;
+- `active` — production implementation идёт;
+- `blocked` — exit gate требует внешнего решения;
+- `completed` — outcome достигнут, cleanup и checks записаны.
+
+Одновременно active только один global stage. Child slices могут иметь свой
+статус внутри active stage.
+
+## Execution rules
+
+1. Workflow делится на пользовательские vertical slices.
+2. Slice проходит `application/API -> state -> UI -> tests`.
+3. Domain/application не переписываются ради React.
+4. Legacy работает до replacement gate, но не получает новые abstractions.
+5. Cleanup входит в slice.
+6. Server остаётся владельцем financial/security policy.
+7. Completed детальные планы удаляются после краткой записи результата здесь.
+
+## Completion record
+
+При завершении текущего stage оставить короткий record:
 
 ```text
 Completed: YYYY-MM-DD
@@ -74,8 +71,7 @@ Implemented:
 Checks run:
 Intentional deviations:
 Cleanup performed:
-Learning notes updated:
+Measurements/risks:
 ```
 
-Этот record фиксирует факт реализации. Git history остается источником точного
-diff, поэтому stage-документ не превращается в подробный development journal.
+Не превращать record в журнал каждого commit.

@@ -44,13 +44,10 @@ Implemented:
 
 Current engineering focus:
 
-- Build a versioned FastAPI JSON API without moving financial rules to the
+- Continue the versioned FastAPI JSON API without moving financial rules to the
   browser.
-- Introduce the React foundation and migrate manual ledger as the first vertical
-  pilot.
-- Preserve the current UI geometry while moving to tokenized, theme-ready CSS.
-- Use import review as the required complexity checkpoint before broad
-  migration.
+- Keep the completed React Manual Ledger and Import Review stable.
+- Migrate import documents/mapping and the remaining authenticated workflows.
 - Remove each superseded SSR presentation slice after its replacement passes
   tests and observation.
 
@@ -194,8 +191,15 @@ uv run ty check .
 uv run pytest
 ```
 
-Frontend commands will be added after the `frontend/` scaffold. The approved
-package manager is npm with one committed `package-lock.json`.
+Frontend setup and checks:
+
+```bash
+cd frontend
+npm ci
+npm run check
+```
+
+The approved package manager is npm with one committed `package-lock.json`.
 
 Run UI audits:
 
@@ -259,11 +263,5 @@ Main references:
   gates.
 - [React implementation plan](docs/frontend/plan/README.md) - staged execution
   sequence with the current stage and exit gates.
-- [FRONTEND_NEXT_DESIGN.md](docs/design/FRONTEND_NEXT_DESIGN.md) - superseded
-  SSR strategy retained as a behavior reference.
-- [WORKBENCH_ROW_DESIGN.md](docs/design/WORKBENCH_ROW_DESIGN.md) - historical
-  detailed repeated-row UX specification.
-- [REFACTOR_PROJECT_DESIGN.md](docs/design/REFACTOR_PROJECT_DESIGN.md) - legacy
-  frontend behavior and implementation history.
-- [MVP.md](docs/product/MVP.md) - historical parser-first MVP baseline and
-  guardrails.
+- [Current Imports migration](docs/frontend/plan/import-documents-and-mapping/README.md) -
+  active child plan for documents, upload, detail, mapping, and cleanup.

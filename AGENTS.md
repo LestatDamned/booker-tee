@@ -150,14 +150,6 @@ Task-specific documents:
   [`docs/frontend/plan/README.md`](docs/frontend/plan/README.md).
 - Accepted React migration decisions:
   [`docs/architecture/decisions/README.md`](docs/architecture/decisions/README.md).
-- Historical detailed repeated-row behavior:
-  [`docs/design/WORKBENCH_ROW_DESIGN.md`](docs/design/WORKBENCH_ROW_DESIGN.md).
-- Superseded SSR Frontend Next strategy; read only for behavior discoveries:
-  [`docs/design/FRONTEND_NEXT_DESIGN.md`](docs/design/FRONTEND_NEXT_DESIGN.md).
-- Legacy frontend behavior reference; read only when auditing existing UI:
-  [`docs/design/REFACTOR_PROJECT_DESIGN.md`](docs/design/REFACTOR_PROJECT_DESIGN.md).
-- Historical parser-first MVP guardrails:
-  [`docs/product/MVP.md`](docs/product/MVP.md).
 
 Respect existing decisions unless the task asks to change them.
 
@@ -220,8 +212,8 @@ to change: `routes/`, `application/`, `domain/`, `presentation/`, `mapping/`, or
 
 The target React application lives in top-level `frontend/`; its versioned JSON
 API adapter lives in `src/app/api/`. Feature-specific domain and application
-code remains in `src/app/features/`. `src/app/web/` is the frozen superseded SSR
-Frontend Next adapter: do not add new workflows or shared abstractions there.
+code remains in `src/app/features/`. `src/app/web/` has no active source or
+runtime consumer; do not repopulate it.
 Follow [`docs/design/REACT_FRONTEND_DESIGN.md`](docs/design/REACT_FRONTEND_DESIGN.md)
 for boundaries, learning rules, migration and delete gates.
 
@@ -414,11 +406,9 @@ React feature -> versioned API -> Service / Use Case -> Repository
 ```
 
 Follow [`docs/design/REACT_FRONTEND_DESIGN.md`](docs/design/REACT_FRONTEND_DESIGN.md)
-and [`docs/design/DESIGN.md`](docs/design/DESIGN.md). Use
-[`docs/design/WORKBENCH_ROW_DESIGN.md`](docs/design/WORKBENCH_ROW_DESIGN.md) as a
-detailed historical UX contract, not as an SSR implementation target.
-Use [`docs/design/REFACTOR_PROJECT_DESIGN.md`](docs/design/REFACTOR_PROJECT_DESIGN.md)
-as a reference for existing import-review behavior.
+and [`docs/design/DESIGN.md`](docs/design/DESIGN.md). For migrated workflows,
+the React feature code, API schemas, application policies, and tests are the
+behavior reference; do not restore deleted SSR migration specifications.
 
 ---
 

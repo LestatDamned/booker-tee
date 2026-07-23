@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.presentation.document_page.presenter import DocumentDetailPresenter
-from app.features.imports.presentation.documents import ImportIndexPresenter, UploadPagePresenter
+from app.features.imports.presentation.documents import UploadPagePresenter
 from app.features.imports.presentation.mapping.models import MappingDocumentVM, MappingNextStepVM
 from app.features.workspaces.models import (
     WorkspaceAuditEventType,
@@ -37,20 +37,6 @@ def render_document_detail_template(*, view: object) -> str:
     )
 
 
-def render_import_index_template(*, documents: list[object], can_import: bool = True) -> str:
-    workspace = SimpleNamespace(name="Personal")
-    return render_template(
-        "imports/index.html",
-        app_name="Booker Tee",
-        page=ImportIndexPresenter().build(
-            documents=documents,
-            workspace=workspace,
-            can_import=can_import,
-        ),
-        workspace=workspace,
-    )
-
-
 def render_upload_template(*, accounts: list[object], error: str | None = None) -> str:
     workspace = SimpleNamespace(name="Personal")
     return render_template(
@@ -63,39 +49,6 @@ def render_upload_template(*, accounts: list[object], error: str | None = None) 
         ),
         workspace=workspace,
     )
-
-
-def test_import_index_guides_to_review_when_document_needs_attention() -> None:
-    document_id = uuid4()
-    html = render_import_index_template(
-        documents=[
-            SimpleNamespace(
-                id=document_id,
-                original_filename="statement.pdf",
-                status=UploadedDocumentStatus.REQUIRES_REVIEW,
-                file_size_bytes=1024,
-                created_at="2026-06-24",
-            )
-        ],
-    )
-
-    assert "следующий шаг" in html
-    assert "import-page-next-step__action--primary" in html
-    assert "Проверьте выписку" in html
-    assert f"/app/imports/documents/{document_id}/review" in html
-    assert "import-document-card__action--primary" in html
-    assert "import-document-card__technical" in html
-    assert "<summary>ID</summary>" not in html
-    assert "<summary>Еще</summary>" in html
-
-
-def test_import_index_guides_to_upload_when_no_documents_exist() -> None:
-    html = render_import_index_template(documents=[])
-
-    assert "Выписки еще не загружены" in html
-    assert "empty-state-copy" in html
-    assert "следующий шаг" not in html
-    assert "/imports/upload" in html
 
 
 def test_upload_page_guides_to_account_before_upload() -> None:

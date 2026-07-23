@@ -1,6 +1,6 @@
 # Slice 01: Document List
 
-Статус: planned.
+Статус: completed.
 
 ## Outcome
 
@@ -81,3 +81,35 @@ URL до собственных gates.
 - list API workspace-scoped и side-effect free;
 - old list template/presenter не имеют runtime consumers и удалены;
 - browser list проходит desktop/tablet/mobile.
+
+## Completion record
+
+Завершено 2026-07-24.
+
+- Добавлен read-only `GET /api/v1/imports/documents` с workspace-scoped
+  projection, page/item capabilities и server-owned `nextStepKind`.
+- Канонический экран `/app/imports` покрывает empty, error, readonly и
+  populated states; AppShell использует React route.
+- Historical `GET /imports` сохраняет query string и перенаправляет на
+  `/app/imports`.
+- Legacy list route, presenter/ViewModels, template, tests и list-only CSS
+  удалены; upload, detail и mapping остаются до следующих slices.
+- Backend: Ruff, ty и 561 pytest tests passed.
+- Frontend: полный `npm run check`, 165 Vitest tests и production build passed.
+- Browser audit `realistic --path imports`: desktop, tablet и mobile passed без
+  overflow, console errors, page errors и failed requests.
+
+### Масштабирование реестра
+
+Уточнено 2026-07-24 после проверки сценария с большим числом выписок.
+
+- Крупные document cards заменены компактным адаптивным реестром: таблицей на
+  широком экране и короткими записями на мобильном.
+- Основная идентичность выписки — счёт и период; банк даёт дополнительный
+  контекст, а исходное имя файла остаётся вторичной технической меткой.
+- Добавлены server-side пагинация, сортировка по времени загрузки и фильтры по
+  пользовательскому состоянию, счёту и пересекающемуся периоду выписки.
+- `maskedNumber` и `cardLast4` намеренно не входят в этот slice: их можно
+  добавить позже отдельным продуктовым решением.
+- Empty workspace и пустой результат фильтра различаются; фильтры и страница
+  кодируются в URL и сохраняются при навигации.

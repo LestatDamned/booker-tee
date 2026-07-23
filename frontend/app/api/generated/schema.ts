@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/imports/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Import Documents */
+        get: operations["list_import_documents_api_v1_imports_documents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/import-review/{document_id}/items/{item_id}/confirm": {
         parameters: {
             query?: never;
@@ -496,23 +513,6 @@ export interface paths {
         };
         /** Dashboard Summary */
         get: operations["dashboard_summary_dashboard_summary_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/imports": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Import Index */
-        get: operations["import_index_imports_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1460,6 +1460,131 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** ImportDocumentListAccountApiResponse */
+        ImportDocumentListAccountApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+            /** Bankname */
+            bankName: string | null;
+        };
+        /** ImportDocumentListApiResponse */
+        ImportDocumentListApiResponse: {
+            /**
+             * Workspaceid
+             * Format: uuid
+             */
+            workspaceId: string;
+            /** Workspacename */
+            workspaceName: string;
+            /** Items */
+            items: components["schemas"]["ImportDocumentListItemApiResponse"][];
+            pagination: components["schemas"]["ImportDocumentListPaginationApiResponse"];
+            filterOptions: components["schemas"]["ImportDocumentListFilterOptionsApiResponse"];
+            summary: components["schemas"]["ImportDocumentListSummaryApiResponse"];
+            capabilities: components["schemas"]["ImportDocumentListCapabilitiesApiResponse"];
+        };
+        /** ImportDocumentListCapabilitiesApiResponse */
+        ImportDocumentListCapabilitiesApiResponse: {
+            /** Canupload */
+            canUpload: boolean;
+            readonlyReasonCode: components["schemas"]["ImportDocumentListReadonlyReasonCode"] | null;
+        };
+        /** ImportDocumentListFilterOptionsApiResponse */
+        ImportDocumentListFilterOptionsApiResponse: {
+            /** Accounts */
+            accounts: components["schemas"]["ImportDocumentListAccountApiResponse"][];
+            /** Perpage */
+            perPage: number[];
+        };
+        /** ImportDocumentListItemApiResponse */
+        ImportDocumentListItemApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Filename */
+            filename: string;
+            status: components["schemas"]["UploadedDocumentStatus"];
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /** Filesizebytes */
+            fileSizeBytes: number | null;
+            /** Detectedbankname */
+            detectedBankName: string | null;
+            statementPeriod: components["schemas"]["ImportDocumentStatementPeriodApiResponse"] | null;
+            account: components["schemas"]["ImportDocumentListAccountApiResponse"] | null;
+            /** Totalrowcount */
+            totalRowCount: number;
+            /** Reviewablerowcount */
+            reviewableRowCount: number;
+            capabilities: components["schemas"]["ImportDocumentListItemCapabilitiesApiResponse"];
+            nextStepKind: components["schemas"]["ImportDocumentNextStepKind"];
+        };
+        /** ImportDocumentListItemCapabilitiesApiResponse */
+        ImportDocumentListItemCapabilitiesApiResponse: {
+            /** Canopendetail */
+            canOpenDetail: boolean;
+            /** Canmap */
+            canMap: boolean;
+            /** Canreview */
+            canReview: boolean;
+        };
+        /** ImportDocumentListPaginationApiResponse */
+        ImportDocumentListPaginationApiResponse: {
+            /** Page */
+            page: number;
+            /** Perpage */
+            perPage: number;
+            /** Total */
+            total: number;
+            /** Totalpages */
+            totalPages: number;
+            /** Hasprevious */
+            hasPrevious: boolean;
+            /** Hasnext */
+            hasNext: boolean;
+        };
+        /**
+         * ImportDocumentListReadonlyReasonCode
+         * @enum {string}
+         */
+        ImportDocumentListReadonlyReasonCode: "import_management_forbidden";
+        /** ImportDocumentListSummaryApiResponse */
+        ImportDocumentListSummaryApiResponse: {
+            /** Totaldocumentcount */
+            totalDocumentCount: number;
+            /** Attentiondocumentcount */
+            attentionDocumentCount: number;
+        };
+        /**
+         * ImportDocumentNextStepKind
+         * @enum {string}
+         */
+        ImportDocumentNextStepKind: "detail" | "mapping" | "review";
+        /** ImportDocumentStatementPeriodApiResponse */
+        ImportDocumentStatementPeriodApiResponse: {
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
         };
         /** ImportReviewAccountApiResponse */
         ImportReviewAccountApiResponse: {
@@ -2415,6 +2540,70 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_import_documents_api_v1_imports_documents_get: {
+        parameters: {
+            query?: {
+                state?: string | null;
+                account_id?: string | null;
+                period_from?: string | null;
+                period_to?: string | null;
+                sort?: string | null;
+                page?: string | null;
+                per_page?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportDocumentListApiResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     confirm_import_review_item_api_v1_import_review__document_id__items__item_id__confirm_post: {
         parameters: {
             query?: never;
@@ -4090,26 +4279,6 @@ export interface operations {
         };
     };
     dashboard_summary_dashboard_summary_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-        };
-    };
-    import_index_imports_get: {
         parameters: {
             query?: never;
             header?: never;

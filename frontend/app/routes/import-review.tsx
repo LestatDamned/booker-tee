@@ -94,7 +94,7 @@ function routeStateContent(
       title: "Документ не найден",
       message: "Документ удалён или относится к другому workspace.",
       action: "К импортам",
-      href: "/imports",
+      href: "/app/imports",
     };
   }
   return {

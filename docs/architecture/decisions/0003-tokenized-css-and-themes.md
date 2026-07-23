@@ -4,9 +4,9 @@ Status: accepted 2026-07-20.
 
 ## Context
 
-Legacy CSS велик, глобален и связан с DOM/HTMX. Frontend Next содержит полезную
-геометрию и semantic palette, но его stylesheet также нельзя сделать React
-foundation без переноса старой связанности.
+Legacy CSS велик, глобален и связан с DOM/HTMX. Предыдущие SSR experiments
+содержали полезную геометрию и semantic palette, но их stylesheets нельзя было
+сделать React foundation без переноса старой связанности.
 
 ## Decision
 
@@ -20,9 +20,9 @@ foundation без переноса старой связанности.
   уникальное локальное число не становится token автоматически.
 - Shared component владеет повторяемой geometry; feature CSS владеет только
   composition и уникальными states.
-- Legacy и Frontend Next stylesheets не импортируются в React. Из них вручную
-  извлекаются проверенные tokens, geometry и interaction states.
-- Current/Next screenshots на desktop, `920px` и mobile являются migration
+- Legacy stylesheets не импортируются в React. Из них вручную извлекаются
+  проверенные tokens, geometry и interaction states.
+- Наблюдаемые screenshots на desktop, `920px` и mobile являются migration
   baseline. Исправления старых UI bugs документируются как intentional diff.
 - Минимальная test theme проверяет полноту token contract до theme switcher.
 

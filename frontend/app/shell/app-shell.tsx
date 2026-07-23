@@ -34,7 +34,12 @@ const navigationGroups: ReadonlyArray<NavigationGroup> = [
         label: "Ручные операции",
         reactRoute: true,
       },
-      { href: "/imports", icon: "imports", label: "Импорты" },
+      {
+        href: "/imports",
+        icon: "imports",
+        label: "Импорты",
+        reactRoute: true,
+      },
     ],
   },
   {

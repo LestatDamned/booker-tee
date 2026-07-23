@@ -21,7 +21,6 @@ from app.features.imports.errors import (
 )
 from app.features.imports.presentation.documents import (
     DocumentDetailPageContext,
-    ImportIndexPageContext,
     UploadPageContext,
 )
 from app.features.imports.service import ImportService
@@ -35,28 +34,6 @@ from app.templating import create_templates
 
 router = APIRouter()
 templates = create_templates()
-
-
-@router.get("", response_class=HTMLResponse)
-async def import_index(
-    request: Request,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
-) -> HTMLResponse:
-    documents = await ImportService(session).list_documents(context.workspace.id)
-    page_context = ImportIndexPageContext(
-        documents=documents,
-        can_import=can_manage_imports(context.membership),
-    )
-    return templates.TemplateResponse(
-        request,
-        "imports/index.html",
-        page_context.template_values(
-            app_name=settings.app_name,
-            workspace=context.workspace,
-        ),
-    )
 
 
 @router.get("/upload", response_class=HTMLResponse)
