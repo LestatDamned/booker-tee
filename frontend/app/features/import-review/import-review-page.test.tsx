@@ -152,11 +152,11 @@ describe("import review page", () => {
     expect(screen.getAllByText("Основной счёт")).toHaveLength(1);
     await user.click(screen.getByRole("button", { name: "Выбрать категорию" }));
     expect(
-      screen.getByRole("heading", { name: "Проверить операцию" }),
+      screen.getByRole("heading", { name: "Операция" }),
     ).toBeInTheDocument();
   });
 
-  it("keeps operation context in the editor and secondary sections collapsed", async () => {
+  it("keeps operation context and the optional auto-rule visible", async () => {
     const user = userEvent.setup();
     const review = importReviewPayload();
     const item = review.items.find(
@@ -177,19 +177,17 @@ describe("import review page", () => {
     expect(context).toHaveTextContent("Покупка в магазине");
     expect(context).toHaveTextContent("−1 250,50");
 
-    const ruleSummary = screen.getByText("Правило для похожих операций");
-    const ruleDisclosure = ruleSummary.closest("details");
-    expect(ruleDisclosure).not.toHaveAttribute("open");
     const decision = screen.getByLabelText("Решение по операции");
     expect(
-      within(decision)
-        .getByLabelText("Итог операции")
-        .compareDocumentPosition(
-          within(decision).getByRole("button", {
-            name: "Подтвердить и провести",
-          }),
-        ),
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      within(decision).getByRole("textbox", { name: /Автоправило/ }),
+    ).toBeVisible();
+    expect(within(decision).queryByLabelText("Итог операции")).toBeNull();
+    const cancel = within(decision).getByRole("button", { name: "Отмена" });
+    const confirm = within(decision).getByRole("button", { name: "Провести" });
+    expect(confirm).toBeVisible();
+    expect(cancel.compareDocumentPosition(confirm)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
     expect(
       screen.getByRole("button", { name: "Исходные данные" }),
     ).toHaveAttribute("aria-expanded", "false");
@@ -853,7 +851,7 @@ describe("import review page", () => {
     );
   });
 
-  it("requires the user to enter the rule matching text", async () => {
+  it("uses the optional pattern to choose whether to create a rule", async () => {
     const user = userEvent.setup();
     const review = importReviewPayload();
     const item = review.items.find(
@@ -862,31 +860,30 @@ describe("import review page", () => {
     if (!item) throw new Error("remaining fixture item is required");
     item.selection.categoryId = expenseCategoryId;
     item.confirmability = { canConfirm: true, blockingReasonCodes: [] };
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
     renderPage(review);
 
     await user.click(
       screen.getByRole("button", { name: "Проверить операцию" }),
     );
-    await user.click(screen.getByText("Правило для похожих операций"));
-    await user.click(
-      screen.getByLabelText("Применять это решение к похожим строкам"),
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Подтвердить и провести" }),
-    );
+    const pattern = screen.getByRole("textbox", {
+      name: /Автоправило/,
+    });
+    expect(pattern).toHaveValue("");
+    expect(
+      screen.getByRole("button", { name: "Провести" }),
+    ).toBeInTheDocument();
 
-    const pattern = screen.getByLabelText("Фрагмент описания *");
-    expect(pattern).toHaveFocus();
-    expect(pattern).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Вставьте фрагмент описания, по которому применять правило.",
+    await user.type(pattern, "KRASNOE&BELOE");
+
+    expect(
+      screen.getByRole("button", { name: "Провести с правилом" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Итог правила")).toHaveTextContent(
+      "KRASNOE&BELOE→Расход · Продукты · Без объекта",
     );
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("shows the raw description and previews only the manual rule fragment", async () => {
+  it("does not repeat the raw description in the rule field", async () => {
     const user = userEvent.setup();
     const review = importReviewPayload();
     const item = review.items.find(
@@ -903,26 +900,24 @@ describe("import review page", () => {
     await user.click(
       screen.getByRole("button", { name: "Проверить операцию" }),
     );
-    await user.click(screen.getByText("Правило для похожих операций"));
-    await user.click(
-      screen.getByLabelText("Применять это решение к похожим строкам"),
-    );
 
     const posting = screen.getByLabelText("Подтверждение операции");
     expect(
-      within(posting).getByText(
+      within(posting).queryByText(
         "28/06/2026 KRASNOE&BELOE карта 5017 операция 177979632694",
       ),
-    ).toBeInTheDocument();
-    const pattern = screen.getByLabelText("Фрагмент описания *");
+    ).not.toBeInTheDocument();
+    const pattern = within(posting).getByRole("textbox", {
+      name: /Автоправило/,
+    });
     expect(pattern).toHaveValue("");
     await user.type(pattern, "KRASNOE&BELOE");
     expect(within(posting).getByLabelText("Итог правила")).toHaveTextContent(
-      "Если описание содержит «KRASNOE&BELOE» → категория «Продукты»",
+      "KRASNOE&BELOE→Расход · Продукты · Без объекта",
     );
   });
 
-  it("discards rule opt-in and pattern on explicit editor cancel", async () => {
+  it("discards the auto-rule pattern on explicit editor cancel", async () => {
     const user = userEvent.setup();
     const review = importReviewPayload();
     const item = review.items.find(
@@ -937,24 +932,19 @@ describe("import review page", () => {
       name: "Проверить операцию",
     });
     await user.click(reviewButton);
-    await user.click(screen.getByText("Правило для похожих операций"));
-    const rememberRule = screen.getByLabelText(
-      "Применять это решение к похожим строкам",
-    );
-    await user.click(rememberRule);
     await user.type(
-      screen.getByLabelText("Фрагмент описания *"),
+      screen.getByRole("textbox", { name: /Автоправило/ }),
       "KRASNOE&BELOE",
     );
     await user.click(screen.getByRole("button", { name: "Отмена" }));
     await user.click(reviewButton);
 
+    expect(screen.getByRole("textbox", { name: /Автоправило/ })).toHaveValue(
+      "",
+    );
     expect(
-      screen.getByLabelText("Применять это решение к похожим строкам"),
-    ).not.toBeChecked();
-    expect(
-      screen.queryByLabelText("Фрагмент описания *"),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Провести" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps the local row draft after a network error and panel toggle", async () => {
@@ -1030,7 +1020,7 @@ describe("import review page", () => {
     );
   });
 
-  it("uses the active confirm action instead of a persistent success message", async () => {
+  it("uses the active confirm action without a duplicate outcome", async () => {
     const user = userEvent.setup();
     const review = importReviewPayload();
     const item = review.items.find(
@@ -1048,14 +1038,10 @@ describe("import review page", () => {
     expect(
       screen.queryByText(/Проверки выбора пройдены/),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Подтвердить и провести" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Провести" })).toBeEnabled();
     const panel = document.getElementById(`review-panel-${remainingItemId}`);
     if (!panel) throw new Error("review panel is required");
-    expect(within(panel).getByLabelText("Итог операции")).toHaveTextContent(
-      "Расход — Продукты",
-    );
+    expect(within(panel).queryByLabelText("Итог операции")).toBeNull();
   });
 
   it("keeps categorization and transfer drafts while switching financial meaning", async () => {
@@ -1208,7 +1194,17 @@ describe("import review page", () => {
       screen.getByLabelText("Второй счёт или готовая пара"),
       "account:c145935c-67c6-4bf6-a0ce-64e5d611cf47",
     );
-    await user.click(screen.getByRole("button", { name: "Провести перевод" }));
+    const transferPanel = screen.getByLabelText("Параметры перевода");
+    const cancel = within(transferPanel).getByRole("button", {
+      name: "Отмена",
+    });
+    const confirm = within(transferPanel).getByRole("button", {
+      name: "Провести перевод",
+    });
+    expect(cancel.compareDocumentPosition(confirm)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    await user.click(confirm);
 
     expect(
       await screen.findByRole("heading", { name: "Все строки обработаны" }),
@@ -1474,14 +1470,13 @@ describe("import review page", () => {
       expenseCategoryId,
     );
     const confirm = await screen.findByRole("button", {
-      name: "Подтвердить и провести",
+      name: "Провести",
     });
     expect(screen.getByText("Проверено как уникальное")).toBeInTheDocument();
-    await user.click(screen.getByText("Правило для похожих операций"));
-    await user.click(
-      screen.getByLabelText("Применять это решение к похожим строкам"),
+    await user.type(
+      screen.getByRole("textbox", { name: /Автоправило/ }),
+      "Магазин",
     );
-    await user.type(screen.getByLabelText("Фрагмент описания *"), "Магазин");
     await user.click(confirm);
 
     expect(

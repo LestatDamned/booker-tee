@@ -9,16 +9,22 @@ const themeIndexPath = join(themesRoot, "index.css");
 
 const requiredThemeTokens = [
   "--color-bg-canvas",
+  "--color-bg-secondary-pane",
+  "--color-bg-shell",
   "--color-bg-surface",
   "--color-bg-elevated",
   "--color-bg-interactive",
   "--color-text-primary",
   "--color-text-secondary",
-  "--color-text-inverse",
+  "--color-text-muted",
+  "--color-on-accent",
+  "--color-link",
   "--color-border-default",
   "--color-border-control",
   "--color-border-strong",
   "--color-focus-ring",
+  "--color-selection",
+  "--color-caret",
   "--color-accent",
   "--color-accent-strong",
   "--color-status-success",
@@ -30,12 +36,81 @@ const requiredThemeTokens = [
   "--color-money-profit",
   "--color-money-adjustment",
   "--color-category",
-  "--color-working-surface",
-  "--color-target-surface",
-  "--color-recent-surface",
   "--color-overlay",
   "--shadow-surface",
 ];
+
+const officialCatppuccinPalettes = {
+  "catppuccin-latte": {
+    "--ctp-rosewater": "#dc8a78",
+    "--ctp-flamingo": "#dd7878",
+    "--ctp-pink": "#ea76cb",
+    "--ctp-mauve": "#8839ef",
+    "--ctp-red": "#d20f39",
+    "--ctp-maroon": "#e64553",
+    "--ctp-peach": "#fe640b",
+    "--ctp-yellow": "#df8e1d",
+    "--ctp-green": "#40a02b",
+    "--ctp-teal": "#179299",
+    "--ctp-sky": "#04a5e5",
+    "--ctp-sapphire": "#209fb5",
+    "--ctp-blue": "#1e66f5",
+    "--ctp-lavender": "#7287fd",
+    "--ctp-text": "#4c4f69",
+    "--ctp-subtext-1": "#5c5f77",
+    "--ctp-subtext-0": "#6c6f85",
+    "--ctp-overlay-2": "#7c7f93",
+    "--ctp-overlay-1": "#8c8fa1",
+    "--ctp-overlay-0": "#9ca0b0",
+    "--ctp-surface-2": "#acb0be",
+    "--ctp-surface-1": "#bcc0cc",
+    "--ctp-surface-0": "#ccd0da",
+    "--ctp-base": "#eff1f5",
+    "--ctp-mantle": "#e6e9ef",
+    "--ctp-crust": "#dce0e8",
+  },
+  "catppuccin-mocha": {
+    "--ctp-rosewater": "#f5e0dc",
+    "--ctp-flamingo": "#f2cdcd",
+    "--ctp-pink": "#f5c2e7",
+    "--ctp-mauve": "#cba6f7",
+    "--ctp-red": "#f38ba8",
+    "--ctp-maroon": "#eba0ac",
+    "--ctp-peach": "#fab387",
+    "--ctp-yellow": "#f9e2af",
+    "--ctp-green": "#a6e3a1",
+    "--ctp-teal": "#94e2d5",
+    "--ctp-sky": "#89dceb",
+    "--ctp-sapphire": "#74c7ec",
+    "--ctp-blue": "#89b4fa",
+    "--ctp-lavender": "#b4befe",
+    "--ctp-text": "#cdd6f4",
+    "--ctp-subtext-1": "#bac2de",
+    "--ctp-subtext-0": "#a6adc8",
+    "--ctp-overlay-2": "#9399b2",
+    "--ctp-overlay-1": "#7f849c",
+    "--ctp-overlay-0": "#6c7086",
+    "--ctp-surface-2": "#585b70",
+    "--ctp-surface-1": "#45475a",
+    "--ctp-surface-0": "#313244",
+    "--ctp-base": "#1e1e2e",
+    "--ctp-mantle": "#181825",
+    "--ctp-crust": "#11111b",
+  },
+};
+
+const officialCatppuccinRoleReferences = {
+  "--color-bg-canvas": "var(--ctp-base)",
+  "--color-bg-secondary-pane": "var(--ctp-mantle)",
+  "--color-bg-shell": "var(--ctp-crust)",
+  "--color-bg-surface": "var(--ctp-mantle)",
+  "--color-bg-elevated": "var(--ctp-surface-0)",
+  "--color-bg-interactive": "var(--ctp-surface-0)",
+  "--color-text-primary": "var(--ctp-text)",
+  "--color-selection": "var(--ctp-overlay-2)",
+  "--color-caret": "var(--ctp-rosewater)",
+  "--color-accent": "var(--ctp-blue)",
+};
 
 const contrastChecks = [
   {
@@ -65,6 +140,17 @@ const contrastChecks = [
       "--color-status-success",
       "--color-status-warning",
       "--color-status-danger",
+    ],
+    backgrounds: [
+      "--color-bg-canvas",
+      "--color-bg-surface",
+      "--color-bg-elevated",
+    ],
+    minimum: 4.5,
+    purpose: "small status text",
+  },
+  {
+    foregrounds: [
       "--color-money-income",
       "--color-money-expense",
       "--color-money-transfer",
@@ -78,13 +164,23 @@ const contrastChecks = [
       "--color-bg-elevated",
     ],
     minimum: 3,
-    purpose: "large text or financial state",
+    purpose: "large financial text or non-text state",
   },
   {
-    foregrounds: ["--color-text-inverse"],
+    foregrounds: ["--color-on-accent"],
     backgrounds: ["--color-accent"],
     minimum: 4.5,
     purpose: "primary action text",
+  },
+  {
+    foregrounds: ["--color-link"],
+    backgrounds: [
+      "--color-bg-canvas",
+      "--color-bg-surface",
+      "--color-bg-elevated",
+    ],
+    minimum: 4.5,
+    purpose: "small link text",
   },
 ];
 
@@ -179,6 +275,63 @@ function validateContrast(themeName, declarations) {
   }
 }
 
+function validateOfficialCatppuccinPalette(themeName, declarations) {
+  const expectedPalette = officialCatppuccinPalettes[themeName];
+  if (!expectedPalette) {
+    return;
+  }
+
+  const actualTokens = [...declarations.keys()].filter((token) =>
+    token.startsWith("--ctp-"),
+  );
+  const expectedTokens = Object.keys(expectedPalette);
+  const missingTokens = expectedTokens.filter(
+    (token) => !declarations.has(token),
+  );
+  const unexpectedTokens = actualTokens.filter(
+    (token) => !Object.hasOwn(expectedPalette, token),
+  );
+  if (missingTokens.length > 0 || unexpectedTokens.length > 0) {
+    throw new Error(
+      `${themeName} official palette contract mismatch. Missing: ` +
+        `${missingTokens.join(", ") || "none"}. Unexpected: ` +
+        `${unexpectedTokens.join(", ") || "none"}.`,
+    );
+  }
+
+  for (const [token, expectedValue] of Object.entries(expectedPalette)) {
+    const actualValue = declarations.get(token)?.toLowerCase();
+    if (actualValue !== expectedValue) {
+      throw new Error(
+        `${themeName} ${token} is ${actualValue}; official Catppuccin value ` +
+          `is ${expectedValue}.`,
+      );
+    }
+  }
+
+  const legacyPaletteTokens = [...declarations.keys()].filter((token) =>
+    token.startsWith("--palette-"),
+  );
+  if (legacyPaletteTokens.length > 0) {
+    throw new Error(
+      `${themeName} must use canonical --ctp-* palette tokens; found ` +
+        `${legacyPaletteTokens.join(", ")}.`,
+    );
+  }
+
+  for (const [token, expectedReference] of Object.entries(
+    officialCatppuccinRoleReferences,
+  )) {
+    const actualReference = declarations.get(token);
+    if (actualReference !== expectedReference) {
+      throw new Error(
+        `${themeName} ${token} is ${actualReference}; Catppuccin role requires ` +
+          `${expectedReference}.`,
+      );
+    }
+  }
+}
+
 const cssFiles = await findFiles(appRoot, (path) => extname(path) === ".css");
 const cssModules = cssFiles.filter((path) => path.endsWith(".module.css"));
 const rawPalettePattern = /#[0-9a-f]{3,8}\b|(?:rgb|hsl)a?\(/i;
@@ -226,6 +379,7 @@ for (const path of themePaths) {
   }
 
   const declarations = parseDeclarations(stylesheet);
+  validateOfficialCatppuccinPalette(themeName, declarations);
   const semanticTokens = [...declarations.keys()].filter((token) =>
     /^(?:--color-|--shadow-)/.test(token),
   );

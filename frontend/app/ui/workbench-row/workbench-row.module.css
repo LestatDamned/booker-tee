@@ -1,4 +1,8 @@
 .row {
+  --row-rail: transparent;
+  --row-state-overlay: transparent;
+  --row-surface: var(--color-bg-surface);
+
   display: grid;
   grid-template-columns:
     minmax(0, 1fr)
@@ -6,8 +10,10 @@
   gap: var(--space-4);
   border: 0;
   border-bottom: 1px solid var(--color-border-default);
-  background: var(--color-bg-surface);
-  box-shadow: none;
+  background:
+    linear-gradient(var(--row-state-overlay), var(--row-state-overlay)),
+    var(--row-surface);
+  box-shadow: inset 3px 0 0 var(--row-rail);
   padding: var(--space-4) var(--space-5);
   scroll-margin-top: 5rem;
 }
@@ -148,16 +154,26 @@
   min-width: 0;
 }
 
-.recent {
-  background: var(--color-recent-surface);
+.stateMarker {
+  grid-column: 1 / -1;
+  width: fit-content;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-text-primary);
+  padding: 0.15rem var(--space-2);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
 }
 
+.recent,
 .default {
-  background: var(--color-bg-surface);
+  --row-state-overlay: transparent;
 }
 
 .settled {
-  background: color-mix(
+  --row-surface: color-mix(
     in srgb,
     var(--color-bg-surface) 72%,
     var(--color-bg-canvas)
@@ -165,7 +181,7 @@
 }
 
 .suggestion {
-  background: color-mix(
+  --row-surface: color-mix(
     in srgb,
     var(--color-accent) 4%,
     var(--color-bg-surface)
@@ -173,7 +189,7 @@
 }
 
 .review {
-  background: color-mix(
+  --row-surface: color-mix(
     in srgb,
     var(--color-status-warning) 3%,
     var(--color-bg-surface)
@@ -181,28 +197,32 @@
 }
 
 .problem {
-  background: color-mix(
+  --row-rail: var(--color-status-warning);
+  --row-surface: color-mix(
     in srgb,
     var(--color-status-warning) 5%,
     var(--color-bg-surface)
   );
-  box-shadow: inset 3px 0 0 var(--color-status-warning);
 }
 
-.target {
-  border-bottom-color: var(--color-accent);
-  background: var(--color-target-surface);
-  box-shadow: inset 3px 0 0 var(--color-accent);
+.target,
+.row:target {
+  --row-state-overlay: color-mix(
+    in srgb,
+    var(--color-selection) 25%,
+    transparent
+  );
+
+  outline: 2px solid var(--color-selection);
+  outline-offset: -2px;
 }
 
 .working {
+  --row-state-overlay: color-mix(in srgb, var(--color-accent) 8%, transparent);
+
   border-bottom-color: var(--color-accent);
-  background: color-mix(
-    in srgb,
-    var(--color-accent) 8%,
-    var(--color-bg-surface)
-  );
-  box-shadow: inset 3px 0 0 var(--color-accent);
+  outline: 1px solid var(--color-accent);
+  outline-offset: -1px;
 }
 
 @media (max-width: 75rem) {

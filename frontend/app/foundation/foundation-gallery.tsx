@@ -170,9 +170,29 @@ function ThemePreview({ label, theme }: ThemePreviewProps) {
               <span>Основной счёт</span>
             </>
           }
+          signals={<span>Требует проверки</span>}
           state="working"
           value={
             <MoneyValue amount="−65 000,00" currency="RUB" tone="expense" />
+          }
+          workflowState="problem"
+        />
+        <WorkbenchRow
+          date="2026-07-19"
+          description="Операция по прямой ссылке"
+          meta={<span>Навигационная цель</span>}
+          state="target"
+          value={
+            <MoneyValue amount="+25 000,00" currency="RUB" tone="income" />
+          }
+        />
+        <WorkbenchRow
+          date="2026-07-18"
+          description="Недавно обновлённая операция"
+          meta={<span>Состояние подтверждено текстом</span>}
+          state="recent"
+          value={
+            <MoneyValue amount="−4 890,50" currency="RUB" tone="expense" />
           }
         />
       </section>

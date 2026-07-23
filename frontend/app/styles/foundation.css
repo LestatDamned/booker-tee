@@ -20,7 +20,7 @@ body {
 }
 
 a {
-  color: inherit;
+  color: var(--color-link);
 }
 
 button,
@@ -28,6 +28,15 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+input,
+textarea {
+  caret-color: var(--color-caret);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-selection) 25%, transparent);
 }
 
 button,

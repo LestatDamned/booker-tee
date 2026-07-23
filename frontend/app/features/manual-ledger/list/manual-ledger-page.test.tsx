@@ -115,6 +115,7 @@ describe("ManualLedgerPage", () => {
     expect(
       document.getElementById(`operation-${page.targetOperationId}`),
     ).toHaveAttribute("data-state", "target");
+    expect(screen.getByText("Текущая строка")).toBeVisible();
   });
 
   it("moves the working state to the row whose action the user chooses", async () => {

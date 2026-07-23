@@ -447,6 +447,50 @@ Feature components live inside their React feature. Extract shared UI only after
 the same responsibility, semantic input and behavior have stabilized across
 several workflows.
 
+### Catppuccin Color Contract
+
+The official
+[Catppuccin style guide](https://github.com/catppuccin/catppuccin/blob/main/docs/style-guide.md)
+and [palette](https://catppuccin.com/palette/) are the source of truth for React
+frontend color.
+
+Theme architecture has three explicit layers:
+
+```text
+--ctp-*          exact official palette values; never adjusted
+--accessible-*   documented legibility overrides for a foreground role
+--color-*        semantic component contract
+```
+
+Catppuccin surface roles are stable:
+
+```text
+Base             main application pane
+Mantle / Crust   secondary panes and application shell
+Surface0–2       controls and elevated surface elements
+Text             body and headline text
+Subtext0/1       labels and supporting text
+Overlay1         subtle non-essential content
+Blue             links, actions and active interactive state
+Green/Yellow/Red success, warning and danger
+Overlay2 at 25%  browser text selection
+Rosewater        text caret
+```
+
+Booker Tee may use financial Green, Red, Blue and Mauve as persistent product
+semantics. A financial label must still state its meaning; color is
+reinforcement, not the only signal.
+
+Official palette values are immutable. If an official Latte foreground does not
+meet the required contrast for its actual size and surface, define a narrowly
+named `--accessible-*` override and preserve the official `--ctp-*` value.
+Normal and small text requires at least 4.5:1. The 3:1 threshold is reserved for
+large financial text and non-text UI boundaries.
+
+Do not add white or product-specific colors to the `--ctp-*` namespace.
+Derived working, target and recent states must compose existing Catppuccin
+semantic colors instead of introducing an undocumented palette.
+
 ### Entity Feedback And Local Update Contract
 
 Entity/reference screens should preserve the user's working context after a
@@ -516,7 +560,7 @@ Visual semantics:
 9. `working card` is for the card the user just chose to act on. It should move
    when the user clicks another card action and should not depend on timers.
 10. Row update swaps should avoid automatic scrolling unless the action's purpose
-   is navigation.
+    is navigation.
 11. A local mutation must not mark the changed row as URL `target`. It should
     preserve or set `working card`; route navigation to an anchor may use
     `target`.
@@ -543,15 +587,20 @@ working card
 
 selected
   structure: explicit selected control, checked state, or selected label
-  color: selected surface as reinforcement, not the only signal
+  color: Overlay2 at 25% over the owning workflow surface
+
+target
+  structure: visible `Текущая строка` marker and aria-current
+  color: Overlay2 at 25% plus an Overlay2 outline
+  behavior: navigation destination only; do not rename it to selected
 
 focus
   structure: no layout change
   color: outline/ring only
 
 recent
-  structure: compact feedback near the affected list or row
-  color: calm accent for newly created entities; avoid permanent success coloring
+  structure: compact visible `Недавно` pill near the affected row
+  color: Blue pill; do not recolor the whole row or use success Green
 
 problem
   structure: explain what needs attention near the entity
@@ -561,6 +610,21 @@ status
   structure: badge/token in the information zone
   color: calm semantic tone; do not turn every normal status into a highlight
 ```
+
+Workbench row color channels compose instead of replacing one another:
+
+```text
+workflow surface   default / review / problem / settled
+semantic rail      warning / danger when the row needs attention
+ephemeral overlay  target / working
+visible marker     target / working / recent
+keyboard focus     focus-visible outline
+```
+
+`problem` owns its warning rail even while the row is `working` or `target`.
+Temporary state must not replace that rail through CSS source order. `working`
+uses a Blue 8% overlay and Blue outline; `target` and anchor navigation use the
+official Overlay2 25% selection treatment. `recent` uses only a Blue pill.
 
 For `:target` and URL-anchor return states, preserve the entity's semantic left
 edge when it exists. A target highlight may adjust the top/right/bottom border,
@@ -638,7 +702,7 @@ Rules:
 
 1. Do not reorder the whole list just to bring the new entity to the top.
 2. Do not force-scroll the page after creation. Let the user choose `Show in
-   list` when they want to jump to the row.
+list` when they want to jump to the row.
 3. Keep the feedback compact. It confirms the result; it is not a second card
    editor.
 4. Use calm accent feedback, not a permanent green success state.

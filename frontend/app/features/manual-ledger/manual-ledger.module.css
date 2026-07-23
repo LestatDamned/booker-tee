@@ -293,7 +293,7 @@
 .resetLink {
   min-height: var(--control-height);
   align-content: center;
-  color: var(--color-text-secondary);
+  color: var(--color-link);
   padding-inline: var(--space-3);
 }
 
@@ -384,7 +384,7 @@
 
 .currentPage {
   border-color: var(--color-accent);
-  background: var(--color-target-surface);
+  background: color-mix(in srgb, var(--color-selection) 25%, transparent);
   font-weight: 800;
 }
 

@@ -231,7 +231,7 @@ export function ReviewItem({
               id={panelId}
               isOpen={panelOpen}
               onClose={closePanel}
-              title="Проверить операцию"
+              title="Операция"
             >
               <ReviewItemContext
                 amount={amount}

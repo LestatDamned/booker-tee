@@ -241,13 +241,6 @@ export function ClassificationPanel({
           aria-label="Решение по операции"
           className={styles.reviewDecisionSummary}
         >
-          <OrdinaryOutcome
-            categories={categories}
-            dirty={dirty}
-            evaluation={evaluation}
-            pending={pending}
-            properties={properties}
-          />
           <DraftCapability
             dirty={dirty}
             evaluation={evaluation}
@@ -268,6 +261,11 @@ export function ClassificationPanel({
               key={editorResetVersion}
               onCancel={cancelChanges}
               onReviewReconciled={onReviewReconciled}
+              propertyName={
+                properties.find(
+                  (property) => property.id === evaluation.selection.propertyId,
+                )?.name ?? "Без объекта"
+              }
             />
           ) : null}
         </section>
@@ -287,7 +285,7 @@ function OperationModeSwitch({
 }) {
   return (
     <fieldset className={styles.operationModeSwitch}>
-      <legend>Финансовый смысл</legend>
+      <legend>Тип</legend>
       <div>
         <label data-tone={item.transfer.ordinaryOperationType ?? "neutral"}>
           <input
@@ -349,37 +347,38 @@ function DraftFields({
   return (
     <div className={styles.draftFields}>
       <div className={styles.editorField}>
-        <div className={styles.editorFieldHeader}>
-          <label htmlFor={`category-${itemId}`}>Категория</label>
+        <label htmlFor={`category-${itemId}`}>Категория</label>
+        <div className={styles.editorFieldControl}>
+          <select
+            aria-describedby={
+              fieldErrors.categoryId ? `category-error-${itemId}` : undefined
+            }
+            id={`category-${itemId}`}
+            onChange={(event) =>
+              updateDraft({ ...draft, categoryId: event.target.value || null })
+            }
+            ref={categoryRef}
+            value={draft.categoryId ?? ""}
+          >
+            <option value="">Выберите категорию</option>
+            {compatibleCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
           <Button
+            aria-label="Создать категорию"
             aria-controls={`category-editor-${itemId}`}
             aria-expanded={categoryEditorOpen}
             className={styles.editorFieldAction ?? ""}
             disabled={pending}
             onClick={onCreateCategory}
-            tone="ghost"
+            tone="secondary"
           >
-            Создать категорию
+            + Новая
           </Button>
         </div>
-        <select
-          aria-describedby={
-            fieldErrors.categoryId ? `category-error-${itemId}` : undefined
-          }
-          id={`category-${itemId}`}
-          onChange={(event) =>
-            updateDraft({ ...draft, categoryId: event.target.value || null })
-          }
-          ref={categoryRef}
-          value={draft.categoryId ?? ""}
-        >
-          <option value="">Выберите категорию</option>
-          {compatibleCategories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
         <FieldError
           errors={fieldErrors.categoryId}
           id={`category-error-${itemId}`}
@@ -511,48 +510,6 @@ function DraftCapability({
           <li key={reason}>{blockingReasonLabel(reason)}</li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-function OrdinaryOutcome({
-  categories,
-  dirty,
-  evaluation,
-  pending,
-  properties,
-}: {
-  categories: ClassificationPanelProps["categories"];
-  dirty: boolean;
-  evaluation: ImportReviewDraftEvaluationDto;
-  pending: boolean;
-  properties: ClassificationPanelProps["properties"];
-}) {
-  if (dirty) {
-    return pending ? (
-      <p className={styles.editorOutcomePending}>Обновляем итог…</p>
-    ) : null;
-  }
-  const operationType = evaluation.classification.operationType;
-  const category = categories.find(
-    (candidate) => candidate.id === evaluation.selection.categoryId,
-  );
-  const property = properties.find(
-    (candidate) => candidate.id === evaluation.selection.propertyId,
-  );
-
-  return (
-    <div className={styles.editorOutcome} aria-label="Итог операции">
-      <span>Итог:</span>
-      <strong>
-        {operationType === "income"
-          ? "Доход"
-          : operationType === "expense"
-            ? "Расход"
-            : "Тип не выбран"}
-        {category ? ` — ${category.name}` : " — категория не выбрана"}
-      </strong>
-      <small>{property ? `, объект: ${property.name}` : ", без объекта"}</small>
     </div>
   );
 }

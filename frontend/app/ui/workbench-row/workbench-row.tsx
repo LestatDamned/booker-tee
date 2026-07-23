@@ -67,7 +67,7 @@ export function WorkbenchRow({
         tabIndex={tabIndex}
       >
         {state !== "default" ? (
-          <span className="visually-hidden">{rowStateLabel(state)}</span>
+          <span className={styles.stateMarker}>{rowStateLabel(state)}</span>
         ) : null}
         <div className={styles.dateCell}>{dateContent}</div>
         <div className={styles.descriptionCell}>
@@ -103,7 +103,7 @@ export function WorkbenchRow({
       tabIndex={tabIndex}
     >
       {state !== "default" ? (
-        <span className="visually-hidden">{rowStateLabel(state)}</span>
+        <span className={styles.stateMarker}>{rowStateLabel(state)}</span>
       ) : null}
       <div className={styles.main}>
         <header className={styles.header}>
@@ -133,9 +133,9 @@ export function WorkbenchRow({
 
 function rowStateLabel(state: Exclude<WorkbenchRowState, "default">): string {
   const labels = {
-    recent: "Недавно изменённая операция.",
-    target: "Выбранная операция.",
-    working: "Операция открыта для работы.",
+    recent: "Недавно",
+    target: "Текущая строка",
+    working: "В работе",
   } satisfies Record<Exclude<WorkbenchRowState, "default">, string>;
   return labels[state];
 }

@@ -175,4 +175,17 @@ describe("request and workbench composition", () => {
     fireEvent.click(screen.getByText("Ещё действия"));
     expect(screen.getByLabelText("Опасные действия")).toBeInTheDocument();
   });
+
+  it.each([
+    ["recent", "Недавно"],
+    ["target", "Текущая строка"],
+    ["working", "В работе"],
+  ] as const)(
+    "shows the %s row state without relying on color",
+    (state, label) => {
+      render(<WorkbenchRow description="Операция" state={state} />);
+
+      expect(screen.getByText(label)).toBeVisible();
+    },
+  );
 });

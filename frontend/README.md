@@ -27,7 +27,9 @@ npm run dev
 
 Временная visual gallery Stage 02 доступна на
 `http://127.0.0.1:5173/app/foundation`. Она показывает один component tree в
-Catppuccin Mocha и plain test theme.
+Catppuccin Mocha, Catppuccin Latte и plain test theme. Официальные значения
+Catppuccin неизменны; необходимые для контраста Latte foreground corrections
+хранятся отдельно как accessibility overrides.
 
 Если на host пока нет Node 22, тот же frontend запускается контейнером из корня:
 

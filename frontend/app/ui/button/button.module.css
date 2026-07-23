@@ -48,7 +48,7 @@
 .primary {
   border-color: var(--color-accent);
   background: var(--color-accent);
-  color: var(--color-text-inverse);
+  color: var(--color-on-accent);
 }
 
 .secondary {

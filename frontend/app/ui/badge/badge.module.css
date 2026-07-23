@@ -1,12 +1,14 @@
 .badge {
+  --badge-tone: var(--color-accent);
+
   display: inline-flex;
   width: fit-content;
   min-height: 1.75rem;
   align-items: center;
-  border: 1px solid var(--badge-color, var(--color-border-default));
+  border: 1px solid var(--badge-tone);
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--color-bg-elevated) 82%, transparent);
-  color: var(--badge-color, var(--color-text-secondary));
+  color: var(--color-text-primary);
   padding-inline: var(--space-3);
   font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
@@ -18,8 +20,8 @@
 }
 
 .soft {
-  border-color: color-mix(in srgb, var(--badge-color) 38%, transparent);
-  background: color-mix(in srgb, var(--badge-color) 12%, transparent);
+  border-color: color-mix(in srgb, var(--badge-tone) 48%, transparent);
+  background: color-mix(in srgb, var(--badge-tone) 12%, transparent);
 }
 
 .status {
@@ -38,42 +40,42 @@
   height: 0.45rem;
   flex: none;
   border-radius: 50%;
-  background: currentcolor;
+  background: var(--badge-tone);
   content: "";
 }
 
 .success {
-  --badge-color: var(--color-status-success);
+  --badge-tone: var(--color-status-success);
 }
 
 .warning {
-  --badge-color: var(--color-status-warning);
+  --badge-tone: var(--color-status-warning);
 }
 
 .danger {
-  --badge-color: var(--color-status-danger);
+  --badge-tone: var(--color-status-danger);
 }
 
 .income {
-  --badge-color: var(--color-money-income);
+  --badge-tone: var(--color-money-income);
 }
 
 .expense {
-  --badge-color: var(--color-money-expense);
+  --badge-tone: var(--color-money-expense);
 }
 
 .transfer {
-  --badge-color: var(--color-money-transfer);
+  --badge-tone: var(--color-money-transfer);
 }
 
 .category {
-  --badge-color: var(--color-category);
+  --badge-tone: var(--color-category);
 }
 
 .adjustment {
-  --badge-color: var(--color-money-adjustment);
+  --badge-tone: var(--color-money-adjustment);
 }
 
 .neutral {
-  --badge-color: var(--color-text-secondary);
+  --badge-tone: var(--color-accent);
 }

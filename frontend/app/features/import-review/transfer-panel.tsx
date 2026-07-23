@@ -147,16 +147,16 @@ export function TransferPanel({
       item.transfer.existingOperationCandidates.length === 0 ? (
         <p>Подходящих счетов, строк или ручных переводов не найдено.</p>
       ) : null}
-      <div className={styles.editorActions}>
+      <div className={`${styles.editorActions} ${styles.panelActions}`}>
+        <Button disabled={pending} onClick={onCancel}>
+          Отмена
+        </Button>
         <Button
           disabled={pending || !selection}
           onClick={() => void submit()}
           tone="primary"
         >
           {pending ? "Проводим…" : "Провести перевод"}
-        </Button>
-        <Button disabled={pending} onClick={onCancel}>
-          Отмена
         </Button>
       </div>
       {error ? (
