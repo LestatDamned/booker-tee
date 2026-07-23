@@ -993,9 +993,12 @@ Implemented:
 Checks run: frontend format, lint, styles, OpenAPI drift, typecheck, 157 tests,
 production build и 23 Import Review API contract tests.
 
-Intentional deviations: автоматизированного browser/visual harness для
-desktop/920/mobile в репозитории нет; ручной visual regression остаётся
-отдельным gate перед следующим UI-changing slice.
+Browser follow-up: `ui_audit.py` создал desktop/920/mobile screenshots; они
+проверены вручную, root horizontal overflow отсутствует. Автоматизированный
+`react-import-review` scenario пока завершается timeout на history
+`wait_for_function` после успешной загрузки: console/page/request/UX assertion
+errors отсутствуют. Это отдельный audit-tooling follow-up, не скрытый зелёный
+gate.
 
 ### Этап 3 — SSR legacy
 
@@ -1023,6 +1026,43 @@ desktop/920/mobile в репозитории нет; ручной visual regress
 frontend check, Playwright route matrix.  
 Критерий: React — единственный authenticated frontend, а legacy asset не имеет
 ни одного runtime consumer.
+
+Completed: 2026-07-23.
+
+Consumer search:
+
+- legacy Manual Ledger и Import Review templates, HTML routes и browser
+  presenters отсутствуют;
+- `/ledger/manual` и `/imports/documents/{document_id}/review` существуют только
+  как query-preserving redirects в `react_frontend.py`;
+- `app.css`, HTMX, Alpine и `entity-target.js` подключены общим SSR
+  `base.html`, который используют оставшиеся authenticated workflows;
+- `entity-target.js` обслуживает accounts, categories, properties и transaction
+  rules;
+- raw-transaction selectors используются document detail;
+- `_more_actions.html` и `review-actions__*` используются categories и
+  transaction rules;
+- application/domain/read models и chat presentation имеют независимых
+  runtime consumers.
+
+Cleanup performed: production-файлы не удалялись. Это осознанный результат
+delete gate: каждый оставшийся legacy target имеет именованного потребителя.
+Redirects, общий SSR asset stack и redirect-aware UI audit branches остаются до
+последней authenticated migration.
+
+Checks run:
+
+- authenticated Chromium route matrix для Manual Ledger redirect — desktop,
+  920 и mobile passed;
+- authenticated Chromium route matrix для historical Import Review redirect —
+  desktop, 920 и mobile passed;
+- redirect и base-template tests — 9 passed;
+- full backend suite — 550 passed;
+- Ruff lint и `ty` passed;
+- полный `npm run check` — 157 frontend tests и production build passed.
+
+Known baseline issue: `ruff format --check .` сообщает о четырёх ранее
+неформатированных файлах вне этого cleanup slice; они не изменялись.
 
 ---
 
