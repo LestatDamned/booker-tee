@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { components } from "../../../api/generated/schema";
+import { parseApiError, requestJson } from "../../../api/transport";
 import {
   importReviewCategoryReferenceSchema,
   importReviewSchema,
@@ -84,13 +85,6 @@ const draftEvaluationSchema: z.ZodType<ImportReviewDraftEvaluationDto> =
     }),
   });
 
-const apiErrorSchema = z.object({
-  error: z.object({
-    code: z.string(),
-    message: z.string(),
-    fieldErrors: z.record(z.string(), z.array(z.string())).nullish(),
-  }),
-});
 const transferMutationSchema: z.ZodType<ImportReviewTransferMutationDto> =
   z.object({
     primaryDocumentId: z.uuid(),
@@ -241,50 +235,46 @@ async function sendMutation<T>(
   schema: z.ZodType<T>,
   idempotencyKey?: string,
 ): Promise<ImportReviewMutationResult<T>> {
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "X-CSRF-Token": csrfToken,
-        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
-      },
-      body: JSON.stringify(request),
-    });
-    if (response.status === 401) return { status: "unauthenticated" };
-    if (response.status === 403) return { status: "forbidden" };
-
-    const body: unknown = await response.json();
-    if (response.ok) {
-      const parsed = schema.safeParse(body);
-      return parsed.success
-        ? { status: "success", data: parsed.data }
-        : {
-            status: "error",
-            message: "API вернул данные неожиданного формата.",
-          };
-    }
-    const error = apiErrorSchema.safeParse(body);
-    if (!error.success) {
-      return {
-        status: "error",
-        message: `API вернул статус ${response.status}.`,
-      };
-    }
-    if (response.status === 422) {
-      return {
-        status: "validation_error",
-        message: error.data.error.message,
-        fieldErrors: error.data.error.fieldErrors ?? {},
-      };
-    }
-    if (response.status === 409) {
-      return { status: "conflict", message: error.data.error.message };
-    }
-    return { status: "error", message: error.data.error.message };
-  } catch {
+  const response = await requestJson(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+    },
+    body: JSON.stringify(request),
+  });
+  if (response.status === "network_error") {
     return { status: "error", message: "Backend недоступен." };
   }
+  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 403) return { status: "forbidden" };
+
+  if (response.ok) {
+    const parsed = schema.safeParse(response.body);
+    return parsed.success
+      ? { status: "success", data: parsed.data }
+      : {
+          status: "error",
+          message: "API вернул данные неожиданного формата.",
+        };
+  }
+  const error = parseApiError(response.body);
+  if (error === null) {
+    return {
+      status: "error",
+      message: `API вернул статус ${response.httpStatus}.`,
+    };
+  }
+  if (response.httpStatus === 422) {
+    return {
+      status: "validation_error",
+      message: error.message,
+      fieldErrors: error.fieldErrors,
+    };
+  }
+  if (response.httpStatus === 409) {
+    return { status: "conflict", message: error.message };
+  }
+  return { status: "error", message: error.message };
 }

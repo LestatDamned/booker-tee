@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { components } from "../../../api/generated/schema";
+import { requestJson } from "../../../api/transport";
 
 export type ImportReviewDto = components["schemas"]["ImportReviewApiResponse"];
 
@@ -280,38 +281,36 @@ export type ImportReviewLoadResult =
 
 export async function loadImportReview(
   documentId: string,
+  signal?: AbortSignal,
 ): Promise<ImportReviewLoadResult> {
-  try {
-    const response = await fetch(`/api/v1/import-review/${documentId}`, {
-      credentials: "same-origin",
-      headers: { Accept: "application/json" },
-    });
-    if (response.status === 401) {
-      return { status: "unauthenticated" };
-    }
-    if (response.status === 403) {
-      return { status: "forbidden" };
-    }
-    if (response.status === 404) {
-      return { status: "not-found" };
-    }
-    if (!response.ok) {
-      return {
-        status: "error",
-        message: `API вернул статус ${response.status}.`,
-      };
-    }
-
-    const payload: unknown = await response.json();
-    const parsed = importReviewSchema.safeParse(payload);
-    if (!parsed.success) {
-      return {
-        status: "error",
-        message: "API вернул данные import review неожиданного формата.",
-      };
-    }
-    return { status: "success", review: parsed.data };
-  } catch {
+  const response = await requestJson(`/api/v1/import-review/${documentId}`, {
+    ...(signal ? { signal } : {}),
+  });
+  if (response.status === "network_error") {
     return { status: "error", message: "Backend недоступен." };
   }
+  if (response.httpStatus === 401) {
+    return { status: "unauthenticated" };
+  }
+  if (response.httpStatus === 403) {
+    return { status: "forbidden" };
+  }
+  if (response.httpStatus === 404) {
+    return { status: "not-found" };
+  }
+  if (!response.ok) {
+    return {
+      status: "error",
+      message: `API вернул статус ${response.httpStatus}.`,
+    };
+  }
+
+  const parsed = importReviewSchema.safeParse(response.body);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: "API вернул данные import review неожиданного формата.",
+    };
+  }
+  return { status: "success", review: parsed.data };
 }

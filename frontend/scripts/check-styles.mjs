@@ -366,12 +366,20 @@ const cssModules = cssFiles.filter((path) => path.endsWith(".module.css"));
 const rawPalettePattern = /#[0-9a-f]{3,8}\b|(?:rgb|hsl)a?\(/i;
 const primitiveTokenPattern = /var\(--(?:ctp|palette)-/;
 const legacyAccentPattern = /var\(--color-(?:on-)?accent(?:-strong)?\)/;
+const declaredTokens = new Set();
+const usedTokens = new Set();
 
 for (const path of cssFiles) {
+  const content = await readFile(path, "utf8");
+  for (const match of content.matchAll(/(--[\w-]+)\s*:/g)) {
+    declaredTokens.add(match[1]);
+  }
+  for (const match of content.matchAll(/var\((--[\w-]+)/g)) {
+    usedTokens.add(match[1]);
+  }
   if (dirname(path) === themesRoot) {
     continue;
   }
-  const content = await readFile(path, "utf8");
   if (rawPalettePattern.test(content)) {
     throw new Error(
       `Raw palette value found outside theme directory: ${relative(frontendRoot, path)}`,
@@ -387,6 +395,15 @@ for (const path of cssFiles) {
       `Legacy universal accent token found in ${relative(frontendRoot, path)}; use a named semantic role.`,
     );
   }
+}
+
+const missingTokens = [...usedTokens].filter(
+  (token) => !declaredTokens.has(token),
+);
+if (missingTokens.length > 0) {
+  throw new Error(
+    `CSS references missing custom properties: ${missingTokens.sort().join(", ")}.`,
+  );
 }
 
 const sourceFiles = await findFiles(appRoot, (path) =>

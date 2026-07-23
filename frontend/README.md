@@ -43,6 +43,7 @@ docker compose --profile frontend up app frontend
 npm run format:check
 npm run lint
 npm run styles:check
+npm run api:check
 npm run typecheck
 npm run test
 npm run build
@@ -61,6 +62,8 @@ npm run api:generate
 
 Команда экспортирует OpenAPI через Python app и обновляет
 `app/api/generated/schema.ts`. Файл generated: его не редактируют вручную.
+`npm run api:check` генерирует временную копию и завершится с ошибкой, если
+committed types отстали от backend schema; эта проверка входит в `npm run check`.
 Если Node используется только через Docker, эквивалент из корня:
 
 ```bash

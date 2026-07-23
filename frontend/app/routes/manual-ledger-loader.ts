@@ -4,8 +4,8 @@ import { loadManualLedger } from "../features/manual-ledger/api/manual-ledger-ap
 export async function loadManualLedgerRoute(request: Request) {
   const search = manualLedgerApiSearch(new URL(request.url).search);
   const [session, ledger] = await Promise.all([
-    loadSession(),
-    loadManualLedger(search),
+    loadSession(request.signal),
+    loadManualLedger(search, request.signal),
   ]);
   return { session, ledger };
 }

@@ -1,4 +1,5 @@
 import {
+  type AriaAttributes,
   type CSSProperties,
   type KeyboardEvent,
   type RefObject,
@@ -28,6 +29,7 @@ type PopupPosition = {
 
 type SearchableSelectProps = {
   "aria-describedby"?: string | undefined;
+  "aria-invalid"?: AriaAttributes["aria-invalid"];
   disabled?: boolean | undefined;
   id: string;
   inputRef?: RefObject<HTMLInputElement | null> | undefined;
@@ -39,6 +41,7 @@ type SearchableSelectProps = {
 
 export function SearchableSelect({
   "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
   disabled = false,
   id,
   inputRef,
@@ -183,6 +186,7 @@ export function SearchableSelect({
           aria-controls={listboxId}
           aria-describedby={ariaDescribedBy}
           aria-expanded={open}
+          aria-invalid={ariaInvalid}
           autoComplete="off"
           disabled={disabled}
           id={id}

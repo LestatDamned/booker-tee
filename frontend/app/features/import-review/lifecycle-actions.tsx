@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { Button } from "../../ui/button/button";
+import { Button, type ButtonTone } from "../../ui/button/button";
 import {
   loadImportReview,
   type ImportReviewDto,
@@ -207,10 +207,10 @@ function isDangerAction(action: LifecycleAction): boolean {
   return action === "mark_duplicate" || action === "ignore";
 }
 
-function actionTone(action: LifecycleAction) {
-  if (action === "mark_unique") return "primary" as const;
-  if (isDangerAction(action)) return "dangerSecondary" as const;
-  return "secondary" as const;
+function actionTone(action: LifecycleAction): ButtonTone {
+  if (action === "mark_unique") return "primary";
+  if (isDangerAction(action)) return "dangerSecondary";
+  return "secondary";
 }
 
 function actionLabel(

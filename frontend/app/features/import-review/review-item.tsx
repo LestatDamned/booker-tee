@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 
 import { formatIsoDate } from "../../shared/date/format-date";
+import { formatMoneyAmount } from "../../shared/money/format-money";
 import { ActionStack } from "../../ui/action-stack/action-stack";
 import { Button } from "../../ui/button/button";
 import { ExpansionPanel } from "../../ui/expansion-panel/expansion-panel";
@@ -307,7 +308,7 @@ export function ReviewItem({
       value={
         amount !== null ? (
           <MoneyValue
-            amount={formatReviewAmount(amount, operationType)}
+            amount={formatMoneyAmount(amount, operationType)}
             currency={currency}
             tone={moneyTone(operationType)}
           />
@@ -351,7 +352,7 @@ function ReviewItemContext({
       >
         {amount !== null ? (
           <>
-            {formatReviewAmount(amount, item.classification.operationType)}{" "}
+            {formatMoneyAmount(amount, item.classification.operationType)}{" "}
             <small>{currency}</small>
           </>
         ) : (
@@ -569,7 +570,7 @@ function SourceSummary({
         {item.normalized.balanceAfter ? (
           <span>
             Остаток после строки:{" "}
-            {formatPlainMoney(item.normalized.balanceAfter)} {currency}
+            {formatMoneyAmount(item.normalized.balanceAfter, null)} {currency}
           </span>
         ) : null}
         <span>
@@ -634,8 +635,9 @@ function RowProblemSignal({
       <strong>Нарушена цепочка остатков</strong>
       <span>
         После строки {problem.previousRowIndex} ожидался остаток{" "}
-        {formatPlainMoney(problem.expectedBalanceAfter)} {currency}, получен{" "}
-        {formatPlainMoney(problem.actualBalanceAfter)} {currency}.
+        {formatMoneyAmount(problem.expectedBalanceAfter, null)} {currency},
+        получен {formatMoneyAmount(problem.actualBalanceAfter, null)} {currency}
+        .
       </span>
     </div>
   );
@@ -778,31 +780,6 @@ function moneyTone(
   operationType: ReviewItemDto["classification"]["operationType"],
 ): MoneyTone {
   return operationType ?? "neutral";
-}
-
-function formatReviewAmount(
-  value: string,
-  operationType: ReviewItemDto["classification"]["operationType"],
-): string {
-  const normalized = value.replace(",", ".");
-  const match = /^([+-]?)(\d+)(?:\.(\d+))?$/.exec(normalized);
-  if (!match) return value;
-  const integer = (match[2] ?? "0").replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  const fraction = (match[3] ?? "").padEnd(2, "0").slice(0, 2);
-  const sourceSign = match[1] ?? "";
-  const sign =
-    operationType === "income"
-      ? "+"
-      : operationType === "expense"
-        ? "−"
-        : sourceSign === "-"
-          ? "−"
-          : sourceSign;
-  return `${sign}${integer},${fraction}`;
-}
-
-function formatPlainMoney(value: string): string {
-  return formatReviewAmount(value, null);
 }
 
 function rowWorkflowState(

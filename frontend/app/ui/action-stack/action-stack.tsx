@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -39,6 +40,7 @@ export function ActionStack({
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const focusMenuOnOpenRef = useRef(false);
   const instanceId = useId();
   const menuId = useId();
   const open = disclosureOpen ?? internalOpen;
@@ -54,9 +56,10 @@ export function ActionStack({
     [disclosureOpen, onDisclosureChange],
   );
 
-  function toggleMenu() {
+  function toggleMenu(event: MouseEvent<HTMLButtonElement>) {
     const nextOpen = !open;
     if (nextOpen) {
+      focusMenuOnOpenRef.current = event.detail === 0;
       const triggerRect = triggerRef.current?.getBoundingClientRect();
       if (triggerRect) {
         setMenuPosition({
@@ -148,6 +151,16 @@ export function ActionStack({
     }
 
     positionMenu();
+    if (focusMenuOnOpenRef.current) {
+      focusMenuOnOpenRef.current = false;
+      queueMicrotask(() =>
+        menuRef.current
+          ?.querySelector<HTMLElement>(
+            "button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled)",
+          )
+          ?.focus(),
+      );
+    }
     window.addEventListener("resize", positionMenu);
     window.addEventListener("scroll", positionMenu, true);
     return () => {

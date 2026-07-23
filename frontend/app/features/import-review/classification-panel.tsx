@@ -9,6 +9,7 @@ import {
   type ImportReviewCategoryReferenceDto,
   type ImportReviewDraftEvaluationDto,
   type ImportReviewDraftEvaluationRequest,
+  type ImportReviewMutationResult,
 } from "./api/import-review-mutations";
 import styles from "./import-review.module.css";
 import { ConfirmPostingAction } from "./posting-actions";
@@ -350,6 +351,7 @@ function DraftFields({
             aria-describedby={
               fieldErrors.categoryId ? `category-error-${itemId}` : undefined
             }
+            aria-invalid={Boolean(fieldErrors.categoryId)}
             id={`category-${itemId}`}
             inputRef={categoryRef}
             onChange={(value) =>
@@ -388,6 +390,7 @@ function DraftFields({
           aria-describedby={
             fieldErrors.propertyId ? `property-error-${itemId}` : undefined
           }
+          aria-invalid={Boolean(fieldErrors.propertyId)}
           id={`property-${itemId}`}
           onChange={(event) =>
             updateDraft({ ...draft, propertyId: event.target.value || null })
@@ -446,6 +449,7 @@ function CategoryEditor({
           aria-describedby={
             fieldErrors.name ? `category-name-error-${itemId}` : undefined
           }
+          aria-invalid={Boolean(fieldErrors.name)}
           onChange={(event) => onNameChange(event.target.value)}
           ref={categoryNameRef}
           value={categoryName}
@@ -459,9 +463,7 @@ function CategoryEditor({
         Вид категории
         <select
           onChange={(event) =>
-            onKindChange(
-              event.target.value as ImportReviewCategoryReferenceDto["kind"],
-            )
+            onKindChange(parseCategoryKind(event.target.value))
           }
           value={categoryKind}
         >
@@ -517,6 +519,21 @@ function defaultCategoryKind(
     : "mixed";
 }
 
+function parseCategoryKind(
+  value: string,
+): ImportReviewCategoryReferenceDto["kind"] {
+  if (
+    value === "income" ||
+    value === "expense" ||
+    value === "mixed" ||
+    value === "transfer" ||
+    value === "adjustment"
+  ) {
+    return value;
+  }
+  return "mixed";
+}
+
 function ordinaryOperationType(
   item: ClassificationPanelProps["item"],
 ): "income" | "expense" | null {
@@ -569,26 +586,25 @@ function focusDraftField(
   else if (fieldErrors.propertyId) property?.focus();
 }
 
-function draftMutationError(result: {
-  status: string;
-  message?: string;
-}): string {
+type ImportReviewMutationFailure = Exclude<
+  ImportReviewMutationResult<unknown>,
+  { status: "success" }
+>;
+
+function draftMutationError(result: ImportReviewMutationFailure): string {
   if (result.status === "unauthenticated") {
     return "Сессия завершилась. Войдите снова, draft сохранён на странице.";
   }
   if (result.status === "forbidden")
     return "Недостаточно прав для проверки draft.";
-  return result.message ?? "Draft не удалось проверить.";
+  return "message" in result ? result.message : "Draft не удалось проверить.";
 }
 
-function categoryMutationError(result: {
-  status: string;
-  message?: string;
-}): string {
+function categoryMutationError(result: ImportReviewMutationFailure): string {
   if (result.status === "unauthenticated") {
     return "Сессия завершилась. Название новой категории сохранено в draft.";
   }
   if (result.status === "forbidden")
     return "Недостаточно прав для создания категории.";
-  return result.message ?? "Категорию не удалось создать.";
+  return "message" in result ? result.message : "Категорию не удалось создать.";
 }

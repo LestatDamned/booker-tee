@@ -232,6 +232,19 @@ describe("request and workbench composition", () => {
     await waitFor(() => expect(secondTrigger).toHaveFocus());
   });
 
+  it("moves keyboard focus into a portaled action menu", async () => {
+    render(<ActionStack overflow={<Button>Открыть форму</Button>} />);
+
+    const trigger = screen.getByRole("button", { name: "Ещё действия" });
+    fireEvent.click(trigger, { detail: 0 });
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Открыть форму" }),
+      ).toHaveFocus(),
+    );
+  });
+
   it.each([
     ["recent", "Недавно"],
     ["target", "Текущая строка"],

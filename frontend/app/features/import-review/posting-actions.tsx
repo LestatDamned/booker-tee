@@ -10,6 +10,7 @@ import {
 import {
   confirmImportReviewItem,
   type ImportReviewDraftEvaluationDto,
+  type ImportReviewMutationResult,
   undoImportReviewPosting,
 } from "./api/import-review-mutations";
 import styles from "./import-review.module.css";
@@ -322,12 +323,17 @@ function PostingError({
   );
 }
 
-function postingError(result: { status: string; message?: string }): string {
+type ImportReviewMutationFailure = Exclude<
+  ImportReviewMutationResult<unknown>,
+  { status: "success" }
+>;
+
+function postingError(result: ImportReviewMutationFailure): string {
   if (result.status === "unauthenticated") {
     return "Сессия завершилась. Войдите снова; операция не показана как проведённая.";
   }
   if (result.status === "forbidden") {
     return "Недостаточно прав для проведения операции.";
   }
-  return result.message ?? "Операцию не удалось изменить.";
+  return "message" in result ? result.message : "Операцию не удалось изменить.";
 }

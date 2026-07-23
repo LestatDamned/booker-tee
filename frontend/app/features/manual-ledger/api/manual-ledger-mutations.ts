@@ -1,6 +1,9 @@
-import { z } from "zod";
-
 import type { components } from "../../../api/generated/schema";
+import {
+  parseApiError,
+  requestJson,
+  type ApiTransportResult,
+} from "../../../api/transport";
 import {
   manualOperationSchema,
   type ManualOperationDto,
@@ -13,13 +16,6 @@ export type ManualOperationUpdateRequest =
   | components["schemas"]["ManualIncomeExpenseUpdateApiRequest"]
   | components["schemas"]["ManualTransferUpdateApiRequest"];
 export type ManualOperationLifecycleAction = "cancel" | "restore";
-const apiErrorSchema = z.object({
-  error: z.object({
-    code: z.string(),
-    message: z.string(),
-    fieldErrors: z.record(z.string(), z.array(z.string())).nullish(),
-  }),
-});
 
 export type ManualLedgerMutationResult =
   | { status: "success"; operation: ManualOperationDto }
@@ -42,54 +38,19 @@ export async function createManualOperation(
   csrfToken: string,
   idempotencyKey: string,
 ): Promise<ManualLedgerMutationResult> {
-  try {
-    const response = await fetch("/api/v1/manual-ledger", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "Idempotency-Key": idempotencyKey,
-        "X-CSRF-Token": csrfToken,
-      },
-      body: JSON.stringify(request),
-    });
-    if (response.status === 401) {
-      return { status: "unauthenticated" };
-    }
-
-    const responseBody: unknown = await response.json();
-    if (response.ok) {
-      const operation = manualOperationSchema.safeParse(responseBody);
-      return operation.success
-        ? { status: "success", operation: operation.data }
-        : {
-            status: "error",
-            message: "API вернул созданную операцию неожиданного формата.",
-          };
-    }
-
-    const apiError = apiErrorSchema.safeParse(responseBody);
-    if (!apiError.success) {
-      return {
-        status: "error",
-        message: `API вернул статус ${response.status}.`,
-      };
-    }
-    if (response.status === 422) {
-      return {
-        status: "validation_error",
-        message: apiError.data.error.message,
-        fieldErrors: createFieldErrors(apiError.data.error.fieldErrors ?? {}),
-      };
-    }
-    if (response.status === 409) {
-      return { status: "conflict", message: apiError.data.error.message };
-    }
-    return { status: "error", message: apiError.data.error.message };
-  } catch {
-    return { status: "error", message: "Backend недоступен." };
-  }
+  const response = await requestJson("/api/v1/manual-ledger", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Idempotency-Key": idempotencyKey,
+      "X-CSRF-Token": csrfToken,
+    },
+    body: JSON.stringify(request),
+  });
+  return manualOperationResult(
+    response,
+    "API вернул созданную операцию неожиданного формата.",
+  );
 }
 
 export async function updateManualOperation(
@@ -97,53 +58,18 @@ export async function updateManualOperation(
   request: ManualOperationUpdateRequest,
   csrfToken: string,
 ): Promise<ManualLedgerMutationResult> {
-  try {
-    const response = await fetch(`/api/v1/manual-ledger/${operationId}`, {
-      method: "PUT",
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "X-CSRF-Token": csrfToken,
-      },
-      body: JSON.stringify(request),
-    });
-    if (response.status === 401) {
-      return { status: "unauthenticated" };
-    }
-
-    const responseBody: unknown = await response.json();
-    if (response.ok) {
-      const operation = manualOperationSchema.safeParse(responseBody);
-      return operation.success
-        ? { status: "success", operation: operation.data }
-        : {
-            status: "error",
-            message: "API вернул обновлённую операцию неожиданного формата.",
-          };
-    }
-
-    const apiError = apiErrorSchema.safeParse(responseBody);
-    if (!apiError.success) {
-      return {
-        status: "error",
-        message: `API вернул статус ${response.status}.`,
-      };
-    }
-    if (response.status === 422) {
-      return {
-        status: "validation_error",
-        message: apiError.data.error.message,
-        fieldErrors: createFieldErrors(apiError.data.error.fieldErrors ?? {}),
-      };
-    }
-    if (response.status === 409) {
-      return { status: "conflict", message: apiError.data.error.message };
-    }
-    return { status: "error", message: apiError.data.error.message };
-  } catch {
-    return { status: "error", message: "Backend недоступен." };
-  }
+  const response = await requestJson(`/api/v1/manual-ledger/${operationId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    },
+    body: JSON.stringify(request),
+  });
+  return manualOperationResult(
+    response,
+    "API вернул обновлённую операцию неожиданного формата.",
+  );
 }
 
 export async function changeManualOperationLifecycle(
@@ -152,49 +78,21 @@ export async function changeManualOperationLifecycle(
   version: number,
   csrfToken: string,
 ): Promise<ManualLedgerMutationResult> {
-  try {
-    const response = await fetch(
-      `/api/v1/manual-ledger/${operationId}/${action}`,
-      {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken,
-        },
-        body: JSON.stringify({ version }),
+  const response = await requestJson(
+    `/api/v1/manual-ledger/${operationId}/${action}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
       },
-    );
-    if (response.status === 401) {
-      return { status: "unauthenticated" };
-    }
-
-    const responseBody: unknown = await response.json();
-    if (response.ok) {
-      const operation = manualOperationSchema.safeParse(responseBody);
-      return operation.success
-        ? { status: "success", operation: operation.data }
-        : {
-            status: "error",
-            message: "API вернул операцию неожиданного формата.",
-          };
-    }
-
-    const apiError = apiErrorSchema.safeParse(responseBody);
-    if (!apiError.success) {
-      return {
-        status: "error",
-        message: `API вернул статус ${response.status}.`,
-      };
-    }
-    if (response.status === 409) {
-      return { status: "conflict", message: apiError.data.error.message };
-    }
-    return { status: "error", message: apiError.data.error.message };
-  } catch {
-    return { status: "error", message: "Backend недоступен." };
-  }
+      body: JSON.stringify({ version }),
+    },
+  );
+  return manualOperationResult(
+    response,
+    "API вернул операцию неожиданного формата.",
+  );
 }
 
 export async function deleteManualOperation(
@@ -202,40 +100,70 @@ export async function deleteManualOperation(
   version: number,
   csrfToken: string,
 ): Promise<ManualOperationDeleteResult> {
-  try {
-    const response = await fetch(`/api/v1/manual-ledger/${operationId}`, {
-      method: "DELETE",
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "X-CSRF-Token": csrfToken,
-      },
-      body: JSON.stringify({ version }),
-    });
-    if (response.status === 401) {
-      return { status: "unauthenticated" };
-    }
-    if (response.status === 204) {
-      await response.arrayBuffer();
-      return { status: "success" };
-    }
-
-    const responseBody: unknown = await response.json();
-    const apiError = apiErrorSchema.safeParse(responseBody);
-    if (!apiError.success) {
-      return {
-        status: "error",
-        message: `API вернул статус ${response.status}.`,
-      };
-    }
-    return {
-      status: response.status === 409 ? "conflict" : "error",
-      message: apiError.data.error.message,
-    };
-  } catch {
+  const response = await requestJson(`/api/v1/manual-ledger/${operationId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    },
+    body: JSON.stringify({ version }),
+  });
+  if (response.status === "network_error") {
     return { status: "error", message: "Backend недоступен." };
   }
+  if (response.httpStatus === 401) {
+    return { status: "unauthenticated" };
+  }
+  if (response.httpStatus === 204) {
+    return { status: "success" };
+  }
+  const apiError = parseApiError(response.body);
+  if (apiError === null) {
+    return {
+      status: "error",
+      message: `API вернул статус ${response.httpStatus}.`,
+    };
+  }
+  return {
+    status: response.httpStatus === 409 ? "conflict" : "error",
+    message: apiError.message,
+  };
+}
+
+function manualOperationResult(
+  response: ApiTransportResult,
+  invalidResponseMessage: string,
+): ManualLedgerMutationResult {
+  if (response.status === "network_error") {
+    return { status: "error", message: "Backend недоступен." };
+  }
+  if (response.httpStatus === 401) {
+    return { status: "unauthenticated" };
+  }
+  if (response.ok) {
+    const operation = manualOperationSchema.safeParse(response.body);
+    return operation.success
+      ? { status: "success", operation: operation.data }
+      : { status: "error", message: invalidResponseMessage };
+  }
+  const apiError = parseApiError(response.body);
+  if (apiError === null) {
+    return {
+      status: "error",
+      message: `API вернул статус ${response.httpStatus}.`,
+    };
+  }
+  if (response.httpStatus === 422) {
+    return {
+      status: "validation_error",
+      message: apiError.message,
+      fieldErrors: createFieldErrors(apiError.fieldErrors),
+    };
+  }
+  if (response.httpStatus === 409) {
+    return { status: "conflict", message: apiError.message };
+  }
+  return { status: "error", message: apiError.message };
 }
 
 function createFieldErrors(

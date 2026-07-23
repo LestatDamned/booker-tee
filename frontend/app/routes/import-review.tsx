@@ -8,8 +8,11 @@ export function meta() {
   return [{ title: "Проверка импорта — Booker Tee" }];
 }
 
-export async function clientLoader({ params }: Route.ClientLoaderArgs) {
-  return loadImportReviewRoute(params.documentId);
+export async function clientLoader({
+  params,
+  request,
+}: Route.ClientLoaderArgs) {
+  return loadImportReviewRoute(params.documentId, request.signal);
 }
 
 export default function ImportReviewRoute({

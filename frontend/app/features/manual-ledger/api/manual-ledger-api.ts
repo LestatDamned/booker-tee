@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { components } from "../../../api/generated/schema";
+import { requestJson } from "../../../api/transport";
 
 export type ManualLedgerDto =
   components["schemas"]["ManualLedgerListApiResponse"];
@@ -92,33 +93,32 @@ export type ManualLedgerLoadResult =
 
 export async function loadManualLedger(
   search: string,
+  signal?: AbortSignal,
 ): Promise<ManualLedgerLoadResult> {
-  try {
-    const response = await fetch(`/api/v1/manual-ledger${search}`, {
-      credentials: "same-origin",
-      headers: { Accept: "application/json" },
-    });
-    if (response.status === 401) {
-      return { status: "unauthenticated" };
-    }
-    if (!response.ok) {
-      return {
-        status: "error",
-        message: `API вернул статус ${response.status}.`,
-      };
-    }
-
-    const parsed = manualLedgerSchema.safeParse(await response.json());
-    if (!parsed.success) {
-      return {
-        status: "error",
-        message: "API вернул данные manual ledger неожиданного формата.",
-      };
-    }
-    return { status: "success", ledger: parsed.data };
-  } catch {
+  const response = await requestJson(`/api/v1/manual-ledger${search}`, {
+    ...(signal ? { signal } : {}),
+  });
+  if (response.status === "network_error") {
     return { status: "error", message: "Backend недоступен." };
   }
+  if (response.httpStatus === 401) {
+    return { status: "unauthenticated" };
+  }
+  if (!response.ok) {
+    return {
+      status: "error",
+      message: `API вернул статус ${response.httpStatus}.`,
+    };
+  }
+
+  const parsed = manualLedgerSchema.safeParse(response.body);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: "API вернул данные manual ledger неожиданного формата.",
+    };
+  }
+  return { status: "success", ledger: parsed.data };
 }
 
 export type ManualOperationEditLoadResult =
@@ -128,26 +128,26 @@ export type ManualOperationEditLoadResult =
 
 export async function loadManualOperationEdit(
   operationId: string,
+  signal?: AbortSignal,
 ): Promise<ManualOperationEditLoadResult> {
-  try {
-    const response = await fetch(`/api/v1/manual-ledger/${operationId}/edit`, {
-      credentials: "same-origin",
-      headers: { Accept: "application/json" },
-    });
-    if (response.status === 401) {
-      return { status: "unauthenticated" };
-    }
-    if (!response.ok) {
-      return {
-        status: "error",
-        message: `Не удалось загрузить форму: статус ${response.status}.`,
-      };
-    }
-    const parsed = manualOperationEditSchema.safeParse(await response.json());
-    return parsed.success
-      ? { status: "success", edit: parsed.data }
-      : { status: "error", message: "API вернул форму неожиданного формата." };
-  } catch {
+  const response = await requestJson(
+    `/api/v1/manual-ledger/${operationId}/edit`,
+    { ...(signal ? { signal } : {}) },
+  );
+  if (response.status === "network_error") {
     return { status: "error", message: "Backend недоступен." };
   }
+  if (response.httpStatus === 401) {
+    return { status: "unauthenticated" };
+  }
+  if (!response.ok) {
+    return {
+      status: "error",
+      message: `Не удалось загрузить форму: статус ${response.httpStatus}.`,
+    };
+  }
+  const parsed = manualOperationEditSchema.safeParse(response.body);
+  return parsed.success
+    ? { status: "success", edit: parsed.data }
+    : { status: "error", message: "API вернул форму неожиданного формата." };
 }

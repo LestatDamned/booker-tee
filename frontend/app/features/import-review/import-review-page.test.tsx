@@ -1235,6 +1235,7 @@ describe("import review page", () => {
 
     expect(await screen.findByText("Название уже занято.")).toBeInTheDocument();
     expect(name).toHaveValue("Продукты");
+    expect(name).toHaveAttribute("aria-invalid", "true");
     expect(name).toHaveFocus();
   });
 

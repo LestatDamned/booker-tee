@@ -11,4 +11,13 @@ describe("formatMoneyAmount", () => {
   it("uses operation semantics rather than the amount sign", () => {
     expect(formatMoneyAmount("65000.00", "transfer")).toBe("65 000,00");
   });
+
+  it("preserves source signs when operation semantics do not override them", () => {
+    expect(formatMoneyAmount("-65000,5", null)).toBe("−65 000,50");
+    expect(formatMoneyAmount("+65000", "transfer")).toBe("+65 000,00");
+  });
+
+  it("returns malformed source values unchanged", () => {
+    expect(formatMoneyAmount("not-a-number", null)).toBe("not-a-number");
+  });
 });
