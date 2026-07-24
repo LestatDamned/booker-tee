@@ -4,8 +4,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
-from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
-from app.features.imports.presentation.document_page.presenter import DocumentDetailPresenter
+from app.features.imports.models import UploadedDocumentStatus
 from app.features.imports.presentation.documents import UploadPagePresenter
 from app.features.imports.presentation.mapping.models import MappingDocumentVM, MappingNextStepVM
 from app.features.workspaces.models import (
@@ -24,17 +23,6 @@ def render_template(template_name: str, **context: object) -> str:
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
     context.setdefault("css_version", "test-css-version")
     return templates.env.get_template(template_name).render(**context)
-
-
-def render_document_detail_template(*, view: object) -> str:
-    return render_template(
-        "imports/detail.html",
-        app_name="Booker Tee",
-        page=DocumentDetailPresenter().build(
-            cast(Any, view),
-            can_manage_imports=True,
-        ),
-    )
 
 
 def render_upload_template(*, accounts: list[object], error: str | None = None) -> str:
@@ -84,54 +72,6 @@ def test_upload_page_guides_to_file_when_accounts_exist() -> None:
     assert "настроить колонки вручную" in html
     assert "следующий шаг" in html
     assert "#upload-form" in html
-
-
-def test_document_detail_guides_to_mapping_when_columns_are_unknown() -> None:
-    document_id = uuid4()
-    html = render_document_detail_template(
-        view=document_view(
-            document_id=document_id,
-            status=UploadedDocumentStatus.REQUIRES_REVIEW,
-            validation={
-                "status": "needs_mapping",
-                "message": "Configure columns.",
-                "detected_bank_name": None,
-                "detected_statement_type": None,
-                "text_based": True,
-                "table_count": 1,
-                "table_previews": [],
-            },
-        ),
-    )
-
-    assert "Настройте колонки" in html
-    assert f"/imports/documents/{document_id}/mapping" in html
-    assert "workflow-step-current" in html
-    assert "Настройка" in html
-
-
-def test_document_detail_guides_to_review_when_rows_exist() -> None:
-    document_id = uuid4()
-    html = render_document_detail_template(
-        view=document_view(
-            document_id=document_id,
-            status=UploadedDocumentStatus.REQUIRES_REVIEW,
-            validation={
-                "status": "valid",
-                "message": "Ready.",
-                "extracted_count": 1,
-                "calculated_total_inflow": "0.00",
-                "calculated_total_outflow": "100.00",
-                "currency": "RUB",
-            },
-            raw_transactions=[raw_row(RawTransactionStatus.NORMALIZED)],
-        ),
-    )
-
-    assert "Проверьте строки" in html
-    assert f"/app/imports/documents/{document_id}/review" in html
-    assert "workflow-step-current" in html
-    assert "Проверка" in html
 
 
 def test_dashboard_uses_guided_empty_states() -> None:
@@ -520,47 +460,3 @@ def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
     assert "Настройка" in html
     assert "Вернитесь к документу" in html
     assert f"/app/imports/documents/{document_id}" in html
-
-
-def document_view(
-    *,
-    document_id: object,
-    status: UploadedDocumentStatus,
-    validation: dict[str, object] | None,
-    raw_transactions: list[object] | None = None,
-) -> SimpleNamespace:
-    return SimpleNamespace(
-        id=document_id,
-        original_filename="statement.pdf",
-        status=status,
-        sha256_hash="a" * 64,
-        storage_key="workspace/document/statement.pdf",
-        account=None,
-        validation=validation,
-        raw_transactions=raw_transactions or [],
-        parse_attempts=[],
-    )
-
-
-def raw_row(status: RawTransactionStatus) -> SimpleNamespace:
-    return SimpleNamespace(
-        id=uuid4(),
-        row_index=1,
-        status=status,
-        parse_attempt_id=uuid4(),
-        operation_date="2026-06-24",
-        operation_date_raw=None,
-        display_date="24.06.2026",
-        amount=Decimal("-100.00"),
-        amount_raw=None,
-        currency="RUB",
-        description="Покупка",
-        description_normalized="Покупка",
-        description_raw=None,
-        normalization_error=None,
-        suggested_by_rule_id=None,
-        suggested_category_id=None,
-        suggested_property_id=None,
-        linked_operation_id=None,
-        raw_payload={},
-    )

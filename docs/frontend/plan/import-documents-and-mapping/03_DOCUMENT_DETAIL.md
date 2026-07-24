@@ -1,6 +1,6 @@
 # Slice 03: Document Detail And Management
 
-Статус: planned.
+Статус: completed.
 
 ## Outcome
 
@@ -40,8 +40,15 @@ result/identity. Для stale или запрещённого действия �
 ## Frontend state/UI
 
 - Route: `/app/imports/documents/:documentId`.
+- Header, next step, workflow, evidence and management form one document
+  workbench instead of unrelated page-level cards.
 - Workflow rail и primary next step строятся из server facts.
-- Raw rows и parse history имеют bounded initial rendering/disclosure.
+- Raw rows имеют bounded readonly preview с полным description, semantic money
+  tone и lifecycle status; parse history остаётся disclosure.
+- Document management всегда видим выше preview rows; только destructive
+  confirmation раскрывается по запросу.
+- Validation различает unexplained mismatch и расхождение, полностью
+  объяснённое ignored rows.
 - Destructive actions требуют явного confirmation и сохраняют focus contract.
 - Reparse не optimistic: pending state показывается до authoritative response.
 - После ignore/delete navigation следует server result, а не локальному
@@ -67,7 +74,7 @@ Frontend:
 - loading/error/not-found/readonly states;
 - each workflow next step;
 - validation и parse failure presentation;
-- bounded rows/history disclosure;
+- bounded readonly rows и history disclosure;
 - confirm/cancel/focus для ignore/delete;
 - server `409/422` reconciliation;
 - lazy debug не запрашивается до раскрытия;
@@ -104,3 +111,31 @@ detail URL становится query/hash-preserving redirect.
 - committed action result согласован с list/review;
 - old detail routes/presenter/templates удалены;
 - realistic browser scenarios проходят на трёх viewport.
+
+## Completion record
+
+Завершено 2026-07-24.
+
+- React detail построен как контрольная точка workflow: identity выписки,
+  следующий безопасный шаг, этапы импорта и validation summary находятся выше
+  supporting evidence.
+- Detail собран в единую workbench-поверхность. Raw preview использует
+  финансовые `MoneyValue`/`StatusLabel`, не обрезает description и сохраняет
+  адаптивный порядок date → amount → status → description.
+- Management actions постоянно видимы в правой колонке на desktop и выше raw
+  preview на mobile; reparse, ignore и danger zone визуально разделены.
+- Validation DTO возвращает stable reason code, ignored row count и ignored
+  totals, поэтому explained difference больше не показывается как ошибка.
+- Добавлен typed `GET /api/v1/imports/documents/{document_id}`. Основной DTO
+  ограничивает raw rows пятью, parse history десятью элементами и не публикует
+  `storage_key`, SHA-256, полный raw text или raw tables.
+- Reparse, ignore и delete переведены на JSON API с CSRF, permission check,
+  expected-status guard и повторной server-side проверкой linked/confirmed
+  rows.
+- Delete и ignore требуют явного confirmation; reparse показывает pending
+  state и принимает только authoritative committed response.
+- Legacy detail presenter, Jinja templates, template tests и detail-only CSS
+  удалены. Historical detail URL сохраняет query string и перенаправляет в
+  React.
+- Mapping и upload остаются legacy до собственных slices; ссылки на них
+  сохранены как временные переходы.

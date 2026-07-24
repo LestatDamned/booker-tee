@@ -29,8 +29,9 @@ class ImportDocumentManagementUseCase:
         *,
         workspace_id: UUID,
         document_id: UUID,
+        expected_status: UploadedDocumentStatus | None = None,
     ) -> UploadedDocument:
-        document = await self._get_document(workspace_id, document_id)
+        document = await self._get_document(workspace_id, document_id, expected_status)
         if document_has_linked_operations(document):
             raise ImportDocumentManagementError(
                 "Нельзя игнорировать документ со связанными операциями."
@@ -46,8 +47,9 @@ class ImportDocumentManagementUseCase:
         *,
         workspace_id: UUID,
         document_id: UUID,
+        expected_status: UploadedDocumentStatus | None = None,
     ) -> None:
-        document = await self._get_document(workspace_id, document_id)
+        document = await self._get_document(workspace_id, document_id, expected_status)
         if document_has_linked_operations(document):
             raise ImportDocumentManagementError("Нельзя удалить документ со связанными операциями.")
         storage_path = self.settings.upload_storage_dir / document.storage_key
@@ -59,10 +61,17 @@ class ImportDocumentManagementUseCase:
         self,
         workspace_id: UUID,
         document_id: UUID,
+        expected_status: UploadedDocumentStatus | None,
     ) -> UploadedDocument:
-        document = await self.imports.get_document_for_workspace(workspace_id, document_id)
+        document = await self.imports.get_document_for_workspace_for_update(
+            workspace_id, document_id
+        )
         if document is None:
             raise ImportDocumentManagementError("Документ не найден.")
+        if expected_status is not None and document.status is not expected_status:
+            raise ImportDocumentManagementError(
+                "Состояние документа изменилось. Обновите страницу и повторите действие."
+            )
         return document
 
 

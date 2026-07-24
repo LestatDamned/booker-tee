@@ -1,8 +1,8 @@
 # Inventory: Import Documents And Mapping
 
-Статус: baseline перед Stage 07 implementation.
+Статус: active inventory; Slices 01 и 03 cutover завершены.
 
-Проверено: 2026-07-23.
+Проверено: 2026-07-24.
 
 ## Scope
 
@@ -11,10 +11,6 @@
 ```text
 GET/POST /imports
 GET/POST /imports/upload
-GET      /imports/documents/{document_id}
-POST     /imports/documents/{document_id}/reparse
-POST     /imports/documents/{document_id}/ignore
-POST     /imports/documents/{document_id}/delete
 GET/POST /imports/documents/{document_id}/mapping
 POST     /imports/documents/{document_id}/mapping/import
 ```
@@ -50,14 +46,14 @@ storage backend или background processing infrastructure.
 Текущая обработка выполняется синхронно в request. SHA-256 хранится и
 индексируется, но upload command не имеет строгого idempotency contract.
 
-### Document detail
+### Document detail — React
 
 - Показывает workflow: extraction, mapping, review, completion.
 - Показывает document/account summary и validation/control totals.
-- Для unknown statement показывает найденные таблицы и mapping suggestions.
-- Показывает raw transactions и parse-attempt history.
-- Имеет reparse, ignore и delete actions.
-- Показывает technical debug: SHA-256, storage key, raw tables и raw text.
+- Показывает bounded raw transaction summaries и parse-attempt history.
+- Имеет permission- и capability-aware reparse, ignore и delete actions через
+  JSON API с expected-status guard.
+- Не публикует SHA-256, storage key, raw tables или raw text.
 
 Reparse запрещён при confirmed rows. Ignore и delete запрещены, если raw rows
 имеют linked operations.
@@ -173,7 +169,6 @@ Imports navbar link.
 ### Presenters
 
 - `src/app/features/imports/presentation/documents.py`;
-- `src/app/features/imports/presentation/document_page/*`;
 - `src/app/features/imports/presentation/mapping/*`;
 - `src/app/features/imports/presentation/field_labels.py`;
 - `src/app/features/imports/presentation/mapping_suggestions.py`.
@@ -184,18 +179,14 @@ Imports navbar link.
 
 - `src/app/templates/imports/index.html`;
 - `src/app/templates/imports/upload.html`;
-- `src/app/templates/imports/detail.html`;
-- `src/app/templates/imports/detail/*`;
 - `src/app/templates/imports/mapping.html`;
 - `src/app/templates/imports/mapping/*`;
-- shared imports partials `_action_details.html`, `_document_summary.html`,
-  `_mapping_candidates.html`, `_mapping_suggestion.html`, `_page_hero.html`,
-  `_raw_transaction_row.html`, `_workflow_steps.html`.
+- shared mapping partials `_document_summary.html`, `_mapping_candidates.html`,
+  `_mapping_suggestion.html`, `_page_hero.html`, `_workflow_steps.html`.
 
 ### Tests to replace, not blindly port
 
-- `tests/features/imports/test_import_detail_template.py`;
-- `tests/features/imports/test_import_document_detail_presentation.py`;
+- React/API tests заменили удалённые detail presenter/template tests.
 - Imports portions of `test_user_guide_templates.py`;
 - route/template assertions in reports, accounts, workspaces and shell tests.
 
@@ -218,9 +209,12 @@ template consumer.
 
 1. Upload retry может создать второй document после потерянного response.
 2. Parse/reparse — длительные синхронные операции без background queue.
-3. Raw tables/text могут сделать JSON слишком большим и раскрыть лишние данные.
+3. Raw tables/text исключены из основного detail DTO; отдельный debug endpoint
+   не добавлен, пока не доказана продуктовая потребность.
 4. Mapping preview может потерять draft при `422`, network error или Back.
-5. Stale UI может повторить reparse/ignore/delete после изменения lifecycle.
+5. Reparse/ignore/delete используют expected status и повторную server policy
+   check; дальнейшая версия документа понадобится только при более тонких
+   same-status гонках.
 6. Mapping import retry может повторно создать raw rows.
 7. Viewer и manager должны видеть разные capabilities, но один status truth.
 8. Ссылки из dashboard/chat/accounts могут оставить пользователя в legacy UI.

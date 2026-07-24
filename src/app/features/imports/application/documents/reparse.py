@@ -40,10 +40,15 @@ class StatementReparseUseCase:
         *,
         context: WorkspaceContext,
         document_id: UUID,
+        expected_status: UploadedDocumentStatus | None = None,
     ) -> UploadedDocument:
-        document = await self.imports.get_document_for_workspace(context.workspace.id, document_id)
+        document = await self.imports.get_document_for_workspace_for_update(
+            context.workspace.id, document_id
+        )
         if document is None:
             raise ImportReparseError("Document was not found.")
+        if expected_status is not None and document.status is not expected_status:
+            raise ImportReparseError("Document state changed. Refresh the page and try again.")
         if any(row.status == RawTransactionStatus.CONFIRMED for row in document.raw_transactions):
             raise ImportReparseError("Documents with confirmed ledger rows cannot be reparsed.")
 

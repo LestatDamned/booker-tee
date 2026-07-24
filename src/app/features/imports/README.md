@@ -326,10 +326,6 @@ imports/
     documents.py
     field_labels.py
     mapping_suggestions.py
-    document_page/
-      formatting.py
-      models.py
-      presenter.py
     mapping/
       form.py
       models.py
@@ -412,18 +408,15 @@ review state, mapping warning text или другие смысловые под
 
 Текущие presentation-пакеты:
 
-- `presentation/documents.py` - компактные VM для списка импортированных
-  документов.
-- `presentation/document_page/` - страница конкретного документа:
-  workflow/status labels, next step, validation summary, previews, raw rows and
-  technical debug blocks.
+- `presentation/documents.py` - временный SSR presenter формы загрузки до
+  Slice 02 cutover.
 - `presentation/mapping/` - страница ручного маппинга неизвестной выписки:
   page VM, form options, selected table preview, import preview and warnings.
 - `presentation/review/` - import review page: review item VM, action VM,
   panel payloads, page context and review-specific labels.
 - `presentation/field_labels.py` - общие человекочитаемые labels для полей
   выписки, когда один и тот же field name показывается на нескольких страницах.
-- `presentation/mapping_suggestions.py` - общий presenter для raw
+- `presentation/mapping_suggestions.py` - mapping presenter для raw
   `mapping_suggestions`: превращает suggestion payload из unknown-statement
   analysis в `MappingSuggestionVM` с готовыми `title`, `reason.message` и
   `warning.message`.
@@ -619,17 +612,17 @@ import path easy to test.
 - `mapping/dto.py` - import detail view models and mapper.
 - `presentation/` - SSR/Jinja-facing presenters and ViewModels. This layer
   prepares display labels, page contracts, selected mapping table previews,
-  shared mapping suggestion messages, review item/action VMs, and document
-  detail page VMs. It must not mutate imports, post ledger entries, or decide
-  persistence state transitions.
-- `presentation/document_page/` - presenter, VM models, and formatting helpers
-  for `/imports/documents/{document_id}`.
+  shared mapping suggestion messages and review item/action VMs. It must not
+  mutate imports, post ledger entries, or decide persistence state transitions.
+- `application/documents/detail_reading.py` и `/api/v1/imports/documents/{id}`
+  владеют безопасной typed projection React document detail; technical storage
+  paths и полный raw payload в browser DTO не входят.
 - `presentation/mapping/` - presenter, VM models, form/table/preview builders
   for `/imports/documents/{document_id}/mapping`.
 - `presentation/review/` - review page presenter and VMs for raw transaction
   review, action system, and expandable panels.
-- `presentation/mapping_suggestions.py` - shared raw mapping suggestion to UI VM
-  conversion used by document detail and mapping pages.
+- `presentation/mapping_suggestions.py` - raw mapping suggestion to UI VM
+  conversion для legacy mapping page.
 - `presentation/field_labels.py` - shared human labels for mapping/raw statement
   field names.
 - `errors.py` - import-specific application exceptions.

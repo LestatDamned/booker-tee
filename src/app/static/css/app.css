@@ -395,7 +395,6 @@ p {
   align-items: start;
 }
 
-.import-document-page,
 .import-mapping-page {
   gap: 16px;
 }
@@ -505,10 +504,6 @@ p {
   line-height: 1.05;
   overflow-wrap: break-word;
   word-break: normal;
-}
-
-.import-document-page .import-page-title h1 {
-  font-size: clamp(2.25rem, 5vw, 2.8rem);
 }
 
 .import-document-name {
@@ -1983,10 +1978,6 @@ html:not(.entity-target-cleared) .entity-card:target {
   opacity: 1;
 }
 
-.debug-details .parse-debug {
-  margin-top: 10px;
-}
-
 .category-edit-details {
   border: 1px solid var(--border);
   background: var(--surface-strong);
@@ -2456,29 +2447,6 @@ html:not(.entity-target-cleared) .entity-card:target {
   color: var(--muted);
   opacity: 0.72;
 }
-
-.import-document-page .workflow-steps {
-  border-color: color-mix(in srgb, var(--border) 72%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--border) 68%, transparent);
-  overflow: hidden;
-}
-
-.import-document-page .workflow-step {
-  min-height: 48px;
-  background: color-mix(in srgb, var(--surface-strong) 76%, transparent);
-  padding: 8px 10px;
-}
-
-.import-document-page .workflow-step small {
-  width: 24px;
-  height: 24px;
-}
-
-.import-document-page .workflow-step-current {
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface-strong));
-}
-
 
 .dashboard-card {
   min-width: 0;
@@ -3156,343 +3124,11 @@ pre {
   text-transform: uppercase;
 }
 
-.document-detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1px;
-  border: 1px solid var(--border);
-  background: var(--border);
-}
-
-.document-detail-grid.compact {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-
-.document-detail-card {
-  min-width: 0;
-  display: grid;
-  gap: 8px;
-  align-content: start;
-  background: var(--surface-strong);
-  padding: 12px;
-}
-
-.document-detail-card-wide {
-  grid-column: 1 / -1;
-}
-
-.document-detail-card span {
-  color: var(--accent);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-}
-
-.document-detail-card strong {
-  min-width: 0;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.92rem;
-  overflow-wrap: anywhere;
-}
-
-.technical-value {
-  color: var(--muted);
-  line-height: 1.45;
-}
-
-.parse-attempt-list {
-  display: grid;
-  gap: 8px;
-}
-
-.parse-attempt-card {
-  min-width: 0;
-  display: grid;
-  gap: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  padding: 12px;
-}
-
-.parse-attempt-head,
-.parse-attempt-times {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-}
-
-.parse-attempt-head strong,
-.parse-attempt-head span,
-.parse-attempt-times span,
-.parse-debug-header span {
-  border: 1px solid var(--border);
-  padding: 5px 8px;
-  overflow-wrap: anywhere;
-}
-
-.parse-attempt-head strong {
-  color: var(--accent);
-  text-transform: uppercase;
-}
-
-.parse-attempt-head span,
-.parse-attempt-times span,
-.parse-debug-header span {
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.parse-attempt-message {
-  max-width: none;
-  margin: 0;
-  color: var(--text);
-  overflow-wrap: anywhere;
-}
-
-.import-detail-empty {
-  grid-template-columns: 1fr;
-  border-color: color-mix(in srgb, var(--border) 82%, transparent);
-  border-left-color: color-mix(in srgb, var(--accent) 72%, var(--border));
-  background: color-mix(in srgb, var(--surface) 72%, transparent);
-}
-
 .import-mapping-empty,
 .import-mapping-notice {
   border-color: color-mix(in srgb, var(--border) 82%, transparent);
   border-left-color: color-mix(in srgb, var(--help) 72%, var(--border));
   background: color-mix(in srgb, var(--surface) 74%, transparent);
-}
-
-.import-parse-history {
-  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  padding-top: 10px;
-}
-
-.import-parse-history__summary {
-  min-height: 40px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  color: var(--muted);
-  cursor: pointer;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
-  list-style: none;
-  text-transform: uppercase;
-}
-
-.import-parse-history__summary::-webkit-details-marker {
-  display: none;
-}
-
-.import-parse-history__summary strong {
-  color: var(--text);
-  font-size: 0.86rem;
-  text-transform: none;
-}
-
-.import-parse-history__eyebrow {
-  color: color-mix(in srgb, var(--accent) 82%, var(--muted));
-}
-
-.import-parse-history__list {
-  margin-top: 8px;
-}
-
-.import-parse-attempt {
-  gap: 10px;
-  border-color: color-mix(in srgb, var(--border) 82%, transparent);
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
-}
-
-.import-parse-attempt__head {
-  justify-content: space-between;
-}
-
-.import-parse-attempt__title {
-  min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-
-.import-parse-attempt__id {
-  margin-left: auto;
-}
-
-.import-parse-attempt__times {
-  padding-top: 2px;
-}
-
-.import-detail-debug {
-  opacity: 0.84;
-}
-
-.import-detail-debug__item {
-  min-width: 0;
-  max-width: 100%;
-  display: block;
-  margin-top: 6px;
-  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
-  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
-  padding: 6px 8px;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
-.parse-debug {
-  min-width: 0;
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
-}
-
-.parse-debug-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.raw-transaction-list {
-  display: grid;
-  gap: 8px;
-}
-
-.raw-transaction-card {
-  min-width: 0;
-  display: grid;
-  gap: 8px;
-  border: 1px solid var(--border);
-  border-left-width: 4px;
-  border-left-color: var(--accent);
-  background: var(--surface);
-  padding: 10px;
-}
-
-.raw-transaction-head {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(140px, auto) auto auto auto;
-  gap: 8px;
-  align-items: center;
-  justify-content: start;
-}
-
-.raw-transaction-amount {
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid currentColor;
-  padding: 0 10px;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 1.08rem;
-}
-
-.raw-transaction-amount small {
-  margin-left: 6px;
-  font-size: 0.72rem;
-}
-
-.raw-transaction-date,
-.raw-transaction-index {
-  color: var(--muted);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-}
-
-.raw-transaction-index {
-  opacity: 0.82;
-}
-
-.raw-transaction-debug {
-  justify-self: start;
-}
-
-.import-raw-row {
-  display: grid;
-  gap: 10px;
-  border-left-width: 3px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 86%, transparent);
-  overflow: hidden;
-  padding: 12px;
-}
-
-.import-raw-row--income {
-  border-color: color-mix(in srgb, var(--green) 42%, var(--border));
-}
-
-.import-raw-row--expense {
-  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
-}
-
-.import-raw-row__topline {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  gap: 12px;
-  align-items: center;
-  justify-content: stretch;
-}
-
-.import-raw-row__meta {
-  min-width: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  align-items: center;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-}
-
-.import-raw-row__amount {
-  min-height: 36px;
-  justify-self: end;
-  justify-content: flex-end;
-  border-radius: 6px;
-  background: color-mix(in srgb, currentColor 5%, transparent);
-  white-space: nowrap;
-}
-
-.import-raw-row__date,
-.import-raw-row__status,
-.import-raw-row__index {
-  min-height: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  font-size: 0.76rem;
-  line-height: 1.4;
-}
-
-.import-raw-row__description {
-  max-width: none;
-  margin: 0;
-  color: var(--text);
-  font-size: 1.02rem;
-  font-weight: 640;
-  line-height: 1.45;
-}
-
-.import-raw-row__debug {
-  justify-self: start;
 }
 
 .preview-meta {
@@ -5298,10 +4934,6 @@ html:not(.entity-target-cleared) .rule-card:target {
     grid-template-columns: 1fr;
   }
 
-  .raw-transaction-head {
-    grid-template-columns: 1fr auto;
-  }
-
   .import-table-viewport--responsive {
     display: none;
   }
@@ -5340,21 +4972,11 @@ html:not(.entity-target-cleared) .rule-card:target {
     padding: 8px;
   }
 
-  .import-raw-row__topline {
-    grid-template-columns: 1fr;
-  }
-
   .mapping-preview-row__topline {
     grid-template-columns: 1fr;
   }
 
   .mapping-preview-row__amount {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .raw-transaction-amount {
-    grid-column: 1 / -1;
     width: 100%;
     justify-content: space-between;
   }

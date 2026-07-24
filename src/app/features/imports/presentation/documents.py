@@ -3,11 +3,6 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from app.features.imports.application.documents.detail_view import ImportDocumentDetailView
-from app.features.imports.presentation.document_page.presenter import (
-    DocumentDetailPresenter,
-)
-
 
 @dataclass(frozen=True)
 class ImportPageNextStepVM:
@@ -91,23 +86,6 @@ class UploadPageContext:
             accounts=self.accounts,
             workspace=workspace,
             error=self.error,
-        )
-        return {
-            "app_name": app_name,
-            "page": page,
-            "workspace": workspace,
-        }
-
-
-@dataclass(frozen=True)
-class DocumentDetailPageContext:
-    view: ImportDocumentDetailView
-    can_manage_imports: bool
-
-    def template_values(self, *, app_name: str, workspace: object) -> dict[str, object]:
-        page = DocumentDetailPresenter().build(
-            self.view,
-            can_manage_imports=self.can_manage_imports,
         )
         return {
             "app_name": app_name,

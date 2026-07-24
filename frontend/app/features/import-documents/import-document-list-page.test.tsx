@@ -35,7 +35,7 @@ describe("ImportDocumentListPage", () => {
     );
     expect(
       within(table).getByRole("link", { name: "Открыть" }),
-    ).toHaveAttribute("href", `/imports/documents/${failedDocumentId}`);
+    ).toHaveAttribute("href", `/app/imports/documents/${failedDocumentId}`);
   });
 
   it("renders an upload empty state for an import manager", () => {

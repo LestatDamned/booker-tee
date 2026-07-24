@@ -21,6 +21,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/imports/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Import Document */
+        get: operations["get_import_document_api_v1_imports_documents__document_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Import Document */
+        delete: operations["delete_import_document_api_v1_imports_documents__document_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/documents/{document_id}/reparse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reparse Import Document */
+        post: operations["reparse_import_document_api_v1_imports_documents__document_id__reparse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/documents/{document_id}/ignore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ignore Import Document */
+        post: operations["ignore_import_document_api_v1_imports_documents__document_id__ignore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/import-review/{document_id}/items/{item_id}/confirm": {
         parameters: {
             query?: never;
@@ -550,57 +602,6 @@ export interface paths {
         get: operations["document_detail_imports_documents__document_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/imports/documents/{document_id}/reparse": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Reparse Document */
-        post: operations["reparse_document_imports_documents__document_id__reparse_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/imports/documents/{document_id}/ignore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Ignore Document */
-        post: operations["ignore_document_imports_documents__document_id__ignore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/imports/documents/{document_id}/delete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Delete Document */
-        post: operations["delete_document_imports_documents__document_id__delete_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1461,6 +1462,184 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * ImportDocumentActionBlockingReason
+         * @enum {string}
+         */
+        ImportDocumentActionBlockingReason: "import_management_forbidden" | "confirmed_rows_exist" | "linked_operations_exist" | "already_ignored";
+        /** ImportDocumentActionCapabilityApiResponse */
+        ImportDocumentActionCapabilityApiResponse: {
+            /** Allowed */
+            allowed: boolean;
+            /** Blockingreasoncodes */
+            blockingReasonCodes: components["schemas"]["ImportDocumentActionBlockingReason"][];
+        };
+        /** ImportDocumentDeleteApiResponse */
+        ImportDocumentDeleteApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Deleted */
+            deleted: boolean;
+            /** Navigationtarget */
+            navigationTarget: string;
+        };
+        /** ImportDocumentDetailAccountApiResponse */
+        ImportDocumentDetailAccountApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+        };
+        /** ImportDocumentDetailApiResponse */
+        ImportDocumentDetailApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Filename */
+            filename: string;
+            status: components["schemas"]["UploadedDocumentStatus"];
+            /** Bankname */
+            bankName: string | null;
+            /** Statementtype */
+            statementType: string | null;
+            /** Statementperiodstart */
+            statementPeriodStart: string | null;
+            /** Statementperiodend */
+            statementPeriodEnd: string | null;
+            /** Filesizebytes */
+            fileSizeBytes: number | null;
+            /** Createdat */
+            createdAt: string | null;
+            /** Updatedat */
+            updatedAt: string | null;
+            account: components["schemas"]["ImportDocumentDetailAccountApiResponse"] | null;
+            workflow: components["schemas"]["ImportDocumentDetailWorkflowApiResponse"];
+            nextStep: components["schemas"]["ImportDocumentDetailNextStep"];
+            validation: components["schemas"]["ImportDocumentDetailValidationApiResponse"] | null;
+            rawRows: components["schemas"]["ImportDocumentDetailCollectionApiResponse_ImportDocumentDetailRawRowApiResponse_"];
+            parseAttempts: components["schemas"]["ImportDocumentDetailCollectionApiResponse_ImportDocumentDetailAttemptApiResponse_"];
+            capabilities: components["schemas"]["ImportDocumentDetailCapabilitiesApiResponse"];
+        };
+        /** ImportDocumentDetailAttemptApiResponse */
+        ImportDocumentDetailAttemptApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ParseAttemptStatus"];
+            /** Parsername */
+            parserName: string;
+            /** Parserversion */
+            parserVersion: string | null;
+            /**
+             * Startedat
+             * Format: date-time
+             */
+            startedAt: string;
+            /** Finishedat */
+            finishedAt: string | null;
+            /** Message */
+            message: string;
+        };
+        /** ImportDocumentDetailCapabilitiesApiResponse */
+        ImportDocumentDetailCapabilitiesApiResponse: {
+            /** Canmanage */
+            canManage: boolean;
+            reparse: components["schemas"]["ImportDocumentActionCapabilityApiResponse"];
+            ignore: components["schemas"]["ImportDocumentActionCapabilityApiResponse"];
+            delete: components["schemas"]["ImportDocumentActionCapabilityApiResponse"];
+        };
+        /** ImportDocumentDetailCollectionApiResponse[ImportDocumentDetailAttemptApiResponse] */
+        ImportDocumentDetailCollectionApiResponse_ImportDocumentDetailAttemptApiResponse_: {
+            /** Items */
+            items: components["schemas"]["ImportDocumentDetailAttemptApiResponse"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+        };
+        /** ImportDocumentDetailCollectionApiResponse[ImportDocumentDetailRawRowApiResponse] */
+        ImportDocumentDetailCollectionApiResponse_ImportDocumentDetailRawRowApiResponse_: {
+            /** Items */
+            items: components["schemas"]["ImportDocumentDetailRawRowApiResponse"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+        };
+        /**
+         * ImportDocumentDetailNextStep
+         * @enum {string}
+         */
+        ImportDocumentDetailNextStep: "mapping" | "review" | "upload" | "document_list";
+        /** ImportDocumentDetailRawRowApiResponse */
+        ImportDocumentDetailRawRowApiResponse: {
+            /** Rowindex */
+            rowIndex: number;
+            status: components["schemas"]["RawTransactionStatus"];
+            /** Displaydate */
+            displayDate: string | null;
+            /** Amount */
+            amount: string | null;
+            /** Amountraw */
+            amountRaw: string | null;
+            /** Currency */
+            currency: string | null;
+            /** Description */
+            description: string;
+            /** Normalizationerror */
+            normalizationError: string;
+        };
+        /** ImportDocumentDetailValidationApiResponse */
+        ImportDocumentDetailValidationApiResponse: {
+            /** Status */
+            status: string;
+            reasonCode: components["schemas"]["ImportDocumentDetailValidationReasonCode"];
+            /** Message */
+            message: string;
+            /** Extractedcount */
+            extractedCount: number | null;
+            /** Calculatedtotalinflow */
+            calculatedTotalInflow: string | null;
+            /** Calculatedtotaloutflow */
+            calculatedTotalOutflow: string | null;
+            /** Ignoredrowcount */
+            ignoredRowCount: number;
+            /** Ignoredtotalinflow */
+            ignoredTotalInflow: string | null;
+            /** Ignoredtotaloutflow */
+            ignoredTotalOutflow: string | null;
+            /** Currency */
+            currency: string | null;
+            /** Tablecount */
+            tableCount: number | null;
+            /** Needsmapping */
+            needsMapping: boolean;
+        };
+        /**
+         * ImportDocumentDetailValidationReasonCode
+         * @enum {string}
+         */
+        ImportDocumentDetailValidationReasonCode: "totals_match" | "rows_need_review" | "balance_chain_mismatch" | "control_totals_unavailable" | "control_totals_mismatch" | "ignored_rows_explain_mismatch" | "needs_mapping" | "validation_failed";
+        /** ImportDocumentDetailWorkflowApiResponse */
+        ImportDocumentDetailWorkflowApiResponse: {
+            upload: components["schemas"]["ImportDocumentWorkflowStepState"];
+            extract: components["schemas"]["ImportDocumentWorkflowStepState"];
+            mapping: components["schemas"]["ImportDocumentWorkflowStepState"];
+            review: components["schemas"]["ImportDocumentWorkflowStepState"];
+            ledger: components["schemas"]["ImportDocumentWorkflowStepState"];
+        };
         /** ImportDocumentListAccountApiResponse */
         ImportDocumentListAccountApiResponse: {
             /**
@@ -1568,6 +1747,10 @@ export interface components {
             /** Attentiondocumentcount */
             attentionDocumentCount: number;
         };
+        /** ImportDocumentMutationApiRequest */
+        ImportDocumentMutationApiRequest: {
+            expectedStatus: components["schemas"]["UploadedDocumentStatus"];
+        };
         /**
          * ImportDocumentNextStepKind
          * @enum {string}
@@ -1586,6 +1769,11 @@ export interface components {
              */
             end: string;
         };
+        /**
+         * ImportDocumentWorkflowStepState
+         * @enum {string}
+         */
+        ImportDocumentWorkflowStepState: "pending" | "current" | "done" | "skipped" | "blocked";
         /** ImportReviewAccountApiResponse */
         ImportReviewAccountApiResponse: {
             /**
@@ -2417,6 +2605,11 @@ export interface components {
          */
         OperationType: "income" | "expense" | "transfer" | "adjustment";
         /**
+         * ParseAttemptStatus
+         * @enum {string}
+         */
+        ParseAttemptStatus: "running" | "success" | "requires_review" | "failed";
+        /**
          * RawTransactionStatus
          * @enum {string}
          */
@@ -2586,6 +2779,277 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_import_document_api_v1_imports_documents__document_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportDocumentDetailApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_import_document_api_v1_imports_documents__document_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportDocumentMutationApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportDocumentDeleteApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reparse_import_document_api_v1_imports_documents__document_id__reparse_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportDocumentMutationApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportDocumentDetailApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ignore_import_document_api_v1_imports_documents__document_id__ignore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportDocumentMutationApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportDocumentDetailApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4352,99 +4816,6 @@ export interface operations {
         };
     };
     document_detail_imports_documents__document_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reparse_document_imports_documents__document_id__reparse_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    ignore_document_imports_documents__document_id__ignore_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_document_imports_documents__document_id__delete_post: {
         parameters: {
             query?: never;
             header?: never;

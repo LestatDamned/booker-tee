@@ -412,7 +412,9 @@ def prepare_realistic_scenario(
         "account_detail_path": account_detail_path or "",
         "manual_target_path": manual_target_path,
         "document_detail_path": detail_path,
-        "mapping_path": f"{detail_path.rstrip('/')}/mapping",
+        "mapping_path": (
+            f"{detail_path.replace('/app/imports/', '/imports/', 1).rstrip('/')}/mapping"
+        ),
         "document_name": document_name,
         "rule_category_name": rule_category_name,
         "property_name": property_name,
@@ -436,17 +438,17 @@ def prepare_review_interaction_scenario(
     page = context.new_page()
     try:
         detail_url = page.url
-        if "/imports/documents/" not in detail_url:
+        if "/app/imports/documents/" not in detail_url:
             page.goto(build_url(base_url, "/imports"), wait_until="domcontentloaded")
             document_record = page.locator("tr:visible, article:visible").filter(
                 has_text=scenario_state["document_name"]
             )
             document_record.wait_for(timeout=PAGE_TIMEOUT_MS)
-            document_record.locator('a[href^="/imports/documents/"]').first.click()
+            document_record.locator('a[href^="/app/imports/documents/"]').first.click()
             page.wait_for_url("**/imports/documents/**", timeout=PAGE_TIMEOUT_MS)
             detail_url = page.url
 
-        mapping_url = f"{detail_url.rstrip('/')}/mapping"
+        mapping_url = f"{detail_url.replace('/app/imports/', '/imports/', 1).rstrip('/')}/mapping"
         page.goto(mapping_url, wait_until="domcontentloaded")
         page.locator("#mapping-form").wait_for(timeout=PAGE_TIMEOUT_MS)
         page.locator('select[name="operation_date_column"]').select_option("0")

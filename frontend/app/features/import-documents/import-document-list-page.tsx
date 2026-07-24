@@ -240,7 +240,7 @@ function DocumentTableRow({
       <th scope="row">
         <a
           className={styles.accountLink}
-          href={`/imports/documents/${document.id}`}
+          href={`/app/imports/documents/${document.id}`}
         >
           {document.account?.name ?? "Счёт не определён"}
         </a>
@@ -289,7 +289,7 @@ function DocumentMobileList({
                 <div>
                   <a
                     className={styles.accountLink}
-                    href={`/imports/documents/${document.id}`}
+                    href={`/app/imports/documents/${document.id}`}
                   >
                     {document.account?.name ?? "Счёт не определён"}
                   </a>
@@ -353,7 +353,7 @@ export function documentAction(document: ImportDocumentListItemDto): {
     };
   }
   return {
-    href: `/imports/documents/${document.id}`,
+    href: `/app/imports/documents/${document.id}`,
     label: "Открыть",
   };
 }

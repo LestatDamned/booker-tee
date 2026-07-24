@@ -33,6 +33,7 @@ class ImportRawTransactionRow:
     currency: str | None
     description: str
     normalization_error: str
+    linked_operation_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -71,6 +72,11 @@ class ImportDocumentDetailView:
     validation: dict[str, object] | None
     raw_transactions: list[ImportRawTransactionRow]
     parse_attempts: list[ImportParseAttemptView]
+    statement_period_start: date | None = None
+    statement_period_end: date | None = None
+    file_size_bytes: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class ImportDocumentDetailViewMapper:
@@ -95,6 +101,11 @@ class ImportDocumentDetailViewMapper:
             storage_key=document.storage_key,
             bank_name=document.bank_name,
             statement_type=document.statement_type,
+            statement_period_start=document.statement_period_start,
+            statement_period_end=document.statement_period_end,
+            file_size_bytes=document.file_size_bytes,
+            created_at=document.created_at,
+            updated_at=document.updated_at,
             account=ImportDocumentDetailViewMapper.account_ref(document),
             validation=latest_attempt.validation_report if latest_attempt else None,
             raw_transactions=[
@@ -127,6 +138,7 @@ class ImportDocumentDetailViewMapper:
             currency=row.currency,
             description=row.description_normalized or row.description_raw or "",
             normalization_error=row.normalization_error or "",
+            linked_operation_id=row.linked_operation_id,
         )
 
     @staticmethod

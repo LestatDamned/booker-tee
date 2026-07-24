@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.main import create_app
 from app.react_frontend import install_react_frontend
 
 
@@ -77,3 +78,19 @@ def test_historical_imports_url_redirects_with_query(tmp_path: Path) -> None:
 
     assert response.status_code == 307
     assert response.headers["location"] == "/app/imports?source=dashboard"
+
+
+def test_historical_import_document_url_redirects_with_query() -> None:
+    document_id = "5e4c43a1-7e08-4afe-a442-5d1d72e08ca8"
+    app = create_app()
+
+    with TestClient(app) as client:
+        response = client.get(
+            f"/imports/documents/{document_id}?source=dashboard",
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 307
+    assert response.headers["location"] == (
+        f"/app/imports/documents/{document_id}?source=dashboard"
+    )

@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,26 +9,14 @@ from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.accounts.service import AccountService
-from app.features.imports.application.documents.management import (
-    ImportDocumentManagementUseCase,
-)
-from app.features.imports.application.documents.reparse import StatementReparseUseCase
 from app.features.imports.application.documents.upload import StatementUploadUseCase
-from app.features.imports.errors import (
-    ImportDocumentManagementError,
-    ImportReparseError,
-    UploadValidationError,
-)
+from app.features.imports.errors import UploadValidationError
 from app.features.imports.presentation.documents import (
-    DocumentDetailPageContext,
     UploadPageContext,
 )
-from app.features.imports.service import ImportService
 from app.features.workspaces.dependencies import (
-    get_current_workspace_context,
     require_import_management_context,
 )
-from app.features.workspaces.permissions import can_manage_imports
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
 
@@ -87,96 +75,18 @@ async def upload_statement(
         )
 
     return RedirectResponse(
-        url=f"/imports/documents/{document.id}",
+        url=f"/app/imports/documents/{document.id}",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
 
-@router.get("/documents/{document_id}", response_class=HTMLResponse)
+@router.get("/documents/{document_id}")
 async def document_detail(
     request: Request,
     document_id: UUID,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
-) -> HTMLResponse:
-    view = await ImportService(session).get_document_detail_view(context.workspace.id, document_id)
-    if view is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-
-    page_context = DocumentDetailPageContext(
-        view=view,
-        can_manage_imports=can_manage_imports(context.membership),
-    )
-    return templates.TemplateResponse(
-        request,
-        "imports/detail.html",
-        page_context.template_values(
-            app_name=settings.app_name,
-            workspace=context.workspace,
-        ),
-    )
-
-
-@router.post("/documents/{document_id}/reparse")
-async def reparse_document(
-    document_id: UUID,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
 ) -> Response:
-    try:
-        await StatementReparseUseCase(session, settings).reparse_document(
-            context=context,
-            document_id=document_id,
-        )
-    except ImportReparseError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-
+    query = f"?{request.url.query}" if request.url.query else ""
     return RedirectResponse(
-        url=f"/imports/documents/{document_id}",
-        status_code=status.HTTP_303_SEE_OTHER,
+        url=f"/app/imports/documents/{document_id}{query}",
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
     )
-
-
-@router.post("/documents/{document_id}/ignore")
-async def ignore_document(
-    document_id: UUID,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
-) -> Response:
-    try:
-        await ImportDocumentManagementUseCase(session, settings).ignore_document(
-            workspace_id=context.workspace.id,
-            document_id=document_id,
-        )
-    except ImportDocumentManagementError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-    return RedirectResponse(url="/imports", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@router.post("/documents/{document_id}/delete")
-async def delete_document(
-    document_id: UUID,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(require_import_management_context)],
-) -> Response:
-    try:
-        await ImportDocumentManagementUseCase(session, settings).delete_document(
-            workspace_id=context.workspace.id,
-            document_id=document_id,
-        )
-    except ImportDocumentManagementError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-    return RedirectResponse(url="/imports", status_code=status.HTTP_303_SEE_OTHER)
