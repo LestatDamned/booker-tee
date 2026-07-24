@@ -5,7 +5,6 @@ from typing import Any, cast
 from uuid import uuid4
 
 from app.features.imports.models import UploadedDocumentStatus
-from app.features.imports.presentation.mapping.models import MappingDocumentVM, MappingNextStepVM
 from app.features.workspaces.models import (
     WorkspaceAuditEventType,
     WorkspaceInvitationStatus,
@@ -373,40 +372,3 @@ def incomplete_dashboard_overview() -> SimpleNamespace:
             uncategorized=[],
         ),
     )
-
-
-def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
-    document_id = uuid4()
-    html = render_template(
-        "imports/mapping.html",
-        app_name="Booker Tee",
-        page=SimpleNamespace(
-            document=MappingDocumentVM(
-                status_label="требует проверки",
-                filename="statement.pdf",
-                detail_url=f"/app/imports/documents/{document_id}",
-                preview_url=f"/imports/documents/{document_id}/mapping",
-                import_url=f"/imports/documents/{document_id}/mapping/import",
-            ),
-            next_step=MappingNextStepVM(
-                title="Вернитесь к документу",
-                message=(
-                    "Таблицы для настройки не найдены. Проверьте детали парсинга "
-                    "или загрузите выписку заново."
-                ),
-                primary_href=f"/app/imports/documents/{document_id}",
-                primary_label="открыть документ",
-                primary_icon="file-text",
-                secondary_href="/app/imports/upload",
-                secondary_label="загрузить заново",
-                secondary_icon="upload",
-            ),
-            template_notice=None,
-            table_picker_options=[],
-        ),
-    )
-
-    assert "workflow-step-current" in html
-    assert "Настройка" in html
-    assert "Вернитесь к документу" in html
-    assert f"/app/imports/documents/{document_id}" in html

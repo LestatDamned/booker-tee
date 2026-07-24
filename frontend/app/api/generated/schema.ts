@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/imports/documents/{document_id}/mapping/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Unknown Statement Mapping */
+        post: operations["import_unknown_statement_mapping_api_v1_imports_documents__document_id__mapping_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/imports/upload-reference": {
         parameters: {
             query?: never;
@@ -659,41 +676,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/imports/documents/{document_id}/mapping": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Document Mapping Form */
-        get: operations["document_mapping_form_imports_documents__document_id__mapping_get"];
-        put?: never;
-        /** Preview Document Mapping */
-        post: operations["preview_document_mapping_imports_documents__document_id__mapping_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/imports/documents/{document_id}/mapping/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Import Document Mapping */
-        post: operations["import_document_mapping_imports_documents__document_id__mapping_import_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/properties": {
         parameters: {
             query?: never;
@@ -1279,54 +1261,6 @@ export interface components {
             /** View */
             view?: string | null;
         };
-        /** Body_import_document_mapping_imports_documents__document_id__mapping_import_post */
-        Body_import_document_mapping_imports_documents__document_id__mapping_import_post: {
-            /** Table Ref */
-            table_ref: string;
-            /** Operation Date Column */
-            operation_date_column: number;
-            /** Description Column */
-            description_column: number;
-            /** Amount Column */
-            amount_column: number;
-            /**
-             * Posting Date Column
-             * @default -1
-             */
-            posting_date_column: number;
-            /**
-             * Debit Amount Column
-             * @default -1
-             */
-            debit_amount_column: number;
-            /**
-             * Credit Amount Column
-             * @default -1
-             */
-            credit_amount_column: number;
-            /**
-             * Balance After Column
-             * @default -1
-             */
-            balance_after_column: number;
-            /**
-             * Currency Column
-             * @default -1
-             */
-            currency_column: number;
-            /**
-             * First Data Row
-             * @default 1
-             */
-            first_data_row: number;
-            /**
-             * Default Currency
-             * @default RUB
-             */
-            default_currency: string;
-            /** Save Template Name */
-            save_template_name?: string | null;
-        };
         /** Body_login_login_post */
         Body_login_login_post: {
             /** Email */
@@ -1335,52 +1269,6 @@ export interface components {
             password: string;
             /** Next */
             next?: string | null;
-        };
-        /** Body_preview_document_mapping_imports_documents__document_id__mapping_post */
-        Body_preview_document_mapping_imports_documents__document_id__mapping_post: {
-            /** Table Ref */
-            table_ref: string;
-            /** Operation Date Column */
-            operation_date_column: number;
-            /** Description Column */
-            description_column: number;
-            /** Amount Column */
-            amount_column: number;
-            /**
-             * Posting Date Column
-             * @default -1
-             */
-            posting_date_column: number;
-            /**
-             * Debit Amount Column
-             * @default -1
-             */
-            debit_amount_column: number;
-            /**
-             * Credit Amount Column
-             * @default -1
-             */
-            credit_amount_column: number;
-            /**
-             * Balance After Column
-             * @default -1
-             */
-            balance_after_column: number;
-            /**
-             * Currency Column
-             * @default -1
-             */
-            currency_column: number;
-            /**
-             * First Data Row
-             * @default 1
-             */
-            first_data_row: number;
-            /**
-             * Default Currency
-             * @default RUB
-             */
-            default_currency: string;
         };
         /** Body_restore_category_categories__category_id__restore_post */
         Body_restore_category_categories__category_id__restore_post: {
@@ -2749,6 +2637,41 @@ export interface components {
          * @enum {string}
          */
         MappingDefaultSource: "template" | "analyzer" | "fallback";
+        /** MappingImportApiRequest */
+        MappingImportApiRequest: {
+            mapping: components["schemas"]["MappingCommandApiModel"];
+            /** Templatename */
+            templateName?: string | null;
+        };
+        /** MappingImportApiResponse */
+        MappingImportApiResponse: {
+            /**
+             * Documentid
+             * Format: uuid
+             */
+            documentId: string;
+            status: components["schemas"]["UploadedDocumentStatus"];
+            /** Importedrowcount */
+            importedRowCount: number;
+            /** Templateid */
+            templateId: string | null;
+            /** Replayed */
+            replayed: boolean;
+            reviewTarget: components["schemas"]["MappingImportTargetApiResponse"];
+        };
+        /** MappingImportTargetApiResponse */
+        MappingImportTargetApiResponse: {
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "import_review";
+            /**
+             * Documentid
+             * Format: uuid
+             */
+            documentId: string;
+        };
         /** MappingPreviewApiRequest */
         MappingPreviewApiRequest: {
             mapping: components["schemas"]["MappingCommandApiModel"];
@@ -3152,6 +3075,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MappingPreviewApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    import_unknown_statement_mapping_api_v1_imports_documents__document_id__mapping_import_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MappingImportApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingImportApiResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -5387,107 +5383,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    document_mapping_form_imports_documents__document_id__mapping_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    preview_document_mapping_imports_documents__document_id__mapping_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_preview_document_mapping_imports_documents__document_id__mapping_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    import_document_mapping_imports_documents__document_id__mapping_import_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_import_document_mapping_imports_documents__document_id__mapping_import_post"];
-            };
-        };
         responses: {
             /** @description Successful Response */
             200: {

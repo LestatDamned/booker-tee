@@ -66,6 +66,32 @@ def test_historical_import_review_url_redirects_with_query(tmp_path: Path) -> No
     assert response.headers["location"] == ("/app/imports/documents/document-id/review?source=chat")
 
 
+def test_historical_import_mapping_only_redirects_get_with_query() -> None:
+    document_id = "5e4c43a1-7e08-4afe-a442-5d1d72e08ca8"
+    app = create_app()
+
+    with TestClient(app) as client:
+        get_response = client.get(
+            f"/imports/documents/{document_id}/mapping?source=document",
+            follow_redirects=False,
+        )
+        preview_response = client.post(
+            f"/imports/documents/{document_id}/mapping",
+            follow_redirects=False,
+        )
+        import_response = client.post(
+            f"/imports/documents/{document_id}/mapping/import",
+            follow_redirects=False,
+        )
+
+    assert get_response.status_code == 307
+    assert get_response.headers["location"] == (
+        f"/app/imports/documents/{document_id}/mapping?source=document"
+    )
+    assert preview_response.status_code == 405
+    assert import_response.status_code == 404
+
+
 def test_historical_imports_url_redirects_with_query(tmp_path: Path) -> None:
     app = FastAPI()
     install_react_frontend(app, build_root=tmp_path / "missing")

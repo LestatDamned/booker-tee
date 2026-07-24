@@ -1,6 +1,6 @@
 # Slice 04: Unknown Statement Mapping
 
-Статус: active; шаги 4.1–4.3 завершены.
+Статус: completed; шаги 4.1–4.5 завершены.
 
 ## Outcome
 
@@ -99,8 +99,6 @@ compatibility mode:
 - import доступен до authoritative preview;
 - preview считает только bounded rows выбранной таблицы, тогда как import может
   затронуть несколько compatible tables;
-- повторный import supersede/recreate rows и пока не имеет payload-aware
-  idempotency;
 - все восемь ролей показаны одновременно;
 - table picker из одних номеров не помогает отличить кандидатов;
 - zero-based `first_data_row` раскрыт пользователю как внутренний индекс.
@@ -114,7 +112,7 @@ GET  /api/v1/imports/documents/{document_id}/mapping
 POST /api/v1/imports/documents/{document_id}/mapping/preview
 ```
 
-Остаётся на шаг 4.4:
+Добавлено на шаге 4.4:
 
 ```text
 POST /api/v1/imports/documents/{document_id}/mapping/import
@@ -152,7 +150,11 @@ Browser projection ограничена также по tables, cells и дли�
 Import request использует тот же typed command, optional template name и
 idempotency key. Он вызывает существующий mapping import use case,
 deduplication и document lifecycle. Успех возвращает committed document/review
-summary и canonical review target kind.
+summary и canonical review target kind. Выполнение записывается отдельно от
+raw rows с payload fingerprint; одинаковые document/key/payload возвращают
+committed результат, а повторное использование ключа с другим payload даёт
+`409`. Документ блокируется на время проверки и записи, а rows, optional
+template и execution фиксируются одной транзакцией.
 
 ## Frontend state/UI
 
@@ -174,8 +176,7 @@ summary и canonical review target kind.
 - Capability/no-table, pending, validation и network states имеют явный copy.
 - Ссылки из списка Imports и карточки документа ведут в canonical React route.
 
-Дополнение 4.3.1 фиксирует направление суммы без явного знака до реализации
-idempotent import:
+Дополнение 4.3.1 фиксирует направление суммы без явного знака:
 
 - для single amount mapping пользователь отвечает на вопрос
   `Что означает сумма без знака`;
@@ -196,6 +197,16 @@ idempotent import:
   сохраняют прежнюю семантику `Поступление`;
 - split debit/credit mapping определяет знак по роли колонки и не использует
   это правило.
+
+Реализовано на шаге 4.4:
+
+- import появляется только после актуального server preview с `canImport`;
+- `Обновить предпросмотр` остаётся отдельным secondary action;
+- optional template name показывается после валидного preview;
+- import не optimistic, блокирует mapping controls и повторный submit;
+- повтор после сетевой ошибки использует тот же client idempotency key;
+- успешный committed response переводит пользователя в canonical React Review.
+
 - Выбор table может отражаться в query parameter для Back/Forward, если это
   доказано interaction test; все восемь mapping fields в URL не помещаются.
 - Preview не очищает draft при `422`, `409` или network error.
@@ -247,7 +258,7 @@ Browser:
 
 ## Replacement/delete
 
-После gate удалить:
+Удалено на шаге 4.5:
 
 - `routes/mapping.py`;
 - `presentation/mapping/*`;
@@ -260,6 +271,24 @@ Historical mapping GET становится query-preserving redirect. Historica
 и import form POST endpoints удаляются, а не превращаются в постоянную вторую
 mutation surface.
 
+Completion record 2026-07-24:
+
+- historical GET перенесён в общий React adapter и сохраняет query string;
+- historical preview POST отвечает `405`, удалённый import POST — `404`;
+- legacy route, mapping presenters, templates, mapping-only partials, form
+  compatibility facade и template-only test удалены;
+- OpenAPI больше не содержит historical HTML mapping routes;
+- versioned read/preview/import API и React mapping остаются единственным
+  runtime workflow;
+- `scripts/ui_audit.py` переведён с legacy form selectors на canonical React
+  route, accessible labels и новый preview/import flow;
+- realistic mapping page прошла desktop `1440×1000`, tablet `920×900` и mobile
+  `390×844` без overflow, console/page/request errors;
+- mapping → preview → import → canonical Review и historical Review redirect
+  прошли на тех же трёх viewport;
+- отдельная расширенная `review_interactions` measurement большой очереди
+  остаётся общим Review gate: она не относится к mapping cutover.
+
 ## Exit gate
 
 - full unknown-statement mapping работает только в React/API;
@@ -268,4 +297,5 @@ mutation surface.
 - draft/error/back behavior доказаны interaction tests;
 - mapping ведёт в существующий canonical React review;
 - legacy mapping routes/presentation/templates удалены;
-- realistic browser mapping проходит на трёх viewport.
+- interaction/unit, API contract и redirect tests проходят;
+- realistic browser mapping и переход в Review проходят на трёх viewport.

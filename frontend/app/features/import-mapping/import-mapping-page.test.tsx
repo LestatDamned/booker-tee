@@ -1,9 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { previewImportMapping } from "./api/import-mapping-api";
+import {
+  commitImportMapping,
+  previewImportMapping,
+} from "./api/import-mapping-api";
 import { ImportMappingPage } from "./import-mapping-page";
 import {
   importMappingPayload,
@@ -14,14 +17,27 @@ import {
 vi.mock("./api/import-mapping-api", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("./api/import-mapping-api")>();
-  return { ...actual, previewImportMapping: vi.fn() };
+  return {
+    ...actual,
+    commitImportMapping: vi.fn(),
+    previewImportMapping: vi.fn(),
+  };
 });
 
 const previewMock = vi.mocked(previewImportMapping);
+const commitMock = vi.mocked(commitImportMapping);
+const navigateMock = vi.fn();
+
+vi.mock("react-router", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router")>();
+  return { ...actual, useNavigate: () => navigateMock };
+});
 
 describe("ImportMappingPage", () => {
   beforeEach(() => {
     previewMock.mockReset();
+    commitMock.mockReset();
+    navigateMock.mockReset();
   });
 
   it("shows account context, roles above source columns and the raw table", () => {
@@ -228,6 +244,98 @@ describe("ImportMappingPage", () => {
     expect(
       screen.getByText("Первая строка должна содержать данные."),
     ).toBeInTheDocument();
+  });
+
+  it("imports once, optionally saves a template and opens review", async () => {
+    const user = userEvent.setup();
+    const preview = importMappingPreview();
+    previewMock.mockResolvedValue({ status: "success", preview });
+    let resolveImport:
+      | ((value: Awaited<ReturnType<typeof commitImportMapping>>) => void)
+      | undefined;
+    commitMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveImport = resolve;
+        }),
+    );
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", { name: "Показать предпросмотр" }),
+    );
+    await screen.findByRole("button", {
+      name: `Импортировать ${preview.totalRowCount} строк`,
+    });
+    await user.click(screen.getByLabelText("Сохранить как шаблон"));
+    await user.type(
+      screen.getByLabelText("Название шаблона *"),
+      "Экспобанк — карта",
+    );
+    const importButton = screen.getByRole("button", {
+      name: `Импортировать ${preview.totalRowCount} строк`,
+    });
+    await user.click(importButton);
+    await user.click(importButton);
+
+    expect(commitMock).toHaveBeenCalledTimes(1);
+    expect(commitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateName: "Экспобанк — карта",
+        idempotencyKey: expect.any(String),
+      }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Создаём строки…" }),
+    ).toBeDisabled();
+
+    await act(async () => {
+      resolveImport?.({
+        status: "success",
+        result: {
+          documentId: importMappingPayload().documentId,
+          status: "requires_review",
+          importedRowCount: preview.totalRowCount,
+          templateId: null,
+          replayed: false,
+          reviewTarget: {
+            kind: "import_review",
+            documentId: importMappingPayload().documentId,
+          },
+        },
+      });
+    });
+
+    expect(navigateMock).toHaveBeenCalledWith(
+      `/imports/documents/${importMappingPayload().documentId}/review`,
+    );
+  });
+
+  it("does not offer import for a stale preview", async () => {
+    const user = userEvent.setup();
+    previewMock.mockResolvedValue({
+      status: "success",
+      preview: importMappingPreview(),
+    });
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", { name: "Показать предпросмотр" }),
+    );
+    expect(
+      await screen.findByRole("button", { name: /Импортировать/ }),
+    ).toBeVisible();
+    await user.selectOptions(
+      screen.getByLabelText("Если у суммы нет знака *"),
+      "expense",
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /Импортировать/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Обновить предпросмотр" }),
+    ).toBeVisible();
   });
 
   it("explains a server-owned capability block", () => {

@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
@@ -17,7 +18,10 @@ import type {
   ImportMappingDto,
   ImportMappingPreviewDto,
 } from "./api/import-mapping-api";
-import { previewImportMapping } from "./api/import-mapping-api";
+import {
+  commitImportMapping,
+  previewImportMapping,
+} from "./api/import-mapping-api";
 import styles from "./import-mapping-page.module.css";
 import {
   mappingFingerprint,
@@ -41,6 +45,7 @@ export function ImportMappingPage({
   mapping: ImportMappingDto;
   session: SessionDto;
 }) {
+  const navigate = useNavigate();
   const firstTable =
     mapping.tables.find(
       (table) =>
@@ -61,8 +66,16 @@ export function ImportMappingPage({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [previewSnapshot, setPreviewSnapshot] =
     useState<PreviewSnapshot | null>(null);
-  const [pending, setPending] = useState(false);
+  const [previewPending, setPreviewPending] = useState(false);
+  const [importPending, setImportPending] = useState(false);
+  const [saveTemplate, setSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateError, setTemplateError] = useState<string | null>(null);
   const previewHeadingRef = useRef<HTMLHeadingElement>(null);
+  const importAttemptRef = useRef<{
+    fingerprint: string;
+    idempotencyKey: string;
+  } | null>(null);
 
   const activeTable = mapping.tables.find(
     (table) => mappingTableKey(table.ref) === activeTableKey,
@@ -80,6 +93,11 @@ export function ImportMappingPage({
     previewSnapshot && !previewStale
       ? mappingPreviewFieldErrors(previewSnapshot.preview)
       : {};
+  const canImport =
+    previewSnapshot !== null &&
+    !previewStale &&
+    previewSnapshot.preview.canImport;
+  const busy = previewPending || importPending;
 
   const updateCommand = (nextCommand: ImportMappingCommand) => {
     setDraftsByTable((current) => ({
@@ -88,6 +106,7 @@ export function ImportMappingPage({
     }));
     setFieldErrors({});
     setSubmitError(null);
+    importAttemptRef.current = null;
   };
 
   const selectTable = (nextTableKey: string) => {
@@ -104,11 +123,12 @@ export function ImportMappingPage({
     setActiveTableKey(nextTableKey);
     setFieldErrors({});
     setSubmitError(null);
+    importAttemptRef.current = null;
   };
 
   const runPreview = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
-    if (!activeTable || pending) return;
+    if (!activeTable || busy) return;
     const clientErrors = validateMappingDraft(command, activeTable);
     setFieldErrors(clientErrors);
     setSubmitError(null);
@@ -118,13 +138,13 @@ export function ImportMappingPage({
       return;
     }
 
-    setPending(true);
+    setPreviewPending(true);
     const result = await previewImportMapping({
       command,
       csrfToken: session.csrfToken,
       documentId: mapping.documentId,
     });
-    setPending(false);
+    setPreviewPending(false);
     if (result.status === "unauthenticated") {
       window.location.assign(
         `/login?next=${encodeURIComponent(window.location.pathname)}`,
@@ -155,6 +175,67 @@ export function ImportMappingPage({
       preview: result.preview,
     });
     requestAnimationFrame(() => previewHeadingRef.current?.focus());
+  };
+
+  const runImport = async () => {
+    if (!canImport || !previewSnapshot || busy) return;
+    const cleanedTemplateName = saveTemplate ? templateName.trim() : null;
+    if (saveTemplate && !cleanedTemplateName) {
+      setTemplateError("Введите понятное название шаблона.");
+      document.getElementById("mappingTemplateName")?.focus();
+      return;
+    }
+
+    setTemplateError(null);
+    setSubmitError(null);
+    const fingerprint = JSON.stringify([
+      currentFingerprint,
+      cleanedTemplateName,
+    ]);
+    const attempt =
+      importAttemptRef.current?.fingerprint === fingerprint
+        ? importAttemptRef.current
+        : {
+            fingerprint,
+            idempotencyKey: crypto.randomUUID(),
+          };
+    importAttemptRef.current = attempt;
+    setImportPending(true);
+    const result = await commitImportMapping({
+      command,
+      csrfToken: session.csrfToken,
+      documentId: mapping.documentId,
+      idempotencyKey: attempt.idempotencyKey,
+      templateName: cleanedTemplateName,
+    });
+    setImportPending(false);
+
+    if (result.status === "unauthenticated") {
+      window.location.assign(
+        `/login?next=${encodeURIComponent(window.location.pathname)}`,
+      );
+      return;
+    }
+    if (result.status === "validation_error") {
+      const errors = Object.fromEntries(
+        Object.entries(result.fieldErrors).map(([field, messages]) => [
+          field,
+          messages[0] ?? result.message,
+        ]),
+      );
+      setFieldErrors(errors);
+      setSubmitError(result.message);
+      const field = firstMappingError(errors);
+      if (field) focusMappingField(field);
+      return;
+    }
+    if (result.status !== "success") {
+      setSubmitError(result.message);
+      return;
+    }
+    void navigate(
+      `/imports/documents/${result.result.reviewTarget.documentId}/review`,
+    );
   };
 
   const summaryErrors = mappingErrorSummary(fieldErrors);
@@ -228,7 +309,7 @@ export function ImportMappingPage({
                 )}
                 <MappingForm
                   command={command}
-                  disabled={pending}
+                  disabled={busy}
                   errors={{ ...previewFieldErrors, ...fieldErrors }}
                   table={activeTable}
                   tables={mapping.tables}
@@ -241,6 +322,69 @@ export function ImportMappingPage({
                   preview={previewSnapshot?.preview ?? null}
                   stale={previewStale}
                 />
+                {canImport ? (
+                  <section
+                    aria-labelledby="mapping-template-title"
+                    className={styles.importOptions}
+                  >
+                    <div>
+                      <p className={styles.sectionLabel}>Необязательно</p>
+                      <h2 id="mapping-template-title">
+                        Сохранить настройку колонок
+                      </h2>
+                      <p>
+                        Шаблон пригодится для следующих выписок с такой же
+                        структурой.
+                      </p>
+                    </div>
+                    <label className={styles.templateToggle}>
+                      <input
+                        checked={saveTemplate}
+                        disabled={busy}
+                        onChange={(event) => {
+                          setSaveTemplate(event.target.checked);
+                          setTemplateError(null);
+                          importAttemptRef.current = null;
+                        }}
+                        type="checkbox"
+                      />
+                      <span>Сохранить как шаблон</span>
+                    </label>
+                    {saveTemplate ? (
+                      <div className={styles.templateName}>
+                        <label htmlFor="mappingTemplateName">
+                          Название шаблона *
+                        </label>
+                        <input
+                          aria-describedby={
+                            templateError
+                              ? "mappingTemplateName-error"
+                              : undefined
+                          }
+                          aria-invalid={templateError ? "true" : undefined}
+                          disabled={busy}
+                          id="mappingTemplateName"
+                          maxLength={255}
+                          onChange={(event) => {
+                            setTemplateName(event.target.value);
+                            setTemplateError(null);
+                            importAttemptRef.current = null;
+                          }}
+                          placeholder="Например, Экспобанк — карта"
+                          value={templateName}
+                        />
+                        {templateError ? (
+                          <span
+                            className={styles.templateError}
+                            id="mappingTemplateName-error"
+                          >
+                            {templateError}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
               </div>
 
               <footer className={styles.actionBar}>
@@ -250,19 +394,36 @@ export function ImportMappingPage({
                     Предпросмотр ничего не записывает в официальный учёт.
                   </span>
                 </div>
-                <Button
-                  form="mapping-form"
-                  icon="check"
-                  isLoading={pending}
-                  tone="primary"
-                  type="submit"
-                >
-                  {pending
-                    ? "Проверяем строки…"
-                    : previewSnapshot
-                      ? "Обновить предпросмотр"
-                      : "Показать предпросмотр"}
-                </Button>
+                <div className={styles.actionButtons}>
+                  {canImport ? (
+                    <Button
+                      disabled={busy}
+                      form="mapping-form"
+                      tone="secondary"
+                      type="submit"
+                    >
+                      Обновить предпросмотр
+                    </Button>
+                  ) : null}
+                  <Button
+                    form={canImport ? undefined : "mapping-form"}
+                    icon="check"
+                    isLoading={busy}
+                    onClick={canImport ? runImport : undefined}
+                    tone="primary"
+                    type={canImport ? "button" : "submit"}
+                  >
+                    {importPending
+                      ? "Создаём строки…"
+                      : previewPending
+                        ? "Проверяем строки…"
+                        : canImport
+                          ? `Импортировать ${previewSnapshot.preview.totalRowCount} строк`
+                          : previewSnapshot
+                            ? "Обновить предпросмотр"
+                            : "Показать предпросмотр"}
+                  </Button>
+                </div>
               </footer>
             </>
           )}

@@ -413,9 +413,7 @@ def prepare_realistic_scenario(
         "account_detail_path": account_detail_path or "",
         "manual_target_path": manual_target_path,
         "document_detail_path": detail_path,
-        "mapping_path": (
-            f"{detail_path.replace('/app/imports/', '/imports/', 1).rstrip('/')}/mapping"
-        ),
+        "mapping_path": f"{detail_path.rstrip('/')}/mapping",
         "document_name": document_name,
         "rule_category_name": rule_category_name,
         "property_name": property_name,
@@ -449,17 +447,16 @@ def prepare_review_interaction_scenario(
             page.wait_for_url("**/imports/documents/**", timeout=PAGE_TIMEOUT_MS)
             detail_url = page.url
 
-        mapping_url = f"{detail_url.replace('/app/imports/', '/imports/', 1).rstrip('/')}/mapping"
+        mapping_url = f"{detail_url.rstrip('/')}/mapping"
         page.goto(mapping_url, wait_until="domcontentloaded")
         page.locator("#mapping-form").wait_for(timeout=PAGE_TIMEOUT_MS)
-        page.locator('select[name="operation_date_column"]').select_option("0")
-        page.locator('select[name="description_column"]').select_option("1")
-        page.locator('select[name="amount_column"]').select_option("2")
-        page.locator('select[name="currency_column"]').select_option("3")
-        page.locator('input[name="first_data_row"]').fill("1")
-        page.locator('button[type="submit"]').filter(has_text="показать предпросмотр").click()
-        page.get_by_text("Предпросмотр транзакций").wait_for(timeout=PAGE_TIMEOUT_MS)
-        page.locator('button[formaction$="/mapping/import"]').click()
+        page.get_by_label("Если у суммы нет знака *").select_option("income")
+        page.get_by_role("button", name="Показать предпросмотр").click()
+        page.get_by_role("heading", name="Предпросмотр строк").wait_for(timeout=PAGE_TIMEOUT_MS)
+        page.get_by_role(
+            "button",
+            name=re.compile(r"^Импортировать \d+ строк"),
+        ).click()
         page.wait_for_url("**/imports/documents/**/review", timeout=PAGE_TIMEOUT_MS)
         scenario_state["react_review_path"] = page.url.replace(base_url.rstrip("/"), "")
         scenario_state["historical_review_path"] = scenario_state["react_review_path"].replace(

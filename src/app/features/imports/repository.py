@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.features.imports.models import (
+    ImportMappingExecution,
     ImportMappingTemplate,
     ParseAttempt,
     ParseAttemptStatus,
@@ -81,6 +82,30 @@ class ImportRepository:
         self.session.add(template)
         await self.session.flush()
         return template
+
+    async def create_mapping_execution(
+        self,
+        execution: ImportMappingExecution,
+    ) -> ImportMappingExecution:
+        self.session.add(execution)
+        await self.session.flush()
+        return execution
+
+    async def get_mapping_execution(
+        self,
+        *,
+        workspace_id: UUID,
+        document_id: UUID,
+        idempotency_key: UUID,
+    ) -> ImportMappingExecution | None:
+        result = await self.session.execute(
+            select(ImportMappingExecution).where(
+                ImportMappingExecution.workspace_id == workspace_id,
+                ImportMappingExecution.uploaded_document_id == document_id,
+                ImportMappingExecution.idempotency_key == str(idempotency_key),
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def list_mapping_templates(
         self,

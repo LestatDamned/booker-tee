@@ -1,10 +1,14 @@
+from types import SimpleNamespace
 from typing import Any, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import ApiRequestContext, get_api_request_context
-from app.api.v1.imports.dependencies import get_unknown_statement_mapping_reader
+from app.api.v1.imports.dependencies import (
+    get_unknown_statement_mapping_importer,
+    get_unknown_statement_mapping_reader,
+)
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
     UnknownStatementMappingWarning,
@@ -20,6 +24,7 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
 from app.features.imports.application.unknown_statement_mappings.reader import (
     MappingCommandValidationError,
 )
+from app.features.imports.errors import MappingImportIdempotencyConflictError
 from app.features.imports.models import UploadedDocumentStatus
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
@@ -71,6 +76,27 @@ class MappingReaderStub:
                 ),
             ),
             can_import=True,
+        )
+
+
+class MappingImporterStub:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+        self.error: Exception | None = None
+
+    async def import_mapped_rows_idempotently(self, **kwargs):
+        self.calls.append(kwargs)
+        if self.error is not None:
+            raise self.error
+        document_id = cast(UUID, kwargs["document_id"])
+        return SimpleNamespace(
+            document=SimpleNamespace(
+                id=document_id,
+                status=UploadedDocumentStatus.REQUIRES_REVIEW,
+            ),
+            imported_row_count=24,
+            template_id=uuid4() if kwargs["template_name"] else None,
+            replayed=False,
         )
 
 
@@ -200,6 +226,83 @@ def test_mapping_api_requires_management_and_masks_other_workspace() -> None:
     assert missing.json()["error"]["code"] == "import_document_not_found"
 
 
+def test_mapping_import_uses_idempotency_and_returns_review_target() -> None:
+    context = api_context(WorkspaceRole.OWNER)
+    mapping = mapping_read_model()
+    importer = MappingImporterStub()
+    app = mapping_app(context, MappingReaderStub(mapping), importer)
+    idempotency_key = uuid4()
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/imports/documents/{mapping.document_id}/mapping/import",
+            headers={"Idempotency-Key": str(idempotency_key)},
+            json={
+                "mapping": {
+                    "tableRef": {"pageNumber": 1, "tableIndex": 0},
+                    "operationDateColumn": 0,
+                    "descriptionColumn": 1,
+                    "amountColumn": 2,
+                    "firstDataRowNumber": 2,
+                    "defaultCurrency": "RUB",
+                    "unsignedAmountDirection": "expense",
+                },
+                "templateName": "  Экспобанк карта  ",
+            },
+        )
+
+    assert response.status_code == 200
+    assert importer.calls[0]["idempotency_key"] == idempotency_key
+    assert importer.calls[0]["template_name"] == "  Экспобанк карта  "
+    assert response.json() == {
+        "documentId": str(mapping.document_id),
+        "status": "requires_review",
+        "importedRowCount": 24,
+        "templateId": response.json()["templateId"],
+        "replayed": False,
+        "reviewTarget": {
+            "kind": "import_review",
+            "documentId": str(mapping.document_id),
+        },
+    }
+
+
+def test_mapping_import_requires_key_and_maps_payload_conflict() -> None:
+    context = api_context(WorkspaceRole.OWNER)
+    mapping = mapping_read_model()
+    importer = MappingImporterStub()
+    app = mapping_app(context, MappingReaderStub(mapping), importer)
+    payload = {
+        "mapping": {
+            "tableRef": {"pageNumber": 1, "tableIndex": 0},
+            "operationDateColumn": 0,
+            "descriptionColumn": 1,
+            "amountColumn": 2,
+            "firstDataRowNumber": 2,
+            "defaultCurrency": "RUB",
+            "unsignedAmountDirection": "require_sign",
+        }
+    }
+
+    with TestClient(app) as client:
+        missing_key = client.post(
+            f"/api/v1/imports/documents/{mapping.document_id}/mapping/import",
+            json=payload,
+        )
+
+        importer.error = MappingImportIdempotencyConflictError("Ключ уже использован.")
+        conflict = client.post(
+            f"/api/v1/imports/documents/{mapping.document_id}/mapping/import",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=payload,
+        )
+
+    assert missing_key.status_code == 422
+    assert "Idempotency-Key" in str(missing_key.json())
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "mapping_import_idempotency_conflict"
+
+
 def mapping_read_model() -> UnknownStatementMappingReadModel:
     command = UnknownStatementMappingCommand(
         page_number=1,
@@ -230,13 +333,22 @@ def mapping_read_model() -> UnknownStatementMappingReadModel:
     )
 
 
-def mapping_app(context: ApiRequestContext, reader: MappingReaderStub):
+def mapping_app(
+    context: ApiRequestContext,
+    reader: MappingReaderStub,
+    importer: MappingImporterStub | None = None,
+):
     app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_unknown_statement_mapping_reader] = lambda: cast(
         Any,
         reader,
     )
+    if importer is not None:
+        app.dependency_overrides[get_unknown_statement_mapping_importer] = lambda: cast(
+            Any,
+            importer,
+        )
     return app
 
 

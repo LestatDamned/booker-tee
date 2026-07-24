@@ -629,6 +629,68 @@
   font-size: var(--font-size-sm);
 }
 
+.importOptions {
+  display: grid;
+  grid-template-columns: minmax(18rem, 1fr) auto minmax(18rem, 0.8fr);
+  align-items: center;
+  gap: var(--space-4);
+  border-top: 1px solid var(--color-border-default);
+  background: var(--color-bg-secondary-pane);
+  padding: var(--space-3) var(--space-4);
+}
+
+.importOptions h2 {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-md);
+}
+
+.importOptions p:not(.sectionLabel) {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.templateToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+}
+
+.templateName {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.templateName label {
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.templateName input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  padding: var(--space-2) var(--space-3);
+}
+
+.templateName input[aria-invalid="true"] {
+  border-color: var(--color-status-danger);
+}
+
+.templateError {
+  color: var(--color-status-danger);
+  font-size: var(--font-size-xs);
+}
+
 .actionBar {
   position: sticky;
   z-index: 2;
@@ -655,6 +717,13 @@
 .actionBar > div > span {
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
+}
+
+.actionButtons {
+  display: flex;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .unavailable {
@@ -687,6 +756,14 @@
   .globalSettings {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .importOptions {
+    grid-template-columns: minmax(18rem, 1fr) minmax(18rem, 1fr);
+  }
+
+  .importOptions > :first-child {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 40rem) {
@@ -705,6 +782,14 @@
 
   .globalSettings {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .importOptions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .importOptions > :first-child {
+    grid-column: auto;
   }
 
   .globalSettings > * > :is(label, legend):first-child {
@@ -763,6 +848,10 @@
 
   .actionBar button {
     width: 100%;
+  }
+
+  .actionButtons {
+    grid-auto-flow: row;
   }
 }
 

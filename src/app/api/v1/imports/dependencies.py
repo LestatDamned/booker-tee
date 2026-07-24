@@ -8,6 +8,9 @@ from app.features.imports.application.documents.detail_reading import (
     ImportDocumentDetailReader,
 )
 from app.features.imports.application.documents.listing import ImportDocumentListReader
+from app.features.imports.application.unknown_statement_mappings.import_use_case import (
+    UnknownStatementMappingImportUseCase,
+)
 from app.features.imports.application.unknown_statement_mappings.reader import (
     UnknownStatementMappingReader,
 )
@@ -37,3 +40,9 @@ def get_unknown_statement_mapping_reader(
         ImportService(session),
         UnknownStatementMappingTemplateUseCase(session),
     )
+
+
+def get_unknown_statement_mapping_importer(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> UnknownStatementMappingImportUseCase:
+    return UnknownStatementMappingImportUseCase(session)

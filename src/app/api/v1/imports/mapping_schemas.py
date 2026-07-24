@@ -51,6 +51,25 @@ class MappingPreviewApiRequest(ApiRequestModel):
     mapping: MappingCommandApiModel
 
 
+class MappingImportApiRequest(ApiRequestModel):
+    mapping: MappingCommandApiModel
+    template_name: str | None = Field(default=None, min_length=1, max_length=255)
+
+
+class MappingImportTargetApiResponse(ApiModel):
+    kind: Literal["import_review"]
+    document_id: UUID
+
+
+class MappingImportApiResponse(ApiModel):
+    document_id: UUID
+    status: UploadedDocumentStatus
+    imported_row_count: int
+    template_id: UUID | None
+    replayed: bool
+    review_target: MappingImportTargetApiResponse
+
+
 class MappingAccountApiResponse(ApiModel):
     id: UUID
     name: str

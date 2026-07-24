@@ -195,7 +195,7 @@ class UnknownStatementMappingReader:
             page_number=command.page_number,
             table_index=command.table_index,
         )
-        _validate_mapping_command(command, selected_table)
+        validate_mapping_command(command, selected_table)
 
         compatible_tables = compatible_mapping_tables(raw_tables, command)
         preview = preview_compatible_unknown_statement_mapping(
@@ -392,7 +392,7 @@ def _suggestion_reason(value: object) -> MappingSuggestionReasonDto | None:
     )
 
 
-def _validate_mapping_command(
+def validate_mapping_command(
     command: UnknownStatementMappingCommand,
     selected_table: list[list[str]],
 ) -> None:

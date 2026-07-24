@@ -1,15 +1,21 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Header, status
 
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.errors import ApiError, api_error_responses
-from app.api.v1.imports.dependencies import get_unknown_statement_mapping_reader
+from app.api.v1.imports.dependencies import (
+    get_unknown_statement_mapping_importer,
+    get_unknown_statement_mapping_reader,
+)
 from app.api.v1.imports.mapping_response import (
     UnknownStatementMappingResponseMapper,
 )
 from app.api.v1.imports.mapping_schemas import (
+    MappingImportApiRequest,
+    MappingImportApiResponse,
+    MappingImportTargetApiResponse,
     MappingPreviewApiRequest,
     MappingPreviewApiResponse,
     MappingReadApiResponse,
@@ -17,10 +23,19 @@ from app.api.v1.imports.mapping_schemas import (
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
 )
+from app.features.imports.application.unknown_statement_mappings.import_use_case import (
+    UnknownStatementMappingImportUseCase,
+)
 from app.features.imports.application.unknown_statement_mappings.reader import (
     MappingCommandValidationError,
     MappingUnavailableError,
     UnknownStatementMappingReader,
+)
+from app.features.imports.errors import (
+    MappingImportIdempotencyConflictError,
+    MappingImportNotFoundError,
+    MappingImportUnavailableError,
+    UnknownStatementMappingError,
 )
 from app.features.workspaces.permissions import can_manage_imports
 
@@ -102,7 +117,80 @@ async def preview_unknown_statement_mapping(
     return UnknownStatementMappingResponseMapper.preview(preview)
 
 
-def _mapping_command(request: MappingPreviewApiRequest) -> UnknownStatementMappingCommand:
+@router.post(
+    "/documents/{document_id}/mapping/import",
+    response_model=MappingImportApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def import_unknown_statement_mapping(
+    document_id: UUID,
+    request: MappingImportApiRequest,
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    importer: Annotated[
+        UnknownStatementMappingImportUseCase,
+        Depends(get_unknown_statement_mapping_importer),
+    ],
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+) -> MappingImportApiResponse:
+    _require_import_management(context)
+    try:
+        result = await importer.import_mapped_rows_idempotently(
+            workspace_id=context.workspace.workspace.id,
+            document_id=document_id,
+            command=_mapping_command(request),
+            idempotency_key=idempotency_key,
+            template_name=request.template_name,
+        )
+    except MappingCommandValidationError as error:
+        raise ApiError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code=error.code,
+            message=error.message,
+            field_errors={field: [error.message] for field in error.fields},
+        ) from error
+    except MappingImportNotFoundError as error:
+        raise _not_found() from error
+    except MappingImportIdempotencyConflictError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="mapping_import_idempotency_conflict",
+            message=str(error),
+        ) from error
+    except MappingImportUnavailableError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="mapping_import_unavailable",
+            message=str(error),
+        ) from error
+    except UnknownStatementMappingError as error:
+        raise ApiError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="mapping_import_invalid",
+            message=str(error),
+        ) from error
+
+    return MappingImportApiResponse(
+        document_id=result.document.id,
+        status=result.document.status,
+        imported_row_count=result.imported_row_count,
+        template_id=result.template_id,
+        replayed=result.replayed,
+        review_target=MappingImportTargetApiResponse(
+            kind="import_review",
+            document_id=result.document.id,
+        ),
+    )
+
+
+def _mapping_command(
+    request: MappingPreviewApiRequest | MappingImportApiRequest,
+) -> UnknownStatementMappingCommand:
     mapping = request.mapping
     return UnknownStatementMappingCommand(
         page_number=mapping.table_ref.page_number,

@@ -8,6 +8,8 @@ export type ImportMappingCommand =
   components["schemas"]["MappingCommandApiModel"];
 export type ImportMappingPreviewDto =
   components["schemas"]["MappingPreviewApiResponse"];
+export type ImportMappingCommitDto =
+  components["schemas"]["MappingImportApiResponse"];
 export type ImportMappingSourceTable =
   components["schemas"]["MappingSourceTableApiResponse"];
 
@@ -164,6 +166,28 @@ export const importMappingPreviewSchema: z.ZodType<ImportMappingPreviewDto> =
     canImport: z.boolean(),
   });
 
+export const importMappingCommitSchema: z.ZodType<ImportMappingCommitDto> =
+  z.object({
+    documentId: z.uuid(),
+    status: z.enum([
+      "uploaded",
+      "pending_parse",
+      "parsing",
+      "parsed",
+      "requires_review",
+      "failed_to_parse",
+      "imported",
+      "ignored",
+    ]),
+    importedRowCount: z.number().int().min(1),
+    templateId: z.uuid().nullable(),
+    replayed: z.boolean(),
+    reviewTarget: z.object({
+      kind: z.literal("import_review"),
+      documentId: z.uuid(),
+    }),
+  });
+
 export type ImportMappingLoadResult =
   | { status: "success"; mapping: ImportMappingDto }
   | { status: "unauthenticated" }
@@ -173,6 +197,16 @@ export type ImportMappingLoadResult =
 
 export type ImportMappingPreviewResult =
   | { status: "success"; preview: ImportMappingPreviewDto }
+  | { status: "unauthenticated" }
+  | {
+      status: "validation_error";
+      message: string;
+      fieldErrors: Record<string, string[]>;
+    }
+  | { status: "conflict" | "error"; message: string };
+
+export type ImportMappingCommitResult =
+  | { status: "success"; result: ImportMappingCommitDto }
   | { status: "unauthenticated" }
   | {
       status: "validation_error";
@@ -264,5 +298,72 @@ export async function previewImportMapping({
     : {
         status: "error",
         message: "API вернул предпросмотр неожиданного формата.",
+      };
+}
+
+export async function commitImportMapping({
+  command,
+  csrfToken,
+  documentId,
+  idempotencyKey,
+  templateName,
+}: {
+  command: ImportMappingCommand;
+  csrfToken: string;
+  documentId: string;
+  idempotencyKey: string;
+  templateName: string | null;
+}): Promise<ImportMappingCommitResult> {
+  const response = await requestJson(
+    `/api/v1/imports/documents/${documentId}/mapping/import`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": idempotencyKey,
+        "X-CSRF-Token": csrfToken,
+      },
+      body: JSON.stringify({
+        mapping: command,
+        templateName,
+      }),
+    },
+  );
+  if (response.status === "network_error") {
+    return {
+      status: "error",
+      message:
+        "Связь с backend прервалась. Повторите импорт — строки не продублируются.",
+    };
+  }
+  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  const apiError = parseApiError(response.body);
+  if (response.httpStatus === 422) {
+    return {
+      status: "validation_error",
+      message: apiError?.message ?? "Проверьте настройку импорта.",
+      fieldErrors: apiError?.fieldErrors ?? {},
+    };
+  }
+  if (response.httpStatus === 409) {
+    return {
+      status: "conflict",
+      message:
+        apiError?.message ??
+        "Состояние документа изменилось. Обновите страницу.",
+    };
+  }
+  if (!response.ok) {
+    return {
+      status: "error",
+      message: apiError?.message ?? `API вернул статус ${response.httpStatus}.`,
+    };
+  }
+  const parsed = importMappingCommitSchema.safeParse(response.body);
+  return parsed.success
+    ? { status: "success", result: parsed.data }
+    : {
+        status: "error",
+        message: "API вернул результат импорта неожиданного формата.",
       };
 }

@@ -51,6 +51,18 @@ def install_react_frontend(
             status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         )
 
+    async def historical_import_mapping_redirect(
+        request: Request,
+        document_id: str,
+    ) -> RedirectResponse:
+        target = f"/app/imports/documents/{document_id}/mapping"
+        if request.url.query:
+            target = f"{target}?{request.url.query}"
+        return RedirectResponse(
+            url=target,
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        )
+
     async def historical_imports_redirect(request: Request) -> RedirectResponse:
         target = "/app/imports"
         if request.url.query:
@@ -69,6 +81,12 @@ def install_react_frontend(
     app.add_api_route(
         "/imports/documents/{document_id}/review",
         historical_import_review_redirect,
+        methods=["GET"],
+        include_in_schema=False,
+    )
+    app.add_api_route(
+        "/imports/documents/{document_id}/mapping",
+        historical_import_mapping_redirect,
         methods=["GET"],
         include_in_schema=False,
     )

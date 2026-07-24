@@ -202,7 +202,6 @@ application/unknown_statement_mappings/
   preview.py
   import_use_case.py
   template_use_case.py
-  form_commands.py
   template_commands.py
   template_signatures.py
   ui_defaults.py
@@ -210,7 +209,6 @@ application/unknown_statement_mappings/
   raw_tables.py
   row_mapping.py
   drafts.py
-  templates.py
 ```
 
 ### Review lifecycle
@@ -312,7 +310,6 @@ imports/
       preview.py
       import_use_case.py
       template_use_case.py
-      form_commands.py
       template_commands.py
       template_signatures.py
       ui_defaults.py
@@ -320,18 +317,8 @@ imports/
       raw_tables.py
       row_mapping.py
       drafts.py
-      templates.py
 
   presentation/
-    documents.py
-    field_labels.py
-    mapping_suggestions.py
-    mapping/
-      form.py
-      models.py
-      page.py
-      preview.py
-      tables.py
     review/
       actions.py
       item.py
@@ -409,37 +396,15 @@ review state, mapping warning text или другие смысловые под
 Текущие presentation-пакеты:
 
 - Upload и document detail presentation удалены после React/API cutover.
-- `presentation/mapping/` - страница ручного маппинга неизвестной выписки:
-  page VM, form options, selected table preview, import preview and warnings.
+- Mapping presentation удалён после React/API cutover; read/preview/import
+  contracts живут в versioned API, а visual copy — в React feature.
 - `presentation/review/` - import review page: review item VM, action VM,
   panel payloads, page context and review-specific labels.
-- `presentation/field_labels.py` - общие человекочитаемые labels для полей
-  выписки, когда один и тот же field name показывается на нескольких страницах.
-- `presentation/mapping_suggestions.py` - mapping presenter для raw
-  `mapping_suggestions`: превращает suggestion payload из unknown-statement
-  analysis в `MappingSuggestionVM` с готовыми `title`, `reason.message` и
-  `warning.message`.
-
-`mapping_suggestions.py` существует потому, что одно и то же предложение
-маппинга показывается на document detail и mapping page. Без общего helper
-страницы начинают по-разному переводить `confidence`, `evidence`,
-`column_index`, `field` и `warning.code` в UI-текст. Это именно presentation
-logic: application слой продолжает хранить machine-readable suggestion payload,
-а UI получает уже готовый текст.
 
 Не расширяйте `presentation/__init__.py` в barrel exports. Импорты должны
-оставаться явными:
-
-```python
-from app.features.imports.presentation.mapping_suggestions import (
-    first_mapping_suggestion_from_raw,
-)
-from app.features.imports.presentation.mapping.page import MappingPagePresenter
-```
-
-Если helper используется только одной страницей, держите его внутри
-соответствующего package. Выносите общий файл в `presentation/` только когда
-есть повторное стабильное использование, как у mapping suggestions.
+оставаться явными. Если helper используется только одной страницей, держите
+его внутри соответствующего package. Выносите общий файл в `presentation/`
+только после повторного стабильного использования.
 
 ## Sensitive local fixtures
 
@@ -591,8 +556,8 @@ import path easy to test.
 ## Current module map
 
 - `router.py` - thin HTTP router aggregator for the imports feature.
-- `routes/` - оставшиеся SSR mapping endpoints и compatibility redirects для
-  уже мигрированных Imports GET routes.
+- `routes/` - узкие compatibility redirects для мигрированных Imports GET
+  routes; mapping redirect принадлежит общему React adapter.
 - `service.py` - small read-side facade for document list/detail views.
 - `application/documents/` - document lifecycle use cases and helpers: upload, reparse, ignore/delete, parse attempts.
 - `application/review/` - review lifecycle use cases and helpers:
@@ -603,26 +568,19 @@ import path easy to test.
 - `application/pipelines/` - shared import pipeline steps: review-required attempts and validation result storage.
 - `application/known_statements/` - known bank parser pipeline: drafts, raw rows, deduplication, rules, validation.
 - `application/unknown_statements/` - unknown statement fallback and analysis internals: fallback/template pipeline, hints, DTOs, table detection, column profiles, profile helpers, suggestions, suggestion scoring, continuations, and control totals.
-- `application/unknown_statement_mappings/` - unknown statement mapping workflows and internals: preview, import use case, template use case, form command parsing, template matching, table signatures, UI defaults, commands/DTOs, raw table navigation, row mapping, and draft conversion.
+- `application/unknown_statement_mappings/` - unknown statement mapping workflows and internals: preview, idempotent import use case, template use case, template matching, table signatures, UI defaults, commands/DTOs, raw table navigation, row mapping, and draft conversion.
 - `domain/deduplication.py` - duplicate detection for imported raw transactions.
 - `domain/validation.py` - pure statement total validation logic.
 - `mapping/raw_transaction_mapper.py` - `RawTransactionDraft` to ORM model mapping.
 - `mapping/dto.py` - import detail view models and mapper.
-- `presentation/` - SSR/Jinja-facing presenters and ViewModels. This layer
-  prepares display labels, page contracts, selected mapping table previews,
-  shared mapping suggestion messages and review item/action VMs. It must not
-  mutate imports, post ledger entries, or decide persistence state transitions.
+- `presentation/` - оставшиеся SSR/Jinja-facing review presenters и ViewModels.
+  Они не должны мутировать imports, post ledger entries или решать persistence
+  state transitions.
 - `application/documents/detail_reading.py` и `/api/v1/imports/documents/{id}`
   владеют безопасной typed projection React document detail; technical storage
   paths и полный raw payload в browser DTO не входят.
-- `presentation/mapping/` - presenter, VM models, form/table/preview builders
-  for `/imports/documents/{document_id}/mapping`.
 - `presentation/review/` - review page presenter and VMs for raw transaction
   review, action system, and expandable panels.
-- `presentation/mapping_suggestions.py` - raw mapping suggestion to UI VM
-  conversion для legacy mapping page.
-- `presentation/field_labels.py` - shared human labels for mapping/raw statement
-  field names.
 - `errors.py` - import-specific application exceptions.
 - `repository.py` - SQLAlchemy persistence and compatibility read wrappers.
 - `query_repository.py` - read-side document queries for UI/detail workflows.
@@ -702,8 +660,7 @@ these packages:
   by reason to change: `models.py`, `page.py`/`presenter.py`, `form.py`,
   `tables.py`, `preview.py`, or page-specific formatting.
 - `presentation/<shared_helper>.py` - small shared presentation helpers used by
-  more than one page. Example: `mapping_suggestions.py` is shared by document
-  detail and mapping pages.
+  more than one remaining runtime page.
 - `routes/` - FastAPI route modules grouped by user story. Keep them thin:
   request parsing, dependency injection, response rendering, redirects, and
   HTTP errors.

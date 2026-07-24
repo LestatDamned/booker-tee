@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { loadImportMapping, previewImportMapping } from "./import-mapping-api";
+import {
+  commitImportMapping,
+  loadImportMapping,
+  previewImportMapping,
+} from "./import-mapping-api";
 import {
   importMappingPayload,
   importMappingPreview,
@@ -92,5 +96,48 @@ describe("import mapping API", () => {
         operationDateColumn: ["Колонка даты не подходит."],
       },
     });
+  });
+
+  it("commits mapping with CSRF and idempotency key", async () => {
+    const result = {
+      documentId: mappingDocumentId,
+      status: "requires_review",
+      importedRowCount: 2,
+      templateId: null,
+      replayed: false,
+      reviewTarget: {
+        kind: "import_review",
+        documentId: mappingDocumentId,
+      },
+    };
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(result), { status: 200 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const command = importMappingPayload().defaultMapping;
+
+    await expect(
+      commitImportMapping({
+        command,
+        csrfToken: "csrf-token",
+        documentId: mappingDocumentId,
+        idempotencyKey: "8be554fa-970b-45b7-95b2-7c4af8324b65",
+        templateName: "Экспобанк",
+      }),
+    ).resolves.toMatchObject({ status: "success" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/imports/documents/${mappingDocumentId}/mapping/import`,
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "Idempotency-Key": "8be554fa-970b-45b7-95b2-7c4af8324b65",
+          "X-CSRF-Token": "csrf-token",
+        }),
+        body: JSON.stringify({
+          mapping: command,
+          templateName: "Экспобанк",
+        }),
+      }),
+    );
   });
 });

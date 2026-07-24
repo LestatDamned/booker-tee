@@ -13,9 +13,11 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Index,
+    Integer,
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -162,6 +164,47 @@ class UploadedDocument(Base):
         order_by="RawTransaction.row_index",
         passive_deletes=True,
     )
+    mapping_executions: Mapped[list[ImportMappingExecution]] = relationship(
+        back_populates="uploaded_document",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class ImportMappingExecution(Base):
+    __tablename__ = "import_mapping_executions"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "uploaded_document_id",
+            "idempotency_key",
+            name="uq_import_mapping_executions_workspace_document_key",
+        ),
+        Index(
+            "ix_import_mapping_executions_workspace_document",
+            "workspace_id",
+            "uploaded_document_id",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        index=True,
+    )
+    uploaded_document_id: Mapped[UUID] = mapped_column(
+        ForeignKey("uploaded_documents.id", ondelete="CASCADE"),
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(36))
+    payload_fingerprint: Mapped[str] = mapped_column(String(64))
+    imported_row_count: Mapped[int] = mapped_column(Integer)
+    template_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("import_mapping_templates.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    uploaded_document: Mapped[UploadedDocument] = relationship(back_populates="mapping_executions")
+    template: Mapped[ImportMappingTemplate | None] = relationship()
 
 
 class ParseAttempt(Base):

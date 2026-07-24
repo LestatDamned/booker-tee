@@ -1,24 +1,26 @@
 # Inventory: Import Documents And Mapping
 
-Статус: active inventory; Slices 01–03 cutover завершены.
+Статус: active inventory; Slices 01–04 cutover завершены.
 
 Проверено: 2026-07-24.
 
 ## Scope
 
-В scope входят оставшиеся authenticated Imports pages:
+В scope общего cutover остаются authenticated Imports entry points:
 
 ```text
-GET/POST /imports
-GET/POST /imports/documents/{document_id}/mapping
-POST     /imports/documents/{document_id}/mapping/import
+GET /imports
 ```
 
-Не входит уже мигрированный:
+Уже мигрированы:
 
 ```text
+/app/imports
+/app/imports/upload
+/app/imports/documents/{document_id}
+/app/imports/documents/{document_id}/mapping
 /app/imports/documents/{document_id}/review
-/api/v1/imports/documents/{document_id}/review/*
+/api/v1/imports/*
 ```
 
 Также не входят широкие изменения parsers, ledger, accounts, chat transport,
