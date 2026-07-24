@@ -44,6 +44,7 @@ class UnknownStatementDraftMapper:
                     "currency": self.command.currency_column,
                     "balance_after": self.command.balance_after_column,
                 },
+                "unsigned_amount_direction": self.command.unsigned_amount_direction.value,
             },
             operation_date_raw=row.operation_date_raw,
             posting_date_raw=row.posting_date_raw or None,

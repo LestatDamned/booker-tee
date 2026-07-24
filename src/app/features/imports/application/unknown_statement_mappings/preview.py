@@ -5,6 +5,7 @@ from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
     UnknownStatementMappingPreview,
     UnknownStatementMappingWarning,
+    UnsignedAmountDirection,
 )
 from app.features.imports.application.unknown_statement_mappings.raw_tables import (
     compatible_mapping_tables,
@@ -12,6 +13,7 @@ from app.features.imports.application.unknown_statement_mappings.raw_tables impo
     mapping_start_row_for_table,
 )
 from app.features.imports.application.unknown_statement_mappings.row_mapping import (
+    explicit_amount_direction,
     map_table_rows,
 )
 from app.features.imports.application.unknown_statement_mappings.template_signatures import (
@@ -84,6 +86,16 @@ def mapping_warnings_for_preview(
 ) -> list[UnknownStatementMappingWarning]:
     warnings: list[UnknownStatementMappingWarning] = []
     warnings.extend(column_selection_warnings(command))
+    unsigned_amount_count = unsigned_amount_error_count(rows, command)
+    if unsigned_amount_count:
+        warnings.append(
+            UnknownStatementMappingWarning(
+                code="unsigned_amount_direction_required",
+                severity="warning",
+                fields=["unsigned_amount_direction"],
+                affected_row_count=unsigned_amount_count,
+            )
+        )
     if not rows or not any(row.status == "valid" for row in rows):
         warnings.append(
             UnknownStatementMappingWarning(
@@ -109,6 +121,24 @@ def mapping_warnings_for_preview(
             )
         )
     return warnings
+
+
+def unsigned_amount_error_count(
+    rows: list[UnknownStatementMappedRow],
+    command: UnknownStatementMappingCommand,
+) -> int:
+    if (
+        command.amount_column is None
+        or command.unsigned_amount_direction is not UnsignedAmountDirection.REQUIRE_SIGN
+    ):
+        return 0
+    return sum(
+        1
+        for row in rows
+        if row.amount is None
+        and row.amount_raw.strip()
+        and explicit_amount_direction(row.amount_raw) is None
+    )
 
 
 def column_selection_warnings(

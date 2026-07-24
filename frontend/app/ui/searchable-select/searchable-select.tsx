@@ -31,6 +31,7 @@ type SearchableSelectProps = {
   "aria-describedby"?: string | undefined;
   "aria-invalid"?: AriaAttributes["aria-invalid"];
   disabled?: boolean | undefined;
+  emptyMessage?: string | undefined;
   id: string;
   inputRef?: RefObject<HTMLInputElement | null> | undefined;
   onChange: (value: string) => void;
@@ -43,6 +44,7 @@ export function SearchableSelect({
   "aria-describedby": ariaDescribedBy,
   "aria-invalid": ariaInvalid,
   disabled = false,
+  emptyMessage = "Ничего не найдено",
   id,
   inputRef,
   onChange,
@@ -231,7 +233,7 @@ export function SearchableSelect({
                   ))}
                 </ul>
               ) : (
-                <p className={styles.empty}>Категории не найдены</p>
+                <p className={styles.empty}>{emptyMessage}</p>
               )}
             </div>,
             document.body,

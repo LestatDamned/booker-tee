@@ -498,7 +498,7 @@ function nextStepPresentation(document: ImportDocumentDetailDto) {
       description:
         "Файл прочитан, но даты, описания и суммы ещё не сопоставлены с колонками.",
       action: "Настроить колонки",
-      href: `/imports/documents/${document.id}/mapping`,
+      href: `/app/imports/documents/${document.id}/mapping`,
     },
     review: {
       title: "Строки готовы к вашей проверке",

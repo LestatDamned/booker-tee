@@ -7,6 +7,7 @@ from app.features.imports.application.unknown_statement_mappings.drafts import (
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
+    UnsignedAmountDirection,
 )
 from app.features.imports.application.unknown_statement_mappings.preview import (
     preview_compatible_unknown_statement_mapping,
@@ -14,6 +15,10 @@ from app.features.imports.application.unknown_statement_mappings.preview import 
 )
 from app.features.imports.application.unknown_statement_mappings.raw_tables import (
     compatible_mapping_table_count,
+)
+from app.features.imports.application.unknown_statement_mappings.read_models import (
+    MappingRowErrorCode,
+    mapping_row_error_codes,
 )
 from app.features.imports.application.unknown_statement_mappings.template_commands import (
     compatible_mapping_templates,
@@ -94,6 +99,83 @@ def test_unknown_statement_mapping_preview_supports_split_debit_credit_columns()
     assert columns["amount"] is None
     assert columns["debit_amount"] == 2
     assert columns["credit_amount"] == 3
+
+
+def test_single_amount_column_applies_direction_only_to_unsigned_values() -> None:
+    raw_tables: list[dict[str, object]] = [
+        {
+            "page_number": 1,
+            "tables": [
+                [
+                    ["Дата", "Описание", "Сумма"],
+                    ["12.05.2026", "Явное поступление", "+10 000"],
+                    ["13.05.2026", "Списание без знака", "500"],
+                    ["14.05.2026", "Явное списание", "-200"],
+                    ["15.05.2026", "Бухгалтерские скобки", "₽ (75)"],
+                ]
+            ],
+        }
+    ]
+    command = UnknownStatementMappingCommand(
+        page_number=1,
+        table_index=0,
+        operation_date_column=0,
+        description_column=1,
+        amount_column=2,
+        currency_column=None,
+        first_data_row=1,
+        default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.EXPENSE,
+    )
+
+    preview = preview_unknown_statement_mapping(raw_tables, command, max_rows=None)
+
+    assert [row.amount for row in preview.rows] == [
+        Decimal("10000.00"),
+        Decimal("-500.00"),
+        Decimal("-200.00"),
+        Decimal("-75.00"),
+    ]
+    assert preview.valid_count == 4
+
+
+def test_single_amount_column_can_require_an_explicit_sign() -> None:
+    raw_tables: list[dict[str, object]] = [
+        {
+            "page_number": 1,
+            "tables": [
+                [
+                    ["Дата", "Описание", "Сумма"],
+                    ["12.05.2026", "Неоднозначная строка", "10 000"],
+                ]
+            ],
+        }
+    ]
+    command = UnknownStatementMappingCommand(
+        page_number=1,
+        table_index=0,
+        operation_date_column=0,
+        description_column=1,
+        amount_column=2,
+        currency_column=None,
+        first_data_row=1,
+        default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
+    )
+
+    preview = preview_unknown_statement_mapping(raw_tables, command, max_rows=None)
+
+    assert preview.rows[0].amount is None
+    assert preview.rows[0].status == "error"
+    assert mapping_row_error_codes(preview.rows[0], command) == (
+        MappingRowErrorCode.UNSIGNED_AMOUNT_DIRECTION_REQUIRED,
+    )
+    assert [warning.code for warning in preview.warnings] == [
+        "unsigned_amount_direction_required",
+        "no_valid_rows",
+    ]
+    assert preview.warnings[0].fields == ["unsigned_amount_direction"]
+    assert preview.warnings[0].affected_row_count == 1
 
 
 def test_unknown_statement_mapping_preview_warns_about_risky_column_selection() -> None:
@@ -503,6 +585,7 @@ def test_import_mapping_template_round_trips_mapping_command() -> None:
         currency_column=None,
         first_data_row=2,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.EXPENSE,
     )
     template = ImportMappingTemplate(
         workspace_id=uuid4(),
@@ -516,6 +599,33 @@ def test_import_mapping_template_round_trips_mapping_command() -> None:
     restored = mapping_command_from_template(template)
 
     assert restored == command
+
+
+def test_legacy_mapping_template_keeps_previous_unsigned_amount_semantics() -> None:
+    command = UnknownStatementMappingCommand(
+        page_number=1,
+        table_index=0,
+        operation_date_column=0,
+        description_column=1,
+        amount_column=2,
+        currency_column=None,
+        first_data_row=1,
+        default_currency="RUB",
+    )
+    payload = mapping_command_as_json(command)
+    payload.pop("unsigned_amount_direction")
+    template = ImportMappingTemplate(
+        workspace_id=uuid4(),
+        name="Legacy template",
+        bank_name=None,
+        statement_type=None,
+        default_currency="RUB",
+        column_mapping_json=payload,
+    )
+
+    restored = mapping_command_from_template(template)
+
+    assert restored.unsigned_amount_direction is UnsignedAmountDirection.INCOME
 
 
 def test_import_mapping_template_matches_same_table_signature() -> None:

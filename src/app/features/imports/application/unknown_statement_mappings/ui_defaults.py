@@ -2,6 +2,7 @@ from typing import Any, cast
 
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
+    UnsignedAmountDirection,
 )
 from app.features.imports.application.unknown_statement_mappings.template_commands import (
     mapping_command_from_template,
@@ -37,6 +38,7 @@ def default_mapping_command(
             debit_amount_column=optional_int_value(suggestion.get("debit_amount_column")),
             credit_amount_column=optional_int_value(suggestion.get("credit_amount_column")),
             balance_after_column=optional_int_value(suggestion.get("balance_after_column")),
+            unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
         )
     candidates = candidate_column_indexes(table)
     amount_column = candidates.get("amount")
@@ -59,6 +61,7 @@ def default_mapping_command(
         debit_amount_column=candidates.get("debit_amount"),
         credit_amount_column=candidates.get("credit_amount"),
         balance_after_column=candidates.get("balance_after"),
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
 

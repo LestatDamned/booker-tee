@@ -80,7 +80,7 @@ describe("ImportDocumentDetailPage", () => {
       screen.getByRole("link", { name: "Настроить колонки" }),
     ).toHaveAttribute(
       "href",
-      `/imports/documents/${documentFixture.id}/mapping`,
+      `/app/imports/documents/${documentFixture.id}/mapping`,
     );
     expect(
       screen.getByText(/таблицы с операциями найдены/),

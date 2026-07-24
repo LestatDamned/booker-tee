@@ -4,6 +4,7 @@ from decimal import Decimal
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappedRow,
     UnknownStatementMappingCommand,
+    UnsignedAmountDirection,
 )
 from app.features.imports.parsing.support.normalization import (
     normalize_currency,
@@ -177,7 +178,10 @@ def parse_mapped_amount_for_command(
     command: UnknownStatementMappingCommand,
 ) -> tuple[Decimal | None, str]:
     if command.amount_column is not None:
-        return parse_mapped_amount(amount_raw)
+        return parse_single_column_amount(
+            amount_raw,
+            unsigned_direction=command.unsigned_amount_direction,
+        )
     if command.debit_amount_column is None and command.credit_amount_column is None:
         return None, "нет колонки суммы"
 
@@ -200,6 +204,44 @@ def parse_mapped_amount_for_command(
     if debit is not None:
         return -abs(debit), ""
     return None, "нет суммы"
+
+
+def parse_single_column_amount(
+    raw: str,
+    *,
+    unsigned_direction: UnsignedAmountDirection,
+) -> tuple[Decimal | None, str]:
+    amount, error = parse_mapped_amount(raw)
+    if error or amount is None:
+        return amount, error
+    explicit_direction = explicit_amount_direction(raw)
+    if explicit_direction is UnsignedAmountDirection.INCOME:
+        return abs(amount), ""
+    if explicit_direction is UnsignedAmountDirection.EXPENSE:
+        return -abs(amount), ""
+    if unsigned_direction is UnsignedAmountDirection.REQUIRE_SIGN:
+        return None, "не указано направление суммы"
+    if unsigned_direction is UnsignedAmountDirection.EXPENSE:
+        return -abs(amount), ""
+    return abs(amount), ""
+
+
+def explicit_amount_direction(raw: str) -> UnsignedAmountDirection | None:
+    cleaned = raw.strip()
+    first_digit = next(
+        (index for index, character in enumerate(cleaned) if character.isdigit()),
+        None,
+    )
+    if first_digit is None:
+        return None
+    prefix = cleaned[:first_digit]
+    if "(" in prefix and ")" in cleaned[first_digit:]:
+        return UnsignedAmountDirection.EXPENSE
+    if "-" in prefix or "−" in prefix:
+        return UnsignedAmountDirection.EXPENSE
+    if "+" in prefix:
+        return UnsignedAmountDirection.INCOME
+    return None
 
 
 def parse_optional_mapped_amount(raw: str) -> tuple[Decimal | None, str]:

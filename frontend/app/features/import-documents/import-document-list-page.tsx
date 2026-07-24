@@ -342,7 +342,7 @@ export function documentAction(document: ImportDocumentListItemDto): {
 } {
   if (document.nextStepKind === "mapping" && document.capabilities.canMap) {
     return {
-      href: `/imports/documents/${document.id}/mapping`,
+      href: `/app/imports/documents/${document.id}/mapping`,
       label: "Настроить",
     };
   }

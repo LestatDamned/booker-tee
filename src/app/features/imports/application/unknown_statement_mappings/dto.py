@@ -1,6 +1,13 @@
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
+from enum import StrEnum
+
+
+class UnsignedAmountDirection(StrEnum):
+    REQUIRE_SIGN = "require_sign"
+    INCOME = "income"
+    EXPENSE = "expense"
 
 
 @dataclass(frozen=True)
@@ -17,6 +24,7 @@ class UnknownStatementMappingCommand:
     debit_amount_column: int | None = None
     credit_amount_column: int | None = None
     balance_after_column: int | None = None
+    unsigned_amount_direction: UnsignedAmountDirection = UnsignedAmountDirection.INCOME
 
 
 @dataclass(frozen=True)
@@ -53,6 +61,7 @@ class UnknownStatementMappingWarning:
     code: str
     severity: str
     fields: list[str] = field(default_factory=list)
+    affected_row_count: int | None = None
 
 
 @dataclass(frozen=True)

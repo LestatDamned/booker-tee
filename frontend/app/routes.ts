@@ -6,6 +6,7 @@ export default [
   route("imports", "routes/import-documents.tsx"),
   route("imports/upload", "routes/import-upload.tsx"),
   route("imports/documents/:documentId", "routes/import-document-detail.tsx"),
+  route("imports/documents/:documentId/mapping", "routes/import-mapping.tsx"),
   route("imports/documents/:documentId/review", "routes/import-review.tsx"),
   route("ledger/manual", "routes/manual-ledger.tsx"),
 ] satisfies RouteConfig;

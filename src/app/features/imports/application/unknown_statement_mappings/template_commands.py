@@ -2,6 +2,7 @@ from typing import cast
 
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
+    UnsignedAmountDirection,
 )
 from app.features.imports.application.unknown_statement_mappings.template_signatures import (
     table_signature_for_mapping,
@@ -52,6 +53,7 @@ def mapping_command_as_json(
         "currency_column": command.currency_column,
         "first_data_row": command.first_data_row,
         "default_currency": command.default_currency,
+        "unsigned_amount_direction": command.unsigned_amount_direction.value,
     }
     signature = table_signature_for_mapping(raw_tables, command)
     if signature is not None:
@@ -98,7 +100,22 @@ def mapping_command_from_template(
         debit_amount_column=optional_int_value(mapping.get("debit_amount_column")),
         credit_amount_column=optional_int_value(mapping.get("credit_amount_column")),
         balance_after_column=optional_int_value(mapping.get("balance_after_column")),
+        unsigned_amount_direction=_unsigned_amount_direction(
+            mapping.get("unsigned_amount_direction"),
+            default=UnsignedAmountDirection.INCOME,
+        ),
     )
+
+
+def _unsigned_amount_direction(
+    value: object,
+    *,
+    default: UnsignedAmountDirection,
+) -> UnsignedAmountDirection:
+    try:
+        return UnsignedAmountDirection(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def clean_template_name(value: str) -> str:

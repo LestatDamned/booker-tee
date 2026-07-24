@@ -18,6 +18,7 @@ from app.api.v1.imports.mapping import (
     ImportDocumentDetailResponseMapper,
     ImportDocumentListResponseMapper,
 )
+from app.api.v1.imports.mapping_router import router as mapping_router
 from app.api.v1.imports.schemas import (
     ImportDocumentDeleteApiResponse,
     ImportDocumentDetailApiResponse,
@@ -52,6 +53,7 @@ from app.features.imports.service import ImportService
 from app.features.workspaces.permissions import can_manage_imports, permission_flags_for
 
 router = APIRouter(prefix="/imports", tags=["imports"])
+router.include_router(mapping_router)
 
 
 @router.get(

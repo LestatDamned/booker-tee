@@ -25,7 +25,7 @@ describe("ImportDocumentListPage", () => {
       within(table).getByRole("link", { name: "Настроить" }),
     ).toHaveAttribute(
       "href",
-      `/imports/documents/${mappingDocumentId}/mapping`,
+      `/app/imports/documents/${mappingDocumentId}/mapping`,
     );
     expect(
       within(table).getByRole("link", { name: "Проверить" }),

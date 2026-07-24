@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/api/v1/imports/documents/{document_id}/mapping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Unknown Statement Mapping */
+        get: operations["get_unknown_statement_mapping_api_v1_imports_documents__document_id__mapping_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/documents/{document_id}/mapping/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Unknown Statement Mapping */
+        post: operations["preview_unknown_statement_mapping_api_v1_imports_documents__document_id__mapping_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/imports/upload-reference": {
         parameters: {
             query?: never;
@@ -2650,6 +2684,245 @@ export interface components {
              */
             destinationAccountId: string;
         };
+        /** MappingAccountApiResponse */
+        MappingAccountApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+        };
+        /**
+         * MappingBlockingReasonCode
+         * @enum {string}
+         */
+        MappingBlockingReasonCode: "account_required" | "raw_tables_unavailable" | "mapping_not_required" | "confirmed_rows_exist";
+        /** MappingCapabilityApiResponse */
+        MappingCapabilityApiResponse: {
+            /** Allowed */
+            allowed: boolean;
+            /** Blockingreasoncodes */
+            blockingReasonCodes: components["schemas"]["MappingBlockingReasonCode"][];
+        };
+        /** MappingColumnCandidateApiResponse */
+        MappingColumnCandidateApiResponse: {
+            /** Field */
+            field: string;
+            /** Columnindex */
+            columnIndex: number;
+            /** Header */
+            header: string;
+            /** Confidence */
+            confidence: number | null;
+        };
+        /** MappingCommandApiModel */
+        MappingCommandApiModel: {
+            tableRef: components["schemas"]["MappingTableRefApiModel"];
+            /** Operationdatecolumn */
+            operationDateColumn: number;
+            /** Postingdatecolumn */
+            postingDateColumn?: number | null;
+            /** Descriptioncolumn */
+            descriptionColumn: number;
+            /** Amountcolumn */
+            amountColumn?: number | null;
+            /** Debitamountcolumn */
+            debitAmountColumn?: number | null;
+            /** Creditamountcolumn */
+            creditAmountColumn?: number | null;
+            /** Currencycolumn */
+            currencyColumn?: number | null;
+            /** Balanceaftercolumn */
+            balanceAfterColumn?: number | null;
+            /** Firstdatarownumber */
+            firstDataRowNumber: number;
+            /** Defaultcurrency */
+            defaultCurrency: string;
+            unsignedAmountDirection: components["schemas"]["UnsignedAmountDirection"];
+        };
+        /**
+         * MappingDefaultSource
+         * @enum {string}
+         */
+        MappingDefaultSource: "template" | "analyzer" | "fallback";
+        /** MappingPreviewApiRequest */
+        MappingPreviewApiRequest: {
+            mapping: components["schemas"]["MappingCommandApiModel"];
+        };
+        /** MappingPreviewApiResponse */
+        MappingPreviewApiResponse: {
+            /** Rows */
+            rows: components["schemas"]["MappingPreviewRowApiResponse"][];
+            /** Totalrowcount */
+            totalRowCount: number;
+            /** Validrowcount */
+            validRowCount: number;
+            /** Invalidrowcount */
+            invalidRowCount: number;
+            /** Rowlimit */
+            rowLimit: number;
+            /** Rowstruncated */
+            rowsTruncated: boolean;
+            /** Compatibletables */
+            compatibleTables: components["schemas"]["MappingTableRefApiModel"][];
+            /** Warnings */
+            warnings: components["schemas"]["MappingWarningApiResponse"][];
+            /** Canimport */
+            canImport: boolean;
+        };
+        /** MappingPreviewRowApiResponse */
+        MappingPreviewRowApiResponse: {
+            tableRef: components["schemas"]["MappingTableRefApiModel"];
+            /** Sourcerownumber */
+            sourceRowNumber: number;
+            /** Operationdate */
+            operationDate: string | null;
+            /** Operationdateraw */
+            operationDateRaw: string;
+            /** Postingdate */
+            postingDate: string | null;
+            /** Postingdateraw */
+            postingDateRaw: string;
+            /** Description */
+            description: string;
+            /** Amount */
+            amount: string | null;
+            /** Amountraw */
+            amountRaw: string;
+            /** Currency */
+            currency: string;
+            /** Balanceafter */
+            balanceAfter: string | null;
+            /** Balanceafterraw */
+            balanceAfterRaw: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "valid" | "error";
+            /** Errorcodes */
+            errorCodes: components["schemas"]["MappingRowErrorCode"][];
+        };
+        /** MappingReadApiResponse */
+        MappingReadApiResponse: {
+            /**
+             * Documentid
+             * Format: uuid
+             */
+            documentId: string;
+            /** Filename */
+            filename: string;
+            status: components["schemas"]["UploadedDocumentStatus"];
+            /** Bankname */
+            bankName: string | null;
+            /** Statementtype */
+            statementType: string | null;
+            account: components["schemas"]["MappingAccountApiResponse"] | null;
+            /** Defaultcurrency */
+            defaultCurrency: string;
+            capability: components["schemas"]["MappingCapabilityApiResponse"];
+            defaultMapping: components["schemas"]["MappingCommandApiModel"];
+            defaultSource: components["schemas"]["MappingDefaultSource"];
+            /** Selectedtemplateid */
+            selectedTemplateId: string | null;
+            /** Templates */
+            templates: components["schemas"]["MappingTemplateApiResponse"][];
+            /** Tables */
+            tables: components["schemas"]["MappingSourceTableApiResponse"][];
+            /** Totaltablecount */
+            totalTableCount: number;
+            /** Tablestruncated */
+            tablesTruncated: boolean;
+        };
+        /**
+         * MappingRowErrorCode
+         * @enum {string}
+         */
+        MappingRowErrorCode: "operation_date_required" | "operation_date_invalid" | "posting_date_invalid" | "amount_required" | "amount_invalid" | "unsigned_amount_direction_required" | "debit_invalid" | "credit_invalid" | "debit_and_credit_present" | "balance_after_invalid" | "description_required";
+        /** MappingSourceRowApiResponse */
+        MappingSourceRowApiResponse: {
+            /** Rownumber */
+            rowNumber: number;
+            /** Cells */
+            cells: string[];
+        };
+        /** MappingSourceTableApiResponse */
+        MappingSourceTableApiResponse: {
+            ref: components["schemas"]["MappingTableRefApiModel"];
+            /** Sourcetype */
+            sourceType: string;
+            /** Rowcount */
+            rowCount: number;
+            /** Columncount */
+            columnCount: number;
+            /** Iscontinuation */
+            isContinuation: boolean;
+            /** Samplerows */
+            sampleRows: components["schemas"]["MappingSourceRowApiResponse"][];
+            /** Candidates */
+            candidates: components["schemas"]["MappingColumnCandidateApiResponse"][];
+            suggestion: components["schemas"]["MappingSuggestionApiResponse"] | null;
+        };
+        /** MappingSuggestionApiResponse */
+        MappingSuggestionApiResponse: {
+            mapping: components["schemas"]["MappingCommandApiModel"];
+            /** Confidence */
+            confidence: number | null;
+            /** Reasons */
+            reasons: components["schemas"]["MappingSuggestionReasonApiResponse"][];
+            /** Warningcodes */
+            warningCodes: string[];
+        };
+        /** MappingSuggestionReasonApiResponse */
+        MappingSuggestionReasonApiResponse: {
+            /** Field */
+            field: string;
+            /** Columnindex */
+            columnIndex: number;
+            /** Header */
+            header: string;
+            /** Evidence */
+            evidence: string;
+            /** Matchedcount */
+            matchedCount: number | null;
+            /** Samplecount */
+            sampleCount: number | null;
+        };
+        /** MappingTableRefApiModel */
+        MappingTableRefApiModel: {
+            /** Pagenumber */
+            pageNumber: number;
+            /** Tableindex */
+            tableIndex: number;
+        };
+        /** MappingTemplateApiResponse */
+        MappingTemplateApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** MappingWarningApiResponse */
+        MappingWarningApiResponse: {
+            /** Code */
+            code: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "warning" | "error";
+            /** Fields */
+            fields: string[];
+            /** Affectedrowcount */
+            affectedRowCount: number | null;
+        };
         /**
          * MoneyDirection
          * @enum {string}
@@ -2753,6 +3026,11 @@ export interface components {
          */
         TransactionRuleMatchType: "contains" | "exact";
         /**
+         * UnsignedAmountDirection
+         * @enum {string}
+         */
+        UnsignedAmountDirection: "require_sign" | "income" | "expense";
+        /**
          * UploadedDocumentStatus
          * @enum {string}
          */
@@ -2794,6 +3072,135 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_unknown_statement_mapping_api_v1_imports_documents__document_id__mapping_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingReadApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_unknown_statement_mapping_api_v1_imports_documents__document_id__mapping_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MappingPreviewApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingPreviewApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     get_import_upload_reference_api_v1_imports_upload_reference_get: {
         parameters: {
             query?: never;

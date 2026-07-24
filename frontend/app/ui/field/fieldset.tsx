@@ -5,7 +5,7 @@ import styles from "./fieldset.module.css";
 
 type FieldsetProps = {
   children: ReactNode;
-  error?: string;
+  error?: string | undefined;
   errorId?: string;
   hint?: string;
   legend: string;
@@ -29,6 +29,7 @@ export function Fieldset({
         {legend}
         {required ? <span aria-hidden="true"> *</span> : null}
       </legend>
+      {children}
       {hint && !error ? <p className={styles.hint}>{hint}</p> : null}
       {error ? (
         errorId ? (
@@ -37,7 +38,6 @@ export function Fieldset({
           <FormError>{error}</FormError>
         )
       ) : null}
-      {children}
     </fieldset>
   );
 }
