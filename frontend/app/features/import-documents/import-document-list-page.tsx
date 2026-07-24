@@ -79,7 +79,7 @@ export function ImportDocumentListPage({
         <PageHeader
           actions={
             documents.capabilities.canUpload ? (
-              <a className={styles.primaryLink} href="/imports/upload">
+              <a className={styles.primaryLink} href="/app/imports/upload">
                 Загрузить выписку
               </a>
             ) : undefined

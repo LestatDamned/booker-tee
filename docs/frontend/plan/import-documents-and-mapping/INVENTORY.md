@@ -1,6 +1,6 @@
 # Inventory: Import Documents And Mapping
 
-Статус: active inventory; Slices 01 и 03 cutover завершены.
+Статус: active inventory; Slices 01–03 cutover завершены.
 
 Проверено: 2026-07-24.
 
@@ -10,7 +10,6 @@
 
 ```text
 GET/POST /imports
-GET/POST /imports/upload
 GET/POST /imports/documents/{document_id}/mapping
 POST     /imports/documents/{document_id}/mapping/import
 ```
@@ -34,7 +33,7 @@ storage backend или background processing infrastructure.
 - Есть warning/complete/ignored визуальные состояния и empty state.
 - Возможность upload зависит от import-management permission.
 
-### Upload
+### Upload — React
 
 - Загружает PDF/XLSX через multipart form.
 - Требует существующий активный account текущего workspace.
@@ -42,9 +41,12 @@ storage backend или background processing infrastructure.
 - Создаёт отдельный `ParseAttempt`.
 - Сохраняет документ и безопасную ошибку при parse failure.
 - После завершения ведёт на document detail.
+- Ограничивает streaming upload 20 МБ по умолчанию.
+- Повторяет потерянный response по `Idempotency-Key` без второго документа и
+  повторного parse.
 
 Текущая обработка выполняется синхронно в request. SHA-256 хранится и
-индексируется, но upload command не имеет строгого idempotency contract.
+индексируется; command idempotency отделена от дедупликации банковских строк.
 
 ### Document detail — React
 
@@ -178,7 +180,7 @@ Imports navbar link.
 ### Templates
 
 - `src/app/templates/imports/index.html`;
-- `src/app/templates/imports/upload.html`;
+- React/API заменили и удалили `src/app/templates/imports/upload.html`;
 - `src/app/templates/imports/mapping.html`;
 - `src/app/templates/imports/mapping/*`;
 - shared mapping partials `_document_summary.html`, `_mapping_candidates.html`,

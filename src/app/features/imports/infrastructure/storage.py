@@ -7,6 +7,8 @@ from uuid import UUID
 
 from fastapi import UploadFile
 
+from app.features.imports.errors import UploadTooLargeError
+
 
 @dataclass(frozen=True)
 class StoredUpload:
@@ -40,13 +42,39 @@ class UploadStorage:
         *,
         workspace_id: UUID,
         document_id: UUID,
+        max_bytes: int | None = None,
     ) -> StoredUpload:
         return await self._save(
             upload_file,
             workspace_id=workspace_id,
             document_id=document_id,
             filename_sanitizer=sanitize_upload_filename,
+            max_bytes=max_bytes,
         )
+
+    async def inspect_upload(
+        self,
+        upload_file: UploadFile,
+        *,
+        max_bytes: int | None = None,
+    ) -> tuple[str, int]:
+        digest = sha256()
+        size = 0
+        while chunk := await upload_file.read(1024 * 1024):
+            size += len(chunk)
+            if max_bytes is not None and size > max_bytes:
+                await upload_file.seek(0)
+                raise UploadTooLargeError("Файл превышает допустимый размер.")
+            digest.update(chunk)
+        await upload_file.seek(0)
+        return digest.hexdigest(), size
+
+    async def delete_stored_upload(self, stored_upload: StoredUpload) -> None:
+        stored_upload.path.unlink(missing_ok=True)
+        try:
+            stored_upload.path.parent.rmdir()
+        except OSError:
+            pass
 
     async def _save(
         self,
@@ -55,6 +83,7 @@ class UploadStorage:
         workspace_id: UUID,
         document_id: UUID,
         filename_sanitizer: Callable[[str], str],
+        max_bytes: int | None = None,
     ) -> StoredUpload:
         original_name = upload_file.filename or "statement.pdf"
         safe_name = filename_sanitizer(original_name)
@@ -67,6 +96,11 @@ class UploadStorage:
         with target_path.open("wb") as target_file:
             while chunk := await upload_file.read(1024 * 1024):
                 size += len(chunk)
+                if max_bytes is not None and size > max_bytes:
+                    target_file.close()
+                    target_path.unlink(missing_ok=True)
+                    await upload_file.seek(0)
+                    raise UploadTooLargeError("Файл превышает допустимый размер.")
                 digest.update(chunk)
                 target_file.write(chunk)
 

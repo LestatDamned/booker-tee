@@ -408,8 +408,7 @@ review state, mapping warning text или другие смысловые под
 
 Текущие presentation-пакеты:
 
-- `presentation/documents.py` - временный SSR presenter формы загрузки до
-  Slice 02 cutover.
+- Upload и document detail presentation удалены после React/API cutover.
 - `presentation/mapping/` - страница ручного маппинга неизвестной выписки:
   page VM, form options, selected table preview, import preview and warnings.
 - `presentation/review/` - import review page: review item VM, action VM,
@@ -592,9 +591,8 @@ import path easy to test.
 ## Current module map
 
 - `router.py` - thin HTTP router aggregator for the imports feature.
-- `routes/` - story-based HTTP endpoints and close HTTP adapters:
-  documents/upload lifecycle, unknown statement mapping, review actions, form
-  parsing, redirects, and HTMX response rendering.
+- `routes/` - оставшиеся SSR mapping endpoints и compatibility redirects для
+  уже мигрированных Imports GET routes.
 - `service.py` - small read-side facade for document list/detail views.
 - `application/documents/` - document lifecycle use cases and helpers: upload, reparse, ignore/delete, parse attempts.
 - `application/review/` - review lifecycle use cases and helpers:

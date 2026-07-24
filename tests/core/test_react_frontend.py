@@ -94,3 +94,21 @@ def test_historical_import_document_url_redirects_with_query() -> None:
     assert response.headers["location"] == (
         f"/app/imports/documents/{document_id}?source=dashboard"
     )
+
+
+def test_historical_import_upload_only_redirects_get_with_query() -> None:
+    app = create_app()
+
+    with TestClient(app) as client:
+        get_response = client.get(
+            "/imports/upload?source=dashboard",
+            follow_redirects=False,
+        )
+        post_response = client.post(
+            "/imports/upload",
+            follow_redirects=False,
+        )
+
+    assert get_response.status_code == 307
+    assert get_response.headers["location"] == ("/app/imports/upload?source=dashboard")
+    assert post_response.status_code == 405

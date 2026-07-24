@@ -172,7 +172,7 @@ def _mapping_next_step(
         primary_href=document.detail_url,
         primary_label="открыть документ",
         primary_icon="file-text",
-        secondary_href="/imports/upload",
+        secondary_href="/app/imports/upload",
         secondary_label="загрузить заново",
         secondary_icon="upload",
     )

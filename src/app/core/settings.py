@@ -67,6 +67,11 @@ class Settings(BaseSettings):
         default=Path("var/uploads"),
         validation_alias="BOOKER_TEE_UPLOAD_STORAGE_DIR",
     )
+    statement_upload_max_bytes: int = Field(
+        default=20 * 1024 * 1024,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_UPLOAD_MAX_BYTES",
+    )
     database_url: str = Field(
         default="postgresql+asyncpg://booker_tee:booker_tee@localhost:5432/booker_tee",
         validation_alias="DATABASE_URL",

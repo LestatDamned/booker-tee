@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/imports/upload-reference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Import Upload Reference */
+        get: operations["get_import_upload_reference_api_v1_imports_upload_reference_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/imports/documents": {
         parameters: {
             query?: never;
@@ -14,7 +31,8 @@ export interface paths {
         /** List Import Documents */
         get: operations["list_import_documents_api_v1_imports_documents_get"];
         put?: never;
-        post?: never;
+        /** Upload Import Document */
+        post: operations["upload_import_document_api_v1_imports_documents_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -583,8 +601,7 @@ export interface paths {
         /** Upload Form */
         get: operations["upload_form_imports_upload_get"];
         put?: never;
-        /** Upload Statement */
-        post: operations["upload_statement_imports_upload_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1442,10 +1459,10 @@ export interface components {
             /** Default Currency */
             default_currency: string;
         };
-        /** Body_upload_statement_imports_upload_post */
-        Body_upload_statement_imports_upload_post: {
-            /** Statement Pdf */
-            statement_pdf: string;
+        /** Body_upload_import_document_api_v1_imports_documents_post */
+        Body_upload_import_document_api_v1_imports_documents_post: {
+            /** Statement */
+            statement: string;
             /**
              * Account Id
              * Format: uuid
@@ -1768,6 +1785,23 @@ export interface components {
              * Format: date
              */
             end: string;
+        };
+        /** ImportDocumentUploadApiResponse */
+        ImportDocumentUploadApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["UploadedDocumentStatus"];
+            /** Replayed */
+            replayed: boolean;
+            /**
+             * Navigationtarget
+             * @constant
+             */
+            navigationTarget: "document_detail";
+            nextStep: components["schemas"]["ImportDocumentDetailNextStep"];
         };
         /**
          * ImportDocumentWorkflowStepState
@@ -2346,6 +2380,33 @@ export interface components {
          * @enum {string}
          */
         ImportReviewValidationReasonCode: "totals_match" | "rows_need_review" | "balance_chain_mismatch" | "control_totals_unavailable" | "control_totals_mismatch" | "ignored_rows_explain_mismatch";
+        /** ImportUploadReferenceAccountApiResponse */
+        ImportUploadReferenceAccountApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+            /** Bankname */
+            bankName: string | null;
+        };
+        /** ImportUploadReferenceApiResponse */
+        ImportUploadReferenceApiResponse: {
+            /** Accounts */
+            accounts: components["schemas"]["ImportUploadReferenceAccountApiResponse"][];
+            /** Acceptedextensions */
+            acceptedExtensions: string[];
+            /** Acceptedcontenttypes */
+            acceptedContentTypes: string[];
+            /** Maxfilesizebytes */
+            maxFileSizeBytes: number;
+            /** Canupload */
+            canUpload: boolean;
+        };
         /** ManualIncomeExpenseCreateApiRequest */
         ManualIncomeExpenseCreateApiRequest: {
             /** Amount */
@@ -2733,6 +2794,44 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_import_upload_reference_api_v1_imports_upload_reference_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportUploadReferenceApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     list_import_documents_api_v1_imports_documents_get: {
         parameters: {
             query?: {
@@ -2793,6 +2892,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_import_document_api_v1_imports_documents_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_import_document_api_v1_imports_documents_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportDocumentUploadApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };
@@ -4777,40 +4965,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/html": string;
-                };
-            };
-        };
-    };
-    upload_statement_imports_upload_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_statement_imports_upload_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

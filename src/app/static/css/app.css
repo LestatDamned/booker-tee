@@ -982,111 +982,6 @@ input[type="checkbox"] {
   width: 100%;
 }
 
-.file-upload-field {
-  align-self: stretch;
-}
-
-.file-upload-control {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: stretch;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  overflow: hidden;
-}
-
-.file-upload-input {
-  position: absolute;
-  width: 1px !important;
-  height: 1px;
-  min-height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  border: 0;
-  padding: 0;
-  white-space: nowrap;
-}
-
-.file-upload-button {
-  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
-  border-radius: 6px 0 0 6px;
-  border-top: 0;
-  border-bottom: 0;
-  border-left: 0;
-  border-right: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface-strong) 82%, var(--bg));
-  cursor: pointer;
-  font-size: 0.84rem;
-}
-
-.file-upload-input:focus-visible + .file-upload-button,
-.import-upload-form__file-button:hover,
-.file-upload-button:hover {
-  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
-  background: color-mix(in srgb, var(--surface-strong) 84%, var(--accent));
-  color: var(--text);
-}
-
-.file-upload-name {
-  min-width: 0;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  color: var(--muted);
-  overflow: hidden;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.84rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.alpha-support {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  padding: 14px;
-}
-
-.alpha-support h2 {
-  margin: 0 0 12px;
-  font-size: 0.95rem;
-  text-transform: uppercase;
-}
-
-.alpha-support-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  margin: 0;
-  background: var(--border);
-  border: 1px solid var(--border);
-}
-
-.alpha-support-grid > div {
-  min-width: 0;
-  background: var(--surface-strong);
-  padding: 12px;
-}
-
-.alpha-support-grid dt {
-  margin-bottom: 6px;
-  color: var(--muted);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-}
-
-.alpha-support-grid dd {
-  margin: 0;
-  color: var(--text);
-  line-height: 1.45;
-}
-
 .operation-type-field {
   align-self: stretch;
 }
@@ -4892,19 +4787,6 @@ html:not(.entity-target-cleared) .rule-card:target {
   }
 
   .form-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .file-upload-control {
-    grid-template-columns: 1fr;
-  }
-
-  .file-upload-button {
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .alpha-support-grid {
     grid-template-columns: 1fr;
   }
 

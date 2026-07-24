@@ -13,7 +13,10 @@ from fastapi import UploadFile
 from openpyxl import Workbook
 
 from app.features.imports.application.documents.management import document_has_linked_operations
-from app.features.imports.application.documents.upload import validate_statement_upload
+from app.features.imports.application.documents.upload import (
+    StatementUploadUseCase,
+    validate_statement_upload,
+)
 from app.features.imports.application.review.status import (
     RawTransactionReviewStatusUseCase,
     raw_transaction_status_for_review_action,
@@ -22,7 +25,11 @@ from app.features.imports.domain.deduplication import (
     mark_raw_transaction_duplicate,
     possible_duplicate_fingerprint,
 )
-from app.features.imports.errors import UploadValidationError
+from app.features.imports.errors import (
+    UploadIdempotencyConflictError,
+    UploadTooLargeError,
+    UploadValidationError,
+)
 from app.features.imports.infrastructure.extraction.openpyxl_extractor import (
     OpenPyxlStatementExtractor,
 )
@@ -100,6 +107,108 @@ async def test_upload_storage_preserves_xlsx_extension(tmp_path: Path) -> None:
     assert stored.sha256_hash == sha256(content).hexdigest()
     assert stored.path.read_bytes() == content
     assert stored.storage_key == f"{workspace_id}/{document_id}/statement.xlsx"
+
+
+@pytest.mark.asyncio
+async def test_upload_storage_rejects_oversized_file_without_leaving_partial(
+    tmp_path: Path,
+) -> None:
+    upload = UploadFile(file=BytesIO(b"too large"), filename="statement.pdf")
+
+    with pytest.raises(UploadTooLargeError):
+        await UploadStorage(tmp_path).save_upload(
+            upload,
+            workspace_id=uuid4(),
+            document_id=uuid4(),
+            max_bytes=4,
+        )
+
+    assert list(tmp_path.rglob("statement.pdf")) == []  # noqa: ASYNC240
+
+
+@pytest.mark.asyncio
+async def test_statement_upload_replays_same_idempotent_payload(tmp_path: Path) -> None:
+    workspace_id = uuid4()
+    account = SimpleNamespace(id=uuid4(), currency="RUB")
+    content = b"%PDF-1.4 replay"
+    existing = SimpleNamespace(
+        account_id=account.id,
+        original_filename="statement.pdf",
+        sha256_hash=sha256(content).hexdigest(),
+    )
+
+    class Accounts:
+        async def get_for_workspace(self, requested_workspace_id, account_id):
+            assert requested_workspace_id == workspace_id
+            assert account_id == account.id
+            return account
+
+    class Imports:
+        async def get_document_for_workspace(self, requested_workspace_id, _document_id):
+            assert requested_workspace_id == workspace_id
+            return existing
+
+    use_case = object.__new__(StatementUploadUseCase)
+    use_case.settings = SimpleNamespace(statement_upload_max_bytes=1024)
+    use_case.accounts = Accounts()
+    use_case.imports = Imports()
+    use_case.storage = UploadStorage(tmp_path)
+
+    result = await use_case.upload_statement(
+        context=cast(
+            Any,
+            SimpleNamespace(
+                workspace=SimpleNamespace(id=workspace_id),
+                user=SimpleNamespace(id=uuid4()),
+            ),
+        ),
+        upload_file=UploadFile(file=BytesIO(content), filename="statement.pdf"),
+        account_id=account.id,
+        idempotency_key=uuid4(),
+    )
+
+    assert result.replayed is True
+    assert result.document is existing
+    assert list(tmp_path.rglob("statement.pdf")) == []  # noqa: ASYNC240
+
+
+@pytest.mark.asyncio
+async def test_statement_upload_rejects_changed_idempotent_payload(tmp_path: Path) -> None:
+    workspace_id = uuid4()
+    account = SimpleNamespace(id=uuid4(), currency="RUB")
+    existing = SimpleNamespace(
+        account_id=account.id,
+        original_filename="statement.pdf",
+        sha256_hash=sha256(b"first").hexdigest(),
+    )
+
+    class Accounts:
+        async def get_for_workspace(self, *_args):
+            return account
+
+    class Imports:
+        async def get_document_for_workspace(self, *_args):
+            return existing
+
+    use_case = object.__new__(StatementUploadUseCase)
+    use_case.settings = SimpleNamespace(statement_upload_max_bytes=1024)
+    use_case.accounts = Accounts()
+    use_case.imports = Imports()
+    use_case.storage = UploadStorage(tmp_path)
+
+    with pytest.raises(UploadIdempotencyConflictError):
+        await use_case.upload_statement(
+            context=cast(
+                Any,
+                SimpleNamespace(
+                    workspace=SimpleNamespace(id=workspace_id),
+                    user=SimpleNamespace(id=uuid4()),
+                ),
+            ),
+            upload_file=UploadFile(file=BytesIO(b"second"), filename="statement.pdf"),
+            account_id=account.id,
+            idempotency_key=uuid4(),
+        )
 
 
 def test_validate_statement_upload_accepts_pdf_and_xlsx() -> None:

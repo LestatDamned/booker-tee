@@ -49,7 +49,7 @@ describe("ImportDocumentListPage", () => {
     expect(screen.getByText("Документов пока нет")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Загрузить выписку" }),
-    ).toBeInTheDocument();
+    ).toHaveAttribute("href", "/app/imports/upload");
   });
 
   it("keeps viewer data visible and hides upload mutations", () => {

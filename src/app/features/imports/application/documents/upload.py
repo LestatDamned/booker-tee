@@ -1,7 +1,9 @@
+from dataclasses import dataclass
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5
 
 from fastapi import UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
@@ -12,7 +14,11 @@ from app.features.imports.application.documents.parse_attempts import (
     record_failed_parse_attempt,
 )
 from app.features.imports.application.processing import StatementParseProcessor
-from app.features.imports.errors import UploadValidationError
+from app.features.imports.errors import (
+    UploadAccountNotFoundError,
+    UploadIdempotencyConflictError,
+    UploadValidationError,
+)
 from app.features.imports.infrastructure.extraction.resolver import (
     SUPPORTED_STATEMENT_EXTENSIONS,
     StatementExtractorResolver,
@@ -27,6 +33,12 @@ from app.features.imports.models import (
 from app.features.imports.parsing.registry import default_statement_parser_registry
 from app.features.imports.repository import ImportRepository
 from app.features.workspaces.service import WorkspaceContext
+
+
+@dataclass(frozen=True)
+class StatementUploadResult:
+    document: UploadedDocument
+    replayed: bool
 
 
 class StatementUploadUseCase:
@@ -50,29 +62,86 @@ class StatementUploadUseCase:
         upload_file: UploadFile,
         account_id: UUID,
     ) -> UploadedDocument:
+        result = await self.upload_statement(
+            context=context,
+            upload_file=upload_file,
+            account_id=account_id,
+        )
+        return result.document
+
+    async def upload_statement(
+        self,
+        *,
+        context: WorkspaceContext,
+        upload_file: UploadFile,
+        account_id: UUID,
+        idempotency_key: UUID | None = None,
+    ) -> StatementUploadResult:
         validate_statement_upload(upload_file)
         account = await self.accounts.get_for_workspace(context.workspace.id, account_id)
         if account is None:
-            raise UploadValidationError("Selected account is not available in this workspace.")
+            raise UploadAccountNotFoundError("Выбранный счёт недоступен в текущем пространстве.")
 
-        document_id = uuid4()
+        document_id = (
+            uuid5(context.workspace.id, f"statement-upload:{idempotency_key}")
+            if idempotency_key is not None
+            else uuid4()
+        )
+        if idempotency_key is not None:
+            existing = await self.imports.get_document_for_workspace(
+                context.workspace.id,
+                document_id,
+            )
+            if existing is not None:
+                digest, _ = await self.storage.inspect_upload(
+                    upload_file,
+                    max_bytes=self.settings.statement_upload_max_bytes,
+                )
+                if (
+                    existing.account_id != account.id
+                    or existing.original_filename != (upload_file.filename or "statement")
+                    or existing.sha256_hash != digest
+                ):
+                    raise UploadIdempotencyConflictError(
+                        "Этот ключ повторной отправки уже использован для другого файла."
+                    )
+                return StatementUploadResult(document=existing, replayed=True)
+
         stored_upload = await self.storage.save_upload(
             upload_file,
             workspace_id=context.workspace.id,
-            document_id=document_id,
+            document_id=uuid4() if idempotency_key is not None else document_id,
+            max_bytes=self.settings.statement_upload_max_bytes,
         )
         selected_currency = account.currency
-        document = await self._create_document(
-            context=context,
-            document_id=document_id,
-            upload_file=upload_file,
-            stored_path=stored_upload.path,
-            storage_key=stored_upload.storage_key,
-            sha256_hash=stored_upload.sha256_hash,
-            file_size_bytes=stored_upload.file_size_bytes,
-            account_id=account.id,
-        )
-        await self.session.commit()
+        try:
+            document = await self._create_document(
+                context=context,
+                document_id=document_id,
+                upload_file=upload_file,
+                stored_path=stored_upload.path,
+                storage_key=stored_upload.storage_key,
+                sha256_hash=stored_upload.sha256_hash,
+                file_size_bytes=stored_upload.file_size_bytes,
+                account_id=account.id,
+            )
+            await self.session.commit()
+        except IntegrityError as error:
+            await self.session.rollback()
+            await self.storage.delete_stored_upload(stored_upload)
+            existing = await self.imports.get_document_for_workspace(
+                context.workspace.id,
+                document_id,
+            )
+            if existing is not None and (
+                existing.account_id == account.id
+                and existing.original_filename == (upload_file.filename or "statement")
+                and existing.sha256_hash == stored_upload.sha256_hash
+            ):
+                return StatementUploadResult(document=existing, replayed=True)
+            raise UploadIdempotencyConflictError(
+                "Этот ключ повторной отправки уже использован для другого файла."
+            ) from error
 
         attempt = await create_running_parse_attempt(
             self.imports,
@@ -94,7 +163,7 @@ class StatementUploadUseCase:
             )
 
         await self.session.commit()
-        return document
+        return StatementUploadResult(document=document, replayed=False)
 
     async def _create_document(
         self,

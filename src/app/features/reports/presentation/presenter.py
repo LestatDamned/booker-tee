@@ -294,9 +294,7 @@ def report_url(
         "category_sort": normalized_category_sort if include_sort else None,
         "category_sort_dir": normalized_category_sort_dir if include_sort else None,
     }
-    query = urlencode(
-        {key: value for key, value in params.items() if value not in {None, ""}}
-    )
+    query = urlencode({key: value for key, value in params.items() if value not in {None, ""}})
     return f"/reports?{query}" if query else "/reports"
 
 
@@ -310,9 +308,7 @@ def category_detail_url(
         "date_from": date_from.isoformat() if date_from else None,
         "date_to": date_to.isoformat() if date_to else None,
     }
-    query = urlencode(
-        {key: value for key, value in params.items() if value not in {None, ""}}
-    )
+    query = urlencode({key: value for key, value in params.items() if value not in {None, ""}})
     return f"/categories/{category_id}?{query}" if query else f"/categories/{category_id}"
 
 

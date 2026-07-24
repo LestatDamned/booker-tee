@@ -512,7 +512,7 @@ function nextStepPresentation(document: ImportDocumentDetailDto) {
       description:
         "Исходный файл сохранён. Посмотрите причину ниже или загрузите другую версию выписки.",
       action: "Загрузить другую",
-      href: "/imports/upload",
+      href: "/app/imports/upload",
     },
     document_list: {
       title: "Обработка ещё не завершена",

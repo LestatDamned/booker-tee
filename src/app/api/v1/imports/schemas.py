@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from app.api.schemas import ApiModel
@@ -84,6 +85,29 @@ class ImportDocumentListApiResponse(ApiModel):
     filter_options: ImportDocumentListFilterOptionsApiResponse
     summary: ImportDocumentListSummaryApiResponse
     capabilities: ImportDocumentListCapabilitiesApiResponse
+
+
+class ImportUploadReferenceAccountApiResponse(ApiModel):
+    id: UUID
+    name: str
+    currency: str
+    bank_name: str | None
+
+
+class ImportUploadReferenceApiResponse(ApiModel):
+    accounts: list[ImportUploadReferenceAccountApiResponse]
+    accepted_extensions: list[str]
+    accepted_content_types: list[str]
+    max_file_size_bytes: int
+    can_upload: bool
+
+
+class ImportDocumentUploadApiResponse(ApiModel):
+    id: UUID
+    status: UploadedDocumentStatus
+    replayed: bool
+    navigation_target: Literal["document_detail"]
+    next_step: ImportDocumentDetailNextStep
 
 
 class ImportDocumentDetailAccountApiResponse(ApiModel):

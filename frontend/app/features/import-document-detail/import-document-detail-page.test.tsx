@@ -115,7 +115,7 @@ describe("ImportDocumentDetailPage", () => {
 
     expect(
       screen.getByRole("link", { name: "Загрузить другую" }),
-    ).toHaveAttribute("href", "/imports/upload");
+    ).toHaveAttribute("href", "/app/imports/upload");
     expect(screen.getByText("Файл повреждён.")).toBeVisible();
     expect(
       screen.getByText("Из этой версии файла строки не извлечены."),

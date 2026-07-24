@@ -5,7 +5,6 @@ from typing import Any, cast
 from uuid import uuid4
 
 from app.features.imports.models import UploadedDocumentStatus
-from app.features.imports.presentation.documents import UploadPagePresenter
 from app.features.imports.presentation.mapping.models import MappingDocumentVM, MappingNextStepVM
 from app.features.workspaces.models import (
     WorkspaceAuditEventType,
@@ -23,55 +22,6 @@ def render_template(template_name: str, **context: object) -> str:
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")
     context.setdefault("css_version", "test-css-version")
     return templates.env.get_template(template_name).render(**context)
-
-
-def render_upload_template(*, accounts: list[object], error: str | None = None) -> str:
-    workspace = SimpleNamespace(name="Personal")
-    return render_template(
-        "imports/upload.html",
-        app_name="Booker Tee",
-        page=UploadPagePresenter().build(
-            accounts=accounts,
-            workspace=workspace,
-            error=error,
-        ),
-        workspace=workspace,
-    )
-
-
-def test_upload_page_guides_to_account_before_upload() -> None:
-    html = render_upload_template(accounts=[])
-
-    assert "Сначала нужен счет" in html
-    assert "empty-state-copy" in html
-    assert "следующий шаг" in html
-    assert "/accounts" in html
-
-
-def test_upload_page_guides_to_file_when_accounts_exist() -> None:
-    html = render_upload_template(
-        accounts=[SimpleNamespace(id=uuid4(), name="Карта", currency="RUB")],
-    )
-
-    assert "Выберите счет и файл" in html
-    assert "загрузить базовые правила" in html
-    assert "inline-hint" in html
-    assert "file-upload-control" in html
-    assert "import-upload-form__file-button" in html
-    assert "import-upload-form__submit" in html
-    assert "выбрать файл" in html
-    assert "файл не выбран" in html
-    assert "Поддержка в альфе" in html
-    assert "PDF, XLSX" in html
-    assert "Альфа-Банк XLSX" in html
-    assert "Ozon Банк" in html
-    assert "T-Банк" in html
-    assert "Сбербанк" in html
-    assert "ВТБ" in html
-    assert "Экспобанк" in html
-    assert "настроить колонки вручную" in html
-    assert "следующий шаг" in html
-    assert "#upload-form" in html
 
 
 def test_dashboard_uses_guided_empty_states() -> None:
@@ -447,7 +397,7 @@ def test_mapping_page_shows_mapping_as_current_workflow_step() -> None:
                 primary_href=f"/app/imports/documents/{document_id}",
                 primary_label="открыть документ",
                 primary_icon="file-text",
-                secondary_href="/imports/upload",
+                secondary_href="/app/imports/upload",
                 secondary_label="загрузить заново",
                 secondary_icon="upload",
             ),

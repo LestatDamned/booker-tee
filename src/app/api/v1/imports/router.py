@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, File, Form, Header, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import ApiRequestContext, get_api_request_context
@@ -23,10 +23,14 @@ from app.api.v1.imports.schemas import (
     ImportDocumentDetailApiResponse,
     ImportDocumentListApiResponse,
     ImportDocumentMutationApiRequest,
+    ImportDocumentUploadApiResponse,
+    ImportUploadReferenceAccountApiResponse,
+    ImportUploadReferenceApiResponse,
 )
 from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
+from app.features.accounts.service import AccountService
 from app.features.imports.application.documents.detail_reading import (
     ImportDocumentDetailReader,
 )
@@ -35,11 +39,125 @@ from app.features.imports.application.documents.management import (
     ImportDocumentManagementUseCase,
 )
 from app.features.imports.application.documents.reparse import StatementReparseUseCase
-from app.features.imports.errors import ImportDocumentManagementError, ImportReparseError
+from app.features.imports.application.documents.upload import StatementUploadUseCase
+from app.features.imports.errors import (
+    ImportDocumentManagementError,
+    ImportReparseError,
+    UploadAccountNotFoundError,
+    UploadIdempotencyConflictError,
+    UploadTooLargeError,
+    UploadValidationError,
+)
 from app.features.imports.service import ImportService
 from app.features.workspaces.permissions import can_manage_imports, permission_flags_for
 
 router = APIRouter(prefix="/imports", tags=["imports"])
+
+
+@router.get(
+    "/upload-reference",
+    response_model=ImportUploadReferenceApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+    ),
+)
+async def get_import_upload_reference(
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ImportUploadReferenceApiResponse:
+    accounts = await AccountService(session).list_active_accounts(context.workspace.workspace.id)
+    return ImportUploadReferenceApiResponse(
+        accounts=[
+            ImportUploadReferenceAccountApiResponse(
+                id=account.id,
+                name=account.name,
+                currency=account.currency,
+                bank_name=account.bank_name,
+            )
+            for account in accounts
+        ],
+        accepted_extensions=[".pdf", ".xlsx"],
+        accepted_content_types=[
+            "application/pdf",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ],
+        max_file_size_bytes=settings.statement_upload_max_bytes,
+        can_upload=can_manage_imports(context.workspace.membership),
+    )
+
+
+@router.post(
+    "/documents",
+    response_model=ImportDocumentUploadApiResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_413_CONTENT_TOO_LARGE,
+        status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def upload_import_document(
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    statement: Annotated[UploadFile, File()],
+    account_id: Annotated[UUID, Form()],
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+) -> ImportDocumentUploadApiResponse:
+    _require_import_management(context)
+    try:
+        result = await StatementUploadUseCase(session, settings).upload_statement(
+            context=context.workspace,
+            upload_file=statement,
+            account_id=account_id,
+            idempotency_key=idempotency_key,
+        )
+    except UploadAccountNotFoundError as error:
+        raise ApiError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="upload_account_not_found",
+            message=str(error),
+            field_errors={"accountId": [str(error)]},
+        ) from error
+    except UploadIdempotencyConflictError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="upload_idempotency_conflict",
+            message=str(error),
+        ) from error
+    except UploadTooLargeError as error:
+        raise ApiError(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            code="upload_too_large",
+            message=str(error),
+            field_errors={"statement": [str(error)]},
+        ) from error
+    except UploadValidationError as error:
+        raise ApiError(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            code="unsupported_statement_type",
+            message=str(error),
+            field_errors={"statement": [str(error)]},
+        ) from error
+
+    detail = await _read_committed_detail(
+        session=session,
+        workspace_id=context.workspace.workspace.id,
+        document_id=result.document.id,
+    )
+    return ImportDocumentUploadApiResponse(
+        id=result.document.id,
+        status=result.document.status,
+        replayed=result.replayed,
+        navigation_target="document_detail",
+        next_step=detail.next_step,
+    )
 
 
 @router.get(

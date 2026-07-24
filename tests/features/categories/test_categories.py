@@ -274,11 +274,14 @@ def test_category_detail_url_targets_category_detail() -> None:
     category_id = uuid4()
 
     assert category_detail_url(category_id) == f"/categories/{category_id}"
-    assert category_detail_url(
-        category_id,
-        date_from=date(2026, 6, 1),
-        date_to=date(2026, 6, 30),
-    ) == f"/categories/{category_id}?date_from=2026-06-01&date_to=2026-06-30"
+    assert (
+        category_detail_url(
+            category_id,
+            date_from=date(2026, 6, 1),
+            date_to=date(2026, 6, 30),
+        )
+        == f"/categories/{category_id}?date_from=2026-06-01&date_to=2026-06-30"
+    )
 
 
 @pytest.mark.asyncio

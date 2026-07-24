@@ -4,6 +4,7 @@ export default [
   index("routes/home.tsx"),
   route("foundation", "routes/foundation.tsx"),
   route("imports", "routes/import-documents.tsx"),
+  route("imports/upload", "routes/import-upload.tsx"),
   route("imports/documents/:documentId", "routes/import-document-detail.tsx"),
   route("imports/documents/:documentId/review", "routes/import-review.tsx"),
   route("ledger/manual", "routes/manual-ledger.tsx"),

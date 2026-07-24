@@ -24,7 +24,7 @@
             </a>
           </div>
           {% if workspace_permissions and workspace_permissions.can_manage_imports %}
-            <a class="site-header__action site-header__action--primary" href="/imports/upload">{{ icon("upload") }} загрузить</a>
+            <a class="site-header__action site-header__action--primary" href="/app/imports/upload">{{ icon("upload") }} загрузить</a>
           {% elif workspace_permissions and workspace_permissions.can_write_financial_data %}
             <a class="site-header__action site-header__action--primary" href="/app/ledger/manual">{{ icon("plus") }} операция</a>
           {% else %}

@@ -36,7 +36,7 @@ PAGES: tuple[tuple[str, str], ...] = (
     ("/accounts", "accounts"),
     ("/ledger/manual", "manual-ledger-redirect"),
     ("/imports", "imports"),
-    ("/imports/upload", "imports-upload"),
+    ("/app/imports/upload", "imports-upload"),
     ("/rules", "rules"),
     ("/reports", "reports"),
     ("/categories", "categories"),
@@ -52,7 +52,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/accounts", "accounts"),
     ("/ledger/manual", "manual-ledger-redirect"),
     ("/imports", "imports"),
-    ("/imports/upload", "imports-upload"),
+    ("/app/imports/upload", "imports-upload"),
     ("/rules", "rules"),
     ("/reports", "reports"),
     ("/categories", "categories"),
@@ -399,8 +399,9 @@ def prepare_realistic_scenario(
         page.get_by_text("Ссылка-приглашение создана", exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
         page.get_by_text("Ожидающие приглашения", exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
 
-        page.goto(build_url(base_url, "/imports/upload"), wait_until="domcontentloaded")
-        page.locator('input[name="statement_pdf"]').set_input_files(str(workbook_path))
+        page.goto(build_url(base_url, "/app/imports/upload"), wait_until="domcontentloaded")
+        page.locator('select[name="accountId"]').select_option(index=1)
+        page.locator('input[name="statement"]').set_input_files(str(workbook_path))
         page.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
         page.wait_for_url("**/imports/documents/**", timeout=PAGE_TIMEOUT_MS)
         detail_path = page.url.replace(base_url.rstrip("/"), "")

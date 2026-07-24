@@ -1,6 +1,6 @@
 # Slice 02: Statement Upload
 
-Статус: planned.
+Статус: completed.
 
 ## Outcome
 
@@ -98,3 +98,25 @@ Historical `/imports/upload` становится query-preserving redirect на
 - no-account/readonly/error states работают;
 - old upload route/template/presenter удалены;
 - browser upload проходит desktop/tablet/mobile.
+
+## Completion record
+
+Завершено 2026-07-24.
+
+- `/app/imports/upload` стал единственным интерфейсом загрузки и использует
+  typed `GET /api/v1/imports/upload-reference` и multipart
+  `POST /api/v1/imports/documents`.
+- Счёт выбирается явно; файл остаётся browser-local и проверяется по расширению
+  и размеру до отправки. Pending блокирует повторную отправку и объясняет
+  длительную синхронную обработку.
+- Максимальный размер контролируется также во время streaming save. Частичный
+  файл удаляется при превышении лимита.
+- `Idempotency-Key` детерминированно задаёт document identity внутри workspace.
+  Одинаковый account/filename/content возвращает сохранённый документ без
+  повторного parse; другой payload получает `409`.
+- Parse failure остаётся успешным committed upload и ведёт в React document
+  detail, где виден безопасный результат обработки.
+- Legacy GET стал query-preserving redirect; HTML POST, Jinja template,
+  presenter, Alpine filename hook, template tests и upload-only CSS удалены.
+- Canonical ссылки из списка, detail, dashboard, accounts, reports, onboarding
+  и mapping ведут на React upload.
