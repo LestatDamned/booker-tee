@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/imports/documents/{document_id}/mapping/tables/{page_number}/{table_index}/rows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Unknown Statement Mapping Source Rows */
+        get: operations["get_unknown_statement_mapping_source_rows_api_v1_imports_documents__document_id__mapping_tables__page_number___table_index__rows_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/imports/documents/{document_id}/mapping/preview": {
         parameters: {
             query?: never;
@@ -2584,6 +2601,21 @@ export interface components {
             /** Currency */
             currency: string;
         };
+        /** MappingBalanceReconciliationApiResponse */
+        MappingBalanceReconciliationApiResponse: {
+            /** Openingbalance */
+            openingBalance: string;
+            /** Movement */
+            movement: string;
+            /** Calculatedclosingbalance */
+            calculatedClosingBalance: string;
+            /** Statementclosingbalance */
+            statementClosingBalance: string;
+            /** Difference */
+            difference: string;
+            /** Matches */
+            matches: boolean;
+        };
         /**
          * MappingBlockingReasonCode
          * @enum {string}
@@ -2631,6 +2663,35 @@ export interface components {
             /** Defaultcurrency */
             defaultCurrency: string;
             unsignedAmountDirection: components["schemas"]["UnsignedAmountDirection"];
+            openingBalanceCell?: components["schemas"]["MappingControlTotalCellApiModel"] | null;
+            closingBalanceCell?: components["schemas"]["MappingControlTotalCellApiModel"] | null;
+        };
+        /** MappingControlTotalCandidateApiResponse */
+        MappingControlTotalCandidateApiResponse: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "opening_balance" | "closing_balance";
+            cell: components["schemas"]["MappingControlTotalCellApiModel"];
+            /** Label */
+            label: string;
+            /** Rawvalue */
+            rawValue: string;
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+            /** Confidence */
+            confidence: number;
+        };
+        /** MappingControlTotalCellApiModel */
+        MappingControlTotalCellApiModel: {
+            tableRef: components["schemas"]["MappingTableRefApiModel"];
+            /** Rownumber */
+            rowNumber: number;
+            /** Columnindex */
+            columnIndex: number;
         };
         /**
          * MappingDefaultSource
@@ -2694,6 +2755,9 @@ export interface components {
             compatibleTables: components["schemas"]["MappingTableRefApiModel"][];
             /** Warnings */
             warnings: components["schemas"]["MappingWarningApiResponse"][];
+            /** Controltotals */
+            controlTotals: components["schemas"]["MappingResolvedControlTotalApiResponse"][];
+            reconciliation: components["schemas"]["MappingBalanceReconciliationApiResponse"] | null;
             /** Canimport */
             canImport: boolean;
         };
@@ -2756,10 +2820,27 @@ export interface components {
             templates: components["schemas"]["MappingTemplateApiResponse"][];
             /** Tables */
             tables: components["schemas"]["MappingSourceTableApiResponse"][];
+            /** Controltotalcandidates */
+            controlTotalCandidates: components["schemas"]["MappingControlTotalCandidateApiResponse"][];
             /** Totaltablecount */
             totalTableCount: number;
             /** Tablestruncated */
             tablesTruncated: boolean;
+        };
+        /** MappingResolvedControlTotalApiResponse */
+        MappingResolvedControlTotalApiResponse: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "opening_balance" | "closing_balance";
+            cell: components["schemas"]["MappingControlTotalCellApiModel"];
+            /** Rawvalue */
+            rawValue: string;
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
         };
         /**
          * MappingRowErrorCode
@@ -2772,6 +2853,22 @@ export interface components {
             rowNumber: number;
             /** Cells */
             cells: string[];
+        };
+        /** MappingSourceRowsApiResponse */
+        MappingSourceRowsApiResponse: {
+            tableRef: components["schemas"]["MappingTableRefApiModel"];
+            /** Rows */
+            rows: components["schemas"]["MappingSourceRowApiResponse"][];
+            /** Totalrowcount */
+            totalRowCount: number;
+            /** Startrownumber */
+            startRowNumber: number;
+            /** Rowlimit */
+            rowLimit: number;
+            /** Hasprevious */
+            hasPrevious: boolean;
+            /** Hasnext */
+            hasNext: boolean;
         };
         /** MappingSourceTableApiResponse */
         MappingSourceTableApiResponse: {
@@ -3013,6 +3110,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MappingReadApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_unknown_statement_mapping_source_rows_api_v1_imports_documents__document_id__mapping_tables__page_number___table_index__rows_get: {
+        parameters: {
+            query?: {
+                startRowNumber?: number;
+                rowLimit?: number;
+            };
+            header?: never;
+            path: {
+                document_id: string;
+                page_number: number;
+                table_index: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingSourceRowsApiResponse"];
                 };
             };
             /** @description Unauthorized */

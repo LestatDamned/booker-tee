@@ -2,13 +2,18 @@ from typing import Literal, cast
 
 from app.api.v1.imports.mapping_schemas import (
     MappingAccountApiResponse,
+    MappingBalanceReconciliationApiResponse,
     MappingCapabilityApiResponse,
     MappingColumnCandidateApiResponse,
     MappingCommandApiModel,
+    MappingControlTotalCandidateApiResponse,
+    MappingControlTotalCellApiModel,
     MappingPreviewApiResponse,
     MappingPreviewRowApiResponse,
     MappingReadApiResponse,
+    MappingResolvedControlTotalApiResponse,
     MappingSourceRowApiResponse,
+    MappingSourceRowsApiResponse,
     MappingSourceTableApiResponse,
     MappingSuggestionApiResponse,
     MappingSuggestionReasonApiResponse,
@@ -17,9 +22,11 @@ from app.api.v1.imports.mapping_schemas import (
     MappingWarningApiResponse,
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
+    MappingControlTotalCellRef,
     UnknownStatementMappingCommand,
 )
 from app.features.imports.application.unknown_statement_mappings.read_models import (
+    MappingSourceRowsDto,
     MappingSourceTableDto,
     MappingSuggestionDto,
     MappingTableRefDto,
@@ -61,6 +68,21 @@ class UnknownStatementMappingResponseMapper:
             tables=[
                 UnknownStatementMappingResponseMapper.source_table(table)
                 for table in mapping.tables
+            ],
+            control_total_candidates=[
+                MappingControlTotalCandidateApiResponse(
+                    kind=cast(
+                        Literal["opening_balance", "closing_balance"],
+                        candidate.kind,
+                    ),
+                    cell=UnknownStatementMappingResponseMapper.control_total_cell(candidate.cell),
+                    label=candidate.label,
+                    raw_value=candidate.raw_value,
+                    amount=candidate.amount,
+                    currency=candidate.currency,
+                    confidence=candidate.confidence,
+                )
+                for candidate in mapping.control_total_candidates
             ],
             total_table_count=mapping.total_table_count,
             tables_truncated=mapping.tables_truncated,
@@ -111,7 +133,50 @@ class UnknownStatementMappingResponseMapper:
                 )
                 for warning in preview.warnings
             ],
+            control_totals=[
+                MappingResolvedControlTotalApiResponse(
+                    kind=cast(
+                        Literal["opening_balance", "closing_balance"],
+                        total.kind,
+                    ),
+                    cell=UnknownStatementMappingResponseMapper.control_total_cell(total.cell),
+                    raw_value=total.raw_value,
+                    amount=total.amount,
+                    currency=total.currency,
+                )
+                for total in preview.control_totals
+            ],
+            reconciliation=(
+                MappingBalanceReconciliationApiResponse(
+                    opening_balance=preview.reconciliation.opening_balance,
+                    movement=preview.reconciliation.movement,
+                    calculated_closing_balance=(preview.reconciliation.calculated_closing_balance),
+                    statement_closing_balance=(preview.reconciliation.statement_closing_balance),
+                    difference=preview.reconciliation.difference,
+                    matches=preview.reconciliation.matches,
+                )
+                if preview.reconciliation is not None
+                else None
+            ),
             can_import=preview.can_import,
+        )
+
+    @staticmethod
+    def source_rows(rows: MappingSourceRowsDto) -> MappingSourceRowsApiResponse:
+        return MappingSourceRowsApiResponse(
+            table_ref=UnknownStatementMappingResponseMapper.table_ref(rows.table_ref),
+            rows=[
+                MappingSourceRowApiResponse(
+                    row_number=row.row_number,
+                    cells=list(row.cells),
+                )
+                for row in rows.rows
+            ],
+            total_row_count=rows.total_row_count,
+            start_row_number=rows.start_row_number,
+            row_limit=rows.row_limit,
+            has_previous=rows.has_previous,
+            has_next=rows.has_next,
         )
 
     @staticmethod
@@ -184,6 +249,20 @@ class UnknownStatementMappingResponseMapper:
             first_data_row_number=command.first_data_row + 1,
             default_currency=command.default_currency,
             unsigned_amount_direction=command.unsigned_amount_direction,
+            opening_balance_cell=(
+                UnknownStatementMappingResponseMapper.control_total_cell(
+                    command.opening_balance_cell
+                )
+                if command.opening_balance_cell is not None
+                else None
+            ),
+            closing_balance_cell=(
+                UnknownStatementMappingResponseMapper.control_total_cell(
+                    command.closing_balance_cell
+                )
+                if command.closing_balance_cell is not None
+                else None
+            ),
         )
 
     @staticmethod
@@ -191,6 +270,19 @@ class UnknownStatementMappingResponseMapper:
         return MappingTableRefApiModel(
             page_number=table.page_number,
             table_index=table.table_index,
+        )
+
+    @staticmethod
+    def control_total_cell(
+        cell: MappingControlTotalCellRef,
+    ) -> MappingControlTotalCellApiModel:
+        return MappingControlTotalCellApiModel(
+            table_ref=MappingTableRefApiModel(
+                page_number=cell.page_number,
+                table_index=cell.table_index,
+            ),
+            row_number=cell.row_number + 1,
+            column_index=cell.column_index,
         )
 
 

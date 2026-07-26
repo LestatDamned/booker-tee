@@ -32,6 +32,12 @@ class MappingTableRefApiModel(ApiRequestModel):
     table_index: int = Field(ge=0)
 
 
+class MappingControlTotalCellApiModel(ApiRequestModel):
+    table_ref: MappingTableRefApiModel
+    row_number: int = Field(ge=1)
+    column_index: int = Field(ge=0)
+
+
 class MappingCommandApiModel(ApiRequestModel):
     table_ref: MappingTableRefApiModel
     operation_date_column: int = Field(ge=0)
@@ -45,6 +51,8 @@ class MappingCommandApiModel(ApiRequestModel):
     first_data_row_number: int = Field(ge=1)
     default_currency: CurrencyCode
     unsigned_amount_direction: UnsignedAmountDirection
+    opening_balance_cell: MappingControlTotalCellApiModel | None = None
+    closing_balance_cell: MappingControlTotalCellApiModel | None = None
 
 
 class MappingPreviewApiRequest(ApiRequestModel):
@@ -120,6 +128,26 @@ class MappingSourceTableApiResponse(ApiModel):
     suggestion: MappingSuggestionApiResponse | None
 
 
+class MappingControlTotalCandidateApiResponse(ApiModel):
+    kind: Literal["opening_balance", "closing_balance"]
+    cell: MappingControlTotalCellApiModel
+    label: str
+    raw_value: str
+    amount: str
+    currency: str
+    confidence: float
+
+
+class MappingSourceRowsApiResponse(ApiModel):
+    table_ref: MappingTableRefApiModel
+    rows: list[MappingSourceRowApiResponse]
+    total_row_count: int
+    start_row_number: int
+    row_limit: int
+    has_previous: bool
+    has_next: bool
+
+
 class MappingTemplateApiResponse(ApiModel):
     id: UUID
     name: str
@@ -139,6 +167,7 @@ class MappingReadApiResponse(ApiModel):
     selected_template_id: UUID | None
     templates: list[MappingTemplateApiResponse]
     tables: list[MappingSourceTableApiResponse]
+    control_total_candidates: list[MappingControlTotalCandidateApiResponse]
     total_table_count: int
     tables_truncated: bool
 
@@ -176,4 +205,23 @@ class MappingPreviewApiResponse(ApiModel):
     rows_truncated: bool
     compatible_tables: list[MappingTableRefApiModel]
     warnings: list[MappingWarningApiResponse]
+    control_totals: list["MappingResolvedControlTotalApiResponse"]
+    reconciliation: "MappingBalanceReconciliationApiResponse | None"
     can_import: bool
+
+
+class MappingResolvedControlTotalApiResponse(ApiModel):
+    kind: Literal["opening_balance", "closing_balance"]
+    cell: MappingControlTotalCellApiModel
+    raw_value: str
+    amount: str
+    currency: str
+
+
+class MappingBalanceReconciliationApiResponse(ApiModel):
+    opening_balance: str
+    movement: str
+    calculated_closing_balance: str
+    statement_closing_balance: str
+    difference: str
+    matches: bool

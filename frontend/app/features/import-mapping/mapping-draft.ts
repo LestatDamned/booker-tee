@@ -40,6 +40,8 @@ export function mappingForTable(
     return {
       ...table.suggestion.mapping,
       defaultCurrency: fallback.defaultCurrency,
+      openingBalanceCell: fallback.openingBalanceCell ?? null,
+      closingBalanceCell: fallback.closingBalanceCell ?? null,
     };
   }
   return {

@@ -1,10 +1,12 @@
-import type { FormEventHandler } from "react";
+import { useState, type FormEventHandler } from "react";
 
 import { Field } from "../../ui/field/field";
 import { Fieldset } from "../../ui/field/fieldset";
 import { SearchableSelect } from "../../ui/searchable-select/searchable-select";
 import type {
   ImportMappingCommand,
+  ImportMappingControlTotalCell,
+  ImportMappingDto,
   ImportMappingSourceTable,
 } from "./api/import-mapping-api";
 import {
@@ -14,6 +16,10 @@ import {
   type AmountMode,
   type MappingFieldErrors,
 } from "./mapping-draft";
+import {
+  ControlTotalMapping,
+  type ControlTotalKind,
+} from "./control-total-mapping";
 import styles from "./import-mapping-page.module.css";
 import { MappingSourceTable } from "./mapping-source-table";
 
@@ -21,6 +27,7 @@ type MappingFormProps = {
   command: ImportMappingCommand;
   disabled: boolean;
   errors: MappingFieldErrors;
+  mapping: ImportMappingDto;
   table: ImportMappingSourceTable;
   tables: ImportMappingSourceTable[];
   onChange: (command: ImportMappingCommand) => void;
@@ -32,12 +39,15 @@ export function MappingForm({
   command,
   disabled,
   errors,
+  mapping,
   onChange,
   onSelectTable,
   onSubmit,
   table,
   tables,
 }: MappingFormProps) {
+  const [activeControlTotalKind, setActiveControlTotalKind] =
+    useState<ControlTotalKind | null>(null);
   const amountMode = mappingAmountMode(command);
   const update = (patch: Partial<ImportMappingCommand>) =>
     onChange({ ...command, ...patch });
@@ -221,11 +231,32 @@ export function MappingForm({
         </Field>
       </div>
 
+      <ControlTotalMapping
+        activeKind={activeControlTotalKind}
+        command={command}
+        disabled={disabled}
+        mapping={mapping}
+        onChange={onChange}
+        onSelectKind={setActiveControlTotalKind}
+      />
+
       <MappingSourceTable
         command={command}
         disabled={disabled}
+        documentId={mapping.documentId}
         errors={errors}
+        key={`${table.ref.pageNumber}:${table.ref.tableIndex}`}
+        selectionKind={activeControlTotalKind}
         table={table}
+        onSelectControlTotal={(cell: ImportMappingControlTotalCell) => {
+          onChange({
+            ...command,
+            [activeControlTotalKind === "opening_balance"
+              ? "openingBalanceCell"
+              : "closingBalanceCell"]: cell,
+          });
+          setActiveControlTotalKind(null);
+        }}
         onChange={onChange}
       />
     </form>

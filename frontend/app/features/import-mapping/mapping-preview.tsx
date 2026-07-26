@@ -95,6 +95,91 @@ export function MappingPreview({
         </div>
       </dl>
 
+      {preview.controlTotals.length > 0 ? (
+        <section
+          aria-labelledby="balance-reconciliation-title"
+          className={styles.balanceReconciliation}
+        >
+          <header>
+            <div>
+              <span className={styles.sectionLabel}>Контроль</span>
+              <h3 id="balance-reconciliation-title">Цепочка остатков</h3>
+            </div>
+            <StatusLabel
+              tone={
+                preview.reconciliation?.matches === true
+                  ? "success"
+                  : preview.reconciliation
+                    ? "warning"
+                    : "neutral"
+              }
+              variant="soft"
+            >
+              {preview.reconciliation?.matches === true
+                ? "Совпадает"
+                : preview.reconciliation
+                  ? "Есть расхождение"
+                  : "Нужны оба остатка"}
+            </StatusLabel>
+          </header>
+          {preview.reconciliation ? (
+            <dl>
+              <div>
+                <dt>Баланс на начало выписки</dt>
+                <dd>
+                  {formatControlMoney(
+                    preview.reconciliation.openingBalance,
+                    preview.controlTotals[0]?.currency ?? "RUB",
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>Изменение баланса по операциям</dt>
+                <dd>
+                  {formatControlMoney(
+                    preview.reconciliation.movement,
+                    preview.controlTotals[0]?.currency ?? "RUB",
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>Баланс на конец по расчёту</dt>
+                <dd>
+                  {formatControlMoney(
+                    preview.reconciliation.calculatedClosingBalance,
+                    preview.controlTotals[0]?.currency ?? "RUB",
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>Баланс на конец выписки</dt>
+                <dd>
+                  {formatControlMoney(
+                    preview.reconciliation.statementClosingBalance,
+                    preview.controlTotals[0]?.currency ?? "RUB",
+                  )}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p>
+              Выбран один контрольный остаток. Для полной сверки укажите второй,
+              если он есть в выписке.
+            </p>
+          )}
+          {preview.reconciliation && !preview.reconciliation.matches ? (
+            <p className={styles.reconciliationWarning} role="status">
+              Расхождение{" "}
+              {formatControlMoney(
+                preview.reconciliation.difference,
+                preview.controlTotals[0]?.currency ?? "RUB",
+              )}
+              . Проверьте выбранные остатки и направление сумм.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
       {preview.rows.length > 0 ? (
         <ol className={styles.previewRows}>
           {preview.rows.map((row) => (
@@ -161,6 +246,18 @@ export function MappingPreview({
       ) : null}
     </section>
   );
+}
+
+function formatControlMoney(amount: string, currency: string): string {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return `${amount} ${currency}`;
+  return new Intl.NumberFormat("ru-RU", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    signDisplay: "auto",
+  }).format(value);
 }
 
 function formatDate(normalized: string | null, raw: string): string {
@@ -255,6 +352,9 @@ function previewStatus(
   stale: boolean,
 ): { label: string; tone: "success" | "warning" | "danger" } {
   if (stale) return { label: "Нужно обновить", tone: "warning" };
+  if (preview.reconciliation && !preview.reconciliation.matches) {
+    return { label: "Остатки не сошлись", tone: "warning" };
+  }
   if (preview.invalidRowCount > 0) {
     if (!preview.canImport) {
       return { label: "Продолжить нельзя", tone: "danger" };

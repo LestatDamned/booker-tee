@@ -3,7 +3,11 @@ from datetime import date
 from enum import StrEnum
 from uuid import UUID
 
+from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
+    MappingControlTotalKind,
+)
 from app.features.imports.application.unknown_statement_mappings.dto import (
+    MappingControlTotalCellRef,
     UnknownStatementMappedRow,
     UnknownStatementMappingCommand,
     UnknownStatementMappingWarning,
@@ -109,6 +113,28 @@ class MappingSourceTableDto:
 
 
 @dataclass(frozen=True)
+class MappingControlTotalCandidateDto:
+    kind: MappingControlTotalKind
+    cell: MappingControlTotalCellRef
+    label: str
+    raw_value: str
+    amount: str
+    currency: str
+    confidence: float
+
+
+@dataclass(frozen=True)
+class MappingSourceRowsDto:
+    table_ref: MappingTableRefDto
+    rows: tuple[MappingSourceRowDto, ...]
+    total_row_count: int
+    start_row_number: int
+    row_limit: int
+    has_previous: bool
+    has_next: bool
+
+
+@dataclass(frozen=True)
 class MappingTemplateDto:
     id: UUID
     name: str
@@ -131,6 +157,7 @@ class UnknownStatementMappingReadModel:
     tables: tuple[MappingSourceTableDto, ...]
     total_table_count: int
     tables_truncated: bool
+    control_total_candidates: tuple[MappingControlTotalCandidateDto, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -162,6 +189,27 @@ class UnknownStatementMappingPreviewResult:
     compatible_tables: tuple[MappingTableRefDto, ...]
     warnings: tuple[UnknownStatementMappingWarning, ...]
     can_import: bool
+    control_totals: tuple["MappingResolvedControlTotalDto", ...] = ()
+    reconciliation: "MappingBalanceReconciliationDto | None" = None
+
+
+@dataclass(frozen=True)
+class MappingResolvedControlTotalDto:
+    kind: MappingControlTotalKind
+    cell: MappingControlTotalCellRef
+    raw_value: str
+    amount: str
+    currency: str
+
+
+@dataclass(frozen=True)
+class MappingBalanceReconciliationDto:
+    opening_balance: str
+    movement: str
+    calculated_closing_balance: str
+    statement_closing_balance: str
+    difference: str
+    matches: bool
 
 
 def mapping_preview_row(

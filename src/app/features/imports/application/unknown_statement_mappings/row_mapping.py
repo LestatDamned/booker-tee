@@ -24,7 +24,14 @@ def map_table_rows(
     max_rows: int | None,
 ) -> list[UnknownStatementMappedRow]:
     rows: list[UnknownStatementMappedRow] = []
+    excluded_rows = {
+        (cell.page_number, cell.table_index, cell.row_number)
+        for cell in (command.opening_balance_cell, command.closing_balance_cell)
+        if cell is not None
+    }
     for source_row_number, row in enumerate(table[start_row:], start=start_row):
+        if (page_number, table_index, source_row_number) in excluded_rows:
+            continue
         if not row_has_text(row):
             continue
         mapped_row = map_row(

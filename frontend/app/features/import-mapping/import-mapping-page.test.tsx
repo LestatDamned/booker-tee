@@ -149,6 +149,97 @@ describe("ImportMappingPage", () => {
     );
   });
 
+  it("selects a control balance cell and sends its source coordinates", async () => {
+    const user = userEvent.setup();
+    previewMock.mockResolvedValue({
+      status: "success",
+      preview: importMappingPreview(),
+    });
+    renderPage();
+
+    await user.click(
+      screen.getAllByRole("button", { name: "Выбрать в таблице" })[0]!,
+    );
+    expect(screen.getByText(/Выбираем начальный остаток/)).toBeVisible();
+    await user.click(
+      screen.getByRole("button", {
+        name: /строка 2, колонка 4, значение 10000,00/,
+      }),
+    );
+    expect(screen.getByText(/стр\. 1 · строка 2 · колонка 4/)).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "Показать предпросмотр" }),
+    );
+
+    expect(previewMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: expect.objectContaining({
+          openingBalanceCell: {
+            tableRef: { pageNumber: 1, tableIndex: 0 },
+            rowNumber: 2,
+            columnIndex: 3,
+          },
+        }),
+      }),
+    );
+  });
+
+  it("shows an explicit balance-chain mismatch in preview", async () => {
+    const user = userEvent.setup();
+    const preview = importMappingPreview();
+    previewMock.mockResolvedValue({
+      status: "success",
+      preview: {
+        ...preview,
+        controlTotals: [
+          {
+            kind: "opening_balance",
+            cell: {
+              tableRef: { pageNumber: 1, tableIndex: 0 },
+              rowNumber: 2,
+              columnIndex: 3,
+            },
+            rawValue: "10 000,00",
+            amount: "10000.00",
+            currency: "RUB",
+          },
+          {
+            kind: "closing_balance",
+            cell: {
+              tableRef: { pageNumber: 1, tableIndex: 0 },
+              rowNumber: 3,
+              columnIndex: 3,
+            },
+            rawValue: "12 000,00",
+            amount: "12000.00",
+            currency: "RUB",
+          },
+        ],
+        reconciliation: {
+          openingBalance: "10000.00",
+          movement: "1500.00",
+          calculatedClosingBalance: "11500.00",
+          statementClosingBalance: "12000.00",
+          difference: "-500.00",
+          matches: false,
+        },
+      },
+    });
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", { name: "Показать предпросмотр" }),
+    );
+
+    expect(await screen.findByText("Есть расхождение")).toBeVisible();
+    expect(screen.getByText("Баланс на начало выписки")).toBeVisible();
+    expect(screen.getByText("Изменение баланса по операциям")).toBeVisible();
+    expect(screen.getByText("Баланс на конец по расчёту")).toBeVisible();
+    expect(screen.getByText("Баланс на конец выписки")).toBeVisible();
+    expect(screen.getByText(/Расхождение.*500,00/)).toBeVisible();
+  });
+
   it("links unsigned amount errors to the setting without claiming success", async () => {
     const user = userEvent.setup();
     const preview = importMappingPreview();

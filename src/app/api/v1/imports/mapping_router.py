@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, Query, status
 
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.errors import ApiError, api_error_responses
@@ -13,14 +13,17 @@ from app.api.v1.imports.mapping_response import (
     UnknownStatementMappingResponseMapper,
 )
 from app.api.v1.imports.mapping_schemas import (
+    MappingControlTotalCellApiModel,
     MappingImportApiRequest,
     MappingImportApiResponse,
     MappingImportTargetApiResponse,
     MappingPreviewApiRequest,
     MappingPreviewApiResponse,
     MappingReadApiResponse,
+    MappingSourceRowsApiResponse,
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
+    MappingControlTotalCellRef,
     UnknownStatementMappingCommand,
 )
 from app.features.imports.application.unknown_statement_mappings.import_use_case import (
@@ -68,6 +71,41 @@ async def get_unknown_statement_mapping(
     if mapping is None:
         raise _not_found()
     return UnknownStatementMappingResponseMapper.read(mapping)
+
+
+@router.get(
+    "/documents/{document_id}/mapping/tables/{page_number}/{table_index}/rows",
+    response_model=MappingSourceRowsApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+    ),
+)
+async def get_unknown_statement_mapping_source_rows(
+    document_id: UUID,
+    page_number: int,
+    table_index: int,
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    reader: Annotated[
+        UnknownStatementMappingReader,
+        Depends(get_unknown_statement_mapping_reader),
+    ],
+    start_row_number: Annotated[int, Query(ge=1, alias="startRowNumber")] = 1,
+    row_limit: Annotated[int, Query(ge=1, le=50, alias="rowLimit")] = 30,
+) -> MappingSourceRowsApiResponse:
+    _require_import_management(context)
+    rows = await reader.source_rows(
+        workspace_id=context.workspace.workspace.id,
+        document_id=document_id,
+        page_number=page_number,
+        table_index=table_index,
+        start_row_number=start_row_number,
+        row_limit=row_limit,
+    )
+    if rows is None:
+        raise _not_found()
+    return UnknownStatementMappingResponseMapper.source_rows(rows)
 
 
 @router.post(
@@ -206,6 +244,21 @@ def _mapping_command(
         first_data_row=mapping.first_data_row_number - 1,
         default_currency=mapping.default_currency,
         unsigned_amount_direction=mapping.unsigned_amount_direction,
+        opening_balance_cell=_control_total_cell(mapping.opening_balance_cell),
+        closing_balance_cell=_control_total_cell(mapping.closing_balance_cell),
+    )
+
+
+def _control_total_cell(
+    value: MappingControlTotalCellApiModel | None,
+) -> MappingControlTotalCellRef | None:
+    if value is None:
+        return None
+    return MappingControlTotalCellRef(
+        page_number=value.table_ref.page_number,
+        table_index=value.table_ref.table_index,
+        row_number=value.row_number - 1,
+        column_index=value.column_index,
     )
 
 

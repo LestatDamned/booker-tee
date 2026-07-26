@@ -44,6 +44,8 @@ export function importMappingPayload(): ImportMappingDto {
     firstDataRowNumber: 2,
     defaultCurrency: "RUB",
     unsignedAmountDirection: "require_sign",
+    openingBalanceCell: null,
+    closingBalanceCell: null,
   };
   return {
     documentId: mappingDocumentId,
@@ -156,6 +158,7 @@ export function importMappingPayload(): ImportMappingDto {
         },
       },
     ],
+    controlTotalCandidates: [],
     totalTableCount: 2,
     tablesTruncated: false,
   };
@@ -189,6 +192,8 @@ export function importMappingPreview(): ImportMappingPreviewDto {
     rowsTruncated: true,
     compatibleTables: [{ pageNumber: 1, tableIndex: 0 }],
     warnings: [],
+    controlTotals: [],
+    reconciliation: null,
     canImport: true,
   };
 }

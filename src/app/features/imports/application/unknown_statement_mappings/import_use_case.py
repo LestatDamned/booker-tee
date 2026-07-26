@@ -6,10 +6,15 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
+    MappingControlTotalKind,
+    resolve_mapping_control_totals,
+)
 from app.features.imports.application.unknown_statement_mappings.drafts import (
     UnknownStatementDraftMapper,
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
+    MappingControlTotalCellRef,
     SaveImportMappingTemplateCommand,
     UnknownStatementMappingCommand,
 )
@@ -20,6 +25,7 @@ from app.features.imports.application.unknown_statement_mappings.raw_tables impo
     find_raw_table,
 )
 from app.features.imports.application.unknown_statement_mappings.reader import (
+    validate_control_total_cells,
     validate_mapping_command,
 )
 from app.features.imports.application.unknown_statement_mappings.template_commands import (
@@ -177,6 +183,7 @@ class UnknownStatementMappingImportUseCase:
             table_index=command.table_index,
         )
         validate_mapping_command(command, selected_table)
+        validate_control_total_cells(command, attempt.raw_tables_json)
         preview = preview_compatible_unknown_statement_mapping(
             attempt.raw_tables_json,
             command,
@@ -259,7 +266,13 @@ async def create_raw_transactions_from_mapping(
         workspace_id=document.workspace_id,
         raw_transactions=raw_transactions,
     )
-    await store_mapping_validation_result(imports, document, attempt, raw_transactions)
+    await store_mapping_validation_result(
+        imports,
+        document,
+        attempt,
+        raw_transactions,
+        command,
+    )
     return raw_transactions
 
 
@@ -268,14 +281,67 @@ async def store_mapping_validation_result(
     document: UploadedDocument,
     attempt: ParseAttempt,
     raw_transactions: list[RawTransaction],
+    command: UnknownStatementMappingCommand,
 ) -> None:
-    control_totals = statement_control_totals_from_json(
+    extracted_control_totals = statement_control_totals_from_json(
         attempt.control_totals_json
     ) or extract_unknown_statement_control_totals(attempt.raw_text_by_page_json)
+    resolved = resolve_mapping_control_totals(attempt.raw_tables_json, command)
+    opening = next(
+        (
+            total.amount
+            for total in resolved
+            if total.kind is MappingControlTotalKind.OPENING_BALANCE
+        ),
+        None,
+    )
+    closing = next(
+        (
+            total.amount
+            for total in resolved
+            if total.kind is MappingControlTotalKind.CLOSING_BALANCE
+        ),
+        None,
+    )
+    control_totals = StatementControlTotals(
+        currency=(
+            extracted_control_totals.currency
+            if extracted_control_totals is not None
+            else command.default_currency
+        ),
+        opening_balance=(
+            opening
+            if opening is not None
+            else (
+                extracted_control_totals.opening_balance
+                if extracted_control_totals is not None
+                else None
+            )
+        ),
+        closing_balance=(
+            closing
+            if closing is not None
+            else (
+                extracted_control_totals.closing_balance
+                if extracted_control_totals is not None
+                else None
+            )
+        ),
+        total_inflow=(
+            extracted_control_totals.total_inflow if extracted_control_totals is not None else None
+        ),
+        total_outflow=(
+            extracted_control_totals.total_outflow if extracted_control_totals is not None else None
+        ),
+    )
     report = validate_statement_totals(rows=raw_transactions, control_totals=control_totals)
+    control_totals_payload = control_totals.as_json()
+    control_totals_payload["mapping_sources"] = {
+        total.kind.value: _control_total_cell_as_json(total.cell) for total in resolved
+    }
     await imports.store_attempt_validation(
         attempt,
-        control_totals=control_totals.as_json() if control_totals else None,
+        control_totals=control_totals_payload,
         validation_report={
             **report.as_json(),
             "source": "unknown_statement_mapping",
@@ -325,6 +391,10 @@ def mapping_import_fingerprint(
 ) -> str:
     payload = {
         "mapping": mapping_command_as_json(command),
+        "control_total_cells": {
+            "opening_balance": _control_total_cell_as_json(command.opening_balance_cell),
+            "closing_balance": _control_total_cell_as_json(command.closing_balance_cell),
+        },
         "template_name": template_name,
     }
     serialized = json.dumps(
@@ -334,3 +404,16 @@ def mapping_import_fingerprint(
         separators=(",", ":"),
     )
     return hashlib.sha256(serialized.encode()).hexdigest()
+
+
+def _control_total_cell_as_json(
+    cell: MappingControlTotalCellRef | None,
+) -> dict[str, int] | None:
+    if cell is None:
+        return None
+    return {
+        "page_number": cell.page_number,
+        "table_index": cell.table_index,
+        "row_number": cell.row_number,
+        "column_index": cell.column_index,
+    }

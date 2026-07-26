@@ -12,10 +12,20 @@ export type ImportMappingCommitDto =
   components["schemas"]["MappingImportApiResponse"];
 export type ImportMappingSourceTable =
   components["schemas"]["MappingSourceTableApiResponse"];
+export type ImportMappingControlTotalCell =
+  components["schemas"]["MappingControlTotalCellApiModel"];
+export type ImportMappingSourceRows =
+  components["schemas"]["MappingSourceRowsApiResponse"];
 
 const tableRefSchema = z.object({
   pageNumber: z.number().int().min(1),
   tableIndex: z.number().int().min(0),
+});
+
+const controlTotalCellSchema = z.object({
+  tableRef: tableRefSchema,
+  rowNumber: z.number().int().min(1),
+  columnIndex: z.number().int().min(0),
 });
 
 export const mappingCommandSchema: z.ZodType<ImportMappingCommand> = z.object({
@@ -31,6 +41,8 @@ export const mappingCommandSchema: z.ZodType<ImportMappingCommand> = z.object({
   firstDataRowNumber: z.number().int().min(1),
   defaultCurrency: z.string().length(3),
   unsignedAmountDirection: z.enum(["require_sign", "income", "expense"]),
+  openingBalanceCell: controlTotalCellSchema.nullable(),
+  closingBalanceCell: controlTotalCellSchema.nullable(),
 });
 
 const candidateSchema = z.object({
@@ -111,6 +123,17 @@ export const importMappingSchema: z.ZodType<ImportMappingDto> = z.object({
   selectedTemplateId: z.uuid().nullable(),
   templates: z.array(z.object({ id: z.uuid(), name: z.string() })),
   tables: z.array(sourceTableSchema),
+  controlTotalCandidates: z.array(
+    z.object({
+      kind: z.enum(["opening_balance", "closing_balance"]),
+      cell: controlTotalCellSchema,
+      label: z.string(),
+      rawValue: z.string(),
+      amount: z.string(),
+      currency: z.string(),
+      confidence: z.number(),
+    }),
+  ),
   totalTableCount: z.number().int().min(0),
   tablesTruncated: z.boolean(),
 });
@@ -163,8 +186,42 @@ export const importMappingPreviewSchema: z.ZodType<ImportMappingPreviewDto> =
         affectedRowCount: z.number().int().min(1).nullable(),
       }),
     ),
+    controlTotals: z.array(
+      z.object({
+        kind: z.enum(["opening_balance", "closing_balance"]),
+        cell: controlTotalCellSchema,
+        rawValue: z.string(),
+        amount: z.string(),
+        currency: z.string(),
+      }),
+    ),
+    reconciliation: z
+      .object({
+        openingBalance: z.string(),
+        movement: z.string(),
+        calculatedClosingBalance: z.string(),
+        statementClosingBalance: z.string(),
+        difference: z.string(),
+        matches: z.boolean(),
+      })
+      .nullable(),
     canImport: z.boolean(),
   });
+
+const sourceRowsSchema: z.ZodType<ImportMappingSourceRows> = z.object({
+  tableRef: tableRefSchema,
+  rows: z.array(
+    z.object({
+      rowNumber: z.number().int().min(1),
+      cells: z.array(z.string()),
+    }),
+  ),
+  totalRowCount: z.number().int().min(0),
+  startRowNumber: z.number().int().min(1),
+  rowLimit: z.number().int().min(1),
+  hasPrevious: z.boolean(),
+  hasNext: z.boolean(),
+});
 
 export const importMappingCommitSchema: z.ZodType<ImportMappingCommitDto> =
   z.object({
@@ -193,6 +250,11 @@ export type ImportMappingLoadResult =
   | { status: "unauthenticated" }
   | { status: "forbidden" }
   | { status: "not_found" }
+  | { status: "error"; message: string };
+
+export type ImportMappingSourceRowsResult =
+  | { status: "success"; source: ImportMappingSourceRows }
+  | { status: "unauthenticated" | "not_found" }
   | { status: "error"; message: string };
 
 export type ImportMappingPreviewResult =
@@ -243,6 +305,46 @@ export async function loadImportMapping(
     : {
         status: "error",
         message: "API вернул настройку колонок неожиданного формата.",
+      };
+}
+
+export async function loadImportMappingSourceRows({
+  documentId,
+  rowLimit = 30,
+  startRowNumber,
+  tableRef,
+}: {
+  documentId: string;
+  rowLimit?: number;
+  startRowNumber: number;
+  tableRef: ImportMappingCommand["tableRef"];
+}): Promise<ImportMappingSourceRowsResult> {
+  const query = new URLSearchParams({
+    startRowNumber: String(startRowNumber),
+    rowLimit: String(rowLimit),
+  });
+  const response = await requestJson(
+    `/api/v1/imports/documents/${documentId}/mapping/tables/${tableRef.pageNumber}/${tableRef.tableIndex}/rows?${query}`,
+  );
+  if (response.status === "network_error") {
+    return { status: "error", message: "Backend недоступен." };
+  }
+  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 404) return { status: "not_found" };
+  if (!response.ok) {
+    return {
+      status: "error",
+      message:
+        parseApiError(response.body)?.message ??
+        `API вернул статус ${response.httpStatus}.`,
+    };
+  }
+  const parsed = sourceRowsSchema.safeParse(response.body);
+  return parsed.success
+    ? { status: "success", source: parsed.data }
+    : {
+        status: "error",
+        message: "API вернул строки таблицы неожиданного формата.",
       };
 }
 

@@ -11,6 +11,14 @@ class UnsignedAmountDirection(StrEnum):
 
 
 @dataclass(frozen=True)
+class MappingControlTotalCellRef:
+    page_number: int
+    table_index: int
+    row_number: int
+    column_index: int
+
+
+@dataclass(frozen=True)
 class UnknownStatementMappingCommand:
     page_number: int
     table_index: int
@@ -25,6 +33,8 @@ class UnknownStatementMappingCommand:
     credit_amount_column: int | None = None
     balance_after_column: int | None = None
     unsigned_amount_direction: UnsignedAmountDirection = UnsignedAmountDirection.INCOME
+    opening_balance_cell: MappingControlTotalCellRef | None = None
+    closing_balance_cell: MappingControlTotalCellRef | None = None
 
 
 @dataclass(frozen=True)

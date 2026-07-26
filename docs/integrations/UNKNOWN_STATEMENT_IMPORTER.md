@@ -58,6 +58,7 @@ currency
 - first data row;
 - default currency;
 - optional mapping template name.
+- optional source-cell references for opening and closing statement balances.
 
 Одна колонка не должна получать несовместимые роли. Должна существовать
 достаточная комбинация date/description и amount либо debit/credit.
@@ -72,6 +73,29 @@ Preview:
 - возвращает normalized sample rows, warnings и row errors;
 - должен быть bounded по числу строк и payload size;
 - не раскрывает storage path или полный raw document без необходимости.
+
+### Контрольные остатки
+
+Mapping ищет однозначные строки «Входящий/Исходящий остаток» и близкие
+варианты во всех raw tables. Автоматически применяется только один точный
+кандидат для каждого вида остатка; неоднозначные варианты остаются на
+подтверждение пользователя.
+
+Пользователь может выбрать денежную ячейку вручную. Browser передаёт только
+typed source coordinates `page/table/row/column`; server повторно читает raw
+cell, разбирает `Decimal` и исключает всю выбранную строку из transaction
+drafts. Исходная таблица не изменяется.
+
+Выбранные значения и provenance сохраняются в `ParseAttempt.control_totals_json`.
+Они участвуют в idempotency fingerprint и в preview reconciliation:
+
+```text
+opening balance + mapped row movement = calculated closing balance
+calculated closing balance - statement closing balance = difference
+```
+
+Координаты контрольных строк не сохраняются в mapping template: расположение
+остатков может меняться между выписками.
 
 ## Templates
 
@@ -102,10 +126,10 @@ Mapping import:
 - Browser получает bounded projections.
 - External AI/OCR service не используется без отдельного product decision.
 
-## Current UI migration
+## Current UI
 
-Legacy mapping UI ещё работает через SSR. Его React/API replacement описан в
-[`Import documents and mapping plan`](../frontend/plan/import-documents-and-mapping/README.md).
+React mapping workbench использует versioned API. Исходные строки загружаются
+ограниченными окнами; preview и финансовая сверка остаются server-side.
 
 ## Tests
 

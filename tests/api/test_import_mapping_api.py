@@ -17,6 +17,8 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
     MappingAccountDto,
     MappingCapabilityDto,
     MappingDefaultSource,
+    MappingSourceRowDto,
+    MappingSourceRowsDto,
     MappingTableRefDto,
     UnknownStatementMappingPreviewResult,
     UnknownStatementMappingReadModel,
@@ -48,6 +50,7 @@ class MappingReaderStub:
         self.validation_error = validation_error
         self.read_calls: list[dict[str, object]] = []
         self.preview_calls: list[dict[str, object]] = []
+        self.source_rows_calls: list[dict[str, object]] = []
 
     async def read(self, **kwargs):
         self.read_calls.append(kwargs)
@@ -76,6 +79,23 @@ class MappingReaderStub:
                 ),
             ),
             can_import=True,
+        )
+
+    async def source_rows(self, **kwargs):
+        self.source_rows_calls.append(kwargs)
+        if self.mapping is None:
+            return None
+        return MappingSourceRowsDto(
+            table_ref=MappingTableRefDto(
+                cast(int, kwargs["page_number"]),
+                cast(int, kwargs["table_index"]),
+            ),
+            rows=(MappingSourceRowDto(row_number=31, cells=("31.07.2026", "Операция")),),
+            total_row_count=80,
+            start_row_number=31,
+            row_limit=30,
+            has_previous=True,
+            has_next=True,
         )
 
 
@@ -166,6 +186,40 @@ def test_mapping_preview_api_converts_visible_row_number_and_returns_scope() -> 
             "severity": "warning",
             "fields": ["unsignedAmountDirection"],
             "affectedRowCount": 7,
+        }
+    ]
+
+
+def test_mapping_source_rows_api_returns_bounded_workspace_projection() -> None:
+    context = api_context(WorkspaceRole.OWNER)
+    mapping = mapping_read_model()
+    reader = MappingReaderStub(mapping)
+    app = mapping_app(context, reader)
+
+    with TestClient(app) as client:
+        response = client.get(
+            f"/api/v1/imports/documents/{mapping.document_id}/mapping/"
+            "tables/2/0/rows?startRowNumber=31&rowLimit=30"
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "tableRef": {"pageNumber": 2, "tableIndex": 0},
+        "rows": [{"rowNumber": 31, "cells": ["31.07.2026", "Операция"]}],
+        "totalRowCount": 80,
+        "startRowNumber": 31,
+        "rowLimit": 30,
+        "hasPrevious": True,
+        "hasNext": True,
+    }
+    assert reader.source_rows_calls == [
+        {
+            "workspace_id": context.workspace.workspace.id,
+            "document_id": mapping.document_id,
+            "page_number": 2,
+            "table_index": 0,
+            "start_row_number": 31,
+            "row_limit": 30,
         }
     ]
 

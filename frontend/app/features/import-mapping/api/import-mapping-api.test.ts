@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   commitImportMapping,
   loadImportMapping,
+  loadImportMappingSourceRows,
   previewImportMapping,
 } from "./import-mapping-api";
 import {
@@ -59,6 +60,37 @@ describe("import mapping API", () => {
         }),
         body: JSON.stringify({ mapping: command }),
       }),
+    );
+  });
+
+  it("loads a bounded source-row window", async () => {
+    const source = {
+      tableRef: { pageNumber: 2, tableIndex: 0 },
+      rows: [{ rowNumber: 31, cells: ["31.07.2026", "Операция"] }],
+      totalRowCount: 80,
+      startRowNumber: 31,
+      rowLimit: 30,
+      hasPrevious: true,
+      hasNext: true,
+    };
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(source), { status: 200 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      loadImportMappingSourceRows({
+        documentId: mappingDocumentId,
+        startRowNumber: 31,
+        tableRef: source.tableRef,
+      }),
+    ).resolves.toEqual({ status: "success", source });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/imports/documents/${mappingDocumentId}/mapping/tables/2/0/rows?startRowNumber=31&rowLimit=30`,
+      {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+      },
     );
   });
 

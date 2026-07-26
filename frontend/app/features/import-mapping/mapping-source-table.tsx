@@ -1,7 +1,13 @@
+import { useState } from "react";
+
+import { Button } from "../../ui/button/button";
 import type {
   ImportMappingCommand,
+  ImportMappingControlTotalCell,
   ImportMappingSourceTable,
 } from "./api/import-mapping-api";
+import { loadImportMappingSourceRows } from "./api/import-mapping-api";
+import { sameCell, type ControlTotalKind } from "./control-total-mapping";
 import {
   assignMappingColumnRole,
   isRequiredMappingRole,
@@ -28,16 +34,30 @@ const roleLabels: Record<MappingColumnRole, string> = {
 export function MappingSourceTable({
   command,
   disabled,
+  documentId,
   errors,
+  onSelectControlTotal,
+  selectionKind,
   onChange,
   table,
 }: {
   command: ImportMappingCommand;
   disabled: boolean;
+  documentId: string;
   errors: MappingFieldErrors;
   onChange: (command: ImportMappingCommand) => void;
+  onSelectControlTotal: (cell: ImportMappingControlTotalCell) => void;
+  selectionKind: ControlTotalKind | null;
   table: ImportMappingSourceTable;
 }) {
+  const [visibleRows, setVisibleRows] = useState(table.sampleRows);
+  const [windowStart, setWindowStart] = useState(1);
+  const [hasPrevious, setHasPrevious] = useState(false);
+  const [hasNext, setHasNext] = useState(
+    table.rowCount > table.sampleRows.length,
+  );
+  const [rowsPending, setRowsPending] = useState(false);
+  const [rowsError, setRowsError] = useState<string | null>(null);
   const amountMode = mappingAmountMode(command);
   const options = mappingRoleOptions(amountMode);
   const missingErrors = Object.entries(errors).filter(
@@ -47,6 +67,38 @@ export function MappingSourceTable({
         (role) => role === field && command[role] != null,
       ),
   );
+
+  const loadWindow = async (startRowNumber: number) => {
+    if (rowsPending) return;
+    setRowsPending(true);
+    setRowsError(null);
+    const result = await loadImportMappingSourceRows({
+      documentId,
+      startRowNumber,
+      tableRef: table.ref,
+    });
+    setRowsPending(false);
+    if (result.status === "unauthenticated") {
+      window.location.assign(
+        `/login?next=${encodeURIComponent(window.location.pathname)}`,
+      );
+      return;
+    }
+    if (result.status !== "success") {
+      setRowsError(
+        result.status === "not_found"
+          ? "Исходная таблица больше недоступна."
+          : result.status === "error"
+            ? result.message
+            : "Не удалось загрузить исходные строки.",
+      );
+      return;
+    }
+    setVisibleRows(result.source.rows);
+    setWindowStart(result.source.startRowNumber);
+    setHasPrevious(result.source.hasPrevious);
+    setHasNext(result.source.hasNext);
+  };
 
   return (
     <section className={styles.sourcePanel} aria-labelledby="source-title">
@@ -100,6 +152,14 @@ export function MappingSourceTable({
             .join(", ")}
           .
         </div>
+      ) : null}
+
+      {selectionKind ? (
+        <p className={styles.tableSelectionHint}>
+          Выберите ячейку с суммой{" "}
+          {selectionKind === "opening_balance" ? "начального" : "конечного"}{" "}
+          остатка. Выбранная строка будет исключена из операций.
+        </p>
       ) : null}
 
       <div
@@ -222,33 +282,111 @@ export function MappingSourceTable({
             </tr>
           </thead>
           <tbody>
-            {table.sampleRows.map((row) => (
+            {visibleRows.map((row) => (
               <tr
+                data-control-row={
+                  rowContainsControlTotal(command, table, row.rowNumber) ||
+                  undefined
+                }
                 data-start={
                   row.rowNumber === command.firstDataRowNumber || undefined
                 }
                 key={row.rowNumber}
               >
                 <th scope="row">{row.rowNumber}</th>
-                {Array.from({ length: table.columnCount }, (_, columnIndex) => (
-                  <td key={columnIndex}>
-                    {row.cells[columnIndex] || (
-                      <span className={styles.emptyCell}>—</span>
-                    )}
-                  </td>
-                ))}
+                {Array.from({ length: table.columnCount }, (_, columnIndex) => {
+                  const cell: ImportMappingControlTotalCell = {
+                    tableRef: table.ref,
+                    rowNumber: row.rowNumber,
+                    columnIndex,
+                  };
+                  const selectedKind = selectedControlTotalKind(command, cell);
+                  const value = row.cells[columnIndex];
+                  return (
+                    <td
+                      data-control-cell={selectedKind ?? undefined}
+                      key={columnIndex}
+                    >
+                      {selectionKind && value ? (
+                        <button
+                          aria-label={`Выбрать ячейку: строка ${row.rowNumber}, колонка ${columnIndex + 1}, значение ${value}`}
+                          className={styles.selectableCell}
+                          disabled={disabled}
+                          type="button"
+                          onClick={() => onSelectControlTotal(cell)}
+                        >
+                          {value}
+                        </button>
+                      ) : (
+                        value || <span className={styles.emptyCell}>—</span>
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {table.rowCount > table.sampleRows.length ? (
-        <p className={styles.boundedNote}>
-          Показано {table.sampleRows.length} из {table.rowCount} исходных строк.
-          Итоговый предпросмотр рассчитывается сервером по всему документу.
+      {rowsError ? (
+        <p className={styles.sourceRowsError} role="alert">
+          {rowsError}
         </p>
       ) : null}
+      {table.rowCount > visibleRows.length ? (
+        <div className={styles.sourcePagination}>
+          <p className={styles.boundedNote}>
+            Строки {visibleRows[0]?.rowNumber ?? 0}–
+            {visibleRows.at(-1)?.rowNumber ?? 0} из {table.rowCount}. Итоги
+            рассчитываются по всему документу.
+          </p>
+          <div>
+            <Button
+              disabled={!hasPrevious || rowsPending}
+              tone="secondary"
+              type="button"
+              onClick={() => void loadWindow(Math.max(1, windowStart - 30))}
+            >
+              Назад
+            </Button>
+            <Button
+              disabled={!hasNext || rowsPending}
+              tone="secondary"
+              type="button"
+              onClick={() =>
+                void loadWindow(
+                  (visibleRows.at(-1)?.rowNumber ?? windowStart) + 1,
+                )
+              }
+            >
+              {rowsPending ? "Загрузка…" : "Дальше"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+function selectedControlTotalKind(
+  command: ImportMappingCommand,
+  cell: ImportMappingControlTotalCell,
+): ControlTotalKind | null {
+  if (sameCell(command.openingBalanceCell, cell)) return "opening_balance";
+  if (sameCell(command.closingBalanceCell, cell)) return "closing_balance";
+  return null;
+}
+
+function rowContainsControlTotal(
+  command: ImportMappingCommand,
+  table: ImportMappingSourceTable,
+  rowNumber: number,
+): boolean {
+  return [command.openingBalanceCell, command.closingBalanceCell].some(
+    (cell) =>
+      cell?.tableRef.pageNumber === table.ref.pageNumber &&
+      cell.tableRef.tableIndex === table.ref.tableIndex &&
+      cell.rowNumber === rowNumber,
   );
 }
 

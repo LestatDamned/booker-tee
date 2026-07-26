@@ -1,11 +1,20 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from decimal import Decimal
 from typing import Protocol, cast
 from uuid import UUID
 
 from app.features.imports.application.documents.detail_view import (
     ImportDocumentDetailView,
 )
+from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
+    MappingControlTotalKind,
+    ResolvedMappingControlTotal,
+    automatic_control_total_cell,
+    detect_control_total_candidates,
+    resolve_mapping_control_totals,
+)
 from app.features.imports.application.unknown_statement_mappings.dto import (
+    UnknownStatementMappedRow,
     UnknownStatementMappingCommand,
     UnsignedAmountDirection,
 )
@@ -18,11 +27,15 @@ from app.features.imports.application.unknown_statement_mappings.raw_tables impo
 )
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingAccountDto,
+    MappingBalanceReconciliationDto,
     MappingBlockingReasonCode,
     MappingCapabilityDto,
     MappingColumnCandidateDto,
+    MappingControlTotalCandidateDto,
     MappingDefaultSource,
+    MappingResolvedControlTotalDto,
     MappingSourceRowDto,
+    MappingSourceRowsDto,
     MappingSourceTableDto,
     MappingSuggestionDto,
     MappingSuggestionReasonDto,
@@ -48,6 +61,7 @@ MAX_MAPPING_SOURCE_TABLES = 100
 MAX_MAPPING_SOURCE_SAMPLE_ROWS = 12
 MAX_MAPPING_SOURCE_SAMPLE_COLUMNS = 32
 MAX_MAPPING_SOURCE_CELL_CHARS = 500
+MAX_MAPPING_SOURCE_WINDOW_ROWS = 50
 MAX_MAPPING_PREVIEW_RESPONSE_ROWS = 20
 
 
@@ -134,6 +148,18 @@ class UnknownStatementMappingReader:
             default_currency=default_currency,
             templates=compatible_templates,
         )
+        control_total_candidates = detect_control_total_candidates(raw_tables)
+        command = replace(
+            command,
+            opening_balance_cell=automatic_control_total_cell(
+                control_total_candidates,
+                MappingControlTotalKind.OPENING_BALANCE,
+            ),
+            closing_balance_cell=automatic_control_total_cell(
+                control_total_candidates,
+                MappingControlTotalKind.CLOSING_BALANCE,
+            ),
+        )
         table_options = preview_table_options(view.validation)
         projected_tables = tuple(
             _source_table(option, raw_tables, default_currency=default_currency)
@@ -167,6 +193,18 @@ class UnknownStatementMappingReader:
                 for template in compatible_templates
             ),
             tables=projected_tables,
+            control_total_candidates=tuple(
+                MappingControlTotalCandidateDto(
+                    kind=candidate.kind,
+                    cell=candidate.cell,
+                    label=candidate.label,
+                    raw_value=candidate.raw_value[:MAX_MAPPING_SOURCE_CELL_CHARS],
+                    amount=str(candidate.amount),
+                    currency=default_currency,
+                    confidence=candidate.confidence,
+                )
+                for candidate in control_total_candidates
+            ),
             total_table_count=len(table_options),
             tables_truncated=len(table_options) > len(projected_tables),
         )
@@ -196,12 +234,18 @@ class UnknownStatementMappingReader:
             table_index=command.table_index,
         )
         validate_mapping_command(command, selected_table)
+        validate_control_total_cells(command, raw_tables)
 
         compatible_tables = compatible_mapping_tables(raw_tables, command)
         preview = preview_compatible_unknown_statement_mapping(
             raw_tables,
             command,
             max_rows=None,
+        )
+        resolved_control_totals = resolve_mapping_control_totals(raw_tables, command)
+        reconciliation = _balance_reconciliation(
+            preview.rows,
+            resolved_control_totals,
         )
         rows = tuple(
             mapping_preview_row(row, command)
@@ -220,7 +264,61 @@ class UnknownStatementMappingReader:
                 for table in compatible_tables
             ),
             warnings=tuple(preview.warnings),
+            control_totals=tuple(
+                MappingResolvedControlTotalDto(
+                    kind=total.kind,
+                    cell=total.cell,
+                    raw_value=total.raw_value[:MAX_MAPPING_SOURCE_CELL_CHARS],
+                    amount=str(total.amount),
+                    currency=command.default_currency,
+                )
+                for total in resolved_control_totals
+            ),
+            reconciliation=reconciliation,
             can_import=preview.valid_count > 0 and not has_blocking_warning,
+        )
+
+    async def source_rows(
+        self,
+        *,
+        workspace_id: UUID,
+        document_id: UUID,
+        page_number: int,
+        table_index: int,
+        start_row_number: int,
+        row_limit: int,
+    ) -> MappingSourceRowsDto | None:
+        view = await self._documents.get_document_detail_view(workspace_id, document_id)
+        if view is None:
+            return None
+        raw_table = find_raw_table(
+            _latest_raw_tables(view),
+            page_number=page_number,
+            table_index=table_index,
+        )
+        if not raw_table:
+            return None
+        bounded_limit = min(max(row_limit, 1), MAX_MAPPING_SOURCE_WINDOW_ROWS)
+        start_index = min(max(start_row_number - 1, 0), len(raw_table) - 1)
+        selected_rows = raw_table[start_index : start_index + bounded_limit]
+        rows = tuple(
+            MappingSourceRowDto(
+                row_number=start_index + index + 1,
+                cells=tuple(
+                    cell[:MAX_MAPPING_SOURCE_CELL_CHARS]
+                    for cell in row[:MAX_MAPPING_SOURCE_SAMPLE_COLUMNS]
+                ),
+            )
+            for index, row in enumerate(selected_rows)
+        )
+        return MappingSourceRowsDto(
+            table_ref=MappingTableRefDto(page_number, table_index),
+            rows=rows,
+            total_row_count=len(raw_table),
+            start_row_number=start_index + 1,
+            row_limit=bounded_limit,
+            has_previous=start_index > 0,
+            has_next=start_index + len(rows) < len(raw_table),
         )
 
 
@@ -302,6 +400,44 @@ def _source_table(
             if (candidate := _column_candidate(item)) is not None
         ),
         suggestion=_mapping_suggestion(value, default_currency=default_currency),
+    )
+
+
+def _balance_reconciliation(
+    rows: list[UnknownStatementMappedRow],
+    control_totals: tuple[ResolvedMappingControlTotal, ...],
+) -> MappingBalanceReconciliationDto | None:
+    opening = next(
+        (
+            total.amount
+            for total in control_totals
+            if total.kind is MappingControlTotalKind.OPENING_BALANCE
+        ),
+        None,
+    )
+    closing = next(
+        (
+            total.amount
+            for total in control_totals
+            if total.kind is MappingControlTotalKind.CLOSING_BALANCE
+        ),
+        None,
+    )
+    if opening is None or closing is None:
+        return None
+    movement = sum(
+        (row.amount for row in rows if row.amount is not None),
+        start=Decimal("0"),
+    )
+    calculated_closing = opening + movement
+    difference = calculated_closing - closing
+    return MappingBalanceReconciliationDto(
+        opening_balance=str(opening),
+        movement=str(movement),
+        calculated_closing_balance=str(calculated_closing),
+        statement_closing_balance=str(closing),
+        difference=str(difference),
+        matches=difference == 0,
     )
 
 
@@ -439,6 +575,49 @@ def validate_mapping_command(
             "mapping_first_row_out_of_range",
             "Первая строка данных находится за пределами таблицы.",
             ("firstDataRowNumber",),
+        )
+
+
+def validate_control_total_cells(
+    command: UnknownStatementMappingCommand,
+    raw_tables: list[dict[str, object]] | None,
+) -> None:
+    selected = (
+        ("openingBalanceCell", command.opening_balance_cell),
+        ("closingBalanceCell", command.closing_balance_cell),
+    )
+    selected_cells = [cell for _, cell in selected if cell is not None]
+    if len(set(selected_cells)) != len(selected_cells):
+        raise MappingCommandValidationError(
+            "duplicate_control_total_cells",
+            "Начальный и конечный остатки должны ссылаться на разные ячейки.",
+            tuple(field for field, cell in selected if cell is not None),
+        )
+    for field, cell in selected:
+        if cell is None:
+            continue
+        kind = (
+            MappingControlTotalKind.OPENING_BALANCE
+            if field == "openingBalanceCell"
+            else MappingControlTotalKind.CLOSING_BALANCE
+        )
+        if resolve_mapping_control_totals(
+            raw_tables,
+            replace(
+                command,
+                opening_balance_cell=(
+                    cell if kind is MappingControlTotalKind.OPENING_BALANCE else None
+                ),
+                closing_balance_cell=(
+                    cell if kind is MappingControlTotalKind.CLOSING_BALANCE else None
+                ),
+            ),
+        ):
+            continue
+        raise MappingCommandValidationError(
+            "control_total_cell_invalid",
+            "В выбранной ячейке не удалось распознать денежную сумму.",
+            (field,),
         )
 
 

@@ -100,10 +100,28 @@ export function ImportMappingPage({
   const busy = previewPending || importPending;
 
   const updateCommand = (nextCommand: ImportMappingCommand) => {
-    setDraftsByTable((current) => ({
-      ...current,
-      [activeTableKey]: nextCommand,
-    }));
+    const controlTotalsChanged =
+      JSON.stringify(nextCommand.openingBalanceCell ?? null) !==
+        JSON.stringify(command.openingBalanceCell ?? null) ||
+      JSON.stringify(nextCommand.closingBalanceCell ?? null) !==
+        JSON.stringify(command.closingBalanceCell ?? null);
+    setDraftsByTable((current) => {
+      const nextDrafts = {
+        ...current,
+        [activeTableKey]: nextCommand,
+      };
+      if (!controlTotalsChanged) return nextDrafts;
+      return Object.fromEntries(
+        Object.entries(nextDrafts).map(([key, draft]) => [
+          key,
+          {
+            ...draft,
+            openingBalanceCell: nextCommand.openingBalanceCell ?? null,
+            closingBalanceCell: nextCommand.closingBalanceCell ?? null,
+          },
+        ]),
+      );
+    });
     setFieldErrors({});
     setSubmitError(null);
     importAttemptRef.current = null;
@@ -117,8 +135,7 @@ export function ImportMappingPage({
     setDraftsByTable((current) => ({
       ...current,
       [nextTableKey]:
-        current[nextTableKey] ??
-        mappingForTable(nextTable, mapping.defaultMapping),
+        current[nextTableKey] ?? mappingForTable(nextTable, command),
     }));
     setActiveTableKey(nextTableKey);
     setFieldErrors({});
@@ -311,6 +328,7 @@ export function ImportMappingPage({
                   command={command}
                   disabled={busy}
                   errors={{ ...previewFieldErrors, ...fieldErrors }}
+                  mapping={mapping}
                   table={activeTable}
                   tables={mapping.tables}
                   onChange={updateCommand}
@@ -538,6 +556,12 @@ function actionStatus(
 ): string {
   if (!snapshot) return "Предпросмотр ещё не выполнен";
   if (stale) return "Настройка изменилась";
+  if (
+    snapshot.preview.reconciliation &&
+    !snapshot.preview.reconciliation.matches
+  ) {
+    return "Строки распознаны, но остатки не сошлись";
+  }
   return `${snapshot.preview.validRowCount} из ${snapshot.preview.totalRowCount} строк корректны`;
 }
 
