@@ -150,8 +150,10 @@ reader
   -> API schema
 ```
 
-Внутренний snapshot сохраняется: он ограничивает выход `storage_key`, SHA,
-raw text и tables в публичный API.
+Один внутренний snapshot сохраняется как простой компромисс для двух
+read-сценариев. Он не содержит `storage_key`, SHA и raw text. `raw_tables`
+остаются только потому, что нужны unknown statement mapping; публичный document
+detail API их не возвращает.
 
 ### Parser strategies
 

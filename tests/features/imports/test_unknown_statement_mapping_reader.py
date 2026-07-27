@@ -5,7 +5,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.accounts.models import AccountType
 from app.features.imports.application.documents.snapshot import (
     ImportAccountRef,
     ImportDocumentSnapshot,
@@ -271,14 +270,11 @@ def mapping_document_snapshot() -> ImportDocumentSnapshot:
         id=document_id,
         status=UploadedDocumentStatus.REQUIRES_REVIEW,
         original_filename="unknown-statement.xlsx",
-        sha256_hash="a" * 64,
-        storage_key="private/statement.xlsx",
         bank_name="Unknown Bank",
         statement_type="account_statement",
         account=ImportAccountRef(
             id=uuid4(),
             name="Основной счёт",
-            type=AccountType.CHECKING,
             currency="RUB",
         ),
         validation={
@@ -300,7 +296,6 @@ def mapping_document_snapshot() -> ImportDocumentSnapshot:
                     "table_previews": previews,
                 },
                 raw_tables=raw_tables,
-                raw_text_by_page=None,
             )
         ],
     )

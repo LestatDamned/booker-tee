@@ -682,7 +682,7 @@ implementation details into the cohesive packages underneath
 
 ## Near-term cleanup plan
 
-1. Keep document reads on bounded snapshots returned by
+1. Keep document reads on internal snapshots returned by
    `ImportQueryRepository`; command routes call explicit use cases directly.
 2. Move document lifecycle files into `application/documents/`:
    upload, management, parse attempts.

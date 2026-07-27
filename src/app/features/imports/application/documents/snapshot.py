@@ -3,7 +3,6 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.accounts.models import AccountType
 from app.features.imports.models import (
     ParseAttempt,
     ParseAttemptStatus,
@@ -18,7 +17,6 @@ from app.features.imports.models import (
 class ImportAccountRef:
     id: UUID
     name: str
-    type: AccountType
     currency: str
 
 
@@ -26,7 +24,6 @@ class ImportAccountRef:
 class ImportRawTransactionRow:
     row_index: int
     status: RawTransactionStatus
-    parse_attempt_id: UUID
     display_date: date | str | None
     amount: Decimal | None
     amount_raw: str | None
@@ -47,7 +44,6 @@ class ImportParseAttemptSnapshot:
     error_message: str | None
     validation_report: dict[str, object] | None
     raw_tables: list[dict[str, object]] | None
-    raw_text_by_page: list[str] | None
 
     @property
     def message(self) -> str:
@@ -64,8 +60,6 @@ class ImportDocumentSnapshot:
     id: UUID
     status: UploadedDocumentStatus
     original_filename: str
-    sha256_hash: str
-    storage_key: str
     bank_name: str | None
     statement_type: str | None
     account: ImportAccountRef | None
@@ -97,8 +91,6 @@ class ImportDocumentSnapshotMapper:
             id=document.id,
             status=document.status,
             original_filename=document.original_filename,
-            sha256_hash=document.sha256_hash,
-            storage_key=document.storage_key,
             bank_name=document.bank_name,
             statement_type=document.statement_type,
             statement_period_start=document.statement_period_start,
@@ -122,7 +114,6 @@ class ImportDocumentSnapshotMapper:
         return ImportAccountRef(
             id=document.account.id,
             name=document.account.name,
-            type=document.account.type,
             currency=document.account.currency,
         )
 
@@ -131,7 +122,6 @@ class ImportDocumentSnapshotMapper:
         return ImportRawTransactionRow(
             row_index=row.row_index,
             status=row.status,
-            parse_attempt_id=row.parse_attempt_id,
             display_date=row.operation_date or row.operation_date_raw,
             amount=row.amount,
             amount_raw=row.amount_raw,
@@ -153,5 +143,4 @@ class ImportDocumentSnapshotMapper:
             error_message=attempt.error_message_sanitized,
             validation_report=attempt.validation_report_json,
             raw_tables=attempt.raw_tables_json,
-            raw_text_by_page=attempt.raw_text_by_page_json,
         )

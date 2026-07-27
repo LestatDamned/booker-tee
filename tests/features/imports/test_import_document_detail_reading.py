@@ -162,8 +162,6 @@ def document_snapshot(
         id=uuid4(),
         status=status,
         original_filename="statement.pdf",
-        sha256_hash="a" * 64,
-        storage_key="private/storage.pdf",
         bank_name="Альфа-Банк",
         statement_type="account_statement",
         account=None,
@@ -187,7 +185,6 @@ def raw_row(
     return ImportRawTransactionRow(
         row_index=index,
         status=status,
-        parse_attempt_id=uuid4(),
         display_date=date(2026, 7, 1),
         amount=Decimal("-100.00"),
         amount_raw="-100.00",
@@ -209,5 +206,4 @@ def parse_attempt(index: int) -> ImportParseAttemptSnapshot:
         error_message=None,
         validation_report=None,
         raw_tables=None,
-        raw_text_by_page=None,
     )

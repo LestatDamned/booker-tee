@@ -175,8 +175,10 @@ JSON он намеренно не преобразует строки в чис�
 
 - `ImportDocumentDetailView` переименован в `ImportDocumentSnapshot`, а
   `ImportParseAttemptView` — в `ImportParseAttemptSnapshot`;
-- `ImportQueryRepository.get_document_snapshot(...)` возвращает bounded
-  immutable snapshot с обязательным workspace filter;
+- `ImportQueryRepository.get_document_snapshot(...)` возвращает внутренний
+  read snapshot с обязательным workspace filter;
+- snapshot не содержит storage key, SHA, raw text и другие поля без active
+  consumers; `raw_tables` остаются для unknown statement mapping;
 - document detail и unknown mapping readers зависят от узких snapshot reader
   Protocols;
 - forwarding facade `ImportService` и его неиспользуемый `get_document`

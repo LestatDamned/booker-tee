@@ -135,8 +135,6 @@ def document_snapshot() -> ImportDocumentSnapshot:
         id=uuid4(),
         status=UploadedDocumentStatus.REQUIRES_REVIEW,
         original_filename="statement.pdf",
-        sha256_hash="a" * 64,
-        storage_key="private/storage.pdf",
         bank_name="Альфа-Банк",
         statement_type="account_statement",
         account=None,
@@ -145,7 +143,6 @@ def document_snapshot() -> ImportDocumentSnapshot:
             ImportRawTransactionRow(
                 row_index=1,
                 status=RawTransactionStatus.NORMALIZED,
-                parse_attempt_id=uuid4(),
                 display_date=date(2026, 7, 15),
                 amount=Decimal("-125.50"),
                 amount_raw="-125.50",
