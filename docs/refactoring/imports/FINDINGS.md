@@ -160,11 +160,10 @@ strategy-обёртки поверх known/unknown pipelines. Достаточн
 `StatementProcessor`, выбирающего `KnownStatementProcessor` или
 `UnknownStatementProcessor` через существующий parser registry.
 
-## Подтверждённые cleanup-кандидаты
+## Cleanup-кандидаты
 
-После переключения тестов:
+В Commit 2.1 удалены:
 
-- `validate_pdf_upload`;
 - `RawTransactionReviewUseCase`;
 - `raw_transaction_status_for_review_action`;
 - `mapped_rows_to_drafts`;
@@ -173,7 +172,9 @@ strategy-обёртки поверх known/unknown pipelines. Достаточн
 - `mapped_row_source_id`;
 - test-only `preview_unknown_statement_mapping`;
 - `compatible_mapping_table_count`;
-- пустой `presentation` package.
+
+Ранее, в Phase 1, удалены `validate_pdf_upload` и пустой `presentation`
+package.
 
 Также дублируются:
 

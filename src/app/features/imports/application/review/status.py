@@ -11,7 +11,7 @@ from app.features.imports.domain.review_lifecycle import (
     resolve_import_review_lifecycle_transition,
 )
 from app.features.imports.errors import RawTransactionReviewError
-from app.features.imports.models import RawTransactionStatus, UploadedDocument
+from app.features.imports.models import UploadedDocument
 from app.features.imports.repository import ImportRepository
 
 
@@ -55,15 +55,6 @@ class RawTransactionReviewStatusUseCase:
         await refresh_document_validation(self.imports, document)
         await ImportedDocumentStatusUpdater(self.imports).sync_review_status(document)
         return document
-
-
-def raw_transaction_status_for_review_action(action: str) -> RawTransactionStatus:
-    return {
-        ImportReviewLifecycleAction.MARK_DUPLICATE: RawTransactionStatus.DUPLICATE,
-        ImportReviewLifecycleAction.IGNORE: RawTransactionStatus.IGNORED,
-        ImportReviewLifecycleAction.MARK_UNIQUE: RawTransactionStatus.MATCHED,
-        ImportReviewLifecycleAction.NEEDS_REVIEW: RawTransactionStatus.NEEDS_REVIEW,
-    }[lifecycle_action_for_legacy_review_action(action)]
 
 
 def lifecycle_action_for_legacy_review_action(action: str) -> ImportReviewLifecycleAction:

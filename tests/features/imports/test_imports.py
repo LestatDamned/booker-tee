@@ -19,7 +19,6 @@ from app.features.imports.application.documents.upload import (
 )
 from app.features.imports.application.review.status import (
     RawTransactionReviewStatusUseCase,
-    raw_transaction_status_for_review_action,
 )
 from app.features.imports.domain.deduplication import (
     mark_raw_transaction_duplicate,
@@ -266,16 +265,6 @@ def test_statement_extractor_resolver_selects_extractor_by_extension(tmp_path: P
     assert extracted.metadata["source_format"] == "xlsx"
 
 
-def test_raw_transaction_review_actions_map_to_statuses() -> None:
-    assert raw_transaction_status_for_review_action("duplicate") == RawTransactionStatus.DUPLICATE
-    assert raw_transaction_status_for_review_action("ignore") == RawTransactionStatus.IGNORED
-    assert raw_transaction_status_for_review_action("mark_unique") == RawTransactionStatus.MATCHED
-    assert (
-        raw_transaction_status_for_review_action("needs_review")
-        == RawTransactionStatus.NEEDS_REVIEW
-    )
-
-
 def test_reviewable_raw_transaction_statuses_include_normalized_rows() -> None:
     assert RawTransactionStatus.NORMALIZED in REVIEWABLE_RAW_TRANSACTION_STATUSES
     assert RawTransactionStatus.SUGGESTED in REVIEWABLE_RAW_TRANSACTION_STATUSES
@@ -432,158 +421,6 @@ def test_document_has_linked_operations_detects_confirmed_rows() -> None:
 
     raw_transaction.linked_operation_id = uuid4()
     assert document_has_linked_operations(document) is True
-
-
-@pytest.mark.asyncio
-async def test_confirm_with_remember_rule_reapplies_rules_to_document(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from app.features.imports.application.review import actions as review_actions
-
-    calls: list[tuple[str, dict[str, object]]] = []
-
-    class FakeRawTransactionPoster:
-        def __init__(self, session: object) -> None:
-            self.session = session
-
-        async def post_raw_transaction(self, **kwargs: object) -> None:
-            calls.append(("post", kwargs))
-
-    class FakeTransactionRuleManagementUseCase:
-        def __init__(self, session: object) -> None:
-            self.session = session
-
-        async def create_rule_from_raw_confirmation(self, **kwargs: object) -> None:
-            calls.append(("create_rule", kwargs))
-
-    class FakeTransactionRuleApplicationUseCase:
-        def __init__(self, session: object) -> None:
-            self.session = session
-
-        async def apply_rules_to_document(self, **kwargs: object) -> SimpleNamespace:
-            calls.append(("apply_rules", kwargs))
-            return SimpleNamespace(updated_raw_transaction_ids=frozenset({uuid4()}))
-
-    monkeypatch.setattr(
-        review_actions,
-        "RawTransactionPoster",
-        FakeRawTransactionPoster,
-    )
-    monkeypatch.setattr(
-        review_actions,
-        "TransactionRuleManagementUseCase",
-        FakeTransactionRuleManagementUseCase,
-    )
-    monkeypatch.setattr(
-        review_actions,
-        "TransactionRuleApplicationUseCase",
-        FakeTransactionRuleApplicationUseCase,
-    )
-
-    workspace_id = uuid4()
-    document_id = uuid4()
-    raw_transaction_id = uuid4()
-    category_id = uuid4()
-    session = SimpleNamespace(commits=0, rollbacks=0)
-
-    async def commit() -> None:
-        session.commits += 1
-
-    async def rollback() -> None:
-        session.rollbacks += 1
-
-    session.commit = commit
-    session.rollback = rollback
-    use_case = review_actions.RawTransactionReviewUseCase(session=cast(Any, session))
-
-    result = await use_case.handle(
-        context=cast(
-            Any,
-            SimpleNamespace(workspace=SimpleNamespace(id=workspace_id)),
-        ),
-        command=review_actions.RawTransactionReviewCommand(
-            document_id=document_id,
-            raw_transaction_id=raw_transaction_id,
-            action="confirm",
-            category_id=category_id,
-            remember_rule=True,
-            rule_pattern="KRASNOE&BELOE",
-        ),
-    )
-
-    assert [name for name, _kwargs in calls] == ["post", "create_rule", "apply_rules"]
-    assert result.updated_raw_transaction_ids
-    assert calls[2][1] == {
-        "workspace_id": workspace_id,
-        "document_id": document_id,
-    }
-    assert session.commits == 1
-    assert session.rollbacks == 0
-
-
-@pytest.mark.asyncio
-async def test_confirm_with_remember_rule_rolls_back_posting_when_rule_creation_fails(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from app.features.imports.application.review import actions as review_actions
-
-    calls: list[str] = []
-
-    class FakeRawTransactionPoster:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def post_raw_transaction(self, **_kwargs: object) -> None:
-            calls.append("post")
-
-    class FailingTransactionRuleManagementUseCase:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def create_rule_from_raw_confirmation(self, **_kwargs: object) -> None:
-            calls.append("create_rule")
-            raise RuntimeError("rule failed")
-
-    monkeypatch.setattr(
-        review_actions,
-        "RawTransactionPoster",
-        FakeRawTransactionPoster,
-    )
-    monkeypatch.setattr(
-        review_actions,
-        "TransactionRuleManagementUseCase",
-        FailingTransactionRuleManagementUseCase,
-    )
-    session = SimpleNamespace(commits=0, rollbacks=0)
-
-    async def commit() -> None:
-        session.commits += 1
-
-    async def rollback() -> None:
-        session.rollbacks += 1
-
-    session.commit = commit
-    session.rollback = rollback
-    use_case = review_actions.RawTransactionReviewUseCase(session=cast(Any, session))
-
-    with pytest.raises(RuntimeError, match="rule failed"):
-        await use_case.handle(
-            context=cast(
-                Any,
-                SimpleNamespace(workspace=SimpleNamespace(id=uuid4())),
-            ),
-            command=review_actions.RawTransactionReviewCommand(
-                document_id=uuid4(),
-                raw_transaction_id=uuid4(),
-                action="confirm",
-                category_id=uuid4(),
-                remember_rule=True,
-            ),
-        )
-
-    assert calls == ["post", "create_rule"]
-    assert session.commits == 0
-    assert session.rollbacks == 1
 
 
 def raw_transaction_from_values(

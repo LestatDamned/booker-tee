@@ -49,13 +49,6 @@ def compatible_mapping_tables(
     ]
 
 
-def compatible_mapping_table_count(
-    raw_tables: list[dict[str, object]] | None,
-    command: UnknownStatementMappingCommand,
-) -> int:
-    return len(compatible_mapping_tables(raw_tables, command))
-
-
 def iter_raw_tables(raw_tables: list[dict[str, object]] | None) -> list[RawTableRef]:
     if raw_tables is None:
         return []

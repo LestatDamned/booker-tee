@@ -122,9 +122,9 @@ dependency maintenance, а не подавлением warning.
 | Review domain tests | Сохранить, консолидировать matrices без потери reason-code assertions |
 | Document list/detail tests | Сохранить capability/status matrices; убрать server-owned visual workflow после переноса в React |
 
-## Конкретные удаления после code cleanup
+## Выполненные удаления в Commit 2.1
 
-Удалить tests, единственной целью которых являются:
+Удалены tests, единственной целью которых были:
 
 - `raw_transaction_status_for_review_action`;
 - `RawTransactionReviewUseCase`;
@@ -136,14 +136,17 @@ dependency maintenance, а не подавлением warning.
 - `raw_transaction_status_for_mapped_row`;
 - `mapped_row_source_id`.
 
-Там, где эти tests содержат важный сценарий, перенести assertion на public
-actor:
+Полезные mapping assertions перенесены на public production actors:
 
 ```text
 mapping preview/import
   вместо
 helper A -> helper B -> private draft
 ```
+
+Два теста `RawTransactionReviewUseCase` не переносились: они проверяли
+production-unused orchestration wrapper. Действующий API-сценарий подтверждения
+с сохранением правила покрывается тестами `confirmation_commands`.
 
 ## Недостающие tests основной части рефакторинга
 

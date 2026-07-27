@@ -9,7 +9,6 @@ from app.features.imports.application.unknown_statement_mappings.dto import (
 )
 from app.features.imports.application.unknown_statement_mappings.raw_tables import (
     compatible_mapping_tables,
-    find_raw_table,
     mapping_start_row_for_table,
 )
 from app.features.imports.application.unknown_statement_mappings.row_mapping import (
@@ -21,34 +20,6 @@ from app.features.imports.application.unknown_statement_mappings.template_signat
 )
 
 MAX_MAPPING_PREVIEW_ROWS = 20
-
-
-def preview_unknown_statement_mapping(
-    raw_tables: list[dict[str, object]] | None,
-    command: UnknownStatementMappingCommand,
-    *,
-    max_rows: int | None = MAX_MAPPING_PREVIEW_ROWS,
-) -> UnknownStatementMappingPreview:
-    table = find_raw_table(
-        raw_tables,
-        page_number=command.page_number,
-        table_index=command.table_index,
-    )
-    if table is None:
-        return UnknownStatementMappingPreview(rows=[])
-
-    rows = map_table_rows(
-        table,
-        page_number=command.page_number,
-        table_index=command.table_index,
-        start_row=command.first_data_row,
-        command=command,
-        max_rows=max_rows,
-    )
-    return UnknownStatementMappingPreview(
-        rows=rows,
-        warnings=mapping_warnings_for_preview(rows, command),
-    )
 
 
 def preview_compatible_unknown_statement_mapping(

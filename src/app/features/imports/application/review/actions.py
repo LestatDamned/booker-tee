@@ -122,23 +122,3 @@ class RawTransactionReviewer:
         return RawTransactionReviewResult(
             updated_raw_transaction_ids=frozenset({command.matched_raw_transaction_id}),
         )
-
-
-class RawTransactionReviewUseCase:
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
-        self.reviewer = RawTransactionReviewer(session)
-
-    async def handle(
-        self,
-        *,
-        context: WorkspaceContext,
-        command: RawTransactionReviewCommand,
-    ) -> RawTransactionReviewResult:
-        try:
-            result = await self.reviewer.handle(context=context, command=command)
-            await self.session.commit()
-            return result
-        except Exception:
-            await self.session.rollback()
-            raise

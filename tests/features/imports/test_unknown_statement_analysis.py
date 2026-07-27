@@ -7,14 +7,13 @@ from uuid import uuid4
 import pytest
 
 from app.features.imports.application.unknown_statement_mappings.drafts import (
-    mapped_rows_to_drafts,
+    UnknownStatementDraftMapper,
 )
 from app.features.imports.application.unknown_statement_mappings.preview import (
     preview_compatible_unknown_statement_mapping,
-    preview_unknown_statement_mapping,
 )
 from app.features.imports.application.unknown_statement_mappings.raw_tables import (
-    compatible_mapping_table_count,
+    compatible_mapping_tables,
 )
 from app.features.imports.application.unknown_statement_mappings.ui_defaults import (
     default_mapping_command,
@@ -543,7 +542,7 @@ def test_unknown_statement_analysis_builds_text_candidate_table_when_pdf_tables_
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
     command = default_mapping_command(report, default_currency="RUB")
-    mapped_preview = preview_unknown_statement_mapping(
+    mapped_preview = preview_compatible_unknown_statement_mapping(
         raw_tables_with_text_candidate_tables(
             extracted,
             raw_tables_from_extracted_fixture(extracted),
@@ -733,12 +732,15 @@ def test_sanitized_unknown_statement_fixture_covers_posting_date_and_balance() -
 
     report = analyze_unknown_statement(extracted).as_validation_report()
     command = default_mapping_command(report, default_currency="USD")
-    preview = preview_unknown_statement_mapping(
+    preview = preview_compatible_unknown_statement_mapping(
         raw_tables_from_extracted_fixture(extracted),
         command,
         max_rows=None,
     )
-    drafts = mapped_rows_to_drafts(preview.rows, command=command, account_id=uuid4())
+    drafts = UnknownStatementDraftMapper(
+        command=command,
+        account_id=uuid4(),
+    ).map_rows(preview.rows)
 
     assert extracted.metadata["fixture_kind"] == "sanitized_unknown_statement"
     assert report["detected_bank_name"] is None
@@ -782,7 +784,13 @@ def test_sanitized_unknown_statement_fixture_covers_split_continuation_tables() 
     assert continuation_preview["preview_row_count"] == 2
     assert continuation_preview["row_count"] == 2
     assert (
-        compatible_mapping_table_count(raw_tables_from_extracted_fixture(extracted), command) == 2
+        len(
+            compatible_mapping_tables(
+                raw_tables_from_extracted_fixture(extracted),
+                command,
+            )
+        )
+        == 2
     )
     assert [(row.page_number, row.table_index) for row in preview.rows] == [
         (1, 1),

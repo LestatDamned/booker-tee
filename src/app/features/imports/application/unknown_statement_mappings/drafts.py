@@ -83,35 +83,3 @@ class UnknownStatementDraftMapper:
     @staticmethod
     def source_row_id(row: UnknownStatementMappedRow) -> str:
         return f"mapped:{row.page_number}:{row.table_index}:{row.source_row_number}"
-
-
-def mapped_rows_to_drafts(
-    rows: list[UnknownStatementMappedRow],
-    *,
-    command: UnknownStatementMappingCommand,
-    account_id: UUID,
-) -> list[RawTransactionDraft]:
-    return UnknownStatementDraftMapper(command=command, account_id=account_id).map_rows(rows)
-
-
-def mapped_row_to_draft(
-    row: UnknownStatementMappedRow,
-    *,
-    row_index: int,
-    command: UnknownStatementMappingCommand,
-    account_id: UUID,
-) -> RawTransactionDraft:
-    return UnknownStatementDraftMapper(command=command, account_id=account_id).map_row(
-        row,
-        row_index=row_index,
-    )
-
-
-def raw_transaction_status_for_mapped_row(
-    row: UnknownStatementMappedRow,
-) -> RawTransactionStatus:
-    return UnknownStatementDraftMapper.raw_transaction_status_for(row)
-
-
-def mapped_row_source_id(row: UnknownStatementMappedRow) -> str:
-    return UnknownStatementDraftMapper.source_row_id(row)

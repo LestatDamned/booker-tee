@@ -3,7 +3,7 @@ from typing import cast
 from uuid import uuid4
 
 from app.features.imports.application.unknown_statement_mappings.drafts import (
-    mapped_rows_to_drafts,
+    UnknownStatementDraftMapper,
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
@@ -11,10 +11,9 @@ from app.features.imports.application.unknown_statement_mappings.dto import (
 )
 from app.features.imports.application.unknown_statement_mappings.preview import (
     preview_compatible_unknown_statement_mapping,
-    preview_unknown_statement_mapping,
 )
 from app.features.imports.application.unknown_statement_mappings.raw_tables import (
-    compatible_mapping_table_count,
+    compatible_mapping_tables,
 )
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingRowErrorCode,
@@ -86,8 +85,11 @@ def test_unknown_statement_mapping_preview_supports_split_debit_credit_columns()
         credit_amount_column=3,
     )
 
-    preview = preview_unknown_statement_mapping(raw_tables, command, max_rows=None)
-    drafts = mapped_rows_to_drafts(preview.rows, command=command, account_id=uuid4())
+    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    drafts = UnknownStatementDraftMapper(
+        command=command,
+        account_id=uuid4(),
+    ).map_rows(preview.rows)
 
     assert preview.valid_count == 2
     assert preview.error_count == 0
@@ -129,7 +131,7 @@ def test_single_amount_column_applies_direction_only_to_unsigned_values() -> Non
         unsigned_amount_direction=UnsignedAmountDirection.EXPENSE,
     )
 
-    preview = preview_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
 
     assert [row.amount for row in preview.rows] == [
         Decimal("10000.00"),
@@ -148,6 +150,7 @@ def test_single_amount_column_can_require_an_explicit_sign() -> None:
                 [
                     ["Дата", "Описание", "Сумма"],
                     ["12.05.2026", "Неоднозначная строка", "10 000"],
+                    ["13.05.2026", "Строка со знаком", "-500"],
                 ]
             ],
         }
@@ -164,16 +167,18 @@ def test_single_amount_column_can_require_an_explicit_sign() -> None:
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
-    preview = preview_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
 
     assert preview.rows[0].amount is None
     assert preview.rows[0].status == "error"
+    assert preview.rows[1].amount == Decimal("-500.00")
+    assert preview.rows[1].status == "valid"
     assert mapping_row_error_codes(preview.rows[0], command) == (
         MappingRowErrorCode.UNSIGNED_AMOUNT_DIRECTION_REQUIRED,
     )
     assert [warning.code for warning in preview.warnings] == [
         "unsigned_amount_direction_required",
-        "no_valid_rows",
+        "high_error_rate",
     ]
     assert preview.warnings[0].fields == ["unsigned_amount_direction"]
     assert preview.warnings[0].affected_row_count == 1
@@ -204,7 +209,7 @@ def test_unknown_statement_mapping_preview_warns_about_risky_column_selection() 
         debit_amount_column=2,
     )
 
-    preview = preview_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
 
     assert [warning.code for warning in preview.warnings] == [
         "duplicate_column_roles",
@@ -238,7 +243,7 @@ def test_unknown_statement_mapping_preview_warns_about_many_errors() -> None:
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
-    preview = preview_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
 
     assert preview.valid_count == 1
     assert preview.error_count == 1
@@ -349,7 +354,7 @@ def test_unknown_statement_mapping_preview_normalizes_selected_columns() -> None
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
-    preview = preview_unknown_statement_mapping(raw_tables, command)
+    preview = preview_compatible_unknown_statement_mapping(raw_tables, command)
 
     assert preview.valid_count == 1
     assert preview.error_count == 0
@@ -385,8 +390,11 @@ def test_unknown_statement_mapping_preview_normalizes_balance_after_column() -> 
         balance_after_column=3,
     )
 
-    preview = preview_unknown_statement_mapping(raw_tables, command, max_rows=None)
-    drafts = mapped_rows_to_drafts(preview.rows, command=command, account_id=account_id)
+    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    drafts = UnknownStatementDraftMapper(
+        command=command,
+        account_id=account_id,
+    ).map_rows(preview.rows)
 
     assert preview.valid_count == 1
     assert preview.rows[0].balance_after_raw == "9 500,00 ₽"
@@ -423,8 +431,11 @@ def test_unknown_statement_mapping_preview_normalizes_posting_date_column() -> N
         posting_date_column=1,
     )
 
-    preview = preview_unknown_statement_mapping(raw_tables, command, max_rows=None)
-    drafts = mapped_rows_to_drafts(preview.rows, command=command, account_id=account_id)
+    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    drafts = UnknownStatementDraftMapper(
+        command=command,
+        account_id=account_id,
+    ).map_rows(preview.rows)
 
     assert preview.valid_count == 1
     assert preview.rows[0].posting_date_raw == "13.05.2026"
@@ -460,9 +471,12 @@ def test_unknown_statement_mapping_builds_raw_transaction_drafts() -> None:
         default_currency="RUB",
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
-    preview = preview_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
 
-    drafts = mapped_rows_to_drafts(preview.rows, command=command, account_id=account_id)
+    drafts = UnknownStatementDraftMapper(
+        command=command,
+        account_id=account_id,
+    ).map_rows(preview.rows)
 
     assert len(drafts) == 2
     assert drafts[0].status == RawTransactionStatus.NORMALIZED
@@ -520,9 +534,12 @@ def test_unknown_statement_mapping_can_import_all_compatible_tables() -> None:
         command,
         max_rows=None,
     )
-    drafts = mapped_rows_to_drafts(preview.rows, command=command, account_id=account_id)
+    drafts = UnknownStatementDraftMapper(
+        command=command,
+        account_id=account_id,
+    ).map_rows(preview.rows)
 
-    assert compatible_mapping_table_count(raw_tables, command) == 2
+    assert len(compatible_mapping_tables(raw_tables, command)) == 2
     assert [row.page_number for row in preview.rows] == [1, 2]
     assert [draft.row_index for draft in drafts] == [0, 1]
     assert [draft.raw_payload["page_number"] for draft in drafts] == [1, 2]
@@ -569,9 +586,12 @@ def test_unknown_statement_mapping_imports_headerless_continuation_with_new_tabl
         command,
         max_rows=None,
     )
-    drafts = mapped_rows_to_drafts(preview.rows, command=command, account_id=account_id)
+    drafts = UnknownStatementDraftMapper(
+        command=command,
+        account_id=account_id,
+    ).map_rows(preview.rows)
 
-    assert compatible_mapping_table_count(raw_tables, command) == 2
+    assert len(compatible_mapping_tables(raw_tables, command)) == 2
     assert [(row.page_number, row.table_index) for row in preview.rows] == [
         (1, 1),
         (2, 0),

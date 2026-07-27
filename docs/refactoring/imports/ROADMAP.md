@@ -142,8 +142,17 @@ Exit: внутри imports нет SSR runtime/presentation.
 
 ### Commit 2.1: remove dead adapters
 
-Удалить только подтверждённые production-unused wrappers. Тесты перевести на
-public production actors.
+Статус: completed.
+
+- удалены восемь подтверждённых production-unused forwarding/test-only
+  adapters из review и unknown statement mapping;
+- полезные mapping assertions переведены на production actors
+  `UnknownStatementDraftMapper`, `preview_compatible_unknown_statement_mapping`
+  и `compatible_mapping_tables`;
+- удалены три теста, проверявшие только отсутствующий production workflow или
+  однострочный forwarding adapter.
+
+Public API и пользовательское поведение не изменены.
 
 ### Commit 2.2: deduplicate pure helpers
 
