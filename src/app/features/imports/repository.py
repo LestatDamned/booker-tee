@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.features.imports.domain.review_messages import append_review_message
 from app.features.imports.models import (
     ImportMappingExecution,
     ImportMappingTemplate,
@@ -583,11 +584,3 @@ class ImportRepository:
         attempt.status = ParseAttemptStatus.REQUIRES_REVIEW
         attempt.validation_report_json = report
         await self.session.flush()
-
-
-def append_review_message(existing: str | None, message: str) -> str:
-    if not existing:
-        return message
-    if message in existing:
-        return existing
-    return f"{existing}; {message}"

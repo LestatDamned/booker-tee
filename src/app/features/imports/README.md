@@ -682,8 +682,8 @@ implementation details into the cohesive packages underneath
 
 ## Near-term cleanup plan
 
-1. Keep `ImportService` as a read-side facade only; command routes should call
-   explicit use cases directly.
+1. Keep document reads on bounded snapshots returned by
+   `ImportQueryRepository`; command routes call explicit use cases directly.
 2. Move document lifecycle files into `application/documents/`:
    upload, management, parse attempts.
 3. Move review lifecycle files into `application/review/`:
@@ -707,9 +707,8 @@ Completed cleanup:
 
 ## Remaining cleanup plan
 
-1. Keep `ImportService` read-side:
-   it may list documents and build detail views, but new command behavior
-   should go into explicit use cases under `application/`.
+1. Keep document read projections in `ImportQueryRepository`; new command
+   behavior belongs to explicit use cases under `application/`.
 2. Compatibility facades in `application/` have been removed. Keep new imports
    pointed at concrete story modules such as `application/documents/upload.py`
    and `application/review/status.py`.
@@ -721,16 +720,9 @@ Completed cleanup:
    upload, extract, choose strategy, parse/map, store raw rows, validate,
    then review.
 
-## Deferred cleanup
+## Document read boundary
 
-`ImportService` intentionally remains as a read-side facade for routes and
-tests. Command workflows should be wired directly from routes to use cases.
-
-Prefer direct router-to-use-case wiring only when:
-
-1. A route clearly belongs to one use case.
-2. The route performs a state-changing command.
-3. The facade would hide important workflow boundaries.
-
-This note is intentionally small. If code and note disagree, fix the code or
-update the note in the same change.
+`ImportQueryRepository.get_document_snapshot(...)` owns workspace-scoped
+loading and returns `ImportDocumentSnapshot`. Document detail and unknown
+mapping readers depend on narrow Protocols and do not receive ORM documents.
+Command workflows remain explicit application use cases.

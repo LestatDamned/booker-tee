@@ -3,8 +3,8 @@ from decimal import Decimal
 from typing import Protocol, cast
 from uuid import UUID
 
-from app.features.imports.application.documents.detail_view import (
-    ImportDocumentDetailView,
+from app.features.imports.application.documents.snapshot import (
+    ImportDocumentSnapshot,
 )
 from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
     MappingControlTotalKind,
@@ -66,11 +66,11 @@ MAX_MAPPING_PREVIEW_RESPONSE_ROWS = 20
 
 
 class MappingDocumentReader(Protocol):
-    async def get_document_detail_view(
+    async def get_document_snapshot(
         self,
         workspace_id: UUID,
         document_id: UUID,
-    ) -> ImportDocumentDetailView | None: ...
+    ) -> ImportDocumentSnapshot | None: ...
 
 
 class MappingTemplateReader(Protocol):
@@ -117,34 +117,36 @@ class UnknownStatementMappingReader:
         document_id: UUID,
         workspace_default_currency: str,
     ) -> UnknownStatementMappingReadModel | None:
-        view = await self._documents.get_document_detail_view(workspace_id, document_id)
-        if view is None:
+        snapshot = await self._documents.get_document_snapshot(workspace_id, document_id)
+        if snapshot is None:
             return None
-        return await self._read_view(
+        return await self._read_snapshot(
             workspace_id=workspace_id,
             workspace_default_currency=workspace_default_currency,
-            view=view,
+            snapshot=snapshot,
         )
 
-    async def _read_view(
+    async def _read_snapshot(
         self,
         *,
         workspace_id: UUID,
         workspace_default_currency: str,
-        view: ImportDocumentDetailView,
+        snapshot: ImportDocumentSnapshot,
     ) -> UnknownStatementMappingReadModel:
-        raw_tables = _latest_raw_tables(view)
+        raw_tables = _latest_raw_tables(snapshot)
         templates = await self._templates.list_matching_templates(
             workspace_id=workspace_id,
-            bank_name=view.bank_name,
-            statement_type=view.statement_type,
+            bank_name=snapshot.bank_name,
+            statement_type=snapshot.statement_type,
         )
         compatible_templates = compatible_mapping_templates(templates, raw_tables)
         default_currency = (
-            view.account.currency if view.account is not None else workspace_default_currency
+            snapshot.account.currency
+            if snapshot.account is not None
+            else workspace_default_currency
         )
         command = default_mapping_command(
-            view.validation,
+            snapshot.validation,
             default_currency=default_currency,
             templates=compatible_templates,
         )
@@ -160,28 +162,28 @@ class UnknownStatementMappingReader:
                 MappingControlTotalKind.CLOSING_BALANCE,
             ),
         )
-        table_options = preview_table_options(view.validation)
+        table_options = preview_table_options(snapshot.validation)
         projected_tables = tuple(
             _source_table(option, raw_tables, default_currency=default_currency)
             for option in table_options[:MAX_MAPPING_SOURCE_TABLES]
         )
         return UnknownStatementMappingReadModel(
-            document_id=view.id,
-            filename=view.original_filename,
-            status=view.status,
-            bank_name=view.bank_name,
-            statement_type=view.statement_type,
+            document_id=snapshot.id,
+            filename=snapshot.original_filename,
+            status=snapshot.status,
+            bank_name=snapshot.bank_name,
+            statement_type=snapshot.statement_type,
             account=(
                 MappingAccountDto(
-                    id=view.account.id,
-                    name=view.account.name,
-                    currency=view.account.currency,
+                    id=snapshot.account.id,
+                    name=snapshot.account.name,
+                    currency=snapshot.account.currency,
                 )
-                if view.account is not None
+                if snapshot.account is not None
                 else None
             ),
             default_currency=default_currency,
-            capability=_mapping_capability(view, raw_tables),
+            capability=_mapping_capability(snapshot, raw_tables),
             default_mapping=command,
             default_source=_default_source(
                 compatible_templates=compatible_templates,
@@ -217,17 +219,17 @@ class UnknownStatementMappingReader:
         workspace_default_currency: str,
         command: UnknownStatementMappingCommand,
     ) -> UnknownStatementMappingPreviewResult | None:
-        view = await self._documents.get_document_detail_view(workspace_id, document_id)
-        if view is None:
+        snapshot = await self._documents.get_document_snapshot(workspace_id, document_id)
+        if snapshot is None:
             return None
-        mapping = await self._read_view(
+        mapping = await self._read_snapshot(
             workspace_id=workspace_id,
             workspace_default_currency=workspace_default_currency,
-            view=view,
+            snapshot=snapshot,
         )
         if not mapping.capability.allowed:
             raise MappingUnavailableError(mapping.capability.blocking_reason_codes)
-        raw_tables = _latest_raw_tables(view)
+        raw_tables = _latest_raw_tables(snapshot)
         selected_table = find_raw_table(
             raw_tables,
             page_number=command.page_number,
@@ -288,11 +290,11 @@ class UnknownStatementMappingReader:
         start_row_number: int,
         row_limit: int,
     ) -> MappingSourceRowsDto | None:
-        view = await self._documents.get_document_detail_view(workspace_id, document_id)
-        if view is None:
+        snapshot = await self._documents.get_document_snapshot(workspace_id, document_id)
+        if snapshot is None:
             return None
         raw_table = find_raw_table(
-            _latest_raw_tables(view),
+            _latest_raw_tables(snapshot),
             page_number=page_number,
             table_index=table_index,
         )
@@ -323,17 +325,17 @@ class UnknownStatementMappingReader:
 
 
 def _mapping_capability(
-    view: ImportDocumentDetailView,
+    snapshot: ImportDocumentSnapshot,
     raw_tables: list[dict[str, object]] | None,
 ) -> MappingCapabilityDto:
     reasons: list[MappingBlockingReasonCode] = []
-    if view.account is None:
+    if snapshot.account is None:
         reasons.append(MappingBlockingReasonCode.ACCOUNT_REQUIRED)
     if not raw_tables:
         reasons.append(MappingBlockingReasonCode.RAW_TABLES_UNAVAILABLE)
-    if not _needs_mapping(view.validation):
+    if not _needs_mapping(snapshot.validation):
         reasons.append(MappingBlockingReasonCode.MAPPING_NOT_REQUIRED)
-    if any(row.status is RawTransactionStatus.CONFIRMED for row in view.raw_transactions):
+    if any(row.status is RawTransactionStatus.CONFIRMED for row in snapshot.raw_transactions):
         reasons.append(MappingBlockingReasonCode.CONFIRMED_ROWS_EXIST)
     return MappingCapabilityDto(allowed=not reasons, blocking_reason_codes=tuple(reasons))
 
@@ -343,9 +345,9 @@ def _needs_mapping(validation: dict[str, object] | None) -> bool:
 
 
 def _latest_raw_tables(
-    view: ImportDocumentDetailView,
+    snapshot: ImportDocumentSnapshot,
 ) -> list[dict[str, object]] | None:
-    latest_attempt = view.parse_attempts[0] if view.parse_attempts else None
+    latest_attempt = snapshot.parse_attempts[0] if snapshot.parse_attempts else None
     return latest_attempt.raw_tables if latest_attempt is not None else None
 
 

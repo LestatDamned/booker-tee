@@ -6,10 +6,10 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.features.accounts.models import AccountType
-from app.features.imports.application.documents.detail_view import (
+from app.features.imports.application.documents.snapshot import (
     ImportAccountRef,
-    ImportDocumentDetailView,
-    ImportParseAttemptView,
+    ImportDocumentSnapshot,
+    ImportParseAttemptSnapshot,
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
@@ -29,26 +29,26 @@ from app.features.imports.application.unknown_statement_mappings.reader import (
 from app.features.imports.models import ParseAttemptStatus, UploadedDocumentStatus
 
 
-class DocumentServiceStub:
+class DocumentSnapshotReaderStub:
     def __init__(
         self,
-        view: ImportDocumentDetailView,
+        snapshot: ImportDocumentSnapshot,
         *,
         workspace_id: UUID,
     ) -> None:
-        self.view = view
+        self.snapshot = snapshot
         self.workspace_id = workspace_id
         self.calls: list[tuple[UUID, UUID]] = []
 
-    async def get_document_detail_view(
+    async def get_document_snapshot(
         self,
         workspace_id: UUID,
         document_id: UUID,
-    ) -> ImportDocumentDetailView | None:
+    ) -> ImportDocumentSnapshot | None:
         self.calls.append((workspace_id, document_id))
-        if workspace_id != self.workspace_id or document_id != self.view.id:
+        if workspace_id != self.workspace_id or document_id != self.snapshot.id:
             return None
-        return self.view
+        return self.snapshot
 
 
 class TemplateServiceStub:
@@ -65,13 +65,13 @@ class TemplateServiceStub:
 @pytest.mark.asyncio
 async def test_mapping_read_model_is_bounded_and_uses_analyzer_defaults() -> None:
     workspace_id = uuid4()
-    view = mapping_document_view()
-    documents = DocumentServiceStub(view, workspace_id=workspace_id)
+    snapshot = mapping_document_snapshot()
+    documents = DocumentSnapshotReaderStub(snapshot, workspace_id=workspace_id)
     reader = UnknownStatementMappingReader(documents, TemplateServiceStub())
 
     mapping = await reader.read(
         workspace_id=workspace_id,
-        document_id=view.id,
+        document_id=snapshot.id,
         workspace_default_currency="USD",
     )
 
@@ -86,22 +86,22 @@ async def test_mapping_read_model_is_bounded_and_uses_analyzer_defaults() -> Non
     assert mapping.tables[0].sample_rows[0].cells == ("Дата", "Описание", "Сумма")
     assert mapping.tables[0].suggestion is not None
     assert mapping.tables[0].suggestion.command.default_currency == "RUB"
-    assert documents.calls == [(workspace_id, view.id)]
+    assert documents.calls == [(workspace_id, snapshot.id)]
 
 
 @pytest.mark.asyncio
 async def test_mapping_preview_counts_all_compatible_rows_but_bounds_payload() -> None:
     workspace_id = uuid4()
-    view = mapping_document_view()
-    raw_tables_before = deepcopy(view.parse_attempts[0].raw_tables)
+    snapshot = mapping_document_snapshot()
+    raw_tables_before = deepcopy(snapshot.parse_attempts[0].raw_tables)
     reader = UnknownStatementMappingReader(
-        DocumentServiceStub(view, workspace_id=workspace_id),
+        DocumentSnapshotReaderStub(snapshot, workspace_id=workspace_id),
         TemplateServiceStub(),
     )
 
     preview = await reader.preview(
         workspace_id=workspace_id,
-        document_id=view.id,
+        document_id=snapshot.id,
         workspace_default_currency="RUB",
         command=mapping_command(),
     )
@@ -119,16 +119,16 @@ async def test_mapping_preview_counts_all_compatible_rows_but_bounds_payload() -
     assert preview.rows[0].source_row_number == 2
     assert preview.rows[0].error_codes == (MappingRowErrorCode.OPERATION_DATE_INVALID,)
     assert preview.can_import is True
-    assert view.parse_attempts[0].raw_tables == raw_tables_before
-    assert view.raw_transactions == []
+    assert snapshot.parse_attempts[0].raw_tables == raw_tables_before
+    assert snapshot.raw_transactions == []
 
 
 @pytest.mark.asyncio
 async def test_mapping_preview_rejects_duplicate_roles_with_stable_fields() -> None:
     workspace_id = uuid4()
-    view = mapping_document_view()
+    snapshot = mapping_document_snapshot()
     reader = UnknownStatementMappingReader(
-        DocumentServiceStub(view, workspace_id=workspace_id),
+        DocumentSnapshotReaderStub(snapshot, workspace_id=workspace_id),
         TemplateServiceStub(),
     )
     command = mapping_command()
@@ -151,7 +151,7 @@ async def test_mapping_preview_rejects_duplicate_roles_with_stable_fields() -> N
     with pytest.raises(MappingCommandValidationError) as error:
         await reader.preview(
             workspace_id=workspace_id,
-            document_id=view.id,
+            document_id=snapshot.id,
             workspace_default_currency="RUB",
             command=duplicate,
         )
@@ -163,9 +163,9 @@ async def test_mapping_preview_rejects_duplicate_roles_with_stable_fields() -> N
 @pytest.mark.asyncio
 async def test_mapping_preview_requires_complete_amount_strategy() -> None:
     workspace_id = uuid4()
-    view = mapping_document_view()
+    snapshot = mapping_document_snapshot()
     reader = UnknownStatementMappingReader(
-        DocumentServiceStub(view, workspace_id=workspace_id),
+        DocumentSnapshotReaderStub(snapshot, workspace_id=workspace_id),
         TemplateServiceStub(),
     )
     command = mapping_command()
@@ -179,7 +179,7 @@ async def test_mapping_preview_requires_complete_amount_strategy() -> None:
     with pytest.raises(MappingCommandValidationError) as error:
         await reader.preview(
             workspace_id=workspace_id,
-            document_id=view.id,
+            document_id=snapshot.id,
             workspace_default_currency="RUB",
             command=incomplete,
         )
@@ -192,7 +192,7 @@ async def test_mapping_preview_requires_complete_amount_strategy() -> None:
     )
 
 
-def mapping_document_view() -> ImportDocumentDetailView:
+def mapping_document_snapshot() -> ImportDocumentSnapshot:
     document_id = uuid4()
     raw_tables: list[dict[str, object]] = [
         {
@@ -267,7 +267,7 @@ def mapping_document_view() -> ImportDocumentDetailView:
         }
         for page_number in (1, 2)
     ]
-    return ImportDocumentDetailView(
+    return ImportDocumentSnapshot(
         id=document_id,
         status=UploadedDocumentStatus.REQUIRES_REVIEW,
         original_filename="unknown-statement.xlsx",
@@ -287,7 +287,7 @@ def mapping_document_view() -> ImportDocumentDetailView:
         },
         raw_transactions=[],
         parse_attempts=[
-            ImportParseAttemptView(
+            ImportParseAttemptSnapshot(
                 id=uuid4(),
                 status=ParseAttemptStatus.REQUIRES_REVIEW,
                 parser_name="unknown_statement",

@@ -47,7 +47,7 @@ from app.features.imports.errors import (
     UploadTooLargeError,
     UploadValidationError,
 )
-from app.features.imports.service import ImportService
+from app.features.imports.query_repository import ImportQueryRepository
 from app.features.workspaces.permissions import can_manage_imports, permission_flags_for
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -304,14 +304,17 @@ async def _read_committed_detail(
     workspace_id: UUID,
     document_id: UUID,
 ) -> ImportDocumentDetailApiResponse:
-    view = await ImportService(session).get_document_detail_view(workspace_id, document_id)
-    if view is None:
+    detail = await ImportDocumentDetailReader(ImportQueryRepository(session)).read(
+        workspace_id=workspace_id,
+        document_id=document_id,
+        can_manage=True,
+    )
+    if detail is None:
         raise ApiError(
             status_code=status.HTTP_404_NOT_FOUND,
             code="import_document_not_found",
             message="Документ не найден.",
         )
-    detail = ImportDocumentDetailReader.from_view(view, can_manage=True)
     return ImportDocumentDetailResponseMapper.response(detail)
 
 

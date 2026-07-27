@@ -1,6 +1,9 @@
 from dataclasses import dataclass
-from decimal import Decimal
 
+from app.features.imports.application.documents.parse_attempts import (
+    latest_parse_attempt,
+    statement_control_totals_from_json,
+)
 from app.features.imports.domain.validation import (
     StatementValidationReport,
     validate_statement_totals,
@@ -31,37 +34,3 @@ def calculate_document_validation(
             control_totals=control_totals,
         ),
     )
-
-
-def latest_parse_attempt(document: UploadedDocument) -> ParseAttempt | None:
-    attempts = getattr(document, "parse_attempts", ())
-    if not attempts:
-        return None
-    return attempts[0]
-
-
-def statement_control_totals_from_json(
-    payload: dict[str, object] | None,
-) -> StatementControlTotals | None:
-    if payload is None:
-        return None
-    currency = payload.get("currency")
-    if not isinstance(currency, str):
-        return None
-    return StatementControlTotals(
-        currency=currency,
-        opening_balance=_decimal_from_json(payload.get("opening_balance")),
-        closing_balance=_decimal_from_json(payload.get("closing_balance")),
-        total_inflow=_decimal_from_json(payload.get("total_inflow")),
-        total_outflow=_decimal_from_json(payload.get("total_outflow")),
-    )
-
-
-def _decimal_from_json(value: object) -> Decimal | None:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return Decimal(value)
-    if isinstance(value, int):
-        return Decimal(value)
-    return None

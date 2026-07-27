@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
+from app.features.imports.domain.review_messages import append_review_message
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import RawTransaction
 from app.features.imports.repository import ImportRepository
@@ -119,11 +120,3 @@ def mark_raw_transaction_duplicate(
         raw_transaction.normalization_error,
         message,
     )
-
-
-def append_review_message(existing: str | None, message: str) -> str:
-    if not existing:
-        return message
-    if message in existing:
-        return existing
-    return f"{existing}; {message}"

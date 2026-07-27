@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, cast
@@ -73,6 +74,31 @@ def test_balance_chain_problem_maps_positions_to_stable_item_ids() -> None:
     assert problem.actual_balance_after == Decimal("170.00")
 
 
+def test_validation_uses_latest_parse_attempt_by_started_at() -> None:
+    now = datetime.now(UTC)
+    document = SimpleNamespace(
+        raw_transactions=[row(1, amount="100.00")],
+        parse_attempts=[
+            SimpleNamespace(
+                started_at=now - timedelta(minutes=1),
+                control_totals_json={"currency": "RUB", "total_inflow": "90.00"},
+            ),
+            SimpleNamespace(
+                started_at=now,
+                control_totals_json={"currency": "RUB", "total_inflow": "100.00"},
+            ),
+        ],
+    )
+
+    validation = build_import_review_validation(
+        cast(UploadedDocument, cast(Any, document)),
+    )
+
+    assert validation is not None
+    assert validation.statement_total_inflow == Decimal("100.00")
+    assert validation.status is StatementValidationStatus.VALID
+
+
 def build_validation(
     *,
     rows: list[SimpleNamespace],
@@ -80,7 +106,12 @@ def build_validation(
 ):
     document = SimpleNamespace(
         raw_transactions=rows,
-        parse_attempts=[SimpleNamespace(control_totals_json=control_totals)],
+        parse_attempts=[
+            SimpleNamespace(
+                started_at=datetime.now(UTC),
+                control_totals_json=control_totals,
+            )
+        ],
     )
     validation = build_import_review_validation(cast(UploadedDocument, cast(Any, document)))
     assert validation is not None

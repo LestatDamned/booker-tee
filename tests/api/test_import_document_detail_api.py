@@ -13,8 +13,8 @@ from app.db.session import get_session
 from app.features.imports.application.documents.detail_reading import (
     ImportDocumentDetailReader,
 )
-from app.features.imports.application.documents.detail_view import (
-    ImportDocumentDetailView,
+from app.features.imports.application.documents.snapshot import (
+    ImportDocumentSnapshot,
     ImportRawTransactionRow,
 )
 from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
@@ -30,7 +30,7 @@ from app.main import create_app
 
 
 class DetailReaderStub:
-    def __init__(self, detail: ImportDocumentDetailView | None) -> None:
+    def __init__(self, detail: ImportDocumentSnapshot | None) -> None:
         self.detail = detail
         self.workspace_ids: list[UUID] = []
 
@@ -44,7 +44,7 @@ class DetailReaderStub:
         self.workspace_ids.append(workspace_id)
         if self.detail is None or self.detail.id != document_id:
             return None
-        return ImportDocumentDetailReader.from_view(
+        return ImportDocumentDetailReader.from_snapshot(
             self.detail,
             can_manage=can_manage,
         )
@@ -52,7 +52,7 @@ class DetailReaderStub:
 
 def test_import_document_detail_returns_bounded_safe_projection() -> None:
     context = api_context(WorkspaceRole.OWNER)
-    detail = document_view()
+    detail = document_snapshot()
     reader = DetailReaderStub(detail)
     app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
@@ -92,7 +92,7 @@ def test_import_document_detail_masks_other_workspace_as_not_found() -> None:
 
 def test_import_document_detail_viewer_keeps_data_but_loses_management() -> None:
     context = api_context(WorkspaceRole.VIEWER)
-    detail = document_view()
+    detail = document_snapshot()
     app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_import_document_detail_reader] = lambda: cast(
@@ -130,8 +130,8 @@ def test_document_mutation_is_forbidden_for_viewer_before_use_case() -> None:
     assert response.json()["error"]["code"] == "import_management_forbidden"
 
 
-def document_view() -> ImportDocumentDetailView:
-    return ImportDocumentDetailView(
+def document_snapshot() -> ImportDocumentSnapshot:
+    return ImportDocumentSnapshot(
         id=uuid4(),
         status=UploadedDocumentStatus.REQUIRES_REVIEW,
         original_filename="statement.pdf",

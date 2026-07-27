@@ -125,9 +125,9 @@ Event bus для этого не требуется.
 
 ## Избыточные слои
 
-### Document detail
+### Document detail — исправлено в Commit 2.3
 
-Текущая цепочка:
+Удалена цепочка:
 
 ```text
 reader
@@ -140,11 +140,11 @@ reader
   -> API mapper
 ```
 
-`ImportService` является forwarding facade. Целевая цепочка:
+Текущая цепочка:
 
 ```text
 reader
-  -> ImportDocumentQueryRepository.get_snapshot()
+  -> ImportQueryRepository.get_document_snapshot()
   -> ImportDocumentSnapshot
   -> public read model
   -> API schema
@@ -176,12 +176,15 @@ strategy-обёртки поверх known/unknown pipelines. Достаточн
 Ранее, в Phase 1, удалены `validate_pdf_upload` и пустой `presentation`
 package.
 
-Также дублируются:
+В Commit 2.2 устранены:
 
 - `append_review_message`;
 - integer JSON conversion;
 - latest parse-attempt selection;
 - control-total JSON decoding;
+
+Следующие более крупные дубли остаются для поздних этапов:
+
 - validation reason mapping;
 - mapping column/amount validation.
 

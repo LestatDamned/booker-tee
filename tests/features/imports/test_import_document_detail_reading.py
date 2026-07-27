@@ -13,13 +13,13 @@ from app.features.imports.application.documents.detail_reading import (
     ImportDocumentDetailValidationReasonCode,
     ImportDocumentWorkflowStepState,
 )
-from app.features.imports.application.documents.detail_view import (
-    ImportDocumentDetailView,
-    ImportParseAttemptView,
-    ImportRawTransactionRow,
-)
 from app.features.imports.application.documents.management import (
     ImportDocumentManagementUseCase,
+)
+from app.features.imports.application.documents.snapshot import (
+    ImportDocumentSnapshot,
+    ImportParseAttemptSnapshot,
+    ImportRawTransactionRow,
 )
 from app.features.imports.errors import ImportDocumentManagementError
 from app.features.imports.models import (
@@ -30,7 +30,7 @@ from app.features.imports.models import (
 
 
 def test_document_detail_prioritizes_mapping_and_bounds_supporting_evidence() -> None:
-    view = document_view(
+    snapshot = document_snapshot(
         validation={
             "status": "needs_mapping",
             "message": "Configure columns.",
@@ -40,7 +40,7 @@ def test_document_detail_prioritizes_mapping_and_bounds_supporting_evidence() ->
         parse_attempts=[parse_attempt(index) for index in range(12)],
     )
 
-    detail = ImportDocumentDetailReader.from_view(view, can_manage=True)
+    detail = ImportDocumentDetailReader.from_snapshot(snapshot, can_manage=True)
 
     assert detail.next_step is ImportDocumentDetailNextStep.MAPPING
     assert detail.workflow.mapping is ImportDocumentWorkflowStepState.CURRENT
@@ -53,7 +53,7 @@ def test_document_detail_prioritizes_mapping_and_bounds_supporting_evidence() ->
 
 
 def test_document_detail_blocks_management_using_server_financial_facts() -> None:
-    view = document_view(
+    snapshot = document_snapshot(
         raw_transactions=[
             raw_row(
                 1,
@@ -63,7 +63,7 @@ def test_document_detail_blocks_management_using_server_financial_facts() -> Non
         ]
     )
 
-    detail = ImportDocumentDetailReader.from_view(view, can_manage=True)
+    detail = ImportDocumentDetailReader.from_snapshot(snapshot, can_manage=True)
 
     assert detail.next_step is ImportDocumentDetailNextStep.REVIEW
     assert detail.capabilities.ignore.allowed is False
@@ -74,8 +74,8 @@ def test_document_detail_blocks_management_using_server_financial_facts() -> Non
 
 
 def test_document_detail_explains_mismatch_caused_by_ignored_rows() -> None:
-    detail = ImportDocumentDetailReader.from_view(
-        document_view(
+    detail = ImportDocumentDetailReader.from_snapshot(
+        document_snapshot(
             validation={
                 "status": "mismatch",
                 "message": "Итоги по строкам не совпадают с итогами выписки.",
@@ -106,8 +106,8 @@ def test_document_detail_explains_mismatch_caused_by_ignored_rows() -> None:
 
 
 def test_document_detail_viewer_gets_same_status_truth_without_mutations() -> None:
-    detail = ImportDocumentDetailReader.from_view(
-        document_view(status=UploadedDocumentStatus.FAILED_TO_PARSE),
+    detail = ImportDocumentDetailReader.from_snapshot(
+        document_snapshot(status=UploadedDocumentStatus.FAILED_TO_PARSE),
         can_manage=False,
     )
 
@@ -151,14 +151,14 @@ async def test_document_management_rejects_stale_expected_status_before_mutation
         )
 
 
-def document_view(
+def document_snapshot(
     *,
     status: UploadedDocumentStatus = UploadedDocumentStatus.REQUIRES_REVIEW,
     validation: dict[str, object] | None = None,
     raw_transactions: list[ImportRawTransactionRow] | None = None,
-    parse_attempts: list[ImportParseAttemptView] | None = None,
-) -> ImportDocumentDetailView:
-    return ImportDocumentDetailView(
+    parse_attempts: list[ImportParseAttemptSnapshot] | None = None,
+) -> ImportDocumentSnapshot:
+    return ImportDocumentSnapshot(
         id=uuid4(),
         status=status,
         original_filename="statement.pdf",
@@ -198,8 +198,8 @@ def raw_row(
     )
 
 
-def parse_attempt(index: int) -> ImportParseAttemptView:
-    return ImportParseAttemptView(
+def parse_attempt(index: int) -> ImportParseAttemptSnapshot:
+    return ImportParseAttemptSnapshot(
         id=uuid4(),
         status=ParseAttemptStatus.SUCCESS,
         parser_name=f"parser_{index}",

@@ -156,16 +156,33 @@ Public API и пользовательское поведение не изме�
 
 ### Commit 2.2: deduplicate pure helpers
 
-- review message append;
-- typed integer decoding;
-- latest-attempt selector;
-- control-total decoder.
+Статус: completed.
+
+- `append_review_message` перенесён к domain review messages и используется
+  deduplication policy и repository;
+- raw table decoding использует общий mapping `int_value`;
+- выбор последней попытки и decoding сохранённых control totals собраны рядом с
+  lifecycle `ParseAttempt`;
+- добавлен workflow test, который закрепляет выбор попытки по максимальному
+  `started_at`, независимо от порядка загруженного списка.
+
+Строгий integer decoder document DTO оставлен локальным: в отличие от mapping
+JSON он намеренно не преобразует строки в числа.
 
 ### Commit 2.3: document snapshot
 
-- `ImportDocumentDetailView` → `ImportDocumentSnapshot`;
-- удалить `ImportService`;
-- repository возвращает bounded internal snapshot.
+Статус: completed.
+
+- `ImportDocumentDetailView` переименован в `ImportDocumentSnapshot`, а
+  `ImportParseAttemptView` — в `ImportParseAttemptSnapshot`;
+- `ImportQueryRepository.get_document_snapshot(...)` возвращает bounded
+  immutable snapshot с обязательным workspace filter;
+- document detail и unknown mapping readers зависят от узких snapshot reader
+  Protocols;
+- forwarding facade `ImportService` и его неиспользуемый `get_document`
+  удалены;
+- API composition roots передают readers непосредственно
+  `ImportQueryRepository`.
 
 Exit: меньше слоёв без изменения API.
 

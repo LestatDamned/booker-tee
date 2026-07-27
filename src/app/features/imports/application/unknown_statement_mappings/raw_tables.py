@@ -7,6 +7,7 @@ from app.features.imports.application.unknown_statement_mappings.dto import (
 from app.features.imports.application.unknown_statement_mappings.row_mapping import (
     map_table_rows,
 )
+from app.features.imports.application.unknown_statement_mappings.values import int_value
 
 
 @dataclass(frozen=True)
@@ -164,11 +165,3 @@ def normalize_raw_table(table: list[Any]) -> list[list[str]]:
 
 def normalize_raw_row(row: list[Any]) -> list[str]:
     return [str(cell).strip() if cell is not None else "" for cell in row]
-
-
-def int_value(value: object, *, default: int) -> int:
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str) and value.isdigit():
-        return int(value)
-    return default

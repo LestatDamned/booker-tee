@@ -1,11 +1,14 @@
 import hashlib
 import json
 from dataclasses import dataclass
-from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.imports.application.documents.parse_attempts import (
+    latest_parse_attempt,
+    statement_control_totals_from_json,
+)
 from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
     MappingControlTotalKind,
     resolve_mapping_control_totals,
@@ -349,39 +352,6 @@ async def store_mapping_validation_result(
     )
     await imports.mark_attempt_status(attempt, ParseAttemptStatus.REQUIRES_REVIEW)
     await imports.mark_document_status(document, UploadedDocumentStatus.REQUIRES_REVIEW)
-
-
-def latest_parse_attempt(document: UploadedDocument) -> ParseAttempt | None:
-    if not document.parse_attempts:
-        return None
-    return max(document.parse_attempts, key=lambda attempt: attempt.started_at)
-
-
-def statement_control_totals_from_json(
-    payload: dict[str, object] | None,
-) -> StatementControlTotals | None:
-    if payload is None:
-        return None
-    currency = payload.get("currency")
-    if not isinstance(currency, str):
-        return None
-    return StatementControlTotals(
-        currency=currency,
-        opening_balance=decimal_from_json(payload.get("opening_balance")),
-        closing_balance=decimal_from_json(payload.get("closing_balance")),
-        total_inflow=decimal_from_json(payload.get("total_inflow")),
-        total_outflow=decimal_from_json(payload.get("total_outflow")),
-    )
-
-
-def decimal_from_json(value: object) -> Decimal | None:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return Decimal(value)
-    if isinstance(value, int):
-        return Decimal(value)
-    return None
 
 
 def mapping_import_fingerprint(

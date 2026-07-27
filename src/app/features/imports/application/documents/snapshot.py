@@ -37,7 +37,7 @@ class ImportRawTransactionRow:
 
 
 @dataclass(frozen=True)
-class ImportParseAttemptView:
+class ImportParseAttemptSnapshot:
     id: UUID
     status: ParseAttemptStatus
     parser_name: str
@@ -60,7 +60,7 @@ class ImportParseAttemptView:
 
 
 @dataclass(frozen=True)
-class ImportDocumentDetailView:
+class ImportDocumentSnapshot:
     id: UUID
     status: UploadedDocumentStatus
     original_filename: str
@@ -71,7 +71,7 @@ class ImportDocumentDetailView:
     account: ImportAccountRef | None
     validation: dict[str, object] | None
     raw_transactions: list[ImportRawTransactionRow]
-    parse_attempts: list[ImportParseAttemptView]
+    parse_attempts: list[ImportParseAttemptSnapshot]
     statement_period_start: date | None = None
     statement_period_end: date | None = None
     file_size_bytes: int | None = None
@@ -79,21 +79,21 @@ class ImportDocumentDetailView:
     updated_at: datetime | None = None
 
 
-class ImportDocumentDetailViewMapper:
+class ImportDocumentSnapshotMapper:
     @staticmethod
     def from_uploaded_document(
         document: UploadedDocument,
-    ) -> ImportDocumentDetailView:
+    ) -> ImportDocumentSnapshot:
         parse_attempts = sorted(
             document.parse_attempts,
             key=lambda attempt: attempt.started_at,
             reverse=True,
         )
         attempts = [
-            ImportDocumentDetailViewMapper.parse_attempt(attempt) for attempt in parse_attempts
+            ImportDocumentSnapshotMapper.parse_attempt(attempt) for attempt in parse_attempts
         ]
         latest_attempt = attempts[0] if attempts else None
-        return ImportDocumentDetailView(
+        return ImportDocumentSnapshot(
             id=document.id,
             status=document.status,
             original_filename=document.original_filename,
@@ -106,10 +106,10 @@ class ImportDocumentDetailViewMapper:
             file_size_bytes=document.file_size_bytes,
             created_at=document.created_at,
             updated_at=document.updated_at,
-            account=ImportDocumentDetailViewMapper.account_ref(document),
+            account=ImportDocumentSnapshotMapper.account_ref(document),
             validation=latest_attempt.validation_report if latest_attempt else None,
             raw_transactions=[
-                ImportDocumentDetailViewMapper.raw_transaction_row(row)
+                ImportDocumentSnapshotMapper.raw_transaction_row(row)
                 for row in document.raw_transactions
             ],
             parse_attempts=attempts,
@@ -142,8 +142,8 @@ class ImportDocumentDetailViewMapper:
         )
 
     @staticmethod
-    def parse_attempt(attempt: ParseAttempt) -> ImportParseAttemptView:
-        return ImportParseAttemptView(
+    def parse_attempt(attempt: ParseAttempt) -> ImportParseAttemptSnapshot:
+        return ImportParseAttemptSnapshot(
             id=attempt.id,
             status=attempt.status,
             parser_name=attempt.parser_name,

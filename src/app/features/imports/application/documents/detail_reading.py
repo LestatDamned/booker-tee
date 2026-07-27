@@ -2,11 +2,12 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
+from typing import Protocol
 from uuid import UUID
 
-from app.features.imports.application.documents.detail_view import (
-    ImportDocumentDetailView,
-    ImportParseAttemptView,
+from app.features.imports.application.documents.snapshot import (
+    ImportDocumentSnapshot,
+    ImportParseAttemptSnapshot,
     ImportRawTransactionRow,
 )
 from app.features.imports.domain.validation import MONEY_TOLERANCE
@@ -15,7 +16,6 @@ from app.features.imports.models import (
     RawTransactionStatus,
     UploadedDocumentStatus,
 )
-from app.features.imports.service import ImportService
 
 DETAIL_ROW_LIMIT = 5
 DETAIL_ATTEMPT_LIMIT = 10
@@ -149,9 +149,17 @@ class ImportDocumentDetailReadModel:
     capabilities: ImportDocumentDetailCapabilitiesDto
 
 
+class ImportDocumentSnapshotReader(Protocol):
+    async def get_document_snapshot(
+        self,
+        workspace_id: UUID,
+        document_id: UUID,
+    ) -> ImportDocumentSnapshot | None: ...
+
+
 class ImportDocumentDetailReader:
-    def __init__(self, imports: ImportService) -> None:
-        self._imports = imports
+    def __init__(self, documents: ImportDocumentSnapshotReader) -> None:
+        self._documents = documents
 
     async def read(
         self,
@@ -160,67 +168,67 @@ class ImportDocumentDetailReader:
         document_id: UUID,
         can_manage: bool,
     ) -> ImportDocumentDetailReadModel | None:
-        view = await self._imports.get_document_detail_view(workspace_id, document_id)
-        if view is None:
+        snapshot = await self._documents.get_document_snapshot(workspace_id, document_id)
+        if snapshot is None:
             return None
-        return self.from_view(view, can_manage=can_manage)
+        return self.from_snapshot(snapshot, can_manage=can_manage)
 
     @staticmethod
-    def from_view(
-        view: ImportDocumentDetailView,
+    def from_snapshot(
+        snapshot: ImportDocumentSnapshot,
         *,
         can_manage: bool,
     ) -> ImportDocumentDetailReadModel:
-        validation = _validation(view.validation, rows=view.raw_transactions)
+        validation = _validation(snapshot.validation, rows=snapshot.raw_transactions)
         return ImportDocumentDetailReadModel(
-            id=view.id,
-            filename=view.original_filename,
-            status=view.status,
-            bank_name=view.bank_name,
-            statement_type=view.statement_type,
-            statement_period_start=view.statement_period_start,
-            statement_period_end=view.statement_period_end,
-            file_size_bytes=view.file_size_bytes,
-            created_at=view.created_at,
-            updated_at=view.updated_at,
+            id=snapshot.id,
+            filename=snapshot.original_filename,
+            status=snapshot.status,
+            bank_name=snapshot.bank_name,
+            statement_type=snapshot.statement_type,
+            statement_period_start=snapshot.statement_period_start,
+            statement_period_end=snapshot.statement_period_end,
+            file_size_bytes=snapshot.file_size_bytes,
+            created_at=snapshot.created_at,
+            updated_at=snapshot.updated_at,
             account=(
                 ImportDocumentDetailAccountDto(
-                    id=view.account.id,
-                    name=view.account.name,
-                    currency=view.account.currency,
+                    id=snapshot.account.id,
+                    name=snapshot.account.name,
+                    currency=snapshot.account.currency,
                 )
-                if view.account is not None
+                if snapshot.account is not None
                 else None
             ),
-            workflow=_workflow(view, validation),
-            next_step=_next_step(view, validation, can_manage=can_manage),
+            workflow=_workflow(snapshot, validation),
+            next_step=_next_step(snapshot, validation, can_manage=can_manage),
             validation=validation,
             raw_rows=ImportDocumentDetailCollectionDto(
-                items=tuple(_raw_row(row) for row in view.raw_transactions[:DETAIL_ROW_LIMIT]),
-                total=len(view.raw_transactions),
+                items=tuple(_raw_row(row) for row in snapshot.raw_transactions[:DETAIL_ROW_LIMIT]),
+                total=len(snapshot.raw_transactions),
                 limit=DETAIL_ROW_LIMIT,
             ),
             parse_attempts=ImportDocumentDetailCollectionDto(
                 items=tuple(
-                    _attempt(attempt) for attempt in view.parse_attempts[:DETAIL_ATTEMPT_LIMIT]
+                    _attempt(attempt) for attempt in snapshot.parse_attempts[:DETAIL_ATTEMPT_LIMIT]
                 ),
-                total=len(view.parse_attempts),
+                total=len(snapshot.parse_attempts),
                 limit=DETAIL_ATTEMPT_LIMIT,
             ),
-            capabilities=_capabilities(view, can_manage=can_manage),
+            capabilities=_capabilities(snapshot, can_manage=can_manage),
         )
 
 
 def _workflow(
-    view: ImportDocumentDetailView,
+    snapshot: ImportDocumentSnapshot,
     validation: ImportDocumentDetailValidationDto | None,
 ) -> ImportDocumentDetailWorkflowDto:
     state = ImportDocumentWorkflowStepState
-    if view.status is UploadedDocumentStatus.IMPORTED:
+    if snapshot.status is UploadedDocumentStatus.IMPORTED:
         return ImportDocumentDetailWorkflowDto(
             state.DONE, state.DONE, state.SKIPPED, state.DONE, state.DONE
         )
-    if view.status is UploadedDocumentStatus.IGNORED:
+    if snapshot.status is UploadedDocumentStatus.IGNORED:
         return ImportDocumentDetailWorkflowDto(
             state.DONE, state.DONE, state.SKIPPED, state.SKIPPED, state.SKIPPED
         )
@@ -228,11 +236,11 @@ def _workflow(
         return ImportDocumentDetailWorkflowDto(
             state.DONE, state.DONE, state.CURRENT, state.PENDING, state.PENDING
         )
-    if view.raw_transactions:
+    if snapshot.raw_transactions:
         return ImportDocumentDetailWorkflowDto(
             state.DONE, state.DONE, state.SKIPPED, state.CURRENT, state.PENDING
         )
-    if view.status is UploadedDocumentStatus.FAILED_TO_PARSE:
+    if snapshot.status is UploadedDocumentStatus.FAILED_TO_PARSE:
         return ImportDocumentDetailWorkflowDto(
             state.DONE, state.BLOCKED, state.PENDING, state.PENDING, state.PENDING
         )
@@ -242,37 +250,37 @@ def _workflow(
 
 
 def _next_step(
-    view: ImportDocumentDetailView,
+    snapshot: ImportDocumentSnapshot,
     validation: ImportDocumentDetailValidationDto | None,
     *,
     can_manage: bool,
 ) -> ImportDocumentDetailNextStep:
-    if view.status is UploadedDocumentStatus.IGNORED:
+    if snapshot.status is UploadedDocumentStatus.IGNORED:
         return ImportDocumentDetailNextStep.DOCUMENT_LIST
     if validation is not None and validation.needs_mapping and can_manage:
         return ImportDocumentDetailNextStep.MAPPING
-    if view.raw_transactions or view.status is UploadedDocumentStatus.IMPORTED:
+    if snapshot.raw_transactions or snapshot.status is UploadedDocumentStatus.IMPORTED:
         return ImportDocumentDetailNextStep.REVIEW
-    if view.status is UploadedDocumentStatus.FAILED_TO_PARSE and can_manage:
+    if snapshot.status is UploadedDocumentStatus.FAILED_TO_PARSE and can_manage:
         return ImportDocumentDetailNextStep.UPLOAD
     return ImportDocumentDetailNextStep.DOCUMENT_LIST
 
 
 def _capabilities(
-    view: ImportDocumentDetailView,
+    snapshot: ImportDocumentSnapshot,
     *,
     can_manage: bool,
 ) -> ImportDocumentDetailCapabilitiesDto:
     permission = (
         () if can_manage else (ImportDocumentActionBlockingReason.IMPORT_MANAGEMENT_FORBIDDEN,)
     )
-    linked = any(row.linked_operation_id is not None for row in view.raw_transactions)
+    linked = any(row.linked_operation_id is not None for row in snapshot.raw_transactions)
     linked_reasons = permission + (
         (ImportDocumentActionBlockingReason.LINKED_OPERATIONS_EXIST,) if linked else ()
     )
     ignore_reasons = linked_reasons + (
         (ImportDocumentActionBlockingReason.ALREADY_IGNORED,)
-        if view.status is UploadedDocumentStatus.IGNORED
+        if snapshot.status is UploadedDocumentStatus.IGNORED
         else ()
     )
     return ImportDocumentDetailCapabilitiesDto(
@@ -348,7 +356,7 @@ def _raw_row(row: ImportRawTransactionRow) -> ImportDocumentDetailRawRowDto:
     )
 
 
-def _attempt(attempt: ImportParseAttemptView) -> ImportDocumentDetailAttemptDto:
+def _attempt(attempt: ImportParseAttemptSnapshot) -> ImportDocumentDetailAttemptDto:
     return ImportDocumentDetailAttemptDto(
         id=attempt.id,
         status=attempt.status,

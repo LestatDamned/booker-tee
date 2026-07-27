@@ -15,6 +15,10 @@ from app.features.imports.application.documents.listing import (
     ImportDocumentListState,
     ImportDocumentListSummaryRow,
 )
+from app.features.imports.application.documents.snapshot import (
+    ImportDocumentSnapshot,
+    ImportDocumentSnapshotMapper,
+)
 from app.features.imports.models import (
     ParseAttempt,
     RawTransaction,
@@ -84,6 +88,16 @@ class ImportQueryRepository:
             )
         )
         return result.scalar_one_or_none()
+
+    async def get_document_snapshot(
+        self,
+        workspace_id: UUID,
+        document_id: UUID,
+    ) -> ImportDocumentSnapshot | None:
+        document = await self.get_document_for_workspace(workspace_id, document_id)
+        if document is None:
+            return None
+        return ImportDocumentSnapshotMapper.from_uploaded_document(document)
 
     async def list_documents_for_workspace(self, workspace_id: UUID) -> list[UploadedDocument]:
         result = await self.session.execute(
