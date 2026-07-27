@@ -6,10 +6,8 @@ from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
-import app.api.v1.imports.router as imports_router_module
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.v1.imports.dependencies import get_import_document_detail_reader
-from app.api.v1.imports.mapping import ImportDocumentDetailResponseMapper
 from app.core.config import get_settings
 from app.db.session import get_session
 from app.features.imports.application.documents.detail_reading import (
@@ -109,51 +107,6 @@ def test_import_document_detail_viewer_keeps_data_but_loses_management() -> None
     capabilities = response.json()["capabilities"]
     assert capabilities["canManage"] is False
     assert capabilities["delete"]["blockingReasonCodes"] == ["import_management_forbidden"]
-
-
-def test_reparse_api_forwards_expected_status_and_returns_server_snapshot(
-    monkeypatch,
-) -> None:
-    context = api_context(WorkspaceRole.OWNER)
-    detail = document_view()
-    calls: list[dict[str, object]] = []
-
-    class ReparseStub:
-        def __init__(self, session: object, settings: object) -> None:
-            pass
-
-        async def reparse_document(self, **kwargs: object) -> object:
-            calls.append(kwargs)
-            return object()
-
-    async def read_committed_detail(**kwargs: object):
-        return ImportDocumentDetailResponseMapper.response(
-            ImportDocumentDetailReader.from_view(detail, can_manage=True)
-        )
-
-    monkeypatch.setattr(imports_router_module, "StatementReparseUseCase", ReparseStub)
-    monkeypatch.setattr(
-        imports_router_module,
-        "_read_committed_detail",
-        read_committed_detail,
-    )
-    app = create_app()
-    app.dependency_overrides[get_api_request_context] = lambda: context
-    app.dependency_overrides[get_session] = lambda: cast(Any, object())
-    app.dependency_overrides[get_settings] = lambda: cast(
-        Any,
-        SimpleNamespace(),
-    )
-
-    with TestClient(app) as client:
-        response = client.post(
-            f"/api/v1/imports/documents/{detail.id}/reparse",
-            json={"expectedStatus": "requires_review"},
-        )
-
-    assert response.status_code == 200
-    assert calls[0]["document_id"] == detail.id
-    assert calls[0]["expected_status"] is UploadedDocumentStatus.REQUIRES_REVIEW
 
 
 def test_document_mutation_is_forbidden_for_viewer_before_use_case() -> None:

@@ -127,10 +127,6 @@ describe("ImportDocumentDetailPage", () => {
       ...documentFixture,
       capabilities: {
         ...documentFixture.capabilities,
-        reparse: {
-          allowed: false,
-          blockingReasonCodes: ["confirmed_rows_exist"],
-        },
         ignore: {
           allowed: false,
           blockingReasonCodes: ["linked_operations_exist"],
@@ -142,10 +138,6 @@ describe("ImportDocumentDetailPage", () => {
       },
     });
 
-    expect(
-      screen.getByRole("button", { name: "Обработать заново" }),
-    ).toBeDisabled();
-    expect(screen.getByText(/есть подтверждённые строки/)).toBeInTheDocument();
     expect(screen.getByText(/связан с операциями/)).toBeInTheDocument();
   });
 
@@ -293,7 +285,6 @@ const documentFixture: ImportDocumentDetailDto = {
   },
   capabilities: {
     canManage: true,
-    reparse: { allowed: true, blockingReasonCodes: [] },
     ignore: { allowed: true, blockingReasonCodes: [] },
     delete: { allowed: true, blockingReasonCodes: [] },
   },

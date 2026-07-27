@@ -13,6 +13,7 @@ from app.features.imports.application.documents.detail_view import (
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
+    UnsignedAmountDirection,
 )
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingDefaultSource,
@@ -144,6 +145,7 @@ async def test_mapping_preview_rejects_duplicate_roles_with_stable_fields() -> N
         balance_after_column=command.balance_after_column,
         first_data_row=command.first_data_row,
         default_currency=command.default_currency,
+        unsigned_amount_direction=command.unsigned_amount_direction,
     )
 
     with pytest.raises(MappingCommandValidationError) as error:
@@ -314,4 +316,5 @@ def mapping_command() -> UnknownStatementMappingCommand:
         currency_column=None,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )

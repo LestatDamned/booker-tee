@@ -36,7 +36,6 @@ class UnknownStatementFallbackPipeline:
         attempt: ParseAttempt,
         extracted: ExtractedStatement,
         exclude_duplicate_document_id: UUID | None,
-        supersede_existing_rows: bool,
     ) -> None:
         analysis = analyze_unknown_statement(extracted)
         if not any(preview.source_type == "pdf_table" for preview in analysis.table_previews):
@@ -52,7 +51,6 @@ class UnknownStatementFallbackPipeline:
                 document,
                 attempt,
                 exclude_duplicate_document_id=exclude_duplicate_document_id or document.id,
-                supersede_existing_rows=supersede_existing_rows,
             ):
                 return
         except UnknownStatementMappingError as exc:
@@ -72,7 +70,6 @@ class UnknownStatementFallbackPipeline:
         attempt: ParseAttempt,
         *,
         exclude_duplicate_document_id: UUID | None,
-        supersede_existing_rows: bool,
     ) -> bool:
         if document.account_id is None:
             return False
@@ -96,6 +93,6 @@ class UnknownStatementFallbackPipeline:
             attempt=attempt,
             command=mapping_command_from_template(template),
             exclude_duplicate_document_id=exclude_duplicate_document_id,
-            supersede_existing_rows=supersede_existing_rows,
+            supersede_existing_rows=False,
         )
         return True

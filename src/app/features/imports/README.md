@@ -102,15 +102,14 @@ statement upload
 -> document status
 ```
 
-Сюда относятся upload, storage, format-specific extraction, parse attempts,
-reparse, ignore/delete.
+Сюда относятся upload, storage, format-specific extraction, parse attempts и
+ignore/delete.
 
 Целевой пакет:
 
 ```text
 application/documents/
   upload.py
-  reparse.py
   management.py
   parse_attempts.py
 ```
@@ -254,7 +253,6 @@ imports/
   application/
     documents/
       upload.py
-      reparse.py
       management.py
       parse_attempts.py
 
@@ -559,7 +557,8 @@ import path easy to test.
 - `routes/` - узкие compatibility redirects для мигрированных Imports GET
   routes; mapping redirect принадлежит общему React adapter.
 - `service.py` - small read-side facade for document list/detail views.
-- `application/documents/` - document lifecycle use cases and helpers: upload, reparse, ignore/delete, parse attempts.
+- `application/documents/` - document lifecycle use cases and helpers: upload,
+  ignore/delete, parse attempts.
 - `application/review/` - review lifecycle use cases and helpers:
   confirmation/transfer actions, status changes, validation refresh, and
   review page data loading.
@@ -648,7 +647,8 @@ expanding it.
 Keep the root of `imports/` small. New files should usually go into one of
 these packages:
 
-- `application/` - user workflows, parser attempts, review actions, upload and reparse orchestration.
+- `application/` - user workflows, parser attempts, review actions and upload
+  orchestration.
 - `application/<workflow_package>/` - cohesive helpers for one application workflow when a single file stops reading linearly.
 - `domain/` - pure import rules such as deduplication and statement total validation.
 - `mapping/` - DTO projection and draft-to-ORM mapping.
@@ -740,7 +740,7 @@ implementation details into the cohesive packages underneath
 1. Keep `ImportService` as a read-side facade only; command routes should call
    explicit use cases directly.
 2. Move document lifecycle files into `application/documents/`:
-   upload, reparse, management, parse attempts.
+   upload, management, parse attempts.
 3. Move review lifecycle files into `application/review/`:
    review actions, status changes, validation refresh.
 4. Keep `application/processing.py` as a thin parse-success story:

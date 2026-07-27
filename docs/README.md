@@ -30,6 +30,7 @@
 | Формы      | [`FORM_DESIGN.md`](design/FORM_DESIGN.md)                     | React form composition и accessibility         |
 | Решения    | [`decisions/README.md`](architecture/decisions/README.md)     | Принятые ADR                                   |
 | Исполнение | [`frontend/plan/README.md`](frontend/plan/README.md)          | Текущий migration stage                        |
+| Рефакторинг imports | [`refactoring/imports/README.md`](refactoring/imports/README.md) | Активный план границ, этапов и тестов |
 
 ## Операционные документы
 

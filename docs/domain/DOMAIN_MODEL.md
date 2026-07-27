@@ -201,12 +201,12 @@ upload and preserve
 
 1. Parser никогда не создаёт confirmed operation.
 2. Raw source сохраняется даже при ошибке.
-3. Reparse создаёт новый attempt.
-4. Reparse запрещён, если document имеет confirmed rows.
-5. Ignore/delete запрещены при linked operations.
-6. Dedupe работает до posting; confirmed dedupe hash дополнительно защищён
+3. Один upload создаёт один parse attempt; общего пользовательского reparse
+   нет.
+4. Ignore/delete запрещены при linked operations.
+5. Dedupe работает до posting; confirmed dedupe hash дополнительно защищён
    уникальным workspace-scoped индексом.
-7. Mapping/import retry не должен повторно создавать строки.
+6. Mapping/import retry не должен повторно создавать строки.
 
 ## Status and correction
 

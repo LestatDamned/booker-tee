@@ -173,7 +173,6 @@ class ImportDocumentActionCapabilityApiResponse(ApiModel):
 
 class ImportDocumentDetailCapabilitiesApiResponse(ApiModel):
     can_manage: bool
-    reparse: ImportDocumentActionCapabilityApiResponse
     ignore: ImportDocumentActionCapabilityApiResponse
     delete: ImportDocumentActionCapabilityApiResponse
 

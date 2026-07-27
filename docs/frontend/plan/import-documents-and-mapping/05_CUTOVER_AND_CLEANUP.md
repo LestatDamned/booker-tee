@@ -46,7 +46,7 @@ Canonical targets:
 ```
 
 Redirect сохраняет query string и hash-compatible target path. Historical HTML
-POST endpoints upload/reparse/ignore/delete/mapping preview/import удаляются
+POST endpoints upload/ignore/delete/mapping preview/import удаляются
 после replacement gate; JSON API является единственной mutation surface.
 
 Redirects размещаются в общем React adapter или узком compatibility router, а
@@ -90,7 +90,7 @@ Backend:
 
 - полный `/api/v1/imports` contract suite;
 - auth, workspace isolation и permission matrix;
-- upload/reparse/failure/raw preservation;
+- upload/failure/raw preservation;
 - ignore/delete linked-operation restrictions;
 - mapping preview/import/idempotency/deduplication;
 - historical GET redirects и отсутствие legacy POST routes.
@@ -108,7 +108,7 @@ Browser:
 1. empty imports -> upload;
 2. known statement -> detail -> review;
 3. unknown statement -> detail -> mapping -> preview -> review;
-4. parse failure -> detail -> reparse;
+4. parse failure -> detail -> upload another document;
 5. ignore/delete allowed and blocked cases;
 6. viewer readonly flow;
 7. canonical links из dashboard/accounts/reports/chat-shaped URL;
@@ -140,7 +140,7 @@ npm run build
 - representative list/detail/mapping response raw+gzip size;
 - bounded raw table/preview limits;
 - query shape без роста на каждый document/raw row;
-- upload/reparse local duration как engineering baseline, не production SLA;
+- upload local duration как engineering baseline, не production SLA;
 - mapping initial DOM size и interaction timing на трёх viewport;
 - список удалённых legacy строк/файлов как cleanup evidence.
 

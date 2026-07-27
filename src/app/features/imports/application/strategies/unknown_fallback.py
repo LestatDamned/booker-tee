@@ -24,5 +24,4 @@ class UnknownFallbackImportStrategy:
             attempt=context.attempt,
             extracted=context.extracted,
             exclude_duplicate_document_id=context.exclude_duplicate_document_id,
-            supersede_existing_rows=context.supersede_existing_rows,
         )

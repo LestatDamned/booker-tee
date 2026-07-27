@@ -37,5 +37,4 @@ class KnownParserImportStrategy:
             parser=self.parser,
             currency=context.currency,
             exclude_duplicate_document_id=context.exclude_duplicate_document_id,
-            supersede_existing_rows=context.supersede_existing_rows,
         )

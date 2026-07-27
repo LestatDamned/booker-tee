@@ -113,7 +113,7 @@ Mapping import:
 - проверяет workspace document/account/template;
 - создаёт только reviewable raw rows;
 - запускает normalization, validation и deduplication;
-- может supersede старые rows при разрешённом reparse;
+- при повторном применении mapping заменяет только неподтверждённые старые rows;
 - не создаёт confirmed operations;
 - должен иметь idempotency/replay protection;
 - после успеха ведёт в canonical React Import Review.

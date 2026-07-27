@@ -12,7 +12,6 @@ class StatementImportContext:
     extracted: ExtractedStatement
     currency: str
     exclude_duplicate_document_id: UUID | None
-    supersede_existing_rows: bool
 
 
 def raw_tables_from_extracted(extracted: ExtractedStatement) -> list[dict[str, object]]:

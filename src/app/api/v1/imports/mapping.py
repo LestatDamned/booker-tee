@@ -184,7 +184,6 @@ class ImportDocumentDetailResponseMapper:
             ),
             capabilities=ImportDocumentDetailCapabilitiesApiResponse(
                 can_manage=detail.capabilities.can_manage,
-                reparse=ImportDocumentDetailResponseMapper.capability(detail.capabilities.reparse),
                 ignore=ImportDocumentDetailResponseMapper.capability(detail.capabilities.ignore),
                 delete=ImportDocumentDetailResponseMapper.capability(detail.capabilities.delete),
             ),

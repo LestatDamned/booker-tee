@@ -55,12 +55,11 @@ storage backend или background processing infrastructure.
 - Показывает workflow: extraction, mapping, review, completion.
 - Показывает document/account summary и validation/control totals.
 - Показывает bounded raw transaction summaries и parse-attempt history.
-- Имеет permission- и capability-aware reparse, ignore и delete actions через
+- Имеет permission- и capability-aware ignore и delete actions через
   JSON API с expected-status guard.
 - Не публикует SHA-256, storage key, raw tables или raw text.
 
-Reparse запрещён при confirmed rows. Ignore и delete запрещены, если raw rows
-имеют linked operations.
+Ignore и delete запрещены, если raw rows имеют linked operations.
 
 ### Mapping
 
@@ -78,7 +77,6 @@ Reparse запрещён при confirmed rows. Ignore и delete запреще�
 Сохраняются и переиспользуются:
 
 - `StatementUploadUseCase`;
-- `StatementReparseUseCase`;
 - `ImportDocumentManagementUseCase`;
 - `ImportService` и document detail/read queries после выделения typed
   projections;
@@ -212,13 +210,13 @@ template consumer.
 ## Known risks to resolve in implementation
 
 1. Upload retry может создать второй document после потерянного response.
-2. Parse/reparse — длительные синхронные операции без background queue.
+2. Parse при upload — длительная синхронная операция без background queue.
 3. Raw tables/text исключены из основного detail DTO; отдельный debug endpoint
    не добавлен, пока не доказана продуктовая потребность.
 4. Mapping preview может потерять draft при `422`, network error или Back.
-5. Reparse/ignore/delete используют expected status и повторную server policy
-   check; дальнейшая версия документа понадобится только при более тонких
-   same-status гонках.
+5. Ignore/delete используют expected status и повторную server policy check;
+   дальнейшая версия документа понадобится только при более тонких same-status
+   гонках.
 6. Mapping import retry может повторно создать raw rows.
 7. Viewer и manager должны видеть разные capabilities, но один status truth.
 8. Ссылки из dashboard/chat/accounts могут оставить пользователя в legacy UI.

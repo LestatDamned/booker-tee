@@ -81,6 +81,7 @@ def test_unknown_statement_mapping_preview_supports_split_debit_credit_columns()
         currency_column=None,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
         debit_amount_column=2,
         credit_amount_column=3,
     )
@@ -199,6 +200,7 @@ def test_unknown_statement_mapping_preview_warns_about_risky_column_selection() 
         currency_column=None,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
         debit_amount_column=2,
     )
 
@@ -233,6 +235,7 @@ def test_unknown_statement_mapping_preview_warns_about_many_errors() -> None:
         currency_column=None,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
     preview = preview_unknown_statement_mapping(raw_tables, command, max_rows=None)
@@ -343,6 +346,7 @@ def test_unknown_statement_mapping_preview_normalizes_selected_columns() -> None
         currency_column=4,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
     preview = preview_unknown_statement_mapping(raw_tables, command)
@@ -377,6 +381,7 @@ def test_unknown_statement_mapping_preview_normalizes_balance_after_column() -> 
         currency_column=None,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
         balance_after_column=3,
     )
 
@@ -414,6 +419,7 @@ def test_unknown_statement_mapping_preview_normalizes_posting_date_column() -> N
         currency_column=None,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
         posting_date_column=1,
     )
 
@@ -452,6 +458,7 @@ def test_unknown_statement_mapping_builds_raw_transaction_drafts() -> None:
         currency_column=None,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
     preview = preview_unknown_statement_mapping(raw_tables, command, max_rows=None)
 
@@ -505,6 +512,7 @@ def test_unknown_statement_mapping_can_import_all_compatible_tables() -> None:
         currency_column=None,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
     preview = preview_compatible_unknown_statement_mapping(
@@ -553,6 +561,7 @@ def test_unknown_statement_mapping_imports_headerless_continuation_with_new_tabl
         currency_column=None,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
     preview = preview_compatible_unknown_statement_mapping(
@@ -601,7 +610,7 @@ def test_import_mapping_template_round_trips_mapping_command() -> None:
     assert restored == command
 
 
-def test_legacy_mapping_template_keeps_previous_unsigned_amount_semantics() -> None:
+def test_legacy_mapping_template_requires_direction_for_unsigned_amounts() -> None:
     command = UnknownStatementMappingCommand(
         page_number=1,
         table_index=0,
@@ -611,6 +620,7 @@ def test_legacy_mapping_template_keeps_previous_unsigned_amount_semantics() -> N
         currency_column=None,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
     payload = mapping_command_as_json(command)
     payload.pop("unsigned_amount_direction")
@@ -625,7 +635,7 @@ def test_legacy_mapping_template_keeps_previous_unsigned_amount_semantics() -> N
 
     restored = mapping_command_from_template(template)
 
-    assert restored.unsigned_amount_direction is UnsignedAmountDirection.INCOME
+    assert restored.unsigned_amount_direction is UnsignedAmountDirection.REQUIRE_SIGN
 
 
 def test_import_mapping_template_matches_same_table_signature() -> None:
@@ -638,6 +648,7 @@ def test_import_mapping_template_matches_same_table_signature() -> None:
         currency_column=4,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
     raw_tables = ozon_like_raw_tables()
     template = ImportMappingTemplate(
@@ -663,6 +674,7 @@ def test_import_mapping_template_matches_changed_headers_with_same_profiles() ->
         currency_column=4,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
     template = ImportMappingTemplate(
         workspace_id=uuid4(),
@@ -698,6 +710,7 @@ def test_import_mapping_template_rejects_incompatible_column_profiles() -> None:
         currency_column=4,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
     template = ImportMappingTemplate(
         workspace_id=uuid4(),
@@ -733,6 +746,7 @@ def test_default_mapping_command_prefers_saved_template() -> None:
         currency_column=None,
         first_data_row=2,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
     template = ImportMappingTemplate(
         workspace_id=uuid4(),

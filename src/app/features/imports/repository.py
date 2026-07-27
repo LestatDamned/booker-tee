@@ -506,7 +506,7 @@ class ImportRepository:
             }:
                 continue
             raw_transaction.status = RawTransactionStatus.DUPLICATE
-            message = f"Superseded by reparse attempt {superseded_by_attempt_id}."
+            message = f"Superseded by mapped rows from parse attempt {superseded_by_attempt_id}."
             raw_transaction.normalization_error = append_review_message(
                 raw_transaction.normalization_error,
                 message,

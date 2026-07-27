@@ -42,7 +42,6 @@ class StatementParseProcessor:
         *,
         currency: str,
         exclude_duplicate_document_id: UUID | None = None,
-        supersede_existing_rows: bool = False,
     ) -> None:
         context = StatementImportContext(
             document=document,
@@ -50,7 +49,6 @@ class StatementParseProcessor:
             extracted=extracted,
             currency=currency,
             exclude_duplicate_document_id=exclude_duplicate_document_id,
-            supersede_existing_rows=supersede_existing_rows,
         )
         strategy = self.strategy_resolver.resolve(extracted)
         strategy.prepare_metadata(context)

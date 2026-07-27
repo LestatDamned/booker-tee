@@ -38,7 +38,6 @@ class ImportDocumentDetailNextStep(StrEnum):
 
 class ImportDocumentActionBlockingReason(StrEnum):
     IMPORT_MANAGEMENT_FORBIDDEN = "import_management_forbidden"
-    CONFIRMED_ROWS_EXIST = "confirmed_rows_exist"
     LINKED_OPERATIONS_EXIST = "linked_operations_exist"
     ALREADY_IGNORED = "already_ignored"
 
@@ -125,7 +124,6 @@ class ImportDocumentActionCapabilityDto:
 @dataclass(frozen=True)
 class ImportDocumentDetailCapabilitiesDto:
     can_manage: bool
-    reparse: ImportDocumentActionCapabilityDto
     ignore: ImportDocumentActionCapabilityDto
     delete: ImportDocumentActionCapabilityDto
 
@@ -268,11 +266,7 @@ def _capabilities(
     permission = (
         () if can_manage else (ImportDocumentActionBlockingReason.IMPORT_MANAGEMENT_FORBIDDEN,)
     )
-    confirmed = any(row.status is RawTransactionStatus.CONFIRMED for row in view.raw_transactions)
     linked = any(row.linked_operation_id is not None for row in view.raw_transactions)
-    reparse_reasons = permission + (
-        (ImportDocumentActionBlockingReason.CONFIRMED_ROWS_EXIST,) if confirmed else ()
-    )
     linked_reasons = permission + (
         (ImportDocumentActionBlockingReason.LINKED_OPERATIONS_EXIST,) if linked else ()
     )
@@ -283,7 +277,6 @@ def _capabilities(
     )
     return ImportDocumentDetailCapabilitiesDto(
         can_manage=can_manage,
-        reparse=ImportDocumentActionCapabilityDto(not reparse_reasons, reparse_reasons),
         ignore=ImportDocumentActionCapabilityDto(not ignore_reasons, ignore_reasons),
         delete=ImportDocumentActionCapabilityDto(not linked_reasons, linked_reasons),
     )

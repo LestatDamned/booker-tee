@@ -5,8 +5,8 @@
 ## Outcome
 
 Пользователь открывает React document detail, понимает текущий этап импорта,
-видит validation/raw-row/parse history и выполняет только разрешённые reparse,
-ignore или delete actions.
+видит validation/raw-row/parse history и выполняет только разрешённые ignore
+или delete actions.
 
 ## API/application
 
@@ -14,7 +14,6 @@ ignore или delete actions.
 
 ```text
 GET    /api/v1/imports/documents/{document_id}
-POST   /api/v1/imports/documents/{document_id}/reparse
 POST   /api/v1/imports/documents/{document_id}/ignore
 DELETE /api/v1/imports/documents/{document_id}
 ```
@@ -32,8 +31,8 @@ DELETE /api/v1/imports/documents/{document_id}
 остаётся продуктовым debug workflow, вынести в отдельный lazy,
 permission-checked и size-bounded endpoint.
 
-Mutations вызывают существующие use cases. Response reparse/ignore возвращает
-новый committed document snapshot. Delete возвращает подтверждённый tombstone
+Mutations вызывают существующие use cases. Response ignore возвращает новый
+committed document snapshot. Delete возвращает подтверждённый tombstone
 result/identity. Для stale или запрещённого действия использовать `409`, а не
 полагаться на скрытую кнопку.
 
@@ -50,7 +49,6 @@ result/identity. Для stale или запрещённого действия �
 - Validation различает unexplained mismatch и расхождение, полностью
   объяснённое ignored rows.
 - Destructive actions требуют явного confirmation и сохраняют focus contract.
-- Reparse не optimistic: pending state показывается до authoritative response.
 - После ignore/delete navigation следует server result, а не локальному
   предположению.
 - Technical debug не блокирует primary workflow и загружается только по запросу.
@@ -63,9 +61,8 @@ Backend:
 - viewer/manager capability matrix;
 - workflow state matrix;
 - validation/raw/parse attempt projection;
-- reparse prohibition для confirmed rows;
 - ignore/delete prohibition для linked operations;
-- parse failure после reparse сохраняет attempt/document;
+- parse failure сохраняет attempt/document;
 - delete storage/database behavior;
 - stale repeated mutations.
 
@@ -85,7 +82,6 @@ Browser:
 - known parser document;
 - failed parser document;
 - needs-mapping document;
-- reparse;
 - ignore/delete allowed;
 - destructive action blocked after state change;
 - desktop/tablet/mobile geometry.
@@ -94,7 +90,7 @@ Browser:
 
 После gate удалить:
 
-- detail/reparse/ignore/delete HTML branches из `routes/documents.py`;
+- detail/ignore/delete HTML branches из `routes/documents.py`;
 - `presentation/document_page/*`;
 - detail-only dependencies из `presentation/documents.py`;
 - `templates/imports/detail.html` и `templates/imports/detail/*`;
@@ -123,17 +119,15 @@ detail URL становится query/hash-preserving redirect.
   финансовые `MoneyValue`/`StatusLabel`, не обрезает description и сохраняет
   адаптивный порядок date → amount → status → description.
 - Management actions постоянно видимы в правой колонке на desktop и выше raw
-  preview на mobile; reparse, ignore и danger zone визуально разделены.
+  preview на mobile; ignore и danger zone визуально разделены.
 - Validation DTO возвращает stable reason code, ignored row count и ignored
   totals, поэтому explained difference больше не показывается как ошибка.
 - Добавлен typed `GET /api/v1/imports/documents/{document_id}`. Основной DTO
   ограничивает raw rows пятью, parse history десятью элементами и не публикует
   `storage_key`, SHA-256, полный raw text или raw tables.
-- Reparse, ignore и delete переведены на JSON API с CSRF, permission check,
-  expected-status guard и повторной server-side проверкой linked/confirmed
-  rows.
-- Delete и ignore требуют явного confirmation; reparse показывает pending
-  state и принимает только authoritative committed response.
+- Ignore и delete переведены на JSON API с CSRF, permission check,
+  expected-status guard и повторной server-side проверкой linked rows.
+- Delete и ignore требуют явного confirmation.
 - Legacy detail presenter, Jinja templates, template tests и detail-only CSS
   удалены. Historical detail URL сохраняет query string и перенаправляет в
   React.

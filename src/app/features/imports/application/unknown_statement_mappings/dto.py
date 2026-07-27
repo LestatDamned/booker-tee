@@ -28,11 +28,11 @@ class UnknownStatementMappingCommand:
     currency_column: int | None
     first_data_row: int
     default_currency: str
+    unsigned_amount_direction: UnsignedAmountDirection
     posting_date_column: int | None = None
     debit_amount_column: int | None = None
     credit_amount_column: int | None = None
     balance_after_column: int | None = None
-    unsigned_amount_direction: UnsignedAmountDirection = UnsignedAmountDirection.INCOME
     opening_balance_cell: MappingControlTotalCellRef | None = None
     closing_balance_cell: MappingControlTotalCellRef | None = None
 

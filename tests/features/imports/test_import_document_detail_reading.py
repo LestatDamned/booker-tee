@@ -66,10 +66,6 @@ def test_document_detail_blocks_management_using_server_financial_facts() -> Non
     detail = ImportDocumentDetailReader.from_view(view, can_manage=True)
 
     assert detail.next_step is ImportDocumentDetailNextStep.REVIEW
-    assert detail.capabilities.reparse.allowed is False
-    assert detail.capabilities.reparse.blocking_reason_codes == (
-        ImportDocumentActionBlockingReason.CONFIRMED_ROWS_EXIST,
-    )
     assert detail.capabilities.ignore.allowed is False
     assert detail.capabilities.delete.allowed is False
     assert detail.capabilities.delete.blocking_reason_codes == (
@@ -119,7 +115,7 @@ def test_document_detail_viewer_gets_same_status_truth_without_mutations() -> No
     assert detail.workflow.extract is ImportDocumentWorkflowStepState.BLOCKED
     assert detail.next_step is ImportDocumentDetailNextStep.DOCUMENT_LIST
     assert detail.capabilities.can_manage is False
-    assert detail.capabilities.reparse.blocking_reason_codes == (
+    assert detail.capabilities.ignore.blocking_reason_codes == (
         ImportDocumentActionBlockingReason.IMPORT_MANAGEMENT_FORBIDDEN,
     )
 

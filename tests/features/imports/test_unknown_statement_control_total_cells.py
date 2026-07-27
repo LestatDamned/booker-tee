@@ -13,6 +13,7 @@ from app.features.imports.application.unknown_statement_mappings.control_total_c
 from app.features.imports.application.unknown_statement_mappings.dto import (
     MappingControlTotalCellRef,
     UnknownStatementMappingCommand,
+    UnsignedAmountDirection,
 )
 from app.features.imports.application.unknown_statement_mappings.preview import (
     preview_compatible_unknown_statement_mapping,
@@ -114,4 +115,5 @@ def mapping_command() -> UnknownStatementMappingCommand:
         currency_column=None,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )

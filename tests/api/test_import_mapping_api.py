@@ -12,6 +12,7 @@ from app.api.v1.imports.dependencies import (
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnknownStatementMappingCommand,
     UnknownStatementMappingWarning,
+    UnsignedAmountDirection,
 )
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingAccountDto,
@@ -367,6 +368,7 @@ def mapping_read_model() -> UnknownStatementMappingReadModel:
         currency_column=None,
         first_data_row=1,
         default_currency="RUB",
+        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
     return UnknownStatementMappingReadModel(
         document_id=uuid4(),

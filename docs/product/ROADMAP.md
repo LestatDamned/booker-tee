@@ -87,7 +87,7 @@ Stage 7 мигрирует оставшийся authenticated SSR вертика
 
 ## Текущие технические риски
 
-- upload и reparse пока синхронны;
+- upload пока выполняется синхронно;
 - upload и mapping import требуют явных retry/idempotency contracts;
 - часть authenticated UI ещё работает через SSR/HTMX;
 - legacy HTMX reads могут иметь stale-response race до их React cutover;

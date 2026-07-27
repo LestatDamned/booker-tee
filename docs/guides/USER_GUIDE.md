@@ -64,7 +64,7 @@ balances. Не подтверждайте сомнительную строку 
 - Draft/manual operation можно редактировать в пределах доступных действий.
 - Confirmed manual operation изменяется через явный edit/cancel/restore
   workflow.
-- Документ со связанными operations нельзя бездумно удалить или reparse.
+- Документ со связанными operations нельзя бездумно удалить.
 - Если действие запрещено, интерфейс должен показать причину.
 
 ## Workspace and privacy

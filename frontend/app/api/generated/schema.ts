@@ -125,23 +125,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/imports/documents/{document_id}/reparse": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Reparse Import Document */
-        post: operations["reparse_import_document_api_v1_imports_documents__document_id__reparse_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/imports/documents/{document_id}/ignore": {
         parameters: {
             query?: never;
@@ -1422,7 +1405,7 @@ export interface components {
          * ImportDocumentActionBlockingReason
          * @enum {string}
          */
-        ImportDocumentActionBlockingReason: "import_management_forbidden" | "confirmed_rows_exist" | "linked_operations_exist" | "already_ignored";
+        ImportDocumentActionBlockingReason: "import_management_forbidden" | "linked_operations_exist" | "already_ignored";
         /** ImportDocumentActionCapabilityApiResponse */
         ImportDocumentActionCapabilityApiResponse: {
             /** Allowed */
@@ -1512,7 +1495,6 @@ export interface components {
         ImportDocumentDetailCapabilitiesApiResponse: {
             /** Canmanage */
             canManage: boolean;
-            reparse: components["schemas"]["ImportDocumentActionCapabilityApiResponse"];
             ignore: components["schemas"]["ImportDocumentActionCapabilityApiResponse"];
             delete: components["schemas"]["ImportDocumentActionCapabilityApiResponse"];
         };
@@ -3628,77 +3610,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportDocumentDeleteApiResponse"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reparse_import_document_api_v1_imports_documents__document_id__reparse_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                document_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ImportDocumentMutationApiRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportDocumentDetailApiResponse"];
                 };
             };
             /** @description Unauthorized */

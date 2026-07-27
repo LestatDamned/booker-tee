@@ -39,11 +39,9 @@ from app.features.imports.application.documents.listing import ImportDocumentLis
 from app.features.imports.application.documents.management import (
     ImportDocumentManagementUseCase,
 )
-from app.features.imports.application.documents.reparse import StatementReparseUseCase
 from app.features.imports.application.documents.upload import StatementUploadUseCase
 from app.features.imports.errors import (
     ImportDocumentManagementError,
-    ImportReparseError,
     UploadAccountNotFoundError,
     UploadIdempotencyConflictError,
     UploadTooLargeError,
@@ -232,39 +230,6 @@ async def get_import_document(
             message="Документ не найден.",
         )
     return ImportDocumentDetailResponseMapper.response(detail)
-
-
-@router.post(
-    "/documents/{document_id}/reparse",
-    response_model=ImportDocumentDetailApiResponse,
-    responses=api_error_responses(
-        status.HTTP_401_UNAUTHORIZED,
-        status.HTTP_403_FORBIDDEN,
-        status.HTTP_404_NOT_FOUND,
-        status.HTTP_409_CONFLICT,
-    ),
-)
-async def reparse_import_document(
-    document_id: UUID,
-    request: ImportDocumentMutationApiRequest,
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
-    session: Annotated[AsyncSession, Depends(get_session)],
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> ImportDocumentDetailApiResponse:
-    _require_import_management(context)
-    try:
-        await StatementReparseUseCase(session, settings).reparse_document(
-            context=context.workspace,
-            document_id=document_id,
-            expected_status=request.expected_status,
-        )
-    except ImportReparseError as error:
-        raise _mutation_error(error) from error
-    return await _read_committed_detail(
-        session=session,
-        workspace_id=context.workspace.workspace.id,
-        document_id=document_id,
-    )
 
 
 @router.post(

@@ -86,7 +86,7 @@ Backend владеет:
 
 - persisted document/row/parse statuses;
 - workspace isolation и permission checks;
-- возможностью review, mapping, reparse, ignore и delete;
+- возможностью review, mapping, ignore и delete;
 - parser/mapping validation, warnings и preview;
 - deduplication и созданием `RawTransaction`;
 - document lifecycle и финансовыми ограничениями.
@@ -126,7 +126,7 @@ dependency требует отдельной доказанной проблем
 3. Parser и mapping import создают только reviewable `RawTransaction`, а не
    подтверждённые ledger records.
 4. Повторная загрузка или повтор mutation не должны молча удваивать деньги.
-5. Reparse запрещён при confirmed rows.
+5. Общего пользовательского reparse нет.
 6. Ignore/delete запрещены при linked operations.
 7. Неудачный parse сохраняет исходный документ и `ParseAttempt`.
 8. Raw extracted data сохраняется на backend; браузер получает только

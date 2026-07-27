@@ -6,7 +6,7 @@ import { parseApiError, requestJson } from "../../../api/transport";
 export type ImportDocumentDetailDto =
   components["schemas"]["ImportDocumentDetailApiResponse"];
 export type ImportDocumentStatus = ImportDocumentDetailDto["status"];
-export type ImportDocumentManagementAction = "reparse" | "ignore" | "delete";
+export type ImportDocumentManagementAction = "ignore" | "delete";
 
 const statusSchema = z.enum([
   "uploaded",
@@ -30,7 +30,6 @@ const capabilitySchema = z.object({
   blockingReasonCodes: z.array(
     z.enum([
       "import_management_forbidden",
-      "confirmed_rows_exist",
       "linked_operations_exist",
       "already_ignored",
     ]),
@@ -133,7 +132,6 @@ export const importDocumentDetailSchema: z.ZodType<ImportDocumentDetailDto> =
     }),
     capabilities: z.object({
       canManage: z.boolean(),
-      reparse: capabilitySchema,
       ignore: capabilitySchema,
       delete: capabilitySchema,
     }),

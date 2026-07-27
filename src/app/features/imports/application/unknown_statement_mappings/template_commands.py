@@ -102,7 +102,7 @@ def mapping_command_from_template(
         balance_after_column=optional_int_value(mapping.get("balance_after_column")),
         unsigned_amount_direction=_unsigned_amount_direction(
             mapping.get("unsigned_amount_direction"),
-            default=UnsignedAmountDirection.INCOME,
+            default=UnsignedAmountDirection.REQUIRE_SIGN,
         ),
     )
 

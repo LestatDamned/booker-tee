@@ -86,10 +86,7 @@ export function ImportDocumentDetailPage({ initialDocument, session }: Props) {
     if (result.document) setDocument(result.document);
     setFeedback({
       tone: "success",
-      message:
-        action === "reparse"
-          ? "Документ обработан заново. Данные обновлены."
-          : "Документ отмечен как игнорируемый.",
+      message: "Документ отмечен как игнорируемый.",
     });
   }
 
@@ -200,8 +197,6 @@ export function ImportDocumentDetailPage({ initialDocument, session }: Props) {
               <ManagementSection
                 document={document}
                 onConfirm={setConfirmation}
-                onReparse={() => void run("reparse")}
-                pending={pending}
               />
             </aside>
           </div>
@@ -402,13 +397,9 @@ function ParseHistorySection({
 function ManagementSection({
   document,
   onConfirm,
-  onReparse,
-  pending,
 }: {
   document: ImportDocumentDetailDto;
   onConfirm: (action: ImportDocumentManagementAction) => void;
-  onReparse: () => void;
-  pending: ImportDocumentManagementAction | null;
 }) {
   if (!document.capabilities.canManage) {
     return (
@@ -425,13 +416,6 @@ function ManagementSection({
         <h2>Управление документом</h2>
       </header>
       <div className={styles.managementActions}>
-        <Button
-          disabled={!document.capabilities.reparse.allowed}
-          isLoading={pending === "reparse"}
-          onClick={onReparse}
-        >
-          Обработать заново
-        </Button>
         <Button
           disabled={!document.capabilities.ignore.allowed}
           onClick={() => onConfirm("ignore")}
@@ -459,7 +443,6 @@ function CapabilityReasons({
   document: ImportDocumentDetailDto;
 }) {
   const reasons = new Set([
-    ...document.capabilities.reparse.blockingReasonCodes,
     ...document.capabilities.ignore.blockingReasonCodes,
     ...document.capabilities.delete.blockingReasonCodes,
   ]);
@@ -767,8 +750,6 @@ function rawRowsEmptyMessage(document: ImportDocumentDetailDto) {
 function blockingReasonLabel(reason: string) {
   return (
     {
-      confirmed_rows_exist:
-        "Повторная обработка недоступна: есть подтверждённые строки.",
       linked_operations_exist:
         "Игнорирование и удаление недоступны: документ связан с операциями.",
       already_ignored: "Документ уже игнорируется.",

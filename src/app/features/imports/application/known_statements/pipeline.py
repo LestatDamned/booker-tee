@@ -34,7 +34,6 @@ class KnownStatementImportPipeline:
         parser: BankStatementRawTransactionParser,
         currency: str,
         exclude_duplicate_document_id: UUID | None,
-        supersede_existing_rows: bool,
     ) -> None:
         drafts = parser.extract_raw_transactions(
             extracted,
@@ -49,12 +48,6 @@ class KnownStatementImportPipeline:
                 "Parser matched the document but did not find transaction rows.",
             )
             return
-
-        if supersede_existing_rows:
-            await self.imports.mark_reviewable_raw_transactions_superseded(
-                document,
-                superseded_by_attempt_id=attempt.id,
-            )
 
         raw_transactions = await self.imports.create_raw_transactions(
             RawTransactionMapper.from_drafts(
