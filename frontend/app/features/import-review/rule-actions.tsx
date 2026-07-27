@@ -63,7 +63,7 @@ export function RuleActions({
   return (
     <div className={styles.reviewTools}>
       <div className={styles.reviewToolLinks}>
-        <a href={`/imports/documents/${documentId}`}>
+        <a href={`/app/imports/documents/${documentId}`}>
           <Icon name="source" size={16} />
           Открыть документ
         </a>

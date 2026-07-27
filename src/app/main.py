@@ -19,13 +19,13 @@ from app.features.accounts.router import router as accounts_router
 from app.features.categories.router import router as categories_router
 from app.features.chat_integrations.router import router as chat_integrations_router
 from app.features.dashboard.router import router as dashboard_router
-from app.features.imports.router import router as imports_router
 from app.features.properties.router import router as properties_router
 from app.features.reports.router import router as reports_router
 from app.features.transaction_rules.router import router as transaction_rules_router
 from app.features.users.router import router as users_router
 from app.features.users.service import AuthenticationService
 from app.features.workspaces.router import router as workspaces_router
+from app.legacy_frontend_redirects import router as legacy_frontend_redirects_router
 from app.react_frontend import install_react_frontend
 from app.templating import create_templates
 
@@ -50,7 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(categories_router)
     app.include_router(chat_integrations_router)
     app.include_router(dashboard_router)
-    app.include_router(imports_router)
+    app.include_router(legacy_frontend_redirects_router)
     app.include_router(properties_router)
     app.include_router(reports_router)
     app.include_router(transaction_rules_router)

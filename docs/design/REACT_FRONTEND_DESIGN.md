@@ -43,6 +43,9 @@ login/signup могут оставаться минимальным SSR посл
 /...      public/auth + remaining legacy routes
 ```
 
+- `react_frontend.py` раздаёт SPA и assets;
+- `legacy_frontend_redirects.py` временно хранит явные GET redirects со старых
+  browser routes на канонические React routes;
 - React dev server proxy обращается к FastAPI.
 - Production build раздаётся FastAPI в same-origin deployment.
 - Cookie session остаётся backend-owned.

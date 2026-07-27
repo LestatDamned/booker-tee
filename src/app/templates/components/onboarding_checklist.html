@@ -23,7 +23,7 @@
   {% set report_uncategorized = overview.reports.uncategorized if overview.reports.uncategorized is defined else [] %}
   {% set has_report_data = report_categories or report_properties or report_uncategorized %}
   {% set setup_complete = has_accounts and has_documents and not needs_review and has_report_data %}
-  {% set review_href = "/app/imports/documents/" ~ needs_review[0].id ~ "/review" if needs_review else "/imports" %}
+  {% set review_href = "/app/imports/documents/" ~ needs_review[0].id ~ "/review" if needs_review else "/app/imports" %}
 
   {% if not setup_complete %}
     <article class="panel stack dashboard-card onboarding-checklist">

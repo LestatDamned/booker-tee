@@ -1377,7 +1377,7 @@ describe("import review page", () => {
       within(comparison).getByRole("link", { name: "previous-statement.xlsx" }),
     ).toHaveAttribute(
       "href",
-      "/imports/documents/2aecac73-98a3-468b-bd75-ac89445f908e",
+      "/app/imports/documents/2aecac73-98a3-468b-bd75-ac89445f908e",
     );
     expect(
       within(row).getByRole("button", { name: "Это новая операция" }),

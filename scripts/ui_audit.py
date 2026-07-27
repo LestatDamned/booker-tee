@@ -35,7 +35,7 @@ PAGES: tuple[tuple[str, str], ...] = (
     ("/", "dashboard"),
     ("/accounts", "accounts"),
     ("/ledger/manual", "manual-ledger-redirect"),
-    ("/imports", "imports"),
+    ("/app/imports", "imports"),
     ("/app/imports/upload", "imports-upload"),
     ("/rules", "rules"),
     ("/reports", "reports"),
@@ -51,7 +51,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/app/foundation", "react-foundation"),
     ("/accounts", "accounts"),
     ("/ledger/manual", "manual-ledger-redirect"),
-    ("/imports", "imports"),
+    ("/app/imports", "imports"),
     ("/app/imports/upload", "imports-upload"),
     ("/rules", "rules"),
     ("/reports", "reports"),
@@ -403,7 +403,7 @@ def prepare_realistic_scenario(
         page.locator('select[name="accountId"]').select_option(index=1)
         page.locator('input[name="statement"]').set_input_files(str(workbook_path))
         page.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        page.wait_for_url("**/imports/documents/**", timeout=PAGE_TIMEOUT_MS)
+        page.wait_for_url("**/app/imports/documents/**", timeout=PAGE_TIMEOUT_MS)
         detail_path = page.url.replace(base_url.rstrip("/"), "")
     finally:
         page.close()
@@ -438,13 +438,13 @@ def prepare_review_interaction_scenario(
     try:
         detail_url = page.url
         if "/app/imports/documents/" not in detail_url:
-            page.goto(build_url(base_url, "/imports"), wait_until="domcontentloaded")
+            page.goto(build_url(base_url, "/app/imports"), wait_until="domcontentloaded")
             document_record = page.locator("tr:visible, article:visible").filter(
                 has_text=scenario_state["document_name"]
             )
             document_record.wait_for(timeout=PAGE_TIMEOUT_MS)
             document_record.locator('a[href^="/app/imports/documents/"]').first.click()
-            page.wait_for_url("**/imports/documents/**", timeout=PAGE_TIMEOUT_MS)
+            page.wait_for_url("**/app/imports/documents/**", timeout=PAGE_TIMEOUT_MS)
             detail_url = page.url
 
         mapping_url = f"{detail_url.rstrip('/')}/mapping"
@@ -457,7 +457,7 @@ def prepare_review_interaction_scenario(
             "button",
             name=re.compile(r"^Импортировать \d+ строк"),
         ).click()
-        page.wait_for_url("**/imports/documents/**/review", timeout=PAGE_TIMEOUT_MS)
+        page.wait_for_url("**/app/imports/documents/**/review", timeout=PAGE_TIMEOUT_MS)
         scenario_state["react_review_path"] = page.url.replace(base_url.rstrip("/"), "")
         scenario_state["historical_review_path"] = scenario_state["react_review_path"].replace(
             "/app/imports/documents/",
@@ -1451,7 +1451,7 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
         )
         errors.append("designer audit: operation amount color class is wrong: " + examples)
 
-    if path in {"/imports", "/accounts", "/categories", "/properties", "/rules"}:
+    if path in {"/app/imports", "/accounts", "/categories", "/properties", "/rules"}:
         long_technical_labels = [
             str(item.get("text") or "")
             for item in technical_summaries
@@ -1725,13 +1725,13 @@ def assert_react_import_review(page: Page) -> list[str]:
         return ["React import review heading was not found"]
     if page.locator(".review-item, .review-row, .review-page").count() != 0:
         errors.append("React import review rendered legacy review classes")
-    imports_links = page.locator('a[href="/imports"]').filter(has_text="Импорты")
+    imports_links = page.locator('a[href="/app/imports"]').filter(has_text="Импорты")
     if imports_links.count() != 2:
         errors.append("React import review imports navigation was not found")
     else:
         for index in range(imports_links.count()):
             imports_link = imports_links.nth(index)
-            if imports_link.get_attribute("href") != "/imports":
+            if imports_link.get_attribute("href") != "/app/imports":
                 errors.append("React import review imports navigation has the wrong target")
             if imports_link.get_attribute("aria-current") != "page":
                 errors.append("React import review imports navigation is not active")

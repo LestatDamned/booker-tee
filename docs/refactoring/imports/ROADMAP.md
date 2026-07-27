@@ -111,11 +111,18 @@ Phase exit: продукт поддерживает одну обработку 
 
 ### Commit 1.1: canonical links
 
-- React links/navigation → `/app/imports/...`;
+Статус: completed.
+
+- обычные React links → `/app/imports/...`;
+- router-internal `to`/`navigate` остаются basename-relative `/imports/...`,
+  что в браузере даёт `/app/imports/...`;
 - legacy templates → `/app/imports/...`;
-- `scripts/ui_audit.py` → canonical URLs.
+- `scripts/ui_audit.py` использует canonical URLs, кроме отдельной проверки
+  historical redirect.
 
 ### Commit 1.2: consolidate redirects
+
+Статус: completed.
 
 - один compatibility router;
 - сохранить query string и 307 behavior;

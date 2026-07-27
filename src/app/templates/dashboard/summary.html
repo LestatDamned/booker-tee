@@ -93,12 +93,12 @@
         <p class="eyebrow">импорт</p>
         <h2>Последние документы</h2>
       </div>
-      <a class="button button-small" href="/imports">{{ icon("import") }} открыть</a>
+      <a class="button button-small" href="/app/imports">{{ icon("import") }} открыть</a>
     </div>
     {% if overview.recent_documents %}
       <div class="entity-list">
         {% for document in overview.recent_documents %}
-          <a class="entity-row" href="/imports/documents/{{ document.id }}">
+          <a class="entity-row" href="/app/imports/documents/{{ document.id }}">
             <span class="document-name-compact truncate-label" title="{{ document.original_filename }}">{{ document.original_filename }}</span>
             <span class="badge badge-{{ document.status.value }}">{{ document.status | ru }}</span>
           </a>

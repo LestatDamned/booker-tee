@@ -117,7 +117,7 @@ def test_reports_template_empty_state_points_to_imports_without_confirmed_operat
 
     assert "Отчет пока пуст" in html
     assert "Переводы между своими счетами в прибыль не входят" in html
-    assert 'href="/imports"' in html
+    assert 'href="/app/imports"' in html
     assert 'href="/app/imports/upload"' in html
     assert "По категориям" not in html
 

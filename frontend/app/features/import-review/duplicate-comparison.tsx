@@ -44,7 +44,7 @@ export function DuplicateComparison({ item }: { item: ReviewItemDto }) {
           description={candidate.description ?? "Без описания"}
           label="Найденный кандидат"
         >
-          <a href={`/imports/documents/${candidate.documentId}`}>
+          <a href={`/app/imports/documents/${candidate.documentId}`}>
             {candidate.documentFilename}
           </a>
           {candidate.operationId ? (

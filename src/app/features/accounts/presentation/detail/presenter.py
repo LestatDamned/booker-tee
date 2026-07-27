@@ -264,7 +264,7 @@ class AccountDetailPresenter:
                     icon="refresh",
                     placement="secondary",
                     action_type="link",
-                    url="/imports",
+                    url="/app/imports",
                 )
             ]
         return []
