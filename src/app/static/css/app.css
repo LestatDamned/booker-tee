@@ -1870,61 +1870,6 @@ html:not(.entity-target-cleared) .entity-card:target {
   opacity: 0.74;
 }
 
-.workflow-steps {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1px;
-  border: 1px solid var(--border);
-  background: var(--border);
-}
-
-.workflow-step {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  background: var(--surface-strong);
-  color: var(--muted);
-  padding: 9px 10px;
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  text-transform: uppercase;
-}
-
-.workflow-step small {
-  width: 26px;
-  height: 26px;
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid currentcolor;
-}
-
-.workflow-step strong {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 0.74rem;
-  font-weight: 700;
-}
-
-.workflow-step-done {
-  color: var(--green);
-}
-
-.workflow-step-current {
-  color: var(--accent);
-  background: var(--surface);
-}
-
-.workflow-step-blocked {
-  color: var(--danger);
-}
-
-.workflow-step-skipped {
-  color: var(--muted);
-  opacity: 0.72;
-}
-
 .dashboard-card {
   min-width: 0;
 }
@@ -4192,10 +4137,6 @@ html:not(.entity-target-cleared) .rule-card:target {
   .action-hint-actions form,
   .action-hint-actions .button {
     width: 100%;
-  }
-
-  .workflow-steps {
-    grid-template-columns: 1fr;
   }
 
   .onboarding-item {

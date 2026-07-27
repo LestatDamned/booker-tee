@@ -196,5 +196,5 @@ compatibility redirects и historical URL consumers.
 3. удалить imports `router.py`, `routes/` и пустой `presentation/`;
 4. сохранять redirects до отдельного compatibility decision.
 
-Legacy CSS `.workflow-step*` не имеет найденных consumers и может быть удалён
-после visual/dynamic-class проверки.
+Legacy CSS `.workflow-step*` удалён после consumer search: runtime и
+динамические class consumers не найдены.

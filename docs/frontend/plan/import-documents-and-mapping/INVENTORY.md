@@ -157,55 +157,20 @@ Cutover обязан обновить каждый runtime consumer или со�
 historical redirect. Нельзя считать миграцию завершённой только по смене
 Imports navbar link.
 
-## Legacy implementation/delete manifest
+## Legacy implementation/delete manifest — completed
 
-### Routes
+- `src/app/features/imports/router.py`, `routes/` и `presentation/` удалены;
+- imports Jinja templates и HTML mutation routes отсутствуют;
+- historical GET compatibility принадлежит
+  `src/app/legacy_frontend_redirects.py`;
+- React/API tests заменили удалённые presenter/template contracts;
+- domain/application/parser/deduplication/storage tests сохранены;
+- Imports-specific `.workflow-step*` удалены после runtime и dynamic-class
+  consumer search;
+- historical HTML route удалён из generated OpenAPI.
 
-- `src/app/features/imports/routes/documents.py`;
-- `src/app/features/imports/routes/mapping.py`;
-- HTML router includes в `src/app/features/imports/router.py`.
-
-После cutover файлы заменяются минимальными compatibility redirects либо
-удаляются, если redirects принадлежат общему React adapter.
-
-### Presenters
-
-- `src/app/features/imports/presentation/documents.py`;
-- `src/app/features/imports/presentation/mapping/*`;
-- `src/app/features/imports/presentation/field_labels.py`;
-- `src/app/features/imports/presentation/mapping_suggestions.py`.
-
-Последние два файла удаляются только после detail и mapping consumer search.
-
-### Templates
-
-- `src/app/templates/imports/index.html`;
-- React/API заменили и удалили `src/app/templates/imports/upload.html`;
-- `src/app/templates/imports/mapping.html`;
-- `src/app/templates/imports/mapping/*`;
-- shared mapping partials `_document_summary.html`, `_mapping_candidates.html`,
-  `_mapping_suggestion.html`, `_page_hero.html`, `_workflow_steps.html`.
-
-### Tests to replace, not blindly port
-
-- React/API tests заменили удалённые detail presenter/template tests.
-- Imports portions of `test_user_guide_templates.py`;
-- route/template assertions in reports, accounts, workspaces and shell tests.
-
-Domain/application/parser/deduplication/storage tests remain. Assertions that
-encode product behavior move to API/application or React tests; assertions only
-about deleted Jinja markup are removed.
-
-### Assets and tooling
-
-- Imports-specific blocks in `src/app/static/css/app.css`;
-- Alpine file-name behavior on upload;
-- legacy page definitions and selectors in `scripts/ui_audit.py`;
-- generated OpenAPI entries for deleted HTML routes.
-
-Global legacy CSS удаляется только после последнего authenticated/public
-consumer; Imports-specific selectors удаляются вместе с последним Imports
-template consumer.
+Global legacy CSS остаётся только для реально существующих SSR consumers других
+features и удаляется вместе с их отдельными React cutover.
 
 ## Known risks to resolve in implementation
 

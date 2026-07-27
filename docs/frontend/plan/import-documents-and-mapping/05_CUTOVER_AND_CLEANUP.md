@@ -1,6 +1,7 @@
 # Slice 05: Imports Cutover And Cleanup
 
-Статус: planned.
+Статус: implementation completed. Полный Playwright browser audit остаётся
+отдельной validation-проверкой.
 
 ## Outcome
 
@@ -129,6 +130,17 @@ npm run typecheck
 npm test
 npm run build
 ```
+
+## Completion record
+
+- канонические browser links используют `/app/imports/...`;
+- historical GET routes собраны в `src/app/legacy_frontend_redirects.py`;
+- imports-specific `router.py`, `routes/` и `presentation/` удалены;
+- historical HTML mutations отсутствуют;
+- `.workflow-step*` удалены после consumer search;
+- obsolete historical document route удалён из generated OpenAPI;
+- backend, frontend contract, type и production build checks пройдены;
+- полный browser audit не запускался в рамках structural cleanup.
 
 Команды уточняются по фактическим scripts в `frontend/package.json`; нельзя
 утверждать прохождение команды, которая не запускалась.

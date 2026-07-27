@@ -42,8 +42,8 @@ Use Case / Facade
 Это не отдельные фреймворки и не сложная абстракция ради абстракции. Это
 просто способ разложить разные истории импорта:
 
-- `UseCase` описывает пользовательское действие: загрузить, перепарсить,
-  применить маппинг, изменить review-статус.
+- `UseCase` описывает пользовательское действие: загрузить документ, применить
+  маппинг или изменить review-статус.
 - `Pipeline` описывает последовательность шагов внутри импорта: сохранить
   документ, извлечь файл, выбрать путь обработки, создать raw rows, проверить,
   дедуплицировать, отправить на review.
@@ -53,7 +53,7 @@ Use Case / Facade
 - `Repository` сохраняет ORM-модели и не принимает бизнес-решения.
 
 ```text
-router.py
+src/app/api/v1/imports router
 -> use cases / service facade
 -> application pipelines / strategies / use cases
 -> domain rules / mapping / parsing / infrastructure
@@ -61,13 +61,14 @@ router.py
 -> models.py
 ```
 
-Роутер знает про HTTP, формы, шаблоны и redirects. Он не должен содержать
-ветвление бизнес-сценариев вроде "как подтвердить строку" или "как перепарсить
-документ".
+API router знает про HTTP schemas, dependencies и responses. Он не должен
+содержать ветвление бизнес-сценариев вроде «как подтвердить строку». React
+владеет browser presentation, а historical redirects находятся за пределами
+feature в `src/app/legacy_frontend_redirects.py`.
 
 Use case описывает пользовательское действие целиком: загрузить выписку,
-перепарсить документ, обработать review-действие, удалить документ. Use case
-может координировать несколько сервисов.
+обработать review-действие или удалить документ. Use case может координировать
+несколько сервисов.
 
 Processor выполняет внутренний pipeline без знания про HTTP: преобразовать
 результат парсинга в raw transactions, отметить дубли, сохранить validation
@@ -239,16 +240,11 @@ Review-слой не должен знать, каким способом стр
 
 ```text
 imports/
-  router.py
   service.py
   repository.py
   query_repository.py
   models.py
   errors.py
-
-  routes/
-    documents.py
-    mapping.py
 
   application/
     documents/
@@ -316,17 +312,6 @@ imports/
       row_mapping.py
       drafts.py
 
-  presentation/
-    review/
-      actions.py
-      item.py
-      labels.py
-      models.py
-      page.py
-      panels.py
-      references.py
-      state.py
-
   domain/
     deduplication.py
     validation.py
@@ -369,40 +354,20 @@ imports/
 This target map is a direction, not a required big-bang rewrite. Move files
 only in behavior-preserving steps.
 
-## Presentation contracts
+## Browser presentation boundary
 
-`presentation/` готовит данные для SSR/Jinja. Этот слой не меняет финансовые
-данные, не применяет статусы, не создает raw rows и не решает, как проводить
-операции. Его задача - превратить application/read DTOs и raw validation payloads
-в маленькие ViewModel-объекты, которые шаблон может просто отрисовать.
-
-Правильная форма:
+Внутри `imports` больше нет SSR routes, Jinja presenters или ViewModels.
+Активная browser-граница разделена явно:
 
 ```text
-route / response adapter
--> application read data or use case result
--> presentation presenter / VM factory
--> dumb Jinja template or partial
+frontend/app/features/import-*  -> React presentation
+src/app/api/v1/imports          -> versioned JSON API
+src/app/legacy_frontend_redirects.py -> historical GET compatibility
 ```
 
-Шаблоны не должны вычислять confidence labels, field labels, action policy,
-review state, mapping warning text или другие смысловые подписи. Если текст
-зависит от raw payload, он должен быть подготовлен в presenter/helper рядом с
-соответствующей страницей или в общем presentation-helper, если реально
-используется несколькими страницами.
-
-Текущие presentation-пакеты:
-
-- Upload и document detail presentation удалены после React/API cutover.
-- Mapping presentation удалён после React/API cutover; read/preview/import
-  contracts живут в versioned API, а visual copy — в React feature.
-- `presentation/review/` - import review page: review item VM, action VM,
-  panel payloads, page context and review-specific labels.
-
-Не расширяйте `presentation/__init__.py` в barrel exports. Импорты должны
-оставаться явными. Если helper используется только одной страницей, держите
-его внутри соответствующего package. Выносите общий файл в `presentation/`
-только после повторного стабильного использования.
+Новые browser workflows не должны возвращать HTML из `imports`. Бизнес-правила
+и transitions остаются в application/domain, API преобразует их в typed DTO,
+а React владеет visual copy и view state.
 
 ## Sensitive local fixtures
 
@@ -553,9 +518,6 @@ import path easy to test.
 
 ## Current module map
 
-- `router.py` - thin HTTP router aggregator for the imports feature.
-- `routes/` - узкие compatibility redirects для мигрированных Imports GET
-  routes; mapping redirect принадлежит общему React adapter.
 - `service.py` - small read-side facade for document list/detail views.
 - `application/documents/` - document lifecycle use cases and helpers: upload,
   ignore/delete, parse attempts.
@@ -572,14 +534,9 @@ import path easy to test.
 - `domain/validation.py` - pure statement total validation logic.
 - `mapping/raw_transaction_mapper.py` - `RawTransactionDraft` to ORM model mapping.
 - `mapping/dto.py` - import detail view models and mapper.
-- `presentation/` - оставшиеся SSR/Jinja-facing review presenters и ViewModels.
-  Они не должны мутировать imports, post ledger entries или решать persistence
-  state transitions.
 - `application/documents/detail_reading.py` и `/api/v1/imports/documents/{id}`
   владеют безопасной typed projection React document detail; technical storage
   paths и полный raw payload в browser DTO не входят.
-- `presentation/review/` - review page presenter and VMs for raw transaction
-  review, action system, and expandable panels.
 - `errors.py` - import-specific application exceptions.
 - `repository.py` - SQLAlchemy persistence and compatibility read wrappers.
 - `query_repository.py` - read-side document queries for UI/detail workflows.
@@ -652,24 +609,12 @@ these packages:
 - `application/<workflow_package>/` - cohesive helpers for one application workflow when a single file stops reading linearly.
 - `domain/` - pure import rules such as deduplication and statement total validation.
 - `mapping/` - DTO projection and draft-to-ORM mapping.
-- `presentation/` - HTTP/template-facing presenters, ViewModels, and display
-  helpers that prepare UI contracts but do not perform business workflow
-  decisions.
-- `presentation/<page_or_story>/` - cohesive page presenters when one
-  presentation file stops reading linearly. Keep package size modest and split
-  by reason to change: `models.py`, `page.py`/`presenter.py`, `form.py`,
-  `tables.py`, `preview.py`, or page-specific formatting.
-- `presentation/<shared_helper>.py` - small shared presentation helpers used by
-  more than one remaining runtime page.
-- `routes/` - FastAPI route modules grouped by user story. Keep them thin:
-  request parsing, dependency injection, response rendering, redirects, and
-  HTTP errors.
 - `infrastructure/` - filesystem/file extraction adapters and other I/O details.
 - `parsing/` - parser contracts, registry, shared support, and bank-specific parsers.
 
-Avoid adding more one-off files at the root unless they are public module
-entrypoints like `router.py`, `service.py`, `repository.py`, `query_repository.py`,
-or `models.py`.
+Avoid adding more one-off files at the root unless they are stable public module
+entrypoints like `service.py`, `repository.py`, `query_repository.py` or
+`models.py`.
 
 ## DTOs and mappers
 
@@ -762,21 +707,17 @@ Completed cleanup:
 
 ## Remaining cleanup plan
 
-1. Keep route modules thin:
-   `router.py` should only aggregate story routers; story modules should keep
-   HTTP parsing, dependency wiring, redirects, and response adapters close to
-   the route while moving data loading and workflows into `application/`.
-2. Keep `ImportService` read-side:
+1. Keep `ImportService` read-side:
    it may list documents and build detail views, but new command behavior
    should go into explicit use cases under `application/`.
-3. Compatibility facades in `application/` have been removed. Keep new imports
+2. Compatibility facades in `application/` have been removed. Keep new imports
    pointed at concrete story modules such as `application/documents/upload.py`
    and `application/review/status.py`.
-4. Keep import tests split by story:
+3. Keep import tests split by story:
    bank parsers, validation, unknown statement analysis, and unknown mapping
    now live in separate files. The remaining `test_imports.py` covers small
    upload, document, deduplication, and review utility scenarios.
-5. Make the top-level import story explicit in code:
+4. Make the top-level import story explicit in code:
    upload, extract, choose strategy, parse/map, store raw rows, validate,
    then review.
 

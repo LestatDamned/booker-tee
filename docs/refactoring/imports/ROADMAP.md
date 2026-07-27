@@ -130,9 +130,11 @@ Phase exit: продукт поддерживает одну обработку 
 
 ### Commit 1.3: remove empty legacy shell
 
-- удалить `routes/`, пустой `presentation/`;
-- удалить неподтверждённый legacy CSS;
-- обновить redirect tests.
+Статус: completed.
+
+- удалены `router.py`, `routes/` и пустой `presentation/`;
+- удалены legacy CSS selectors `.workflow-step*` без runtime consumers;
+- redirect tests принадлежат общему frontend compatibility router.
 
 Exit: внутри imports нет SSR runtime/presentation.
 
