@@ -28,6 +28,7 @@ src/app/features/
       mapping/
         reader.py
         engine.py
+        validation.py
         importing.py
         templates.py
         contracts.py
@@ -37,7 +38,6 @@ src/app/features/
       document_lifecycle.py
       statement_validation.py
       deduplication.py
-      mapping_validation.py
       types.py
 
     infrastructure/
@@ -251,10 +251,23 @@ upload, review, ignore/delete и parse failure не изменено.
 
 ### Commit 3.4: mapping validation
 
-Один validator возвращает issues с code, severity и fields. API преобразует
-issues в typed response/errors.
+Статус: completed 2026-07-28.
 
-Exit: domain не импортирует repository, ORM или parser layer.
+- `StatementMappingValidator.validate(...)` возвращает все найденные typed
+  issues с `code`, `severity`, `message` и `fields`;
+- preview и import используют один validation path;
+- column/amount/control-total validation удалена из `reader.py` и собрана в
+  `application/unknown_statement_mappings/validation.py`;
+- API объединяет issues в один стабильный `mapping_validation_failed` response
+  с ошибками для всех затронутых полей;
+- validation tests собраны по владельцу поведения, дублирующие reader/helper
+  tests удалены.
+
+Validator оставлен в application mapping workflow: он проверяет
+`StatementMappingSpec` и raw-table input, поэтому перенос в domain создал бы
+обратную зависимость или преждевременный отдельный domain contract.
+
+Exit: completed. Domain не импортирует repository, ORM или parser layer.
 
 ## Phase 4 — Split persistence
 

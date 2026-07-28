@@ -30,9 +30,11 @@ from app.features.imports.application.unknown_statement_mappings.import_use_case
     UnknownStatementMappingImportUseCase,
 )
 from app.features.imports.application.unknown_statement_mappings.reader import (
-    MappingCommandValidationError,
     MappingUnavailableError,
     UnknownStatementMappingReader,
+)
+from app.features.imports.application.unknown_statement_mappings.validation import (
+    MappingCommandValidationError,
 )
 from app.features.imports.errors import (
     MappingImportIdempotencyConflictError,
@@ -137,12 +139,7 @@ async def preview_unknown_statement_mapping(
             spec=_mapping_spec(request),
         )
     except MappingCommandValidationError as error:
-        raise ApiError(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            code=error.code,
-            message=error.message,
-            field_errors={field: [error.message] for field in error.fields},
-        ) from error
+        raise _mapping_validation_api_error(error) from error
     except MappingUnavailableError as error:
         reason = error.reason_codes[0]
         raise ApiError(
@@ -186,12 +183,7 @@ async def import_unknown_statement_mapping(
             template_name=request.template_name,
         )
     except MappingCommandValidationError as error:
-        raise ApiError(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            code=error.code,
-            message=error.message,
-            field_errors={field: [error.message] for field in error.fields},
-        ) from error
+        raise _mapping_validation_api_error(error) from error
     except MappingImportNotFoundError as error:
         raise _not_found() from error
     except MappingImportIdempotencyConflictError as error:
@@ -223,6 +215,19 @@ async def import_unknown_statement_mapping(
             kind="import_review",
             document_id=result.document.id,
         ),
+    )
+
+
+def _mapping_validation_api_error(error: MappingCommandValidationError) -> ApiError:
+    field_errors: dict[str, list[str]] = {}
+    for issue in error.issues:
+        for field in issue.fields:
+            field_errors.setdefault(field, []).append(issue.message)
+    return ApiError(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        code="mapping_validation_failed",
+        message="Исправьте ошибки в настройке колонок.",
+        field_errors=field_errors,
     )
 
 

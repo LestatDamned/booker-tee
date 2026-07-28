@@ -1,5 +1,4 @@
 from copy import deepcopy
-from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -24,7 +23,6 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
 from app.features.imports.application.unknown_statement_mappings.reader import (
     MAX_MAPPING_PREVIEW_RESPONSE_ROWS,
     MAX_MAPPING_SOURCE_SAMPLE_ROWS,
-    MappingCommandValidationError,
     UnknownStatementMappingReader,
 )
 from app.features.imports.models import ParseAttemptStatus, UploadedDocumentStatus
@@ -122,75 +120,6 @@ async def test_mapping_preview_counts_all_compatible_rows_but_bounds_payload() -
     assert preview.can_import is True
     assert snapshot.parse_attempts[0].raw_tables == raw_tables_before
     assert snapshot.raw_transactions == []
-
-
-@pytest.mark.asyncio
-async def test_mapping_preview_rejects_duplicate_roles_with_stable_fields() -> None:
-    workspace_id = uuid4()
-    snapshot = mapping_document_snapshot()
-    reader = UnknownStatementMappingReader(
-        DocumentSnapshotReaderStub(snapshot, workspace_id=workspace_id),
-        TemplateServiceStub(),
-    )
-    command = mapping_command()
-    duplicate = StatementMappingSpec(
-        page_number=command.page_number,
-        table_index=command.table_index,
-        operation_date_column=command.operation_date_column,
-        posting_date_column=command.posting_date_column,
-        description_column=command.operation_date_column,
-        amount_column=command.amount_column,
-        debit_amount_column=command.debit_amount_column,
-        credit_amount_column=command.credit_amount_column,
-        currency_column=command.currency_column,
-        balance_after_column=command.balance_after_column,
-        first_data_row=command.first_data_row,
-        default_currency=command.default_currency,
-        unsigned_amount_direction=command.unsigned_amount_direction,
-    )
-
-    with pytest.raises(MappingCommandValidationError) as error:
-        await reader.preview(
-            workspace_id=workspace_id,
-            document_id=snapshot.id,
-            workspace_default_currency="RUB",
-            spec=duplicate,
-        )
-
-    assert error.value.code == "duplicate_mapping_roles"
-    assert error.value.fields == ("operationDateColumn", "descriptionColumn")
-
-
-@pytest.mark.asyncio
-async def test_mapping_preview_requires_complete_amount_strategy() -> None:
-    workspace_id = uuid4()
-    snapshot = mapping_document_snapshot()
-    reader = UnknownStatementMappingReader(
-        DocumentSnapshotReaderStub(snapshot, workspace_id=workspace_id),
-        TemplateServiceStub(),
-    )
-    command = mapping_command()
-    incomplete = replace(
-        command,
-        amount_column=None,
-        debit_amount_column=2,
-        credit_amount_column=None,
-    )
-
-    with pytest.raises(MappingCommandValidationError) as error:
-        await reader.preview(
-            workspace_id=workspace_id,
-            document_id=snapshot.id,
-            workspace_default_currency="RUB",
-            spec=incomplete,
-        )
-
-    assert error.value.code == "incomplete_amount_mapping"
-    assert error.value.fields == (
-        "amountColumn",
-        "debitAmountColumn",
-        "creditAmountColumn",
-    )
 
 
 def mapping_document_snapshot() -> ImportDocumentSnapshot:

@@ -533,8 +533,8 @@ import path easy to test.
 - `application/unknown_statements/` - unknown statement fallback and analysis internals: fallback/template pipeline, hints, DTOs, table detection, column profiles, profile helpers, suggestions, suggestion scoring, continuations, and control totals.
 - `application/unknown_statement_mappings/` - unknown statement mapping workflows
   and internals: mapping engine, idempotent import use case, template use case,
-  template matching, table signatures, mapping defaults, DTOs, raw table
-  navigation, row mapping, and draft conversion.
+  template matching, table signatures, mapping defaults, typed command
+  validation, DTOs, raw table navigation, row mapping, and draft conversion.
 - `domain/control_totals.py` - statement balance and inflow/outflow control totals.
 - `domain/document_lifecycle.py` - pure document status transition matrix,
   review status resolution, and linked-operation predicate.

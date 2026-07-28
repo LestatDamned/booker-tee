@@ -188,7 +188,9 @@ package.
 Следующие более крупные дубли остаются для поздних этапов:
 
 - validation reason mapping;
-- mapping column/amount validation.
+
+Mapping column/amount/control-total validation исправлена в Phase 3.4: preview
+и import используют один `StatementMappingValidator`.
 
 ## React cutover
 

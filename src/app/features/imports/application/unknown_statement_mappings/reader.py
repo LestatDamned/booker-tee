@@ -51,6 +51,10 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
 from app.features.imports.application.unknown_statement_mappings.template_commands import (
     compatible_mapping_templates,
 )
+from app.features.imports.application.unknown_statement_mappings.validation import (
+    StatementMappingValidator,
+    raise_for_mapping_validation_issues,
+)
 from app.features.imports.models import (
     ImportMappingTemplate,
     RawTransactionStatus,
@@ -80,16 +84,6 @@ class MappingTemplateReader(Protocol):
         bank_name: str | None,
         statement_type: str | None,
     ) -> list[ImportMappingTemplate]: ...
-
-
-@dataclass(frozen=True)
-class MappingCommandValidationError(Exception):
-    code: str
-    message: str
-    fields: tuple[str, ...]
-
-    def __str__(self) -> str:
-        return self.message
 
 
 @dataclass(frozen=True)
@@ -231,8 +225,13 @@ class UnknownStatementMappingReader:
             page_number=spec.page_number,
             table_index=spec.table_index,
         )
-        validate_mapping_spec(spec, selected_table)
-        validate_control_total_cells(spec, raw_tables)
+        raise_for_mapping_validation_issues(
+            StatementMappingValidator.validate(
+                spec=spec,
+                selected_table=selected_table,
+                raw_tables=raw_tables,
+            )
+        )
 
         compatible_tables = compatible_mapping_tables(raw_tables, spec)
         result = StatementMappingEngine.apply(
@@ -511,127 +510,6 @@ def _suggestion_reason(value: object) -> MappingSuggestionReasonDto | None:
         evidence=_string(value.get("evidence")),
         matched_count=_optional_int(value.get("matched_count")),
         sample_count=_optional_int(value.get("sample_count")),
-    )
-
-
-def validate_mapping_spec(
-    spec: StatementMappingSpec,
-    selected_table: list[list[str]],
-) -> None:
-    if not selected_table:
-        raise MappingCommandValidationError(
-            "mapping_table_not_found",
-            "Выбранная таблица не найдена.",
-            ("tableRef",),
-        )
-    fields = _selected_column_fields(spec)
-    duplicates = _duplicate_fields(fields)
-    if duplicates:
-        raise MappingCommandValidationError(
-            "duplicate_mapping_roles",
-            "Одна колонка не может использоваться для нескольких ролей.",
-            duplicates,
-        )
-    if spec.amount_column is not None and (
-        spec.debit_amount_column is not None or spec.credit_amount_column is not None
-    ):
-        raise MappingCommandValidationError(
-            "conflicting_amount_mapping",
-            "Выберите единую сумму или отдельные списание и зачисление.",
-            ("amountColumn", "debitAmountColumn", "creditAmountColumn"),
-        )
-    if spec.amount_column is None and (
-        spec.debit_amount_column is None or spec.credit_amount_column is None
-    ):
-        raise MappingCommandValidationError(
-            "incomplete_amount_mapping",
-            "Укажите колонку суммы либо обе колонки списания и зачисления.",
-            ("amountColumn", "debitAmountColumn", "creditAmountColumn"),
-        )
-    max_column_count = max((len(row) for row in selected_table), default=0)
-    out_of_range = tuple(field for field, index in fields if index >= max_column_count)
-    if out_of_range:
-        raise MappingCommandValidationError(
-            "mapping_column_out_of_range",
-            "Выбранной колонки нет в исходной таблице.",
-            out_of_range,
-        )
-    if spec.first_data_row >= len(selected_table):
-        raise MappingCommandValidationError(
-            "mapping_first_row_out_of_range",
-            "Первая строка данных находится за пределами таблицы.",
-            ("firstDataRowNumber",),
-        )
-
-
-def validate_control_total_cells(
-    spec: StatementMappingSpec,
-    raw_tables: list[dict[str, object]] | None,
-) -> None:
-    selected = (
-        ("openingBalanceCell", spec.opening_balance_cell),
-        ("closingBalanceCell", spec.closing_balance_cell),
-    )
-    selected_cells = [cell for _, cell in selected if cell is not None]
-    if len(set(selected_cells)) != len(selected_cells):
-        raise MappingCommandValidationError(
-            "duplicate_control_total_cells",
-            "Начальный и конечный остатки должны ссылаться на разные ячейки.",
-            tuple(field for field, cell in selected if cell is not None),
-        )
-    for field, cell in selected:
-        if cell is None:
-            continue
-        kind = (
-            MappingControlTotalKind.OPENING_BALANCE
-            if field == "openingBalanceCell"
-            else MappingControlTotalKind.CLOSING_BALANCE
-        )
-        if resolve_mapping_control_totals(
-            raw_tables,
-            replace(
-                spec,
-                opening_balance_cell=(
-                    cell if kind is MappingControlTotalKind.OPENING_BALANCE else None
-                ),
-                closing_balance_cell=(
-                    cell if kind is MappingControlTotalKind.CLOSING_BALANCE else None
-                ),
-            ),
-        ):
-            continue
-        raise MappingCommandValidationError(
-            "control_total_cell_invalid",
-            "В выбранной ячейке не удалось распознать денежную сумму.",
-            (field,),
-        )
-
-
-def _selected_column_fields(
-    spec: StatementMappingSpec,
-) -> tuple[tuple[str, int], ...]:
-    values = (
-        ("operationDateColumn", spec.operation_date_column),
-        ("postingDateColumn", spec.posting_date_column),
-        ("descriptionColumn", spec.description_column),
-        ("amountColumn", spec.amount_column),
-        ("debitAmountColumn", spec.debit_amount_column),
-        ("creditAmountColumn", spec.credit_amount_column),
-        ("currencyColumn", spec.currency_column),
-        ("balanceAfterColumn", spec.balance_after_column),
-    )
-    return tuple((field, index) for field, index in values if index is not None)
-
-
-def _duplicate_fields(fields: tuple[tuple[str, int], ...]) -> tuple[str, ...]:
-    fields_by_index: dict[int, list[str]] = {}
-    for field, index in fields:
-        fields_by_index.setdefault(index, []).append(field)
-    return tuple(
-        field
-        for grouped_fields in fields_by_index.values()
-        if len(grouped_fields) > 1
-        for field in grouped_fields
     )
 
 

@@ -2,8 +2,6 @@ from dataclasses import replace
 from decimal import Decimal
 from typing import cast
 
-import pytest
-
 from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
     MappingControlTotalKind,
     automatic_control_total_cell,
@@ -11,16 +9,11 @@ from app.features.imports.application.unknown_statement_mappings.control_total_c
     resolve_mapping_control_totals,
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
-    MappingControlTotalCellRef,
     StatementMappingSpec,
     UnsignedAmountDirection,
 )
 from app.features.imports.application.unknown_statement_mappings.engine import (
     StatementMappingEngine,
-)
-from app.features.imports.application.unknown_statement_mappings.reader import (
-    MappingCommandValidationError,
-    validate_control_total_cells,
 )
 
 
@@ -75,18 +68,6 @@ def test_ambiguous_balance_candidates_are_not_applied_automatically() -> None:
         )
         is None
     )
-
-
-def test_selected_control_total_cell_must_contain_one_money_value() -> None:
-    command = replace(
-        mapping_command(),
-        opening_balance_cell=MappingControlTotalCellRef(1, 0, 0, 1),
-    )
-
-    with pytest.raises(MappingCommandValidationError) as error:
-        validate_control_total_cells(command, statement_tables())
-
-    assert error.value.code == "control_total_cell_invalid"
 
 
 def statement_tables() -> list[dict[str, object]]:

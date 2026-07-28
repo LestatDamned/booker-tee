@@ -26,8 +26,11 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
     UnknownStatementMappingPreviewResult,
     UnknownStatementMappingReadModel,
 )
-from app.features.imports.application.unknown_statement_mappings.reader import (
+from app.features.imports.application.unknown_statement_mappings.validation import (
     MappingCommandValidationError,
+    MappingValidationCode,
+    MappingValidationIssue,
+    MappingValidationSeverity,
 )
 from app.features.imports.errors import MappingImportIdempotencyConflictError
 from app.features.imports.models import UploadedDocumentStatus
@@ -172,7 +175,7 @@ def test_mapping_preview_api_converts_visible_row_number_and_returns_scope() -> 
         )
 
     assert response.status_code == 200
-    command = cast(StatementMappingSpec, reader.preview_calls[0]["command"])
+    command = cast(StatementMappingSpec, reader.preview_calls[0]["spec"])
     assert command.first_data_row == 1
     assert command.default_currency == "RUB"
     payload = response.json()
@@ -231,9 +234,20 @@ def test_mapping_preview_api_returns_stable_field_errors() -> None:
     context = api_context(WorkspaceRole.OWNER)
     mapping = mapping_read_model()
     error = MappingCommandValidationError(
-        code="duplicate_mapping_roles",
-        message="Одна колонка не может использоваться для нескольких ролей.",
-        fields=("operationDateColumn", "descriptionColumn"),
+        (
+            MappingValidationIssue(
+                code=MappingValidationCode.DUPLICATE_ROLES,
+                severity=MappingValidationSeverity.ERROR,
+                message="Одна колонка не может использоваться для нескольких ролей.",
+                fields=("operationDateColumn", "descriptionColumn"),
+            ),
+            MappingValidationIssue(
+                code=MappingValidationCode.CONFLICTING_AMOUNT,
+                severity=MappingValidationSeverity.ERROR,
+                message="Выберите единую сумму или отдельные списание и зачисление.",
+                fields=("amountColumn", "debitAmountColumn", "creditAmountColumn"),
+            ),
+        )
     )
     app = mapping_app(context, MappingReaderStub(mapping, validation_error=error))
 
@@ -254,10 +268,13 @@ def test_mapping_preview_api_returns_stable_field_errors() -> None:
         )
 
     assert response.status_code == 422
-    assert response.json()["error"]["code"] == "duplicate_mapping_roles"
+    assert response.json()["error"]["code"] == "mapping_validation_failed"
     assert set(response.json()["error"]["fieldErrors"]) == {
         "operationDateColumn",
         "descriptionColumn",
+        "amountColumn",
+        "debitAmountColumn",
+        "creditAmountColumn",
     }
 
 

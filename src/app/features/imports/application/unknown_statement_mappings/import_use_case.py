@@ -31,13 +31,13 @@ from app.features.imports.application.unknown_statement_mappings.engine import (
 from app.features.imports.application.unknown_statement_mappings.raw_tables import (
     find_raw_table,
 )
-from app.features.imports.application.unknown_statement_mappings.reader import (
-    validate_control_total_cells,
-    validate_mapping_spec,
-)
 from app.features.imports.application.unknown_statement_mappings.template_commands import (
     clean_template_name,
     mapping_spec_as_json,
+)
+from app.features.imports.application.unknown_statement_mappings.validation import (
+    StatementMappingValidator,
+    raise_for_mapping_validation_issues,
 )
 from app.features.imports.application.unknown_statements.control_totals import (
     extract_unknown_statement_control_totals,
@@ -188,8 +188,13 @@ class UnknownStatementMappingImportUseCase:
             page_number=spec.page_number,
             table_index=spec.table_index,
         )
-        validate_mapping_spec(spec, selected_table)
-        validate_control_total_cells(spec, attempt.raw_tables_json)
+        raise_for_mapping_validation_issues(
+            StatementMappingValidator.validate(
+                spec=spec,
+                selected_table=selected_table,
+                raw_tables=attempt.raw_tables_json,
+            )
+        )
         result = StatementMappingEngine.apply(
             attempt.raw_tables_json,
             spec,
