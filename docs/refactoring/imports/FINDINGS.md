@@ -94,9 +94,9 @@ Persistence-модели остаются в `imports`, чтобы не созд
 
 ### `domain/deduplication.py`
 
-`RawTransactionDeduplicator` зависит от ORM `RawTransaction` и concrete
-`ImportRepository`. Это application orchestration. В domain должны остаться
-fingerprint и mutation policy над facts/protocol.
+Исправлено в Phase 3.2: в domain остались fingerprint и чистая classification
+policy. `RawTransactionDeduplicator`, DB lookup и mutation ORM-строк находятся в
+`application/pipelines/deduplication.py`.
 
 ### `domain/validation.py`
 

@@ -17,11 +17,14 @@ from app.features.imports.application.documents.upload import (
     StatementUploadUseCase,
     validate_statement_upload,
 )
+from app.features.imports.application.pipelines.deduplication import (
+    apply_duplicate_decision,
+)
 from app.features.imports.application.review.status import (
     RawTransactionReviewStatusUseCase,
 )
 from app.features.imports.domain.deduplication import (
-    mark_raw_transaction_duplicate,
+    DuplicateDecision,
     possible_duplicate_fingerprint,
 )
 from app.features.imports.errors import (
@@ -400,13 +403,15 @@ def test_possible_duplicate_fingerprint_requires_normalized_fields() -> None:
     assert possible_duplicate_fingerprint(raw_transaction) is None
 
 
-def test_mark_raw_transaction_duplicate_preserves_review_message() -> None:
+def test_apply_duplicate_decision_preserves_review_message() -> None:
     raw_transaction = raw_transaction_from_values(normalization_error="Existing issue.")
 
-    mark_raw_transaction_duplicate(
+    apply_duplicate_decision(
         raw_transaction,
-        RawTransactionStatus.DUPLICATE,
-        "Exact duplicate.",
+        DuplicateDecision(
+            status=RawTransactionStatus.DUPLICATE,
+            message="Exact duplicate.",
+        ),
     )
 
     assert raw_transaction.status == RawTransactionStatus.DUPLICATE

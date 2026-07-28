@@ -220,8 +220,18 @@ Exit: меньше слоёв без изменения API.
 
 ### Commit 3.2: deduplication ownership
 
-Оставить fingerprint/policy в domain; DB lookup и row orchestration перенести в
-application.
+Статус: completed 2026-07-28.
+
+- fingerprint, решение о типе дубликата и чистая policy оставлены в
+  `domain/deduplication.py`;
+- DB lookup и изменение ORM-строк перенесены в
+  `application/pipelines/deduplication.py`;
+- application actor зависит от узкого `DuplicateLookup` protocol, а не от
+  concrete repository;
+- точный hash по-прежнему даёт `duplicate`, совпадение
+  account/date/amount/currency — `possible_duplicate`.
+
+Пользовательское поведение deduplication не изменено.
 
 ### Commit 3.3: document lifecycle policy
 

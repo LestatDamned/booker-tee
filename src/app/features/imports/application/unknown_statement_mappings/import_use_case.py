@@ -9,6 +9,9 @@ from app.features.imports.application.documents.parse_attempts import (
     latest_parse_attempt,
     statement_control_totals_from_json,
 )
+from app.features.imports.application.pipelines.deduplication import (
+    RawTransactionDeduplicator,
+)
 from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
     MappingControlTotalKind,
     resolve_mapping_control_totals,
@@ -39,7 +42,6 @@ from app.features.imports.application.unknown_statements.control_totals import (
     extract_unknown_statement_control_totals,
 )
 from app.features.imports.domain.control_totals import StatementControlTotals
-from app.features.imports.domain.deduplication import RawTransactionDeduplicator
 from app.features.imports.domain.validation import validate_statement_totals
 from app.features.imports.errors import (
     MappingImportIdempotencyConflictError,

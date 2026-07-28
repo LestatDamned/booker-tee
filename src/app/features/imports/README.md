@@ -527,7 +527,8 @@ import path easy to test.
   review page data loading.
 - `application/processing.py` - parse success orchestrator: stores extracted statement data, resolves an import strategy, then runs it.
 - `application/strategies/` - import strategy resolver and branches for known parser imports and unknown statement fallback.
-- `application/pipelines/` - shared import pipeline steps: review-required attempts and validation result storage.
+- `application/pipelines/` - shared import pipeline steps: deduplication
+  orchestration, review-required attempts, and validation result storage.
 - `application/known_statements/` - known bank parser pipeline: drafts, raw rows, deduplication, rules, validation.
 - `application/unknown_statements/` - unknown statement fallback and analysis internals: fallback/template pipeline, hints, DTOs, table detection, column profiles, profile helpers, suggestions, suggestion scoring, continuations, and control totals.
 - `application/unknown_statement_mappings/` - unknown statement mapping workflows
@@ -535,7 +536,8 @@ import path easy to test.
   template matching, table signatures, mapping defaults, DTOs, raw table
   navigation, row mapping, and draft conversion.
 - `domain/control_totals.py` - statement balance and inflow/outflow control totals.
-- `domain/deduplication.py` - duplicate detection for imported raw transactions.
+- `domain/deduplication.py` - pure duplicate fingerprint and classification
+  policy.
 - `domain/validation.py` - pure statement total validation logic.
 - `mapping/raw_transaction_mapper.py` - `RawTransactionDraft` to ORM model mapping.
 - `mapping/dto.py` - import detail view models and mapper.
@@ -573,8 +575,10 @@ separate screen family.
 
 Prefer explicit imports from concrete modules over package-level re-export
 barrels. For example, import upload validation from
-`application/documents/upload.py`, deduplication rules from
-`domain/deduplication.py`, and concrete bank parsers from their parser modules.
+`application/documents/upload.py`, the pure deduplication policy from
+`domain/deduplication.py`, deduplication orchestration from
+`application/pipelines/deduplication.py`, and concrete bank parsers from their
+parser modules.
 
 Do not use broad `__all__` barrels as the normal import style inside this
 feature. A reader should be able to understand ownership from the import path.

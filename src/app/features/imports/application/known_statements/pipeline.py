@@ -5,10 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.imports.application.pipelines.attempt_review import (
     mark_attempt_requires_review,
 )
+from app.features.imports.application.pipelines.deduplication import (
+    RawTransactionDeduplicator,
+)
 from app.features.imports.application.pipelines.validation_result import (
     store_import_validation_result,
 )
-from app.features.imports.domain.deduplication import RawTransactionDeduplicator
 from app.features.imports.domain.validation import validate_statement_totals
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.mapping.raw_transaction_mapper import RawTransactionMapper
