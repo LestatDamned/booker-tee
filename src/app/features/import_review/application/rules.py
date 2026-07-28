@@ -1,3 +1,5 @@
+"""Apply transaction rules when requested from the import review workflow."""
+
 from dataclasses import dataclass
 from uuid import UUID
 

@@ -13,25 +13,25 @@ from app.features.import_review.application.classification import (
     ImportReviewDraftEvaluator,
     ImportReviewReferenceReader,
 )
+from app.features.import_review.application.confirmation import (
+    ImportReviewConfirmationService,
+)
 from app.features.import_review.application.duplicate_evidence import (
     ImportReviewDuplicateReader,
 )
+from app.features.import_review.application.lifecycle import (
+    ImportReviewLifecycleService,
+)
 from app.features.import_review.application.read_model import ImportReviewReader
+from app.features.import_review.application.rules import (
+    ImportReviewRuleApplicationService,
+)
 from app.features.import_review.application.transfer_options import ImportReviewTransferReader
 from app.features.import_review.application.transfer_suggestions import (
     TransferSuggestionUseCase,
 )
-from app.features.imports.application.review.confirmation_commands import (
-    ImportReviewConfirmationService,
-)
-from app.features.imports.application.review.lifecycle_commands import (
-    ImportReviewLifecycleService,
-)
-from app.features.imports.application.review.rule_commands import (
-    ImportReviewRuleApplicationService,
-)
-from app.features.imports.application.review.transfer_commands import ImportReviewTransferService
-from app.features.imports.application.review.undo_commands import ImportReviewUndoService
+from app.features.import_review.application.transfers import ImportReviewTransferService
+from app.features.import_review.application.undo import ImportReviewUndoService
 from app.features.imports.repository import ImportRepository
 from app.features.properties.service import PropertyService
 from app.features.workspaces.permissions import permission_flags_for

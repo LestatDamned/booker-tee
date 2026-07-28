@@ -1,9 +1,11 @@
+"""Undo ledger postings from the import review workflow."""
+
 from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.imports.application.review.confirmation_commands import (
+from app.features.import_review.application.confirmation import (
     ImportReviewConfirmationConflictError,
 )
 from app.features.imports.errors import RawTransactionReviewError

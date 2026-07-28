@@ -35,10 +35,11 @@ from app.features.chat_integrations.use_cases.review.state import (
     ChatReviewStateClaimer,
     ChatReviewStateReader,
 )
-from app.features.imports.application.review.actions import (
-    RawTransactionReviewCommand,
-    RawTransactionReviewer,
+from app.features.import_review.application.confirmation import (
+    ConfirmImportReviewItemCommand,
+    ImportReviewConfirmationActor,
 )
+from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.errors import RawTransactionReviewError
 from app.features.imports.query_repository import ImportQueryRepository
 from app.features.ledger.errors import LedgerPostingError
@@ -54,6 +55,7 @@ class ChatReviewConfirmationService:
         self.properties = PropertyService(session)
         self.chat_integrations = ChatIntegrationRepository(session)
         self.review_queue = ChatReviewQueueReader(session)
+        self.confirmations = ImportReviewConfirmationActor(session)
 
     async def start_category_selection(
         self,
@@ -277,6 +279,7 @@ class ChatReviewConfirmationService:
             await ChatReviewStateClaimer.claim_once(self.chat_integrations, state)
             result = await self._confirm_transaction(
                 context=context,
+                state=state,
                 document_id=document_id,
                 raw_transaction_id=raw_transaction_id,
                 item=item,
@@ -367,6 +370,7 @@ class ChatReviewConfirmationService:
         await ChatReviewStateClaimer.claim_once(self.chat_integrations, state)
         result = await self._confirm_transaction(
             context=context,
+            state=state,
             document_id=document_id,
             raw_transaction_id=raw_transaction_id,
             item=item,
@@ -443,6 +447,7 @@ class ChatReviewConfirmationService:
         self,
         *,
         context: WorkspaceContext,
+        state: ChatConversationState,
         document_id: UUID,
         raw_transaction_id: UUID,
         item: ChatReviewQueueItem,
@@ -450,14 +455,18 @@ class ChatReviewConfirmationService:
         property_id: UUID | None,
     ) -> ChatReviewActionResult:
         try:
-            await RawTransactionReviewer(self.session).handle(
+            await self.confirmations.apply(
                 context=context,
-                command=RawTransactionReviewCommand(
+                command=ConfirmImportReviewItemCommand(
                     document_id=document_id,
-                    raw_transaction_id=raw_transaction_id,
-                    action="confirm",
+                    item_id=raw_transaction_id,
+                    operation_type=None,
                     category_id=category_id,
                     property_id=property_id,
+                    expected_status=RawTransactionStatus(item.status),
+                    remember_rule=False,
+                    rule_pattern=None,
+                    idempotency_key=state.id,
                 ),
             )
         except (LedgerPostingError, RawTransactionReviewError, ValueError) as exc:

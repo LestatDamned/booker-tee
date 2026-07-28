@@ -39,24 +39,24 @@ from app.features.import_review.application.classification import (
     ImportReviewDraftEvaluator,
     ImportReviewDraftValidationError,
 )
-from app.features.import_review.application.read_model import ImportReviewReader
-from app.features.import_review.domain.lifecycle import (
-    ImportReviewLifecycleConflictError,
-    ImportReviewLifecycleError,
-)
-from app.features.imports.application.review.lifecycle_commands import (
+from app.features.import_review.application.lifecycle import (
     ImportReviewLifecycleCommand,
     ImportReviewLifecycleService,
 )
-from app.features.imports.application.review.rule_commands import (
+from app.features.import_review.application.read_model import ImportReviewReader
+from app.features.import_review.application.rules import (
     ImportReviewRuleApplicationNotFoundError,
     ImportReviewRuleApplicationService,
 )
-from app.features.imports.application.review.transfer_commands import (
+from app.features.import_review.application.transfers import (
     CreateImportReviewTransferCommand,
     ImportReviewTransferService,
     LinkImportReviewExistingTransferCommand,
     MatchImportReviewRawRowCommand,
+)
+from app.features.import_review.domain.lifecycle import (
+    ImportReviewLifecycleConflictError,
+    ImportReviewLifecycleError,
 )
 from app.features.imports.errors import RawTransactionReviewError
 from app.features.ledger.errors import LedgerPostingError

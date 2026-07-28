@@ -248,16 +248,7 @@ imports/
 
     review/
       actions.py
-      classification.py
-      confirmation_commands.py
-      lifecycle_commands.py
-      read_model.py
-      rule_commands.py
       status.py
-      transfer_commands.py
-      transfers.py
-      undo_commands.py
-      validation_refresh.py
 
     pipelines/
       statement_import.py
@@ -267,6 +258,20 @@ imports/
     known_statements/
       pipeline.py
       strategy.py
+
+import_review/
+  application/
+    classification.py
+    confirmation.py
+    duplicate_evidence.py
+    lifecycle.py
+    read_model.py
+    rules.py
+    transfer_options.py
+    transfer_suggestions.py
+    transfers.py
+    undo.py
+    validation_read_model.py
 
     unknown_statements/
       analyzer.py
@@ -504,12 +509,13 @@ import path easy to test.
 ## Current module map
 
 - `../import_review/application/` - Import Review read model, classification,
-  duplicate evidence, transfer options and transfer candidate matching.
+  duplicate evidence, transfer options, transfer candidate matching and typed
+  mutation services for confirmation, lifecycle, transfers, rules and undo.
 - `service.py` - small read-side facade for document list/detail views.
 - `application/documents/` - document lifecycle use cases and helpers: upload,
   ignore/delete, parse attempts.
-- `application/review/` - temporary location of review mutations and legacy
-  chat wrappers until Phase 6.3-6.5.
+- `application/review/` - temporary location of legacy chat wrappers
+  `actions.py` and `status.py` until Phase 6.5.
 - `application/processing.py` - parse success orchestrator: stores extracted
   statement data, selects a known parser or unknown fallback, then runs the
   matching pipeline.

@@ -34,6 +34,10 @@ from app.features.chat_integrations.use_cases import (
 from app.features.chat_integrations.use_cases.review import (
     dto as chat_review_dto,
 )
+from app.features.chat_integrations.use_cases.review.confirmation import (
+    ChatReviewConfirmationService,
+)
+from app.features.imports.domain.types import RawTransactionStatus
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -81,6 +85,92 @@ def _patch_next_review_item_after_action(
     monkeypatch.setattr(
         chat_review_queue_handler, "ChatReviewQueueService", FakeChatReviewQueueService
     )
+
+
+@pytest.mark.asyncio
+async def test_chat_confirmation_claims_action_and_applies_shared_actor_before_commit() -> None:
+    events: list[str] = []
+    commands: list[object] = []
+    state_id = uuid4()
+    document_id = uuid4()
+    raw_transaction_id = uuid4()
+    category_id = uuid4()
+    property_id = uuid4()
+    state = SimpleNamespace(
+        id=state_id,
+        step="choose_property",
+        state_payload={
+            "document_id": str(document_id),
+            "raw_transaction_id": str(raw_transaction_id),
+            "category_id": str(category_id),
+            "category_name": "Продукты",
+            "property_ids": [str(property_id)],
+            "offer_rule_suggestion": False,
+        },
+    )
+    item = _build_chat_review_queue_item(
+        document_id=document_id,
+        raw_transaction_id=raw_transaction_id,
+    )
+
+    class SessionStub:
+        async def commit(self) -> None:
+            events.append("commit")
+
+        async def rollback(self) -> None:
+            events.append("rollback")
+
+    class ChatIntegrationsStub:
+        async def get_active_conversation_state(self, **_kwargs: object) -> object:
+            return state
+
+        async def try_consume_active_conversation_state(
+            self,
+            _state: object,
+            **_kwargs: object,
+        ) -> bool:
+            events.append("claim")
+            return True
+
+    class ReviewQueueStub:
+        async def read_item(self, **_kwargs: object) -> object:
+            return item
+
+    class ConfirmationActorStub:
+        async def apply(self, **kwargs: object) -> None:
+            events.append("apply")
+            commands.append(kwargs["command"])
+
+    session = SessionStub()
+    service = ChatReviewConfirmationService(
+        cast(AsyncSession, session),
+        Settings(public_base_url="https://booker.example"),
+    )
+    service.chat_integrations = cast(Any, ChatIntegrationsStub())
+    service.review_queue = cast(Any, ReviewQueueStub())
+    service.confirmations = cast(Any, ConfirmationActorStub())
+
+    result = await service.confirm_with_property(
+        context=WorkspaceContext(
+            user=cast(Any, SimpleNamespace(id=uuid4())),
+            workspace=cast(Any, SimpleNamespace(id=uuid4())),
+            membership=cast(Any, SimpleNamespace(id=uuid4())),
+        ),
+        selection=ChatReviewPropertySelection(
+            action_token="propertytoken",
+            property_index=0,
+        ),
+    )
+
+    command = cast(Any, commands[0])
+    assert events == ["claim", "apply", "commit"]
+    assert command.document_id == document_id
+    assert command.item_id == raw_transaction_id
+    assert command.operation_type is None
+    assert command.expected_status is RawTransactionStatus.NEEDS_REVIEW
+    assert command.idempotency_key == state_id
+    assert result.action_result is not None
+    assert result.action_result.action_label == "операция подтверждена"
 
 
 @pytest.mark.asyncio

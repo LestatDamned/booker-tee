@@ -1,3 +1,5 @@
+"""Apply user-selected lifecycle transitions to import review rows."""
+
 from dataclasses import dataclass
 from uuid import UUID
 

@@ -45,7 +45,8 @@ ledger
 1. React API использует новые typed services:
    `ImportReviewConfirmationService`, `ImportReviewLifecycleService`,
    `ImportReviewTransferService`.
-2. Chat использует старые `RawTransactionReviewer` и
+2. Chat confirmation уже использует общий actor, но transfer и lifecycle пока
+   используют старые `RawTransactionReviewer` и
    `RawTransactionReviewStatusUseCase`.
 3. Новый и старый workflows имеют разные commands, проверки конкурентного
    изменения и idempotency contracts.
@@ -373,6 +374,9 @@ Review read model собирается внутри `import_review`. `ledger/app
 
 ### Commit 6.3 — Move mutation actors
 
+Статус: 6.3a completed 2026-07-28; confirmation slice 6.3b completed
+2026-07-28; transfer и lifecycle actors остаются.
+
 #### Проблема
 
 Confirmation, lifecycle, transfer, rules и undo находятся под `imports`, прямо
@@ -380,18 +384,36 @@ Confirmation, lifecycle, transfer, rules и undo находятся под `impo
 
 #### Изменения
 
-Перенести в `import_review/application`:
+В 6.3a существующие mutation services без изменения поведения перенесены в
+`import_review/application`: `confirmation.py`, `lifecycle.py`,
+`transfers.py`, `rules.py` и `undo.py`. React API и профильные тесты сразу
+переключены на defining modules; compatibility re-exports не создавались.
+Текущие `commit`/`rollback` сохранены, чтобы не смешивать file move с изменением
+транзакционного поведения.
 
-- typed commands и results;
-- confirmation;
-- lifecycle mutations;
-- transfer mutations;
-- user-triggered rule application;
-- undo posting;
-- review-specific errors.
+В 6.3b:
 
-Внутри тех же модулей выделить transaction-neutral actors только для workflows,
-которые должны переиспользоваться API и chat.
+- выделить transaction-neutral actors внутри перенесённых модулей для общих
+  React/chat workflows;
+- сохранить replay после `IntegrityError`;
+- охарактеризовать внешнее владение `commit`/`rollback`;
+- не выделять actor для сценария с одним потребителем только ради симметрии.
+
+Первый вертикальный slice 6.3b завершён для confirmation:
+
+- `ImportReviewConfirmationActor.apply()` содержит общие проверки и mutations,
+  но не делает `commit`/`rollback`;
+- API `ImportReviewConfirmationService` владеет commit, rollback и replay после
+  `IntegrityError`;
+- chat сначала атомарно claim-ит action state, вызывает тот же actor и делает
+  один общий commit;
+- `ChatConversationState.id` используется как posting idempotency key, а
+  актуальный `ChatReviewQueueItem.status` — как `expected_status`;
+- legacy confirmation branch удалена из `RawTransactionReviewer`;
+- новый файл, generic Unit of Work и repository abstraction не создавались.
+
+Следующие actors выделяются в тех же модулях только для workflows, которые
+действительно переиспользуются API и chat.
 
 При фактическом change pressure создать один
 `import_review/repository.py`, содержащий только review-specific persistence:
@@ -447,6 +469,9 @@ Row и связанные operation records блокируются до фина
 
 ### Commit 6.4 — Migrate React API composition
 
+Статус: defining-module imports completed вместе с 6.3a; API contract checks
+остаются отдельным шагом.
+
 #### Проблема
 
 API namespace уже называется `import_review`, но imports application classes
@@ -487,15 +512,15 @@ contract не изменился.
 
 #### Проблема
 
-Chat использует `RawTransactionReviewer` и
-`RawTransactionReviewStatusUseCase`, поэтому React и chat подтверждают строки
-разными application workflows.
+Chat confirmation уже использует общий actor. Transfer и lifecycle всё ещё
+используют `RawTransactionReviewer` и `RawTransactionReviewStatusUseCase`,
+поэтому миграция chat пока не закончена.
 
 #### Изменения
 
 - заменить string-based `RawTransactionReviewCommand.action` typed commands;
 - lifecycle callbacks переводить в `ImportReviewLifecycleAction`;
-- confirmation выполнять общим confirmation actor;
+- ~~confirmation выполнять общим confirmation actor;~~ completed 2026-07-28;
 - transfer выполнять общим transfer actor;
 - rule creation/application выполнять общим rule actor там, где совпадает
   contract;
@@ -510,10 +535,9 @@ Chat использует `RawTransactionReviewer` и
 - expected row status на момент показа действия;
 - стабильный idempotency key для posting action.
 
-Если эти значения ещё не хранятся, добавить их в internal chat state payload.
-Это не меняет публичный chat UI. Старые активные состояния должны либо
-безопасно получить deterministic fallback, либо завершиться понятной
-«действие устарело» ошибкой; молча ослаблять проверку нельзя.
+Confirmation использует `ChatConversationState.id` как стабильный idempotency
+key и статус заново прочитанного queue item как `expected_status`. Поэтому
+расширять state payload и мигрировать старые активные состояния не потребовалось.
 
 #### Проверки
 

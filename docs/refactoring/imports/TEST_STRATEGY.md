@@ -146,7 +146,8 @@ helper A -> helper B -> private draft
 
 Два теста `RawTransactionReviewUseCase` не переносились: они проверяли
 production-unused orchestration wrapper. Действующий API-сценарий подтверждения
-с сохранением правила покрывается тестами `confirmation_commands`.
+с сохранением правила покрывается тестами
+`import_review/application/confirmation.py`.
 
 ## Недостающие tests основной части рефакторинга
 

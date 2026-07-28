@@ -1,3 +1,5 @@
+"""Create and link transfers selected during import review."""
+
 from dataclasses import dataclass
 from hashlib import sha256
 from uuid import UUID

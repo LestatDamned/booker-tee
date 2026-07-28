@@ -502,17 +502,26 @@ Python-файлов уменьшилось, SQL и matching behavior не мен
 
 ### Commit 6.3: move mutation actors
 
-Перенести lifecycle, confirmation, transfers, rules и undo.
-`import_review` становится owner транзакции.
+Статус: 6.3a и confirmation slice 6.3b completed 2026-07-28.
+
+Lifecycle, confirmation, transfers, rules и undo перенесены в
+`import_review/application` без изменения транзакционного поведения. React API
+сразу переключён на новые defining modules, compatibility re-exports не
+создавались. Confirmation разделён на transaction-neutral actor и
+API-owned transaction service; chat использует тот же actor с одним commit для
+action claim и financial mutation. Legacy confirmation branch удалена. В 6.3b
+остаются transfer и lifecycle actors.
 
 ### Commit 6.4: migrate React API composition
 
-API paths не меняются. Меняются только dependencies/imports.
+Defining-module imports переключены в 6.3a. Отдельным шагом остаётся проверить
+полный API contract; paths и schemas не меняются.
 
 ### Commit 6.5: migrate chat
 
-Chat использует те же application actors. Удаляются
-`RawTransactionReviewer`/legacy review use case.
+Confirmation уже использует общий application actor. Остаётся перевести
+transfer и lifecycle, после чего удалить `RawTransactionReviewer` и legacy
+review status use case.
 
 ### Commit 6.6: remove ledger back-dependency
 

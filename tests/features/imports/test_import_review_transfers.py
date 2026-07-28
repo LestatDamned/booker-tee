@@ -14,7 +14,7 @@ from app.features.import_review.application.transfer_suggestions import (
     ExistingTransferSuggestion,
     TransferSuggestion,
 )
-from app.features.imports.application.review.transfer_commands import (
+from app.features.import_review.application.transfers import (
     CreateImportReviewTransferCommand,
     ImportReviewTransferService,
     MatchImportReviewRawRowCommand,

@@ -6,14 +6,17 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
-from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
-from app.features.imports.application.review.confirmation_commands import (
+from app.features.import_review.application.confirmation import (
     ConfirmImportReviewItemCommand,
+    ImportReviewConfirmationActor,
     ImportReviewConfirmationConflictError,
+    ImportReviewConfirmationResult,
     ImportReviewConfirmationService,
     ImportReviewConfirmationValidationError,
 )
+from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import RawTransaction, UploadedDocumentStatus
 from app.features.ledger.domain.types import OperationStatus, OperationType
@@ -111,7 +114,7 @@ async def test_confirmation_posts_once_with_server_checked_references() -> None:
 
     result = await service.execute(context=workspace_context(), command=command)
 
-    poster = cast(PosterStub, service._poster)
+    poster = cast(PosterStub, service._actor._poster)
     assert result.operation_id == operation_id
     assert result.replayed is False
     assert result.updated_item_ids == frozenset({row.id})
@@ -127,13 +130,13 @@ async def test_confirmation_replays_same_committed_idempotency_key() -> None:
     operation_id = uuid4()
     service = confirmation_service(SessionStub(), row, operation_id=operation_id)
     row.linked_operation_id = operation_id
-    service._ledger = cast(
+    service._actor._ledger = cast(
         Any,
         LedgerRepositoryStub(
             SimpleNamespace(
                 id=operation_id,
                 status=OperationStatus.CONFIRMED,
-                idempotency_fingerprint=service._fingerprint(command),
+                idempotency_fingerprint=service._actor.fingerprint(command),
                 extra_metadata={
                     "raw_transaction_id": str(row.id),
                     "uploaded_document_id": str(row.uploaded_document_id),
@@ -145,7 +148,7 @@ async def test_confirmation_replays_same_committed_idempotency_key() -> None:
     result = await service.execute(context=workspace_context(), command=command)
 
     assert result.replayed is True
-    assert cast(PosterStub, service._poster).calls == []
+    assert cast(PosterStub, service._actor._poster).calls == []
 
 
 @pytest.mark.asyncio
@@ -181,7 +184,7 @@ async def test_confirmation_rechecks_amount_type_and_rolls_back_rule_failure() -
 
     session = SessionStub()
     service = confirmation_service(session, row)
-    service._rules = cast(Any, RuleManagementStub(TransactionRuleError("bad pattern")))
+    service._actor._rules = cast(Any, RuleManagementStub(TransactionRuleError("bad pattern")))
     with pytest.raises(TransactionRuleError, match="bad pattern"):
         await service.execute(
             context=workspace_context(),
@@ -205,7 +208,54 @@ async def test_confirmation_requires_manual_rule_pattern_before_posting() -> Non
     assert result.value.field_errors == {
         "rulePattern": ["Укажите текст, по которому определять похожие строки."]
     }
-    assert cast(PosterStub, service._poster).calls == []
+    assert cast(PosterStub, service._actor._poster).calls == []
+
+
+@pytest.mark.asyncio
+async def test_confirmation_actor_leaves_transaction_to_outer_workflow() -> None:
+    row = confirmable_row()
+    session = SessionStub()
+    actor = confirmation_actor(session, row)
+
+    await actor.apply(
+        context=workspace_context(),
+        command=replace(confirmation_command(row), operation_type=None),
+    )
+
+    assert session.commits == 0
+    assert session.rollbacks == 0
+
+
+@pytest.mark.asyncio
+async def test_confirmation_service_recovers_idempotent_replay_after_integrity_race() -> None:
+    row = confirmable_row()
+    command = confirmation_command(row)
+    replay = ImportReviewConfirmationResult(
+        document_id=row.uploaded_document_id,
+        item_id=row.id,
+        operation_id=uuid4(),
+        updated_item_ids=frozenset({row.id}),
+        replayed=True,
+    )
+
+    class RacingActorStub:
+        async def apply(self, **_kwargs: object) -> object:
+            raise IntegrityError("insert operation", {}, Exception("unique violation"))
+
+        async def find_replay(self, **_kwargs: object) -> object:
+            return replay
+
+    session = SessionStub()
+    service = ImportReviewConfirmationService(
+        cast(Any, session),
+        cast(Any, RacingActorStub()),
+    )
+
+    result = await service.execute(context=workspace_context(), command=command)
+
+    assert result is replay
+    assert session.commits == 0
+    assert session.rollbacks == 1
 
 
 def confirmation_service(
@@ -215,13 +265,29 @@ def confirmation_service(
     operation_id: UUID | None = None,
     duplicate: bool = False,
 ) -> ImportReviewConfirmationService:
-    service = ImportReviewConfirmationService(cast(Any, session))
-    service._imports = cast(Any, ImportRepositoryStub(row, duplicate=duplicate))
-    service._ledger = cast(Any, LedgerRepositoryStub())
-    service._poster = cast(Any, PosterStub(operation_id or uuid4()))
-    service._rules = cast(Any, RuleManagementStub())
-    service._rule_application = cast(Any, RuleApplicationStub())
-    return service
+    actor = confirmation_actor(
+        session,
+        row,
+        operation_id=operation_id,
+        duplicate=duplicate,
+    )
+    return ImportReviewConfirmationService(cast(Any, session), actor)
+
+
+def confirmation_actor(
+    session: SessionStub,
+    row: object,
+    *,
+    operation_id: UUID | None = None,
+    duplicate: bool = False,
+) -> ImportReviewConfirmationActor:
+    actor = ImportReviewConfirmationActor(cast(Any, session))
+    actor._imports = cast(Any, ImportRepositoryStub(row, duplicate=duplicate))
+    actor._ledger = cast(Any, LedgerRepositoryStub())
+    actor._poster = cast(Any, PosterStub(operation_id or uuid4()))
+    actor._rules = cast(Any, RuleManagementStub())
+    actor._rule_application = cast(Any, RuleApplicationStub())
+    return actor
 
 
 def confirmation_command(
