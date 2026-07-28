@@ -39,17 +39,16 @@ ledger
 
 ## Почему недостаточно перенести папку
 
-Текущий `imports/application/review` уже выглядит как отдельная feature, но
-граница пока неполная:
+На старте этапа `imports/application/review` уже выглядел как отдельная feature,
+но граница была неполной. После переноса основной остаток выглядит так:
 
 1. React API использует новые typed services:
    `ImportReviewConfirmationService`, `ImportReviewLifecycleService`,
    `ImportReviewTransferService`.
-2. Chat confirmation уже использует общий actor, но transfer и lifecycle пока
-   используют старые `RawTransactionReviewer` и
-   `RawTransactionReviewStatusUseCase`.
-3. Новый и старый workflows имеют разные commands, проверки конкурентного
-   изменения и idempotency contracts.
+2. Chat confirmation, transfer и lifecycle используют общие actors, а создание
+   и применение нового правила — общий `ImportReviewRuleCreator`.
+3. API `apply-rules` намеренно остаётся отдельным сценарием: он только повторно
+   применяет существующие правила и не создаёт новое.
 4. `RawTransactionPoster` расположен в `ledger`, но сам загружает и связывает
    `RawTransaction`, пересчитывает document validation и меняет document
    status.
@@ -126,8 +125,8 @@ ledger
 | `application/review/validation_read_model.py` | Перенести | Это review projection |
 | `application/review/validation_calculation.py` | Оставить в `imports` | Проверяет целостность выписки, а не UI workflow |
 | `application/review/validation_refresh.py` | Оставить в `imports` | Обновляет persisted validation документа |
-| `application/review/actions.py` | Не переносить; удалить в 6.5 | Legacy dispatcher для chat |
-| `application/review/status.py` | Не переносить; удалить в 6.5 | Legacy status use case для chat |
+| `application/review/actions.py` | Удалён в transfer slice 6.3b | Legacy dispatcher больше не имеет consumers |
+| `application/review/status.py` | Удалён в lifecycle slice 6.3b | Chat использует общий lifecycle actor |
 | `ledger/application/transfer_suggestions.py` | Перенести алгоритм в `import_review` | Сопоставляет import row с review-вариантами |
 | `ledger/application/raw_transaction_posting.py` | Разделить в 6.6 | Сейчас смешивает review orchestration и ledger posting |
 | `ledger/application/imported_operations.py` | Оставить ledger correction; вынести import undo | В файле находятся две разные ответственности |
@@ -374,8 +373,8 @@ Review read model собирается внутри `import_review`. `ledger/app
 
 ### Commit 6.3 — Move mutation actors
 
-Статус: 6.3a completed 2026-07-28; confirmation slice 6.3b completed
-2026-07-28; transfer и lifecycle actors остаются.
+Статус: 6.3a, confirmation, transfer и lifecycle slices 6.3b completed
+2026-07-28.
 
 #### Проблема
 
@@ -399,7 +398,7 @@ Confirmation, lifecycle, transfer, rules и undo находятся под `impo
 - охарактеризовать внешнее владение `commit`/`rollback`;
 - не выделять actor для сценария с одним потребителем только ради симметрии.
 
-Первый вертикальный slice 6.3b завершён для confirmation:
+Вертикальный confirmation slice 6.3b завершён:
 
 - `ImportReviewConfirmationActor.apply()` содержит общие проверки и mutations,
   но не делает `commit`/`rollback`;
@@ -411,6 +410,33 @@ Confirmation, lifecycle, transfer, rules и undo находятся под `impo
   актуальный `ChatReviewQueueItem.status` — как `expected_status`;
 - legacy confirmation branch удалена из `RawTransactionReviewer`;
 - новый файл, generic Unit of Work и repository abstraction не создавались.
+
+Вертикальный transfer slice 6.3b завершён:
+
+- `ImportReviewTransferActor.apply()` обслуживает создание перевода,
+  сопоставление двух raw rows и связь с существующим ручным переводом без
+  `commit`/`rollback`;
+- API `ImportReviewTransferService` владеет commit, rollback и replay после
+  `IntegrityError`;
+- chat builder создаёт те же typed transfer commands и передаёт
+  `ChatConversationState.id` как idempotency key;
+- chat claim и transfer mutation фиксируются одним commit;
+- неиспользуемые `RawTransactionReviewer`, legacy command/result и весь
+  `application/review/actions.py` удалены;
+- `expected_status`, новые row locks и API schema не добавлялись: это отдельное
+  concurrency-изменение для 6.6.
+
+Вертикальный lifecycle slice 6.3b завершён:
+
+- `ImportReviewLifecycleActor.apply()` содержит общие transition checks и
+  mutations, но не делает `commit`/`rollback`;
+- API `ImportReviewLifecycleService` владеет commit и rollback;
+- chat преобразует callback сразу в typed `ImportReviewLifecycleAction`,
+  передаёт актуальный статус queue item как `expected_status` и фиксирует claim
+  action state вместе с lifecycle mutation одним commit;
+- старый string-based `RawTransactionReviewStatusUseCase` и оставшаяся
+  `imports/application/review` удалены;
+- новых production-файлов и transaction abstractions не добавлялось.
 
 Следующие actors выделяются в тех же модулях только для workflows, которые
 действительно переиспользуются API и chat.
@@ -463,9 +489,9 @@ Row и связанные operation records блокируются до фина
 
 #### Exit
 
-Все новые review mutations принадлежат `import_review`. Legacy chat wrappers
-ещё могут временно существовать, но не используются React API как основная
-реализация.
+Все новые review mutations принадлежат `import_review`. Legacy confirmation,
+transfer и lifecycle wrappers удалены; rule creation/application унифицированы
+для React confirmation и chat.
 
 ### Commit 6.4 — Migrate React API composition
 
@@ -510,25 +536,30 @@ contract не изменился.
 
 ### Commit 6.5 — Migrate chat and remove legacy review
 
+Статус: completed 2026-07-28.
+
 #### Проблема
 
-Chat confirmation уже использует общий actor. Transfer и lifecycle всё ещё
-используют `RawTransactionReviewer` и `RawTransactionReviewStatusUseCase`,
-поэтому миграция chat пока не закончена.
+На старте chat использовал отдельные confirmation, transfer, lifecycle и rule
+orchestration paths, из-за чего React и chat могли разойтись в поведении.
 
 #### Изменения
 
-- заменить string-based `RawTransactionReviewCommand.action` typed commands;
-- lifecycle callbacks переводить в `ImportReviewLifecycleAction`;
+- ~~заменить string-based `RawTransactionReviewCommand.action` typed
+  commands;~~ completed 2026-07-28;
+- ~~lifecycle callbacks переводить в `ImportReviewLifecycleAction`;~~ completed
+  2026-07-28;
 - ~~confirmation выполнять общим confirmation actor;~~ completed 2026-07-28;
-- transfer выполнять общим transfer actor;
-- rule creation/application выполнять общим rule actor там, где совпадает
-  contract;
-- сохранить consume action token и financial mutation в одной транзакции;
-- удалить `application/review/actions.py`;
-- удалить `application/review/status.py`;
-- удалить `RawTransactionReviewer`,
-  `RawTransactionReviewStatusUseCase` и legacy command/result.
+- ~~transfer выполнять общим transfer actor;~~ completed 2026-07-28;
+- ~~rule creation/application выполнять общим actor там, где совпадает
+  contract;~~ completed через `ImportReviewRuleCreator` 2026-07-28;
+- ~~сохранить consume action token и financial mutation в одной транзакции;~~
+  completed для confirmation, transfer, lifecycle и rule creation 2026-07-28;
+- ~~удалить `application/review/actions.py`;~~ completed 2026-07-28;
+- ~~удалить `application/review/status.py`;~~ completed 2026-07-28;
+- ~~удалить `RawTransactionReviewer` и legacy command/result;~~ completed
+  2026-07-28;
+- ~~удалить `RawTransactionReviewStatusUseCase`;~~ completed 2026-07-28.
 
 Для chat confirmation state зафиксировать стабильные concurrency inputs:
 
@@ -538,6 +569,8 @@ Chat confirmation уже использует общий actor. Transfer и life
 Confirmation использует `ChatConversationState.id` как стабильный idempotency
 key и статус заново прочитанного queue item как `expected_status`. Поэтому
 расширять state payload и мигрировать старые активные состояния не потребовалось.
+Lifecycle также использует актуальный статус queue item как `expected_status`;
+idempotency key ему не нужен, потому что он не создаёт ledger records.
 
 #### Проверки
 

@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.features.import_review.application.lifecycle import (
+    ImportReviewLifecycleActor,
     ImportReviewLifecycleCommand,
     ImportReviewLifecycleService,
 )
@@ -165,8 +166,9 @@ async def test_lifecycle_service_syncs_queue_document_and_reopens_import() -> No
         raw_transactions=[confirmed, row],
     )
     session = SessionStub()
-    service = ImportReviewLifecycleService(cast(Any, session))
-    service._imports = cast(Any, ImportRepositoryStub(row, document))
+    actor = ImportReviewLifecycleActor(cast(Any, session))
+    actor._imports = cast(Any, ImportRepositoryStub(row, document))
+    service = ImportReviewLifecycleService(cast(Any, session), actor)
 
     ignored = await service.execute(
         workspace_id=workspace_id,

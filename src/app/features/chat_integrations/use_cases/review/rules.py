@@ -22,12 +22,7 @@ from app.features.chat_integrations.use_cases.review.state import (
     ChatReviewStateClaimer,
     ChatReviewStateReader,
 )
-from app.features.transaction_rules.application.rule_application import (
-    TransactionRuleApplicationUseCase,
-)
-from app.features.transaction_rules.application.rule_management import (
-    TransactionRuleManagementUseCase,
-)
+from app.features.import_review.application.rules import ImportReviewRuleCreator
 from app.features.transaction_rules.errors import TransactionRuleError
 from app.features.workspaces.service import WorkspaceContext
 
@@ -36,6 +31,8 @@ class ChatReviewRuleSuggestionService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.chat_integrations = ChatIntegrationRepository(session)
+        self.review_queue = ChatReviewQueueReader(session)
+        self.review_rules = ImportReviewRuleCreator(session)
 
     async def save_suggestion(
         self,
@@ -186,19 +183,15 @@ class ChatReviewRuleSuggestionService:
         anchor = await self._build_continuation_anchor(context=context, state=state)
         await ChatReviewStateClaimer.claim_once(self.chat_integrations, state)
         try:
-            await TransactionRuleManagementUseCase(self.session).create_rule_from_raw_confirmation(
+            await self.review_rules.create_and_apply(
                 context=context,
                 document_id=ChatReviewStateReader.read_document_id(state.state_payload),
-                raw_transaction_id=ChatReviewStateReader.read_raw_transaction_id(
+                item_id=ChatReviewStateReader.read_raw_transaction_id(
                     state.state_payload,
                 ),
                 category_id=ChatReviewStateReader.read_confirm_category_id(state.state_payload),
                 property_id=ChatReviewStateReader.read_optional_property_id(state.state_payload),
                 pattern=pattern,
-            )
-            await TransactionRuleApplicationUseCase(self.session).apply_rules_to_document(
-                workspace_id=context.workspace.id,
-                document_id=ChatReviewStateReader.read_document_id(state.state_payload),
             )
             await self.session.commit()
         except TransactionRuleError as exc:
@@ -216,7 +209,7 @@ class ChatReviewRuleSuggestionService:
         state: ChatConversationState,
     ) -> ChatReviewContinuationAnchor:
         document_id = ChatReviewStateReader.read_document_id(state.state_payload)
-        item = await ChatReviewQueueReader(self.session).read_item(
+        item = await self.review_queue.read_item(
             context=context,
             document_id=document_id,
             raw_transaction_id=ChatReviewStateReader.read_raw_transaction_id(

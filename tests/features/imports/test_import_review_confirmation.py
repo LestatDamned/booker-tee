@@ -87,20 +87,15 @@ class PosterStub:
         return SimpleNamespace(id=self.operation_id)
 
 
-class RuleManagementStub:
+class RuleCreatorStub:
     def __init__(self, error: Exception | None = None) -> None:
         self.error = error
         self.calls = 0
 
-    async def create_rule_from_raw_confirmation(self, **kwargs: object) -> object:
+    async def create_and_apply(self, **kwargs: object) -> object:
         self.calls += 1
         if self.error is not None:
             raise self.error
-        return SimpleNamespace(id=uuid4())
-
-
-class RuleApplicationStub:
-    async def apply_rules_to_document(self, **kwargs: object) -> object:
         return SimpleNamespace(updated_raw_transaction_ids=frozenset({uuid4()}))
 
 
@@ -184,7 +179,10 @@ async def test_confirmation_rechecks_amount_type_and_rolls_back_rule_failure() -
 
     session = SessionStub()
     service = confirmation_service(session, row)
-    service._actor._rules = cast(Any, RuleManagementStub(TransactionRuleError("bad pattern")))
+    service._actor._rule_creator = cast(
+        Any,
+        RuleCreatorStub(TransactionRuleError("bad pattern")),
+    )
     with pytest.raises(TransactionRuleError, match="bad pattern"):
         await service.execute(
             context=workspace_context(),
@@ -285,8 +283,7 @@ def confirmation_actor(
     actor._imports = cast(Any, ImportRepositoryStub(row, duplicate=duplicate))
     actor._ledger = cast(Any, LedgerRepositoryStub())
     actor._poster = cast(Any, PosterStub(operation_id or uuid4()))
-    actor._rules = cast(Any, RuleManagementStub())
-    actor._rule_application = cast(Any, RuleApplicationStub())
+    actor._rule_creator = cast(Any, RuleCreatorStub())
     return actor
 
 

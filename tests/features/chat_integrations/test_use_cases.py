@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, cast
+from uuid import UUID
 
 import pytest
 
@@ -15,6 +16,10 @@ from app.features.chat_integrations.use_cases.manual.dto import (
 from app.features.chat_integrations.use_cases.review import actions as chat_review_actions
 from app.features.chat_integrations.use_cases.review import builders as chat_review_builders
 from app.features.chat_integrations.use_cases.review import state as chat_review_state
+from app.features.import_review.application.transfers import (
+    LinkImportReviewExistingTransferCommand,
+)
+from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
 from app.features.ledger.models import OperationType
 
 
@@ -159,7 +164,10 @@ def test_chat_manual_description_cleaner_removes_extra_spacing() -> None:
 
 
 def test_chat_review_action_mapper_supports_duplicate_action() -> None:
-    assert chat_review_actions.ChatReviewActionMapper.to_review_status_action("dup") == "duplicate"
+    assert (
+        chat_review_actions.ChatReviewActionMapper.to_lifecycle_action("dup")
+        is ImportReviewLifecycleAction.MARK_DUPLICATE
+    )
     assert chat_review_actions.ChatReviewActionMapper.to_action_label("dup") == (
         "строка помечена как дубль"
     )
@@ -169,18 +177,19 @@ def test_chat_review_transfer_command_builder_supports_existing_manual_transfer(
     document_id = "9b4fb082-c4e9-4e87-8592-b5ef8c17f7f9"
     raw_transaction_id = "7fc0447b-5dc6-45f1-80d5-45f16280bd4d"
     operation_id = "81011d3b-ec69-41a0-9454-a6aece29360f"
+    idempotency_key = UUID("0ba3d29e-4f30-4692-b241-f62e610a8c95")
 
     command = chat_review_builders.ChatReviewTransferCommandBuilder.build_command(
         {
             "document_id": document_id,
             "raw_transaction_id": raw_transaction_id,
             "matched_operation_id": operation_id,
-        }
+        },
+        idempotency_key=idempotency_key,
     )
 
     assert str(command.document_id) == document_id
-    assert str(command.raw_transaction_id) == raw_transaction_id
-    assert command.action == "transfer"
-    assert str(command.matched_operation_id) == operation_id
-    assert command.matched_raw_transaction_id is None
-    assert command.counterparty_account_id is None
+    assert isinstance(command, LinkImportReviewExistingTransferCommand)
+    assert str(command.item_id) == raw_transaction_id
+    assert str(command.operation_id) == operation_id
+    assert command.idempotency_key == idempotency_key

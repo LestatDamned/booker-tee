@@ -50,72 +50,60 @@ class ImportReviewTransferResult:
     affected_document_ids: frozenset[UUID]
 
 
-class ImportReviewTransferService:
+class ImportReviewTransferActor:
     def __init__(self, session: AsyncSession) -> None:
-        self._session = session
         self._poster = RawTransactionPoster(session)
         self._ledger = LedgerRepository(session)
 
-    async def execute(
+    async def apply(
         self,
         *,
         context: WorkspaceContext,
         command: ImportReviewTransferCommand,
     ) -> ImportReviewTransferResult:
-        replay = await self._find_replay(context=context, command=command)
+        replay = await self.find_replay(context=context, command=command)
         if replay is not None:
             return replay
         affected_documents = {command.document_id}
         updated_items = {command.item_id}
-        try:
-            if isinstance(command, CreateImportReviewTransferCommand):
-                await self._poster.post_raw_transaction_as_transfer(
-                    context=context,
-                    document_id=command.document_id,
-                    raw_transaction_id=command.item_id,
-                    counterparty_account_id=command.counterparty_account_id,
-                    matched_raw_transaction_id=None,
-                    idempotency_key=command.idempotency_key,
-                    idempotency_fingerprint=self._fingerprint(command),
-                )
-            elif isinstance(command, MatchImportReviewRawRowCommand):
-                operation = await self._poster.post_raw_transaction_as_transfer(
-                    context=context,
-                    document_id=command.document_id,
-                    raw_transaction_id=command.item_id,
-                    counterparty_account_id=None,
-                    matched_raw_transaction_id=command.matched_item_id,
-                    idempotency_key=command.idempotency_key,
-                    idempotency_fingerprint=self._fingerprint(command),
-                )
-                metadata = operation.extra_metadata or {}
-                matched_document_id = metadata.get("matched_uploaded_document_id")
-                if isinstance(matched_document_id, str):
-                    affected_documents.add(UUID(matched_document_id))
-                updated_items.add(command.matched_item_id)
-            else:
-                await self._poster.link_raw_transaction_to_existing_transfer(
-                    context=context,
-                    document_id=command.document_id,
-                    raw_transaction_id=command.item_id,
-                    operation_id=command.operation_id,
-                )
-            await self._session.commit()
-        except IntegrityError:
-            await self._session.rollback()
-            replay = await self._find_replay(context=context, command=command)
-            if replay is not None:
-                return replay
-            raise
-        except Exception:
-            await self._session.rollback()
-            raise
+        if isinstance(command, CreateImportReviewTransferCommand):
+            await self._poster.post_raw_transaction_as_transfer(
+                context=context,
+                document_id=command.document_id,
+                raw_transaction_id=command.item_id,
+                counterparty_account_id=command.counterparty_account_id,
+                matched_raw_transaction_id=None,
+                idempotency_key=command.idempotency_key,
+                idempotency_fingerprint=self.fingerprint(command),
+            )
+        elif isinstance(command, MatchImportReviewRawRowCommand):
+            operation = await self._poster.post_raw_transaction_as_transfer(
+                context=context,
+                document_id=command.document_id,
+                raw_transaction_id=command.item_id,
+                counterparty_account_id=None,
+                matched_raw_transaction_id=command.matched_item_id,
+                idempotency_key=command.idempotency_key,
+                idempotency_fingerprint=self.fingerprint(command),
+            )
+            metadata = operation.extra_metadata or {}
+            matched_document_id = metadata.get("matched_uploaded_document_id")
+            if isinstance(matched_document_id, str):
+                affected_documents.add(UUID(matched_document_id))
+            updated_items.add(command.matched_item_id)
+        else:
+            await self._poster.link_raw_transaction_to_existing_transfer(
+                context=context,
+                document_id=command.document_id,
+                raw_transaction_id=command.item_id,
+                operation_id=command.operation_id,
+            )
         return ImportReviewTransferResult(
             updated_item_ids=frozenset(updated_items),
             affected_document_ids=frozenset(affected_documents),
         )
 
-    async def _find_replay(
+    async def find_replay(
         self,
         *,
         context: WorkspaceContext,
@@ -140,7 +128,7 @@ class ImportReviewTransferService:
         )
         if operation is None:
             return None
-        if operation.idempotency_fingerprint != self._fingerprint(command):
+        if operation.idempotency_fingerprint != self.fingerprint(command):
             raise LedgerPostingError("Idempotency key was already used with another payload.")
         metadata = operation.extra_metadata or {}
         document_ids = {command.document_id}
@@ -157,7 +145,7 @@ class ImportReviewTransferService:
         )
 
     @staticmethod
-    def _fingerprint(command: ImportReviewTransferCommand) -> str:
+    def fingerprint(command: ImportReviewTransferCommand) -> str:
         if isinstance(command, CreateImportReviewTransferCommand):
             payload = (
                 f"new_transfer:{command.document_id}:{command.item_id}:"
@@ -173,3 +161,33 @@ class ImportReviewTransferService:
                 f"{command.operation_id}"
             )
         return sha256(payload.encode()).hexdigest()
+
+
+class ImportReviewTransferService:
+    def __init__(
+        self,
+        session: AsyncSession,
+        actor: ImportReviewTransferActor | None = None,
+    ) -> None:
+        self._session = session
+        self._actor = actor or ImportReviewTransferActor(session)
+
+    async def execute(
+        self,
+        *,
+        context: WorkspaceContext,
+        command: ImportReviewTransferCommand,
+    ) -> ImportReviewTransferResult:
+        try:
+            result = await self._actor.apply(context=context, command=command)
+            await self._session.commit()
+            return result
+        except IntegrityError:
+            await self._session.rollback()
+            replay = await self._actor.find_replay(context=context, command=command)
+            if replay is not None:
+                return replay
+            raise
+        except Exception:
+            await self._session.rollback()
+            raise

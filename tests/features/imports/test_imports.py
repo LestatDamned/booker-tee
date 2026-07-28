@@ -18,9 +18,6 @@ from app.features.imports.application.documents.upload import (
 from app.features.imports.application.pipelines.deduplication import (
     apply_duplicate_decision,
 )
-from app.features.imports.application.review.status import (
-    RawTransactionReviewStatusUseCase,
-)
 from app.features.imports.domain.deduplication import (
     DuplicateDecision,
     possible_duplicate_fingerprint,
@@ -42,7 +39,7 @@ from app.features.imports.infrastructure.storage import (
     sanitize_filename,
     sanitize_upload_filename,
 )
-from app.features.imports.models import RawTransaction, RawTransactionStatus, UploadedDocumentStatus
+from app.features.imports.models import RawTransaction, RawTransactionStatus
 from app.features.imports.parsing.support.normalization import (
     parse_bank_date,
 )
@@ -308,80 +305,6 @@ async def test_duplicate_candidate_query_is_workspace_and_document_scoped() -> N
     assert document_id in compiled.params.values()
     assert "raw_transactions.workspace_id" in str(compiled)
     assert "raw_transactions.uploaded_document_id !=" in str(compiled)
-
-
-@pytest.mark.asyncio
-async def test_review_status_marks_document_imported_when_last_row_is_ignored(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from app.features.imports.application.review import status as review_status
-
-    workspace_id = uuid4()
-    document_id = uuid4()
-    raw_transaction_id = uuid4()
-    raw_transaction = SimpleNamespace(id=raw_transaction_id, status=RawTransactionStatus.NORMALIZED)
-    document = SimpleNamespace(
-        id=document_id,
-        status=UploadedDocumentStatus.REQUIRES_REVIEW,
-        parse_attempts=[],
-        raw_transactions=[
-            SimpleNamespace(status=RawTransactionStatus.CONFIRMED),
-            raw_transaction,
-        ],
-    )
-
-    class FakeSession:
-        committed = False
-
-        async def commit(self) -> None:
-            self.committed = True
-
-    class FakeImportRepository:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def get_raw_transaction_for_workspace(
-            self,
-            _workspace_id: UUID,
-            _document_id: UUID,
-            _raw_transaction_id: UUID,
-        ) -> object:
-            return raw_transaction
-
-        async def mark_raw_transaction_status(
-            self,
-            raw_transaction_: Any,
-            status: RawTransactionStatus,
-        ) -> None:
-            raw_transaction_.status = status
-
-        async def get_document_for_workspace(
-            self,
-            _workspace_id: UUID,
-            _document_id: UUID,
-        ) -> object:
-            return document
-
-        async def mark_document_status(
-            self,
-            document_: Any,
-            status: UploadedDocumentStatus,
-        ) -> None:
-            document_.status = status
-
-    session = FakeSession()
-    monkeypatch.setattr(review_status, "ImportRepository", FakeImportRepository)
-
-    await RawTransactionReviewStatusUseCase(cast(Any, session)).set_status(
-        workspace_id=workspace_id,
-        document_id=document_id,
-        raw_transaction_id=raw_transaction_id,
-        action="ignore",
-    )
-
-    assert raw_transaction.status == RawTransactionStatus.IGNORED
-    assert document.status == UploadedDocumentStatus.IMPORTED
-    assert session.committed is False
 
 
 def test_possible_duplicate_fingerprint_requires_normalized_fields() -> None:

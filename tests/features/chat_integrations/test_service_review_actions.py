@@ -36,6 +36,9 @@ from app.features.chat_integrations.use_cases import (
 from app.features.chat_integrations.use_cases.review import (
     dto as chat_review_dto,
 )
+from app.features.chat_integrations.use_cases.review.actions import ChatReviewActionService
+from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
+from app.features.imports.domain.types import RawTransactionStatus
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -83,6 +86,77 @@ def _patch_next_review_item_after_action(
     monkeypatch.setattr(
         chat_review_queue_handler, "ChatReviewQueueService", FakeChatReviewQueueService
     )
+
+
+@pytest.mark.asyncio
+async def test_chat_lifecycle_claims_action_and_applies_shared_actor_before_commit() -> None:
+    events: list[str] = []
+    commands: list[object] = []
+    workspace_id = uuid4()
+    document_id = uuid4()
+    raw_transaction_id = uuid4()
+    state = SimpleNamespace(
+        step="review_item",
+        state_payload={
+            "document_id": str(document_id),
+            "raw_transaction_id": str(raw_transaction_id),
+        },
+    )
+    item = SimpleNamespace(status="possible_duplicate", row_index=2)
+
+    class SessionStub:
+        async def commit(self) -> None:
+            events.append("commit")
+
+        async def rollback(self) -> None:
+            events.append("rollback")
+
+    class ChatIntegrationsStub:
+        async def get_active_conversation_state(self, **_kwargs: object) -> object:
+            return state
+
+        async def try_consume_active_conversation_state(
+            self,
+            _state: object,
+            **_kwargs: object,
+        ) -> bool:
+            events.append("claim")
+            return True
+
+    class ReviewQueueStub:
+        async def read_item(self, **_kwargs: object) -> object:
+            return item
+
+    class LifecycleActorStub:
+        async def apply(self, **kwargs: object) -> None:
+            events.append("apply")
+            commands.append(kwargs["command"])
+
+    session = SessionStub()
+    service = ChatReviewActionService(cast(AsyncSession, session))
+    service.chat_integrations = cast(Any, ChatIntegrationsStub())
+    service.review_queue = cast(Any, ReviewQueueStub())
+    service.review_lifecycle = cast(Any, LifecycleActorStub())
+
+    result = await service.apply_action(
+        context=WorkspaceContext(
+            user=cast(Any, SimpleNamespace(id=uuid4())),
+            workspace=cast(Any, SimpleNamespace(id=workspace_id)),
+            membership=cast(Any, SimpleNamespace(id=uuid4())),
+        ),
+        selection=ChatReviewActionSelection(
+            action_token="reviewtoken",
+            action="uniq",
+        ),
+    )
+
+    command = cast(Any, commands[0])
+    assert events == ["claim", "apply", "commit"]
+    assert command.document_id == document_id
+    assert command.item_id == raw_transaction_id
+    assert command.action is ImportReviewLifecycleAction.MARK_UNIQUE
+    assert command.expected_status is RawTransactionStatus.POSSIBLE_DUPLICATE
+    assert result.action_label == "строка помечена как уникальная"
 
 
 @pytest.mark.asyncio

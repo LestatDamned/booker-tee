@@ -39,7 +39,7 @@ from app.features.chat_integrations.use_cases.review.state import (
     ChatReviewStateReader,
 )
 from app.features.import_review.application.transfer_suggestions import TransferSuggestionUseCase
-from app.features.imports.application.review.actions import RawTransactionReviewer
+from app.features.import_review.application.transfers import ImportReviewTransferActor
 from app.features.imports.errors import RawTransactionReviewError
 from app.features.imports.query_repository import ImportQueryRepository
 from app.features.ledger.errors import LedgerPostingError
@@ -54,6 +54,7 @@ class ChatReviewTransferService:
         self.chat_integrations = ChatIntegrationRepository(session)
         self.review_queue = ChatReviewQueueReader(session)
         self.transfer_suggestions = TransferSuggestionUseCase(session)
+        self.transfers = ImportReviewTransferActor(session)
 
     async def start_transfer_selection(
         self,
@@ -325,10 +326,13 @@ class ChatReviewTransferService:
         if item is None:
             raise ChatReviewActionError("Raw transaction row was not found.")
 
-        command = ChatReviewTransferCommandBuilder.build_command(state.state_payload)
+        command = ChatReviewTransferCommandBuilder.build_command(
+            state.state_payload,
+            idempotency_key=state.id,
+        )
         await ChatReviewStateClaimer.claim_once(self.chat_integrations, state)
         try:
-            await RawTransactionReviewer(self.session).handle(
+            await self.transfers.apply(
                 context=context,
                 command=command,
             )

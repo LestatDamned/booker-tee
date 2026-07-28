@@ -205,24 +205,16 @@ application/unknown_statement_mappings/
   drafts.py
 ```
 
-### Review lifecycle
+### Import Review boundary
 
-Отвечает за жизнь `RawTransaction` после импорта:
+Жизнью `RawTransaction` после импорта управляет соседний feature
+`app.features.import_review`:
 
 ```text
 RawTransaction
 -> needs_review / normalized / ignored / duplicate / confirmed
 -> validation refresh
 -> ledger posting
-```
-
-Целевой пакет:
-
-```text
-application/review/
-  actions.py
-  status.py
-  validation_refresh.py
 ```
 
 Review-слой не должен знать, каким способом строка попала в систему:
@@ -247,7 +239,6 @@ imports/
       parse_attempts.py
 
     review/
-      actions.py
       status.py
 
     pipelines/
@@ -514,8 +505,6 @@ import path easy to test.
 - `service.py` - small read-side facade for document list/detail views.
 - `application/documents/` - document lifecycle use cases and helpers: upload,
   ignore/delete, parse attempts.
-- `application/review/` - temporary location of legacy chat wrappers
-  `actions.py` and `status.py` until Phase 6.5.
 - `application/processing.py` - parse success orchestrator: stores extracted
   statement data, selects a known parser or unknown fallback, then runs the
   matching pipeline.
@@ -690,8 +679,8 @@ implementation details into the cohesive packages underneath
    `ImportQueryRepository`; command routes call explicit use cases directly.
 2. Move document lifecycle files into `application/documents/`:
    upload, management, parse attempts.
-3. Move review lifecycle files into `application/review/`:
-   review actions, status changes, validation refresh.
+3. Keep review lifecycle and user actions in the sibling `import_review`
+   feature; imports retains document validation and persistence.
 4. Keep `application/processing.py` as a thin parse-success story:
    store extracted statement data, resolve strategy, then run known parser or
    unknown fallback.
@@ -715,7 +704,7 @@ Completed cleanup:
    behavior belongs to explicit use cases under `application/`.
 2. Compatibility facades in `application/` have been removed. Keep new imports
    pointed at concrete story modules such as `application/documents/upload.py`
-   and `application/review/status.py`.
+   or the defining module under `app.features.import_review`.
 3. Keep import tests split by story:
    bank parsers, validation, unknown statement analysis, and unknown mapping
    now live in separate files. The remaining `test_imports.py` covers small

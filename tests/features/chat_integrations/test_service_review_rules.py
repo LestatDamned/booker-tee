@@ -36,6 +36,9 @@ from app.features.chat_integrations.use_cases import (
 from app.features.chat_integrations.use_cases.review import (
     dto as chat_review_dto,
 )
+from app.features.chat_integrations.use_cases.review.rules import (
+    ChatReviewRuleSuggestionService,
+)
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -82,6 +85,89 @@ def _patch_next_review_item_after_action(
 
     monkeypatch.setattr(
         chat_review_queue_handler, "ChatReviewQueueService", FakeChatReviewQueueService
+    )
+
+
+@pytest.mark.asyncio
+async def test_chat_rule_claims_action_and_uses_shared_creator_before_commit() -> None:
+    events: list[str] = []
+    calls: list[dict[str, object]] = []
+    workspace_id = uuid4()
+    document_id = uuid4()
+    raw_transaction_id = uuid4()
+    category_id = uuid4()
+    state = SimpleNamespace(
+        step="suggest_rule",
+        state_payload={
+            "document_id": str(document_id),
+            "raw_transaction_id": str(raw_transaction_id),
+            "category_id": str(category_id),
+            "property_id": None,
+            "patterns": ["ПЯТЁРОЧКА"],
+        },
+    )
+
+    class SessionStub:
+        async def commit(self) -> None:
+            events.append("commit")
+
+        async def rollback(self) -> None:
+            events.append("rollback")
+
+    class ChatIntegrationsStub:
+        async def get_active_conversation_state(self, **_kwargs: object) -> object:
+            return state
+
+        async def try_consume_active_conversation_state(
+            self,
+            _state: object,
+            **_kwargs: object,
+        ) -> bool:
+            events.append("claim")
+            return True
+
+    class ReviewQueueStub:
+        async def read_item(self, **_kwargs: object) -> object:
+            return SimpleNamespace(row_index=3)
+
+    class RuleCreatorStub:
+        async def create_and_apply(self, **kwargs: object) -> None:
+            events.append("create_rule")
+            calls.append(kwargs)
+
+    session = SessionStub()
+    service = ChatReviewRuleSuggestionService(cast(AsyncSession, session))
+    service.chat_integrations = cast(Any, ChatIntegrationsStub())
+    service.review_queue = cast(Any, ReviewQueueStub())
+    service.review_rules = cast(Any, RuleCreatorStub())
+    context = WorkspaceContext(
+        user=cast(Any, SimpleNamespace(id=uuid4())),
+        workspace=cast(Any, SimpleNamespace(id=workspace_id)),
+        membership=cast(Any, SimpleNamespace(id=uuid4())),
+    )
+
+    result = await service.save_suggestion(
+        context=context,
+        selection=ChatReviewRuleSuggestionSelection(
+            action_token="ruletoken",
+            action="save",
+        ),
+    )
+
+    assert events == ["claim", "create_rule", "commit"]
+    assert calls == [
+        {
+            "context": context,
+            "document_id": document_id,
+            "item_id": raw_transaction_id,
+            "category_id": category_id,
+            "property_id": None,
+            "pattern": "ПЯТЁРОЧКА",
+        }
+    ]
+    assert result.continuation_anchor == chat_review_dto.ChatReviewContinuationAnchor(
+        document_id=document_id,
+        row_index=3,
     )
 
 

@@ -25,7 +25,12 @@ from app.features.import_review.application.transfer_suggestions import (
     ExistingTransferSuggestion,
     TransferSuggestion,
 )
-from app.features.imports.application.review.actions import RawTransactionReviewCommand
+from app.features.import_review.application.transfers import (
+    CreateImportReviewTransferCommand,
+    ImportReviewTransferCommand,
+    LinkImportReviewExistingTransferCommand,
+    MatchImportReviewRawRowCommand,
+)
 from app.features.imports.models import RawTransaction
 from app.features.properties.models import Property
 from app.features.transaction_rules.domain.patterns import infer_rule_pattern
@@ -318,38 +323,42 @@ class ChatReviewTransferLabelBuilder:
 
 class ChatReviewTransferCommandBuilder:
     @staticmethod
-    def build_command(payload: dict[str, object]) -> RawTransactionReviewCommand:
+    def build_command(
+        payload: dict[str, object],
+        *,
+        idempotency_key: UUID,
+    ) -> ImportReviewTransferCommand:
         document_id = ChatReviewStateReader.read_document_id(payload)
         raw_transaction_id = ChatReviewStateReader.read_raw_transaction_id(payload)
         counterparty_account_id = ChatReviewStateReader.read_confirm_transfer_account_id(payload)
         if counterparty_account_id is not None:
-            return RawTransactionReviewCommand(
+            return CreateImportReviewTransferCommand(
                 document_id=document_id,
-                raw_transaction_id=raw_transaction_id,
-                action="transfer",
+                item_id=raw_transaction_id,
                 counterparty_account_id=counterparty_account_id,
+                idempotency_key=idempotency_key,
             )
 
         matched_raw_transaction_id = (
             ChatReviewStateReader.read_confirm_transfer_matched_raw_transaction_id(payload)
         )
         if matched_raw_transaction_id is not None:
-            return RawTransactionReviewCommand(
+            return MatchImportReviewRawRowCommand(
                 document_id=document_id,
-                raw_transaction_id=raw_transaction_id,
-                action="transfer",
-                matched_raw_transaction_id=matched_raw_transaction_id,
+                item_id=raw_transaction_id,
+                matched_item_id=matched_raw_transaction_id,
+                idempotency_key=idempotency_key,
             )
 
         matched_operation_id = ChatReviewStateReader.read_confirm_transfer_matched_operation_id(
             payload
         )
         if matched_operation_id is not None:
-            return RawTransactionReviewCommand(
+            return LinkImportReviewExistingTransferCommand(
                 document_id=document_id,
-                raw_transaction_id=raw_transaction_id,
-                action="transfer",
-                matched_operation_id=matched_operation_id,
+                item_id=raw_transaction_id,
+                operation_id=matched_operation_id,
+                idempotency_key=idempotency_key,
             )
 
         raise ChatReviewActionError("Stored transfer action is invalid.")

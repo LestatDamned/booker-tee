@@ -7,8 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.imports.repository import ImportRepository
 from app.features.transaction_rules.application.rule_application import (
+    RuleApplicationSummary,
     TransactionRuleApplicationUseCase,
 )
+from app.features.transaction_rules.application.rule_management import (
+    TransactionRuleManagementUseCase,
+)
+from app.features.workspaces.service import WorkspaceContext
 
 
 class ImportReviewRuleApplicationNotFoundError(ValueError):
@@ -20,6 +25,35 @@ class ImportReviewRuleApplicationResult:
     checked_count: int
     suggested_count: int
     updated_item_ids: frozenset[UUID]
+
+
+class ImportReviewRuleCreator:
+    def __init__(self, session: AsyncSession) -> None:
+        self._management = TransactionRuleManagementUseCase(session)
+        self._application = TransactionRuleApplicationUseCase(session)
+
+    async def create_and_apply(
+        self,
+        *,
+        context: WorkspaceContext,
+        document_id: UUID,
+        item_id: UUID,
+        category_id: UUID,
+        property_id: UUID | None,
+        pattern: str | None,
+    ) -> RuleApplicationSummary:
+        await self._management.create_rule_from_raw_confirmation(
+            context=context,
+            document_id=document_id,
+            raw_transaction_id=item_id,
+            category_id=category_id,
+            property_id=property_id,
+            pattern=pattern,
+        )
+        return await self._application.apply_rules_to_document(
+            workspace_id=context.workspace.id,
+            document_id=document_id,
+        )
 
 
 class ImportReviewRuleApplicationService:

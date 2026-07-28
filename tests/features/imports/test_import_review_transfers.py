@@ -5,6 +5,7 @@ from typing import Any, cast
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.features.import_review.application.transfer_options import (
     ImportReviewTransferDirection,
@@ -16,6 +17,8 @@ from app.features.import_review.application.transfer_suggestions import (
 )
 from app.features.import_review.application.transfers import (
     CreateImportReviewTransferCommand,
+    ImportReviewTransferActor,
+    ImportReviewTransferResult,
     ImportReviewTransferService,
     MatchImportReviewRawRowCommand,
 )
@@ -171,7 +174,7 @@ async def test_transfer_reader_exposes_confirmed_counterparty_from_same_workspac
 
 
 @pytest.mark.asyncio
-async def test_transfer_service_replays_cross_document_result_by_idempotency_key() -> None:
+async def test_transfer_actor_replays_cross_document_result_by_idempotency_key() -> None:
     document_id = uuid4()
     paired_document_id = uuid4()
     item_id = uuid4()
@@ -182,20 +185,20 @@ async def test_transfer_service_replays_cross_document_result_by_idempotency_key
         matched_item_id=paired_item_id,
         idempotency_key=uuid4(),
     )
-    service = ImportReviewTransferService(cast(Any, SimpleNamespace()))
+    actor = ImportReviewTransferActor(cast(Any, SimpleNamespace()))
     operation = SimpleNamespace(
-        idempotency_fingerprint=service._fingerprint(command),
+        idempotency_fingerprint=actor.fingerprint(command),
         extra_metadata={
             "matched_uploaded_document_id": str(paired_document_id),
             "matched_raw_transaction_id": str(paired_item_id),
         },
     )
-    service._ledger = cast(
+    actor._ledger = cast(
         Any,
         SimpleNamespace(get_operation_by_idempotency_key=lambda **kwargs: async_value(operation)),
     )
 
-    result = await service.execute(
+    result = await actor.apply(
         context=cast(Any, SimpleNamespace(workspace=SimpleNamespace(id=uuid4()))),
         command=command,
     )
@@ -205,25 +208,72 @@ async def test_transfer_service_replays_cross_document_result_by_idempotency_key
 
 
 @pytest.mark.asyncio
-async def test_transfer_service_rejects_reused_key_with_another_payload() -> None:
+async def test_transfer_actor_rejects_reused_key_with_another_payload() -> None:
     command = CreateImportReviewTransferCommand(
         document_id=uuid4(),
         item_id=uuid4(),
         counterparty_account_id=uuid4(),
         idempotency_key=uuid4(),
     )
-    service = ImportReviewTransferService(cast(Any, SimpleNamespace()))
+    actor = ImportReviewTransferActor(cast(Any, SimpleNamespace()))
     operation = SimpleNamespace(idempotency_fingerprint="another", extra_metadata={})
-    service._ledger = cast(
+    actor._ledger = cast(
         Any,
         SimpleNamespace(get_operation_by_idempotency_key=lambda **kwargs: async_value(operation)),
     )
 
     with pytest.raises(LedgerPostingError, match="another payload"):
-        await service.execute(
+        await actor.apply(
             context=cast(Any, SimpleNamespace(workspace=SimpleNamespace(id=uuid4()))),
             command=command,
         )
+
+
+@pytest.mark.asyncio
+async def test_transfer_service_recovers_idempotent_replay_after_integrity_race() -> None:
+    command = CreateImportReviewTransferCommand(
+        document_id=uuid4(),
+        item_id=uuid4(),
+        counterparty_account_id=uuid4(),
+        idempotency_key=uuid4(),
+    )
+    replay = ImportReviewTransferResult(
+        updated_item_ids=frozenset({command.item_id}),
+        affected_document_ids=frozenset({command.document_id}),
+    )
+
+    class SessionStub:
+        def __init__(self) -> None:
+            self.commits = 0
+            self.rollbacks = 0
+
+        async def commit(self) -> None:
+            self.commits += 1
+
+        async def rollback(self) -> None:
+            self.rollbacks += 1
+
+    class RacingActorStub:
+        async def apply(self, **_kwargs: object) -> object:
+            raise IntegrityError("insert operation", {}, Exception("unique violation"))
+
+        async def find_replay(self, **_kwargs: object) -> object:
+            return replay
+
+    session = SessionStub()
+    service = ImportReviewTransferService(
+        cast(Any, session),
+        cast(Any, RacingActorStub()),
+    )
+
+    result = await service.execute(
+        context=cast(Any, SimpleNamespace(workspace=SimpleNamespace(id=uuid4()))),
+        command=command,
+    )
+
+    assert result is replay
+    assert session.commits == 0
+    assert session.rollbacks == 1
 
 
 def account(name: str, currency: str, workspace_id) -> SimpleNamespace:

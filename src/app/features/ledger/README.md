@@ -28,7 +28,7 @@ manual ledger API / chat
   -> Operation + MoneyEntry[]
 
 raw transaction review
-  -> RawTransactionReviewUseCase / RawTransactionReviewer
+  -> ImportReviewConfirmationActor / ImportReviewTransferActor
   -> RawTransactionPoster
   -> LedgerPostingPlan + operation mapping
   -> LedgerRepository + ImportRepository
@@ -90,18 +90,19 @@ Public actors читаются как `кто.что()`:
 ```text
 ManualOperationService.create(...)
 ManualOperationWriter.update(...)
-RawTransactionReviewUseCase.handle(...)
-RawTransactionReviewer.handle(...)
+ImportReviewConfirmationActor.apply(...)
+ImportReviewTransferActor.apply(...)
 RawTransactionPoster.post_raw_transaction(...)
 ImportedOperationUndoUseCase.undo_raw_transaction_posting(...)
 TransferSuggestionUseCase.list_for_document(...)
 AccountLedgerReader.get_detail(...)
 ```
 
-`ManualOperationService` владеет manual API transaction. `RawTransactionReviewUseCase`
-владеет SSR import-review transaction. Chat workflows используют вложенные writer /
-reviewer напрямую и атомарно фиксируют финансовое изменение вместе с consume chat
-state. Внутренний commit не должен появляться в этих actors.
+`ManualOperationService` владеет manual API transaction. Import Review API
+services владеют своими транзакциями. Chat workflows используют
+transaction-neutral Import Review actors напрямую и атомарно фиксируют финансовое
+изменение вместе с consume chat state. Внутренний commit не должен появляться в
+этих actors.
 
 ### Domain
 

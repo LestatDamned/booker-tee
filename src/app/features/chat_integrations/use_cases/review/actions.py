@@ -21,7 +21,15 @@ from app.features.chat_integrations.use_cases.review.state import (
     ChatReviewStateClaimer,
     ChatReviewStateReader,
 )
-from app.features.imports.application.review.status import RawTransactionReviewStatusUseCase
+from app.features.import_review.application.lifecycle import (
+    ImportReviewLifecycleActor,
+    ImportReviewLifecycleCommand,
+)
+from app.features.import_review.domain.lifecycle import (
+    ImportReviewLifecycleAction,
+    ImportReviewLifecycleError,
+)
+from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.errors import RawTransactionReviewError
 from app.features.workspaces.service import WorkspaceContext
 
@@ -36,7 +44,7 @@ class ChatReviewActionService:
         self.session = session
         self.chat_integrations = ChatIntegrationRepository(session)
         self.review_queue = ChatReviewQueueReader(session)
-        self.review_status = RawTransactionReviewStatusUseCase(session)
+        self.review_lifecycle = ImportReviewLifecycleActor(session)
 
     async def start_action_confirmation(
         self,
@@ -164,16 +172,19 @@ class ChatReviewActionService:
         if item is None:
             raise ChatReviewActionError("Raw transaction row was not found.")
 
-        review_action = ChatReviewActionMapper.to_review_status_action(action)
+        lifecycle_action = ChatReviewActionMapper.to_lifecycle_action(action)
         await ChatReviewStateClaimer.claim_once(self.chat_integrations, state)
         try:
-            await self.review_status.set_status(
+            await self.review_lifecycle.apply(
                 workspace_id=context.workspace.id,
-                document_id=document_id,
-                raw_transaction_id=raw_transaction_id,
-                action=review_action,
+                command=ImportReviewLifecycleCommand(
+                    document_id=document_id,
+                    item_id=raw_transaction_id,
+                    action=lifecycle_action,
+                    expected_status=RawTransactionStatus(item.status),
+                ),
             )
-        except RawTransactionReviewError as exc:
+        except (ImportReviewLifecycleError, RawTransactionReviewError) as exc:
             await self.session.rollback()
             raise ChatReviewActionError(str(exc)) from exc
         except Exception:
@@ -192,14 +203,14 @@ class ChatReviewActionService:
 
 class ChatReviewActionMapper:
     @staticmethod
-    def to_review_status_action(callback_action: str) -> str:
+    def to_lifecycle_action(callback_action: str) -> ImportReviewLifecycleAction:
         match callback_action:
             case "dup":
-                return "duplicate"
+                return ImportReviewLifecycleAction.MARK_DUPLICATE
             case "ign":
-                return "ignore"
+                return ImportReviewLifecycleAction.IGNORE
             case "uniq":
-                return "mark_unique"
+                return ImportReviewLifecycleAction.MARK_UNIQUE
             case _:
                 raise ChatReviewActionError("Unknown review action.")
 

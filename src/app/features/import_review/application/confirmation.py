@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.import_review.application.classification import (
     build_import_review_draft_evaluation,
 )
+from app.features.import_review.application.rules import ImportReviewRuleCreator
 from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
 from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.pipelines.document_validation import (
@@ -22,12 +23,6 @@ from app.features.ledger.application.raw_transaction_posting import RawTransacti
 from app.features.ledger.domain.types import OperationStatus, OperationType
 from app.features.ledger.errors import LedgerPostingError, RawTransactionDedupeConflictError
 from app.features.ledger.repository import LedgerRepository
-from app.features.transaction_rules.application.rule_application import (
-    TransactionRuleApplicationUseCase,
-)
-from app.features.transaction_rules.application.rule_management import (
-    TransactionRuleManagementUseCase,
-)
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -78,8 +73,7 @@ class ImportReviewConfirmationActor:
         self._imports = ImportRepository(session)
         self._ledger = LedgerRepository(session)
         self._poster = RawTransactionPoster(session)
-        self._rules = TransactionRuleManagementUseCase(session)
-        self._rule_application = TransactionRuleApplicationUseCase(session)
+        self._rule_creator = ImportReviewRuleCreator(session)
 
     async def apply(
         self,
@@ -168,17 +162,13 @@ class ImportReviewConfirmationActor:
         )
         updated_item_ids: set[UUID] = {command.item_id}
         if command.remember_rule:
-            await self._rules.create_rule_from_raw_confirmation(
+            summary = await self._rule_creator.create_and_apply(
                 context=context,
                 document_id=command.document_id,
-                raw_transaction_id=command.item_id,
+                item_id=command.item_id,
                 category_id=command.category_id,
                 property_id=command.property_id,
                 pattern=command.rule_pattern,
-            )
-            summary = await self._rule_application.apply_rules_to_document(
-                workspace_id=context.workspace.id,
-                document_id=command.document_id,
             )
             updated_item_ids.update(summary.updated_raw_transaction_ids)
         await refresh_document_validation(self._imports, document)
