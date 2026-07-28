@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
@@ -7,6 +7,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from app.features.import_review.domain.posting import (
+    ensure_matched_transfer_account,
+    ensure_raw_transaction_can_post_as_transfer,
+    prepare_income_expense_posting,
+    raw_transaction_effective_account_id,
+)
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.ledger.application.imported_operations import (
     ImportedOperationReviewUseCase,
@@ -21,14 +27,9 @@ from app.features.ledger.domain.money import (
     TransferAmounts,
     affects_profit_for_operation_type,
     ensure_balanced_transfer,
+    ensure_income_expense_posting,
     manual_income_expense_amount,
     operation_type_for_amount,
-)
-from app.features.ledger.domain.raw_transactions import (
-    LedgerPostingPlan,
-    ensure_matched_transfer_account,
-    ensure_raw_transaction_can_post_as_transfer,
-    raw_transaction_effective_account_id,
 )
 from app.features.ledger.errors import (
     LedgerPostingError,
@@ -218,9 +219,9 @@ def test_ensure_balanced_transfer_rejects_unbalanced_entries() -> None:
         ensure_balanced_transfer(Decimal("-10.00"), Decimal("9.99"))
 
 
-def test_build_ledger_posting_plan_for_income_raw_row() -> None:
+def test_prepare_income_expense_posting_for_income_raw_row() -> None:
     account_id = uuid4()
-    plan = LedgerPostingPlan.from_raw_transaction(
+    plan = prepare_income_expense_posting(
         RawTransactionStub(
             status=RawTransactionStatus.NORMALIZED,
             account_id=account_id,
@@ -234,7 +235,7 @@ def test_build_ledger_posting_plan_for_income_raw_row() -> None:
     assert plan.description == "Rent"
 
 
-def test_build_ledger_posting_plan_accepts_document_account() -> None:
+def test_prepare_income_expense_posting_accepts_document_account() -> None:
     account_id = uuid4()
     raw_transaction = RawTransactionStub(
         status=RawTransactionStatus.NORMALIZED,
@@ -243,7 +244,7 @@ def test_build_ledger_posting_plan_accepts_document_account() -> None:
         uploaded_document=UploadedDocumentStub(account_id=account_id),
     )
 
-    plan = LedgerPostingPlan.from_raw_transaction(raw_transaction, AccountStub(id=account_id))
+    plan = prepare_income_expense_posting(raw_transaction, AccountStub(id=account_id))
 
     assert raw_transaction_effective_account_id(raw_transaction) == account_id
     assert plan.operation_type == OperationType.INCOME
@@ -261,9 +262,9 @@ def test_ensure_matched_transfer_account_accepts_document_account() -> None:
     ensure_matched_transfer_account(raw_transaction, account_id)
 
 
-def test_build_ledger_posting_plan_for_expense_raw_row() -> None:
+def test_prepare_income_expense_posting_for_expense_raw_row() -> None:
     account_id = uuid4()
-    plan = LedgerPostingPlan.from_raw_transaction(
+    plan = prepare_income_expense_posting(
         RawTransactionStub(
             status=RawTransactionStatus.MATCHED,
             account_id=account_id,
@@ -276,10 +277,10 @@ def test_build_ledger_posting_plan_for_expense_raw_row() -> None:
     assert plan.amount == Decimal("-25.50")
 
 
-def test_build_ledger_posting_plan_blocks_already_linked_row() -> None:
+def test_prepare_income_expense_posting_blocks_already_linked_row() -> None:
     account_id = uuid4()
     with pytest.raises(LedgerPostingError, match="already linked"):
-        LedgerPostingPlan.from_raw_transaction(
+        prepare_income_expense_posting(
             RawTransactionStub(
                 status=RawTransactionStatus.NORMALIZED,
                 account_id=account_id,
@@ -290,10 +291,10 @@ def test_build_ledger_posting_plan_blocks_already_linked_row() -> None:
         )
 
 
-def test_build_ledger_posting_plan_allows_user_reviewed_statuses() -> None:
+def test_prepare_income_expense_posting_allows_user_reviewed_statuses() -> None:
     account_id = uuid4()
     for status in [RawTransactionStatus.NEEDS_REVIEW, RawTransactionStatus.IGNORED]:
-        plan = LedgerPostingPlan.from_raw_transaction(
+        plan = prepare_income_expense_posting(
             RawTransactionStub(
                 status=status,
                 account_id=account_id,
@@ -304,17 +305,39 @@ def test_build_ledger_posting_plan_allows_user_reviewed_statuses() -> None:
         assert plan.amount == Decimal("100.00")
 
 
-def test_build_ledger_posting_plan_blocks_currency_mismatch() -> None:
+def test_ledger_posting_plan_blocks_currency_mismatch() -> None:
     account_id = uuid4()
+    account = AccountStub(id=account_id, currency="RUB")
+    plan = prepare_income_expense_posting(
+        RawTransactionStub(
+            status=RawTransactionStatus.NORMALIZED,
+            account_id=account_id,
+            amount=Decimal("100.00"),
+            currency="USD",
+        ),
+        account,
+    )
+
     with pytest.raises(LedgerPostingError, match="currency"):
-        LedgerPostingPlan.from_raw_transaction(
-            RawTransactionStub(
-                status=RawTransactionStatus.NORMALIZED,
-                account_id=account_id,
-                amount=Decimal("100.00"),
-                currency="USD",
-            ),
-            AccountStub(id=account_id, currency="RUB"),
+        ensure_income_expense_posting(plan, account)
+
+
+def test_ledger_posting_plan_blocks_operation_type_amount_mismatch() -> None:
+    account_id = uuid4()
+    account = AccountStub(id=account_id)
+    plan = prepare_income_expense_posting(
+        RawTransactionStub(
+            status=RawTransactionStatus.NORMALIZED,
+            account_id=account_id,
+            amount=Decimal("100.00"),
+        ),
+        account,
+    )
+
+    with pytest.raises(LedgerPostingError, match="amount sign"):
+        ensure_income_expense_posting(
+            replace(plan, operation_type=OperationType.EXPENSE),
+            account,
         )
 
 

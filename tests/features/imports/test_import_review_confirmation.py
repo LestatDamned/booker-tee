@@ -76,17 +76,17 @@ class LedgerRepositoryStub:
 class ReferenceResolverStub:
     def __init__(self, account_id: UUID) -> None:
         self.account = SimpleNamespace(id=account_id, currency="RUB")
-        self.account_rows: list[object] = []
+        self.account_ids: list[UUID] = []
 
-    async def get_account_for_raw_transaction(
+    async def get_account(
         self,
         workspace_id: UUID,
-        raw_transaction: object,
+        account_id: UUID,
     ) -> object:
-        self.account_rows.append(raw_transaction)
+        self.account_ids.append(account_id)
         return self.account
 
-    async def get_required_import_category(
+    async def get_category_or_uncategorized(
         self,
         workspace_id: UUID,
         category_id: UUID,
@@ -134,7 +134,7 @@ async def test_confirmation_posts_once_with_server_checked_references() -> None:
     assert result.operation_id == operation_id
     assert result.replayed is False
     assert result.updated_item_ids == frozenset({row.id})
-    assert references.account_rows == [row]
+    assert references.account_ids == [row.account_id]
     assert posting.calls[0]["account"] is references.account
     assert posting.calls[0]["idempotency_key"] == command.idempotency_key
     assert cast(Any, posting.calls[0]["category"]).id == command.category_id

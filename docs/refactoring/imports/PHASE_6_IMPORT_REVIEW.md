@@ -335,8 +335,9 @@ Read model уже предназначен только для Import Review, н
 
 Перенести алгоритм transfer suggestions из
 `ledger/application/transfer_suggestions.py` в `import_review`. Ledger
-repository может остаться источником manual transfer candidates, но review
-решает, как сопоставить их с raw rows и как представить пользователю.
+repository временно остаётся источником manual transfer candidates на 6.2.
+Финальное persistence-решение принято и выполнено в 6.6: эти запросы принадлежат
+`ImportReviewRepository`, потому что принимают raw rows и обслуживают review.
 
 `ImportReviewReader` продолжает зависеть от узких `Protocol`, а concrete
 repositories/services собираются в API composition root.
@@ -441,15 +442,10 @@ Confirmation, lifecycle, transfer, rules и undo находятся под `impo
 Следующие actors выделяются в тех же модулях только для workflows, которые
 действительно переиспользуются API и chat.
 
-При фактическом change pressure создать один
-`import_review/repository.py`, содержащий только review-specific persistence:
-
-- загрузка/lock review row;
-- expected-status write;
-- link/unlink operation;
-- duplicate evidence lookup;
-- review transfer candidate lookup;
-- affected document lookup.
+Решение было уточнено в 6.6: создать один
+`import_review/repository.py`, содержащий только review-specific lookup ручных
+transfer candidates. Остальная persistence остаётся в существующем
+`ImportRepository`, пока для её переноса нет отдельной причины.
 
 Не создавать repository на каждую ORM-модель и не вводить `BaseRepository`.
 Document upload, parse attempts, mapping и statement-processing writes остаются
@@ -588,8 +584,7 @@ idempotency key ему не нужен, потому что он не созда
 
 ### Commit 6.6 — Remove ledger back-dependency
 
-Статус: in progress. Income/expense, transfer и undo slices completed
-2026-07-28; persistence boundary cleanup остаётся.
+Статус: completed 2026-07-28.
 
 #### Проблема
 
@@ -702,10 +697,87 @@ application boundary.
 
 Это точка, где разрешено вернуться к deferred Phase 4:
 
-- перенести review-specific queries из broad `ImportRepository`;
+- перенести review-specific queries из `LedgerRepository`;
 - убрать raw-row parameters из ledger application/repository methods;
 - оставить document/mapping persistence без изменений;
 - не вводить generic CRUD.
+
+#### Зафиксированное решение для завершения 6.6
+
+Оставшаяся очистка выполняется в следующем порядке.
+
+1. Перенести правила подготовки импортированной строки из
+   `ledger/domain/raw_transactions.py` в
+   `import_review/domain/posting.py`.
+
+   Статус: completed 2026-07-28.
+
+   В `import_review` должны находиться проверки статуса `RawTransaction`,
+   наличия нормализованных полей, выбранного account и допустимости строки для
+   обычного posting или transfer. Ledger получает уже проверенные финансовые
+   facts и не знает о review statuses.
+
+   Это не увеличивает число файлов: старый ledger-модуль удаляется, а его место
+   занимает один правильно названный import-review-модуль.
+
+2. Оставить в ledger только ledger-owned posting facts.
+
+   Статус: completed 2026-07-28.
+
+   `LedgerPostingService` продолжает проверять финансовые инварианты:
+   валюту account, знак/тип операции и баланс transfer. Workspace-scoped
+   references передаёт orchestration после resolver checks. Ledger не проверяет
+   состояние импортированной строки и не принимает `RawTransaction`.
+
+3. Удалить import-specific methods из `LedgerReferenceResolver`.
+
+   Статус: completed 2026-07-28.
+
+   Методы `get_account_for_raw_transaction()` и
+   `get_required_import_category()` принадлежат import-review orchestration.
+   Import-review сам вычисляет effective account id, требует реальную category
+   для income/expense и вызывает generic ledger reference methods по UUID.
+   `LedgerReferenceResolver` остаётся резолвером ledger references, а не
+   адаптером импортированной строки.
+
+4. Перенести поиск кандидатов ручного transfer из `LedgerRepository` в один
+   узкий `import_review/repository.py`.
+
+   Статус: completed 2026-07-28.
+
+   Методы
+   `list_manual_transfer_candidates_for_raw_transaction()` и
+   `list_manual_transfer_candidates_for_raw_transactions()` отвечают на
+   import-review вопрос: какие существующие переводы предложить пользователю
+   для конкретных raw rows. Поэтому SQL остаётся прежним по смыслу, но его
+   владелец меняется.
+
+   Это единственный новый repository boundary на этом шаге. Не создаются
+   `BaseRepository`, repository на каждую модель или generic CRUD; document и
+   mapping persistence не переносятся.
+
+5. Сохранить read-only dependency в `ledger/application/account_ledger.py`.
+
+   Статус: accepted boundary 2026-07-28; изменение кода не требуется.
+
+   Этот код читает `RawTransaction`, чтобы показать в legacy ledger projection
+   ссылку на исходный импортированный документ. Он не меняет raw-row status,
+   document lifecycle или import links, поэтому сейчас это осознанная read-model
+   dependency, а не нарушение mutation boundary. Удалять или переносить её
+   следует вместе с legacy экраном при React migration, а не в 6.6.
+
+После этих изменений выполняется repository-wide import search. Допустимым
+исключением остаётся только описанная read-only projection; application/domain
+posting и `LedgerRepository` не должны импортировать imports review models или
+принимать raw rows.
+
+Результат проверки 2026-07-28:
+
+- `LedgerRepository` не импортирует imports/import-review models и не принимает
+  raw rows;
+- ledger posting/application mutation не управляет import lifecycle;
+- `ledger/models.py` содержит только type-checking ORM relationship;
+- `account_ledger.py` сохраняет описанную read-only legacy projection.
 
 Schema migration не нужна, если анализ implementation commit не выявит
 недостающий constraint. Любое изменение constraint выполняется отдельным
@@ -796,6 +868,8 @@ mega-files остаются Phase 7.
 - тест фиксирует поведение, противоречащее финансовым инвариантам.
 
 ## Definition of done
+
+Статус Phase 6: completed 2026-07-28.
 
 Phase 6 завершена, когда одновременно выполнено:
 

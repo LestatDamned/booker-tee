@@ -6,8 +6,6 @@ from app.features.accounts.models import Account
 from app.features.accounts.repository import AccountRepository
 from app.features.categories.models import Category
 from app.features.categories.service import CategoryError, CategoryService
-from app.features.imports.models import RawTransaction
-from app.features.ledger.domain.raw_transactions import raw_transaction_effective_account_id
 from app.features.ledger.errors import (
     AccountUnavailableError,
     CategoryUnavailableError,
@@ -30,16 +28,6 @@ class LedgerReferenceResolver:
             raise AccountUnavailableError()
         return account
 
-    async def get_account_for_raw_transaction(
-        self,
-        workspace_id: UUID,
-        raw_transaction: RawTransaction,
-    ) -> Account:
-        account_id = raw_transaction_effective_account_id(raw_transaction)
-        if account_id is None:
-            raise LedgerPostingError("Raw transaction row has no account.")
-        return await self.get_account(workspace_id, account_id)
-
     async def get_category_or_uncategorized(
         self,
         workspace_id: UUID,
@@ -60,21 +48,6 @@ class LedgerReferenceResolver:
             return await self.categories.get_system(workspace_id, "transfer")
         except CategoryError as exc:
             raise LedgerPostingError(str(exc)) from exc
-
-    async def get_required_import_category(
-        self,
-        workspace_id: UUID,
-        category_id: UUID | None,
-    ) -> Category:
-        if category_id is None:
-            raise LedgerPostingError("Income or expense import requires a category.")
-        try:
-            category = await self.categories.get_for_workspace(workspace_id, category_id)
-        except CategoryError as exc:
-            raise LedgerPostingError(str(exc)) from exc
-        if category is None or category.system_key == "uncategorized":
-            raise LedgerPostingError("Income or expense import requires a real category.")
-        return category
 
     async def get_property(
         self,

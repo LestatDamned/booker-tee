@@ -24,7 +24,7 @@ class ImportRepositoryStub:
         return self.candidates
 
 
-class LedgerRepositoryStub:
+class ImportReviewRepositoryStub:
     def __init__(self, candidates: list[object]) -> None:
         self.candidates = candidates
         self.requests: list[tuple[UUID, object]] = []
@@ -96,9 +96,9 @@ async def test_existing_manual_transfer_suggestion_selects_account_and_counterpa
         money_entries=[account_entry, counterparty_entry],
         raw_transactions=[],
     )
-    ledger = LedgerRepositoryStub([operation])
+    review_repository = ImportReviewRepositoryStub([operation])
     use_case = TransferSuggestionUseCase(cast(Any, object()))
-    use_case.ledger = cast(Any, ledger)
+    use_case.review_repository = cast(Any, review_repository)
 
     suggestions = await use_case.list_existing_manual_for_document(
         workspace_id=workspace_id,
@@ -110,7 +110,7 @@ async def test_existing_manual_transfer_suggestion_selects_account_and_counterpa
     assert suggestion.account_entry is account_entry
     assert suggestion.counterparty_entry is counterparty_entry
     assert suggestion.day_distance == 1
-    assert ledger.requests == [(workspace_id, [source])]
+    assert review_repository.requests == [(workspace_id, [source])]
 
 
 def raw_row(

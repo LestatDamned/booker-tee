@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+"""Prepare imported review rows for ledger posting."""
+
 from datetime import date
 from decimal import Decimal
 from typing import Protocol
@@ -6,15 +7,14 @@ from uuid import UUID
 
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.ledger.domain.money import (
+    LedgerPostingPlan,
     PostingAccount,
     operation_type_for_amount,
 )
-from app.features.ledger.domain.types import OperationType
 from app.features.ledger.errors import LedgerPostingError
 
 
 class PostableRawTransaction(Protocol):
-    id: UUID
     status: RawTransactionStatus
     linked_operation_id: UUID | None
     account_id: UUID | None
@@ -25,60 +25,6 @@ class PostableRawTransaction(Protocol):
     description_normalized: str | None
     description_raw: str | None
     balance_after: Decimal | None
-    dedupe_hash: str | None
-
-
-def raw_transaction_effective_account_id(raw_transaction: object) -> UUID | None:
-    account_id = getattr(raw_transaction, "account_id", None)
-    if account_id is not None:
-        return account_id
-    uploaded_document = getattr(raw_transaction, "uploaded_document", None)
-    return getattr(uploaded_document, "account_id", None)
-
-
-@dataclass(frozen=True)
-class LedgerPostingPlan:
-    operation_type: OperationType
-    amount: Decimal
-    currency: str
-    operation_date: date
-    posting_date: date | None
-    description: str | None
-    balance_after: Decimal | None
-
-    @classmethod
-    def from_raw_transaction(
-        cls,
-        raw_transaction: PostableRawTransaction,
-        account: PostingAccount,
-    ) -> "LedgerPostingPlan":
-        if raw_transaction.linked_operation_id is not None:
-            raise LedgerPostingError("Raw transaction row is already linked to an operation.")
-        if raw_transaction.status not in POSTABLE_RAW_STATUSES:
-            raise LedgerPostingError(
-                f"Raw transaction status cannot be posted: {raw_transaction.status}"
-            )
-        if raw_transaction_effective_account_id(raw_transaction) != account.id:
-            raise LedgerPostingError("Raw transaction account does not match selected account.")
-        if raw_transaction.amount is None:
-            raise LedgerPostingError("Raw transaction row has no normalized amount.")
-        if raw_transaction.currency is None:
-            raise LedgerPostingError("Raw transaction row has no normalized currency.")
-        if raw_transaction.currency != account.currency:
-            raise LedgerPostingError("Raw transaction currency does not match account currency.")
-        if raw_transaction.operation_date is None:
-            raise LedgerPostingError("Raw transaction row has no normalized operation date.")
-
-        operation_type = operation_type_for_amount(raw_transaction.amount)
-        return cls(
-            operation_type=operation_type,
-            amount=raw_transaction.amount,
-            currency=raw_transaction.currency,
-            operation_date=raw_transaction.operation_date,
-            posting_date=raw_transaction.posting_date,
-            description=raw_transaction.description_normalized or raw_transaction.description_raw,
-            balance_after=raw_transaction.balance_after,
-        )
 
 
 POSTABLE_RAW_STATUSES = {
@@ -96,6 +42,51 @@ TRANSFER_POSTABLE_RAW_STATUSES = {
     RawTransactionStatus.POSSIBLE_DUPLICATE,
     RawTransactionStatus.IGNORED,
 }
+
+
+def prepare_income_expense_posting(
+    raw_transaction: PostableRawTransaction,
+    account: PostingAccount,
+) -> LedgerPostingPlan:
+    if raw_transaction.linked_operation_id is not None:
+        raise LedgerPostingError("Raw transaction row is already linked to an operation.")
+    if raw_transaction.status not in POSTABLE_RAW_STATUSES:
+        raise LedgerPostingError(
+            f"Raw transaction status cannot be posted: {raw_transaction.status}"
+        )
+    if raw_transaction_effective_account_id(raw_transaction) != account.id:
+        raise LedgerPostingError("Raw transaction account does not match selected account.")
+    if raw_transaction.amount is None:
+        raise LedgerPostingError("Raw transaction row has no normalized amount.")
+    if raw_transaction.currency is None:
+        raise LedgerPostingError("Raw transaction row has no normalized currency.")
+    if raw_transaction.operation_date is None:
+        raise LedgerPostingError("Raw transaction row has no normalized operation date.")
+
+    return LedgerPostingPlan(
+        operation_type=operation_type_for_amount(raw_transaction.amount),
+        amount=raw_transaction.amount,
+        currency=raw_transaction.currency,
+        operation_date=raw_transaction.operation_date,
+        posting_date=raw_transaction.posting_date,
+        description=raw_transaction.description_normalized or raw_transaction.description_raw,
+        balance_after=raw_transaction.balance_after,
+    )
+
+
+def raw_transaction_effective_account_id(raw_transaction: object) -> UUID | None:
+    account_id = getattr(raw_transaction, "account_id", None)
+    if account_id is not None:
+        return account_id
+    uploaded_document = getattr(raw_transaction, "uploaded_document", None)
+    return getattr(uploaded_document, "account_id", None)
+
+
+def require_raw_transaction_account_id(raw_transaction: object) -> UUID:
+    account_id = raw_transaction_effective_account_id(raw_transaction)
+    if account_id is None:
+        raise LedgerPostingError("Raw transaction row has no account.")
+    return account_id
 
 
 def ensure_matched_transfer_account(

@@ -535,12 +535,31 @@ review status use case удалены.
 
 ### Commit 6.6: remove ledger back-dependency
 
-Статус: in progress. Income/expense и transfer posting уже разделены:
+Статус: completed 2026-07-28. Income/expense и transfer posting разделены:
 `import_review` владеет raw rows/dedupe/link/document lifecycle, а
 `LedgerPostingService` создаёт только `Operation` и `MoneyEntry`. Старый
 `RawTransactionPoster` удалён. Undo orchestration также принадлежит
-`ImportReviewUndoService`; остаётся очистить review-specific persistence
-queries и raw-row helpers в ledger.
+`ImportReviewUndoService`. Raw-row posting policy перенесена в
+`import_review/domain/posting.py`; `LedgerPostingPlan` и повторная проверка
+финансовых инвариантов принадлежат ledger. `LedgerReferenceResolver` также
+очищен от import-specific methods и принимает обычные reference IDs.
+Review-specific transfer candidate queries принадлежат одному узкому
+`ImportReviewRepository`.
+
+Зафиксированный порядок завершения:
+
+1. ✅ перенести raw-row posting policy из
+   `ledger/domain/raw_transactions.py` в
+   `import_review/domain/posting.py`, оставив ledger только финансовые facts;
+2. ✅ удалить import-specific methods из `LedgerReferenceResolver`;
+3. ✅ перенести transfer-candidate queries из `LedgerRepository` в один узкий
+   `import_review/repository.py`, без generic repository abstraction;
+4. ✅ проверить dependencies по всему repository.
+
+`ledger/application/account_ledger.py` пока сохраняет осознанную read-only
+связь с `RawTransaction` ради ссылки на исходный документ в legacy ledger
+projection. Она не входит в mutation cleanup и удаляется вместе с legacy
+экраном при React migration.
 
 Ledger posting принимает posting facts/command и не обновляет import document
 или review lifecycle.

@@ -9,6 +9,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.accounts.models import Account
+from app.features.import_review.domain.posting import (
+    ensure_matched_transfer_account,
+    ensure_raw_transaction_can_post_as_transfer,
+    require_raw_amount,
+    require_raw_operation_date,
+    require_raw_transaction_account_id,
+)
+from app.features.import_review.repository import ImportReviewRepository
 from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
@@ -17,12 +25,6 @@ from app.features.imports.models import RawTransaction
 from app.features.imports.repository import ImportRepository
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.application.posting import LedgerPostingService
-from app.features.ledger.domain.raw_transactions import (
-    ensure_matched_transfer_account,
-    ensure_raw_transaction_can_post_as_transfer,
-    require_raw_amount,
-    require_raw_operation_date,
-)
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
@@ -75,6 +77,7 @@ class TransferCounterparty:
 class ImportReviewTransferActor:
     def __init__(self, session: AsyncSession) -> None:
         self._imports = ImportRepository(session)
+        self._review_repository = ImportReviewRepository(session)
         self._ledger = LedgerRepository(session)
         self._references = LedgerReferenceResolver(session)
         self._posting = LedgerPostingService(session)
@@ -187,9 +190,9 @@ class ImportReviewTransferActor:
             matched_raw_transaction_id=matched_raw_transaction_id,
         )
         ensure_raw_transaction_can_post_as_transfer(raw_transaction)
-        source_account = await self._references.get_account_for_raw_transaction(
+        source_account = await self._references.get_account(
             context.workspace.id,
-            raw_transaction,
+            require_raw_transaction_account_id(raw_transaction),
         )
         matched_raw_transaction = await self._resolve_matched_transfer_row(
             context.workspace.id,
@@ -322,9 +325,9 @@ class ImportReviewTransferActor:
             ensure_raw_transaction_can_post_as_transfer(matched_raw_transaction)
             ensure_matched_transfer_account(matched_raw_transaction, counterparty_account_id)
             return TransferCounterparty(
-                account=await self._references.get_account_for_raw_transaction(
+                account=await self._references.get_account(
                     workspace_id,
-                    matched_raw_transaction,
+                    require_raw_transaction_account_id(matched_raw_transaction),
                 ),
                 amount=require_raw_amount(matched_raw_transaction),
                 raw_transaction=matched_raw_transaction,
@@ -362,9 +365,11 @@ class ImportReviewTransferActor:
         )
         if locked_operation is None:
             raise LedgerPostingError("Manual transfer is not a transfer candidate.")
-        candidates = await self._ledger.list_manual_transfer_candidates_for_raw_transaction(
-            workspace_id=context.workspace.id,
-            raw_transaction=raw_transaction,
+        candidates = (
+            await self._review_repository.list_manual_transfer_candidates_for_raw_transaction(
+                workspace_id=context.workspace.id,
+                raw_transaction=raw_transaction,
+            )
         )
         operation = next(
             (candidate for candidate in candidates if candidate.id == operation_id),

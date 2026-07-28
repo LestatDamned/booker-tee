@@ -14,11 +14,9 @@ from app.features.import_review.application.transfers import (
     MatchImportReviewRawRowCommand,
 )
 from app.features.imports.models import RawTransactionStatus
-from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.application.posting import LedgerPostingService
-from app.features.ledger.domain.raw_transactions import LedgerPostingPlan
+from app.features.ledger.domain.money import LedgerPostingPlan
 from app.features.ledger.domain.types import OperationType
-from app.features.ledger.errors import LedgerPostingError
 
 
 class SessionStub:
@@ -59,7 +57,7 @@ class ImportRepositoryStub:
 class LedgerRepositoryStub:
     def __init__(self) -> None:
         self.entries: list[Any] = []
-        self.manual_transfer_candidates: list[object] = []
+        self.operations: list[object] = []
         self.operation: object | None = None
 
     async def create_operation(self, operation: Any) -> Any:
@@ -74,12 +72,6 @@ class LedgerRepositoryStub:
     async def get_operation_by_idempotency_key(self, **_kwargs: object) -> None:
         return None
 
-    async def list_manual_transfer_candidates_for_raw_transaction(
-        self,
-        **_kwargs: object,
-    ) -> list[object]:
-        return self.manual_transfer_candidates
-
     async def get_operation_for_workspace_for_update(
         self,
         *,
@@ -89,19 +81,22 @@ class LedgerRepositoryStub:
         return next(
             (
                 candidate
-                for candidate in self.manual_transfer_candidates
+                for candidate in self.operations
                 if getattr(candidate, "id", None) == operation_id
             ),
             None,
         )
 
 
-class CategoryLookupStub:
-    def __init__(self, category: object | None) -> None:
-        self.category = category
+class ImportReviewRepositoryStub:
+    def __init__(self, candidates: list[object] | None = None) -> None:
+        self.candidates = candidates or []
 
-    async def get_for_workspace(self, *args: object) -> object | None:
-        return self.category
+    async def list_manual_transfer_candidates_for_raw_transaction(
+        self,
+        **_kwargs: object,
+    ) -> list[object]:
+        return self.candidates
 
 
 class DocumentStatusStub:
@@ -165,7 +160,15 @@ async def test_post_imported_income_expense_creates_ledger_records_without_commi
         document_id=document_id,
         raw_transaction_id=raw_transaction.id,
         account=account,
-        plan=LedgerPostingPlan.from_raw_transaction(raw_transaction, account),
+        plan=LedgerPostingPlan(
+            operation_type=OperationType.INCOME,
+            amount=raw_transaction.amount,
+            currency=raw_transaction.currency,
+            operation_date=raw_transaction.operation_date,
+            posting_date=raw_transaction.posting_date,
+            description=raw_transaction.description_normalized,
+            balance_after=raw_transaction.balance_after,
+        ),
         category=cast(Any, SimpleNamespace(id=uuid4())),
         property_=None,
         idempotency_key=idempotency_key,
@@ -184,22 +187,6 @@ async def test_post_imported_income_expense_creates_ledger_records_without_commi
     assert len(ledger.entries) == 1
     assert session.committed is False
     assert session.rolled_back is False
-
-
-@pytest.mark.asyncio
-async def test_import_posting_rejects_missing_and_uncategorized_category() -> None:
-    resolver = LedgerReferenceResolver(cast(Any, SessionStub()))
-    resolver.categories = cast(Any, CategoryLookupStub(None))
-
-    with pytest.raises(LedgerPostingError, match="requires a category"):
-        await resolver.get_required_import_category(uuid4(), None)
-
-    resolver.categories = cast(
-        Any,
-        CategoryLookupStub(SimpleNamespace(id=uuid4(), system_key="uncategorized")),
-    )
-    with pytest.raises(LedgerPostingError, match="requires a real category"):
-        await resolver.get_required_import_category(uuid4(), uuid4())
 
 
 @pytest.mark.asyncio
@@ -282,7 +269,6 @@ async def test_post_paired_raw_transactions_links_both_rows_to_one_transfer() ->
     references = TransferReferenceResolverStub(
         source_account=source_account,
         destination_account=destination_account,
-        matched_raw_transaction=destination,
     )
     document_status = DocumentStatusStub()
     actor = transfer_actor(
@@ -331,11 +317,12 @@ async def test_link_raw_transaction_to_existing_manual_transfer_creates_no_entri
     existing_operation = SimpleNamespace(id=uuid4())
     imports = TransferImportRepositoryStub(raw_transaction)
     ledger = LedgerRepositoryStub()
-    ledger.manual_transfer_candidates = [existing_operation]
+    ledger.operations = [existing_operation]
     actor = transfer_actor(
         session=SessionStub(),
         imports=imports,
         ledger=ledger,
+        review_repository=ImportReviewRepositoryStub([existing_operation]),
         references=TransferReferenceResolverStub(
             source_account=source_account,
             destination_account=source_account,
@@ -414,12 +401,17 @@ def transfer_actor(
     session: SessionStub,
     imports: object,
     ledger: LedgerRepositoryStub,
+    review_repository: ImportReviewRepositoryStub | None = None,
     references: object,
     document_status: DocumentStatusStub,
 ) -> ImportReviewTransferActor:
     actor = ImportReviewTransferActor(cast(Any, session))
     actor._imports = cast(Any, imports)
     actor._ledger = cast(Any, ledger)
+    actor._review_repository = cast(
+        Any,
+        review_repository or ImportReviewRepositoryStub(),
+    )
     actor._references = cast(Any, references)
     actor._posting = LedgerPostingService(cast(Any, session))
     actor._posting.ledger = cast(Any, ledger)
@@ -476,24 +468,15 @@ class TransferReferenceResolverStub:
         *,
         source_account: Account,
         destination_account: Account,
-        matched_raw_transaction: object | None = None,
     ) -> None:
         self.source_account = source_account
         self.destination_account = destination_account
-        self.matched_raw_transaction = matched_raw_transaction
-
-    async def get_account_for_raw_transaction(
-        self,
-        _workspace_id: UUID,
-        raw_transaction: object,
-    ) -> Account:
-        if raw_transaction is self.matched_raw_transaction:
-            return self.destination_account
-        return self.source_account
 
     async def get_account(self, _workspace_id: UUID, account_id: UUID) -> Account:
-        assert account_id == self.destination_account.id
-        return self.destination_account
+        if account_id == self.destination_account.id:
+            return self.destination_account
+        assert account_id == self.source_account.id
+        return self.source_account
 
     async def get_transfer_category(self, _workspace_id: UUID) -> object:
         return SimpleNamespace(id=uuid4())

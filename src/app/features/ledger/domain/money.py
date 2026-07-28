@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
@@ -15,6 +16,17 @@ from app.features.ledger.errors import (
 class PostingAccount(Protocol):
     id: UUID
     currency: str
+
+
+@dataclass(frozen=True)
+class LedgerPostingPlan:
+    operation_type: OperationType
+    amount: Decimal
+    currency: str
+    operation_date: date
+    posting_date: date | None
+    description: str | None
+    balance_after: Decimal | None
 
 
 @dataclass(frozen=True)
@@ -51,6 +63,17 @@ def operation_type_for_amount(amount: Decimal) -> OperationType:
 
 def affects_profit_for_operation_type(operation_type: OperationType) -> bool:
     return operation_type in {OperationType.INCOME, OperationType.EXPENSE}
+
+
+def ensure_income_expense_posting(
+    plan: LedgerPostingPlan,
+    account: PostingAccount,
+) -> None:
+    expected_operation_type = operation_type_for_amount(plan.amount)
+    if plan.operation_type is not expected_operation_type:
+        raise LedgerPostingError("Posting operation type does not match amount sign.")
+    if plan.currency != account.currency:
+        raise LedgerPostingError("Posting currency does not match account currency.")
 
 
 def manual_income_expense_amount(operation_type: OperationType, amount: Decimal) -> Decimal:

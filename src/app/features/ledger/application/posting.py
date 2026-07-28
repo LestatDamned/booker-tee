@@ -9,11 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.accounts.models import Account
 from app.features.categories.models import Category
 from app.features.ledger.domain.money import (
+    LedgerPostingPlan,
     ensure_balanced_transfer,
     ensure_distinct_accounts,
+    ensure_income_expense_posting,
     ensure_same_currency,
 )
-from app.features.ledger.domain.raw_transactions import LedgerPostingPlan
 from app.features.ledger.mapping.operations import (
     build_bank_pdf_operation,
     build_bank_pdf_transfer_operation,
@@ -42,6 +43,7 @@ class LedgerPostingService:
         idempotency_key: UUID | None,
         idempotency_fingerprint: str | None,
     ) -> Operation:
+        ensure_income_expense_posting(plan, account)
         operation = await self.ledger.create_operation(
             build_bank_pdf_operation(
                 context=context,

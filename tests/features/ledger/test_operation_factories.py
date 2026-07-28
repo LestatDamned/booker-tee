@@ -8,8 +8,10 @@ from app.features.ledger.application.manual_contracts import (
     CreateManualIncomeExpenseCommand,
     CreateManualTransferCommand,
 )
-from app.features.ledger.domain.money import affects_profit_for_operation_type
-from app.features.ledger.domain.raw_transactions import LedgerPostingPlan
+from app.features.ledger.domain.money import (
+    LedgerPostingPlan,
+    affects_profit_for_operation_type,
+)
 from app.features.ledger.domain.types import (
     OperationSource,
     OperationStatus,

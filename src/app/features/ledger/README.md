@@ -112,8 +112,10 @@ Domain functions и value objects не зависят от HTTP или AsyncSess
 state transition или объекта с собственным инвариантом.
 
 `RawTransactionStatus` принадлежит imports domain и объявлен в
-`imports/domain/types.py`. Ledger posting policy использует этот доменный тип,
-но не импортирует SQLAlchemy models модуля imports.
+`imports/domain/types.py`. Проверки review status и нормализованных полей
+принадлежат `import_review/domain/posting.py`. Ledger получает
+`LedgerPostingPlan` и повторно проверяет только финансовые инварианты, не
+импортируя `RawTransaction` в posting service.
 
 Хорошие свободные функции:
 
@@ -140,6 +142,8 @@ factory. Он централизованно задаёт `confirmed`, audit fie
 
 `LedgerRepository` выполняет только SQLAlchemy queries, add/delete/flush и не
 делает commit. Каждый workspace-owned query обязан фильтровать `workspace_id`.
+Он не принимает `RawTransaction`: поиск ручных transfer candidates для review
+принадлежит `ImportReviewRepository`.
 Read queries можно вынести в `query_repository.py`, только когда их дальнейший
 рост или отдельная оптимизация сделают текущее разделение действительно проще.
 

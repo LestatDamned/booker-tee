@@ -15,8 +15,10 @@ from app.features.ledger.application.manual_contracts import (
     ManualOperationReadDto,
     NamedReferenceReadDto,
 )
-from app.features.ledger.domain.money import affects_profit_for_operation_type
-from app.features.ledger.domain.raw_transactions import LedgerPostingPlan
+from app.features.ledger.domain.money import (
+    LedgerPostingPlan,
+    affects_profit_for_operation_type,
+)
 from app.features.ledger.domain.text import clean_description
 from app.features.ledger.models import (
     MoneyEntry,

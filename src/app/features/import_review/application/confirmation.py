@@ -12,6 +12,10 @@ from app.features.import_review.application.classification import (
 )
 from app.features.import_review.application.rules import ImportReviewRuleCreator
 from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
+from app.features.import_review.domain.posting import (
+    prepare_income_expense_posting,
+    require_raw_transaction_account_id,
+)
 from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
@@ -21,7 +25,6 @@ from app.features.imports.errors import RawTransactionReviewError
 from app.features.imports.repository import ImportRepository
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.application.posting import LedgerPostingService
-from app.features.ledger.domain.raw_transactions import LedgerPostingPlan
 from app.features.ledger.domain.types import OperationStatus, OperationType
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.repository import LedgerRepository
@@ -124,7 +127,7 @@ class ImportReviewConfirmationActor:
                 }
             )
 
-        category = await self._references.get_required_import_category(
+        category = await self._references.get_category_or_uncategorized(
             context.workspace.id,
             command.category_id,
         )
@@ -158,16 +161,16 @@ class ImportReviewConfirmationActor:
                 "A confirmed raw transaction already uses this dedupe hash."
             )
 
-        account = await self._references.get_account_for_raw_transaction(
+        account = await self._references.get_account(
             context.workspace.id,
-            row,
+            require_raw_transaction_account_id(row),
         )
         operation = await self._posting.post_imported_income_expense(
             context=context,
             document_id=command.document_id,
             raw_transaction_id=row.id,
             account=account,
-            plan=LedgerPostingPlan.from_raw_transaction(row, account),
+            plan=prepare_income_expense_posting(row, account),
             category=category,
             property_=property_,
             idempotency_key=command.idempotency_key,
