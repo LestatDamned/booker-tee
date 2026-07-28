@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from hashlib import sha256
@@ -12,7 +11,6 @@ import pytest
 from fastapi import UploadFile
 from openpyxl import Workbook
 
-from app.features.imports.application.documents.management import document_has_linked_operations
 from app.features.imports.application.documents.upload import (
     StatementUploadUseCase,
     validate_statement_upload,
@@ -418,16 +416,6 @@ def test_apply_duplicate_decision_preserves_review_message() -> None:
     assert raw_transaction.normalization_error == "Existing issue.; Exact duplicate."
 
 
-def test_document_has_linked_operations_detects_confirmed_rows() -> None:
-    raw_transaction = raw_transaction_from_values()
-    document = RawTransactionDocumentStub(raw_transactions=[raw_transaction])
-
-    assert document_has_linked_operations(document) is False
-
-    raw_transaction.linked_operation_id = uuid4()
-    assert document_has_linked_operations(document) is True
-
-
 def raw_transaction_from_values(
     *,
     account_id: UUID | None = None,
@@ -447,8 +435,3 @@ def raw_transaction_from_values(
         currency="RUB",
         normalization_error=normalization_error,
     )
-
-
-@dataclass(frozen=True)
-class RawTransactionDocumentStub:
-    raw_transactions: list[RawTransaction]

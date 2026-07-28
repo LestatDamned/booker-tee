@@ -1,3 +1,4 @@
+from app.features.imports.application.documents.status import transition_document_status
 from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.domain.validation import (
     StatementValidationReport,
@@ -27,8 +28,16 @@ async def store_import_validation_result(
     )
     if report.status == StatementValidationStatus.VALID:
         await imports.mark_attempt_status(attempt, ParseAttemptStatus.SUCCESS)
-        await imports.mark_document_status(document, UploadedDocumentStatus.PARSED)
+        await transition_document_status(
+            imports,
+            document,
+            UploadedDocumentStatus.PARSED,
+        )
         return
 
     await imports.mark_attempt_status(attempt, ParseAttemptStatus.REQUIRES_REVIEW)
-    await imports.mark_document_status(document, UploadedDocumentStatus.REQUIRES_REVIEW)
+    await transition_document_status(
+        imports,
+        document,
+        UploadedDocumentStatus.REQUIRES_REVIEW,
+    )

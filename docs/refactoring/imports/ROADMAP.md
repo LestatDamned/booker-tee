@@ -235,8 +235,19 @@ Exit: меньше слоёв без изменения API.
 
 ### Commit 3.3: document lifecycle policy
 
-Собрать status resolution и разрешённые transitions в одну чистую policy.
-Не вводить отдельный State class для каждого enum value.
+Статус: completed 2026-07-28.
+
+- `UploadedDocumentStatus` перенесён из ORM-модуля в `domain/types.py`;
+- разрешённые переходы статусов и вычисление статуса по состоянию
+  `RawTransaction` собраны в `domain/document_lifecycle.py`;
+- application workflows меняют статус документа через один transition helper;
+- запрет reparse зафиксирован отсутствием переходов
+  `failed_to_parse/imported -> parsed`;
+- проверка связанных операций остаётся чистым domain predicate и защищает
+  ignore/delete.
+
+Отдельные State-классы для enum values не вводились. Пользовательское поведение
+upload, review, ignore/delete и parse failure не изменено.
 
 ### Commit 3.4: mapping validation
 

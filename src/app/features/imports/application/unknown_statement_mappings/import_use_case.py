@@ -9,6 +9,7 @@ from app.features.imports.application.documents.parse_attempts import (
     latest_parse_attempt,
     statement_control_totals_from_json,
 )
+from app.features.imports.application.documents.status import transition_document_status
 from app.features.imports.application.pipelines.deduplication import (
     RawTransactionDeduplicator,
 )
@@ -353,7 +354,11 @@ async def store_mapping_validation_result(
         },
     )
     await imports.mark_attempt_status(attempt, ParseAttemptStatus.REQUIRES_REVIEW)
-    await imports.mark_document_status(document, UploadedDocumentStatus.REQUIRES_REVIEW)
+    await transition_document_status(
+        imports,
+        document,
+        UploadedDocumentStatus.REQUIRES_REVIEW,
+    )
 
 
 def mapping_import_fingerprint(

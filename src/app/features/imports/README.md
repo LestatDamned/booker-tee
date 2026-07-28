@@ -536,6 +536,8 @@ import path easy to test.
   template matching, table signatures, mapping defaults, DTOs, raw table
   navigation, row mapping, and draft conversion.
 - `domain/control_totals.py` - statement balance and inflow/outflow control totals.
+- `domain/document_lifecycle.py` - pure document status transition matrix,
+  review status resolution, and linked-operation predicate.
 - `domain/deduplication.py` - pure duplicate fingerprint and classification
   policy.
 - `domain/validation.py` - pure statement total validation logic.

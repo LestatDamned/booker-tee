@@ -5,6 +5,7 @@ from openpyxl.utils.exceptions import InvalidFileException
 from pdfplumber.utils.exceptions import PdfminerException
 
 from app.db.base import utc_now
+from app.features.imports.application.documents.status import transition_document_status
 from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.models import ParseAttempt, UploadedDocument, UploadedDocumentStatus
 from app.features.imports.repository import ImportRepository
@@ -41,7 +42,7 @@ async def record_failed_parse_attempt(
         error_code=type(exc).__name__,
         error_message=sanitize_error_message(exc),
     )
-    await imports.mark_document_status(document, document_status)
+    await transition_document_status(imports, document, document_status)
 
 
 def sanitize_error_message(exc: BaseException) -> str:

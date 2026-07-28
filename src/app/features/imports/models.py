@@ -25,7 +25,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
 
 from app.db.base import Base, utc_now
-from app.features.imports.domain.types import RawTransactionStatus
+from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.ledger.models import OperationType
 from app.features.workspaces.models import enum_values
 
@@ -44,17 +44,6 @@ class UploadedDocumentSource(StrEnum):
 class UploadedDocumentType(StrEnum):
     BANK_STATEMENT = "bank_statement"
     OTHER = "other"
-
-
-class UploadedDocumentStatus(StrEnum):
-    UPLOADED = "uploaded"
-    PENDING_PARSE = "pending_parse"
-    PARSING = "parsing"
-    PARSED = "parsed"
-    REQUIRES_REVIEW = "requires_review"
-    FAILED_TO_PARSE = "failed_to_parse"
-    IMPORTED = "imported"
-    IGNORED = "ignored"
 
 
 class ParseAttemptStatus(StrEnum):

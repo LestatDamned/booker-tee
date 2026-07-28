@@ -1,3 +1,4 @@
+from app.features.imports.application.documents.status import transition_document_status
 from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.models import (
     ParseAttempt,
@@ -32,4 +33,8 @@ async def mark_attempt_requires_review(
             message=message,
             validation_report=report,
         )
-    await imports.mark_document_status(document, UploadedDocumentStatus.REQUIRES_REVIEW)
+    await transition_document_status(
+        imports,
+        document,
+        UploadedDocumentStatus.REQUIRES_REVIEW,
+    )

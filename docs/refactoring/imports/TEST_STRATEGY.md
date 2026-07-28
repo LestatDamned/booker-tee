@@ -155,7 +155,8 @@ production-unused orchestration wrapper. Действующий API-сценар
 1. concurrent mapping import;
 2. upload lost-response replay с фактической persistence;
 3. parse failure сохраняет document/attempt/source;
-4. document status transition matrix после удаления reparse;
+4. ~~document status transition matrix после удаления reparse;~~ completed in
+   Phase 3.3;
 5. confirmation и undo на реальной transaction boundary;
 6. transfer `affects_profit=false`;
 7. delete/ignore behavior при linked operations.
