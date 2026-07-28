@@ -57,7 +57,6 @@ ledger/
     manual_mutations.py        # manual write workflows
     manual_operations.py       # public manual service and reference reader
     raw_transaction_posting.py # posting imported rows and transfers
-    transfer_suggestions.py    # transfer candidate read workflow
 
   domain/
     money.py                   # signs, amounts, currency and balance rules

@@ -301,6 +301,22 @@ imports/domain/review_queue.py
 
 ### Commit 6.2 — Move review read side
 
+Статус: completed 2026-07-28.
+
+Выполнено без изменения read behavior:
+
+- review classification/application DTO и reference workflows перемещены в
+  `import_review/application/classification.py`;
+- read model, duplicate evidence, transfer options и validation projection
+  перемещены в `import_review/application`;
+- transfer suggestion matching перемещён из `ledger/application` в
+  `import_review/application`;
+- API, chat и tests используют defining modules без compatibility re-exports;
+- calculation, storage и refresh document validation объединены в
+  `imports/application/pipelines/document_validation.py`;
+- три validation-файла заменены одним, поэтому общее количество Python-файлов
+  не выросло.
+
 #### Проблема
 
 Read model уже предназначен только для Import Review, но лежит в `imports` и

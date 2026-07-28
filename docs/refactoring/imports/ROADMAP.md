@@ -489,7 +489,16 @@ compatibility re-exports не создавались. Persisted imports statuses
 
 ### Commit 6.2: move review read side
 
+Статус: completed 2026-07-28.
+
 Перенести read model, duplicate evidence и transfer suggestions.
+
+Review classification/application DTO, reader, duplicate evidence, transfer
+options, validation projection и transfer suggestion matching перемещены в
+`src/app/features/import_review/application`. React API и chat используют
+defining modules напрямую. Три imports-owned document-validation модуля
+объединены в `application/pipelines/document_validation.py`; количество
+Python-файлов уменьшилось, SQL и matching behavior не менялись.
 
 ### Commit 6.3: move mutation actors
 

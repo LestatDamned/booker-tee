@@ -1,3 +1,5 @@
+"""Transfer options shown while reviewing an imported row."""
+
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -6,12 +8,12 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 from app.features.accounts.models import Account
-from app.features.import_review.domain.classification import resolve_review_classification
-from app.features.imports.models import RawTransaction, UploadedDocument
-from app.features.ledger.application.transfer_suggestions import (
+from app.features.import_review.application.transfer_suggestions import (
     ExistingTransferSuggestion,
     TransferSuggestion,
 )
+from app.features.import_review.domain.classification import resolve_review_classification
+from app.features.imports.models import RawTransaction, UploadedDocument
 from app.features.ledger.domain.types import OperationType
 
 

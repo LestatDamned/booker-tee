@@ -503,17 +503,19 @@ import path easy to test.
 
 ## Current module map
 
+- `../import_review/application/` - Import Review read model, classification,
+  duplicate evidence, transfer options and transfer candidate matching.
 - `service.py` - small read-side facade for document list/detail views.
 - `application/documents/` - document lifecycle use cases and helpers: upload,
   ignore/delete, parse attempts.
-- `application/review/` - review lifecycle use cases and helpers:
-  confirmation/transfer actions, status changes, validation refresh, and
-  review page data loading.
+- `application/review/` - temporary location of review mutations and legacy
+  chat wrappers until Phase 6.3-6.5.
 - `application/processing.py` - parse success orchestrator: stores extracted
   statement data, selects a known parser or unknown fallback, then runs the
   matching pipeline.
 - `application/pipelines/` - shared import pipeline steps: deduplication
-  orchestration, review-required attempts, and validation result storage.
+  orchestration, review-required attempts, and document validation
+  calculation/persistence.
 - `application/known_statements/` - known bank parser pipeline: drafts, raw rows, deduplication, rules, validation.
 - `application/unknown_statements/` - unknown statement fallback and analysis internals: fallback/template pipeline, hints, DTOs, table detection, column profiles, profile helpers, suggestions, suggestion scoring, continuations, and control totals.
 - `application/unknown_statement_mappings/` - unknown statement mapping workflows
@@ -600,8 +602,7 @@ expanding it.
 Keep the root of `imports/` small. New files should usually go into one of
 these packages:
 
-- `application/` - user workflows, parser attempts, review actions and upload
-  orchestration.
+- `application/` - document, parser, mapping and upload orchestration.
 - `application/<workflow_package>/` - cohesive helpers for one application workflow when a single file stops reading linearly.
 - `domain/` - pure import concepts and rules such as statement control totals,
   deduplication and statement total validation.

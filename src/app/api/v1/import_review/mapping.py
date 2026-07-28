@@ -29,7 +29,7 @@ from app.api.v1.import_review.schemas.responses import (
     ImportReviewTransferOptionsApiResponse,
     ImportReviewValidationApiResponse,
 )
-from app.features.imports.application.review.classification import (
+from app.features.import_review.application.classification import (
     ImportReviewCategoryReferenceDto,
     ImportReviewClassificationDto,
     ImportReviewConfirmabilityDto,
@@ -37,11 +37,11 @@ from app.features.imports.application.review.classification import (
     ImportReviewRuleSuggestionDto,
     ImportReviewSelectionDto,
 )
-from app.features.imports.application.review.read_model import (
+from app.features.import_review.application.read_model import (
     ImportReviewAccountDto,
     ImportReviewReadModel,
 )
-from app.features.imports.application.review.transfers import (
+from app.features.import_review.application.transfer_options import (
     ImportReviewTransferAccountDto,
     ImportReviewTransferOptionsDto,
 )

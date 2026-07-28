@@ -8,7 +8,7 @@ from app.features.imports.application.pipelines.attempt_review import (
 from app.features.imports.application.pipelines.deduplication import (
     RawTransactionDeduplicator,
 )
-from app.features.imports.application.pipelines.validation_result import (
+from app.features.imports.application.pipelines.document_validation import (
     store_import_validation_result,
 )
 from app.features.imports.domain.validation import validate_statement_totals

@@ -1,3 +1,5 @@
+"""References, draft evaluation, and classification for import review."""
+
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID

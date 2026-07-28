@@ -34,20 +34,20 @@ from app.api.v1.import_review.schemas.responses import (
     ImportReviewTransferMutationApiResponse,
 )
 from app.features.categories.service import CategoryError
-from app.features.import_review.domain.lifecycle import (
-    ImportReviewLifecycleConflictError,
-    ImportReviewLifecycleError,
-)
-from app.features.imports.application.review.classification import (
+from app.features.import_review.application.classification import (
     ImportReviewCategoryCreator,
     ImportReviewDraftEvaluator,
     ImportReviewDraftValidationError,
+)
+from app.features.import_review.application.read_model import ImportReviewReader
+from app.features.import_review.domain.lifecycle import (
+    ImportReviewLifecycleConflictError,
+    ImportReviewLifecycleError,
 )
 from app.features.imports.application.review.lifecycle_commands import (
     ImportReviewLifecycleCommand,
     ImportReviewLifecycleService,
 )
-from app.features.imports.application.review.read_model import ImportReviewReader
 from app.features.imports.application.review.rule_commands import (
     ImportReviewRuleApplicationNotFoundError,
     ImportReviewRuleApplicationService,

@@ -38,10 +38,10 @@ from app.features.chat_integrations.use_cases.review.state import (
     ChatReviewStateClaimer,
     ChatReviewStateReader,
 )
+from app.features.import_review.application.transfer_suggestions import TransferSuggestionUseCase
 from app.features.imports.application.review.actions import RawTransactionReviewer
 from app.features.imports.errors import RawTransactionReviewError
 from app.features.imports.query_repository import ImportQueryRepository
-from app.features.ledger.application.transfer_suggestions import TransferSuggestionUseCase
 from app.features.ledger.errors import LedgerPostingError
 from app.features.workspaces.service import WorkspaceContext
 

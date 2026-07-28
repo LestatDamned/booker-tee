@@ -1,9 +1,11 @@
+"""Review projection of statement validation results."""
+
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
-from app.features.imports.application.review.validation_calculation import (
+from app.features.imports.application.pipelines.document_validation import (
     calculate_document_validation,
 )
 from app.features.imports.domain.validation import (

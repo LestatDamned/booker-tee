@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
-from app.features.imports.application.review.validation_read_model import (
+from app.features.import_review.application.validation_read_model import (
     ImportReviewValidationReasonCode,
     build_import_review_validation,
 )

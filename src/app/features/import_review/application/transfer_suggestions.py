@@ -1,3 +1,5 @@
+"""Candidate matching for imported rows that may represent transfers."""
+
 from dataclasses import dataclass
 from uuid import UUID
 

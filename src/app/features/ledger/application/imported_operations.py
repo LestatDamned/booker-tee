@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
-from app.features.imports.application.review.validation_refresh import (
+from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
 )
 from app.features.imports.models import UploadedDocumentStatus

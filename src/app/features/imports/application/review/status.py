@@ -7,7 +7,7 @@ from app.features.import_review.domain.lifecycle import (
     resolve_import_review_lifecycle_transition,
 )
 from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
-from app.features.imports.application.review.validation_refresh import (
+from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
 )
 from app.features.imports.errors import RawTransactionReviewError

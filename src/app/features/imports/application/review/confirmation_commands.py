@@ -5,12 +5,12 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
-from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
-from app.features.imports.application.review.classification import (
+from app.features.import_review.application.classification import (
     build_import_review_draft_evaluation,
 )
-from app.features.imports.application.review.validation_refresh import (
+from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
+from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
+from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
 )
 from app.features.imports.domain.types import RawTransactionStatus

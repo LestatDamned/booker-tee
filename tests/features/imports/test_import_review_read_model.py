@@ -6,14 +6,14 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.import_review.domain.classification import ReviewClassificationSource
-from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
-from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
-from app.features.imports.application.review.classification import ImportReviewReferencesDto
-from app.features.imports.application.review.read_model import (
+from app.features.import_review.application.classification import ImportReviewReferencesDto
+from app.features.import_review.application.read_model import (
     ImportReviewReader,
     ImportReviewReadonlyReasonCode,
 )
+from app.features.import_review.domain.classification import ReviewClassificationSource
+from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
+from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import UploadedDocumentStatus
 from app.features.ledger.domain.types import OperationStatus, OperationType
@@ -128,7 +128,7 @@ async def test_import_review_reader_returns_none_for_unknown_document() -> None:
 
 @pytest.mark.asyncio
 async def test_possible_duplicate_evidence_is_built_from_workspace_scoped_candidate() -> None:
-    from app.features.imports.application.review.duplicates import (
+    from app.features.import_review.application.duplicate_evidence import (
         ImportReviewDuplicateReader,
     )
 

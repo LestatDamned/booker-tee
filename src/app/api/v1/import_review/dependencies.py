@@ -8,27 +8,31 @@ from app.api.errors import ApiError
 from app.db.session import get_session
 from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
-from app.features.imports.application.review.classification import (
+from app.features.import_review.application.classification import (
     ImportReviewCategoryCreator,
     ImportReviewDraftEvaluator,
     ImportReviewReferenceReader,
 )
+from app.features.import_review.application.duplicate_evidence import (
+    ImportReviewDuplicateReader,
+)
+from app.features.import_review.application.read_model import ImportReviewReader
+from app.features.import_review.application.transfer_options import ImportReviewTransferReader
+from app.features.import_review.application.transfer_suggestions import (
+    TransferSuggestionUseCase,
+)
 from app.features.imports.application.review.confirmation_commands import (
     ImportReviewConfirmationService,
 )
-from app.features.imports.application.review.duplicates import ImportReviewDuplicateReader
 from app.features.imports.application.review.lifecycle_commands import (
     ImportReviewLifecycleService,
 )
-from app.features.imports.application.review.read_model import ImportReviewReader
 from app.features.imports.application.review.rule_commands import (
     ImportReviewRuleApplicationService,
 )
 from app.features.imports.application.review.transfer_commands import ImportReviewTransferService
-from app.features.imports.application.review.transfers import ImportReviewTransferReader
 from app.features.imports.application.review.undo_commands import ImportReviewUndoService
 from app.features.imports.repository import ImportRepository
-from app.features.ledger.application.transfer_suggestions import TransferSuggestionUseCase
 from app.features.properties.service import PropertyService
 from app.features.workspaces.permissions import permission_flags_for
 

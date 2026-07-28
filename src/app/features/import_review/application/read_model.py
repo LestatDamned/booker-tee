@@ -1,3 +1,5 @@
+"""Authoritative read model for import review."""
+
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -6,16 +8,7 @@ from typing import Protocol
 from uuid import UUID
 
 from app.features.accounts.models import Account
-from app.features.import_review.domain.lifecycle import (
-    ImportReviewLifecycleSnapshot,
-    import_review_lifecycle_snapshot,
-)
-from app.features.import_review.domain.queue import (
-    is_review_terminal,
-    is_reviewable,
-    review_queue_snapshot,
-)
-from app.features.imports.application.review.classification import (
+from app.features.import_review.application.classification import (
     ImportReviewClassificationDto,
     ImportReviewConfirmabilityDto,
     ImportReviewDraftEvaluationDto,
@@ -25,18 +18,27 @@ from app.features.imports.application.review.classification import (
     ImportReviewSelectionDto,
     build_import_review_draft_evaluation,
 )
-from app.features.imports.application.review.duplicates import (
+from app.features.import_review.application.duplicate_evidence import (
     ImportReviewDuplicateEvidenceDto,
     ImportReviewDuplicateReader,
 )
-from app.features.imports.application.review.transfers import (
+from app.features.import_review.application.transfer_options import (
     EMPTY_TRANSFER_OPTIONS,
     ImportReviewTransferOptionsDto,
     ImportReviewTransferReader,
 )
-from app.features.imports.application.review.validation_read_model import (
+from app.features.import_review.application.validation_read_model import (
     ImportReviewValidationDto,
     build_import_review_validation,
+)
+from app.features.import_review.domain.lifecycle import (
+    ImportReviewLifecycleSnapshot,
+    import_review_lifecycle_snapshot,
+)
+from app.features.import_review.domain.queue import (
+    is_review_terminal,
+    is_reviewable,
+    review_queue_snapshot,
 )
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import RawTransaction, UploadedDocument, UploadedDocumentStatus

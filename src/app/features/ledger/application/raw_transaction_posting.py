@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.accounts.models import Account
 from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
-from app.features.imports.application.review.validation_refresh import (
+from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
 )
 from app.features.imports.models import RawTransaction
