@@ -40,7 +40,7 @@ class UnknownStatementFallbackPipeline:
         analysis = analyze_unknown_statement(extracted)
         if not any(preview.source_type == "pdf_table" for preview in analysis.table_previews):
             attempt.raw_tables_json = raw_tables_with_text_candidate_tables(
-                extracted,
+                analysis.generated_text_tables,
                 attempt.raw_tables_json,
             )
         document.bank_name = analysis.detected_bank_name

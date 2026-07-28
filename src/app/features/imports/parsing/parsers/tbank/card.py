@@ -3,11 +3,6 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.application.unknown_statements.text_tables import (
-    MoneyFragment,
-    currency_from_money,
-    date_fragments,
-)
 from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.parsing.parser_types import RawTransactionDraft
@@ -17,8 +12,11 @@ from app.features.imports.parsing.support.common import (
     parse_with_error,
 )
 from app.features.imports.parsing.support.normalization import (
+    MoneyFragment,
     build_dedupe_hash,
     clean_cell,
+    currency_from_money,
+    date_fragments,
     normalize_currency,
     normalize_description,
     parse_bank_date,

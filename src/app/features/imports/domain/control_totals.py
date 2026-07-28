@@ -4,7 +4,7 @@ from decimal import Decimal
 
 @dataclass(frozen=True)
 class StatementControlTotals:
-    currency: str
+    currency: str | None
     opening_balance: Decimal | None = None
     closing_balance: Decimal | None = None
     total_inflow: Decimal | None = None

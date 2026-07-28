@@ -37,7 +37,9 @@ def extract_unknown_statement_control_totals(
         control_total_labels,
         field="total_outflow",
     )
-    if not any([opening_balance, closing_balance, total_inflow, total_outflow]):
+    if all(
+        value is None for value in (opening_balance, closing_balance, total_inflow, total_outflow)
+    ):
         return None
     return StatementControlTotals(
         currency=currency,
@@ -48,7 +50,7 @@ def extract_unknown_statement_control_totals(
     )
 
 
-def detect_statement_currency(text: str) -> str:
+def detect_statement_currency(text: str) -> str | None:
     normalized = text.casefold()
     if "российский рубль" in normalized or "₽" in text:
         return "RUB"
@@ -56,7 +58,7 @@ def detect_statement_currency(text: str) -> str:
         return "USD"
     if "eur" in normalized or "€" in text:
         return "EUR"
-    return "RUB"
+    return None
 
 
 def find_money_after_any_label(

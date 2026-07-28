@@ -5,6 +5,7 @@ from typing import cast
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from app.features.imports.application.unknown_statement_mappings.drafts import (
     UnknownStatementDraftMapper,
@@ -86,10 +87,42 @@ def test_unknown_statement_hints_load_from_config_file() -> None:
     config = load_statement_hint_config(DEFAULT_HINT_CONFIG_PATH)
 
     assert "Opening balance" in config.generic_control_total_labels.opening_balance
-    ozon_hint = next(hint for hint in config.statement_hints if hint.bank_name == "Ozon Bank")
+    ozon_hint = next(hint for hint in config.banks if hint.bank_name == "Ozon Bank")
     assert "ozon bank" in ozon_hint.markers
     assert ozon_hint.statement_types[0].statement_type == "card_statement"
     assert "Входящий остаток" in ozon_hint.control_total_labels[0].opening_balance
+
+
+def test_unknown_statement_hints_reject_invalid_nested_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "invalid-hints.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "generic_control_total_labels": {},
+                "banks": [
+                    {
+                        "bank_name": "Example Bank",
+                        "markers": ["example bank"],
+                        "statement_types": [
+                            {
+                                "statement_type": "card_statement",
+                                "markers": "operation",
+                            }
+                        ],
+                        "unexpected": True,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        load_statement_hint_config(config_path)
+
+    error_locations = {error["loc"] for error in exc_info.value.errors()}
+    assert ("banks", 0, "statement_types", 0, "markers") in error_locations
+    assert ("banks", 0, "unexpected") in error_locations
 
 
 def test_unknown_statement_analysis_finds_mapping_candidates() -> None:
@@ -129,7 +162,8 @@ def test_unknown_statement_analysis_finds_mapping_candidates() -> None:
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    analysis = analyze_unknown_statement(extracted)
+    report = analysis.as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
 
@@ -145,19 +179,16 @@ def test_unknown_statement_analysis_finds_mapping_candidates() -> None:
         "field": "operation_date",
         "column_index": 0,
         "header": "Дата операции",
-        "confidence": 0.95,
     } in column_candidates
     assert {
         "field": "description",
         "column_index": 2,
         "header": "Назначение платежа",
-        "confidence": 0.9,
     } in column_candidates
     assert {
         "field": "amount",
         "column_index": 3,
         "header": "Сумма операции",
-        "confidence": 0.85,
     } in column_candidates
 
 
@@ -188,7 +219,8 @@ def test_unknown_statement_analysis_finds_header_after_preamble() -> None:
         metadata={"source_format": "xlsx"},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    analysis = analyze_unknown_statement(extracted)
+    report = analysis.as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
     rows = cast(list[list[str]], preview["rows"])
@@ -260,23 +292,20 @@ def test_unknown_statement_analysis_detects_english_table_with_date_not_first() 
         "field": "description",
         "column_index": 0,
         "header": "Description",
-        "confidence": 0.9,
     } in column_candidates
     assert {
         "field": "operation_date",
         "column_index": 1,
         "header": "Transaction Date",
-        "confidence": 0.95,
     } in column_candidates
     assert {
         "field": "amount",
         "column_index": 2,
         "header": "Amount",
-        "confidence": 0.85,
     } in column_candidates
 
 
-def test_unknown_statement_analysis_includes_column_profiles() -> None:
+def test_unknown_statement_analysis_keeps_column_profiles_internal() -> None:
     extracted = ExtractedPdf(
         text_by_page=["Account statement"],
         tables_by_page=[
@@ -294,18 +323,20 @@ def test_unknown_statement_analysis_includes_column_profiles() -> None:
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    analysis = analyze_unknown_statement(extracted)
+    profiles = analysis.table_previews[0].column_profiles
+    report = analysis.as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
-    profiles = cast(list[dict[str, object]], previews[0]["column_profiles"])
 
-    assert profiles[0]["header"] == "Description"
-    assert profiles[0]["description_like_count"] == 2
-    assert profiles[0]["header_matches"] == ["description"]
-    assert profiles[1]["header"] == "Transaction Date"
-    assert profiles[1]["date_like_count"] == 2
-    assert profiles[1]["header_matches"] == ["operation_date"]
-    assert profiles[2]["money_like_count"] == 2
-    assert profiles[3]["currency_like_count"] == 2
+    assert profiles[0].header == "Description"
+    assert profiles[0].description_like_count == 2
+    assert profiles[0].header_matches == ["description"]
+    assert profiles[1].header == "Transaction Date"
+    assert profiles[1].date_like_count == 2
+    assert profiles[1].header_matches == ["operation_date"]
+    assert profiles[2].money_like_count == 2
+    assert profiles[3].currency_like_count == 2
+    assert "column_profiles" not in previews[0]
 
 
 def test_unknown_statement_analysis_includes_mapping_suggestions() -> None:
@@ -337,7 +368,6 @@ def test_unknown_statement_analysis_includes_mapping_suggestions() -> None:
     assert suggestion["amount_column"] == 2
     assert suggestion["currency_column"] == 3
     assert suggestion["first_data_row"] == 1
-    assert suggestion["confidence"] == pytest.approx(0.9125)
     assert {
         "field": "operation_date",
         "column_index": 1,
@@ -377,7 +407,6 @@ def test_unknown_statement_analysis_detects_balance_after_column() -> None:
         "field": "balance_after",
         "column_index": 4,
         "header": "Balance",
-        "confidence": 0.85,
     } in column_candidates
     assert suggestion["balance_after_column"] == 4
     assert {
@@ -419,7 +448,6 @@ def test_unknown_statement_analysis_detects_posting_date_column() -> None:
         "field": "posting_date",
         "column_index": 1,
         "header": "Posting Date",
-        "confidence": 0.9,
     } in column_candidates
     assert suggestion["operation_date_column"] == 0
     assert suggestion["posting_date_column"] == 1
@@ -482,10 +510,11 @@ def test_unknown_statement_analysis_suggests_mapping_for_table_without_headers()
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    analysis = analyze_unknown_statement(extracted)
+    profiles = analysis.table_previews[0].column_profiles
+    report = analysis.as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
-    profiles = cast(list[dict[str, object]], preview["column_profiles"])
     suggestions = cast(list[dict[str, object]], preview["mapping_suggestions"])
     suggestion = suggestions[0]
     reasons = cast(list[dict[str, object]], suggestion["reasons"])
@@ -495,14 +524,13 @@ def test_unknown_statement_analysis_suggests_mapping_for_table_without_headers()
         ["2026-05-13", "Salary", "+2000.00", "USD"],
         ["2026-05-14", "Groceries", "-42.10", "USD"],
     ]
-    assert profiles[0]["header"] == "column 1"
-    assert profiles[0]["header_matches"] == []
+    assert profiles[0].header == "column 1"
+    assert profiles[0].header_matches == []
     assert suggestion["operation_date_column"] == 0
     assert suggestion["description_column"] == 1
     assert suggestion["amount_column"] == 2
     assert suggestion["currency_column"] == 3
     assert suggestion["first_data_row"] == 0
-    assert suggestion["confidence"] == pytest.approx(0.85)
     assert suggestion["warnings"] == []
     assert {
         "field": "operation_date",
@@ -538,7 +566,8 @@ def test_unknown_statement_analysis_builds_text_candidate_table_when_pdf_tables_
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    analysis = analyze_unknown_statement(extracted)
+    report = analysis.as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
     command = StatementMappingDefaultResolver.resolve(
@@ -547,7 +576,7 @@ def test_unknown_statement_analysis_builds_text_candidate_table_when_pdf_tables_
     ).spec
     mapped_preview = StatementMappingEngine.apply(
         raw_tables_with_text_candidate_tables(
-            extracted,
+            analysis.generated_text_tables,
             raw_tables_from_extracted_fixture(extracted),
         ),
         command,
@@ -589,6 +618,29 @@ def test_unknown_statement_analysis_builds_text_candidate_table_when_pdf_tables_
     ]
 
 
+def test_unknown_statement_persists_all_generated_rows_beyond_preview() -> None:
+    transaction_lines = [f"{day:02d}.05.2026 Operation {day} -{day},00 RUB" for day in range(1, 9)]
+    extracted = ExtractedPdf(
+        text_by_page=["\n".join(transaction_lines)],
+        tables_by_page=[],
+        metadata={},
+    )
+
+    analysis = analyze_unknown_statement(extracted)
+    report = analysis.as_validation_report()
+    raw_tables = raw_tables_with_text_candidate_tables(
+        analysis.generated_text_tables,
+        None,
+    )
+    persisted_tables = cast(list[list[list[str]]], raw_tables[0]["tables"])
+
+    assert analysis.table_previews[0].preview_row_count == 5
+    assert analysis.table_previews[0].row_count == 9
+    assert len(persisted_tables[0]) == 9
+    assert persisted_tables[0][-1][1] == "Operation 8"
+    assert "generated_text_tables" not in report
+
+
 def test_unknown_statement_analysis_does_not_treat_transaction_text_as_header() -> None:
     long_description = (
         "Оплата товаров по карте 3977 сумма 390.00 RUB в MERCHANT EXAMPLE CITY RU "
@@ -622,29 +674,28 @@ def test_unknown_statement_analysis_does_not_treat_transaction_text_as_header() 
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    analysis = analyze_unknown_statement(extracted)
+    profiles = analysis.table_previews[0].column_profiles
+    report = analysis.as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
-    profiles = cast(list[dict[str, object]], preview["column_profiles"])
     candidates = cast(list[dict[str, object]], preview["column_candidates"])
     rows = cast(list[list[str]], preview["rows"])
 
     assert rows[0][2] == long_description
-    assert profiles[2]["header"] == "column 3"
-    assert profiles[2]["header_matches"] == []
-    assert profiles[2]["money_like_count"] == 0
-    assert profiles[2]["description_like_count"] == 2
+    assert profiles[2].header == "column 3"
+    assert profiles[2].header_matches == []
+    assert profiles[2].money_like_count == 0
+    assert profiles[2].description_like_count == 2
     assert {
         "field": "operation_date",
         "column_index": 0,
         "header": "column 1",
-        "confidence": 0.75,
     } in candidates
     assert {
         "field": "description",
         "column_index": 2,
         "header": "column 3",
-        "confidence": 0.65,
     } in candidates
     assert not any(
         candidate["field"] == "operation_date" and candidate["column_index"] == 2
@@ -708,25 +759,21 @@ def test_unknown_statement_analysis_detects_split_debit_credit_table() -> None:
         "field": "operation_date",
         "column_index": 0,
         "header": "Дата",
-        "confidence": 0.95,
     } in column_candidates
     assert {
         "field": "description",
         "column_index": 1,
         "header": "Описание",
-        "confidence": 0.9,
     } in column_candidates
     assert {
         "field": "debit_amount",
         "column_index": 2,
         "header": "Списание",
-        "confidence": 0.9,
     } in column_candidates
     assert {
         "field": "credit_amount",
         "column_index": 3,
         "header": "Зачисление",
-        "confidence": 0.9,
     } in column_candidates
 
 
@@ -826,6 +873,7 @@ def test_unknown_statement_extracts_ozon_control_totals_from_text() -> None:
         [
             "\n".join(
                 [
+                    "ООО «ОЗОН Банк»",
                     "Валюта: РОССИЙСКИЙ РУБЛЬ",
                     "Входящий остаток: 46 003.06 ₽",
                     "Итого зачислений за период: 69 796.06 ₽",
@@ -865,3 +913,47 @@ def test_unknown_statement_extracts_generic_english_control_totals_from_text() -
     assert control_totals.total_inflow == Decimal("250.25")
     assert control_totals.total_outflow == Decimal("100.10")
     assert control_totals.closing_balance == Decimal("1150.15")
+
+
+def test_unknown_statement_preserves_zero_control_totals() -> None:
+    control_totals = extract_unknown_statement_control_totals(
+        [
+            "\n".join(
+                [
+                    "Currency: USD",
+                    "Opening balance: 0.00 USD",
+                    "Total credits: 0.00 USD",
+                    "Total debits: 0.00 USD",
+                    "Closing balance: 0.00 USD",
+                ]
+            )
+        ]
+    )
+
+    assert control_totals is not None
+    assert control_totals.opening_balance == Decimal("0.00")
+    assert control_totals.total_inflow == Decimal("0.00")
+    assert control_totals.total_outflow == Decimal("0.00")
+    assert control_totals.closing_balance == Decimal("0.00")
+
+
+def test_unknown_statement_does_not_guess_missing_currency() -> None:
+    control_totals = extract_unknown_statement_control_totals(
+        ["Opening balance: 1000.00\nClosing balance: 1200.00"]
+    )
+
+    assert control_totals is not None
+    assert control_totals.currency is None
+
+
+def test_unknown_statement_ignores_unmatched_bank_control_total_labels() -> None:
+    control_totals = extract_unknown_statement_control_totals(["Расходы: 500.00 ₽"])
+
+    assert control_totals is None
+
+
+def test_unknown_statement_uses_control_total_labels_for_detected_bank() -> None:
+    control_totals = extract_unknown_statement_control_totals(["Альфа-Банк\nРасходы: 500.00 ₽"])
+
+    assert control_totals is not None
+    assert control_totals.total_outflow == Decimal("500.00")

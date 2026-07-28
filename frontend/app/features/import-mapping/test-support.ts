@@ -95,24 +95,20 @@ export function importMappingPayload(): ImportMappingDto {
             field: "operation_date",
             columnIndex: 0,
             header: "Дата",
-            confidence: 0.98,
           },
           {
             field: "description",
             columnIndex: 1,
             header: "Назначение платежа",
-            confidence: 0.96,
           },
           {
             field: "amount",
             columnIndex: 2,
             header: "Сумма",
-            confidence: 0.95,
           },
         ],
         suggestion: {
           mapping: defaultMapping,
-          confidence: 0.96,
           reasons: [
             {
               field: "operation_date",
@@ -152,7 +148,6 @@ export function importMappingPayload(): ImportMappingDto {
             creditAmountColumn: 3,
             balanceAfterColumn: null,
           },
-          confidence: 0.81,
           reasons: [],
           warningCodes: [],
         },

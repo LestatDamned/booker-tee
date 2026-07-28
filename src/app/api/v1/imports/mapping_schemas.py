@@ -95,7 +95,6 @@ class MappingColumnCandidateApiResponse(ApiModel):
     field: str
     column_index: int
     header: str
-    confidence: float | None
 
 
 class MappingSuggestionReasonApiResponse(ApiModel):
@@ -109,7 +108,6 @@ class MappingSuggestionReasonApiResponse(ApiModel):
 
 class MappingSuggestionApiResponse(ApiModel):
     mapping: MappingCommandApiModel
-    confidence: float | None
     reasons: list[MappingSuggestionReasonApiResponse]
     warning_codes: list[str]
 

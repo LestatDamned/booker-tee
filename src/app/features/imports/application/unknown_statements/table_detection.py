@@ -1,4 +1,11 @@
-from app.features.imports.application.unknown_statements.header_keywords import (
+from app.features.imports.application.unknown_statements.value_detectors import (
+    cell_has_letters,
+    is_date_like_cell,
+    is_description_like_cell,
+    is_money_like_cell,
+    normalize_cell,
+)
+from app.features.imports.parsing.support.header_fields import (
     AMOUNT_HEADER_KEYWORDS,
     CREDIT_HEADER_KEYWORDS,
     DATE_HEADER_KEYWORDS,
@@ -6,13 +13,6 @@ from app.features.imports.application.unknown_statements.header_keywords import 
     DESCRIPTION_HEADER_KEYWORDS,
     contains_any,
     header_matches_for_cell,
-)
-from app.features.imports.application.unknown_statements.value_detectors import (
-    cell_has_letters,
-    is_date_like_cell,
-    is_description_like_cell,
-    is_money_like_cell,
-    normalize_cell,
 )
 
 MAX_PREVIEW_ROWS = 5

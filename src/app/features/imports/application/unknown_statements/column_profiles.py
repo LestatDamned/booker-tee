@@ -2,9 +2,6 @@ from app.features.imports.application.unknown_statements.analysis_models import 
     UnknownStatementColumnCandidate,
     UnknownStatementColumnProfile,
 )
-from app.features.imports.application.unknown_statements.header_keywords import (
-    header_matches_for_cell,
-)
 from app.features.imports.application.unknown_statements.table_detection import (
     clean_row,
     row_has_text,
@@ -16,6 +13,9 @@ from app.features.imports.application.unknown_statements.value_detectors import 
     is_description_like_cell,
     is_money_like_cell,
 )
+from app.features.imports.parsing.support.header_fields import header_matches_for_cell
+
+SPLIT_AMOUNT_FIELDS = {"debit_amount", "credit_amount"}
 
 
 def build_column_profiles(table: list[list[str | None]]) -> list[UnknownStatementColumnProfile]:
@@ -54,40 +54,16 @@ def infer_column_candidates_from_profiles(
 ) -> list[UnknownStatementColumnCandidate]:
     candidates: list[UnknownStatementColumnCandidate] = []
     for profile in profiles:
-        if "operation_date" in profile.header_matches:
+        for field in profile.header_matches:
             candidates.append(
-                column_candidate("operation_date", profile.column_index, profile.header, 0.95)
+                column_candidate(
+                    field,
+                    profile.column_index,
+                    profile.header,
+                )
             )
-        if "posting_date" in profile.header_matches:
-            candidates.append(
-                column_candidate("posting_date", profile.column_index, profile.header, 0.9)
-            )
-        if "description" in profile.header_matches:
-            candidates.append(
-                column_candidate("description", profile.column_index, profile.header, 0.9)
-            )
-        if "debit_amount" in profile.header_matches:
-            candidates.append(
-                column_candidate("debit_amount", profile.column_index, profile.header, 0.9)
-            )
-            continue
-        if "credit_amount" in profile.header_matches:
-            candidates.append(
-                column_candidate("credit_amount", profile.column_index, profile.header, 0.9)
-            )
-            continue
-        if "amount" in profile.header_matches:
-            candidates.append(
-                column_candidate("amount", profile.column_index, profile.header, 0.85)
-            )
-        if "currency" in profile.header_matches:
-            candidates.append(
-                column_candidate("currency", profile.column_index, profile.header, 0.85)
-            )
-        if "balance_after" in profile.header_matches:
-            candidates.append(
-                column_candidate("balance_after", profile.column_index, profile.header, 0.85)
-            )
+            if field in SPLIT_AMOUNT_FIELDS:
+                break
     if candidates:
         return candidates
     return infer_columns_from_profiles_without_headers(profiles)
@@ -111,12 +87,11 @@ def infer_columns_from_profiles_without_headers(
                 "operation_date",
                 date_profile.column_index,
                 date_profile.header,
-                0.75,
             )
         )
     if amount_profile is not None:
         candidates.append(
-            column_candidate("amount", amount_profile.column_index, amount_profile.header, 0.7)
+            column_candidate("amount", amount_profile.column_index, amount_profile.header)
         )
     if description_profile is not None:
         candidates.append(
@@ -124,13 +99,14 @@ def infer_columns_from_profiles_without_headers(
                 "description",
                 description_profile.column_index,
                 description_profile.header,
-                0.65,
             )
         )
     if currency_profile is not None:
         candidates.append(
             column_candidate(
-                "currency", currency_profile.column_index, currency_profile.header, 0.65
+                "currency",
+                currency_profile.column_index,
+                currency_profile.header,
             )
         )
     return candidates
@@ -140,13 +116,11 @@ def column_candidate(
     field: str,
     column_index: int,
     header: str,
-    confidence: float,
 ) -> UnknownStatementColumnCandidate:
     return UnknownStatementColumnCandidate(
         field=field,
         column_index=column_index,
         header=header,
-        confidence=confidence,
     )
 
 

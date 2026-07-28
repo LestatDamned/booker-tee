@@ -1,9 +1,9 @@
 import re
 
-DATE_PATTERNS = (
-    re.compile(r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b"),
-    re.compile(r"\b\d{4}-\d{1,2}-\d{1,2}\b"),
+from app.features.imports.parsing.support.normalization import (
+    DATE_PATTERNS,
 )
+
 MONEY_PATTERN = re.compile(
     r"^(?:₽|\$|€|£)?\s*[+-]?\s*\d[\d\s]*(?:[,.]\d{2})\s*"
     r"(?:₽|руб\.?|rub|rur|usd|eur|gbp|cny|try|aed|\$|€|£)?$",

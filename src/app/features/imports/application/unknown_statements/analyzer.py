@@ -1,4 +1,5 @@
 from app.features.imports.application.unknown_statements.analysis_models import (
+    TextCandidateTable,
     UnknownStatementAnalysis,
     UnknownStatementStatus,
 )
@@ -14,6 +15,7 @@ from app.features.imports.application.unknown_statements.table_analysis import (
 )
 from app.features.imports.application.unknown_statements.text_tables import (
     build_text_candidate_table_previews,
+    build_text_candidate_tables,
 )
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 
@@ -21,8 +23,10 @@ from app.features.imports.infrastructure.extraction.extracted_statement import E
 def analyze_unknown_statement(extracted: ExtractedStatement) -> UnknownStatementAnalysis:
     text = "\n".join(extracted.text_by_page)
     table_previews = build_table_previews(extracted)
+    generated_text_tables: list[TextCandidateTable] = []
     if not table_previews:
-        table_previews = build_text_candidate_table_previews(extracted)
+        generated_text_tables = build_text_candidate_tables(extracted)
+        table_previews = build_text_candidate_table_previews(generated_text_tables)
     control_totals = extract_unknown_statement_control_totals(extracted.text_by_page)
     text_based = any(page.strip() for page in extracted.text_by_page)
     return UnknownStatementAnalysis(
@@ -40,6 +44,7 @@ def analyze_unknown_statement(extracted: ExtractedStatement) -> UnknownStatement
         page_count=len(extracted.text_by_page),
         table_count=sum(len(page.tables) for page in extracted.tables_by_page),
         table_previews=table_previews,
+        generated_text_tables=generated_text_tables,
         control_totals=control_totals,
     )
 

@@ -65,7 +65,7 @@ def statement_control_totals_from_json(
     if payload is None:
         return None
     currency = payload.get("currency")
-    if not isinstance(currency, str):
+    if currency is not None and not isinstance(currency, str):
         return None
     return StatementControlTotals(
         currency=currency,

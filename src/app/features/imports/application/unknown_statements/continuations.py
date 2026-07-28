@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from app.features.imports.application.unknown_statements.analysis_models import (
     UnknownStatementContinuationMappingField,
     UnknownStatementMappingSuggestion,
@@ -93,16 +95,8 @@ def continuation_preview(
     preview: UnknownStatementTablePreview,
     anchor: UnknownStatementTablePreview,
 ) -> UnknownStatementTablePreview:
-    return UnknownStatementTablePreview(
-        page_number=preview.page_number,
-        table_index=preview.table_index,
-        row_count=preview.row_count,
-        column_count=preview.column_count,
-        preview_row_count=preview.preview_row_count,
-        rows=preview.rows,
-        column_candidates=preview.column_candidates,
-        column_profiles=preview.column_profiles,
-        mapping_suggestions=preview.mapping_suggestions,
+    return replace(
+        preview,
         is_continuation=True,
         continued_from_page_number=anchor.page_number,
         continued_from_table_index=anchor.table_index,

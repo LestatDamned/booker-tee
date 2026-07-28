@@ -1,21 +1,20 @@
 import re
-from dataclasses import dataclass
-from decimal import Decimal
 from typing import Any, cast
 
 from app.features.imports.application.unknown_statements.analysis_models import (
+    TextCandidateTable,
     UnknownStatementTablePreview,
 )
 from app.features.imports.application.unknown_statements.table_analysis import (
     build_table_preview,
 )
-from app.features.imports.application.unknown_statements.value_detectors import (
-    DATE_PATTERNS,
-    normalize_cell,
-)
+from app.features.imports.application.unknown_statements.value_detectors import normalize_cell
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.parsing.support.normalization import (
-    normalize_currency,
+    DATE_PATTERNS,
+    MoneyFragment,
+    currency_from_money,
+    date_fragments,
     parse_money_amount,
 )
 
@@ -39,23 +38,8 @@ MONEY_HAS_AMOUNT_MARKER_PATTERN = re.compile(
 )
 
 
-@dataclass(frozen=True)
-class TextCandidateTable:
-    page_number: int
-    table_index: int
-    rows: list[list[str]]
-
-
-@dataclass(frozen=True)
-class MoneyFragment:
-    raw: str
-    start: int
-    end: int
-    value: Decimal
-
-
 def build_text_candidate_table_previews(
-    extracted: ExtractedStatement,
+    candidate_tables: list[TextCandidateTable],
 ) -> list[UnknownStatementTablePreview]:
     return [
         build_table_preview(
@@ -64,15 +48,14 @@ def build_text_candidate_table_previews(
             table_index=table.table_index,
             source_type=TEXT_TABLE_SOURCE_TYPE,
         )
-        for table in build_text_candidate_tables(extracted)
+        for table in candidate_tables
     ]
 
 
 def raw_tables_with_text_candidate_tables(
-    extracted: ExtractedStatement,
+    candidate_tables: list[TextCandidateTable],
     raw_tables: list[dict[str, object]] | None,
 ) -> list[dict[str, object]]:
-    candidate_tables = build_text_candidate_tables(extracted)
     if not candidate_tables:
         return list(raw_tables or [])
 
@@ -148,13 +131,6 @@ def text_candidate_row(line: str) -> list[str] | None:
     ]
 
 
-def date_fragments(value: str) -> list[str]:
-    matches: list[tuple[int, str]] = []
-    for pattern in DATE_PATTERNS:
-        matches.extend((match.start(), match.group(0)) for match in pattern.finditer(value))
-    return [raw for _, raw in sorted(matches, key=lambda item: item[0])]
-
-
 def find_money_fragments(value: str) -> list[MoneyFragment]:
     fragments: list[MoneyFragment] = []
     for match in MONEY_FRAGMENT_PATTERN.finditer(value):
@@ -218,22 +194,6 @@ def date_spans(value: str) -> list[tuple[int, int]]:
     for pattern in DATE_PATTERNS:
         matches.extend((match.start(), match.end()) for match in pattern.finditer(value))
     return matches
-
-
-def currency_from_money(value: str) -> str:
-    lowered = value.casefold()
-    if "₽" in value or "руб" in lowered or "rub" in lowered or "rur" in lowered:
-        return "RUB"
-    if "$" in value or "usd" in lowered:
-        return "USD"
-    if "€" in value or "eur" in lowered:
-        return "EUR"
-    if "£" in value or "gbp" in lowered:
-        return "GBP"
-    for code in ("cny", "try", "aed"):
-        if code in lowered:
-            return code.upper()
-    return normalize_currency(None, "")
 
 
 def continuation_line(line: str) -> bool:

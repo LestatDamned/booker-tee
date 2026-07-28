@@ -294,7 +294,6 @@ def test_mapping_default_resolver_prefers_analyzer_suggestion() -> None:
                         "credit_amount_column": 6,
                         "currency_column": 7,
                         "first_data_row": 2,
-                        "confidence": 0.88,
                         "reasons": [],
                         "warnings": [],
                     }

@@ -318,6 +318,7 @@ async def store_mapping_validation_result(
         currency=(
             extracted_control_totals.currency
             if extracted_control_totals is not None
+            and extracted_control_totals.currency is not None
             else spec.default_currency
         ),
         opening_balance=(

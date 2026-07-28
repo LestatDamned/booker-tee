@@ -1,8 +1,22 @@
+import re
+from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
-from re import sub
 from uuid import UUID
+
+DATE_PATTERNS = (
+    re.compile(r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b"),
+    re.compile(r"\b\d{4}-\d{1,2}-\d{1,2}\b"),
+)
+
+
+@dataclass(frozen=True)
+class MoneyFragment:
+    raw: str
+    start: int
+    end: int
+    value: Decimal
 
 
 def clean_cell(value: object) -> str | None:
@@ -33,13 +47,20 @@ def parse_bank_date(raw: str | None) -> date | None:
     raise ValueError(f"Unsupported date format: {cleaned}")
 
 
+def date_fragments(value: str) -> list[str]:
+    matches: list[tuple[int, str]] = []
+    for pattern in DATE_PATTERNS:
+        matches.extend((match.start(), match.group(0)) for match in pattern.finditer(value))
+    return [raw for _, raw in sorted(matches, key=lambda item: item[0])]
+
+
 def parse_money_amount(raw: str | None) -> Decimal | None:
     if raw is None:
         return None
     cleaned = clean_cell(raw)
     if cleaned is None:
         return None
-    normalized = normalize_decimal_separators(sub(r"[^\d,.\-+]", "", cleaned))
+    normalized = normalize_decimal_separators(re.sub(r"[^\d,.\-+]", "", cleaned))
     if normalized in {"", "-", "+", ".", "-.", "+."}:
         return None
     try:
@@ -58,6 +79,22 @@ def normalize_currency(raw: str | None, default_currency: str) -> str:
     if len(normalized) == 3 and normalized.isalpha():
         return normalized
     return default_currency.upper()
+
+
+def currency_from_money(value: str) -> str:
+    lowered = value.casefold()
+    if "₽" in value or "руб" in lowered or "rub" in lowered or "rur" in lowered:
+        return "RUB"
+    if "$" in value or "usd" in lowered:
+        return "USD"
+    if "€" in value or "eur" in lowered:
+        return "EUR"
+    if "£" in value or "gbp" in lowered:
+        return "GBP"
+    for code in ("cny", "try", "aed"):
+        if code in lowered:
+            return code.upper()
+    return normalize_currency(None, "")
 
 
 def build_dedupe_hash(

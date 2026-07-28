@@ -11,6 +11,17 @@ from app.features.imports.application.unknown_statements.column_profiles import 
     profile_for_column,
 )
 
+FIELD_VALUE_EVIDENCE = {
+    "operation_date": ("date_like_count", "date_like_values"),
+    "posting_date": ("date_like_count", "date_like_values"),
+    "amount": ("money_like_count", "money_like_values"),
+    "debit_amount": ("money_like_count", "money_like_values"),
+    "credit_amount": ("money_like_count", "money_like_values"),
+    "currency": ("currency_like_count", "currency_like_values"),
+    "balance_after": ("money_like_count", "money_like_values"),
+    "description": ("description_like_count", "description_like_values"),
+}
+
 
 def build_mapping_suggestions(
     profiles: list[UnknownStatementColumnProfile],
@@ -63,11 +74,6 @@ def build_mapping_suggestions(
     if posting_date_column is not None:
         selected_fields.append(("posting_date", posting_date_column))
 
-    confidence_scores = [
-        confidence_for_field(profile_for_column(profiles, column_index), field)
-        for field, column_index in selected_fields
-    ]
-    confidence = sum(confidence_scores) / len(confidence_scores)
     reasons = [
         reason_for_field(profile_for_column(profiles, column_index), field)
         for field, column_index in selected_fields
@@ -83,28 +89,10 @@ def build_mapping_suggestions(
             currency_column=currency_column,
             balance_after_column=balance_after_column,
             first_data_row=row_offset + first_data_row_for_profiles(profiles),
-            confidence=round(confidence, 4),
             reasons=reasons,
             warnings=warnings,
         )
     ]
-
-
-def confidence_for_field(profile: UnknownStatementColumnProfile, field: str) -> float:
-    if field in profile.header_matches:
-        return 0.95 if field == "operation_date" else 0.9
-    sample_count = max(profile.sample_count, 1)
-    if field in {"operation_date", "posting_date"}:
-        return min(0.9, 0.55 + (profile.date_like_count / sample_count) * 0.35)
-    if field in {"amount", "debit_amount", "credit_amount"}:
-        return min(0.85, 0.5 + (profile.money_like_count / sample_count) * 0.35)
-    if field == "currency":
-        return min(0.8, 0.45 + (profile.currency_like_count / sample_count) * 0.35)
-    if field == "balance_after":
-        return min(0.8, 0.45 + (profile.money_like_count / sample_count) * 0.35)
-    if field == "description":
-        return min(0.85, 0.45 + (profile.description_like_count / sample_count) * 0.4)
-    return 0.5
 
 
 def reason_for_field(
@@ -118,47 +106,13 @@ def reason_for_field(
             header=profile.header,
             evidence="header_match",
         )
-    if field in {"operation_date", "posting_date"}:
-        return UnknownStatementMappingSuggestionReason(
-            field=field,
-            column_index=profile.column_index,
-            header=profile.header,
-            evidence="date_like_values",
-            matched_count=profile.date_like_count,
-            sample_count=profile.sample_count,
-        )
-    if field in {"amount", "debit_amount", "credit_amount"}:
-        return UnknownStatementMappingSuggestionReason(
-            field=field,
-            column_index=profile.column_index,
-            header=profile.header,
-            evidence="money_like_values",
-            matched_count=profile.money_like_count,
-            sample_count=profile.sample_count,
-        )
-    if field == "currency":
-        return UnknownStatementMappingSuggestionReason(
-            field=field,
-            column_index=profile.column_index,
-            header=profile.header,
-            evidence="currency_like_values",
-            matched_count=profile.currency_like_count,
-            sample_count=profile.sample_count,
-        )
-    if field == "balance_after":
-        return UnknownStatementMappingSuggestionReason(
-            field=field,
-            column_index=profile.column_index,
-            header=profile.header,
-            evidence="money_like_values",
-            matched_count=profile.money_like_count,
-            sample_count=profile.sample_count,
-        )
+    count_field, evidence = FIELD_VALUE_EVIDENCE[field]
+    matched_count = int(getattr(profile, count_field))
     return UnknownStatementMappingSuggestionReason(
         field=field,
         column_index=profile.column_index,
         header=profile.header,
-        evidence="description_like_values",
-        matched_count=profile.description_like_count,
+        evidence=evidence,
+        matched_count=matched_count,
         sample_count=profile.sample_count,
     )

@@ -70,7 +70,6 @@ class MappingColumnCandidateDto:
     field: str
     column_index: int
     header: str
-    confidence: float | None
 
 
 @dataclass(frozen=True)
@@ -86,7 +85,6 @@ class MappingSuggestionReasonDto:
 @dataclass(frozen=True)
 class MappingSuggestionDto:
     spec: StatementMappingSpec
-    confidence: float | None
     reasons: tuple[MappingSuggestionReasonDto, ...]
     warning_codes: tuple[str, ...]
 

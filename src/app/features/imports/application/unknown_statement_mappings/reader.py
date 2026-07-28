@@ -433,12 +433,10 @@ def _column_candidate(value: object) -> MappingColumnCandidateDto | None:
     column_index = value.get("column_index")
     if not field or not isinstance(column_index, int):
         return None
-    confidence = value.get("confidence")
     return MappingColumnCandidateDto(
         field=field,
         column_index=column_index,
         header=_string(value.get("header")),
-        confidence=float(confidence) if isinstance(confidence, (int, float)) else None,
     )
 
 
@@ -456,10 +454,8 @@ def _mapping_suggestion(
         suggestion,
         default_currency=default_currency,
     )
-    confidence = suggestion.get("confidence")
     return MappingSuggestionDto(
         spec=spec,
-        confidence=float(confidence) if isinstance(confidence, (int, float)) else None,
         reasons=tuple(
             reason
             for item in _list(suggestion.get("reasons"))

@@ -342,6 +342,133 @@ attempt не изменены.
 Exit выполнен: модели имеют один owner, а profiling, suggestion scoring и row
 detection находятся рядом с использующими их операциями.
 
+### Commit 5.3: simplify unknown analysis serialization
+
+Статус: completed 2026-07-28.
+
+- вложенные analysis models оставлены простыми dataclass без однотипных
+  `as_json()`;
+- граница сохраняемого отчёта осталась у
+  `UnknownStatementAnalysis.as_validation_report()`, а преобразование таблицы —
+  у `UnknownStatementTablePreview.as_validation_payload()`;
+- `dataclasses.asdict()` рекурсивно преобразует вложенные модели;
+- внутренние `column_profiles` больше не сохраняются в `validation_report`;
+- continuation preview копируется через `dataclasses.replace()` вместо ручного
+  перечисления всех полей;
+- пакет уменьшен ещё на 81 строку: с 1 756 до 1 675 строк.
+
+Публичная структура mapping suggestions, candidates и continuation metadata не
+изменилась. Исторические отчёты с `column_profiles` остаются читаемыми; миграция
+данных не требуется.
+
+### Commit 5.4: validate unknown statement hints at the JSON boundary
+
+Статус: completed 2026-07-28.
+
+- четыре config dataclass заменены на frozen Pydantic models непосредственно в
+  `hints.py`;
+- ручные `isinstance`, `cast` и пять decoder/helper functions удалены;
+- `model_validate_json()` проверяет весь вложенный JSON за один проход;
+- неизвестные поля, пустые строки и отсутствующие markers теперь дают ошибку с
+  точным путём к полю вместо молчаливого пустого значения;
+- корректный config и алгоритмы распознавания банка, типа выписки и control
+  total labels не изменены;
+- `hints.py` уменьшен со 148 до 85 строк, а пакет — с 1 675 до 1 612 строк.
+
+Новые файлы и зависимости не добавлялись: Pydantic уже является частью
+проектного стека.
+
+### Commit 5.5: make unknown mapping evidence data-driven
+
+Статус: completed 2026-07-28.
+
+- confidence для распознанных заголовков хранится в одной таблице вместо
+  восьми повторяющихся веток;
+- приоритет split amount (`debit_amount`/`credit_amount`) сохранён явно;
+- `confidence_for_field()` и `reason_for_field()` объединены в одну
+  `assess_field()`;
+- связь field с profile counter, evidence и коэффициентами хранится в одном
+  месте;
+- профиль выбранной колонки вычисляется один раз вместо двух;
+- обязательные поля, amount-vs-debit/credit branching, warnings и коэффициенты
+  не изменены;
+- пакет уменьшен ещё на 38 строк: с 1 612 до 1 574 строк.
+
+Новые файлы, классы и pattern layers не добавлялись.
+
+### Commit 5.6: remove uncalibrated unknown-mapping confidence
+
+Статус: completed 2026-07-28.
+
+- numeric confidence удалён из unknown column candidates и mapping suggestion;
+- коэффициенты и формула псевдовероятности удалены;
+- mapping roles, value detection, evidence, matched/sample counts и warnings
+  сохранены;
+- suggestion по-прежнему только заполняет форму для обязательной проверки
+  пользователем;
+- поле удалено сквозным образом из validation report, read models, versioned
+  API, generated TypeScript schema, Zod schema, React UI и fixtures;
+- confidence известных parsers, raw transactions и control-total candidates не
+  менялся;
+- пакет `unknown_statements` уменьшен ещё на 34 строки: с 1 574 до 1 540 строк.
+
+Исторические validation reports с лишним полем `confidence` остаются читаемыми.
+Миграция данных не требуется. Backend и React API contract обновлены одним
+изменением.
+
+### Commit 5.7: harden unknown statement control totals
+
+Статус: completed 2026-07-28.
+
+- найденный `Decimal("0.00")` больше не считается отсутствующим control total;
+- unknown analyzer возвращает `currency=None`, если валюта не указана в тексте,
+  вместо недоказанного `RUB`;
+- при mapping import отсутствующая валюта control totals заменяется валютой
+  выбранного mapping/account;
+- generic statement использует только generic control-total labels;
+- bank-specific labels подключаются только при наличии marker соответствующего
+  банка;
+- text extraction и table-cell candidates используют одну и ту же безопасную
+  label policy;
+- добавлены characterization tests для нулей, отсутствующей валюты, чужого
+  bank label и label распознанного банка.
+
+Известные parsers продолжают возвращать явную валюту. Схема БД не менялась.
+
+### Commit 5.8: move shared parsing primitives below application
+
+Статус: completed 2026-07-28.
+
+- `header_keywords.py` перемещён из unknown application в нейтральный
+  `parsing/support/header_fields.py`;
+- `DATE_PATTERNS`, `MoneyFragment`, `date_fragments()` и
+  `currency_from_money()` перемещены в существующий `normalization.py`;
+- Alfa XLSX и T-Bank parsers больше не импортируют unknown application code;
+- unknown analysis использует те же shared parsing primitives через направление
+  `application -> parsing/support`;
+- регулярные выражения, header matching и parser behavior не менялись;
+- новых дополнительных файлов и классов не создано;
+- пакет `unknown_statements` уменьшен с 14 до 13 Python-файлов.
+
+Exit выполнен: внутри `parsing/` нет импортов из imports application layer.
+
+### Commit 5.9: reuse generated text tables
+
+Статус: completed 2026-07-28.
+
+- unknown analyzer вызывает `build_text_candidate_tables()` один раз, только
+  когда transaction-like extracted tables не найдены;
+- полные generated tables сохраняются как внутренний artifact
+  `UnknownStatementAnalysis.generated_text_tables`;
+- preview и persisted `raw_tables_json` строятся из одного набора таблиц;
+- preview остаётся ограниченным по размеру, а persistence сохраняет все строки;
+- generated tables не входят в `validation_report` и публичный API;
+- fallback больше не запускает повторный regex/Decimal parsing текста;
+- новых wrapper classes и файлов не добавлено.
+
+Characterization test подтверждает: при девяти строках полной таблицы preview
+содержит пять, а persistence — все девять.
+
 ## Phase 6 — Extract import review
 
 ### Commit 6.1: move pure review domain

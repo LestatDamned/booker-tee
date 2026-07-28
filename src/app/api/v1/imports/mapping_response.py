@@ -199,7 +199,6 @@ class UnknownStatementMappingResponseMapper:
                     field=candidate.field,
                     column_index=candidate.column_index,
                     header=candidate.header,
-                    confidence=candidate.confidence,
                 )
                 for candidate in table.candidates
             ],
@@ -216,7 +215,6 @@ class UnknownStatementMappingResponseMapper:
     ) -> MappingSuggestionApiResponse:
         return MappingSuggestionApiResponse(
             mapping=UnknownStatementMappingResponseMapper.spec(suggestion.spec),
-            confidence=suggestion.confidence,
             reasons=[
                 MappingSuggestionReasonApiResponse(
                     field=reason.field,

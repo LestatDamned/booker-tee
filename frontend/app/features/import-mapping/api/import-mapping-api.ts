@@ -49,7 +49,6 @@ const candidateSchema = z.object({
   field: z.string(),
   columnIndex: z.number().int().min(0),
   header: z.string(),
-  confidence: z.number().nullable(),
 });
 
 const suggestionReasonSchema = z.object({
@@ -77,7 +76,6 @@ const sourceTableSchema = z.object({
   suggestion: z
     .object({
       mapping: mappingCommandSchema,
-      confidence: z.number().nullable(),
       reasons: z.array(suggestionReasonSchema),
       warningCodes: z.array(z.string()),
     })

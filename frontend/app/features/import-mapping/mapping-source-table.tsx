@@ -118,12 +118,7 @@ export function MappingSourceTable({
 
       {table.suggestion ? (
         <details className={styles.suggestion}>
-          <summary>
-            Почему роли заполнены так
-            {table.suggestion.confidence != null
-              ? ` · ${Math.round(table.suggestion.confidence * 100)}%`
-              : ""}
-          </summary>
+          <summary>Почему роли заполнены так</summary>
           <div>
             <p>
               Роли предложены анализатором. Сверьте их с исходными значениями

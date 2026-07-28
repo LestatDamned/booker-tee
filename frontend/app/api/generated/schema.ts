@@ -2584,8 +2584,6 @@ export interface components {
             columnIndex: number;
             /** Header */
             header: string;
-            /** Confidence */
-            confidence: number | null;
         };
         /** MappingCommandApiModel */
         MappingCommandApiModel: {
@@ -2838,8 +2836,6 @@ export interface components {
         /** MappingSuggestionApiResponse */
         MappingSuggestionApiResponse: {
             mapping: components["schemas"]["MappingCommandApiModel"];
-            /** Confidence */
-            confidence: number | null;
             /** Reasons */
             reasons: components["schemas"]["MappingSuggestionReasonApiResponse"][];
             /** Warningcodes */

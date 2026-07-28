@@ -180,23 +180,17 @@ extracted statement data
 ```text
 application/unknown_statements/
   analyzer.py
-  analysis_dto.py
-  column_dto.py
-  suggestion_dto.py
-  table_preview_dto.py
-  dto.py
+  analysis_models.py
   hints.py
-  header_keywords.py
   value_detectors.py
-  row_detection.py
-  heuristics.py
   table_detection.py
   column_profiles.py
-  profile_helpers.py
   mapping_suggestions.py
-  suggestion_scoring.py
+  table_analysis.py
+  text_tables.py
   continuations.py
   control_totals.py
+  fallback.py
 
 application/unknown_statement_mappings/
   engine.py
@@ -276,23 +270,17 @@ imports/
 
     unknown_statements/
       analyzer.py
-      analysis_dto.py
-      column_dto.py
-      suggestion_dto.py
-      table_preview_dto.py
-      dto.py
+      analysis_models.py
       hints.py
-      header_keywords.py
       value_detectors.py
-      row_detection.py
-      heuristics.py
       table_detection.py
       column_profiles.py
-      profile_helpers.py
       mapping_suggestions.py
-      suggestion_scoring.py
+      table_analysis.py
+      text_tables.py
       continuations.py
       control_totals.py
+      fallback.py
 
     unknown_statement_mappings/
       engine.py
@@ -328,6 +316,7 @@ imports/
     registry.py
     support/
       common.py
+      header_fields.py
       normalization.py
     parsers/
       sberbank/
@@ -478,6 +467,7 @@ parsing/
   registry.py
   support/
     common.py
+    header_fields.py
     normalization.py
   parsers/
     <bank>/

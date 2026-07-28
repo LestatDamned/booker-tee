@@ -169,6 +169,42 @@ detail API их не возвращает.
 границ между файлами. Пакет уменьшен с 22 до 14 Python-файлов и на 109 строк
 без изменения алгоритмов.
 
+Дополнительно исправлено в Phase 5.3: однотипная ручная сериализация вложенных
+analysis models заменена на одну явную границу отчёта и `dataclasses.asdict()`.
+Внутренние `column_profiles` исключены из сохраняемого JSON, а ручное
+копирование continuation preview заменено на `dataclasses.replace()`. Пакет
+уменьшен ещё на 81 строку без добавления новых файлов и абстракций.
+
+Исправлено в Phase 5.4: ручной decoder `unknown_statement_hints.json` заменён на
+frozen Pydantic models и `model_validate_json()`. Некорректные вложенные типы,
+неизвестные поля и пустые markers больше не превращаются молча в пустые
+значения. `hints.py` уменьшен на 63 строки без изменения корректной
+конфигурации и алгоритмов распознавания.
+
+Исправлено в Phase 5.5: повторяющаяся классификация mapping fields заменена
+двумя локальными data tables. Confidence и reason теперь вычисляются совместно
+из одного column profile; бизнес-ветвление amount против debit/credit оставлено
+явным. Пакет уменьшен ещё на 38 строк без новых файлов или классов.
+
+Пересмотрено в Phase 5.6: numeric confidence не участвовал в выборе suggestion,
+порогах, auto-apply или финансовых решениях и показывался только как
+некалиброванный процент. Он удалён из unknown mapping по всей цепочке. Конкретные
+evidence/reasons сохранены; остальные confidence-механизмы imports не
+затрагивались.
+
+Исправлено в Phase 5.7: unknown control totals сохраняют найденные нули, не
+угадывают RUB при отсутствии валюты и не используют labels чужих банков.
+Неизвестная валюта разрешается через выбранный mapping/account только на
+границе импорта. Четыре риска закреплены characterization tests.
+
+Исправлено в Phase 5.8: shared header and text-fragment primitives перемещены в
+`parsing/support`. Known Alfa/T-Bank parsers больше не зависят от
+`application/unknown_statements`; алгоритмы не дублировались и не менялись.
+
+Исправлено в Phase 5.9: text fallback строит полные candidate tables один раз и
+использует тот же artifact для preview и `raw_tables_json`. Повторный проход по
+PDF text удалён без потери строк и без расширения публичного report.
+
 ## Cleanup-кандидаты
 
 В Commit 2.1 удалены:

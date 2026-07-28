@@ -163,19 +163,16 @@ def mapping_document_snapshot() -> ImportDocumentSnapshot:
                     "field": "operation_date",
                     "column_index": 0,
                     "header": "Дата",
-                    "confidence": 0.95,
                 },
                 {
                     "field": "description",
                     "column_index": 1,
                     "header": "Описание",
-                    "confidence": 0.9,
                 },
                 {
                     "field": "amount",
                     "column_index": 2,
                     "header": "Сумма",
-                    "confidence": 0.85,
                 },
             ],
             "mapping_suggestions": [
@@ -189,7 +186,6 @@ def mapping_document_snapshot() -> ImportDocumentSnapshot:
                     "currency_column": None,
                     "balance_after_column": None,
                     "first_data_row": 1,
-                    "confidence": 0.9,
                     "reasons": [],
                     "warnings": [],
                 }
