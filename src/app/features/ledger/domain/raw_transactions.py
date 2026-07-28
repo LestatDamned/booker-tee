@@ -28,10 +28,6 @@ class PostableRawTransaction(Protocol):
     dedupe_hash: str | None
 
 
-class RawTransactionSuggestionState(Protocol):
-    suggested_by_rule_id: UUID | None
-
-
 def raw_transaction_effective_account_id(raw_transaction: object) -> UUID | None:
     account_id = getattr(raw_transaction, "account_id", None)
     if account_id is not None:
@@ -138,11 +134,3 @@ def ensure_raw_transaction_can_post_as_transfer(
         )
     if raw_transaction.currency is None:
         raise LedgerPostingError("Raw transaction row has no normalized currency.")
-
-
-def restored_raw_status_after_unlink(
-    raw_transaction: RawTransactionSuggestionState,
-) -> RawTransactionStatus:
-    if raw_transaction.suggested_by_rule_id is not None:
-        return RawTransactionStatus.SUGGESTED
-    return RawTransactionStatus.NORMALIZED

@@ -1,6 +1,6 @@
 import pytest
-from fastapi.testclient import TestClient
 
+from api_client import ApiTestClient as TestClient
 from app.main import create_app
 
 DOCUMENT_ID = "5e4c43a1-7e08-4afe-a442-5d1d72e08ca8"

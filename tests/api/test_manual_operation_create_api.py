@@ -2,9 +2,9 @@ from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
-from fastapi.testclient import TestClient
 from manual_ledger_support import manual_ledger_app, manual_operation, primary_account_id
 
+from api_client import ApiTestClient as TestClient
 from app.features.ledger.application.manual_contracts import (
     CreateManualIncomeExpenseCommand,
     CreateManualTransferCommand,

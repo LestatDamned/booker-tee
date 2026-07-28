@@ -1,6 +1,5 @@
 from dataclasses import replace
 
-from fastapi.testclient import TestClient
 from manual_ledger_support import (
     filter_references,
     manual_ledger_app,
@@ -8,6 +7,7 @@ from manual_ledger_support import (
     primary_account_id,
 )
 
+from api_client import ApiTestClient as TestClient
 from app.features.ledger.application.listing import LedgerPagination
 from app.features.ledger.domain.types import OperationStatus, OperationType
 from app.features.workspaces.domain.types import WorkspaceRole

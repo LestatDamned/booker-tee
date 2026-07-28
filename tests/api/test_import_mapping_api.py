@@ -2,8 +2,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from fastapi.testclient import TestClient
-
+from api_client import ApiTestClient as TestClient
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.v1.imports.dependencies import (
     get_unknown_statement_mapping_importer,

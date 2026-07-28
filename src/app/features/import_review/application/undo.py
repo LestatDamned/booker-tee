@@ -8,10 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.import_review.application.confirmation import (
     ImportReviewConfirmationConflictError,
 )
+from app.features.import_review.domain.lifecycle import restored_review_status_after_unlink
+from app.features.imports.application.pipelines.document_validation import (
+    refresh_document_validation,
+)
 from app.features.imports.errors import RawTransactionReviewError
+from app.features.imports.models import UploadedDocumentStatus
 from app.features.imports.repository import ImportRepository
-from app.features.ledger.application.imported_operations import ImportedOperationUndoUseCase
-from app.features.ledger.domain.types import OperationStatus
+from app.features.ledger.application.imported_operations import ImportedOperationCorrection
+from app.features.ledger.domain.types import OperationSource, OperationStatus
+from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
 
@@ -38,7 +44,7 @@ class ImportReviewUndoService:
         self._session = session
         self._imports = ImportRepository(session)
         self._ledger = LedgerRepository(session)
-        self._undo = ImportedOperationUndoUseCase(session)
+        self._correction = ImportedOperationCorrection(session)
 
     async def execute(
         self,
@@ -67,18 +73,42 @@ class ImportReviewUndoService:
                     "Raw transaction row is linked to another operation."
                 )
 
-            operation = await self._undo.undo_raw_transaction_posting(
-                context=context,
-                document_id=command.document_id,
-                raw_transaction_id=command.item_id,
+            operation = await self._ledger.get_operation_for_workspace(
+                context.workspace.id,
+                row.linked_operation_id,
             )
-            affected_document_ids = {
-                linked_row.uploaded_document_id for linked_row in operation.raw_transactions
-            }
-            updated_item_ids = {linked_row.id for linked_row in operation.raw_transactions}
+            if operation is None:
+                raise LedgerPostingError("Linked operation was not found.")
+            if operation.status is not OperationStatus.CONFIRMED:
+                raise LedgerPostingError("Only confirmed operations can be undone.")
+
+            linked_rows_by_id = (
+                {linked_row.id: linked_row for linked_row in operation.raw_transactions}
+                if operation.source is OperationSource.BANK_PDF
+                else {}
+            )
+            linked_rows_by_id[row.id] = row
+            linked_rows = list(linked_rows_by_id.values())
+            if operation.source is OperationSource.BANK_PDF:
+                await self._correction.ignore_confirmed_import(
+                    context=context,
+                    operation=operation,
+                )
+            elif operation.source is not OperationSource.MANUAL:
+                raise LedgerPostingError("Only imported bank PDF operations can be undone here.")
+
+            affected_document_ids = {linked_row.uploaded_document_id for linked_row in linked_rows}
+            updated_item_ids = {linked_row.id for linked_row in linked_rows}
             affected_document_ids.add(command.document_id)
             updated_item_ids.add(command.item_id)
-            return ImportReviewUndoResult(
+            for linked_row in linked_rows:
+                linked_row.linked_operation_id = None
+                linked_row.status = restored_review_status_after_unlink(linked_row)
+            await self._refresh_documents(
+                workspace_id=context.workspace.id,
+                document_ids=affected_document_ids,
+            )
+            result = ImportReviewUndoResult(
                 document_id=command.document_id,
                 item_id=command.item_id,
                 operation_id=operation.id,
@@ -86,6 +116,8 @@ class ImportReviewUndoService:
                 updated_item_ids=frozenset(updated_item_ids),
                 replayed=False,
             )
+            await self._session.commit()
+            return result
         except Exception:
             await self._session.rollback()
             raise
@@ -109,6 +141,9 @@ class ImportReviewUndoService:
             command.document_id,
             *(linked_row.uploaded_document_id for linked_row in operation.raw_transactions),
         }
+        matched_document_id = metadata.get("matched_uploaded_document_id")
+        if isinstance(matched_document_id, str):
+            affected_document_ids.add(UUID(matched_document_id))
         updated_item_ids = {command.item_id}
         matched_item_id = metadata.get("matched_raw_transaction_id")
         if isinstance(matched_item_id, str):
@@ -121,3 +156,22 @@ class ImportReviewUndoService:
             updated_item_ids=frozenset(updated_item_ids),
             replayed=True,
         )
+
+    async def _refresh_documents(
+        self,
+        *,
+        workspace_id: UUID,
+        document_ids: set[UUID],
+    ) -> None:
+        for document_id in document_ids:
+            document = await self._imports.get_document_for_workspace(
+                workspace_id,
+                document_id,
+            )
+            if document is None:
+                continue
+            await refresh_document_validation(self._imports, document)
+            await self._imports.mark_document_status(
+                document,
+                UploadedDocumentStatus.REQUIRES_REVIEW,
+            )

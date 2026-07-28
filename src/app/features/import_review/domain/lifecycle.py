@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Protocol
 from uuid import UUID
 
 from app.features.imports.domain.types import RawTransactionStatus
@@ -31,6 +32,10 @@ class ImportReviewLifecycleSnapshot:
 class ImportReviewLifecycleTransition:
     target_status: RawTransactionStatus
     replayed: bool
+
+
+class ImportReviewSuggestionState(Protocol):
+    suggested_by_rule_id: UUID | None
 
 
 _TARGET_STATUS = {
@@ -105,3 +110,11 @@ def resolve_import_review_lifecycle_transition(
             f"Action {action.value} is not allowed from status {status.value}."
         )
     return ImportReviewLifecycleTransition(target_status=target_status, replayed=False)
+
+
+def restored_review_status_after_unlink(
+    raw_transaction: ImportReviewSuggestionState,
+) -> RawTransactionStatus:
+    if raw_transaction.suggested_by_rule_id is not None:
+        return RawTransactionStatus.SUGGESTED
+    return RawTransactionStatus.NORMALIZED

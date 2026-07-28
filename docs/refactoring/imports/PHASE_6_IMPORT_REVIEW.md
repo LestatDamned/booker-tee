@@ -128,7 +128,7 @@ ledger
 | `application/review/actions.py` | Удалён в transfer slice 6.3b | Legacy dispatcher больше не имеет consumers |
 | `application/review/status.py` | Удалён в lifecycle slice 6.3b | Chat использует общий lifecycle actor |
 | `ledger/application/transfer_suggestions.py` | Перенести алгоритм в `import_review` | Сопоставляет import row с review-вариантами |
-| `ledger/application/raw_transaction_posting.py` | Разделить в 6.6 | Сейчас смешивает review orchestration и ledger posting |
+| `ledger/application/raw_transaction_posting.py` | Удалён в 6.6 | Review orchestration перенесена в `import_review`, ledger facts — в `posting.py` |
 | `ledger/application/imported_operations.py` | Оставить ledger correction; вынести import undo | В файле находятся две разные ответственности |
 
 `review_messages.py` повторно оценивается в Phase 8, когда duplicate warning
@@ -495,8 +495,9 @@ transfer и lifecycle wrappers удалены; rule creation/application уни�
 
 ### Commit 6.4 — Migrate React API composition
 
-Статус: defining-module imports completed вместе с 6.3a; API contract checks
-остаются отдельным шагом.
+Статус: completed 2026-07-28. Defining-module imports перенесены вместе с
+6.3a; полный API contract suite прошёл после обновления тестового стека на
+Starlette-compatible `httpx2` и общий uvloop-backed `ApiTestClient`.
 
 #### Проблема
 
@@ -519,15 +520,13 @@ errors в API errors и формирует response. Финансовых реш
 
 #### Проверки
 
-- OpenAPI diff не содержит непредусмотренных изменений;
-- auth/permission/not-found contracts;
-- draft evaluation;
-- lifecycle;
-- confirmation и idempotent replay;
-- три transfer variants;
-- undo;
-- apply rules;
-- frontend type generation/check при изменении OpenAPI.
+- API paths и schemas в этом этапе не менялись;
+- auth/permission/not-found contracts проверены;
+- draft evaluation и lifecycle проверены;
+- confirmation и idempotent replay проверены;
+- три transfer variants проверены;
+- undo и apply rules проверены;
+- полный `tests/api`: 86 passed.
 
 #### Exit
 
@@ -589,6 +588,9 @@ idempotency key ему не нужен, потому что он не созда
 
 ### Commit 6.6 — Remove ledger back-dependency
 
+Статус: in progress. Income/expense, transfer и undo slices completed
+2026-07-28; persistence boundary cleanup остаётся.
+
 #### Проблема
 
 `RawTransactionPoster` и imported undo в ledger сами управляют imports:
@@ -603,6 +605,47 @@ idempotency key ему не нужен, потому что он не созда
 feature-связанность.
 
 #### Изменения
+
+Первый income/expense slice завершён:
+
+- `ImportReviewConfirmationActor` один раз загружает и проверяет raw row,
+  проверяет dedupe, разрешает references и строит `LedgerPostingPlan`;
+- `LedgerPostingService.post_imported_income_expense()` принимает готовые
+  финансовые facts и создаёт только `Operation` и `MoneyEntry`;
+- linking raw row и обновление document validation/status выполняются один раз
+  в `import_review`;
+- старый income/expense path и повторная dedupe/document обработка удалены из
+  `RawTransactionPoster`;
+- manual operation contracts, writers и repository methods не менялись;
+- transfer и undo были оставлены для отдельных slices.
+
+Transfer slice завершён:
+
+- `ImportReviewTransferActor` загружает и блокирует одну или две raw rows,
+  проверяет допустимость сопоставления и связывает результат;
+- `LedgerPostingService.post_imported_transfer()` повторно защищает финансовые
+  инварианты и создаёт одну `Operation` с двумя сбалансированными `MoneyEntry`;
+- linking существующего ручного перевода и document refresh принадлежат
+  `import_review`;
+- ledger operation mapper больше не принимает `RawTransaction`;
+- `RawTransactionPoster` и `ledger/application/raw_transaction_posting.py`
+  удалены;
+- manual transfer path не менялся.
+
+Undo slice завершён:
+
+- `ImportReviewUndoService` проверяет связь raw row/operation, отвязывает все
+  строки операции, восстанавливает review statuses и обновляет документы;
+- `ImportedOperationCorrection.ignore_confirmed_import()` проверяет ledger
+  ownership/source/status и деактивирует только импортированную финансовую
+  операцию;
+- связь с существующим manual transfer удаляется без изменения manual
+  operation;
+- один внешний `ImportReviewUndoService` владеет commit/rollback всей mutation;
+- cross-document replay восстанавливается из operation audit metadata даже
+  после удаления raw-row links;
+- `ImportedOperationUndoUseCase` удалён, а `ledger/imported_operations.py`
+  больше не импортирует imports application/repository.
 
 Разделить текущий posting:
 

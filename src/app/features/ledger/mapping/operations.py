@@ -7,7 +7,6 @@ from uuid import UUID
 from app.db.base import utc_now
 from app.features.accounts.models import Account
 from app.features.categories.models import Category
-from app.features.imports.models import RawTransaction
 from app.features.ledger.application.manual_contracts import (
     AccountReferenceReadDto,
     CreateManualIncomeExpenseCommand,
@@ -17,10 +16,7 @@ from app.features.ledger.application.manual_contracts import (
     NamedReferenceReadDto,
 )
 from app.features.ledger.domain.money import affects_profit_for_operation_type
-from app.features.ledger.domain.raw_transactions import (
-    LedgerPostingPlan,
-    require_raw_operation_date,
-)
+from app.features.ledger.domain.raw_transactions import LedgerPostingPlan
 from app.features.ledger.domain.text import clean_description
 from app.features.ledger.models import (
     MoneyEntry,
@@ -115,7 +111,7 @@ def build_bank_pdf_operation(
     *,
     context: WorkspaceContext,
     document_id: UUID,
-    raw_transaction: RawTransaction,
+    raw_transaction_id: UUID,
     plan: LedgerPostingPlan,
     category: Category,
     property_: Property | None,
@@ -135,7 +131,7 @@ def build_bank_pdf_operation(
         idempotency_fingerprint=idempotency_fingerprint,
         extra_metadata={
             "source": "raw_transaction",
-            "raw_transaction_id": str(raw_transaction.id),
+            "raw_transaction_id": str(raw_transaction_id),
             "uploaded_document_id": str(document_id),
         },
     )
@@ -144,9 +140,11 @@ def build_bank_pdf_operation(
 def build_bank_pdf_transfer_operation(
     *,
     context: WorkspaceContext,
-    raw_transaction: RawTransaction,
-    matched_raw_transaction: RawTransaction | None,
+    description: str | None,
+    operation_date: date,
+    posting_date: date | None,
     transfer_category: Category,
+    extra_metadata: dict[str, object],
     idempotency_key: UUID | None = None,
     idempotency_fingerprint: str | None = None,
 ) -> Operation:
@@ -155,25 +153,12 @@ def build_bank_pdf_transfer_operation(
         operation_type=OperationType.TRANSFER,
         source=OperationSource.BANK_PDF,
         category_id=transfer_category.id,
-        description=clean_description(
-            raw_transaction.description_normalized or raw_transaction.description_raw
-        ),
-        operation_date=require_raw_operation_date(raw_transaction),
-        posting_date=raw_transaction.posting_date,
+        description=clean_description(description),
+        operation_date=operation_date,
+        posting_date=posting_date,
         idempotency_key=str(idempotency_key) if idempotency_key else None,
         idempotency_fingerprint=idempotency_fingerprint,
-        extra_metadata={
-            "source": "raw_transfer",
-            "raw_transaction_id": str(raw_transaction.id),
-            "matched_raw_transaction_id": str(matched_raw_transaction.id)
-            if matched_raw_transaction
-            else None,
-            "matched_uploaded_document_id": (
-                str(matched_raw_transaction.uploaded_document_id)
-                if matched_raw_transaction
-                else None
-            ),
-        },
+        extra_metadata=extra_metadata,
     )
 
 

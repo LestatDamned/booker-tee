@@ -2,9 +2,8 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
-from fastapi.testclient import TestClient
-
 import app.api.v1.imports.router as imports_router_module
+from api_client import ApiTestClient as TestClient
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.core.config import get_settings
 from app.core.settings import Settings

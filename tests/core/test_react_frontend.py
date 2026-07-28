@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
+from api_client import ApiTestClient as TestClient
 from app.react_frontend import install_react_frontend
 
 

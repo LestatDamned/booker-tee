@@ -5,17 +5,28 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from app.features.import_review.application.undo import (
+    ImportReviewUndoService,
+    UndoImportReviewPostingCommand,
+)
 from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
-from app.features.ledger.application.imported_operations import ImportedOperationUndoUseCase
 from app.features.ledger.domain.types import OperationSource, OperationStatus
 
 
 class SessionStub:
     def __init__(self) -> None:
         self.commits = 0
+        self.rollbacks = 0
+        self.flushes = 0
 
     async def commit(self) -> None:
         self.commits += 1
+
+    async def rollback(self) -> None:
+        self.rollbacks += 1
+
+    async def flush(self) -> None:
+        self.flushes += 1
 
 
 class ImportRepositoryStub:
@@ -64,10 +75,16 @@ async def test_undo_imported_transfer_restores_all_raw_rows_and_documents(
     second_raw = raw_row(second_document_id, operation_id, suggested=False)
     operation = SimpleNamespace(
         id=operation_id,
+        workspace_id=workspace_id,
         source=OperationSource.BANK_PDF,
         status=OperationStatus.CONFIRMED,
         raw_transactions=[first_raw, second_raw],
         updated_by_user_id=None,
+        extra_metadata={
+            "raw_transaction_id": str(first_raw.id),
+            "matched_raw_transaction_id": str(second_raw.id),
+            "matched_uploaded_document_id": str(second_document_id),
+        },
     )
     documents = {
         first_document_id: SimpleNamespace(id=first_document_id),
@@ -75,9 +92,9 @@ async def test_undo_imported_transfer_restores_all_raw_rows_and_documents(
     }
     session = SessionStub()
     imports = ImportRepositoryStub(first_raw, documents)
-    use_case = ImportedOperationUndoUseCase(cast(Any, session))
-    use_case.imports = cast(Any, imports)
-    use_case.ledger = cast(Any, LedgerRepositoryStub(operation))
+    service = ImportReviewUndoService(cast(Any, session))
+    service._imports = cast(Any, imports)
+    service._ledger = cast(Any, LedgerRepositoryStub(operation))
     refreshed: list[UUID] = []
 
     async def refresh(_repository: object, document: object) -> None:
@@ -86,17 +103,23 @@ async def test_undo_imported_transfer_restores_all_raw_rows_and_documents(
         refreshed.append(document_id)
 
     monkeypatch.setattr(
-        "app.features.ledger.application.imported_operations.refresh_document_validation",
+        "app.features.import_review.application.undo.refresh_document_validation",
         refresh,
     )
 
-    result = await use_case.undo_raw_transaction_posting(
+    result = await service.execute(
         context=workspace_context(workspace_id),
-        document_id=first_document_id,
-        raw_transaction_id=first_raw.id,
+        command=UndoImportReviewPostingCommand(
+            document_id=first_document_id,
+            item_id=first_raw.id,
+            expected_operation_id=operation_id,
+        ),
     )
 
-    assert result is operation
+    assert result.operation_id == operation_id
+    assert result.updated_item_ids == frozenset({first_raw.id, second_raw.id})
+    assert result.affected_document_ids == frozenset({first_document_id, second_document_id})
+    assert result.replayed is False
     assert operation.status == OperationStatus.IGNORED
     assert first_raw.linked_operation_id is None
     assert second_raw.linked_operation_id is None
@@ -120,33 +143,41 @@ async def test_unlink_from_manual_transfer_preserves_manual_operation(
     raw_transaction = raw_row(document_id, operation_id, suggested=False)
     operation = SimpleNamespace(
         id=operation_id,
+        workspace_id=workspace_id,
         source=OperationSource.MANUAL,
         status=OperationStatus.CONFIRMED,
         raw_transactions=[raw_transaction],
         updated_by_user_id=None,
+        extra_metadata={},
     )
     document = SimpleNamespace(id=document_id)
     session = SessionStub()
     imports = ImportRepositoryStub(raw_transaction, {document_id: document})
-    use_case = ImportedOperationUndoUseCase(cast(Any, session))
-    use_case.imports = cast(Any, imports)
-    use_case.ledger = cast(Any, LedgerRepositoryStub(operation))
+    service = ImportReviewUndoService(cast(Any, session))
+    service._imports = cast(Any, imports)
+    service._ledger = cast(Any, LedgerRepositoryStub(operation))
 
     async def refresh(_repository: object, _document: object) -> None:
         return None
 
     monkeypatch.setattr(
-        "app.features.ledger.application.imported_operations.refresh_document_validation",
+        "app.features.import_review.application.undo.refresh_document_validation",
         refresh,
     )
 
-    result = await use_case.undo_raw_transaction_posting(
+    result = await service.execute(
         context=workspace_context(workspace_id),
-        document_id=document_id,
-        raw_transaction_id=raw_transaction.id,
+        command=UndoImportReviewPostingCommand(
+            document_id=document_id,
+            item_id=raw_transaction.id,
+            expected_operation_id=operation_id,
+        ),
     )
 
-    assert result is operation
+    assert result.operation_id == operation_id
+    assert result.updated_item_ids == frozenset({raw_transaction.id})
+    assert result.affected_document_ids == frozenset({document_id})
+    assert result.replayed is False
     assert operation.status == OperationStatus.CONFIRMED
     assert raw_transaction.linked_operation_id is None
     assert raw_transaction.status == RawTransactionStatus.NORMALIZED
@@ -154,6 +185,48 @@ async def test_unlink_from_manual_transfer_preserves_manual_operation(
         document_id: UploadedDocumentStatus.REQUIRES_REVIEW,
     }
     assert session.commits == 1
+
+
+@pytest.mark.asyncio
+async def test_undo_replay_restores_cross_document_result() -> None:
+    workspace_id = uuid4()
+    operation_id = uuid4()
+    document_id = uuid4()
+    matched_document_id = uuid4()
+    raw_transaction = raw_row(document_id, operation_id, suggested=False)
+    raw_transaction.linked_operation_id = None
+    matched_item_id = uuid4()
+    operation = SimpleNamespace(
+        id=operation_id,
+        workspace_id=workspace_id,
+        source=OperationSource.BANK_PDF,
+        status=OperationStatus.IGNORED,
+        raw_transactions=[],
+        extra_metadata={
+            "raw_transaction_id": str(raw_transaction.id),
+            "matched_raw_transaction_id": str(matched_item_id),
+            "matched_uploaded_document_id": str(matched_document_id),
+        },
+    )
+    session = SessionStub()
+    service = ImportReviewUndoService(cast(Any, session))
+    service._imports = cast(Any, ImportRepositoryStub(raw_transaction, {}))
+    service._ledger = cast(Any, LedgerRepositoryStub(operation))
+
+    result = await service.execute(
+        context=workspace_context(workspace_id),
+        command=UndoImportReviewPostingCommand(
+            document_id=document_id,
+            item_id=raw_transaction.id,
+            expected_operation_id=operation_id,
+        ),
+    )
+
+    assert result.replayed is True
+    assert result.updated_item_ids == frozenset({raw_transaction.id, matched_item_id})
+    assert result.affected_document_ids == frozenset({document_id, matched_document_id})
+    assert session.commits == 1
+    assert session.rollbacks == 0
 
 
 def raw_row(

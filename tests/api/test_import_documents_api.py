@@ -2,8 +2,8 @@ from datetime import UTC, date, datetime
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
+from api_client import ApiTestClient as TestClient
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.v1.imports.dependencies import get_import_document_list_reader
 from app.features.imports.application.documents.listing import (

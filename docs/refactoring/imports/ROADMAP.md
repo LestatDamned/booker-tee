@@ -518,8 +518,10 @@ Transfer также разделён на общий actor и API transaction se
 
 ### Commit 6.4: migrate React API composition
 
-Defining-module imports переключены в 6.3a. Отдельным шагом остаётся проверить
-полный API contract; paths и schemas не меняются.
+Статус: completed 2026-07-28.
+
+Defining-module imports переключены в 6.3a. API paths и schemas не менялись;
+полный `tests/api` contract suite проходит: 86 tests.
 
 ### Commit 6.5: migrate chat
 
@@ -532,6 +534,13 @@ Confirmation, transfer и lifecycle используют общие application 
 review status use case удалены.
 
 ### Commit 6.6: remove ledger back-dependency
+
+Статус: in progress. Income/expense и transfer posting уже разделены:
+`import_review` владеет raw rows/dedupe/link/document lifecycle, а
+`LedgerPostingService` создаёт только `Operation` и `MoneyEntry`. Старый
+`RawTransactionPoster` удалён. Undo orchestration также принадлежит
+`ImportReviewUndoService`; остаётся очистить review-specific persistence
+queries и raw-row helpers в ledger.
 
 Ledger posting принимает posting facts/command и не обновляет import document
 или review lifecycle.

@@ -19,10 +19,13 @@ from app.features.imports.application.pipelines.document_validation import (
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.errors import RawTransactionReviewError
 from app.features.imports.repository import ImportRepository
-from app.features.ledger.application.raw_transaction_posting import RawTransactionPoster
+from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
+from app.features.ledger.application.posting import LedgerPostingService
+from app.features.ledger.domain.raw_transactions import LedgerPostingPlan
 from app.features.ledger.domain.types import OperationStatus, OperationType
-from app.features.ledger.errors import LedgerPostingError, RawTransactionDedupeConflictError
+from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.repository import LedgerRepository
+from app.features.transaction_rules.domain.suggestions import rule_suggestion_auto_applies
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -72,7 +75,8 @@ class ImportReviewConfirmationActor:
     def __init__(self, session: AsyncSession) -> None:
         self._imports = ImportRepository(session)
         self._ledger = LedgerRepository(session)
-        self._poster = RawTransactionPoster(session)
+        self._references = LedgerReferenceResolver(session)
+        self._posting = LedgerPostingService(session)
         self._rule_creator = ImportReviewRuleCreator(session)
 
     async def apply(
@@ -120,13 +124,16 @@ class ImportReviewConfirmationActor:
                 }
             )
 
-        category = await self._poster.references.get_required_import_category(
+        category = await self._references.get_required_import_category(
             context.workspace.id,
             command.category_id,
         )
-        property_ = await self._poster.references.get_property(
+        suggested_property_id = (
+            row.suggested_property_id if rule_suggestion_auto_applies(row) else None
+        )
+        property_ = await self._references.get_property(
             context.workspace.id,
-            command.property_id,
+            command.property_id or suggested_property_id,
         )
         evaluation = build_import_review_draft_evaluation(
             document=document,
@@ -151,14 +158,24 @@ class ImportReviewConfirmationActor:
                 "A confirmed raw transaction already uses this dedupe hash."
             )
 
-        operation = await self._poster.post_raw_transaction(
+        account = await self._references.get_account_for_raw_transaction(
+            context.workspace.id,
+            row,
+        )
+        operation = await self._posting.post_imported_income_expense(
             context=context,
             document_id=command.document_id,
-            raw_transaction_id=command.item_id,
-            category_id=command.category_id,
-            property_id=command.property_id,
+            raw_transaction_id=row.id,
+            account=account,
+            plan=LedgerPostingPlan.from_raw_transaction(row, account),
+            category=category,
+            property_=property_,
             idempotency_key=command.idempotency_key,
             idempotency_fingerprint=self.fingerprint(command),
+        )
+        await self._imports.link_raw_transaction_to_operation(
+            row,
+            operation_id=operation.id,
         )
         updated_item_ids: set[UUID] = {command.item_id}
         if command.remember_rule:
@@ -258,9 +275,6 @@ class ImportReviewConfirmationService:
             raise ImportReviewConfirmationConflictError(
                 "Import review confirmation conflicts with committed data."
             ) from exc
-        except RawTransactionDedupeConflictError as exc:
-            await self._session.rollback()
-            raise ImportReviewConfirmationConflictError(str(exc)) from exc
         except LedgerPostingError as exc:
             await self._session.rollback()
             raise ImportReviewConfirmationValidationError(

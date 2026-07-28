@@ -15,6 +15,7 @@ from app.features.import_review.domain.lifecycle import (
     ImportReviewLifecycleError,
     import_review_lifecycle_snapshot,
     resolve_import_review_lifecycle_transition,
+    restored_review_status_after_unlink,
 )
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import UploadedDocumentStatus
@@ -113,6 +114,17 @@ def test_stale_and_forged_transitions_are_distinct(
             action=ImportReviewLifecycleAction.IGNORE,
             expected_status=terminal_status,
         )
+
+
+def test_restored_review_status_after_unlink_preserves_rule_suggestion() -> None:
+    assert (
+        restored_review_status_after_unlink(SimpleNamespace(suggested_by_rule_id=uuid4()))
+        is RawTransactionStatus.SUGGESTED
+    )
+    assert (
+        restored_review_status_after_unlink(SimpleNamespace(suggested_by_rule_id=None))
+        is RawTransactionStatus.NORMALIZED
+    )
 
 
 class SessionStub:

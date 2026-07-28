@@ -7,11 +7,16 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.features.accounts.models import Account, AccountType
+from app.features.import_review.application.transfers import (
+    CreateImportReviewTransferCommand,
+    ImportReviewTransferActor,
+    LinkImportReviewExistingTransferCommand,
+    MatchImportReviewRawRowCommand,
+)
 from app.features.imports.models import RawTransactionStatus
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
-from app.features.ledger.application.raw_transaction_posting import (
-    RawTransactionPoster,
-)
+from app.features.ledger.application.posting import LedgerPostingService
+from app.features.ledger.domain.raw_transactions import LedgerPostingPlan
 from app.features.ledger.domain.types import OperationType
 from app.features.ledger.errors import LedgerPostingError
 
@@ -55,14 +60,19 @@ class LedgerRepositoryStub:
     def __init__(self) -> None:
         self.entries: list[Any] = []
         self.manual_transfer_candidates: list[object] = []
+        self.operation: object | None = None
 
     async def create_operation(self, operation: Any) -> Any:
         operation.id = uuid4()
+        self.operation = operation
         return operation
 
     async def create_money_entry(self, money_entry: object) -> object:
         self.entries.append(money_entry)
         return money_entry
+
+    async def get_operation_by_idempotency_key(self, **_kwargs: object) -> None:
+        return None
 
     async def list_manual_transfer_candidates_for_raw_transaction(
         self,
@@ -86,26 +96,6 @@ class LedgerRepositoryStub:
         )
 
 
-class ReferenceResolverStub:
-    def __init__(self, account: Account) -> None:
-        self.account = account
-        self.raw_account_requests: list[object] = []
-
-    async def get_account_for_raw_transaction(
-        self,
-        workspace_id: UUID,
-        raw_transaction: object,
-    ) -> Account:
-        self.raw_account_requests.append(raw_transaction)
-        return self.account
-
-    async def get_required_import_category(self, *args: object) -> object:
-        return SimpleNamespace(id=uuid4())
-
-    async def get_property(self, *args: object) -> None:
-        return None
-
-
 class CategoryLookupStub:
     def __init__(self, category: object | None) -> None:
         self.category = category
@@ -126,7 +116,7 @@ class DocumentStatusStub:
 
 
 @pytest.mark.asyncio
-async def test_post_raw_transaction_uses_document_level_account() -> None:
+async def test_post_imported_income_expense_creates_ledger_records_without_commit() -> None:
     workspace_id = uuid4()
     document_id = uuid4()
     account = Account(
@@ -159,17 +149,12 @@ async def test_post_raw_transaction_uses_document_level_account() -> None:
         suggested_by_rule_id=None,
     )
     session = SessionStub()
-    imports = ImportRepositoryStub(raw_transaction)
     ledger = LedgerRepositoryStub()
-    references = ReferenceResolverStub(account)
-    use_case = RawTransactionPoster(cast(Any, session))
-    use_case.imports = cast(Any, imports)
+    use_case = LedgerPostingService(cast(Any, session))
     use_case.ledger = cast(Any, ledger)
-    use_case.references = cast(Any, references)
-    use_case.document_status = cast(Any, DocumentStatusStub())
     idempotency_key = uuid4()
 
-    operation = await use_case.post_raw_transaction(
+    operation = await use_case.post_imported_income_expense(
         context=cast(
             Any,
             SimpleNamespace(
@@ -179,17 +164,23 @@ async def test_post_raw_transaction_uses_document_level_account() -> None:
         ),
         document_id=document_id,
         raw_transaction_id=raw_transaction.id,
-        category_id=uuid4(),
+        account=account,
+        plan=LedgerPostingPlan.from_raw_transaction(raw_transaction, account),
+        category=cast(Any, SimpleNamespace(id=uuid4())),
+        property_=None,
         idempotency_key=idempotency_key,
         idempotency_fingerprint="confirm-fingerprint",
     )
 
-    assert references.raw_account_requests == [raw_transaction]
     assert operation.type == OperationType.INCOME
     assert operation.affects_profit is True
     assert operation.idempotency_key == str(idempotency_key)
     assert operation.idempotency_fingerprint == "confirm-fingerprint"
-    assert imports.linked_operation_id == operation.id
+    assert operation.extra_metadata == {
+        "source": "raw_transaction",
+        "raw_transaction_id": str(raw_transaction.id),
+        "uploaded_document_id": str(document_id),
+    }
     assert len(ledger.entries) == 1
     assert session.committed is False
     assert session.rolled_back is False
@@ -231,19 +222,23 @@ async def test_post_raw_transaction_as_transfer_builds_balanced_entries_without_
         destination_account=destination_account,
     )
     document_status = DocumentStatusStub()
-    use_case = RawTransactionPoster(cast(Any, session))
-    use_case.imports = cast(Any, imports)
-    use_case.ledger = cast(Any, ledger)
-    use_case.references = cast(Any, references)
-    use_case.document_status = cast(Any, document_status)
-
-    operation = await use_case.post_raw_transaction_as_transfer(
-        context=workspace_context(workspace_id),
-        document_id=document_id,
-        raw_transaction_id=raw_transaction.id,
-        counterparty_account_id=destination_account.id,
-        matched_raw_transaction_id=None,
+    actor = transfer_actor(
+        session=session,
+        imports=imports,
+        ledger=ledger,
+        references=references,
+        document_status=document_status,
     )
+    result = await actor.apply(
+        context=workspace_context(workspace_id),
+        command=CreateImportReviewTransferCommand(
+            document_id=document_id,
+            item_id=raw_transaction.id,
+            counterparty_account_id=destination_account.id,
+            idempotency_key=uuid4(),
+        ),
+    )
+    operation = cast(Any, ledger.operation)
 
     assert operation.type == OperationType.TRANSFER
     assert operation.affects_profit is False
@@ -256,6 +251,8 @@ async def test_post_raw_transaction_as_transfer_builds_balanced_entries_without_
         destination_account.id,
     ]
     assert imports.links == [(raw_transaction.id, operation.id)]
+    assert result.updated_item_ids == frozenset({raw_transaction.id})
+    assert result.affected_document_ids == frozenset({document_id})
     assert document_status.document_ids == [document_id]
     assert session.committed is False
 
@@ -288,19 +285,23 @@ async def test_post_paired_raw_transactions_links_both_rows_to_one_transfer() ->
         matched_raw_transaction=destination,
     )
     document_status = DocumentStatusStub()
-    use_case = RawTransactionPoster(cast(Any, session))
-    use_case.imports = cast(Any, imports)
-    use_case.ledger = cast(Any, ledger)
-    use_case.references = cast(Any, references)
-    use_case.document_status = cast(Any, document_status)
-
-    operation = await use_case.post_raw_transaction_as_transfer(
-        context=workspace_context(workspace_id),
-        document_id=source_document_id,
-        raw_transaction_id=source.id,
-        counterparty_account_id=destination_account.id,
-        matched_raw_transaction_id=destination.id,
+    actor = transfer_actor(
+        session=session,
+        imports=imports,
+        ledger=ledger,
+        references=references,
+        document_status=document_status,
     )
+    result = await actor.apply(
+        context=workspace_context(workspace_id),
+        command=MatchImportReviewRawRowCommand(
+            document_id=source_document_id,
+            item_id=source.id,
+            matched_item_id=destination.id,
+            idempotency_key=uuid4(),
+        ),
+    )
+    operation = cast(Any, ledger.operation)
 
     assert imports.links == [
         (source.id, operation.id),
@@ -311,6 +312,8 @@ async def test_post_paired_raw_transactions_links_both_rows_to_one_transfer() ->
         source_document_id,
         destination_document_id,
     }
+    assert result.updated_item_ids == frozenset({source.id, destination.id})
+    assert result.affected_document_ids == frozenset({source_document_id, destination_document_id})
     assert session.committed is False
 
 
@@ -329,21 +332,30 @@ async def test_link_raw_transaction_to_existing_manual_transfer_creates_no_entri
     imports = TransferImportRepositoryStub(raw_transaction)
     ledger = LedgerRepositoryStub()
     ledger.manual_transfer_candidates = [existing_operation]
-    use_case = RawTransactionPoster(cast(Any, SessionStub()))
-    use_case.imports = cast(Any, imports)
-    use_case.ledger = cast(Any, ledger)
-    use_case.document_status = cast(Any, DocumentStatusStub())
-
-    operation = await use_case.link_raw_transaction_to_existing_transfer(
+    actor = transfer_actor(
+        session=SessionStub(),
+        imports=imports,
+        ledger=ledger,
+        references=TransferReferenceResolverStub(
+            source_account=source_account,
+            destination_account=source_account,
+        ),
+        document_status=DocumentStatusStub(),
+    )
+    result = await actor.apply(
         context=workspace_context(workspace_id),
-        document_id=document_id,
-        raw_transaction_id=raw_transaction.id,
-        operation_id=existing_operation.id,
+        command=LinkImportReviewExistingTransferCommand(
+            document_id=document_id,
+            item_id=raw_transaction.id,
+            operation_id=existing_operation.id,
+            idempotency_key=uuid4(),
+        ),
     )
 
-    assert operation is existing_operation
     assert imports.links == [(raw_transaction.id, existing_operation.id)]
     assert ledger.entries == []
+    assert result.updated_item_ids == frozenset({raw_transaction.id})
+    assert result.affected_document_ids == frozenset({document_id})
 
 
 def account(workspace_id: UUID, name: str) -> Account:
@@ -395,6 +407,24 @@ def workspace_context(workspace_id: UUID) -> Any:
             user=SimpleNamespace(id=uuid4()),
         ),
     )
+
+
+def transfer_actor(
+    *,
+    session: SessionStub,
+    imports: object,
+    ledger: LedgerRepositoryStub,
+    references: object,
+    document_status: DocumentStatusStub,
+) -> ImportReviewTransferActor:
+    actor = ImportReviewTransferActor(cast(Any, session))
+    actor._imports = cast(Any, imports)
+    actor._ledger = cast(Any, ledger)
+    actor._references = cast(Any, references)
+    actor._posting = LedgerPostingService(cast(Any, session))
+    actor._posting.ledger = cast(Any, ledger)
+    actor._document_status = cast(Any, document_status)
+    return actor
 
 
 class TransferImportRepositoryStub(ImportRepositoryStub):

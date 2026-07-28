@@ -111,9 +111,11 @@ read model.
 
 ### Review ↔ ledger
 
-Import review напрямую создаёт `RawTransactionPoster`, ledger repository и
-transaction-rule use cases. Ledger в ответ знает об imports models/status
-refresh. Целевая схема:
+Исправляется в Phase 6.6. `RawTransactionPoster` уже удалён: confirmation и
+transfer orchestration принадлежат `import_review`, а `LedgerPostingService`
+получает готовые финансовые facts. Imported undo также перенесён в
+`import_review`; оставшаяся обратная зависимость находится в review-specific
+ledger queries и raw-row helpers. Целевая схема:
 
 ```text
 ImportReview application owns transaction

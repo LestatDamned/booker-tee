@@ -29,7 +29,6 @@ from app.features.ledger.domain.raw_transactions import (
     ensure_matched_transfer_account,
     ensure_raw_transaction_can_post_as_transfer,
     raw_transaction_effective_account_id,
-    restored_raw_status_after_unlink,
 )
 from app.features.ledger.errors import (
     LedgerPostingError,
@@ -367,30 +366,6 @@ def test_matched_transfer_row_must_belong_to_selected_account() -> None:
             ),
             uuid4(),
         )
-
-
-def test_restored_raw_status_after_unlink_preserves_rule_suggestion() -> None:
-    assert (
-        restored_raw_status_after_unlink(
-            RawTransactionStub(
-                status=RawTransactionStatus.CONFIRMED,
-                account_id=uuid4(),
-                amount=Decimal("-100.00"),
-                suggested_by_rule_id=uuid4(),
-            )
-        )
-        == RawTransactionStatus.SUGGESTED
-    )
-    assert (
-        restored_raw_status_after_unlink(
-            RawTransactionStub(
-                status=RawTransactionStatus.CONFIRMED,
-                account_id=uuid4(),
-                amount=Decimal("-100.00"),
-            )
-        )
-        == RawTransactionStatus.NORMALIZED
-    )
 
 
 @pytest.mark.asyncio

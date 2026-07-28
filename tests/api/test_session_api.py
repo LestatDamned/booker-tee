@@ -2,8 +2,8 @@ from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI, Query, Request
-from fastapi.testclient import TestClient
 
+from api_client import ApiTestClient as TestClient
 from app.api.dependencies import ApiRequestContext, get_api_request_context, verify_api_csrf
 from app.api.errors import ApiError, install_api_exception_handlers
 from app.core.security import csrf_token_for_session

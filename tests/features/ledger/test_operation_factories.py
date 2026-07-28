@@ -67,7 +67,7 @@ def test_operation_factories_share_confirmed_core_invariants() -> None:
         build_bank_pdf_operation(
             context=context,
             document_id=uuid4(),
-            raw_transaction=cast(Any, raw_transaction),
+            raw_transaction_id=raw_transaction.id,
             plan=LedgerPostingPlan(
                 operation_type=OperationType.INCOME,
                 amount=Decimal("100.00"),
@@ -82,9 +82,14 @@ def test_operation_factories_share_confirmed_core_invariants() -> None:
         ),
         build_bank_pdf_transfer_operation(
             context=context,
-            raw_transaction=cast(Any, raw_transaction),
-            matched_raw_transaction=None,
+            description=raw_transaction.description_normalized,
+            operation_date=raw_transaction.operation_date,
+            posting_date=raw_transaction.posting_date,
             transfer_category=cast(Any, category),
+            extra_metadata={
+                "source": "raw_transfer",
+                "raw_transaction_id": str(raw_transaction.id),
+            },
         ),
     ]
 

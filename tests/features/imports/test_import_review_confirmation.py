@@ -55,6 +55,15 @@ class ImportRepositoryStub:
     ) -> bool:
         return self.duplicate
 
+    async def link_raw_transaction_to_operation(
+        self,
+        raw_transaction: object,
+        *,
+        operation_id: UUID,
+    ) -> None:
+        cast(Any, raw_transaction).status = RawTransactionStatus.CONFIRMED
+        cast(Any, raw_transaction).linked_operation_id = operation_id
+
 
 class LedgerRepositoryStub:
     def __init__(self, operation: object | None = None) -> None:
@@ -65,6 +74,18 @@ class LedgerRepositoryStub:
 
 
 class ReferenceResolverStub:
+    def __init__(self, account_id: UUID) -> None:
+        self.account = SimpleNamespace(id=account_id, currency="RUB")
+        self.account_rows: list[object] = []
+
+    async def get_account_for_raw_transaction(
+        self,
+        workspace_id: UUID,
+        raw_transaction: object,
+    ) -> object:
+        self.account_rows.append(raw_transaction)
+        return self.account
+
     async def get_required_import_category(
         self,
         workspace_id: UUID,
@@ -76,13 +97,12 @@ class ReferenceResolverStub:
         return SimpleNamespace(id=property_id) if property_id is not None else None
 
 
-class PosterStub:
+class PostingStub:
     def __init__(self, operation_id: UUID) -> None:
-        self.references = ReferenceResolverStub()
         self.operation_id = operation_id
         self.calls: list[dict[str, object]] = []
 
-    async def post_raw_transaction(self, **kwargs: object) -> object:
+    async def post_imported_income_expense(self, **kwargs: object) -> object:
         self.calls.append(kwargs)
         return SimpleNamespace(id=self.operation_id)
 
@@ -109,12 +129,17 @@ async def test_confirmation_posts_once_with_server_checked_references() -> None:
 
     result = await service.execute(context=workspace_context(), command=command)
 
-    poster = cast(PosterStub, service._actor._poster)
+    posting = cast(PostingStub, service._actor._posting)
+    references = cast(ReferenceResolverStub, service._actor._references)
     assert result.operation_id == operation_id
     assert result.replayed is False
     assert result.updated_item_ids == frozenset({row.id})
-    assert poster.calls[0]["idempotency_key"] == command.idempotency_key
-    assert poster.calls[0]["category_id"] == command.category_id
+    assert references.account_rows == [row]
+    assert posting.calls[0]["account"] is references.account
+    assert posting.calls[0]["idempotency_key"] == command.idempotency_key
+    assert cast(Any, posting.calls[0]["category"]).id == command.category_id
+    assert row.status is RawTransactionStatus.CONFIRMED
+    assert row.linked_operation_id == operation_id
     assert session.commits == 1
 
 
@@ -143,7 +168,7 @@ async def test_confirmation_replays_same_committed_idempotency_key() -> None:
     result = await service.execute(context=workspace_context(), command=command)
 
     assert result.replayed is True
-    assert cast(PosterStub, service._actor._poster).calls == []
+    assert cast(PostingStub, service._actor._posting).calls == []
 
 
 @pytest.mark.asyncio
@@ -206,7 +231,7 @@ async def test_confirmation_requires_manual_rule_pattern_before_posting() -> Non
     assert result.value.field_errors == {
         "rulePattern": ["Укажите текст, по которому определять похожие строки."]
     }
-    assert cast(PosterStub, service._actor._poster).calls == []
+    assert cast(PostingStub, service._actor._posting).calls == []
 
 
 @pytest.mark.asyncio
@@ -282,7 +307,11 @@ def confirmation_actor(
     actor = ImportReviewConfirmationActor(cast(Any, session))
     actor._imports = cast(Any, ImportRepositoryStub(row, duplicate=duplicate))
     actor._ledger = cast(Any, LedgerRepositoryStub())
-    actor._poster = cast(Any, PosterStub(operation_id or uuid4()))
+    actor._references = cast(
+        Any,
+        ReferenceResolverStub(cast(Any, row).account_id),
+    )
+    actor._posting = cast(Any, PostingStub(operation_id or uuid4()))
     actor._rule_creator = cast(Any, RuleCreatorStub())
     return actor
 
@@ -332,6 +361,9 @@ def confirmable_row(
         posting_date=None,
         amount=Decimal("-1250.50"),
         currency="RUB",
+        description_normalized="Магазин",
+        description_raw="Магазин",
+        balance_after=Decimal("10000.00"),
         account_id=account_id,
         suggested_operation_type=None,
         suggested_category_id=None,

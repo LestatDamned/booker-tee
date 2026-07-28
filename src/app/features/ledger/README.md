@@ -29,10 +29,10 @@ manual ledger API / chat
 
 raw transaction review
   -> ImportReviewConfirmationActor / ImportReviewTransferActor
-  -> RawTransactionPoster
-  -> LedgerPostingPlan + operation mapping
-  -> LedgerRepository + ImportRepository
-  -> Operation + MoneyEntry[] + linked RawTransaction
+  -> validate and link raw rows in import_review
+  -> LedgerPostingService
+  -> LedgerRepository
+  -> Operation + MoneyEntry[]
 
 account legacy screen
   -> AccountLedgerReader
@@ -50,13 +50,13 @@ contracts.
 ledger/
   application/
     account_ledger.py          # legacy account read model and reader
-    imported_operations.py     # correction and undo of imported operations
+    imported_operations.py     # imported operation review edits and correction
     ledger_reference_resolver.py
     listing.py                 # pagination and query filters
     manual_contracts.py        # manual commands and read DTOs
     manual_mutations.py        # manual write workflows
     manual_operations.py       # public manual service and reference reader
-    raw_transaction_posting.py # posting imported rows and transfers
+    posting.py                 # ledger writes from validated financial facts
 
   domain/
     money.py                   # signs, amounts, currency and balance rules
@@ -92,8 +92,9 @@ ManualOperationService.create(...)
 ManualOperationWriter.update(...)
 ImportReviewConfirmationActor.apply(...)
 ImportReviewTransferActor.apply(...)
-RawTransactionPoster.post_raw_transaction(...)
-ImportedOperationUndoUseCase.undo_raw_transaction_posting(...)
+LedgerPostingService.post_imported_income_expense(...)
+LedgerPostingService.post_imported_transfer(...)
+ImportedOperationCorrection.ignore_confirmed_import(...)
 TransferSuggestionUseCase.list_for_document(...)
 AccountLedgerReader.get_detail(...)
 ```

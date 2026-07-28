@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
+from api_client import ApiTestClient as TestClient
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.v1.import_review.dependencies import (
     get_import_review_category_creator,
