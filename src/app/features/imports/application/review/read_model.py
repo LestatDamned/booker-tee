@@ -6,6 +6,15 @@ from typing import Protocol
 from uuid import UUID
 
 from app.features.accounts.models import Account
+from app.features.import_review.domain.lifecycle import (
+    ImportReviewLifecycleSnapshot,
+    import_review_lifecycle_snapshot,
+)
+from app.features.import_review.domain.queue import (
+    is_review_terminal,
+    is_reviewable,
+    review_queue_snapshot,
+)
 from app.features.imports.application.review.classification import (
     ImportReviewClassificationDto,
     ImportReviewConfirmabilityDto,
@@ -28,15 +37,6 @@ from app.features.imports.application.review.transfers import (
 from app.features.imports.application.review.validation_read_model import (
     ImportReviewValidationDto,
     build_import_review_validation,
-)
-from app.features.imports.domain.review_lifecycle import (
-    ImportReviewLifecycleSnapshot,
-    import_review_lifecycle_snapshot,
-)
-from app.features.imports.domain.review_queue import (
-    is_review_terminal,
-    is_reviewable,
-    review_queue_snapshot,
 )
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import RawTransaction, UploadedDocument, UploadedDocumentStatus

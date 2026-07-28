@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
 from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.review.classification import (
     build_import_review_draft_evaluation,
@@ -12,7 +13,6 @@ from app.features.imports.application.review.classification import (
 from app.features.imports.application.review.validation_refresh import (
     refresh_document_validation,
 )
-from app.features.imports.domain.review_confirmability import ReviewBlockingReasonCode
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.errors import RawTransactionReviewError
 from app.features.imports.repository import ImportRepository

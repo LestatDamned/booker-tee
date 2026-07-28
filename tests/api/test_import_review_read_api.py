@@ -15,6 +15,12 @@ from app.api.v1.import_review.dependencies import (
     get_import_review_transfer_service,
     get_import_review_undo_service,
 )
+from app.features.import_review.domain.classification import ReviewClassificationSource
+from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
+from app.features.import_review.domain.lifecycle import (
+    ImportReviewLifecycleAction,
+    ImportReviewLifecycleConflictError,
+)
 from app.features.imports.application.review.classification import (
     ImportReviewClassificationDto,
     ImportReviewConfirmabilityDto,
@@ -70,12 +76,6 @@ from app.features.imports.application.review.validation_read_model import (
     ImportReviewRowProblemDto,
     ImportReviewValidationDto,
     ImportReviewValidationReasonCode,
-)
-from app.features.imports.domain.review_classification import ReviewClassificationSource
-from app.features.imports.domain.review_confirmability import ReviewBlockingReasonCode
-from app.features.imports.domain.review_lifecycle import (
-    ImportReviewLifecycleAction,
-    ImportReviewLifecycleConflictError,
 )
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.domain.validation import StatementValidationStatus

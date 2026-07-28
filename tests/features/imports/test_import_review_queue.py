@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
-from app.features.imports.domain.review_queue import (
+from app.features.import_review.domain.queue import (
     is_review_terminal,
     is_reviewable,
     review_queue_snapshot,

@@ -3,13 +3,13 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.import_review.domain.lifecycle import (
+    ImportReviewLifecycleAction,
+    resolve_import_review_lifecycle_transition,
+)
 from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.review.validation_refresh import (
     refresh_document_validation,
-)
-from app.features.imports.domain.review_lifecycle import (
-    ImportReviewLifecycleAction,
-    resolve_import_review_lifecycle_transition,
 )
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.errors import RawTransactionReviewError

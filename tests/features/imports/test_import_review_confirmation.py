@@ -7,13 +7,13 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
 from app.features.imports.application.review.confirmation_commands import (
     ConfirmImportReviewItemCommand,
     ImportReviewConfirmationConflictError,
     ImportReviewConfirmationService,
     ImportReviewConfirmationValidationError,
 )
-from app.features.imports.domain.review_confirmability import ReviewBlockingReasonCode
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import RawTransaction, UploadedDocumentStatus
 from app.features.ledger.domain.types import OperationStatus, OperationType

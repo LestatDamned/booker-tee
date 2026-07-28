@@ -11,6 +11,7 @@ from app.api.v1.import_review.dependencies import (
 )
 from app.features.categories.models import CategoryKind
 from app.features.categories.service import CategoryError
+from app.features.import_review.domain.classification import ReviewClassificationSource
 from app.features.imports.application.review.classification import (
     ImportReviewCategoryReferenceDto,
     ImportReviewClassificationDto,
@@ -20,7 +21,6 @@ from app.features.imports.application.review.classification import (
     ImportReviewRuleSuggestionDto,
     ImportReviewSelectionDto,
 )
-from app.features.imports.domain.review_classification import ReviewClassificationSource
 from app.features.ledger.domain.types import OperationType
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (

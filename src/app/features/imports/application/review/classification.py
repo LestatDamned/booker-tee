@@ -3,11 +3,11 @@ from typing import Protocol
 from uuid import UUID
 
 from app.features.categories.models import Category, CategoryKind
-from app.features.imports.domain.review_classification import (
+from app.features.import_review.domain.classification import (
     ReviewClassificationSource,
     resolve_review_classification,
 )
-from app.features.imports.domain.review_confirmability import (
+from app.features.import_review.domain.confirmability import (
     ReviewBlockingReasonCode,
     ReviewConfirmabilityInput,
     evaluate_review_confirmability,

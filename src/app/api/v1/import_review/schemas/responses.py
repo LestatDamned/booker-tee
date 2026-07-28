@@ -4,6 +4,9 @@ from uuid import UUID
 
 from app.api.schemas import ApiModel
 from app.features.categories.models import CategoryKind
+from app.features.import_review.domain.classification import ReviewClassificationSource
+from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
+from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
 from app.features.imports.application.review.duplicates import (
     ImportReviewDuplicateMatchingField,
     ImportReviewDuplicateMatchReasonCode,
@@ -16,9 +19,6 @@ from app.features.imports.application.review.validation_read_model import (
     ImportReviewRowProblemCode,
     ImportReviewValidationReasonCode,
 )
-from app.features.imports.domain.review_classification import ReviewClassificationSource
-from app.features.imports.domain.review_confirmability import ReviewBlockingReasonCode
-from app.features.imports.domain.review_lifecycle import ImportReviewLifecycleAction
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.domain.validation import StatementValidationStatus
 from app.features.imports.models import UploadedDocumentStatus

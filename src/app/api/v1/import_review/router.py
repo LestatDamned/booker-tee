@@ -34,6 +34,10 @@ from app.api.v1.import_review.schemas.responses import (
     ImportReviewTransferMutationApiResponse,
 )
 from app.features.categories.service import CategoryError
+from app.features.import_review.domain.lifecycle import (
+    ImportReviewLifecycleConflictError,
+    ImportReviewLifecycleError,
+)
 from app.features.imports.application.review.classification import (
     ImportReviewCategoryCreator,
     ImportReviewDraftEvaluator,
@@ -53,10 +57,6 @@ from app.features.imports.application.review.transfer_commands import (
     ImportReviewTransferService,
     LinkImportReviewExistingTransferCommand,
     MatchImportReviewRawRowCommand,
-)
-from app.features.imports.domain.review_lifecycle import (
-    ImportReviewLifecycleConflictError,
-    ImportReviewLifecycleError,
 )
 from app.features.imports.errors import RawTransactionReviewError
 from app.features.ledger.errors import LedgerPostingError

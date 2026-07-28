@@ -6,14 +6,14 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from app.features.import_review.domain.classification import ReviewClassificationSource
+from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
+from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
 from app.features.imports.application.review.classification import ImportReviewReferencesDto
 from app.features.imports.application.review.read_model import (
     ImportReviewReader,
     ImportReviewReadonlyReasonCode,
 )
-from app.features.imports.domain.review_classification import ReviewClassificationSource
-from app.features.imports.domain.review_confirmability import ReviewBlockingReasonCode
-from app.features.imports.domain.review_lifecycle import ImportReviewLifecycleAction
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import UploadedDocumentStatus
 from app.features.ledger.domain.types import OperationStatus, OperationType

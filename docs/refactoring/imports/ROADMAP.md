@@ -471,10 +471,21 @@ Characterization test подтверждает: при девяти строка
 
 ## Phase 6 — Extract import review
 
+Подробный исполнимый план: [`PHASE_6_IMPORT_REVIEW.md`](PHASE_6_IMPORT_REVIEW.md).
+Он является источником истины для границ файлов, транзакционной модели,
+миграции React/chat и критериев каждого commit.
+
 ### Commit 6.1: move pure review domain
+
+Статус: completed 2026-07-28.
 
 Перенести classification, confirmability, lifecycle и queue. При необходимости
 оставить временные compatibility imports на один commit.
+
+Четыре pure policy перемещены в `src/app/features/import_review/domain`.
+Production и test consumers используют defining modules напрямую;
+compatibility re-exports не создавались. Persisted imports statuses,
+`review_messages` и statement validation остались в `imports`.
 
 ### Commit 6.2: move review read side
 

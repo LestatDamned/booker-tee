@@ -15,6 +15,9 @@ ledger и transaction rules, завершить React cutover и оставит�
   архитектурные границы.
 - [`ROADMAP.md`](ROADMAP.md) — рекомендуемая целевая структура и этапы
   реализации маленькими commits.
+- [`PHASE_6_IMPORT_REVIEW.md`](PHASE_6_IMPORT_REVIEW.md) — подробный план
+  выделения `import_review`, включая границы, транзакции, React/chat migration
+  и удаление обратной зависимости ledger.
 - [`TEST_STRATEGY.md`](TEST_STRATEGY.md) — классификация текущих тестов и план
   сокращения стоимости поддержки.
 

@@ -1,11 +1,13 @@
+"""Confirmability policy for imported transaction review."""
+
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
-from app.features.imports.domain.review_classification import ReviewClassification
-from app.features.imports.domain.review_queue import is_review_terminal
+from app.features.import_review.domain.classification import ReviewClassification
+from app.features.import_review.domain.queue import is_review_terminal
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationType
 

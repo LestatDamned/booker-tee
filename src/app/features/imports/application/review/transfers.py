@@ -6,7 +6,7 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 from app.features.accounts.models import Account
-from app.features.imports.domain.review_classification import resolve_review_classification
+from app.features.import_review.domain.classification import resolve_review_classification
 from app.features.imports.models import RawTransaction, UploadedDocument
 from app.features.ledger.application.transfer_suggestions import (
     ExistingTransferSuggestion,

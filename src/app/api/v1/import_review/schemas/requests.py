@@ -5,7 +5,7 @@ from pydantic import Field, model_validator
 
 from app.api.schemas import ApiRequestModel
 from app.features.categories.models import CategoryKind
-from app.features.imports.domain.review_lifecycle import ImportReviewLifecycleAction
+from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationType
 
