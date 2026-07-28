@@ -4,12 +4,12 @@ from app.features.imports.application.documents.parse_attempts import (
     latest_parse_attempt,
     statement_control_totals_from_json,
 )
+from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.domain.validation import (
     StatementValidationReport,
     validate_statement_totals,
 )
 from app.features.imports.models import ParseAttempt, UploadedDocument
-from app.features.imports.parsing.parser_types import StatementControlTotals
 
 
 @dataclass(frozen=True)

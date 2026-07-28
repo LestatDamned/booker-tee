@@ -1,10 +1,10 @@
+from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.models import (
     ParseAttempt,
     ParseAttemptStatus,
     UploadedDocument,
     UploadedDocumentStatus,
 )
-from app.features.imports.parsing.parser_types import StatementControlTotals
 from app.features.imports.repository import ImportRepository
 
 

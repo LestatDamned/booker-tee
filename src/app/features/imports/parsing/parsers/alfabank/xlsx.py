@@ -6,8 +6,9 @@ from uuid import UUID
 from app.features.imports.application.unknown_statements.header_keywords import (
     header_matches_for_cell,
 )
+from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
-from app.features.imports.parsing.parser_types import RawTransactionDraft, StatementControlTotals
+from app.features.imports.parsing.parser_types import RawTransactionDraft
 from app.features.imports.parsing.support.common import (
     build_raw_transaction_draft,
     cell,

@@ -5,8 +5,8 @@ from openpyxl.utils.exceptions import InvalidFileException
 from pdfplumber.utils.exceptions import PdfminerException
 
 from app.db.base import utc_now
+from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.models import ParseAttempt, UploadedDocument, UploadedDocumentStatus
-from app.features.imports.parsing.parser_types import StatementControlTotals
 from app.features.imports.repository import ImportRepository
 
 PARSER_EXCEPTIONS = (OSError, ValueError, TypeError, PdfminerException, InvalidFileException)

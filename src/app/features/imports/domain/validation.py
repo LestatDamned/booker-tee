@@ -4,8 +4,8 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Protocol
 
+from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.domain.types import RawTransactionStatus
-from app.features.imports.parsing.parser_types import StatementControlTotals
 
 MONEY_ZERO = Decimal("0.00")
 MONEY_TOLERANCE = Decimal("0.01")

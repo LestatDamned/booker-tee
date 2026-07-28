@@ -313,6 +313,7 @@ imports/
       drafts.py
 
   domain/
+    control_totals.py
     deduplication.py
     validation.py
 
@@ -529,7 +530,11 @@ import path easy to test.
 - `application/pipelines/` - shared import pipeline steps: review-required attempts and validation result storage.
 - `application/known_statements/` - known bank parser pipeline: drafts, raw rows, deduplication, rules, validation.
 - `application/unknown_statements/` - unknown statement fallback and analysis internals: fallback/template pipeline, hints, DTOs, table detection, column profiles, profile helpers, suggestions, suggestion scoring, continuations, and control totals.
-- `application/unknown_statement_mappings/` - unknown statement mapping workflows and internals: preview, idempotent import use case, template use case, template matching, table signatures, UI defaults, commands/DTOs, raw table navigation, row mapping, and draft conversion.
+- `application/unknown_statement_mappings/` - unknown statement mapping workflows
+  and internals: mapping engine, idempotent import use case, template use case,
+  template matching, table signatures, mapping defaults, DTOs, raw table
+  navigation, row mapping, and draft conversion.
+- `domain/control_totals.py` - statement balance and inflow/outflow control totals.
 - `domain/deduplication.py` - duplicate detection for imported raw transactions.
 - `domain/validation.py` - pure statement total validation logic.
 - `mapping/raw_transaction_mapper.py` - `RawTransactionDraft` to ORM model mapping.
@@ -607,7 +612,8 @@ these packages:
 - `application/` - user workflows, parser attempts, review actions and upload
   orchestration.
 - `application/<workflow_package>/` - cohesive helpers for one application workflow when a single file stops reading linearly.
-- `domain/` - pure import rules such as deduplication and statement total validation.
+- `domain/` - pure import concepts and rules such as statement control totals,
+  deduplication and statement total validation.
 - `mapping/` - DTO projection and draft-to-ORM mapping.
 - `infrastructure/` - filesystem/file extraction adapters and other I/O details.
 - `parsing/` - parser contracts, registry, shared support, and bank-specific parsers.

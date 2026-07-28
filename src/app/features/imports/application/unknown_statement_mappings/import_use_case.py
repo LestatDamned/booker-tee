@@ -38,6 +38,7 @@ from app.features.imports.application.unknown_statement_mappings.template_comman
 from app.features.imports.application.unknown_statements.control_totals import (
     extract_unknown_statement_control_totals,
 )
+from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.domain.deduplication import RawTransactionDeduplicator
 from app.features.imports.domain.validation import validate_statement_totals
 from app.features.imports.errors import (
@@ -57,7 +58,6 @@ from app.features.imports.models import (
     UploadedDocument,
     UploadedDocumentStatus,
 )
-from app.features.imports.parsing.parser_types import StatementControlTotals
 from app.features.imports.repository import ImportRepository
 from app.features.transaction_rules.application.rule_application import (
     TransactionRuleApplicationUseCase,

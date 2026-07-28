@@ -209,8 +209,14 @@ Exit: меньше слоёв без изменения API.
 
 ### Commit 3.1: domain control totals
 
-Перенести `StatementControlTotals` в imports domain. Parsers используют domain
-type.
+Статус: completed 2026-07-28.
+
+- `StatementControlTotals` и его стабильное JSON-представление перенесены в
+  `domain/control_totals.py`;
+- parsers, application workflows и validation используют domain type;
+- `domain/validation.py` больше не зависит от parsing layer.
+
+Пользовательское поведение и JSON payload контрольных итогов не изменены.
 
 ### Commit 3.2: deduplication ownership
 

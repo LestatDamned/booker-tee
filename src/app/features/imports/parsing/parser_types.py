@@ -5,6 +5,7 @@ from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
+from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.models import RawTransactionStatus
 
@@ -12,24 +13,6 @@ from app.features.imports.models import RawTransactionStatus
 class MoneyDirection(StrEnum):
     INFLOW = "inflow"
     OUTFLOW = "outflow"
-
-
-@dataclass(frozen=True)
-class StatementControlTotals:
-    currency: str
-    opening_balance: Decimal | None = None
-    closing_balance: Decimal | None = None
-    total_inflow: Decimal | None = None
-    total_outflow: Decimal | None = None
-
-    def as_json(self) -> dict[str, object]:
-        return {
-            "currency": self.currency,
-            "opening_balance": _decimal_as_string(self.opening_balance),
-            "closing_balance": _decimal_as_string(self.closing_balance),
-            "total_inflow": _decimal_as_string(self.total_inflow),
-            "total_outflow": _decimal_as_string(self.total_outflow),
-        }
 
 
 @dataclass(frozen=True)
@@ -85,9 +68,3 @@ class BankStatementRawTransactionParser(Protocol):
         *,
         currency: str,
     ) -> StatementControlTotals | None: ...
-
-
-def _decimal_as_string(value: Decimal | None) -> str | None:
-    if value is None:
-        return None
-    return str(value.quantize(Decimal("0.01")))

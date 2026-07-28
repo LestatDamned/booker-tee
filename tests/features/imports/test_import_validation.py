@@ -2,12 +2,12 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import cast
 
+from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.domain.validation import (
     StatementValidationStatus,
     validate_statement_totals,
 )
 from app.features.imports.models import RawTransactionStatus
-from app.features.imports.parsing.parser_types import StatementControlTotals
 
 
 @dataclass(frozen=True)

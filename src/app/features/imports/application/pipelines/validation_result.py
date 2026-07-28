@@ -1,3 +1,4 @@
+from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.domain.validation import (
     StatementValidationReport,
     StatementValidationStatus,
@@ -8,7 +9,6 @@ from app.features.imports.models import (
     UploadedDocument,
     UploadedDocumentStatus,
 )
-from app.features.imports.parsing.parser_types import StatementControlTotals
 from app.features.imports.repository import ImportRepository
 
 

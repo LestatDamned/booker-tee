@@ -4,7 +4,7 @@ from enum import StrEnum
 from app.features.imports.application.unknown_statements.table_preview_dto import (
     UnknownStatementTablePreview,
 )
-from app.features.imports.parsing.parser_types import StatementControlTotals
+from app.features.imports.domain.control_totals import StatementControlTotals
 
 
 class UnknownStatementStatus(StrEnum):

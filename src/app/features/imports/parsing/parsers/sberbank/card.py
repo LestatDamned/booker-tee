@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
+from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
-from app.features.imports.parsing.parser_types import RawTransactionDraft, StatementControlTotals
+from app.features.imports.parsing.parser_types import RawTransactionDraft
 from app.features.imports.parsing.support.common import (
     build_raw_transaction_draft,
     extracted_text,

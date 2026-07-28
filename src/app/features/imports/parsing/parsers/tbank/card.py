@@ -8,8 +8,9 @@ from app.features.imports.application.unknown_statements.text_tables import (
     currency_from_money,
     date_fragments,
 )
+from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
-from app.features.imports.parsing.parser_types import RawTransactionDraft, StatementControlTotals
+from app.features.imports.parsing.parser_types import RawTransactionDraft
 from app.features.imports.parsing.support.common import (
     build_raw_transaction_draft,
     extracted_text,
