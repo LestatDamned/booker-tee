@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from app.features.imports.application.unknown_statement_mappings.dto import (
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
 )
 from app.features.imports.application.unknown_statement_mappings.row_mapping import (
     map_table_rows,
@@ -40,13 +40,13 @@ def find_raw_table(
 
 def compatible_mapping_tables(
     raw_tables: list[dict[str, object]] | None,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> list[RawTableRef]:
     return [
         table_ref
         for table_ref in iter_raw_tables(raw_tables)
-        if mapping_can_apply_to_table(table_ref, command)
-        or mapping_can_apply_to_continuation_table(table_ref, command)
+        if mapping_can_apply_to_table(table_ref, spec)
+        or mapping_can_apply_to_continuation_table(table_ref, spec)
     ]
 
 
@@ -73,11 +73,11 @@ def iter_raw_tables(raw_tables: list[dict[str, object]] | None) -> list[RawTable
 
 def mapping_can_apply_to_table(
     table_ref: RawTableRef,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> bool:
-    if table_ref.table_index != command.table_index:
+    if table_ref.table_index != spec.table_index:
         return False
-    if not table_has_required_columns(table_ref.rows, command):
+    if not table_has_required_columns(table_ref.rows, spec):
         return False
     return any(
         row.status == "valid"
@@ -85,8 +85,8 @@ def mapping_can_apply_to_table(
             table_ref.rows,
             page_number=table_ref.page_number,
             table_index=table_ref.table_index,
-            start_row=mapping_start_row_for_table(table_ref, command),
-            command=command,
+            start_row=mapping_start_row_for_table(table_ref, spec),
+            spec=spec,
             max_rows=None,
         )
     )
@@ -94,13 +94,13 @@ def mapping_can_apply_to_table(
 
 def mapping_can_apply_to_continuation_table(
     table_ref: RawTableRef,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> bool:
-    if not table_is_after_selected_page(table_ref, command):
+    if not table_is_after_selected_page(table_ref, spec):
         return False
-    if table_ref.table_index == command.table_index:
+    if table_ref.table_index == spec.table_index:
         return False
-    if not table_has_required_columns(table_ref.rows, command):
+    if not table_has_required_columns(table_ref.rows, spec):
         return False
     return any(
         row.status == "valid"
@@ -109,7 +109,7 @@ def mapping_can_apply_to_continuation_table(
             page_number=table_ref.page_number,
             table_index=table_ref.table_index,
             start_row=0,
-            command=command,
+            spec=spec,
             max_rows=None,
         )
     )
@@ -117,45 +117,42 @@ def mapping_can_apply_to_continuation_table(
 
 def table_is_after_selected_page(
     table_ref: RawTableRef,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> bool:
-    return table_ref.page_number > command.page_number
+    return table_ref.page_number > spec.page_number
 
 
 def table_has_required_columns(
     table: list[list[str]],
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> bool:
     required_indexes = [
-        command.operation_date_column,
-        command.description_column,
+        spec.operation_date_column,
+        spec.description_column,
     ]
-    if command.posting_date_column is not None:
-        required_indexes.append(command.posting_date_column)
-    if command.amount_column is not None:
-        required_indexes.append(command.amount_column)
+    if spec.posting_date_column is not None:
+        required_indexes.append(spec.posting_date_column)
+    if spec.amount_column is not None:
+        required_indexes.append(spec.amount_column)
     else:
-        if command.debit_amount_column is not None:
-            required_indexes.append(command.debit_amount_column)
-        if command.credit_amount_column is not None:
-            required_indexes.append(command.credit_amount_column)
-    if command.currency_column is not None:
-        required_indexes.append(command.currency_column)
-    if command.balance_after_column is not None:
-        required_indexes.append(command.balance_after_column)
+        if spec.debit_amount_column is not None:
+            required_indexes.append(spec.debit_amount_column)
+        if spec.credit_amount_column is not None:
+            required_indexes.append(spec.credit_amount_column)
+    if spec.currency_column is not None:
+        required_indexes.append(spec.currency_column)
+    if spec.balance_after_column is not None:
+        required_indexes.append(spec.balance_after_column)
     required_column_count = max(required_indexes, default=-1) + 1
     return any(len(row) >= required_column_count for row in table)
 
 
 def mapping_start_row_for_table(
     table_ref: RawTableRef,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> int:
-    if (
-        table_ref.page_number == command.page_number
-        and table_ref.table_index == command.table_index
-    ):
-        return command.first_data_row
+    if table_ref.page_number == spec.page_number and table_ref.table_index == spec.table_index:
+        return spec.first_data_row
     return 0
 
 

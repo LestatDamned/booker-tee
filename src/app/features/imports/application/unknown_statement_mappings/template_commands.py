@@ -1,7 +1,7 @@
 from typing import cast
 
 from app.features.imports.application.unknown_statement_mappings.dto import (
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
     UnsignedAmountDirection,
 )
 from app.features.imports.application.unknown_statement_mappings.template_signatures import (
@@ -35,27 +35,27 @@ def select_compatible_mapping_template(
     return compatible_templates[0] if compatible_templates else None
 
 
-def mapping_command_as_json(
-    command: UnknownStatementMappingCommand,
+def mapping_spec_as_json(
+    spec: StatementMappingSpec,
     *,
     raw_tables: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
-        "page_number": command.page_number,
-        "table_index": command.table_index,
-        "operation_date_column": command.operation_date_column,
-        "posting_date_column": command.posting_date_column,
-        "description_column": command.description_column,
-        "amount_column": command.amount_column,
-        "debit_amount_column": command.debit_amount_column,
-        "credit_amount_column": command.credit_amount_column,
-        "balance_after_column": command.balance_after_column,
-        "currency_column": command.currency_column,
-        "first_data_row": command.first_data_row,
-        "default_currency": command.default_currency,
-        "unsigned_amount_direction": command.unsigned_amount_direction.value,
+        "page_number": spec.page_number,
+        "table_index": spec.table_index,
+        "operation_date_column": spec.operation_date_column,
+        "posting_date_column": spec.posting_date_column,
+        "description_column": spec.description_column,
+        "amount_column": spec.amount_column,
+        "debit_amount_column": spec.debit_amount_column,
+        "credit_amount_column": spec.credit_amount_column,
+        "balance_after_column": spec.balance_after_column,
+        "currency_column": spec.currency_column,
+        "first_data_row": spec.first_data_row,
+        "default_currency": spec.default_currency,
+        "unsigned_amount_direction": spec.unsigned_amount_direction.value,
     }
-    signature = table_signature_for_mapping(raw_tables, command)
+    signature = table_signature_for_mapping(raw_tables, spec)
     if signature is not None:
         payload["table_signature"] = signature
     return payload
@@ -69,25 +69,25 @@ def mapping_template_matches_raw_tables(
     if not isinstance(expected_signature, dict):
         return False
     expected_signature = cast(dict[str, object], expected_signature)
-    command = mapping_command_from_template(template)
+    spec = mapping_spec_from_template(template)
     actual_signature = table_signature_for_mapping(
         raw_tables,
-        command,
+        spec,
     )
     if actual_signature is None:
         return False
     return table_signatures_match(
         expected_signature,
         actual_signature,
-        command=command,
+        spec=spec,
     )
 
 
-def mapping_command_from_template(
+def mapping_spec_from_template(
     template: ImportMappingTemplate,
-) -> UnknownStatementMappingCommand:
+) -> StatementMappingSpec:
     mapping = template.column_mapping_json
-    return UnknownStatementMappingCommand(
+    return StatementMappingSpec(
         page_number=int_value(mapping.get("page_number"), default=1),
         table_index=int_value(mapping.get("table_index"), default=0),
         operation_date_column=int_value(mapping.get("operation_date_column"), default=0),

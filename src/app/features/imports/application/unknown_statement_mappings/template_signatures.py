@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import cast
 
 from app.features.imports.application.unknown_statement_mappings.dto import (
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
 )
 from app.features.imports.application.unknown_statement_mappings.raw_tables import find_raw_table
 from app.features.imports.application.unknown_statement_mappings.row_mapping import (
@@ -16,30 +16,30 @@ from app.features.imports.parsing.support.normalization import normalize_descrip
 
 def table_signature_for_mapping(
     raw_tables: list[dict[str, object]] | None,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> dict[str, object] | None:
     table = find_raw_table(
         raw_tables,
-        page_number=command.page_number,
-        table_index=command.table_index,
+        page_number=spec.page_number,
+        table_index=spec.table_index,
     )
     if not table:
         return None
-    return table_signature_for_table(table, command)
+    return table_signature_for_table(table, spec)
 
 
 def table_signature_for_table(
     table: list[list[str]],
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> dict[str, object] | None:
-    header_row_index = max(command.first_data_row - 1, 0)
+    header_row_index = max(spec.first_data_row - 1, 0)
     if header_row_index >= len(table):
         return None
     header = table[header_row_index]
     return {
         "column_count": len(header),
         "header": [normalize_header_cell(cell) for cell in header],
-        "mapped_columns": mapped_column_profiles_for_table(table, command),
+        "mapped_columns": mapped_column_profiles_for_table(table, spec),
     }
 
 
@@ -51,39 +51,39 @@ def table_signatures_match(
     expected: dict[str, object],
     actual: dict[str, object],
     *,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> bool:
     if expected.get("column_count") != actual.get("column_count"):
         return False
     if expected.get("header") == actual.get("header"):
         return True
-    return mapped_column_profiles_match(expected, actual, command=command)
+    return mapped_column_profiles_match(expected, actual, spec=spec)
 
 
 def mapped_column_profiles_for_table(
     table: list[list[str]],
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> list[dict[str, object]]:
     return [
         {
             "field": field_name,
             "column_index": column_index,
-            "profile": column_profile_for_table(table, command, column_index),
+            "profile": column_profile_for_table(table, spec, column_index),
         }
-        for field_name, column_index in mapped_field_indexes(command)
+        for field_name, column_index in mapped_field_indexes(spec)
     ]
 
 
-def mapped_field_indexes(command: UnknownStatementMappingCommand) -> list[tuple[str, int]]:
+def mapped_field_indexes(spec: StatementMappingSpec) -> list[tuple[str, int]]:
     fields: list[tuple[str, int | None]] = [
-        ("operation_date", command.operation_date_column),
-        ("posting_date", command.posting_date_column),
-        ("description", command.description_column),
-        ("amount", command.amount_column),
-        ("debit_amount", command.debit_amount_column),
-        ("credit_amount", command.credit_amount_column),
-        ("currency", command.currency_column),
-        ("balance_after", command.balance_after_column),
+        ("operation_date", spec.operation_date_column),
+        ("posting_date", spec.posting_date_column),
+        ("description", spec.description_column),
+        ("amount", spec.amount_column),
+        ("debit_amount", spec.debit_amount_column),
+        ("credit_amount", spec.credit_amount_column),
+        ("currency", spec.currency_column),
+        ("balance_after", spec.balance_after_column),
     ]
     return [
         (field_name, column_index)
@@ -94,12 +94,12 @@ def mapped_field_indexes(command: UnknownStatementMappingCommand) -> list[tuple[
 
 def column_profile_for_table(
     table: list[list[str]],
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
     column_index: int,
 ) -> dict[str, object]:
-    header_row_index = max(command.first_data_row - 1, 0)
+    header_row_index = max(spec.first_data_row - 1, 0)
     header = cell_at(table[header_row_index], column_index) if header_row_index < len(table) else ""
-    samples = [cell_at(row, column_index) for row in table[command.first_data_row :]][:10]
+    samples = [cell_at(row, column_index) for row in table[spec.first_data_row :]][:10]
     return {
         "header": normalize_header_cell(header),
         "sample_count": len(samples),
@@ -117,13 +117,13 @@ def mapped_column_profiles_match(
     expected: dict[str, object],
     actual: dict[str, object],
     *,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> bool:
     expected_columns = mapped_column_profile_map(expected)
     actual_columns = mapped_column_profile_map(actual)
     if not expected_columns or not actual_columns:
         return False
-    for field_name, column_index in mapped_field_indexes(command):
+    for field_name, column_index in mapped_field_indexes(spec):
         expected_profile = expected_columns.get((field_name, column_index))
         actual_profile = actual_columns.get((field_name, column_index))
         if expected_profile is None or actual_profile is None:

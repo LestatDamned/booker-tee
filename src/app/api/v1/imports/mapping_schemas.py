@@ -8,9 +8,11 @@ from app.api.schemas import ApiModel, ApiRequestModel
 from app.features.imports.application.unknown_statement_mappings.dto import (
     UnsignedAmountDirection,
 )
+from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
+    MappingDefaultSource,
+)
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingBlockingReasonCode,
-    MappingDefaultSource,
     MappingRowErrorCode,
 )
 from app.features.imports.models import UploadedDocumentStatus

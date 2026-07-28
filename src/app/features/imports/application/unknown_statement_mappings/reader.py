@@ -14,12 +14,16 @@ from app.features.imports.application.unknown_statement_mappings.control_total_c
     resolve_mapping_control_totals,
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
-    UnknownStatementMappedRow,
-    UnknownStatementMappingCommand,
+    MappedStatementRow,
+    StatementMappingSpec,
     UnsignedAmountDirection,
 )
-from app.features.imports.application.unknown_statement_mappings.preview import (
-    preview_compatible_unknown_statement_mapping,
+from app.features.imports.application.unknown_statement_mappings.engine import (
+    StatementMappingEngine,
+)
+from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
+    StatementMappingDefaultResolver,
+    table_previews_from_validation,
 )
 from app.features.imports.application.unknown_statement_mappings.raw_tables import (
     compatible_mapping_tables,
@@ -32,7 +36,6 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
     MappingCapabilityDto,
     MappingColumnCandidateDto,
     MappingControlTotalCandidateDto,
-    MappingDefaultSource,
     MappingResolvedControlTotalDto,
     MappingSourceRowDto,
     MappingSourceRowsDto,
@@ -47,10 +50,6 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
 )
 from app.features.imports.application.unknown_statement_mappings.template_commands import (
     compatible_mapping_templates,
-)
-from app.features.imports.application.unknown_statement_mappings.ui_defaults import (
-    default_mapping_command,
-    preview_table_options,
 )
 from app.features.imports.models import (
     ImportMappingTemplate,
@@ -145,14 +144,14 @@ class UnknownStatementMappingReader:
             if snapshot.account is not None
             else workspace_default_currency
         )
-        command = default_mapping_command(
+        default = StatementMappingDefaultResolver.resolve(
             snapshot.validation,
             default_currency=default_currency,
-            templates=compatible_templates,
+            compatible_templates=compatible_templates,
         )
         control_total_candidates = detect_control_total_candidates(raw_tables)
-        command = replace(
-            command,
+        spec = replace(
+            default.spec,
             opening_balance_cell=automatic_control_total_cell(
                 control_total_candidates,
                 MappingControlTotalKind.OPENING_BALANCE,
@@ -162,7 +161,7 @@ class UnknownStatementMappingReader:
                 MappingControlTotalKind.CLOSING_BALANCE,
             ),
         )
-        table_options = preview_table_options(snapshot.validation)
+        table_options = table_previews_from_validation(snapshot.validation)
         projected_tables = tuple(
             _source_table(option, raw_tables, default_currency=default_currency)
             for option in table_options[:MAX_MAPPING_SOURCE_TABLES]
@@ -184,12 +183,9 @@ class UnknownStatementMappingReader:
             ),
             default_currency=default_currency,
             capability=_mapping_capability(snapshot, raw_tables),
-            default_mapping=command,
-            default_source=_default_source(
-                compatible_templates=compatible_templates,
-                table_options=table_options,
-            ),
-            selected_template_id=(compatible_templates[0].id if compatible_templates else None),
+            default_mapping=spec,
+            default_source=default.source,
+            selected_template_id=default.template_id,
             templates=tuple(
                 MappingTemplateDto(id=template.id, name=template.name)
                 for template in compatible_templates
@@ -217,7 +213,7 @@ class UnknownStatementMappingReader:
         workspace_id: UUID,
         document_id: UUID,
         workspace_default_currency: str,
-        command: UnknownStatementMappingCommand,
+        spec: StatementMappingSpec,
     ) -> UnknownStatementMappingPreviewResult | None:
         snapshot = await self._documents.get_document_snapshot(workspace_id, document_id)
         if snapshot is None:
@@ -232,52 +228,52 @@ class UnknownStatementMappingReader:
         raw_tables = _latest_raw_tables(snapshot)
         selected_table = find_raw_table(
             raw_tables,
-            page_number=command.page_number,
-            table_index=command.table_index,
+            page_number=spec.page_number,
+            table_index=spec.table_index,
         )
-        validate_mapping_command(command, selected_table)
-        validate_control_total_cells(command, raw_tables)
+        validate_mapping_spec(spec, selected_table)
+        validate_control_total_cells(spec, raw_tables)
 
-        compatible_tables = compatible_mapping_tables(raw_tables, command)
-        preview = preview_compatible_unknown_statement_mapping(
+        compatible_tables = compatible_mapping_tables(raw_tables, spec)
+        result = StatementMappingEngine.apply(
             raw_tables,
-            command,
+            spec,
             max_rows=None,
         )
-        resolved_control_totals = resolve_mapping_control_totals(raw_tables, command)
+        resolved_control_totals = resolve_mapping_control_totals(raw_tables, spec)
         reconciliation = _balance_reconciliation(
-            preview.rows,
+            result.rows,
             resolved_control_totals,
         )
         rows = tuple(
-            mapping_preview_row(row, command)
-            for row in preview.rows[:MAX_MAPPING_PREVIEW_RESPONSE_ROWS]
+            mapping_preview_row(row, spec)
+            for row in result.rows[:MAX_MAPPING_PREVIEW_RESPONSE_ROWS]
         )
-        has_blocking_warning = any(warning.severity == "error" for warning in preview.warnings)
+        has_blocking_warning = any(warning.severity == "error" for warning in result.warnings)
         return UnknownStatementMappingPreviewResult(
             rows=rows,
-            total_row_count=len(preview.rows),
-            valid_row_count=preview.valid_count,
-            invalid_row_count=preview.error_count,
+            total_row_count=len(result.rows),
+            valid_row_count=result.valid_count,
+            invalid_row_count=result.error_count,
             row_limit=MAX_MAPPING_PREVIEW_RESPONSE_ROWS,
-            rows_truncated=len(preview.rows) > len(rows),
+            rows_truncated=len(result.rows) > len(rows),
             compatible_tables=tuple(
                 MappingTableRefDto(table.page_number, table.table_index)
                 for table in compatible_tables
             ),
-            warnings=tuple(preview.warnings),
+            warnings=tuple(result.warnings),
             control_totals=tuple(
                 MappingResolvedControlTotalDto(
                     kind=total.kind,
                     cell=total.cell,
                     raw_value=total.raw_value[:MAX_MAPPING_SOURCE_CELL_CHARS],
                     amount=str(total.amount),
-                    currency=command.default_currency,
+                    currency=spec.default_currency,
                 )
                 for total in resolved_control_totals
             ),
             reconciliation=reconciliation,
-            can_import=preview.valid_count > 0 and not has_blocking_warning,
+            can_import=result.valid_count > 0 and not has_blocking_warning,
         )
 
     async def source_rows(
@@ -351,18 +347,6 @@ def _latest_raw_tables(
     return latest_attempt.raw_tables if latest_attempt is not None else None
 
 
-def _default_source(
-    *,
-    compatible_templates: list[ImportMappingTemplate],
-    table_options: list[dict[str, object]],
-) -> MappingDefaultSource:
-    if compatible_templates:
-        return MappingDefaultSource.TEMPLATE
-    if table_options and _list(table_options[0].get("mapping_suggestions")):
-        return MappingDefaultSource.ANALYZER
-    return MappingDefaultSource.FALLBACK
-
-
 def _source_table(
     value: dict[str, object],
     raw_tables: list[dict[str, object]] | None,
@@ -406,7 +390,7 @@ def _source_table(
 
 
 def _balance_reconciliation(
-    rows: list[UnknownStatementMappedRow],
+    rows: list[MappedStatementRow],
     control_totals: tuple[ResolvedMappingControlTotal, ...],
 ) -> MappingBalanceReconciliationDto | None:
     opening = next(
@@ -468,14 +452,14 @@ def _mapping_suggestion(
     if not suggestions or not isinstance(suggestions[0], dict):
         return None
     suggestion = cast(dict[str, object], suggestions[0])
-    command = _command_from_suggestion(
+    spec = _command_from_suggestion(
         value,
         suggestion,
         default_currency=default_currency,
     )
     confidence = suggestion.get("confidence")
     return MappingSuggestionDto(
-        command=command,
+        spec=spec,
         confidence=float(confidence) if isinstance(confidence, (int, float)) else None,
         reasons=tuple(
             reason
@@ -495,8 +479,8 @@ def _command_from_suggestion(
     suggestion: dict[str, object],
     *,
     default_currency: str,
-) -> UnknownStatementMappingCommand:
-    return UnknownStatementMappingCommand(
+) -> StatementMappingSpec:
+    return StatementMappingSpec(
         page_number=_int(table.get("page_number"), 1),
         table_index=_int(table.get("table_index"), 0),
         operation_date_column=_int(suggestion.get("operation_date_column"), 0),
@@ -530,8 +514,8 @@ def _suggestion_reason(value: object) -> MappingSuggestionReasonDto | None:
     )
 
 
-def validate_mapping_command(
-    command: UnknownStatementMappingCommand,
+def validate_mapping_spec(
+    spec: StatementMappingSpec,
     selected_table: list[list[str]],
 ) -> None:
     if not selected_table:
@@ -540,7 +524,7 @@ def validate_mapping_command(
             "Выбранная таблица не найдена.",
             ("tableRef",),
         )
-    fields = _selected_column_fields(command)
+    fields = _selected_column_fields(spec)
     duplicates = _duplicate_fields(fields)
     if duplicates:
         raise MappingCommandValidationError(
@@ -548,16 +532,16 @@ def validate_mapping_command(
             "Одна колонка не может использоваться для нескольких ролей.",
             duplicates,
         )
-    if command.amount_column is not None and (
-        command.debit_amount_column is not None or command.credit_amount_column is not None
+    if spec.amount_column is not None and (
+        spec.debit_amount_column is not None or spec.credit_amount_column is not None
     ):
         raise MappingCommandValidationError(
             "conflicting_amount_mapping",
             "Выберите единую сумму или отдельные списание и зачисление.",
             ("amountColumn", "debitAmountColumn", "creditAmountColumn"),
         )
-    if command.amount_column is None and (
-        command.debit_amount_column is None or command.credit_amount_column is None
+    if spec.amount_column is None and (
+        spec.debit_amount_column is None or spec.credit_amount_column is None
     ):
         raise MappingCommandValidationError(
             "incomplete_amount_mapping",
@@ -572,7 +556,7 @@ def validate_mapping_command(
             "Выбранной колонки нет в исходной таблице.",
             out_of_range,
         )
-    if command.first_data_row >= len(selected_table):
+    if spec.first_data_row >= len(selected_table):
         raise MappingCommandValidationError(
             "mapping_first_row_out_of_range",
             "Первая строка данных находится за пределами таблицы.",
@@ -581,12 +565,12 @@ def validate_mapping_command(
 
 
 def validate_control_total_cells(
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
     raw_tables: list[dict[str, object]] | None,
 ) -> None:
     selected = (
-        ("openingBalanceCell", command.opening_balance_cell),
-        ("closingBalanceCell", command.closing_balance_cell),
+        ("openingBalanceCell", spec.opening_balance_cell),
+        ("closingBalanceCell", spec.closing_balance_cell),
     )
     selected_cells = [cell for _, cell in selected if cell is not None]
     if len(set(selected_cells)) != len(selected_cells):
@@ -606,7 +590,7 @@ def validate_control_total_cells(
         if resolve_mapping_control_totals(
             raw_tables,
             replace(
-                command,
+                spec,
                 opening_balance_cell=(
                     cell if kind is MappingControlTotalKind.OPENING_BALANCE else None
                 ),
@@ -624,17 +608,17 @@ def validate_control_total_cells(
 
 
 def _selected_column_fields(
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> tuple[tuple[str, int], ...]:
     values = (
-        ("operationDateColumn", command.operation_date_column),
-        ("postingDateColumn", command.posting_date_column),
-        ("descriptionColumn", command.description_column),
-        ("amountColumn", command.amount_column),
-        ("debitAmountColumn", command.debit_amount_column),
-        ("creditAmountColumn", command.credit_amount_column),
-        ("currencyColumn", command.currency_column),
-        ("balanceAfterColumn", command.balance_after_column),
+        ("operationDateColumn", spec.operation_date_column),
+        ("postingDateColumn", spec.posting_date_column),
+        ("descriptionColumn", spec.description_column),
+        ("amountColumn", spec.amount_column),
+        ("debitAmountColumn", spec.debit_amount_column),
+        ("creditAmountColumn", spec.credit_amount_column),
+        ("currencyColumn", spec.currency_column),
+        ("balanceAfterColumn", spec.balance_after_column),
     )
     return tuple((field, index) for field, index in values if index is not None)
 

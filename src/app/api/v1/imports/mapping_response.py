@@ -23,7 +23,7 @@ from app.api.v1.imports.mapping_schemas import (
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
     MappingControlTotalCellRef,
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
 )
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingSourceRowsDto,
@@ -58,7 +58,7 @@ class UnknownStatementMappingResponseMapper:
                 allowed=mapping.capability.allowed,
                 blocking_reason_codes=list(mapping.capability.blocking_reason_codes),
             ),
-            default_mapping=UnknownStatementMappingResponseMapper.command(mapping.default_mapping),
+            default_mapping=UnknownStatementMappingResponseMapper.spec(mapping.default_mapping),
             default_source=mapping.default_source,
             selected_template_id=mapping.selected_template_id,
             templates=[
@@ -215,7 +215,7 @@ class UnknownStatementMappingResponseMapper:
         suggestion: MappingSuggestionDto,
     ) -> MappingSuggestionApiResponse:
         return MappingSuggestionApiResponse(
-            mapping=UnknownStatementMappingResponseMapper.command(suggestion.command),
+            mapping=UnknownStatementMappingResponseMapper.spec(suggestion.spec),
             confidence=suggestion.confidence,
             reasons=[
                 MappingSuggestionReasonApiResponse(
@@ -232,35 +232,31 @@ class UnknownStatementMappingResponseMapper:
         )
 
     @staticmethod
-    def command(command: UnknownStatementMappingCommand) -> MappingCommandApiModel:
+    def spec(spec: StatementMappingSpec) -> MappingCommandApiModel:
         return MappingCommandApiModel(
             table_ref=MappingTableRefApiModel(
-                page_number=command.page_number,
-                table_index=command.table_index,
+                page_number=spec.page_number,
+                table_index=spec.table_index,
             ),
-            operation_date_column=command.operation_date_column,
-            posting_date_column=command.posting_date_column,
-            description_column=command.description_column,
-            amount_column=command.amount_column,
-            debit_amount_column=command.debit_amount_column,
-            credit_amount_column=command.credit_amount_column,
-            currency_column=command.currency_column,
-            balance_after_column=command.balance_after_column,
-            first_data_row_number=command.first_data_row + 1,
-            default_currency=command.default_currency,
-            unsigned_amount_direction=command.unsigned_amount_direction,
+            operation_date_column=spec.operation_date_column,
+            posting_date_column=spec.posting_date_column,
+            description_column=spec.description_column,
+            amount_column=spec.amount_column,
+            debit_amount_column=spec.debit_amount_column,
+            credit_amount_column=spec.credit_amount_column,
+            currency_column=spec.currency_column,
+            balance_after_column=spec.balance_after_column,
+            first_data_row_number=spec.first_data_row + 1,
+            default_currency=spec.default_currency,
+            unsigned_amount_direction=spec.unsigned_amount_direction,
             opening_balance_cell=(
-                UnknownStatementMappingResponseMapper.control_total_cell(
-                    command.opening_balance_cell
-                )
-                if command.opening_balance_cell is not None
+                UnknownStatementMappingResponseMapper.control_total_cell(spec.opening_balance_cell)
+                if spec.opening_balance_cell is not None
                 else None
             ),
             closing_balance_cell=(
-                UnknownStatementMappingResponseMapper.control_total_cell(
-                    command.closing_balance_cell
-                )
-                if command.closing_balance_cell is not None
+                UnknownStatementMappingResponseMapper.control_total_cell(spec.closing_balance_cell)
+                if spec.closing_balance_cell is not None
                 else None
             ),
         )

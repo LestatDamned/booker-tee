@@ -19,21 +19,21 @@ from app.features.imports.application.unknown_statement_mappings.drafts import (
 from app.features.imports.application.unknown_statement_mappings.dto import (
     MappingControlTotalCellRef,
     SaveImportMappingTemplateCommand,
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
 )
-from app.features.imports.application.unknown_statement_mappings.preview import (
-    preview_compatible_unknown_statement_mapping,
+from app.features.imports.application.unknown_statement_mappings.engine import (
+    StatementMappingEngine,
 )
 from app.features.imports.application.unknown_statement_mappings.raw_tables import (
     find_raw_table,
 )
 from app.features.imports.application.unknown_statement_mappings.reader import (
     validate_control_total_cells,
-    validate_mapping_command,
+    validate_mapping_spec,
 )
 from app.features.imports.application.unknown_statement_mappings.template_commands import (
     clean_template_name,
-    mapping_command_as_json,
+    mapping_spec_as_json,
 )
 from app.features.imports.application.unknown_statements.control_totals import (
     extract_unknown_statement_control_totals,
@@ -82,7 +82,7 @@ class UnknownStatementMappingImportUseCase:
         *,
         workspace_id: UUID,
         document_id: UUID,
-        command: UnknownStatementMappingCommand,
+        spec: StatementMappingSpec,
         idempotency_key: UUID,
         template_name: str | None = None,
     ) -> MappingImportResult:
@@ -90,7 +90,7 @@ class UnknownStatementMappingImportUseCase:
             clean_template_name(template_name) if template_name is not None else None
         )
         fingerprint = mapping_import_fingerprint(
-            command,
+            spec,
             template_name=normalized_template_name,
         )
         document = await self.imports.get_document_for_workspace_for_update(
@@ -117,13 +117,13 @@ class UnknownStatementMappingImportUseCase:
                 replayed=True,
             )
 
-        attempt = self._validate_import(document, command)
+        attempt = self._validate_import(document, spec)
         raw_transactions = await create_raw_transactions_from_mapping(
             session=self.session,
             imports=self.imports,
             document=document,
             attempt=attempt,
-            command=command,
+            spec=spec,
             exclude_duplicate_document_id=document.id,
             supersede_existing_rows=True,
         )
@@ -134,7 +134,7 @@ class UnknownStatementMappingImportUseCase:
                     name=normalized_template_name,
                     bank_name=document.bank_name,
                     statement_type=document.statement_type,
-                    mapping=command,
+                    mapping=spec,
                 ),
                 raw_tables=attempt.raw_tables_json,
             )
@@ -169,7 +169,7 @@ class UnknownStatementMappingImportUseCase:
     @staticmethod
     def _validate_import(
         document: UploadedDocument,
-        command: UnknownStatementMappingCommand,
+        spec: StatementMappingSpec,
     ) -> ParseAttempt:
         if document.account_id is None:
             raise MappingImportUnavailableError("Выберите счёт перед импортом строк.")
@@ -182,18 +182,18 @@ class UnknownStatementMappingImportUseCase:
             raise MappingImportUnavailableError("Исходные таблицы документа недоступны.")
         selected_table = find_raw_table(
             attempt.raw_tables_json,
-            page_number=command.page_number,
-            table_index=command.table_index,
+            page_number=spec.page_number,
+            table_index=spec.table_index,
         )
-        validate_mapping_command(command, selected_table)
-        validate_control_total_cells(command, attempt.raw_tables_json)
-        preview = preview_compatible_unknown_statement_mapping(
+        validate_mapping_spec(spec, selected_table)
+        validate_control_total_cells(spec, attempt.raw_tables_json)
+        result = StatementMappingEngine.apply(
             attempt.raw_tables_json,
-            command,
+            spec,
             max_rows=None,
         )
-        if preview.valid_count == 0 or any(
-            warning.severity == "error" for warning in preview.warnings
+        if result.valid_count == 0 or any(
+            warning.severity == "error" for warning in result.warnings
         ):
             raise MappingImportUnavailableError(
                 "Исправьте блокирующие ошибки и обновите предпросмотр."
@@ -213,7 +213,7 @@ class UnknownStatementMappingImportUseCase:
             bank_name=command.bank_name,
             statement_type=command.statement_type,
             default_currency=command.mapping.default_currency,
-            column_mapping_json=mapping_command_as_json(
+            column_mapping_json=mapping_spec_as_json(
                 command.mapping,
                 raw_tables=raw_tables,
             ),
@@ -227,7 +227,7 @@ async def create_raw_transactions_from_mapping(
     imports: ImportRepository,
     document: UploadedDocument,
     attempt: ParseAttempt,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
     exclude_duplicate_document_id: UUID | None,
     supersede_existing_rows: bool,
 ) -> list[RawTransaction]:
@@ -236,12 +236,12 @@ async def create_raw_transactions_from_mapping(
     if attempt.raw_tables_json is None:
         raise UnknownStatementMappingError("Raw tables are not available for this document.")
 
-    preview = preview_compatible_unknown_statement_mapping(
+    result = StatementMappingEngine.apply(
         attempt.raw_tables_json,
-        command,
+        spec,
         max_rows=None,
     )
-    if not preview.rows:
+    if not result.rows:
         raise UnknownStatementMappingError("No rows matched the selected mapping.")
 
     if supersede_existing_rows:
@@ -252,9 +252,9 @@ async def create_raw_transactions_from_mapping(
     raw_transactions = await imports.create_raw_transactions(
         RawTransactionMapper.from_drafts(
             UnknownStatementDraftMapper(
-                command=command,
+                spec=spec,
                 account_id=document.account_id,
-            ).map_rows(preview.rows),
+            ).map_rows(result.rows),
             workspace_id=document.workspace_id,
             uploaded_document_id=document.id,
             parse_attempt_id=attempt.id,
@@ -274,7 +274,7 @@ async def create_raw_transactions_from_mapping(
         document,
         attempt,
         raw_transactions,
-        command,
+        spec,
     )
     return raw_transactions
 
@@ -284,12 +284,12 @@ async def store_mapping_validation_result(
     document: UploadedDocument,
     attempt: ParseAttempt,
     raw_transactions: list[RawTransaction],
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> None:
     extracted_control_totals = statement_control_totals_from_json(
         attempt.control_totals_json
     ) or extract_unknown_statement_control_totals(attempt.raw_text_by_page_json)
-    resolved = resolve_mapping_control_totals(attempt.raw_tables_json, command)
+    resolved = resolve_mapping_control_totals(attempt.raw_tables_json, spec)
     opening = next(
         (
             total.amount
@@ -310,7 +310,7 @@ async def store_mapping_validation_result(
         currency=(
             extracted_control_totals.currency
             if extracted_control_totals is not None
-            else command.default_currency
+            else spec.default_currency
         ),
         opening_balance=(
             opening
@@ -355,15 +355,15 @@ async def store_mapping_validation_result(
 
 
 def mapping_import_fingerprint(
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
     *,
     template_name: str | None,
 ) -> str:
     payload = {
-        "mapping": mapping_command_as_json(command),
+        "mapping": mapping_spec_as_json(spec),
         "control_total_cells": {
-            "opening_balance": _control_total_cell_as_json(command.opening_balance_cell),
-            "closing_balance": _control_total_cell_as_json(command.closing_balance_cell),
+            "opening_balance": _control_total_cell_as_json(spec.opening_balance_cell),
+            "closing_balance": _control_total_cell_as_json(spec.closing_balance_cell),
         },
         "template_name": template_name,
     }

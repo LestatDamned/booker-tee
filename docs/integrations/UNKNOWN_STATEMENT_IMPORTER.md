@@ -37,7 +37,11 @@ Analyzer может определить:
 
 Heuristics являются подсказкой, а не финансовой истиной.
 
-## Mapping command
+## Mapping specification
+
+`StatementMappingSpec` описывает, как прочитать выбранную таблицу: это
+переиспользуемая спецификация для preview, import и mapping template, а не
+одноразовая команда.
 
 Поддерживаемые роли:
 
@@ -69,7 +73,7 @@ Preview:
 
 - выполняется server-side;
 - не создаёт `RawTransaction`;
-- использует тот же typed command, что import;
+- использует тот же `StatementMappingSpec`, что import;
 - возвращает normalized sample rows, warnings и row errors;
 - должен быть bounded по числу строк и payload size;
 - не раскрывает storage path или полный raw document без необходимости.

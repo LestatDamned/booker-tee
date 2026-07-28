@@ -24,7 +24,7 @@ from app.api.v1.imports.mapping_schemas import (
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
     MappingControlTotalCellRef,
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
 )
 from app.features.imports.application.unknown_statement_mappings.import_use_case import (
     UnknownStatementMappingImportUseCase,
@@ -134,7 +134,7 @@ async def preview_unknown_statement_mapping(
             workspace_id=context.workspace.workspace.id,
             document_id=document_id,
             workspace_default_currency=context.workspace.workspace.default_currency,
-            command=_mapping_command(request),
+            spec=_mapping_spec(request),
         )
     except MappingCommandValidationError as error:
         raise ApiError(
@@ -181,7 +181,7 @@ async def import_unknown_statement_mapping(
         result = await importer.import_mapped_rows_idempotently(
             workspace_id=context.workspace.workspace.id,
             document_id=document_id,
-            command=_mapping_command(request),
+            spec=_mapping_spec(request),
             idempotency_key=idempotency_key,
             template_name=request.template_name,
         )
@@ -226,11 +226,11 @@ async def import_unknown_statement_mapping(
     )
 
 
-def _mapping_command(
+def _mapping_spec(
     request: MappingPreviewApiRequest | MappingImportApiRequest,
-) -> UnknownStatementMappingCommand:
+) -> StatementMappingSpec:
     mapping = request.mapping
-    return UnknownStatementMappingCommand(
+    return StatementMappingSpec(
         page_number=mapping.table_ref.page_number,
         table_index=mapping.table_ref.table_index,
         operation_date_column=mapping.operation_date_column,

@@ -11,11 +11,13 @@ from app.features.imports.application.documents.snapshot import (
     ImportParseAttemptSnapshot,
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
     UnsignedAmountDirection,
 )
-from app.features.imports.application.unknown_statement_mappings.read_models import (
+from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
     MappingDefaultSource,
+)
+from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingRowErrorCode,
     MappingTableRefDto,
 )
@@ -84,7 +86,7 @@ async def test_mapping_read_model_is_bounded_and_uses_analyzer_defaults() -> Non
     assert mapping.tables[0].sample_rows[0].row_number == 1
     assert mapping.tables[0].sample_rows[0].cells == ("Дата", "Описание", "Сумма")
     assert mapping.tables[0].suggestion is not None
-    assert mapping.tables[0].suggestion.command.default_currency == "RUB"
+    assert mapping.tables[0].suggestion.spec.default_currency == "RUB"
     assert documents.calls == [(workspace_id, snapshot.id)]
 
 
@@ -102,7 +104,7 @@ async def test_mapping_preview_counts_all_compatible_rows_but_bounds_payload() -
         workspace_id=workspace_id,
         document_id=snapshot.id,
         workspace_default_currency="RUB",
-        command=mapping_command(),
+        spec=mapping_command(),
     )
 
     assert preview is not None
@@ -131,7 +133,7 @@ async def test_mapping_preview_rejects_duplicate_roles_with_stable_fields() -> N
         TemplateServiceStub(),
     )
     command = mapping_command()
-    duplicate = UnknownStatementMappingCommand(
+    duplicate = StatementMappingSpec(
         page_number=command.page_number,
         table_index=command.table_index,
         operation_date_column=command.operation_date_column,
@@ -152,7 +154,7 @@ async def test_mapping_preview_rejects_duplicate_roles_with_stable_fields() -> N
             workspace_id=workspace_id,
             document_id=snapshot.id,
             workspace_default_currency="RUB",
-            command=duplicate,
+            spec=duplicate,
         )
 
     assert error.value.code == "duplicate_mapping_roles"
@@ -180,7 +182,7 @@ async def test_mapping_preview_requires_complete_amount_strategy() -> None:
             workspace_id=workspace_id,
             document_id=snapshot.id,
             workspace_default_currency="RUB",
-            command=incomplete,
+            spec=incomplete,
         )
 
     assert error.value.code == "incomplete_amount_mapping"
@@ -301,8 +303,8 @@ def mapping_document_snapshot() -> ImportDocumentSnapshot:
     )
 
 
-def mapping_command() -> UnknownStatementMappingCommand:
-    return UnknownStatementMappingCommand(
+def mapping_command() -> StatementMappingSpec:
+    return StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,

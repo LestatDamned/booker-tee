@@ -9,14 +9,14 @@ import pytest
 from app.features.imports.application.unknown_statement_mappings.drafts import (
     UnknownStatementDraftMapper,
 )
-from app.features.imports.application.unknown_statement_mappings.preview import (
-    preview_compatible_unknown_statement_mapping,
+from app.features.imports.application.unknown_statement_mappings.engine import (
+    StatementMappingEngine,
+)
+from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
+    StatementMappingDefaultResolver,
 )
 from app.features.imports.application.unknown_statement_mappings.raw_tables import (
     compatible_mapping_tables,
-)
-from app.features.imports.application.unknown_statement_mappings.ui_defaults import (
-    default_mapping_command,
 )
 from app.features.imports.application.unknown_statements.analyzer import (
     analyze_unknown_statement,
@@ -541,8 +541,11 @@ def test_unknown_statement_analysis_builds_text_candidate_table_when_pdf_tables_
     report = analyze_unknown_statement(extracted).as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
-    command = default_mapping_command(report, default_currency="RUB")
-    mapped_preview = preview_compatible_unknown_statement_mapping(
+    command = StatementMappingDefaultResolver.resolve(
+        report,
+        default_currency="RUB",
+    ).spec
+    mapped_preview = StatementMappingEngine.apply(
         raw_tables_with_text_candidate_tables(
             extracted,
             raw_tables_from_extracted_fixture(extracted),
@@ -731,14 +734,17 @@ def test_sanitized_unknown_statement_fixture_covers_posting_date_and_balance() -
     extracted = sanitized_unknown_statement_fixture("generic_english_card_statement.json")
 
     report = analyze_unknown_statement(extracted).as_validation_report()
-    command = default_mapping_command(report, default_currency="USD")
-    preview = preview_compatible_unknown_statement_mapping(
+    command = StatementMappingDefaultResolver.resolve(
+        report,
+        default_currency="USD",
+    ).spec
+    preview = StatementMappingEngine.apply(
         raw_tables_from_extracted_fixture(extracted),
         command,
         max_rows=None,
     )
     drafts = UnknownStatementDraftMapper(
-        command=command,
+        spec=command,
         account_id=uuid4(),
     ).map_rows(preview.rows)
 
@@ -764,8 +770,11 @@ def test_sanitized_unknown_statement_fixture_covers_split_continuation_tables() 
     report = analyze_unknown_statement(extracted).as_validation_report()
     table_previews = cast(list[dict[str, object]], report["table_previews"])
     continuation_preview = table_previews[1]
-    command = default_mapping_command(report, default_currency="RUB")
-    preview = preview_compatible_unknown_statement_mapping(
+    command = StatementMappingDefaultResolver.resolve(
+        report,
+        default_currency="RUB",
+    ).spec
+    preview = StatementMappingEngine.apply(
         raw_tables_from_extracted_fixture(extracted),
         command,
         max_rows=None,

@@ -27,7 +27,7 @@ src/app/features/
         unknown_statement.py
       mapping/
         reader.py
-        preview.py
+        engine.py
         importing.py
         templates.py
         contracts.py
@@ -96,7 +96,7 @@ Exit: удаление reparse не меняет upload, mapping и import revie
 
 Статус: completed.
 
-- у `UnknownStatementMappingCommand` убран default `INCOME`;
+- у `StatementMappingSpec` убран default `INCOME`;
 - API требует explicit direction;
 - новый UI начинает с `REQUIRE_SIGN`;
 - legacy mapping template без сохранённого направления восстанавливается как
@@ -147,7 +147,7 @@ Exit: внутри imports нет SSR runtime/presentation.
 - удалены восемь подтверждённых production-unused forwarding/test-only
   adapters из review и unknown statement mapping;
 - полезные mapping assertions переведены на production actors
-  `UnknownStatementDraftMapper`, `preview_compatible_unknown_statement_mapping`
+  `UnknownStatementDraftMapper`, `StatementMappingEngine.apply`
   и `compatible_mapping_tables`;
 - удалены три теста, проверявшие только отсутствующий production workflow или
   однострочный forwarding adapter.
@@ -187,6 +187,23 @@ JSON он намеренно не преобразует строки в чис�
   `ImportQueryRepository`.
 
 Exit: меньше слоёв без изменения API.
+
+### Commit 2.4: statement mapping engine
+
+Статус: completed 2026-07-28.
+
+- переиспользуемая настройка колонок названа `StatementMappingSpec`, а не
+  одноразовой command;
+- чистое преобразование таблиц принадлежит
+  `StatementMappingEngine.apply(...)`;
+- preview и import используют общий `StatementMappingResult`;
+- временная нормализованная строка названа `MappedStatementRow`;
+- `mapping_defaults.py` атомарно выбирает default spec, его источник и template
+  ID через `StatementMappingDefaultResolver`;
+- `dto.py` пока не разделён: файл мал, а физическое дробление не уменьшило бы
+  сложность.
+
+Пользовательское поведение, API payload и persistence-модели не изменены.
 
 ## Phase 3 — Repair layer direction
 

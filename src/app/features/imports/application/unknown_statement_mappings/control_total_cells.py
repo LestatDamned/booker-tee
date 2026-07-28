@@ -5,7 +5,7 @@ from enum import StrEnum
 
 from app.features.imports.application.unknown_statement_mappings.dto import (
     MappingControlTotalCellRef,
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
 )
 from app.features.imports.application.unknown_statement_mappings.raw_tables import (
     find_raw_table,
@@ -135,13 +135,13 @@ def resolve_control_total_cell(
 
 def resolve_mapping_control_totals(
     raw_tables: list[dict[str, object]] | None,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> tuple[ResolvedMappingControlTotal, ...]:
     return tuple(
         resolved
         for kind, cell in (
-            (MappingControlTotalKind.OPENING_BALANCE, command.opening_balance_cell),
-            (MappingControlTotalKind.CLOSING_BALANCE, command.closing_balance_cell),
+            (MappingControlTotalKind.OPENING_BALANCE, spec.opening_balance_cell),
+            (MappingControlTotalKind.CLOSING_BALANCE, spec.closing_balance_cell),
         )
         if (
             resolved := resolve_control_total_cell(

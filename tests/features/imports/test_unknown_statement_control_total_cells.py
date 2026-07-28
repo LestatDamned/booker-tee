@@ -12,11 +12,11 @@ from app.features.imports.application.unknown_statement_mappings.control_total_c
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
     MappingControlTotalCellRef,
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
     UnsignedAmountDirection,
 )
-from app.features.imports.application.unknown_statement_mappings.preview import (
-    preview_compatible_unknown_statement_mapping,
+from app.features.imports.application.unknown_statement_mappings.engine import (
+    StatementMappingEngine,
 )
 from app.features.imports.application.unknown_statement_mappings.reader import (
     MappingCommandValidationError,
@@ -44,7 +44,7 @@ def test_detects_exact_balance_rows_and_excludes_them_from_transactions() -> Non
         ),
     )
 
-    preview = preview_compatible_unknown_statement_mapping(
+    preview = StatementMappingEngine.apply(
         raw_tables,
         command,
         max_rows=None,
@@ -105,8 +105,8 @@ def statement_tables() -> list[dict[str, object]]:
     ]
 
 
-def mapping_command() -> UnknownStatementMappingCommand:
-    return UnknownStatementMappingCommand(
+def mapping_command() -> StatementMappingSpec:
+    return StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,

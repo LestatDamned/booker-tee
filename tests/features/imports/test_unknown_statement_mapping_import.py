@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.features.imports.application.unknown_statement_mappings.dto import (
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
     UnsignedAmountDirection,
 )
 from app.features.imports.application.unknown_statement_mappings.import_use_case import (
@@ -72,14 +72,14 @@ async def test_mapping_import_replays_rows_and_template_once(monkeypatch) -> Non
     first = await use_case.import_mapped_rows_idempotently(
         workspace_id=workspace_id,
         document_id=document_id,
-        command=command,
+        spec=command,
         idempotency_key=idempotency_key,
         template_name="  Моя   выписка  ",
     )
     replay = await use_case.import_mapped_rows_idempotently(
         workspace_id=workspace_id,
         document_id=document_id,
-        command=command,
+        spec=command,
         idempotency_key=idempotency_key,
         template_name="Моя выписка",
     )
@@ -113,7 +113,7 @@ async def test_mapping_import_rejects_same_key_with_changed_payload(monkeypatch)
     await use_case.import_mapped_rows_idempotently(
         workspace_id=workspace_id,
         document_id=document_id,
-        command=mapping_command(),
+        spec=mapping_command(),
         idempotency_key=idempotency_key,
     )
     changed = replace(mapping_command(), default_currency="USD")
@@ -122,7 +122,7 @@ async def test_mapping_import_rejects_same_key_with_changed_payload(monkeypatch)
         await use_case.import_mapped_rows_idempotently(
             workspace_id=workspace_id,
             document_id=document_id,
-            command=changed,
+            spec=changed,
             idempotency_key=idempotency_key,
         )
 
@@ -157,8 +157,8 @@ def mapping_document(workspace_id: UUID, document_id: UUID):
     )
 
 
-def mapping_command() -> UnknownStatementMappingCommand:
-    return UnknownStatementMappingCommand(
+def mapping_command() -> StatementMappingSpec:
+    return StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,

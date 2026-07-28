@@ -19,7 +19,7 @@ class MappingControlTotalCellRef:
 
 
 @dataclass(frozen=True)
-class UnknownStatementMappingCommand:
+class StatementMappingSpec:
     page_number: int
     table_index: int
     operation_date_column: int
@@ -42,11 +42,11 @@ class SaveImportMappingTemplateCommand:
     name: str
     bank_name: str | None
     statement_type: str | None
-    mapping: UnknownStatementMappingCommand
+    mapping: StatementMappingSpec
 
 
 @dataclass(frozen=True)
-class UnknownStatementMappedRow:
+class MappedStatementRow:
     page_number: int
     table_index: int
     source_row_number: int
@@ -75,8 +75,8 @@ class UnknownStatementMappingWarning:
 
 
 @dataclass(frozen=True)
-class UnknownStatementMappingPreview:
-    rows: list[UnknownStatementMappedRow]
+class StatementMappingResult:
+    rows: list[MappedStatementRow]
     warnings: list[UnknownStatementMappingWarning] = field(default_factory=list)
 
     @property

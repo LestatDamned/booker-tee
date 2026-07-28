@@ -6,11 +6,15 @@ from app.features.imports.application.unknown_statement_mappings.drafts import (
     UnknownStatementDraftMapper,
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
     UnsignedAmountDirection,
 )
-from app.features.imports.application.unknown_statement_mappings.preview import (
-    preview_compatible_unknown_statement_mapping,
+from app.features.imports.application.unknown_statement_mappings.engine import (
+    StatementMappingEngine,
+)
+from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
+    MappingDefaultSource,
+    StatementMappingDefaultResolver,
 )
 from app.features.imports.application.unknown_statement_mappings.raw_tables import (
     compatible_mapping_tables,
@@ -21,12 +25,9 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
 )
 from app.features.imports.application.unknown_statement_mappings.template_commands import (
     compatible_mapping_templates,
-    mapping_command_as_json,
-    mapping_command_from_template,
+    mapping_spec_as_json,
+    mapping_spec_from_template,
     mapping_template_matches_raw_tables,
-)
-from app.features.imports.application.unknown_statement_mappings.ui_defaults import (
-    default_mapping_command,
 )
 from app.features.imports.models import ImportMappingTemplate, RawTransactionStatus
 from app.features.imports.parsing.support.normalization import parse_bank_date
@@ -71,7 +72,7 @@ def test_unknown_statement_mapping_preview_supports_split_debit_credit_columns()
             ],
         }
     ]
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -85,9 +86,9 @@ def test_unknown_statement_mapping_preview_supports_split_debit_credit_columns()
         credit_amount_column=3,
     )
 
-    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = StatementMappingEngine.apply(raw_tables, command, max_rows=None)
     drafts = UnknownStatementDraftMapper(
-        command=command,
+        spec=command,
         account_id=uuid4(),
     ).map_rows(preview.rows)
 
@@ -119,7 +120,7 @@ def test_single_amount_column_applies_direction_only_to_unsigned_values() -> Non
             ],
         }
     ]
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -131,7 +132,7 @@ def test_single_amount_column_applies_direction_only_to_unsigned_values() -> Non
         unsigned_amount_direction=UnsignedAmountDirection.EXPENSE,
     )
 
-    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = StatementMappingEngine.apply(raw_tables, command, max_rows=None)
 
     assert [row.amount for row in preview.rows] == [
         Decimal("10000.00"),
@@ -155,7 +156,7 @@ def test_single_amount_column_can_require_an_explicit_sign() -> None:
             ],
         }
     ]
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -167,7 +168,7 @@ def test_single_amount_column_can_require_an_explicit_sign() -> None:
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
-    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = StatementMappingEngine.apply(raw_tables, command, max_rows=None)
 
     assert preview.rows[0].amount is None
     assert preview.rows[0].status == "error"
@@ -196,7 +197,7 @@ def test_unknown_statement_mapping_preview_warns_about_risky_column_selection() 
             ],
         }
     ]
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -209,7 +210,7 @@ def test_unknown_statement_mapping_preview_warns_about_risky_column_selection() 
         debit_amount_column=2,
     )
 
-    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = StatementMappingEngine.apply(raw_tables, command, max_rows=None)
 
     assert [warning.code for warning in preview.warnings] == [
         "duplicate_column_roles",
@@ -231,7 +232,7 @@ def test_unknown_statement_mapping_preview_warns_about_many_errors() -> None:
             ],
         }
     ]
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -243,14 +244,14 @@ def test_unknown_statement_mapping_preview_warns_about_many_errors() -> None:
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
-    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = StatementMappingEngine.apply(raw_tables, command, max_rows=None)
 
     assert preview.valid_count == 1
     assert preview.error_count == 1
     assert [warning.code for warning in preview.warnings] == ["high_error_rate"]
 
 
-def test_default_mapping_command_uses_split_debit_credit_candidates() -> None:
+def test_mapping_default_resolver_uses_split_debit_credit_candidates() -> None:
     validation: dict[str, object] = {
         "table_previews": [
             {
@@ -266,14 +267,18 @@ def test_default_mapping_command_uses_split_debit_credit_candidates() -> None:
         ]
     }
 
-    command = default_mapping_command(validation, default_currency="RUB")
+    resolved = StatementMappingDefaultResolver.resolve(
+        validation,
+        default_currency="RUB",
+    )
 
-    assert command.amount_column is None
-    assert command.debit_amount_column == 2
-    assert command.credit_amount_column == 3
+    assert resolved.source is MappingDefaultSource.FALLBACK
+    assert resolved.spec.amount_column is None
+    assert resolved.spec.debit_amount_column == 2
+    assert resolved.spec.credit_amount_column == 3
 
 
-def test_default_mapping_command_prefers_mapping_suggestion() -> None:
+def test_mapping_default_resolver_prefers_analyzer_suggestion() -> None:
     validation: dict[str, object] = {
         "table_previews": [
             {
@@ -303,19 +308,23 @@ def test_default_mapping_command_prefers_mapping_suggestion() -> None:
         ]
     }
 
-    command = default_mapping_command(validation, default_currency="USD")
+    resolved = StatementMappingDefaultResolver.resolve(
+        validation,
+        default_currency="USD",
+    )
 
-    assert command.page_number == 2
-    assert command.table_index == 1
-    assert command.operation_date_column == 4
-    assert command.posting_date_column == 8
-    assert command.description_column == 3
-    assert command.amount_column is None
-    assert command.debit_amount_column == 5
-    assert command.credit_amount_column == 6
-    assert command.currency_column == 7
-    assert command.first_data_row == 2
-    assert command.default_currency == "USD"
+    assert resolved.source is MappingDefaultSource.ANALYZER
+    assert resolved.spec.page_number == 2
+    assert resolved.spec.table_index == 1
+    assert resolved.spec.operation_date_column == 4
+    assert resolved.spec.posting_date_column == 8
+    assert resolved.spec.description_column == 3
+    assert resolved.spec.amount_column is None
+    assert resolved.spec.debit_amount_column == 5
+    assert resolved.spec.credit_amount_column == 6
+    assert resolved.spec.currency_column == 7
+    assert resolved.spec.first_data_row == 2
+    assert resolved.spec.default_currency == "USD"
 
 
 def test_unknown_statement_mapping_preview_normalizes_selected_columns() -> None:
@@ -342,7 +351,7 @@ def test_unknown_statement_mapping_preview_normalizes_selected_columns() -> None
             ],
         }
     ]
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -354,7 +363,7 @@ def test_unknown_statement_mapping_preview_normalizes_selected_columns() -> None
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
-    preview = preview_compatible_unknown_statement_mapping(raw_tables, command)
+    preview = StatementMappingEngine.apply(raw_tables, command)
 
     assert preview.valid_count == 1
     assert preview.error_count == 0
@@ -377,7 +386,7 @@ def test_unknown_statement_mapping_preview_normalizes_balance_after_column() -> 
             ],
         }
     ]
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -390,9 +399,9 @@ def test_unknown_statement_mapping_preview_normalizes_balance_after_column() -> 
         balance_after_column=3,
     )
 
-    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = StatementMappingEngine.apply(raw_tables, command, max_rows=None)
     drafts = UnknownStatementDraftMapper(
-        command=command,
+        spec=command,
         account_id=account_id,
     ).map_rows(preview.rows)
 
@@ -418,7 +427,7 @@ def test_unknown_statement_mapping_preview_normalizes_posting_date_column() -> N
             ],
         }
     ]
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -431,9 +440,9 @@ def test_unknown_statement_mapping_preview_normalizes_posting_date_column() -> N
         posting_date_column=1,
     )
 
-    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = StatementMappingEngine.apply(raw_tables, command, max_rows=None)
     drafts = UnknownStatementDraftMapper(
-        command=command,
+        spec=command,
         account_id=account_id,
     ).map_rows(preview.rows)
 
@@ -460,7 +469,7 @@ def test_unknown_statement_mapping_builds_raw_transaction_drafts() -> None:
             ],
         }
     ]
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -471,10 +480,10 @@ def test_unknown_statement_mapping_builds_raw_transaction_drafts() -> None:
         default_currency="RUB",
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
-    preview = preview_compatible_unknown_statement_mapping(raw_tables, command, max_rows=None)
+    preview = StatementMappingEngine.apply(raw_tables, command, max_rows=None)
 
     drafts = UnknownStatementDraftMapper(
-        command=command,
+        spec=command,
         account_id=account_id,
     ).map_rows(preview.rows)
 
@@ -517,7 +526,7 @@ def test_unknown_statement_mapping_can_import_all_compatible_tables() -> None:
             ],
         },
     ]
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -529,13 +538,13 @@ def test_unknown_statement_mapping_can_import_all_compatible_tables() -> None:
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
-    preview = preview_compatible_unknown_statement_mapping(
+    preview = StatementMappingEngine.apply(
         raw_tables,
         command,
         max_rows=None,
     )
     drafts = UnknownStatementDraftMapper(
-        command=command,
+        spec=command,
         account_id=account_id,
     ).map_rows(preview.rows)
 
@@ -569,7 +578,7 @@ def test_unknown_statement_mapping_imports_headerless_continuation_with_new_tabl
             ],
         },
     ]
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=1,
         operation_date_column=0,
@@ -581,13 +590,13 @@ def test_unknown_statement_mapping_imports_headerless_continuation_with_new_tabl
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
 
-    preview = preview_compatible_unknown_statement_mapping(
+    preview = StatementMappingEngine.apply(
         raw_tables,
         command,
         max_rows=None,
     )
     drafts = UnknownStatementDraftMapper(
-        command=command,
+        spec=command,
         account_id=account_id,
     ).map_rows(preview.rows)
 
@@ -605,7 +614,7 @@ def test_unknown_statement_mapping_imports_headerless_continuation_with_new_tabl
 
 
 def test_import_mapping_template_round_trips_mapping_command() -> None:
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=2,
         table_index=1,
         operation_date_column=0,
@@ -622,16 +631,16 @@ def test_import_mapping_template_round_trips_mapping_command() -> None:
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping_json=mapping_command_as_json(command),
+        column_mapping_json=mapping_spec_as_json(command),
     )
 
-    restored = mapping_command_from_template(template)
+    restored = mapping_spec_from_template(template)
 
     assert restored == command
 
 
 def test_legacy_mapping_template_requires_direction_for_unsigned_amounts() -> None:
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -642,7 +651,7 @@ def test_legacy_mapping_template_requires_direction_for_unsigned_amounts() -> No
         default_currency="RUB",
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
-    payload = mapping_command_as_json(command)
+    payload = mapping_spec_as_json(command)
     payload.pop("unsigned_amount_direction")
     template = ImportMappingTemplate(
         workspace_id=uuid4(),
@@ -653,13 +662,13 @@ def test_legacy_mapping_template_requires_direction_for_unsigned_amounts() -> No
         column_mapping_json=payload,
     )
 
-    restored = mapping_command_from_template(template)
+    restored = mapping_spec_from_template(template)
 
     assert restored.unsigned_amount_direction is UnsignedAmountDirection.REQUIRE_SIGN
 
 
 def test_import_mapping_template_matches_same_table_signature() -> None:
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -677,7 +686,7 @@ def test_import_mapping_template_matches_same_table_signature() -> None:
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping_json=mapping_command_as_json(command, raw_tables=raw_tables),
+        column_mapping_json=mapping_spec_as_json(command, raw_tables=raw_tables),
     )
 
     assert mapping_template_matches_raw_tables(template, raw_tables)
@@ -685,7 +694,7 @@ def test_import_mapping_template_matches_same_table_signature() -> None:
 
 
 def test_import_mapping_template_matches_changed_headers_with_same_profiles() -> None:
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -702,7 +711,7 @@ def test_import_mapping_template_matches_changed_headers_with_same_profiles() ->
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping_json=mapping_command_as_json(command, raw_tables=ozon_like_raw_tables()),
+        column_mapping_json=mapping_spec_as_json(command, raw_tables=ozon_like_raw_tables()),
     )
     changed_tables: list[dict[str, object]] = [
         {
@@ -721,7 +730,7 @@ def test_import_mapping_template_matches_changed_headers_with_same_profiles() ->
 
 
 def test_import_mapping_template_rejects_incompatible_column_profiles() -> None:
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
@@ -738,7 +747,7 @@ def test_import_mapping_template_rejects_incompatible_column_profiles() -> None:
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping_json=mapping_command_as_json(command, raw_tables=ozon_like_raw_tables()),
+        column_mapping_json=mapping_spec_as_json(command, raw_tables=ozon_like_raw_tables()),
     )
     changed_tables: list[dict[str, object]] = [
         {
@@ -756,8 +765,8 @@ def test_import_mapping_template_rejects_incompatible_column_profiles() -> None:
     assert compatible_mapping_templates([template], changed_tables) == []
 
 
-def test_default_mapping_command_prefers_saved_template() -> None:
-    saved_command = UnknownStatementMappingCommand(
+def test_mapping_default_resolver_prefers_saved_template() -> None:
+    saved_command = StatementMappingSpec(
         page_number=3,
         table_index=2,
         operation_date_column=1,
@@ -774,7 +783,7 @@ def test_default_mapping_command_prefers_saved_template() -> None:
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping_json=mapping_command_as_json(saved_command),
+        column_mapping_json=mapping_spec_as_json(saved_command),
     )
     validation: dict[str, object] = {
         "table_previews": [
@@ -790,10 +799,12 @@ def test_default_mapping_command_prefers_saved_template() -> None:
         ]
     }
 
-    command = default_mapping_command(
+    resolved = StatementMappingDefaultResolver.resolve(
         validation,
         default_currency="RUB",
-        templates=[template],
+        compatible_templates=[template],
     )
 
-    assert command == saved_command
+    assert resolved.spec == saved_command
+    assert resolved.source is MappingDefaultSource.TEMPLATE
+    assert resolved.template_id == template.id

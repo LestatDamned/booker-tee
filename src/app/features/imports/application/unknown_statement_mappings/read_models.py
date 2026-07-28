@@ -7,11 +7,14 @@ from app.features.imports.application.unknown_statement_mappings.control_total_c
     MappingControlTotalKind,
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
+    MappedStatementRow,
     MappingControlTotalCellRef,
-    UnknownStatementMappedRow,
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
     UnknownStatementMappingWarning,
     UnsignedAmountDirection,
+)
+from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
+    MappingDefaultSource,
 )
 from app.features.imports.application.unknown_statement_mappings.row_mapping import (
     explicit_amount_direction,
@@ -27,12 +30,6 @@ class MappingBlockingReasonCode(StrEnum):
     RAW_TABLES_UNAVAILABLE = "raw_tables_unavailable"
     MAPPING_NOT_REQUIRED = "mapping_not_required"
     CONFIRMED_ROWS_EXIST = "confirmed_rows_exist"
-
-
-class MappingDefaultSource(StrEnum):
-    TEMPLATE = "template"
-    ANALYZER = "analyzer"
-    FALLBACK = "fallback"
 
 
 class MappingRowErrorCode(StrEnum):
@@ -88,7 +85,7 @@ class MappingSuggestionReasonDto:
 
 @dataclass(frozen=True)
 class MappingSuggestionDto:
-    command: UnknownStatementMappingCommand
+    spec: StatementMappingSpec
     confidence: float | None
     reasons: tuple[MappingSuggestionReasonDto, ...]
     warning_codes: tuple[str, ...]
@@ -150,7 +147,7 @@ class UnknownStatementMappingReadModel:
     account: MappingAccountDto | None
     default_currency: str
     capability: MappingCapabilityDto
-    default_mapping: UnknownStatementMappingCommand
+    default_mapping: StatementMappingSpec
     default_source: MappingDefaultSource
     selected_template_id: UUID | None
     templates: tuple[MappingTemplateDto, ...]
@@ -213,8 +210,8 @@ class MappingBalanceReconciliationDto:
 
 
 def mapping_preview_row(
-    row: UnknownStatementMappedRow,
-    command: UnknownStatementMappingCommand,
+    row: MappedStatementRow,
+    spec: StatementMappingSpec,
 ) -> MappingPreviewRowDto:
     return MappingPreviewRowDto(
         table_ref=MappingTableRefDto(row.page_number, row.table_index),
@@ -232,13 +229,13 @@ def mapping_preview_row(
         balance_after=(str(row.balance_after) if row.balance_after is not None else None),
         balance_after_raw=_bounded_raw(row.balance_after_raw),
         status=row.status,
-        error_codes=mapping_row_error_codes(row, command),
+        error_codes=mapping_row_error_codes(row, spec),
     )
 
 
 def mapping_row_error_codes(
-    row: UnknownStatementMappedRow,
-    command: UnknownStatementMappingCommand,
+    row: MappedStatementRow,
+    spec: StatementMappingSpec,
 ) -> tuple[MappingRowErrorCode, ...]:
     codes: list[MappingRowErrorCode] = []
     if row.operation_date is None:
@@ -250,7 +247,7 @@ def mapping_row_error_codes(
     if row.posting_date_raw.strip() and row.posting_date is None:
         codes.append(MappingRowErrorCode.POSTING_DATE_INVALID)
     if row.amount is None:
-        codes.extend(_amount_error_codes(row, command))
+        codes.extend(_amount_error_codes(row, spec))
     if row.balance_after_raw.strip() and row.balance_after is None:
         codes.append(MappingRowErrorCode.BALANCE_AFTER_INVALID)
     if row.description is None:
@@ -259,13 +256,13 @@ def mapping_row_error_codes(
 
 
 def _amount_error_codes(
-    row: UnknownStatementMappedRow,
-    command: UnknownStatementMappingCommand,
+    row: MappedStatementRow,
+    spec: StatementMappingSpec,
 ) -> list[MappingRowErrorCode]:
-    if command.amount_column is not None:
+    if spec.amount_column is not None:
         if (
             row.amount_raw.strip()
-            and command.unsigned_amount_direction is UnsignedAmountDirection.REQUIRE_SIGN
+            and spec.unsigned_amount_direction is UnsignedAmountDirection.REQUIRE_SIGN
             and explicit_amount_direction(row.amount_raw) is None
         ):
             return [MappingRowErrorCode.UNSIGNED_AMOUNT_DIRECTION_REQUIRED]

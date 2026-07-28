@@ -9,7 +9,7 @@ from app.features.imports.application.unknown_statement_mappings.import_use_case
     create_raw_transactions_from_mapping,
 )
 from app.features.imports.application.unknown_statement_mappings.template_commands import (
-    mapping_command_from_template,
+    mapping_spec_from_template,
     select_compatible_mapping_template,
 )
 from app.features.imports.application.unknown_statements.analyzer import (
@@ -91,7 +91,7 @@ class UnknownStatementFallbackPipeline:
             imports=self.imports,
             document=document,
             attempt=attempt,
-            command=mapping_command_from_template(template),
+            spec=mapping_spec_from_template(template),
             exclude_duplicate_document_id=exclude_duplicate_document_id,
             supersede_existing_rows=False,
         )

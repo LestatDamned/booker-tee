@@ -2,8 +2,8 @@ from datetime import date
 from decimal import Decimal
 
 from app.features.imports.application.unknown_statement_mappings.dto import (
-    UnknownStatementMappedRow,
-    UnknownStatementMappingCommand,
+    MappedStatementRow,
+    StatementMappingSpec,
     UnsignedAmountDirection,
 )
 from app.features.imports.parsing.support.normalization import (
@@ -20,13 +20,13 @@ def map_table_rows(
     page_number: int,
     table_index: int,
     start_row: int,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
     max_rows: int | None,
-) -> list[UnknownStatementMappedRow]:
-    rows: list[UnknownStatementMappedRow] = []
+) -> list[MappedStatementRow]:
+    rows: list[MappedStatementRow] = []
     excluded_rows = {
         (cell.page_number, cell.table_index, cell.row_number)
-        for cell in (command.opening_balance_cell, command.closing_balance_cell)
+        for cell in (spec.opening_balance_cell, spec.closing_balance_cell)
         if cell is not None
     }
     for source_row_number, row in enumerate(table[start_row:], start=start_row):
@@ -39,7 +39,7 @@ def map_table_rows(
             page_number=page_number,
             table_index=table_index,
             source_row_number=source_row_number,
-            command=command,
+            spec=spec,
         )
         if is_mapping_header_or_noise(mapped_row):
             continue
@@ -53,7 +53,7 @@ def row_has_text(row: list[str]) -> bool:
     return any(cell.strip() for cell in row)
 
 
-def is_mapping_header_or_noise(row: UnknownStatementMappedRow) -> bool:
+def is_mapping_header_or_noise(row: MappedStatementRow) -> bool:
     if row.operation_date is not None or row.amount is not None:
         return False
     text = " ".join(
@@ -89,16 +89,16 @@ def map_row(
     page_number: int,
     table_index: int,
     source_row_number: int,
-    command: UnknownStatementMappingCommand,
-) -> UnknownStatementMappedRow:
-    operation_date_raw = cell_at(row, command.operation_date_column)
-    posting_date_raw = cell_at(row, command.posting_date_column)
-    description_raw = cell_at(row, command.description_column)
-    amount_raw = cell_at(row, command.amount_column)
-    debit_raw = cell_at(row, command.debit_amount_column)
-    credit_raw = cell_at(row, command.credit_amount_column)
-    currency_raw = cell_at(row, command.currency_column)
-    balance_after_raw = cell_at(row, command.balance_after_column)
+    spec: StatementMappingSpec,
+) -> MappedStatementRow:
+    operation_date_raw = cell_at(row, spec.operation_date_column)
+    posting_date_raw = cell_at(row, spec.posting_date_column)
+    description_raw = cell_at(row, spec.description_column)
+    amount_raw = cell_at(row, spec.amount_column)
+    debit_raw = cell_at(row, spec.debit_amount_column)
+    credit_raw = cell_at(row, spec.credit_amount_column)
+    currency_raw = cell_at(row, spec.currency_column)
+    balance_after_raw = cell_at(row, spec.balance_after_column)
 
     operation_date, date_error = parse_mapped_date(operation_date_raw)
     posting_date, posting_date_error = parse_optional_mapped_date(posting_date_raw)
@@ -106,10 +106,10 @@ def map_row(
         amount_raw=amount_raw,
         debit_raw=debit_raw,
         credit_raw=credit_raw,
-        command=command,
+        spec=spec,
     )
     balance_after, balance_after_error = parse_optional_mapped_amount(balance_after_raw)
-    currency = normalize_currency(currency_raw, command.default_currency)
+    currency = normalize_currency(currency_raw, spec.default_currency)
     description = normalize_description(description_raw)
     errors = [
         error
@@ -123,7 +123,7 @@ def map_row(
         if error
     ]
 
-    return UnknownStatementMappedRow(
+    return MappedStatementRow(
         page_number=page_number,
         table_index=table_index,
         source_row_number=source_row_number,
@@ -137,7 +137,7 @@ def map_row(
             amount_raw=amount_raw,
             debit_raw=debit_raw,
             credit_raw=credit_raw,
-            command=command,
+            spec=spec,
         ),
         amount=amount,
         currency_raw=currency_raw,
@@ -182,14 +182,14 @@ def parse_mapped_amount_for_command(
     amount_raw: str,
     debit_raw: str,
     credit_raw: str,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> tuple[Decimal | None, str]:
-    if command.amount_column is not None:
+    if spec.amount_column is not None:
         return parse_single_column_amount(
             amount_raw,
-            unsigned_direction=command.unsigned_amount_direction,
+            unsigned_direction=spec.unsigned_amount_direction,
         )
-    if command.debit_amount_column is None and command.credit_amount_column is None:
+    if spec.debit_amount_column is None and spec.credit_amount_column is None:
         return None, "нет колонки суммы"
 
     debit, debit_error = parse_optional_mapped_amount(debit_raw)
@@ -262,9 +262,9 @@ def display_amount_raw(
     amount_raw: str,
     debit_raw: str,
     credit_raw: str,
-    command: UnknownStatementMappingCommand,
+    spec: StatementMappingSpec,
 ) -> str:
-    if command.amount_column is not None:
+    if spec.amount_column is not None:
         return amount_raw
     parts = []
     if debit_raw.strip():

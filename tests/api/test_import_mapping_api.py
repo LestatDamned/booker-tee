@@ -10,14 +10,16 @@ from app.api.v1.imports.dependencies import (
     get_unknown_statement_mapping_reader,
 )
 from app.features.imports.application.unknown_statement_mappings.dto import (
-    UnknownStatementMappingCommand,
+    StatementMappingSpec,
     UnknownStatementMappingWarning,
     UnsignedAmountDirection,
+)
+from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
+    MappingDefaultSource,
 )
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingAccountDto,
     MappingCapabilityDto,
-    MappingDefaultSource,
     MappingSourceRowDto,
     MappingSourceRowsDto,
     MappingTableRefDto,
@@ -170,7 +172,7 @@ def test_mapping_preview_api_converts_visible_row_number_and_returns_scope() -> 
         )
 
     assert response.status_code == 200
-    command = cast(UnknownStatementMappingCommand, reader.preview_calls[0]["command"])
+    command = cast(StatementMappingSpec, reader.preview_calls[0]["command"])
     assert command.first_data_row == 1
     assert command.default_currency == "RUB"
     payload = response.json()
@@ -359,7 +361,7 @@ def test_mapping_import_requires_key_and_maps_payload_conflict() -> None:
 
 
 def mapping_read_model() -> UnknownStatementMappingReadModel:
-    command = UnknownStatementMappingCommand(
+    command = StatementMappingSpec(
         page_number=1,
         table_index=0,
         operation_date_column=0,
