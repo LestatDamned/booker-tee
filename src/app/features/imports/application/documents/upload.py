@@ -14,6 +14,7 @@ from app.features.imports.application.documents.parse_attempts import (
     record_failed_parse_attempt,
 )
 from app.features.imports.application.processing import StatementParseProcessor
+from app.features.imports.domain.types import UploadedDocumentStatus
 from app.features.imports.errors import (
     UploadAccountNotFoundError,
     UploadIdempotencyConflictError,
@@ -27,7 +28,6 @@ from app.features.imports.infrastructure.storage import UploadStorage
 from app.features.imports.models import (
     UploadedDocument,
     UploadedDocumentSource,
-    UploadedDocumentStatus,
     UploadedDocumentType,
 )
 from app.features.imports.parsing.registry import default_statement_parser_registry
@@ -199,7 +199,3 @@ def validate_statement_upload(upload_file: UploadFile) -> None:
     if Path(filename).suffix.casefold() not in SUPPORTED_STATEMENT_EXTENSIONS:
         allowed = ", ".join(sorted(SUPPORTED_STATEMENT_EXTENSIONS))
         raise UploadValidationError(f"Only {allowed} statement files can be uploaded.")
-
-
-def validate_pdf_upload(upload_file: UploadFile) -> None:
-    validate_statement_upload(upload_file)

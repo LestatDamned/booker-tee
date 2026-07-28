@@ -4,10 +4,8 @@ from app.features.imports.domain.document_lifecycle import (
     resolve_document_review_status,
     resolve_document_status_transition,
 )
-from app.features.imports.models import (
-    UploadedDocument,
-    UploadedDocumentStatus,
-)
+from app.features.imports.domain.types import UploadedDocumentStatus
+from app.features.imports.models import UploadedDocument
 from app.features.imports.repository import ImportRepository
 
 

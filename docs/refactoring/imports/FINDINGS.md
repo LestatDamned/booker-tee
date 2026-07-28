@@ -4,7 +4,7 @@
 
 ## Масштаб
 
-На момент аудита:
+Исходный аудит:
 
 - 121 Python-файл и 14 309 строк в `src/app/features/imports`;
 - 269 classes/enums/dataclasses;
@@ -15,20 +15,32 @@
 Сам размер не является дефектом. Главная проблема — пересечение нескольких
 причин изменения внутри одного feature и нескольких крупных файлов.
 
+Повторный аудит после Phase 6, 2026-07-28:
+
+- 108 Python-файлов и 14 617 строк в `imports` + `import_review`;
+- 280 classes/enums/dataclasses;
+- 596 functions и methods;
+- внутренних import cycles нет;
+- Ruff и ty проходят;
+- 215 профильных feature/API tests collected;
+- 199 tests вне известного sandbox-sensitive `test_imports.py` проходят.
+
 ## Приоритеты
 
 | Priority | Finding | Последствие | Решение |
 | --- | --- | --- | --- |
 | Resolved | Общий reparse был реализован без текущего продуктового сценария | Race, superseded rows, лишние статусы и тесты | Удалён без изменения upload/mapping |
-| P1 | Review принадлежит `imports`, но оркестрирует ledger/rules | Циклическая feature-связанность и неясный owner транзакции | Выделить `import_review` |
+| Resolved | Review принадлежал `imports`, но оркестрировал ledger/rules | Циклическая feature-связанность и неясный owner транзакции | `import_review` выделен; API/chat используют общие actors |
 | Resolved | Unsigned amount имел скрытый default `INCOME` | Внутренний caller мог неверно классифицировать expense | Значение обязательно; legacy template использует `REQUIRE_SIGN` |
-| Deferred | Два broad repositories | Persistence может меняться по несвязанным причинам | Split только вместе с `import_review` extraction или подтверждённым независимым change pressure |
-| P2 | Domain импортирует ORM/repository/parser types | Направление зависимостей нарушено | Оставить в domain только policies и values |
-| P2 | React compatibility routes распределены по двум местам | Cutover сложнее проверять и завершать | Один compatibility router |
-| P2 | Исторические `/imports/...` ещё используются | Лишние redirect hops, delete gate не пройден | Перевести consumers на `/app/imports/...` |
+| P1 | Duplicate evidence хранится в `normalization_error` | `MARK_UNIQUE` меняет status, но строка может оставаться заблокированной как ненормализованная | Разделить duplicate signal и normalization error в Wave C / Phase 8 |
+| P2 | Review persistence остаётся в broad imports repositories | Feature extraction завершён, но read/write ownership неполон | Перенести review rows/locks/linking/queue в `ImportReviewRepository` |
+| P2 | Validation reason mapping дублируется | Document Detail и Import Review могут разойтись | Один typed resolver и persisted report decoder |
+| P2 | Persisted unknown-analysis JSON декодируется вручную | Много `cast`/`isinstance`, высокая стоимость изменения payload | Frozen Pydantic projection на JSON boundary |
+| P2 | Parser/application импортируют enum через ORM module | Ложная зависимость на persistence | Импортировать status values из defining domain modules |
+| Resolved | React compatibility routes были распределены по двум местам | Cutover сложнее проверять и завершать | Один compatibility router |
 | Resolved | Unknown-statement packages были чрезмерно фрагментированы | Высокая навигационная стоимость | 22 файла сокращены до 14 без изменения алгоритмов |
 
-P0-проблем по результатам аудита не найдено.
+P0-проблем по результатам обоих аудитов не найдено.
 
 ## Resolved scope decision: общий reparse удалён
 

@@ -20,12 +20,10 @@ from app.features.import_review.application.classification import (
 )
 from app.features.import_review.application.duplicate_evidence import (
     ImportReviewDuplicateEvidenceDto,
-    ImportReviewDuplicateReader,
 )
 from app.features.import_review.application.transfer_options import (
     EMPTY_TRANSFER_OPTIONS,
     ImportReviewTransferOptionsDto,
-    ImportReviewTransferReader,
 )
 from app.features.import_review.application.validation_read_model import (
     ImportReviewValidationDto,
@@ -40,8 +38,8 @@ from app.features.import_review.domain.queue import (
     is_reviewable,
     review_queue_snapshot,
 )
-from app.features.imports.domain.types import RawTransactionStatus
-from app.features.imports.models import RawTransaction, UploadedDocument, UploadedDocumentStatus
+from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
+from app.features.imports.models import RawTransaction, UploadedDocument
 from app.features.ledger.domain.types import OperationStatus, OperationType
 
 
@@ -51,6 +49,24 @@ class ImportReviewDocumentSource(Protocol):
         workspace_id: UUID,
         document_id: UUID,
     ) -> UploadedDocument | None: ...
+
+
+class ImportReviewTransferSource(Protocol):
+    async def read_for_document(
+        self,
+        *,
+        workspace_id: UUID,
+        document: UploadedDocument,
+    ) -> dict[UUID, ImportReviewTransferOptionsDto]: ...
+
+
+class ImportReviewDuplicateEvidenceSource(Protocol):
+    async def read_for_document(
+        self,
+        *,
+        workspace_id: UUID,
+        document: UploadedDocument,
+    ) -> dict[UUID, ImportReviewDuplicateEvidenceDto]: ...
 
 
 class ImportReviewReadonlyReasonCode(StrEnum):
@@ -155,8 +171,8 @@ class ImportReviewReader:
         self,
         documents: ImportReviewDocumentSource,
         references: ImportReviewReferenceReader,
-        transfers: ImportReviewTransferReader | None = None,
-        duplicates: ImportReviewDuplicateReader | None = None,
+        transfers: ImportReviewTransferSource,
+        duplicates: ImportReviewDuplicateEvidenceSource,
     ) -> None:
         self._documents = documents
         self._references = references
@@ -174,21 +190,13 @@ class ImportReviewReader:
         if document is None:
             return None
         references = await self._references.read(workspace_id)
-        transfers = (
-            await self._transfers.read_for_document(
-                workspace_id=workspace_id,
-                document=document,
-            )
-            if self._transfers is not None
-            else {}
+        transfers = await self._transfers.read_for_document(
+            workspace_id=workspace_id,
+            document=document,
         )
-        duplicates = (
-            await self._duplicates.read_for_document(
-                workspace_id=workspace_id,
-                document=document,
-            )
-            if self._duplicates is not None
-            else {}
+        duplicates = await self._duplicates.read_for_document(
+            workspace_id=workspace_id,
+            document=document,
         )
         return build_import_review_read_model(
             document,
@@ -204,8 +212,8 @@ def build_import_review_read_model(
     *,
     references: ImportReviewReferencesDto,
     can_write: bool,
-    transfers: dict[UUID, ImportReviewTransferOptionsDto] | None = None,
-    duplicates: dict[UUID, ImportReviewDuplicateEvidenceDto] | None = None,
+    transfers: dict[UUID, ImportReviewTransferOptionsDto],
+    duplicates: dict[UUID, ImportReviewDuplicateEvidenceDto],
 ) -> ImportReviewReadModel:
     queue = review_queue_snapshot(document.raw_transactions)
     rows_by_id = {row.id: row for row in document.raw_transactions}
@@ -215,12 +223,15 @@ def build_import_review_read_model(
     items: list[ImportReviewItemDto] = []
     for item_id in queue.ordered_item_ids:
         row = rows_by_id[item_id]
-        linked_operation = getattr(row, "linked_operation", None)
+        linked_operation = row.linked_operation
         if linked_operation is not None:
-            category_id = getattr(linked_operation, "category_id", None)
-            category = getattr(linked_operation, "category", None)
-            property_id = getattr(linked_operation, "property_id", None)
-            explicit_operation_type = getattr(linked_operation, "type", None)
+            category_id = linked_operation.category_id
+            category = linked_operation.category
+            category_is_uncategorized = (
+                category.system_key == "uncategorized" if category is not None else False
+            )
+            property_id = linked_operation.property_id
+            explicit_operation_type = linked_operation.type
         else:
             category = (
                 categories_by_id.get(row.suggested_category_id)
@@ -228,6 +239,9 @@ def build_import_review_read_model(
                 else None
             )
             category_id = category.id if category is not None else None
+            category_is_uncategorized = (
+                category.is_uncategorized if category is not None else False
+            )
             property_ = (
                 properties_by_id.get(row.suggested_property_id)
                 if row.suggested_property_id is not None
@@ -242,16 +256,10 @@ def build_import_review_read_model(
                 document_account=document_account,
                 explicit_operation_type=explicit_operation_type,
                 category_id=category_id,
-                category_is_uncategorized=(
-                    getattr(category, "system_key", None) == "uncategorized"
-                    if linked_operation is not None
-                    else category.is_uncategorized
-                    if category is not None
-                    else False
-                ),
+                category_is_uncategorized=category_is_uncategorized,
                 property_id=property_id,
-                transfer=(transfers or {}).get(row.id, EMPTY_TRANSFER_OPTIONS),
-                duplicate_evidence=(duplicates or {}).get(row.id),
+                transfer=transfers.get(row.id, EMPTY_TRANSFER_OPTIONS),
+                duplicate_evidence=duplicates.get(row.id),
             )
         )
     return ImportReviewReadModel(
@@ -333,7 +341,7 @@ def _item_dto(
         transfer=transfer,
         lifecycle=import_review_lifecycle_snapshot(
             status=status,
-            linked_operation_id=getattr(row, "linked_operation_id", None),
+            linked_operation_id=row.linked_operation_id,
         ),
         duplicate_evidence=duplicate_evidence,
     )
@@ -350,11 +358,8 @@ def _account_dto(account: Account | None) -> ImportReviewAccountDto | None:
 
 
 def _posting_dto(row: RawTransaction) -> ImportReviewPostingDto:
-    operation = getattr(row, "linked_operation", None)
+    operation = row.linked_operation
     return ImportReviewPostingDto(
-        operation_id=getattr(row, "linked_operation_id", None),
-        can_undo=(
-            operation is not None
-            and getattr(operation, "status", None) is OperationStatus.CONFIRMED
-        ),
+        operation_id=row.linked_operation_id,
+        can_undo=operation is not None and operation.status is OperationStatus.CONFIRMED,
     )

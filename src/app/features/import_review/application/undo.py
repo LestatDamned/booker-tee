@@ -12,8 +12,8 @@ from app.features.import_review.domain.lifecycle import restored_review_status_a
 from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
 )
+from app.features.imports.domain.types import UploadedDocumentStatus
 from app.features.imports.errors import RawTransactionReviewError
-from app.features.imports.models import UploadedDocumentStatus
 from app.features.imports.repository import ImportRepository
 from app.features.ledger.application.imported_operations import ImportedOperationCorrection
 from app.features.ledger.domain.types import OperationSource, OperationStatus

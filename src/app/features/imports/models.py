@@ -26,7 +26,7 @@ from sqlalchemy.types import Uuid
 
 from app.db.base import Base, utc_now
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
-from app.features.ledger.models import OperationType
+from app.features.ledger.domain.types import OperationType
 from app.features.workspaces.models import enum_values
 
 if TYPE_CHECKING:

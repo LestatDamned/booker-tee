@@ -7,15 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.features.imports.domain.review_messages import append_review_message
+from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.models import (
     ImportMappingExecution,
     ImportMappingTemplate,
     ParseAttempt,
     ParseAttemptStatus,
     RawTransaction,
-    RawTransactionStatus,
     UploadedDocument,
-    UploadedDocumentStatus,
 )
 from app.features.imports.query_repository import ImportQueryRepository
 

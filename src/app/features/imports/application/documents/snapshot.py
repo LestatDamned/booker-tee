@@ -3,13 +3,12 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
+from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.models import (
     ParseAttempt,
     ParseAttemptStatus,
     RawTransaction,
-    RawTransactionStatus,
     UploadedDocument,
-    UploadedDocumentStatus,
 )
 
 

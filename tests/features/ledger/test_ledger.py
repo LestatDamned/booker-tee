@@ -3,10 +3,12 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
 
+from app.features.accounts.models import Account
 from app.features.import_review.domain.posting import (
     ensure_matched_transfer_account,
     ensure_raw_transaction_can_post_as_transfer,
@@ -67,6 +69,38 @@ class AccountStub:
 @dataclass(frozen=True)
 class UploadedDocumentStub:
     account_id: UUID | None
+
+
+def manual_expense_update_command(
+    operation_id: UUID,
+    *,
+    account_id: UUID | None = None,
+    amount: Decimal = Decimal("10.00"),
+    description: str = "Обновлённая операция",
+    expected_version: int = 1,
+) -> UpdateManualIncomeExpenseCommand:
+    return UpdateManualIncomeExpenseCommand(
+        operation_id=operation_id,
+        operation_type=OperationType.EXPENSE,
+        account_id=account_id or uuid4(),
+        amount=amount,
+        operation_date=date(2026, 7, 20),
+        description=description,
+        category_id=None,
+        property_id=None,
+        expected_version=expected_version,
+    )
+
+
+def workspace_context_stub(
+    workspace_id: UUID,
+    *,
+    user_id: UUID | None = None,
+) -> Any:
+    return SimpleNamespace(
+        workspace=SimpleNamespace(id=workspace_id),
+        user=SimpleNamespace(id=user_id or uuid4()),
+    )
 
 
 def test_operation_type_for_amount_maps_income_and_expense() -> None:
@@ -557,34 +591,28 @@ async def test_imported_operation_review_update_rejects_manual_source(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_manual_operation_use_case_rejects_imported_operation(monkeypatch) -> None:
+async def test_manual_update_rejects_imported_operation() -> None:
     workspace_id = uuid4()
     operation_id = uuid4()
     operation = SimpleNamespace(id=operation_id, source=OperationSource.BANK_PDF)
-
-    class FakeRepository:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def get_operation_for_workspace(self, workspace_id_arg, operation_id_arg):
-            assert workspace_id_arg == workspace_id
-            assert operation_id_arg == operation_id
-            return operation
-
-    monkeypatch.setattr(
-        "app.features.ledger.application.manual_mutations.LedgerRepository",
-        FakeRepository,
+    operation_lookup = AsyncMock(return_value=operation)
+    use_case = ManualOperationWriter(cast(Any, object()))
+    use_case.ledger = cast(
+        Any,
+        SimpleNamespace(get_operation_for_workspace=operation_lookup),
     )
 
-    use_case = ManualOperationWriter(cast(Any, object()))
     with pytest.raises(LedgerPostingError, match="Only manual operations"):
-        await use_case._get_manual_operation(workspace_id, operation_id)
+        await use_case.update(
+            context=workspace_context_stub(workspace_id),
+            command=manual_expense_update_command(operation_id),
+        )
+
+    operation_lookup.assert_awaited_once_with(workspace_id, operation_id)
 
 
 @pytest.mark.asyncio
-async def test_manual_update_rejects_stale_expected_version_before_mutation(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_manual_update_rejects_stale_expected_version_before_mutation() -> None:
     workspace_id = uuid4()
     operation_id = uuid4()
     account_id = uuid4()
@@ -594,61 +622,28 @@ async def test_manual_update_rejects_stale_expected_version_before_mutation(
         status=OperationStatus.CONFIRMED,
         version=2,
     )
-    session = SimpleNamespace(rollbacks=0)
-
-    async def rollback() -> None:
-        session.rollbacks += 1
-
-    session.rollback = rollback
-
-    class FakeRepository:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def get_operation_for_workspace(
-            self,
-            workspace_id_arg: UUID,
-            operation_id_arg: UUID,
-        ) -> object:
-            assert workspace_id_arg == workspace_id
-            assert operation_id_arg == operation_id
-            return operation
-
-    monkeypatch.setattr(
-        "app.features.ledger.application.manual_mutations.LedgerRepository",
-        FakeRepository,
+    use_case = ManualOperationWriter(cast(Any, object()))
+    use_case.ledger = cast(
+        Any,
+        SimpleNamespace(get_operation_for_workspace=AsyncMock(return_value=operation)),
     )
 
     with pytest.raises(OperationVersionConflictError):
-        await ManualOperationWriter(cast(Any, session)).update(
-            context=cast(
-                Any,
-                SimpleNamespace(
-                    workspace=SimpleNamespace(id=workspace_id),
-                    user=SimpleNamespace(id=uuid4()),
-                ),
-            ),
-            command=UpdateManualIncomeExpenseCommand(
-                operation_id=operation_id,
-                operation_type=OperationType.EXPENSE,
+        await use_case.update(
+            context=workspace_context_stub(workspace_id),
+            command=manual_expense_update_command(
+                operation_id,
                 account_id=account_id,
-                amount=Decimal("10.00"),
-                operation_date=date(2026, 7, 18),
                 description="Устаревшая форма",
-                category_id=None,
-                property_id=None,
                 expected_version=1,
             ),
         )
 
-    assert session.rollbacks == 0
     assert not hasattr(operation, "description")
 
 
 @pytest.mark.asyncio
-async def test_manual_update_rejects_ignored_operation_before_mutation(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_manual_update_rejects_ignored_operation_before_mutation() -> None:
     workspace_id = uuid4()
     operation_id = uuid4()
     operation = SimpleNamespace(
@@ -657,52 +652,22 @@ async def test_manual_update_rejects_ignored_operation_before_mutation(
         status=OperationStatus.IGNORED,
         version=1,
     )
-    session = SimpleNamespace(rollbacks=0)
-
-    async def rollback() -> None:
-        session.rollbacks += 1
-
-    session.rollback = rollback
-
-    class FakeRepository:
-        def __init__(self, _session: object) -> None:
-            pass
-
-        async def get_operation_for_workspace(
-            self,
-            _workspace_id: UUID,
-            _operation_id: UUID,
-        ) -> object:
-            return operation
-
-    monkeypatch.setattr(
-        "app.features.ledger.application.manual_mutations.LedgerRepository",
-        FakeRepository,
+    use_case = ManualOperationWriter(cast(Any, object()))
+    use_case.ledger = cast(
+        Any,
+        SimpleNamespace(get_operation_for_workspace=AsyncMock(return_value=operation)),
     )
 
     with pytest.raises(LedgerPostingError, match="confirmed or draft"):
-        await ManualOperationWriter(cast(Any, session)).update(
-            context=cast(
-                Any,
-                SimpleNamespace(
-                    workspace=SimpleNamespace(id=workspace_id),
-                    user=SimpleNamespace(id=uuid4()),
-                ),
-            ),
-            command=UpdateManualIncomeExpenseCommand(
-                operation_id=operation_id,
-                operation_type=OperationType.EXPENSE,
-                account_id=uuid4(),
-                amount=Decimal("10.00"),
-                operation_date=date(2026, 7, 20),
+        await use_case.update(
+            context=workspace_context_stub(workspace_id),
+            command=manual_expense_update_command(
+                operation_id,
                 description="Нельзя изменить",
-                category_id=None,
-                property_id=None,
                 expected_version=1,
             ),
         )
 
-    assert session.rollbacks == 0
     assert not hasattr(operation, "description")
 
 
@@ -887,36 +852,68 @@ async def test_manual_delete_requires_deletable_state_and_expected_version(
 
 
 @pytest.mark.asyncio
-async def test_replacing_manual_money_entries_keeps_operation_state_current(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    previous_entry = SimpleNamespace(id=uuid4())
-    replacement_entry = SimpleNamespace(id=uuid4())
-    operation = SimpleNamespace(money_entries=[previous_entry])
-    session = SimpleNamespace(deleted=[], flushes=0)
-
-    async def delete(entry: object) -> None:
-        session.deleted.append(entry)
-
-    async def flush() -> None:
-        session.flushes += 1
-
-    session.delete = delete
-    session.flush = flush
+async def test_manual_update_replaces_existing_money_entry() -> None:
+    workspace_id = uuid4()
+    user_id = uuid4()
+    account_id = uuid4()
+    previous_entry = SimpleNamespace(id=uuid4(), amount=Decimal("100.00"))
+    operation = SimpleNamespace(
+        id=uuid4(),
+        source=OperationSource.MANUAL,
+        status=OperationStatus.CONFIRMED,
+        version=1,
+        type=OperationType.INCOME,
+        affects_profit=True,
+        description="Старое описание",
+        operation_date=date(2026, 7, 19),
+        money_entries=[previous_entry],
+        updated_by_user_id=None,
+    )
+    session = SimpleNamespace(
+        delete=AsyncMock(),
+        flush=AsyncMock(),
+    )
+    account = Account(
+        id=account_id,
+        workspace_id=workspace_id,
+        name="Основной счёт",
+        currency="RUB",
+    )
     use_case = ManualOperationWriter(cast(Any, session))
-    created_entries: list[object] = []
-
-    async def create_money_entry(entry: object) -> object:
-        created_entries.append(entry)
-        return entry
-
-    monkeypatch.setattr(use_case.ledger, "create_money_entry", create_money_entry)
-
-    await use_case._replace_money_entries(
-        cast(Any, operation),
-        cast(Any, [replacement_entry]),
+    use_case.ledger = cast(
+        Any,
+        SimpleNamespace(
+            get_operation_for_workspace=AsyncMock(return_value=operation),
+            create_money_entry=AsyncMock(side_effect=lambda entry: entry),
+        ),
+    )
+    use_case.references = cast(
+        Any,
+        SimpleNamespace(
+            get_account=AsyncMock(return_value=account),
+            get_category_or_uncategorized=AsyncMock(
+                return_value=SimpleNamespace(id=uuid4()),
+            ),
+            get_property=AsyncMock(return_value=None),
+        ),
     )
 
-    assert session.deleted == [previous_entry]
-    assert created_entries == [replacement_entry]
-    assert operation.money_entries == [replacement_entry]
+    updated = await use_case.update(
+        context=workspace_context_stub(workspace_id, user_id=user_id),
+        command=manual_expense_update_command(
+            operation.id,
+            account_id=account_id,
+            amount=Decimal("125.00"),
+            description="  Новое   описание  ",
+        ),
+    )
+
+    assert updated is operation
+    assert operation.type is OperationType.EXPENSE
+    assert operation.description == "Новое описание"
+    assert operation.operation_date == date(2026, 7, 20)
+    assert operation.updated_by_user_id == user_id
+    assert len(operation.money_entries) == 1
+    assert operation.money_entries[0].account.id == account_id
+    assert operation.money_entries[0].amount == Decimal("-125.00")
+    assert operation.money_entries[0].currency == "RUB"

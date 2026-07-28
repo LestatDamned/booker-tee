@@ -4,8 +4,11 @@
 
 ## Диагноз
 
-Текущий профильный набор содержит 201 test и около 8 190 строк. Все 201 тест
-проходят. Проблема не в абсолютном количестве, а в структуре:
+Исходный профильный набор на момент составления стратегии содержал 201 test и
+около 8 190 строк. Все 201 тест проходили. Эта цифра — историческая точка
+отсчёта, а не целевая метрика: после каждого шага важнее сохраняемые риски, чем
+количество tests. Проблема набора была не в абсолютном количестве, а в
+структуре:
 
 - файлы по 600–850 строк смешивают разные capabilities и уровни;
 - есть tests forwarding/test-only wrappers;
@@ -113,7 +116,7 @@ dependency maintenance, а не подавлением warning.
 | Current file | Решение |
 | --- | --- |
 | `test_imports.py` | Расформировать на storage, upload, deduplication и удалить legacy review-wrapper tests |
-| `test_user_guide_templates.py` | Перенести к dashboard/workspaces; не считать imports suite |
+| ~~`test_user_guide_templates.py`~~ | ✅ Удалён из imports: сохранён один navigation contract у dashboard, семь layout/copy assertions удалены |
 | `test_unknown_statement_analysis.py` | Разделить fixtures/integration и pure heuristics; убрать повторное mapping coverage |
 | `test_unknown_statement_mapping.py` | Разделить command validation, row mapping, template compatibility; удалить wrapper tests |
 | `test_import_parsers.py` | Сохранить fixture contract per parser, не тестировать каждый helper отдельно |
@@ -148,6 +151,35 @@ helper A -> helper B -> private draft
 production-unused orchestration wrapper. Действующий API-сценарий подтверждения
 с сохранением правила покрывается тестами
 `import_review/application/confirmation.py`.
+
+## Выполненная очистка legacy UI tests
+
+`test_user_guide_templates.py` удалён из imports suite:
+
+- переход с dashboard в канонический React Import Review сохранён в
+  `tests/features/dashboard/test_dashboard_template.py`;
+- проверки точных CSS-классов, текстов onboarding, profile layout и полного
+  workspace HTML удалены;
+- invitation, membership, permissions и session behavior остаются покрыты
+  тестами соответствующих `users` и `workspaces` services/policies.
+
+Тест шаблона оставлен только там, где legacy dashboard пока является реальным
+runtime consumer и связывает его с уже мигрированным React workflow.
+
+## Выполненная замена private method tests
+
+Два ledger test больше не вызывают внутренние методы
+`ManualOperationWriter._get_manual_operation(...)` и
+`ManualOperationWriter._replace_money_entries(...)`.
+
+Сохранённые публичные сценарии проверяют:
+
+- imported operation нельзя изменить через manual `update(...)`;
+- обновление manual income в expense заменяет старую проводку, нормализует знак
+  суммы и оставляет актуальный `operation.money_entries`.
+
+Повторяющиеся команды update собираются одним узким test-data builder. Общих
+repository/test-framework abstractions не добавлено.
 
 ## Недостающие tests основной части рефакторинга
 

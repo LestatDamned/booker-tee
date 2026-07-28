@@ -5,12 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.settings import Settings
 from app.features.imports.application.documents.status import transition_document_status
 from app.features.imports.domain.document_lifecycle import has_linked_operations
+from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.errors import ImportDocumentManagementError
-from app.features.imports.models import (
-    RawTransactionStatus,
-    UploadedDocument,
-    UploadedDocumentStatus,
-)
+from app.features.imports.models import UploadedDocument
 from app.features.imports.repository import ImportRepository
 
 

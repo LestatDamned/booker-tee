@@ -1,10 +1,10 @@
 from app.features.imports.application.documents.status import transition_document_status
 from app.features.imports.domain.control_totals import StatementControlTotals
+from app.features.imports.domain.types import UploadedDocumentStatus
 from app.features.imports.models import (
     ParseAttempt,
     ParseAttemptStatus,
     UploadedDocument,
-    UploadedDocumentStatus,
 )
 from app.features.imports.repository import ImportRepository
 

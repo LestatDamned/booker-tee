@@ -7,15 +7,21 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.features.import_review.application.classification import ImportReviewReferencesDto
+from app.features.import_review.application.duplicate_evidence import (
+    ImportReviewDuplicateEvidenceDto,
+)
 from app.features.import_review.application.read_model import (
     ImportReviewReader,
     ImportReviewReadonlyReasonCode,
 )
+from app.features.import_review.application.transfer_options import (
+    ImportReviewTransferOptionsDto,
+)
 from app.features.import_review.domain.classification import ReviewClassificationSource
 from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
 from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
-from app.features.imports.domain.types import RawTransactionStatus
-from app.features.imports.models import UploadedDocumentStatus
+from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
+from app.features.imports.models import UploadedDocument
 from app.features.ledger.domain.types import OperationStatus, OperationType
 
 
@@ -34,6 +40,26 @@ class DocumentSourceStub:
 class ReferenceReaderStub:
     async def read(self, workspace_id: object) -> ImportReviewReferencesDto:
         return ImportReviewReferencesDto(categories=(), properties=())
+
+
+class EmptyTransferReaderStub:
+    async def read_for_document(
+        self,
+        *,
+        workspace_id: UUID,
+        document: UploadedDocument,
+    ) -> dict[UUID, ImportReviewTransferOptionsDto]:
+        return {}
+
+
+class EmptyDuplicateReaderStub:
+    async def read_for_document(
+        self,
+        *,
+        workspace_id: UUID,
+        document: UploadedDocument,
+    ) -> dict[UUID, ImportReviewDuplicateEvidenceDto]:
+        return {}
 
 
 class DuplicateSourceStub:
@@ -74,7 +100,12 @@ async def test_import_review_reader_builds_ordered_raw_and_normalized_rows() -> 
     )
     source = DocumentSourceStub(document)
 
-    result = await ImportReviewReader(cast(Any, source), cast(Any, ReferenceReaderStub())).read(
+    result = await ImportReviewReader(
+        cast(Any, source),
+        cast(Any, ReferenceReaderStub()),
+        EmptyTransferReaderStub(),
+        EmptyDuplicateReaderStub(),
+    ).read(
         workspace_id=workspace_id,
         document_id=document_id,
         can_write=False,
@@ -117,7 +148,12 @@ async def test_import_review_reader_builds_ordered_raw_and_normalized_rows() -> 
 async def test_import_review_reader_returns_none_for_unknown_document() -> None:
     source = DocumentSourceStub(None)
 
-    result = await ImportReviewReader(cast(Any, source), cast(Any, ReferenceReaderStub())).read(
+    result = await ImportReviewReader(
+        cast(Any, source),
+        cast(Any, ReferenceReaderStub()),
+        EmptyTransferReaderStub(),
+        EmptyDuplicateReaderStub(),
+    ).read(
         workspace_id=uuid4(),
         document_id=uuid4(),
         can_write=True,
@@ -158,6 +194,7 @@ async def test_possible_duplicate_evidence_is_built_from_workspace_scoped_candid
     result = await ImportReviewReader(
         cast(Any, DocumentSourceStub(document)),
         cast(Any, ReferenceReaderStub()),
+        EmptyTransferReaderStub(),
         duplicates=ImportReviewDuplicateReader(cast(Any, duplicate_source)),
     ).read(
         workspace_id=workspace_id,
@@ -198,6 +235,8 @@ async def test_confirmed_row_uses_linked_operation_instead_of_rule_suggestion() 
     result = await ImportReviewReader(
         cast(Any, DocumentSourceStub(document)),
         cast(Any, ReferenceReaderStub()),
+        EmptyTransferReaderStub(),
+        EmptyDuplicateReaderStub(),
     ).read(
         workspace_id=workspace_id,
         document_id=document_id,

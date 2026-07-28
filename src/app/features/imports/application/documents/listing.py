@@ -5,10 +5,8 @@ from math import ceil
 from typing import Protocol
 from uuid import UUID
 
-from app.features.imports.models import (
-    ParseAttemptStatus,
-    UploadedDocumentStatus,
-)
+from app.features.imports.domain.types import UploadedDocumentStatus
+from app.features.imports.models import ParseAttemptStatus
 
 DEFAULT_IMPORT_DOCUMENTS_PER_PAGE = 25
 IMPORT_DOCUMENTS_PER_PAGE_OPTIONS = (25, 50, 100)

@@ -5,6 +5,87 @@
 Каждая фаза сохраняет рабочий продукт. Не объединять behavioral fix,
 перемещение feature и массовое переименование в один commit.
 
+## Текущая точка и порядок продолжения
+
+Phases 0–6 завершены 2026-07-28. Phase 7 начата, Phase 8 остаётся последним
+behavioral этапом старого плана. После повторного аудита продолжение
+зафиксировано следующими маленькими волнами.
+
+### Wave A — Cheap architectural relief
+
+Статус: completed 2026-07-28.
+
+1. ✅ удалить production-unused `validate_pdf_upload`;
+2. ✅ импортировать persisted status enums из defining domain modules, а не через
+   `models.py`;
+3. ✅ сделать transfer/duplicate collaborators `ImportReviewReader`
+   обязательными;
+4. ✅ убрать defensive `getattr()` для известных ORM attributes и обновить typed
+   test stubs.
+
+Exit: parsing/application не зависят от ORM только ради enum, а production read
+model не содержит optional branches, существующих лишь для тестов.
+
+### Wave B — One validation boundary
+
+1. один typed reason resolver для statement validation;
+2. один decoder persisted validation report;
+3. document detail добавляет только parse-level причины `needs_mapping` и
+   `validation_failed`;
+4. удалить повторяющееся reason mapping из document detail и Import Review.
+
+Exit: одинаковый validation report не получает разные reason codes в двух read
+models.
+
+### Wave C — Deduplication behavior
+
+Выполняется как продолжение Phase 8, отдельно от file moves:
+
+1. overlapping-statement characterization;
+2. duplicate evidence больше не записывается в `normalization_error`;
+3. `MARK_UNIQUE` снимает только duplicate block и не скрывает реальные
+   normalization errors;
+4. PostgreSQL confirmation race tests.
+
+Exit: ambiguous duplicate требует решения, а resolved unique row можно
+подтвердить без потери настоящих ошибок нормализации.
+
+### Wave D — Review persistence ownership
+
+Условие возврата к deferred Phase 4 теперь выполнено: `import_review`
+фактически выделен.
+
+1. перенести review row reads/locks/status/linking в `ImportReviewRepository`;
+2. перенести chat review queue navigation из `ImportQueryRepository`;
+3. оставить document list/detail/dashboard и mapping snapshots в imports query
+   repository;
+4. использовать один локальный review-row query builder для одинакового eager
+   loading;
+5. не создавать generic CRUD и repository на каждую ORM-модель.
+
+Exit: imports persistence меняется из-за document/mapping processing, review
+persistence — из-за review workflows.
+
+### Wave E — Mechanical code reduction
+
+1. frozen Pydantic projection для persisted unknown-analysis report;
+2. удалить ручные `cast`/`isinstance` decoders из mapping reader/defaults;
+3. использовать `model_validate(..., from_attributes=True)` для изоморфных API
+   DTO;
+4. сохранить явные adapters только для Decimal strings, one-based indexes,
+   sensitive bounds и изменённой формы payload.
+
+### Wave F — Tests and active documentation
+
+Завершить Phase 7, перенести tests к фактическому feature owner и после Phase 8
+свернуть этот migration log. Активная документация должна хранить текущие
+границы, а не хронологию завершённых commits.
+
+### Wave G — Parser normalization
+
+Рассматривать последней. Bank parsers остаются раздельными; общим может стать
+только доказанно одинаковый переход parsed fields -> normalized draft.
+
 ## Целевая структура
 
 ```text
@@ -12,8 +93,6 @@ src/app/features/
   imports/
     models.py
     errors.py
-    document_repository.py
-    mapping_repository.py
 
     application/
       documents/
@@ -43,7 +122,17 @@ src/app/features/
     infrastructure/
       storage.py
       extraction/
+
+    parsing/
+      parser_types.py
+      registry.py
+      support/
       parsers/
+
+    persistence/
+      document_repository.py
+      document_query_repository.py
+      mapping_repository.py
 
   import_review/
     errors.py
@@ -63,8 +152,11 @@ src/app/features/
       confirmability.py
       lifecycle.py
       queue.py
-      types.py
+      posting.py
 ```
+
+`persistence/` — ориентир после Wave D, не требование механически переместить
+файлы до стабилизации ownership.
 
 ## Phase 0 — Remove speculative reparse
 
@@ -576,6 +668,14 @@ workflow.
 - разбить mega-files по capability;
 - сохранить finance, workspace, idempotency и source-preservation tests;
 - не менять matching semantics deduplication в этой фазе.
+
+Выполнено:
+
+- ✅ `test_user_guide_templates.py` удалён из imports suite: семь
+  layout/copy assertions удалены, один действующий navigation contract перенесён
+  к dashboard.
+- ✅ два ledger test переписаны с private methods на публичный
+  `ManualOperationWriter.update(...)`.
 
 Обновить:
 

@@ -10,12 +10,9 @@ from app.features.imports.application.documents.snapshot import (
     ImportParseAttemptSnapshot,
     ImportRawTransactionRow,
 )
+from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.domain.validation import MONEY_TOLERANCE
-from app.features.imports.models import (
-    ParseAttemptStatus,
-    RawTransactionStatus,
-    UploadedDocumentStatus,
-)
+from app.features.imports.models import ParseAttemptStatus
 
 DETAIL_ROW_LIMIT = 5
 DETAIL_ATTEMPT_LIMIT = 10

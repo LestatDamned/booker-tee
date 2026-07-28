@@ -19,12 +19,11 @@ from app.features.imports.application.documents.snapshot import (
     ImportDocumentSnapshot,
     ImportDocumentSnapshotMapper,
 )
+from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.models import (
     ParseAttempt,
     RawTransaction,
-    RawTransactionStatus,
     UploadedDocument,
-    UploadedDocumentStatus,
 )
 from app.features.ledger.models import MoneyEntry, Operation
 

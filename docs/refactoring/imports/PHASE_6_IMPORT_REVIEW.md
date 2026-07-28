@@ -1,6 +1,6 @@
 # Phase 6 — Extract Import Review
 
-Статус: подробный план, готовый к поэтапному обсуждению и реализации.
+Статус: completed 2026-07-28; historical implementation record.
 
 Этот документ раскрывает Phase 6 из
 [`ROADMAP.md`](ROADMAP.md). Он фиксирует границы feature, порядок маленьких

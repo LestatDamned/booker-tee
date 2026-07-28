@@ -9,13 +9,8 @@ from sqlalchemy.orm import selectinload
 
 from app.features.import_review.domain.posting import raw_transaction_effective_account_id
 from app.features.imports.models import RawTransaction, UploadedDocument
-from app.features.ledger.models import (
-    MoneyEntry,
-    Operation,
-    OperationSource,
-    OperationStatus,
-    OperationType,
-)
+from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
+from app.features.ledger.models import MoneyEntry, Operation
 
 
 class ImportReviewRepository:

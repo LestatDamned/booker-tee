@@ -55,10 +55,8 @@ from app.features.imports.application.unknown_statement_mappings.validation impo
     StatementMappingValidator,
     raise_for_mapping_validation_issues,
 )
-from app.features.imports.models import (
-    ImportMappingTemplate,
-    RawTransactionStatus,
-)
+from app.features.imports.domain.types import RawTransactionStatus
+from app.features.imports.models import ImportMappingTemplate
 
 MAX_MAPPING_SOURCE_TABLES = 100
 MAX_MAPPING_SOURCE_SAMPLE_ROWS = 12
