@@ -22,7 +22,7 @@
 | Resolved | Общий reparse был реализован без текущего продуктового сценария | Race, superseded rows, лишние статусы и тесты | Удалён без изменения upload/mapping |
 | P1 | Review принадлежит `imports`, но оркестрирует ledger/rules | Циклическая feature-связанность и неясный owner транзакции | Выделить `import_review` |
 | Resolved | Unsigned amount имел скрытый default `INCOME` | Внутренний caller мог неверно классифицировать expense | Значение обязательно; legacy template использует `REQUIRE_SIGN` |
-| P2 | Два broad repositories | Persistence меняется по несвязанным причинам | Split document/mapping/review repositories |
+| Deferred | Два broad repositories | Persistence может меняться по несвязанным причинам | Split только вместе с `import_review` extraction или подтверждённым независимым change pressure |
 | P2 | Domain импортирует ORM/repository/parser types | Направление зависимостей нарушено | Оставить в domain только policies и values |
 | P2 | React compatibility routes распределены по двум местам | Cutover сложнее проверять и завершать | Один compatibility router |
 | P2 | Исторические `/imports/...` ещё используются | Лишние redirect hops, delete gate не пройден | Перевести consumers на `/app/imports/...` |
@@ -157,10 +157,9 @@ detail API их не возвращает.
 
 ### Parser strategies
 
-Для двух статических ветвей существует Protocol, resolver, context и две
-strategy-обёртки поверх known/unknown pipelines. Достаточно одного
-`StatementProcessor`, выбирающего `KnownStatementProcessor` или
-`UnknownStatementProcessor` через существующий parser registry.
+Исправлено в Phase 5.1: Protocol, resolver, context и две strategy-обёртки
+удалены. `StatementParseProcessor` через существующий parser registry явно
+вызывает known или unknown pipeline.
 
 ## Cleanup-кандидаты
 

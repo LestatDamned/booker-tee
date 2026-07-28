@@ -271,6 +271,23 @@ Exit: completed. Domain не импортирует repository, ORM или parse
 
 ## Phase 4 — Split persistence
 
+Статус: deferred 2026-07-28.
+
+Разделение не выполняется только из-за размера `repository.py`. При текущем
+наборе сценариев оно добавило бы новые файлы, wiring и временные compatibility
+wrappers, не меняя транзакции, SQL или пользовательское поведение.
+
+Вернуться к Phase 4 нужно, когда выполнено хотя бы одно условие:
+
+- начинается фактическое выделение `import_review`;
+- mapping, document lifecycle и review регулярно меняют persistence независимо;
+- широкий repository заметно усложняет production use cases или их tests;
+- одному persistence-направлению нужна отдельная оптимизация.
+
+До этого `ImportRepository` и `ImportQueryRepository` остаются как есть. Не
+создавать `BaseRepository`, generic CRUD или repository на каждую ORM-модель.
+Планируемые границы сохранены ниже как ориентир, а не как текущая задача.
+
 ### Commit 4.1: document repository
 
 Документы, attempts, raw creation и document status writes.
@@ -289,15 +306,24 @@ Review locks, duplicate/transfer lookup и row-operation linking.
 - review queue/evidence queries;
 - отдельная узкая dashboard metrics projection при необходимости.
 
-Exit: ни один repository не меняется одновременно из-за document list,
-mapping и transfer workflow.
+Отложенный exit: ни один repository не меняется одновременно из-за document
+list, mapping и transfer workflow.
 
 ## Phase 5 — Simplify statement processing
 
-### Commit 5.1: replace strategy wrappers
+### Commit 5.1: remove strategy wrappers
 
-`StatementProcessor` явно выбирает `KnownStatementProcessor` или
-`UnknownStatementProcessor` через parser registry.
+Статус: completed 2026-07-28.
+
+- `StatementParseProcessor` делает одно явное ветвление через parser registry;
+- known branch вызывает существующий `KnownStatementImportPipeline`;
+- unknown branch вызывает существующий `UnknownStatementFallbackPipeline`;
+- удалён весь `application/strategies/`: Protocol, resolver, context и две
+  однооперационные wrapper-стратегии;
+- новые processor-классы вместо удалённых wrappers не создавались.
+
+Пользовательское поведение, parser metadata и порядок сохранения успешного
+attempt не изменены.
 
 ### Commit 5.2: consolidate unknown analysis
 

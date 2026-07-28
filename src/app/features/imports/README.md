@@ -55,7 +55,7 @@ Use Case / Facade
 ```text
 src/app/api/v1/imports router
 -> use cases / service facade
--> application pipelines / strategies / use cases
+-> application pipelines / use cases
 -> domain rules / mapping / parsing / infrastructure
 -> repository.py / query_repository.py / storage.py
 -> models.py
@@ -269,12 +269,6 @@ imports/
       statement_import.py
       context.py
       steps.py
-
-    strategies/
-      resolver.py
-      known_parser.py
-      unknown_fallback.py
-      context.py
 
     known_statements/
       pipeline.py
@@ -525,8 +519,9 @@ import path easy to test.
 - `application/review/` - review lifecycle use cases and helpers:
   confirmation/transfer actions, status changes, validation refresh, and
   review page data loading.
-- `application/processing.py` - parse success orchestrator: stores extracted statement data, resolves an import strategy, then runs it.
-- `application/strategies/` - import strategy resolver and branches for known parser imports and unknown statement fallback.
+- `application/processing.py` - parse success orchestrator: stores extracted
+  statement data, selects a known parser or unknown fallback, then runs the
+  matching pipeline.
 - `application/pipelines/` - shared import pipeline steps: deduplication
   orchestration, review-required attempts, and validation result storage.
 - `application/known_statements/` - known bank parser pipeline: drafts, raw rows, deduplication, rules, validation.

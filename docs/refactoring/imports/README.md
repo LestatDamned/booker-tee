@@ -81,8 +81,9 @@ application orchestration known/unknown обработки принадлежи�
 - statement processing не импортирует import-review application;
 - ledger posting не обновляет imports/review lifecycle;
 - React и chat используют один import-review application layer;
-- `ImportRepository` и `ImportQueryRepository` разделены по устойчивым
-  обязанностям;
+- persistence разделяется по устойчивым обязанностям только вместе с
+  фактическим выделением `import_review` или подтверждённым независимым change
+  pressure, а не из-за размера repository-файла;
 - imports-specific SSR implementation отсутствует, compatibility redirects
   собраны в одном месте;
 - тестовый набор организован по поведению и риску, а не по внутренним helper;
