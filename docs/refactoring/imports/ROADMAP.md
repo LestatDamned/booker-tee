@@ -327,17 +327,20 @@ attempt не изменены.
 
 ### Commit 5.2: consolidate unknown analysis
 
-Объединить только устойчивые группы:
+Статус: completed 2026-07-28.
 
-- analysis models;
-- column/table profiling;
-- suggestion scoring;
-- mapping contracts.
+- девять analysis dataclass/enum собраны в одном явном `analysis_models.py`;
+- `profile_helpers.py` перенесён в owner-модуль `column_profiles.py`;
+- suggestion scoring перенесён в `mapping_suggestions.py`;
+- row detection перенесён в `table_detection.py`;
+- удалены compatibility-фасады `dto.py` и `heuristics.py`;
+- пакет уменьшен с 22 до 14 Python-файлов и с 1 865 до 1 756 строк.
 
-Не объединять bank parsers и не создавать generic plugin framework.
+Алгоритмы анализа и публичное поведение не менялись. Bank parsers не
+объединялись, generic plugin framework и новые adapter layers не создавались.
 
-Exit: основной statement-processing flow читается сверху вниз без перехода
-через пустые adapter layers.
+Exit выполнен: модели имеют один owner, а profiling, suggestion scoring и row
+detection находятся рядом с использующими их операциями.
 
 ## Phase 6 — Extract import review
 

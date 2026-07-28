@@ -1,12 +1,10 @@
-from app.features.imports.application.unknown_statements.profile_helpers import (
-    profile_for_column,
-)
-from app.features.imports.application.unknown_statements.suggestion_dto import (
-    UnknownStatementMappingSuggestion,
-)
-from app.features.imports.application.unknown_statements.table_preview_dto import (
+from app.features.imports.application.unknown_statements.analysis_models import (
     UnknownStatementContinuationMappingField,
+    UnknownStatementMappingSuggestion,
     UnknownStatementTablePreview,
+)
+from app.features.imports.application.unknown_statements.column_profiles import (
+    profile_for_column,
 )
 
 

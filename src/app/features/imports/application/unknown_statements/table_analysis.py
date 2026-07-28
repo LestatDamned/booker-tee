@@ -1,3 +1,6 @@
+from app.features.imports.application.unknown_statements.analysis_models import (
+    UnknownStatementTablePreview,
+)
 from app.features.imports.application.unknown_statements.column_profiles import (
     build_column_profiles,
     infer_column_candidates_from_profiles,
@@ -12,9 +15,6 @@ from app.features.imports.application.unknown_statements.table_detection import 
     best_header_row_index,
     compact_preview_rows,
     looks_like_transaction_table,
-)
-from app.features.imports.application.unknown_statements.table_preview_dto import (
-    UnknownStatementTablePreview,
 )
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 

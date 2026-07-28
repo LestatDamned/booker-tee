@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, cast
 
+from app.features.imports.application.unknown_statements.analysis_models import (
+    UnknownStatementTablePreview,
+)
 from app.features.imports.application.unknown_statements.table_analysis import (
     build_table_preview,
-)
-from app.features.imports.application.unknown_statements.table_preview_dto import (
-    UnknownStatementTablePreview,
 )
 from app.features.imports.application.unknown_statements.value_detectors import (
     DATE_PATTERNS,

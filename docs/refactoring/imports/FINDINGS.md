@@ -26,7 +26,7 @@
 | P2 | Domain импортирует ORM/repository/parser types | Направление зависимостей нарушено | Оставить в domain только policies и values |
 | P2 | React compatibility routes распределены по двум местам | Cutover сложнее проверять и завершать | Один compatibility router |
 | P2 | Исторические `/imports/...` ещё используются | Лишние redirect hops, delete gate не пройден | Перевести consumers на `/app/imports/...` |
-| P3 | Unknown-statement packages чрезмерно фрагментированы | Высокая навигационная стоимость | Консолидация по устойчивым обязанностям |
+| Resolved | Unknown-statement packages были чрезмерно фрагментированы | Высокая навигационная стоимость | 22 файла сокращены до 14 без изменения алгоритмов |
 
 P0-проблем по результатам аудита не найдено.
 
@@ -160,6 +160,14 @@ detail API их не возвращает.
 Исправлено в Phase 5.1: Protocol, resolver, context и две strategy-обёртки
 удалены. `StatementParseProcessor` через существующий parser registry явно
 вызывает known или unknown pipeline.
+
+### Unknown-statement analysis
+
+Исправлено в Phase 5.2: девять analysis models собраны в
+`analysis_models.py`, а локальные profiling, scoring и row-detection функции
+перенесены к операциям-владельцам. Удалены compatibility-фасады и восемь лишних
+границ между файлами. Пакет уменьшен с 22 до 14 Python-файлов и на 109 строк
+без изменения алгоритмов.
 
 ## Cleanup-кандидаты
 

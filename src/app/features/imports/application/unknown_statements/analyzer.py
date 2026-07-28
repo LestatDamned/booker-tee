@@ -1,4 +1,4 @@
-from app.features.imports.application.unknown_statements.analysis_dto import (
+from app.features.imports.application.unknown_statements.analysis_models import (
     UnknownStatementAnalysis,
     UnknownStatementStatus,
 )
