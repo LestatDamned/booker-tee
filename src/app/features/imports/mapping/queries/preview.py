@@ -9,13 +9,8 @@ from app.features.imports.mapping.control_totals import (
 )
 from app.features.imports.mapping.dto import (
     MappedStatementRow,
-    MappingBalanceReconciliationDto,
     MappingControlTotalKind,
-    MappingPreviewRowDto,
-    MappingResolvedControlTotalDto,
     MappingRowErrorCode,
-    MappingTableRefDto,
-    StatementMappingPreview,
     StatementMappingSpec,
     UnsignedAmountDirection,
 )
@@ -28,6 +23,15 @@ from app.features.imports.mapping.queries.overview import (
 from app.features.imports.mapping.raw_tables import (
     compatible_mapping_tables,
     find_raw_table,
+)
+from app.features.imports.mapping.read_models import (
+    MappingBalanceReconciliationDto,
+    MappingControlTotalCellDto,
+    MappingPreviewRowDto,
+    MappingResolvedControlTotalDto,
+    MappingTableRefDto,
+    MappingWarningDto,
+    StatementMappingPreview,
 )
 from app.features.imports.mapping.rows import explicit_amount_direction
 from app.features.imports.mapping.validation import (
@@ -94,14 +98,19 @@ class StatementMappingPreviewReader:
             row_limit=MAX_MAPPING_PREVIEW_RESPONSE_ROWS,
             rows_truncated=len(result.rows) > len(rows),
             compatible_tables=tuple(
-                MappingTableRefDto(table.page_number, table.table_index)
+                MappingTableRefDto(
+                    page_number=table.page_number,
+                    table_index=table.table_index,
+                )
                 for table in compatible_tables
             ),
-            warnings=tuple(result.warnings),
+            warnings=tuple(
+                MappingWarningDto.from_mapping_warning(warning) for warning in result.warnings
+            ),
             control_totals=tuple(
                 MappingResolvedControlTotalDto(
                     kind=total.kind,
-                    cell=total.cell,
+                    cell=MappingControlTotalCellDto.from_ref(total.cell),
                     raw_value=total.raw_value[:MAX_MAPPING_SOURCE_CELL_CHARS],
                     amount=str(total.amount),
                     currency=spec.default_currency,
@@ -122,7 +131,10 @@ def mapping_preview_row(
     spec: StatementMappingSpec,
 ) -> MappingPreviewRowDto:
     return MappingPreviewRowDto(
-        table_ref=MappingTableRefDto(row.page_number, row.table_index),
+        table_ref=MappingTableRefDto(
+            page_number=row.page_number,
+            table_index=row.table_index,
+        ),
         source_row_number=row.source_row_number + 1,
         operation_date=row.operation_date,
         operation_date_raw=_bounded_raw(row.operation_date_raw),

@@ -11,9 +11,6 @@ from app.api.v1.imports.dependencies import (
     get_statement_mapping_preview_reader,
     get_statement_mapping_source_rows_reader,
 )
-from app.api.v1.imports.mapping_response import (
-    StatementMappingResponseMapper,
-)
 from app.api.v1.imports.mapping_schemas import (
     MappingControlTotalCellApiModel,
     MappingImportApiRequest,
@@ -74,7 +71,7 @@ async def get_unknown_statement_mapping(
     )
     if mapping is None:
         raise _not_found()
-    return StatementMappingResponseMapper.read(mapping)
+    return MappingReadApiResponse.model_validate(mapping)
 
 
 @router.get(
@@ -109,7 +106,7 @@ async def get_unknown_statement_mapping_source_rows(
     )
     if rows is None:
         raise _not_found()
-    return StatementMappingResponseMapper.source_rows(rows)
+    return MappingSourceRowsApiResponse.model_validate(rows)
 
 
 @router.post(
@@ -150,7 +147,7 @@ async def preview_unknown_statement_mapping(
         ) from error
     if preview is None:
         raise _not_found()
-    return StatementMappingResponseMapper.preview(preview)
+    return MappingPreviewApiResponse.model_validate(preview)
 
 
 @router.post(

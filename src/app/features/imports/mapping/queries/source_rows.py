@@ -2,13 +2,13 @@ from typing import Protocol
 from uuid import UUID
 
 from app.features.imports.documents.dto import ImportDocumentSnapshot
-from app.features.imports.mapping.dto import (
+from app.features.imports.mapping.queries.overview import latest_mapping_raw_tables
+from app.features.imports.mapping.raw_tables import find_raw_table
+from app.features.imports.mapping.read_models import (
     MappingSourceRowDto,
     MappingSourceRowsDto,
     MappingTableRefDto,
 )
-from app.features.imports.mapping.queries.overview import latest_mapping_raw_tables
-from app.features.imports.mapping.raw_tables import find_raw_table
 
 MAX_MAPPING_SOURCE_SAMPLE_COLUMNS = 32
 MAX_MAPPING_SOURCE_CELL_CHARS = 500
@@ -61,7 +61,10 @@ class StatementMappingSourceRowsReader:
             for index, row in enumerate(selected_rows)
         )
         return MappingSourceRowsDto(
-            table_ref=MappingTableRefDto(page_number, table_index),
+            table_ref=MappingTableRefDto(
+                page_number=page_number,
+                table_index=table_index,
+            ),
             rows=rows,
             total_row_count=len(raw_table),
             start_row_number=start_index + 1,

@@ -11,22 +11,26 @@ from app.features.imports.mapping.control_totals import (
     detect_control_total_candidates,
 )
 from app.features.imports.mapping.dto import (
-    MappingAccountDto,
     MappingBlockingReasonCode,
+    MappingControlTotalKind,
+    MappingTemplateSnapshot,
+)
+from app.features.imports.mapping.raw_tables import find_raw_table
+from app.features.imports.mapping.read_models import (
+    MappingAccountDto,
     MappingCapabilityDto,
     MappingColumnCandidateDto,
+    MappingCommandDto,
     MappingControlTotalCandidateDto,
-    MappingControlTotalKind,
+    MappingControlTotalCellDto,
     MappingSourceRowDto,
     MappingSourceTableDto,
     MappingSuggestionDto,
     MappingSuggestionReasonDto,
     MappingTableRefDto,
     MappingTemplateDto,
-    MappingTemplateSnapshot,
     StatementMappingOverview,
 )
-from app.features.imports.mapping.raw_tables import find_raw_table
 from app.features.imports.mapping.templates import (
     StatementMappingDefaultResolver,
     compatible_mapping_templates,
@@ -130,7 +134,7 @@ class StatementMappingOverviewReader:
             ),
             default_currency=default_currency,
             capability=mapping_capability(snapshot, raw_tables),
-            default_mapping=spec,
+            default_mapping=MappingCommandDto.from_spec(spec),
             default_source=default.source,
             selected_template_id=default.template_id,
             templates=tuple(
@@ -141,7 +145,7 @@ class StatementMappingOverviewReader:
             control_total_candidates=tuple(
                 MappingControlTotalCandidateDto(
                     kind=candidate.kind,
-                    cell=candidate.cell,
+                    cell=MappingControlTotalCellDto.from_ref(candidate.cell),
                     label=candidate.label,
                     raw_value=candidate.raw_value[:MAX_MAPPING_SOURCE_CELL_CHARS],
                     amount=str(candidate.amount),
@@ -200,7 +204,10 @@ def _source_table(
         for index, row in enumerate(raw_table[:MAX_MAPPING_SOURCE_SAMPLE_ROWS])
     )
     return MappingSourceTableDto(
-        ref=MappingTableRefDto(table.page_number, table.table_index),
+        ref=MappingTableRefDto(
+            page_number=table.page_number,
+            table_index=table.table_index,
+        ),
         source_type=table.source_type,
         row_count=table.row_count or len(raw_table),
         column_count=table.column_count or max((len(row) for row in raw_table), default=0),
@@ -232,7 +239,7 @@ def _mapping_suggestion(
         default_currency=default_currency,
     )
     return MappingSuggestionDto(
-        spec=spec,
+        mapping=MappingCommandDto.from_spec(spec),
         reasons=tuple(_suggestion_reason(reason) for reason in suggestion.reasons),
         warning_codes=tuple(warning.code for warning in suggestion.warnings),
     )

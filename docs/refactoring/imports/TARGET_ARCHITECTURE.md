@@ -442,7 +442,8 @@ production Python — с 10 939 до 10 938 строк. Step 5 закрыт.
 
 | Сейчас | Цель |
 |---|---|
-| mapping models и read models | `mapping/dto.py` |
+| mapping domain/application values | `mapping/dto.py` |
+| mapping read projections | `mapping/read_models.py` |
 | mapping engine | `mapping/engine.py` |
 | row mapping | `mapping/rows.py` |
 | mapped rows → `RawTransactionDraft` | `mapping/drafts.py` |
@@ -914,6 +915,8 @@ repository abstraction. Существующие API-преобразовани�
   заменить ручные JSON codecs и draft-to-ORM field copying;
 - 10D: перевести persisted mapping contracts на Pydantic, оставить JSONB
   encoding/decoding внутри repository и удалить ручные mapping spec codecs;
+- 10E: перевести mapping read projections на Pydantic, подготовить публичную
+  нумерацию внутри projections и удалить изоморфный API response mapper;
 - следующие capabilities переводить на Pydantic по одному законченному срезу,
   одновременно удаляя механические mappings и JSON codecs;
 - пересмотреть оставшиеся маленькие helpers и названия;
@@ -969,6 +972,21 @@ control-total cell refs сериализуются тем же способом.
 606 tests; один отдельный PostgreSQL concurrency test пропущен без
 `BOOKER_TEE_TEST_DATABASE_URL`.
 
+10E завершён 2026-07-29. Mapping overview, preview, source rows и вложенные read
+values переведены на `ApplicationModel` и вынесены из внутренних values в
+`mapping/read_models.py`. Read projections теперь содержат готовые публичные
+значения: `MappingCommandDto.from_spec(...)` явно переводит mapping spec в
+response shape, а `MappingControlTotalCellDto.from_ref(...)` изолирует
+преобразование номера строки из внутреннего `0-based` формата в публичный
+`1-based`.
+
+Удалён 270-строчный `mapping_response.py`. Overview, preview и source-rows
+routers вызывают соответствующий `Response.model_validate(...)` напрямую.
+Преобразование warning field names выполняется при построении read projection,
+а не внутри HTTP mapper. Production Python уменьшился на 154 строки.
+Regression gate: Ruff, ty, 606 tests; один отдельный PostgreSQL concurrency
+test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
+
 ### Шаг 11. Parser normalization
 
 - сохранить отдельный fixture contract для каждого банка;
@@ -1002,7 +1020,8 @@ control-total cell refs сериализуются тем же способом.
 | 10B. Upload data contracts | completed 2026-07-29 |
 | 10C. Statements Pydantic contracts and JSON cleanup | completed 2026-07-29 |
 | 10D. Mapping persisted contracts | completed 2026-07-29 |
-| 8–9, 10E+, 11 | pending |
+| 10E. Mapping read contracts and API mapper cleanup | completed 2026-07-29 |
+| 8–9, 10F+, 11 | pending |
 
 ## 15. Gate для каждого шага
 

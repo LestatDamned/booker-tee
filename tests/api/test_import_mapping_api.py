@@ -12,19 +12,22 @@ from app.api.v1.imports.dependencies import (
 )
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.mapping.dto import (
-    MappingAccountDto,
-    MappingCapabilityDto,
     MappingDefaultSource,
-    MappingSourceRowDto,
-    MappingSourceRowsDto,
-    MappingTableRefDto,
-    StatementMappingOverview,
-    StatementMappingPreview,
     StatementMappingSpec,
-    UnknownStatementMappingWarning,
     UnsignedAmountDirection,
 )
 from app.features.imports.mapping.errors import MappingImportIdempotencyConflictError
+from app.features.imports.mapping.read_models import (
+    MappingAccountDto,
+    MappingCapabilityDto,
+    MappingCommandDto,
+    MappingSourceRowDto,
+    MappingSourceRowsDto,
+    MappingTableRefDto,
+    MappingWarningDto,
+    StatementMappingOverview,
+    StatementMappingPreview,
+)
 from app.features.imports.mapping.validation import (
     MappingCommandValidationError,
     MappingValidationCode,
@@ -72,12 +75,15 @@ class MappingReaderStub:
             invalid_row_count=1,
             row_limit=20,
             rows_truncated=True,
-            compatible_tables=(MappingTableRefDto(1, 0), MappingTableRefDto(2, 0)),
+            compatible_tables=(
+                MappingTableRefDto(page_number=1, table_index=0),
+                MappingTableRefDto(page_number=2, table_index=0),
+            ),
             warnings=(
-                UnknownStatementMappingWarning(
+                MappingWarningDto(
                     code="unsigned_amount_direction_required",
                     severity="warning",
-                    fields=["unsigned_amount_direction"],
+                    fields=("unsignedAmountDirection",),
                     affected_row_count=7,
                 ),
             ),
@@ -90,8 +96,8 @@ class MappingReaderStub:
             return None
         return MappingSourceRowsDto(
             table_ref=MappingTableRefDto(
-                cast(int, kwargs["page_number"]),
-                cast(int, kwargs["table_index"]),
+                page_number=cast(int, kwargs["page_number"]),
+                table_index=cast(int, kwargs["table_index"]),
             ),
             rows=(MappingSourceRowDto(row_number=31, cells=("31.07.2026", "Операция")),),
             total_row_count=80,
@@ -393,7 +399,7 @@ def mapping_read_model() -> StatementMappingOverview:
         account=MappingAccountDto(id=uuid4(), name="Основной", currency="RUB"),
         default_currency="RUB",
         capability=MappingCapabilityDto(allowed=True, blocking_reason_codes=()),
-        default_mapping=command,
+        default_mapping=MappingCommandDto.from_spec(command),
         default_source=MappingDefaultSource.ANALYZER,
         selected_template_id=None,
         templates=(),

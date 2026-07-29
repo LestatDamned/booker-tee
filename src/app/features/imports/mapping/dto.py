@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
+from typing import Literal
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
@@ -110,7 +111,7 @@ class MappedStatementRow:
     amount: Decimal | None
     currency_raw: str
     currency: str
-    status: str
+    status: Literal["valid", "error"]
     error: str
     posting_date_raw: str = ""
     posting_date: date | None = None
@@ -121,7 +122,7 @@ class MappedStatementRow:
 @dataclass(frozen=True)
 class UnknownStatementMappingWarning:
     code: str
-    severity: str
+    severity: Literal["warning", "error"]
     fields: list[str] = field(default_factory=list)
     affected_row_count: int | None = None
 
@@ -140,169 +141,7 @@ class StatementMappingResult:
         return sum(1 for row in self.rows if row.status == "error")
 
 
-@dataclass(frozen=True)
-class MappingTableRefDto:
-    page_number: int
-    table_index: int
-
-
-@dataclass(frozen=True)
-class MappingAccountDto:
-    id: UUID
-    name: str
-    currency: str
-
-
-@dataclass(frozen=True)
-class MappingCapabilityDto:
-    allowed: bool
-    blocking_reason_codes: tuple[MappingBlockingReasonCode, ...]
-
-
-@dataclass(frozen=True)
-class MappingColumnCandidateDto:
-    field: str
-    column_index: int
-    header: str
-
-
-@dataclass(frozen=True)
-class MappingSuggestionReasonDto:
-    field: str
-    column_index: int
-    header: str
-    evidence: str
-    matched_count: int | None
-    sample_count: int | None
-
-
-@dataclass(frozen=True)
-class MappingSuggestionDto:
-    spec: StatementMappingSpec
-    reasons: tuple[MappingSuggestionReasonDto, ...]
-    warning_codes: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class MappingSourceRowDto:
-    row_number: int
-    cells: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class MappingSourceTableDto:
-    ref: MappingTableRefDto
-    source_type: str
-    row_count: int
-    column_count: int
-    is_continuation: bool
-    sample_rows: tuple[MappingSourceRowDto, ...]
-    candidates: tuple[MappingColumnCandidateDto, ...]
-    suggestion: MappingSuggestionDto | None
-
-
-@dataclass(frozen=True)
-class MappingControlTotalCandidateDto:
-    kind: MappingControlTotalKind
-    cell: MappingControlTotalCellRef
-    label: str
-    raw_value: str
-    amount: str
-    currency: str
-    confidence: float
-
-
-@dataclass(frozen=True)
-class MappingSourceRowsDto:
-    table_ref: MappingTableRefDto
-    rows: tuple[MappingSourceRowDto, ...]
-    total_row_count: int
-    start_row_number: int
-    row_limit: int
-    has_previous: bool
-    has_next: bool
-
-
-@dataclass(frozen=True)
-class MappingTemplateDto:
-    id: UUID
-    name: str
-
-
-@dataclass(frozen=True)
-class StatementMappingOverview:
-    document_id: UUID
-    filename: str
-    status: UploadedDocumentStatus
-    bank_name: str | None
-    statement_type: str | None
-    account: MappingAccountDto | None
-    default_currency: str
-    capability: MappingCapabilityDto
-    default_mapping: StatementMappingSpec
-    default_source: MappingDefaultSource
-    selected_template_id: UUID | None
-    templates: tuple[MappingTemplateDto, ...]
-    tables: tuple[MappingSourceTableDto, ...]
-    total_table_count: int
-    tables_truncated: bool
-    control_total_candidates: tuple[MappingControlTotalCandidateDto, ...] = ()
-
-
-@dataclass(frozen=True)
-class MappingPreviewRowDto:
-    table_ref: MappingTableRefDto
-    source_row_number: int
-    operation_date: date | None
-    operation_date_raw: str
-    posting_date: date | None
-    posting_date_raw: str
-    description: str
-    amount: str | None
-    amount_raw: str
-    currency: str
-    balance_after: str | None
-    balance_after_raw: str
-    status: str
-    error_codes: tuple[MappingRowErrorCode, ...]
-
-
-@dataclass(frozen=True)
-class MappingResolvedControlTotalDto:
-    kind: MappingControlTotalKind
-    cell: MappingControlTotalCellRef
-    raw_value: str
-    amount: str
-    currency: str
-
-
-@dataclass(frozen=True)
-class MappingBalanceReconciliationDto:
-    opening_balance: str
-    movement: str
-    calculated_closing_balance: str
-    statement_closing_balance: str
-    difference: str
-    matches: bool
-
-
-@dataclass(frozen=True)
-class StatementMappingPreview:
-    rows: tuple[MappingPreviewRowDto, ...]
-    total_row_count: int
-    valid_row_count: int
-    invalid_row_count: int
-    row_limit: int
-    rows_truncated: bool
-    compatible_tables: tuple[MappingTableRefDto, ...]
-    warnings: tuple[UnknownStatementMappingWarning, ...]
-    can_import: bool
-    control_totals: tuple[MappingResolvedControlTotalDto, ...] = ()
-    reconciliation: MappingBalanceReconciliationDto | None = None
-
-
-@dataclass(frozen=True)
-class StatementMappingImportResult:
+class StatementMappingImportResult(ApplicationModel):
     document_id: UUID
     document_status: UploadedDocumentStatus
     imported_row_count: int

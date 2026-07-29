@@ -17,7 +17,6 @@ from app.features.imports.documents.validation_report import StoredValidationRep
 from app.features.imports.mapping.dto import (
     MappingDefaultSource,
     MappingRowErrorCode,
-    MappingTableRefDto,
     StatementMappingSpec,
     UnsignedAmountDirection,
 )
@@ -32,6 +31,7 @@ from app.features.imports.mapping.queries.preview import (
 from app.features.imports.mapping.queries.source_rows import (
     StatementMappingSourceRowsReader,
 )
+from app.features.imports.mapping.read_models import MappingTableRefDto
 from app.features.imports.mapping.repository import MappingRepository
 
 
@@ -100,13 +100,13 @@ async def test_mapping_read_model_is_bounded_and_uses_analyzer_defaults() -> Non
     assert mapping.capability.allowed is True
     assert mapping.default_source is MappingDefaultSource.ANALYZER
     assert mapping.default_currency == "RUB"
-    assert mapping.default_mapping.first_data_row == 1
+    assert mapping.default_mapping.first_data_row_number == 2
     assert mapping.total_table_count == 2
     assert len(mapping.tables[0].sample_rows) == MAX_MAPPING_SOURCE_SAMPLE_ROWS
     assert mapping.tables[0].sample_rows[0].row_number == 1
     assert mapping.tables[0].sample_rows[0].cells == ("Дата", "Описание", "Сумма")
     assert mapping.tables[0].suggestion is not None
-    assert mapping.tables[0].suggestion.spec.default_currency == "RUB"
+    assert mapping.tables[0].suggestion.mapping.default_currency == "RUB"
     assert documents.calls == [(workspace_id, snapshot.id)]
 
 
@@ -132,8 +132,8 @@ async def test_mapping_preview_counts_all_compatible_rows_but_bounds_payload() -
     assert len(preview.rows) == MAX_MAPPING_PREVIEW_RESPONSE_ROWS
     assert preview.rows_truncated is True
     assert preview.compatible_tables == (
-        MappingTableRefDto(1, 0),
-        MappingTableRefDto(2, 0),
+        MappingTableRefDto(page_number=1, table_index=0),
+        MappingTableRefDto(page_number=2, table_index=0),
     )
     assert preview.rows[0].source_row_number == 2
     assert preview.rows[0].error_codes == (MappingRowErrorCode.OPERATION_DATE_INVALID,)
@@ -160,7 +160,7 @@ async def test_mapping_source_rows_reader_returns_requested_window() -> None:
     )
 
     assert rows is not None
-    assert rows.table_ref == MappingTableRefDto(2, 0)
+    assert rows.table_ref == MappingTableRefDto(page_number=2, table_index=0)
     assert [row.row_number for row in rows.rows] == [3, 4]
     assert rows.has_previous is True
     assert rows.has_next is True
