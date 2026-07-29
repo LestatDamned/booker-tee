@@ -6,7 +6,7 @@ from app.features.imports.application.unknown_statement_mappings.dto import (
     StatementMappingSpec,
     UnsignedAmountDirection,
 )
-from app.features.imports.parsing.support.normalization import (
+from app.features.imports.parsers.support.normalization import (
     normalize_currency,
     normalize_description,
     parse_bank_date,

@@ -9,6 +9,11 @@ from app.features.imports.parsers.extractors.pdf import (
     PdfPlumberStatementExtractor,
 )
 from app.features.imports.parsers.registry import StatementParserRegistry
+from app.features.imports.parsers.support.normalization import (
+    normalize_description,
+    parse_bank_date,
+    parse_money_amount,
+)
 from app.features.imports.parsing.parsers.alfabank.xlsx import AlfabankXlsxStatementParser
 from app.features.imports.parsing.parsers.expobank.card import ExpobankCardStatementParser
 from app.features.imports.parsing.parsers.ozon_bank.card import OzonBankCardStatementParser
@@ -16,11 +21,6 @@ from app.features.imports.parsing.parsers.sberbank.card import SberbankCardState
 from app.features.imports.parsing.parsers.tbank.card import TbankCardStatementParser
 from app.features.imports.parsing.parsers.vtb.card import VtbCardStatementParser
 from app.features.imports.parsing.parsers.vtb.deposit import VtbDepositStatementParser
-from app.features.imports.parsing.support.normalization import (
-    normalize_description,
-    parse_bank_date,
-    parse_money_amount,
-)
 from app.features.imports.statements.types import RawTransactionStatus
 
 

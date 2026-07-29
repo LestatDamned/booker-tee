@@ -417,6 +417,14 @@ Step 5A завершён 2026-07-29: protocol, registry и extraction adapters �
 bank-specific parsing behavior не менялось. Число файлов пока не изменилось,
 production Python уменьшился с 10 949 до 10 937 строк.
 
+Step 5B завершён 2026-07-29: общий parser support перенесён из
+`parsing/support/` в `parsers/support/`. Неопределённые имена `common.py`,
+`header_fields.py`, `cell`, `extracted_text` и `parse_with_error` заменены на
+`drafts.py`, `headers.py`, `row_cell`, `extracted_statement_text` и
+`parse_or_record_error`. Старый support path удалён без compatibility facade.
+Число Python-файлов осталось 87; production Python вырос на две строки из-за
+форматирования более явных вызовов.
+
 ## 10. Карта перемещений: Mapping
 
 | Сейчас | Цель |
@@ -657,7 +665,7 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 - 5A: перенести protocol, registry и extractors — выполнено;
 - 5A: обновить canonical actor method names — выполнено;
 - 5A: удалить extraction aliases после обновления тестов — выполнено;
-- 5B: перенести и переименовать parser support;
+- 5B: перенести и переименовать parser support — выполнено;
 - 5C: переместить bank parsers и сократить однофайловые packages;
 - 5D: удалить оставшиеся старые пути и выполнить финальный cleanup;
 - не менять bank-specific parsing behavior.
@@ -715,8 +723,9 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 | 3C. Documents commands and infrastructure | completed 2026-07-29 |
 | 4. Statements | completed 2026-07-29 |
 | 5A. Protocol, registry and extractors | completed 2026-07-29 |
-| 5B. Parser support | next |
-| 5C–5D | pending |
+| 5B. Parser support | completed 2026-07-29 |
+| 5C. Bank parsers | next |
+| 5D | pending |
 | 6–11 | pending |
 
 ## 15. Gate для каждого шага

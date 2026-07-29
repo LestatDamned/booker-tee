@@ -5,13 +5,13 @@ from decimal import Decimal
 from uuid import UUID
 
 from app.features.imports.parsers.extractors.dto import ExtractedStatement
-from app.features.imports.parsing.support.common import (
+from app.features.imports.parsers.support.drafts import (
     build_raw_transaction_draft,
-    cell,
-    extracted_text,
-    parse_with_error,
+    extracted_statement_text,
+    parse_or_record_error,
+    row_cell,
 )
-from app.features.imports.parsing.support.normalization import (
+from app.features.imports.parsers.support.normalization import (
     build_dedupe_hash,
     clean_cell,
     normalize_description,
@@ -65,7 +65,7 @@ class OzonBankCardStatementParser:
     def matches_statement(self, extracted: ExtractedStatement) -> bool:
         if extracted.metadata.get("source_format") != "pdf":
             return False
-        text = extracted_text(extracted).casefold()
+        text = extracted_statement_text(extracted).casefold()
         if not any(marker in text for marker in OZON_BANK_MARKERS):
             return False
         return any(table_has_ozon_header(table) for table in extracted_tables(extracted))
@@ -97,7 +97,7 @@ class OzonBankCardStatementParser:
         *,
         currency: str,
     ) -> StatementControlTotals | None:
-        totals = extract_control_total_values(extracted_text(extracted))
+        totals = extract_control_total_values(extracted_statement_text(extracted))
         if not totals:
             return None
         return StatementControlTotals(
@@ -139,23 +139,23 @@ def extract_ozon_bank_card_rows(extracted: ExtractedStatement) -> list[OzonBankC
 
 def looks_like_ozon_transaction_row(row: OzonBankCardRawRow) -> bool:
     try:
-        operation_date = parse_ozon_operation_date(cell(row.cells, 0))
+        operation_date = parse_ozon_operation_date(row_cell(row.cells, 0))
     except ValueError:
         operation_date = None
     return (
         operation_date is not None
-        and cell(row.cells, 2) is not None
-        and cell(row.cells, 3) is not None
+        and row_cell(row.cells, 2) is not None
+        and row_cell(row.cells, 3) is not None
     )
 
 
 def parse_ozon_bank_card_row(row: OzonBankCardRawRow) -> OzonBankCardParsedRow:
-    amount_raw = cell(row.cells, 3)
+    amount_raw = row_cell(row.cells, 3)
     return OzonBankCardParsedRow(
         source_row_id=stable_source_row_id(row),
-        operation_date_raw=cell(row.cells, 0),
-        document_raw=cell(row.cells, 1),
-        description_raw=cell(row.cells, 2),
+        operation_date_raw=row_cell(row.cells, 0),
+        document_raw=row_cell(row.cells, 1),
+        description_raw=row_cell(row.cells, 2),
         amount_raw=amount_raw,
         currency_raw=currency_from_amount(amount_raw),
         raw_row=row,
@@ -169,12 +169,12 @@ def build_ozon_bank_card_draft(
     context: OzonBankCardParserContext,
 ) -> RawTransactionDraft:
     normalization_errors: list[str] = []
-    operation_date = parse_with_error(
+    operation_date = parse_or_record_error(
         parse_ozon_operation_date,
         parsed_row.operation_date_raw,
         normalization_errors,
     )
-    amount = parse_with_error(
+    amount = parse_or_record_error(
         parse_money_amount,
         parsed_row.amount_raw,
         normalization_errors,
@@ -251,7 +251,7 @@ def currency_from_amount(raw: str | None) -> str | None:
 
 
 def stable_source_row_id(row: OzonBankCardRawRow) -> str:
-    document = cell(row.cells, 1)
+    document = row_cell(row.cells, 1)
     document_key = document.replace("\n", "") if document is not None else None
     if document_key:
         return f"ozon-bank-card:{document_key}"
@@ -259,7 +259,7 @@ def stable_source_row_id(row: OzonBankCardRawRow) -> str:
 
 
 def extract_card_hint(extracted: ExtractedStatement) -> str | None:
-    text = extracted_text(extracted).casefold()
+    text = extracted_statement_text(extracted).casefold()
     if "карте" in text or "карта" in text:
         return "карта ****"
     return None

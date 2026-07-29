@@ -4,12 +4,12 @@ from decimal import Decimal
 from uuid import UUID
 
 from app.features.imports.parsers.extractors.dto import ExtractedStatement
-from app.features.imports.parsing.support.common import (
+from app.features.imports.parsers.support.drafts import (
     build_raw_transaction_draft,
-    extracted_text,
-    parse_with_error,
+    extracted_statement_text,
+    parse_or_record_error,
 )
-from app.features.imports.parsing.support.normalization import (
+from app.features.imports.parsers.support.normalization import (
     MoneyFragment,
     build_dedupe_hash,
     clean_cell,
@@ -125,7 +125,7 @@ class TbankCardStatementParser:
         *,
         currency: str,
     ) -> StatementControlTotals | None:
-        text = extracted_text(extracted)
+        text = extracted_statement_text(extracted)
         balances = money_matches(BALANCE_RE, text)
         total_inflow = first_money_match(TOTAL_INFLOW_RE, text)
         total_outflow = first_money_match(TOTAL_OUTFLOW_RE, text)
@@ -141,7 +141,7 @@ class TbankCardStatementParser:
 
 
 def normalized_text(extracted: ExtractedStatement) -> str:
-    return " ".join(extracted_text(extracted).casefold().split())
+    return " ".join(extracted_statement_text(extracted).casefold().split())
 
 
 def extract_tbank_card_rows(extracted: ExtractedStatement) -> list[TbankCardRawRow]:
@@ -219,17 +219,17 @@ def build_tbank_card_draft(
     context: TbankCardParserContext,
 ) -> RawTransactionDraft:
     normalization_errors: list[str] = []
-    operation_date = parse_with_error(
+    operation_date = parse_or_record_error(
         parse_bank_date,
         parsed_row.operation_date_raw,
         normalization_errors,
     )
-    posting_date = parse_with_error(
+    posting_date = parse_or_record_error(
         parse_bank_date,
         parsed_row.posting_date_raw,
         normalization_errors,
     )
-    amount = parse_with_error(parse_money_amount, parsed_row.amount_raw, normalization_errors)
+    amount = parse_or_record_error(parse_money_amount, parsed_row.amount_raw, normalization_errors)
     row_currency = normalize_currency(parsed_row.currency_raw, context.currency)
     description = normalize_description(parsed_row.description_raw)
     dedupe_hash = build_dedupe_hash(

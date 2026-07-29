@@ -539,7 +539,8 @@ import path easy to test.
 - `parsers/protocol.py` - canonical parser protocol; shared result values live in
   `statements/dto.py`.
 - `parsers/registry.py` - parser registry for known statement parsers.
-- `parsing/support/` - shared parser helpers such as normalization and draft building.
+- `parsers/support/` - named draft-building, header-recognition and normalization
+  helpers shared by known parsers and unknown-statement mapping.
 - `parsing/parsers/` - bank and statement-type parser plugins.
 
 ## Imports UI geometry
@@ -707,9 +708,15 @@ Completed cleanup:
 - Extraction compatibility aliases and old `infrastructure/extraction/`,
   `parsing/parser_types.py` and `parsing/registry.py` paths are removed.
 
-Pending Step 5B-5C cleanup:
+Parser support cleanup completed in Step 5B:
 
-- Move and rename shared helpers from `parsing/support/` to `parsers/support/`.
+- Shared helpers live in `parsers/support/drafts.py`, `headers.py` and
+  `normalization.py`; the old `parsing/support/` path is removed.
+- Call sites use explicit names such as `extracted_statement_text()`,
+  `row_cell()` and `parse_or_record_error()`.
+
+Pending Step 5C cleanup:
+
 - Move bank implementations from `parsing/parsers/` into `parsers/`, flattening
   single-format bank packages.
 

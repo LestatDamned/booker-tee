@@ -4,12 +4,12 @@ from decimal import Decimal
 from uuid import UUID
 
 from app.features.imports.parsers.extractors.dto import ExtractedStatement
-from app.features.imports.parsing.support.common import (
+from app.features.imports.parsers.support.drafts import (
     build_raw_transaction_draft,
-    extracted_text,
-    parse_with_error,
+    extracted_statement_text,
+    parse_or_record_error,
 )
-from app.features.imports.parsing.support.normalization import (
+from app.features.imports.parsers.support.normalization import (
     build_dedupe_hash,
     clean_cell,
     normalize_currency,
@@ -99,7 +99,7 @@ class SberbankCardStatementParser:
     parser_version: str = "0.1"
 
     def matches_statement(self, extracted: ExtractedStatement) -> bool:
-        text = extracted_text(extracted)
+        text = extracted_statement_text(extracted)
         return all(marker in text for marker in SBERBANK_CARD_MARKERS)
 
     def parse_transaction_drafts(
@@ -109,7 +109,7 @@ class SberbankCardStatementParser:
         account_id: UUID | None,
         currency: str,
     ) -> list[RawTransactionDraft]:
-        text = extracted_text(extracted)
+        text = extracted_statement_text(extracted)
         statement_period = extract_statement_period(text)
         account_hint, statement_currency = extract_account_hint(text)
         context = SberbankParserContext(
@@ -133,7 +133,7 @@ class SberbankCardStatementParser:
         *,
         currency: str,
     ) -> StatementControlTotals | None:
-        text = extracted_text(extracted)
+        text = extracted_statement_text(extracted)
         account_match = ACCOUNT_INFLOWS_RE.search(text)
         card_match = CARD_OUTFLOWS_RE.search(text)
         balance_matches = CLOSING_BALANCE_RE.findall(text)
@@ -234,19 +234,19 @@ def build_sberbank_draft(
         return build_unrecognized_sberbank_draft(parsed_row, row_index=row_index, context=context)
 
     normalization_errors: list[str] = []
-    operation_date = parse_with_error(
+    operation_date = parse_or_record_error(
         parse_bank_date,
         parsed_row.operation_date_raw,
         normalization_errors,
     )
-    posting_date = parse_with_error(
+    posting_date = parse_or_record_error(
         parse_bank_date,
         parsed_row.posting_date_raw,
         normalization_errors,
     )
     amount = signed_sberbank_amount(parsed_row.amount_raw, normalization_errors)
     row_currency = normalize_currency(None, context.currency)
-    balance_after = parse_with_error(
+    balance_after = parse_or_record_error(
         parse_money_amount,
         parsed_row.balance_after_raw,
         normalization_errors,

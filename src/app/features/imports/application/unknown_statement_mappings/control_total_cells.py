@@ -15,7 +15,7 @@ from app.features.imports.application.unknown_statements.hints import (
     control_total_label_sets_for_text,
     normalize_hint_text,
 )
-from app.features.imports.parsing.support.normalization import parse_money_amount
+from app.features.imports.parsers.support.normalization import parse_money_amount
 
 MONEY_FRAGMENT = re.compile(r"[+\-−]?\s*\d[\d\s\u00a0]*(?:[.,]\d{1,2})?")
 

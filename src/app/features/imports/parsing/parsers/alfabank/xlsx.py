@@ -4,14 +4,14 @@ from decimal import Decimal
 from uuid import UUID
 
 from app.features.imports.parsers.extractors.dto import ExtractedStatement
-from app.features.imports.parsing.support.common import (
+from app.features.imports.parsers.support.drafts import (
     build_raw_transaction_draft,
-    cell,
-    extracted_text,
-    parse_with_error,
+    extracted_statement_text,
+    parse_or_record_error,
+    row_cell,
 )
-from app.features.imports.parsing.support.header_fields import header_matches_for_cell
-from app.features.imports.parsing.support.normalization import (
+from app.features.imports.parsers.support.headers import header_matches_for_cell
+from app.features.imports.parsers.support.normalization import (
     build_dedupe_hash,
     clean_cell,
     normalize_currency,
@@ -120,7 +120,7 @@ class AlfabankXlsxStatementParser:
 
 
 def contains_alfabank_marker(extracted: ExtractedStatement) -> bool:
-    text = extracted_text(extracted).casefold()
+    text = extracted_statement_text(extracted).casefold()
     return any(marker in text for marker in ALFABANK_MARKERS)
 
 
@@ -188,9 +188,9 @@ def looks_like_alfabank_transaction_row(
     header: AlfabankXlsxHeader,
 ) -> bool:
     return (
-        cell(row.cells, header.operation_date_column) is not None
-        and cell(row.cells, header.description_column) is not None
-        and cell(row.cells, header.amount_column) is not None
+        row_cell(row.cells, header.operation_date_column) is not None
+        and row_cell(row.cells, header.description_column) is not None
+        and row_cell(row.cells, header.amount_column) is not None
     )
 
 
@@ -200,13 +200,13 @@ def parse_alfabank_xlsx_row(
 ) -> AlfabankXlsxParsedRow:
     return AlfabankXlsxParsedRow(
         source_row_id=stable_source_row_id(row),
-        operation_date_raw=cell(row.cells, header.operation_date_column),
-        posting_date_raw=cell(row.cells, header.posting_date_column)
+        operation_date_raw=row_cell(row.cells, header.operation_date_column),
+        posting_date_raw=row_cell(row.cells, header.posting_date_column)
         if header.posting_date_column is not None
         else None,
-        description_raw=cell(row.cells, header.description_column),
-        amount_raw=cell(row.cells, header.amount_column),
-        currency_raw=cell(row.cells, header.currency_column)
+        description_raw=row_cell(row.cells, header.description_column),
+        amount_raw=row_cell(row.cells, header.amount_column),
+        currency_raw=row_cell(row.cells, header.currency_column)
         if header.currency_column is not None
         else None,
         raw_row=row,
@@ -220,17 +220,17 @@ def build_alfabank_xlsx_draft(
     context: AlfabankXlsxParserContext,
 ) -> RawTransactionDraft:
     normalization_errors: list[str] = []
-    operation_date = parse_with_error(
+    operation_date = parse_or_record_error(
         parse_bank_date,
         parsed_row.operation_date_raw,
         normalization_errors,
     )
-    posting_date = parse_with_error(
+    posting_date = parse_or_record_error(
         parse_bank_date,
         parsed_row.posting_date_raw,
         normalization_errors,
     )
-    amount = parse_with_error(
+    amount = parse_or_record_error(
         parse_money_amount,
         parsed_row.amount_raw,
         normalization_errors,
@@ -288,12 +288,12 @@ def extract_statement_currency(extracted: ExtractedStatement) -> str | None:
         for row in table[:15]:
             for column_index, value in enumerate(row):
                 if clean_cell(value) == "Валюта счета":
-                    return cell(row, column_index + 1)
+                    return row_cell(row, column_index + 1)
     return None
 
 
 def extract_account_hint(extracted: ExtractedStatement) -> str | None:
-    text = extracted_text(extracted).casefold()
+    text = extracted_statement_text(extracted).casefold()
     if "счет" in text or "счёт" in text:
         return "счет ****"
     return None

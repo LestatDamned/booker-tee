@@ -10,7 +10,7 @@ from app.features.imports.application.unknown_statements.table_analysis import (
 )
 from app.features.imports.application.unknown_statements.value_detectors import normalize_cell
 from app.features.imports.parsers.extractors.dto import ExtractedStatement
-from app.features.imports.parsing.support.normalization import (
+from app.features.imports.parsers.support.normalization import (
     DATE_PATTERNS,
     MoneyFragment,
     currency_from_money,

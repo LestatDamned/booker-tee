@@ -5,13 +5,13 @@ from app.features.imports.application.unknown_statements.value_detectors import 
     is_money_like_cell,
     normalize_cell,
 )
-from app.features.imports.parsing.support.header_fields import (
+from app.features.imports.parsers.support.headers import (
     AMOUNT_HEADER_KEYWORDS,
     CREDIT_HEADER_KEYWORDS,
     DATE_HEADER_KEYWORDS,
     DEBIT_HEADER_KEYWORDS,
     DESCRIPTION_HEADER_KEYWORDS,
-    contains_any,
+    contains_header_keyword,
     header_matches_for_cell,
 )
 
@@ -50,11 +50,11 @@ def looks_like_transaction_table(table: list[list[str | None]]) -> bool:
         return True
 
     header_text = " ".join(rows[0]).casefold()
-    header_has_date = contains_any(header_text, DATE_HEADER_KEYWORDS)
-    header_has_amount = contains_any(header_text, AMOUNT_HEADER_KEYWORDS) or contains_any(
-        header_text, DEBIT_HEADER_KEYWORDS + CREDIT_HEADER_KEYWORDS
-    )
-    header_has_description = contains_any(header_text, DESCRIPTION_HEADER_KEYWORDS)
+    header_has_date = contains_header_keyword(header_text, DATE_HEADER_KEYWORDS)
+    header_has_amount = contains_header_keyword(
+        header_text, AMOUNT_HEADER_KEYWORDS
+    ) or contains_header_keyword(header_text, DEBIT_HEADER_KEYWORDS + CREDIT_HEADER_KEYWORDS)
+    header_has_description = contains_header_keyword(header_text, DESCRIPTION_HEADER_KEYWORDS)
 
     if header_has_date and header_has_amount:
         return True

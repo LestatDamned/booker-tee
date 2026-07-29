@@ -1,6 +1,6 @@
 import re
 
-from app.features.imports.parsing.support.normalization import (
+from app.features.imports.parsers.support.normalization import (
     DATE_PATTERNS,
 )
 

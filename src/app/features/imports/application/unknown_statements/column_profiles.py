@@ -13,7 +13,7 @@ from app.features.imports.application.unknown_statements.value_detectors import 
     is_description_like_cell,
     is_money_like_cell,
 )
-from app.features.imports.parsing.support.header_fields import header_matches_for_cell
+from app.features.imports.parsers.support.headers import header_matches_for_cell
 
 SPLIT_AMOUNT_FIELDS = {"debit_amount", "credit_amount"}
 

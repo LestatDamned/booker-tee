@@ -4,20 +4,20 @@ from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
 from app.features.imports.parsers.extractors.dto import ExtractedStatement
-from app.features.imports.parsing.parsers.vtb.shared import extract_statement_period
-from app.features.imports.parsing.support.common import (
+from app.features.imports.parsers.support.drafts import (
     build_raw_transaction_draft,
-    cell,
-    extracted_text,
-    parse_with_error,
+    extracted_statement_text,
+    parse_or_record_error,
+    row_cell,
 )
-from app.features.imports.parsing.support.normalization import (
+from app.features.imports.parsers.support.normalization import (
     build_dedupe_hash,
     clean_cell,
     normalize_currency,
     normalize_description,
     parse_bank_date,
 )
+from app.features.imports.parsing.parsers.vtb.shared import extract_statement_period
 from app.features.imports.statements.dto import RawTransactionDraft, StatementControlTotals
 
 VTB_CARD_MARKERS = (
@@ -80,7 +80,7 @@ class VtbCardStatementParser:
     parser_version: str = "0.1"
 
     def matches_statement(self, extracted: ExtractedStatement) -> bool:
-        text = extracted_text(extracted)
+        text = extracted_statement_text(extracted)
         return all(marker in text for marker in VTB_CARD_MARKERS)
 
     def parse_transaction_drafts(
@@ -90,7 +90,7 @@ class VtbCardStatementParser:
         account_id: UUID | None,
         currency: str,
     ) -> list[RawTransactionDraft]:
-        text = extracted_text(extracted)
+        text = extracted_statement_text(extracted)
         account_hint = extract_card_hint(text)
         statement_currency = extract_card_statement_currency(text) or currency
         context = VtbCardParserContext(
@@ -114,7 +114,7 @@ class VtbCardStatementParser:
         *,
         currency: str,
     ) -> StatementControlTotals | None:
-        text = extracted_text(extracted)
+        text = extracted_statement_text(extracted)
         opening_match = CARD_OPENING_TOTALS_RE.search(text)
         closing_match = CARD_CLOSING_TOTALS_RE.search(text)
         inflow_match = CARD_INFLOW_TOTALS_RE.search(text)
@@ -164,19 +164,21 @@ def extract_vtb_card_rows(extracted: ExtractedStatement) -> list[VtbCardTableRow
 
 
 def is_vtb_card_transaction_row(row: tuple[str | None, ...]) -> bool:
-    return len(row) >= 6 and parse_vtb_card_operation_datetime(cell(row, 0))[0] is not None
+    return len(row) >= 6 and parse_vtb_card_operation_datetime(row_cell(row, 0))[0] is not None
 
 
 def parse_vtb_card_row(row: VtbCardTableRow) -> VtbCardParsedRow:
-    operation_date_raw, operation_time_raw = parse_vtb_card_operation_datetime(cell(row.cells, 0))
+    operation_date_raw, operation_time_raw = parse_vtb_card_operation_datetime(
+        row_cell(row.cells, 0)
+    )
     return VtbCardParsedRow(
         operation_date_raw=operation_date_raw,
         operation_time_raw=operation_time_raw,
-        posting_date_raw=cell(row.cells, 1),
-        operation_amount_raw=cell(row.cells, 2),
-        card_amount_raw=cell(row.cells, 3),
-        fee_raw=cell(row.cells, 4),
-        description_raw=cell(row.cells, 5),
+        posting_date_raw=row_cell(row.cells, 1),
+        operation_amount_raw=row_cell(row.cells, 2),
+        card_amount_raw=row_cell(row.cells, 3),
+        fee_raw=row_cell(row.cells, 4),
+        description_raw=row_cell(row.cells, 5),
         raw_row=row,
     )
 
@@ -188,12 +190,12 @@ def build_vtb_card_draft(
     context: VtbCardParserContext,
 ) -> RawTransactionDraft:
     normalization_errors: list[str] = []
-    operation_date = parse_with_error(
+    operation_date = parse_or_record_error(
         parse_bank_date,
         parsed_row.operation_date_raw,
         normalization_errors,
     )
-    posting_date = parse_with_error(
+    posting_date = parse_or_record_error(
         parse_bank_date,
         parsed_row.posting_date_raw,
         normalization_errors,
@@ -203,7 +205,7 @@ def build_vtb_card_draft(
         context.currency,
         normalization_errors,
     )
-    card_amount = parse_with_error(
+    card_amount = parse_or_record_error(
         parse_vtb_card_money,
         parsed_row.card_amount_raw,
         normalization_errors,
@@ -285,7 +287,7 @@ def parse_vtb_card_amount_and_currency(
     parts = cleaned.split()
     currency = normalize_currency(parts[-1] if len(parts) > 1 else None, default_currency)
     amount_raw = " ".join(parts[:-1]) if len(parts) > 1 else cleaned
-    amount = parse_with_error(parse_vtb_card_money, amount_raw, normalization_errors)
+    amount = parse_or_record_error(parse_vtb_card_money, amount_raw, normalization_errors)
     return amount, currency
 
 

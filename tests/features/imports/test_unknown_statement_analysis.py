@@ -36,7 +36,7 @@ from app.features.imports.parsers.extractors.dto import (
     ExtractedStatement,
     ExtractedStatementPageTables,
 )
-from app.features.imports.parsing.support.normalization import parse_bank_date
+from app.features.imports.parsers.support.normalization import parse_bank_date
 
 
 def sanitized_unknown_statement_fixture(name: str) -> ExtractedStatement:

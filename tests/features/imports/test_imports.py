@@ -34,7 +34,7 @@ from app.features.imports.parsers.extractors.resolver import StatementExtractorR
 from app.features.imports.parsers.extractors.xlsx import (
     OpenPyxlStatementExtractor,
 )
-from app.features.imports.parsing.support.normalization import (
+from app.features.imports.parsers.support.normalization import (
     parse_bank_date,
 )
 from app.features.imports.statements.deduplication import possible_duplicate_fingerprint

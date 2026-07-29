@@ -8,17 +8,17 @@ from app.features.imports.statements.dto import RawTransactionDraft
 from app.features.imports.statements.types import RawTransactionStatus
 
 
-def extracted_text(extracted: ExtractedStatement) -> str:
+def extracted_statement_text(extracted: ExtractedStatement) -> str:
     return "\n".join(page_text or "" for page_text in extracted.text_by_page)
 
 
-def cell(row: Sequence[str | None], index: int) -> str | None:
+def row_cell(row: Sequence[str | None], index: int) -> str | None:
     if index >= len(row):
         return None
     return row[index]
 
 
-def parse_with_error[T](
+def parse_or_record_error[T](
     parser: Callable[[str | None], T | None],
     raw: str | None,
     normalization_errors: list[str],

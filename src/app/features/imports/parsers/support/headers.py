@@ -81,27 +81,27 @@ BALANCE_AFTER_HEADER_KEYWORDS = (
 def header_matches_for_cell(value: str) -> list[str]:
     normalized = value.casefold()
     matches: list[str] = []
-    is_posting_date = contains_any(normalized, POSTING_DATE_HEADER_KEYWORDS)
-    is_operation_date = contains_any(normalized, OPERATION_DATE_HEADER_KEYWORDS)
-    is_generic_date = contains_any(normalized, GENERIC_DATE_HEADER_KEYWORDS)
+    is_posting_date = contains_header_keyword(normalized, POSTING_DATE_HEADER_KEYWORDS)
+    is_operation_date = contains_header_keyword(normalized, OPERATION_DATE_HEADER_KEYWORDS)
+    is_generic_date = contains_header_keyword(normalized, GENERIC_DATE_HEADER_KEYWORDS)
     if is_operation_date or (is_generic_date and not is_posting_date):
         matches.append("operation_date")
     if is_posting_date:
         matches.append("posting_date")
-    if contains_any(normalized, DESCRIPTION_HEADER_KEYWORDS):
+    if contains_header_keyword(normalized, DESCRIPTION_HEADER_KEYWORDS):
         matches.append("description")
-    if contains_any(normalized, DEBIT_HEADER_KEYWORDS):
+    if contains_header_keyword(normalized, DEBIT_HEADER_KEYWORDS):
         matches.append("debit_amount")
-    elif contains_any(normalized, CREDIT_HEADER_KEYWORDS):
+    elif contains_header_keyword(normalized, CREDIT_HEADER_KEYWORDS):
         matches.append("credit_amount")
-    elif contains_any(normalized, AMOUNT_HEADER_KEYWORDS):
+    elif contains_header_keyword(normalized, AMOUNT_HEADER_KEYWORDS):
         matches.append("amount")
-    if contains_any(normalized, CURRENCY_HEADER_KEYWORDS):
+    if contains_header_keyword(normalized, CURRENCY_HEADER_KEYWORDS):
         matches.append("currency")
-    if contains_any(normalized, BALANCE_AFTER_HEADER_KEYWORDS):
+    if contains_header_keyword(normalized, BALANCE_AFTER_HEADER_KEYWORDS):
         matches.append("balance_after")
     return matches
 
 
-def contains_any(value: str, keywords: tuple[str, ...]) -> bool:
+def contains_header_keyword(value: str, keywords: tuple[str, ...]) -> bool:
     return any(keyword in value for keyword in keywords)

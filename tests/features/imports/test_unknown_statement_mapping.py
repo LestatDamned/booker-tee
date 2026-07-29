@@ -30,7 +30,7 @@ from app.features.imports.application.unknown_statement_mappings.template_comman
     mapping_template_matches_raw_tables,
 )
 from app.features.imports.models import ImportMappingTemplate
-from app.features.imports.parsing.support.normalization import parse_bank_date
+from app.features.imports.parsers.support.normalization import parse_bank_date
 from app.features.imports.statements.types import RawTransactionStatus
 
 

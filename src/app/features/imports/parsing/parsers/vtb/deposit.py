@@ -4,13 +4,12 @@ from decimal import Decimal
 from uuid import UUID
 
 from app.features.imports.parsers.extractors.dto import ExtractedStatement
-from app.features.imports.parsing.parsers.vtb.shared import extract_statement_period
-from app.features.imports.parsing.support.common import (
+from app.features.imports.parsers.support.drafts import (
     build_raw_transaction_draft,
-    extracted_text,
-    parse_with_error,
+    extracted_statement_text,
+    parse_or_record_error,
 )
-from app.features.imports.parsing.support.normalization import (
+from app.features.imports.parsers.support.normalization import (
     build_dedupe_hash,
     clean_cell,
     normalize_currency,
@@ -18,6 +17,7 @@ from app.features.imports.parsing.support.normalization import (
     parse_bank_date,
     parse_money_amount,
 )
+from app.features.imports.parsing.parsers.vtb.shared import extract_statement_period
 from app.features.imports.statements.dto import RawTransactionDraft, StatementControlTotals
 
 VTB_DEPOSIT_MARKERS = (
@@ -84,7 +84,7 @@ class VtbDepositStatementParser:
     parser_version: str = "0.1"
 
     def matches_statement(self, extracted: ExtractedStatement) -> bool:
-        text = extracted_text(extracted)
+        text = extracted_statement_text(extracted)
         return all(marker in text for marker in VTB_DEPOSIT_MARKERS)
 
     def parse_transaction_drafts(
@@ -94,7 +94,7 @@ class VtbDepositStatementParser:
         account_id: UUID | None,
         currency: str,
     ) -> list[RawTransactionDraft]:
-        text = extracted_text(extracted)
+        text = extracted_statement_text(extracted)
         statement_period = extract_statement_period(text)
         account_hint, statement_currency = extract_account_hint(text)
         context = VtbDepositParserContext(
@@ -118,7 +118,7 @@ class VtbDepositStatementParser:
         *,
         currency: str,
     ) -> StatementControlTotals | None:
-        text = extracted_text(extracted)
+        text = extracted_statement_text(extracted)
         opening_match = OPENING_TOTALS_RE.search(text)
         closing_match = CLOSING_TOTALS_RE.search(text)
         if opening_match is None and closing_match is None:
@@ -217,12 +217,12 @@ def build_vtb_draft(
         return build_unrecognized_vtb_draft(parsed_row, row_index=row_index, context=context)
 
     normalization_errors: list[str] = []
-    operation_date = parse_with_error(
+    operation_date = parse_or_record_error(
         parse_bank_date,
         parsed_row.operation_date_raw,
         normalization_errors,
     )
-    posting_date = parse_with_error(
+    posting_date = parse_or_record_error(
         parse_bank_date,
         parsed_row.posting_date_raw,
         normalization_errors,

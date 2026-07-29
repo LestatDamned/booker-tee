@@ -4,12 +4,12 @@ from decimal import Decimal
 from uuid import UUID
 
 from app.features.imports.parsers.extractors.dto import ExtractedStatement
-from app.features.imports.parsing.support.common import (
+from app.features.imports.parsers.support.drafts import (
     build_raw_transaction_draft,
-    cell,
-    parse_with_error,
+    parse_or_record_error,
+    row_cell,
 )
-from app.features.imports.parsing.support.normalization import (
+from app.features.imports.parsers.support.normalization import (
     build_dedupe_hash,
     clean_cell,
     normalize_currency,
@@ -88,12 +88,12 @@ class ExpobankCardStatementParser:
             for table in page_tables.tables:
                 for row in table:
                     row_cells = [clean_cell(cell) for cell in row]
-                    if cell(row_cells, 0) != "Total":
+                    if row_cell(row_cells, 0) != "Total":
                         continue
                     return StatementControlTotals(
                         currency=normalize_currency(None, currency),
-                        total_outflow=parse_money_amount(cell(row_cells, 2)),
-                        total_inflow=parse_money_amount(cell(row_cells, 3)),
+                        total_outflow=parse_money_amount(row_cell(row_cells, 2)),
+                        total_inflow=parse_money_amount(row_cell(row_cells, 3)),
                     )
         return None
 
@@ -125,25 +125,25 @@ def extract_expobank_rows(extracted: ExtractedStatement) -> list[ExpobankTableRo
 
 
 def looks_like_expobank_transaction_row(row: Sequence[str | None]) -> bool:
-    document_number = cell(row, 0)
+    document_number = row_cell(row, 0)
     if document_number is None or document_number.lower() == "total":
         return False
     if document_number.lower() == "document":
         return False
-    has_amount = cell(row, 2) is not None or cell(row, 3) is not None
+    has_amount = row_cell(row, 2) is not None or row_cell(row, 3) is not None
     return document_number.startswith("№") and has_amount
 
 
 def parse_expobank_row(row: ExpobankTableRow) -> ExpobankParsedRow:
-    purpose_raw = cell(row.cells, 6)
-    counterparty_raw = cell(row.cells, 4)
+    purpose_raw = row_cell(row.cells, 6)
+    counterparty_raw = row_cell(row.cells, 4)
     return ExpobankParsedRow(
-        source_row_id=cell(row.cells, 0),
-        operation_date_raw=cell(row.cells, 1),
-        debit_raw=cell(row.cells, 2),
-        credit_raw=cell(row.cells, 3),
+        source_row_id=row_cell(row.cells, 0),
+        operation_date_raw=row_cell(row.cells, 1),
+        debit_raw=row_cell(row.cells, 2),
+        credit_raw=row_cell(row.cells, 3),
         counterparty_raw=counterparty_raw,
-        account_hint_raw=cell(row.cells, 5),
+        account_hint_raw=row_cell(row.cells, 5),
         purpose_raw=purpose_raw,
         description_raw=normalize_description(purpose_raw, counterparty_raw),
         raw_row=row,
@@ -159,7 +159,7 @@ def build_expobank_draft(
     currency_normalized = normalize_currency(None, context.currency)
 
     normalization_errors: list[str] = []
-    operation_date = parse_with_error(
+    operation_date = parse_or_record_error(
         parse_bank_date,
         parsed_row.operation_date_raw,
         normalization_errors,
