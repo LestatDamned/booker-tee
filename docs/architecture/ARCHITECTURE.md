@@ -174,6 +174,33 @@ select(Entity).where(
 - Mutation возвращает smallest truthful committed snapshot.
 - Main DTO не включает storage paths, secrets и неограниченный raw payload.
 
+## Data models
+
+Pydantic v2 является стандартным способом описания типизированных данных
+приложения:
+
+- commands, DTO, read models, query projections и use-case results;
+- parser input/output и integration messages;
+- persisted JSON/JSONB contracts;
+- API request/response schemas.
+
+Внутренние модели наследуют общий immutable `ApplicationModel`. API-схемы
+наследуют `ApiModel` и отдельно определяют HTTP/OpenAPI contract. Одинаковая
+структура переводится на границе напрямую:
+
+```python
+return DocumentApiResponse.model_validate(document)
+```
+
+Отдельный mapper создаётся только для реального семантического преобразования,
+а не для перекладывания одноимённых полей.
+
+`dataclass` остаётся допустимым для runtime-композиции: контейнеров
+зависимостей, настроенных handlers/adapters и другого технического состояния,
+которое не валидируется, не сериализуется и не передаётся как application
+data. Actor с поведением остаётся обычным named class; SQL persistence —
+SQLAlchemy model; фиксированный набор значений — `Enum`/`StrEnum`.
+
 ## Imports
 
 ```text

@@ -162,21 +162,21 @@ class DocumentRepository:
         )
         query = (
             select(
-                UploadedDocument.id,
-                UploadedDocument.original_filename,
-                UploadedDocument.status,
-                UploadedDocument.created_at,
-                UploadedDocument.file_size_bytes,
-                UploadedDocument.bank_name,
-                UploadedDocument.statement_period_start,
-                UploadedDocument.statement_period_end,
-                Account.id,
-                Account.name,
-                Account.currency,
-                Account.bank_name,
-                func.coalesce(raw_counts.c.total_row_count, 0),
-                func.coalesce(raw_counts.c.reviewable_row_count, 0),
-                latest_attempt_status,
+                UploadedDocument.id.label("id"),
+                UploadedDocument.original_filename.label("filename"),
+                UploadedDocument.status.label("status"),
+                UploadedDocument.created_at.label("created_at"),
+                UploadedDocument.file_size_bytes.label("file_size_bytes"),
+                UploadedDocument.bank_name.label("detected_bank_name"),
+                UploadedDocument.statement_period_start.label("statement_period_start"),
+                UploadedDocument.statement_period_end.label("statement_period_end"),
+                Account.id.label("account_id"),
+                Account.name.label("account_name"),
+                Account.currency.label("account_currency"),
+                Account.bank_name.label("account_bank_name"),
+                func.coalesce(raw_counts.c.total_row_count, 0).label("total_row_count"),
+                func.coalesce(raw_counts.c.reviewable_row_count, 0).label("reviewable_row_count"),
+                latest_attempt_status.label("latest_parse_attempt_status"),
             )
             .outerjoin(
                 Account,
@@ -205,42 +205,7 @@ class DocumentRepository:
         result = await self.session.execute(
             query.offset(pagination.offset).limit(pagination.per_page)
         )
-        return [
-            ImportDocumentListRow(
-                id=document_id,
-                filename=filename,
-                status=document_status,
-                created_at=created_at,
-                file_size_bytes=file_size_bytes,
-                detected_bank_name=detected_bank_name,
-                statement_period_start=statement_period_start,
-                statement_period_end=statement_period_end,
-                account_id=account_id,
-                account_name=account_name,
-                account_currency=account_currency,
-                account_bank_name=account_bank_name,
-                total_row_count=int(total_row_count),
-                reviewable_row_count=int(reviewable_row_count),
-                latest_parse_attempt_status=attempt_status,
-            )
-            for (
-                document_id,
-                filename,
-                document_status,
-                created_at,
-                file_size_bytes,
-                detected_bank_name,
-                statement_period_start,
-                statement_period_end,
-                account_id,
-                account_name,
-                account_currency,
-                account_bank_name,
-                total_row_count,
-                reviewable_row_count,
-                attempt_status,
-            ) in result.all()
-        ]
+        return [ImportDocumentListRow.model_validate(row) for row in result.mappings().all()]
 
     async def count_document_rows_for_workspace(
         self,
@@ -263,23 +228,15 @@ class DocumentRepository:
     ) -> list[ImportDocumentAccountDto]:
         result = await self.session.execute(
             select(
-                Account.id,
-                Account.name,
-                Account.currency,
-                Account.bank_name,
+                Account.id.label("id"),
+                Account.name.label("name"),
+                Account.currency.label("currency"),
+                Account.bank_name.label("bank_name"),
             )
             .where(Account.workspace_id == workspace_id)
             .order_by(Account.name.asc(), Account.id.asc())
         )
-        return [
-            ImportDocumentAccountDto(
-                id=account_id,
-                name=name,
-                currency=currency,
-                bank_name=bank_name,
-            )
-            for account_id, name, currency, bank_name in result.all()
-        ]
+        return [ImportDocumentAccountDto.model_validate(row) for row in result.mappings().all()]
 
     async def summarize_documents_for_workspace(
         self,
@@ -287,17 +244,13 @@ class DocumentRepository:
     ) -> ImportDocumentListSummaryDto:
         result = await self.session.execute(
             select(
-                func.count(UploadedDocument.id),
-                func.count(UploadedDocument.id).filter(
-                    UploadedDocument.status.in_(ATTENTION_DOCUMENT_STATUSES)
-                ),
+                func.count(UploadedDocument.id).label("total_document_count"),
+                func.count(UploadedDocument.id)
+                .filter(UploadedDocument.status.in_(ATTENTION_DOCUMENT_STATUSES))
+                .label("attention_document_count"),
             ).where(UploadedDocument.workspace_id == workspace_id)
         )
-        total_document_count, attention_document_count = result.one()
-        return ImportDocumentListSummaryDto(
-            total_document_count=int(total_document_count),
-            attention_document_count=int(attention_document_count),
-        )
+        return ImportDocumentListSummaryDto.model_validate(result.mappings().one())
 
     @staticmethod
     def _apply_document_list_filters(

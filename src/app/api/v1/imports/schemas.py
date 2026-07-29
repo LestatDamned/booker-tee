@@ -1,6 +1,9 @@
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Literal
 from uuid import UUID
+
+from pydantic import field_serializer
 
 from app.api.schemas import ApiModel
 from app.features.imports.documents.dto import (
@@ -138,11 +141,15 @@ class ImportDocumentDetailRawRowApiResponse(ApiModel):
     row_index: int
     status: RawTransactionStatus
     display_date: date | str | None
-    amount: str | None
+    amount: Decimal | None
     amount_raw: str | None
     currency: str | None
     description: str
     normalization_error: str
+
+    @field_serializer("amount")
+    def serialize_amount(self, amount: Decimal | None) -> str | None:
+        return str(amount) if amount is not None else None
 
 
 class ImportDocumentDetailAttemptApiResponse(ApiModel):

@@ -1,5 +1,5 @@
 from datetime import UTC, date, datetime
-from typing import Any, cast
+from typing import Any, Self, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -252,6 +252,9 @@ async def test_document_projection_query_is_workspace_scoped_and_deterministic()
     workspace_id = uuid4()
 
     class ResultStub:
+        def mappings(self) -> Self:
+            return self
+
         def all(self) -> list[object]:
             return []
 
@@ -287,6 +290,9 @@ async def test_document_projection_applies_registry_filters_sort_and_page() -> N
     account_id = uuid4()
 
     class ResultStub:
+        def mappings(self) -> Self:
+            return self
+
         def all(self) -> list[object]:
             return []
 

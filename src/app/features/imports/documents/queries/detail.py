@@ -102,26 +102,50 @@ def _workflow(
     state = ImportDocumentWorkflowStepState
     if snapshot.status is UploadedDocumentStatus.IMPORTED:
         return ImportDocumentDetailWorkflowDto(
-            state.DONE, state.DONE, state.SKIPPED, state.DONE, state.DONE
+            upload=state.DONE,
+            extract=state.DONE,
+            mapping=state.SKIPPED,
+            review=state.DONE,
+            ledger=state.DONE,
         )
     if snapshot.status is UploadedDocumentStatus.IGNORED:
         return ImportDocumentDetailWorkflowDto(
-            state.DONE, state.DONE, state.SKIPPED, state.SKIPPED, state.SKIPPED
+            upload=state.DONE,
+            extract=state.DONE,
+            mapping=state.SKIPPED,
+            review=state.SKIPPED,
+            ledger=state.SKIPPED,
         )
     if validation is not None and validation.needs_mapping:
         return ImportDocumentDetailWorkflowDto(
-            state.DONE, state.DONE, state.CURRENT, state.PENDING, state.PENDING
+            upload=state.DONE,
+            extract=state.DONE,
+            mapping=state.CURRENT,
+            review=state.PENDING,
+            ledger=state.PENDING,
         )
     if snapshot.raw_transactions:
         return ImportDocumentDetailWorkflowDto(
-            state.DONE, state.DONE, state.SKIPPED, state.CURRENT, state.PENDING
+            upload=state.DONE,
+            extract=state.DONE,
+            mapping=state.SKIPPED,
+            review=state.CURRENT,
+            ledger=state.PENDING,
         )
     if snapshot.status is UploadedDocumentStatus.FAILED_TO_PARSE:
         return ImportDocumentDetailWorkflowDto(
-            state.DONE, state.BLOCKED, state.PENDING, state.PENDING, state.PENDING
+            upload=state.DONE,
+            extract=state.BLOCKED,
+            mapping=state.PENDING,
+            review=state.PENDING,
+            ledger=state.PENDING,
         )
     return ImportDocumentDetailWorkflowDto(
-        state.DONE, state.CURRENT, state.PENDING, state.PENDING, state.PENDING
+        upload=state.DONE,
+        extract=state.CURRENT,
+        mapping=state.PENDING,
+        review=state.PENDING,
+        ledger=state.PENDING,
     )
 
 
@@ -161,8 +185,14 @@ def _capabilities(
     )
     return ImportDocumentDetailCapabilitiesDto(
         can_manage=can_manage,
-        ignore=ImportDocumentActionCapabilityDto(not ignore_reasons, ignore_reasons),
-        delete=ImportDocumentActionCapabilityDto(not linked_reasons, linked_reasons),
+        ignore=ImportDocumentActionCapabilityDto(
+            allowed=not ignore_reasons,
+            blocking_reason_codes=ignore_reasons,
+        ),
+        delete=ImportDocumentActionCapabilityDto(
+            allowed=not linked_reasons,
+            blocking_reason_codes=linked_reasons,
+        ),
     )
 
 
@@ -210,25 +240,8 @@ def _validation_reason_code(
 
 
 def _raw_row(row: ImportRawTransactionRow) -> ImportDocumentDetailRawRowDto:
-    return ImportDocumentDetailRawRowDto(
-        row_index=row.row_index,
-        status=row.status,
-        display_date=row.display_date,
-        amount=row.amount,
-        amount_raw=row.amount_raw,
-        currency=row.currency,
-        description=row.description,
-        normalization_error=row.normalization_error,
-    )
+    return ImportDocumentDetailRawRowDto.model_validate(row)
 
 
 def _attempt(attempt: ImportParseAttemptSnapshot) -> ImportDocumentDetailAttemptDto:
-    return ImportDocumentDetailAttemptDto(
-        id=attempt.id,
-        status=attempt.status,
-        parser_name=attempt.parser_name,
-        parser_version=attempt.parser_version,
-        started_at=attempt.started_at,
-        finished_at=attempt.finished_at,
-        message=attempt.message,
-    )
+    return ImportDocumentDetailAttemptDto.model_validate(attempt)

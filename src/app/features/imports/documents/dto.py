@@ -1,6 +1,5 @@
 """Data transfer objects for imported document reads."""
 
-from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
@@ -12,21 +11,20 @@ from app.features.imports.documents.validation_report import (
     StoredValidationReport,
 )
 from app.features.imports.statements.types import RawTransactionStatus
+from app.shared.schemas import ApplicationModel
 
 DEFAULT_IMPORT_DOCUMENTS_PER_PAGE = 25
 IMPORT_DOCUMENTS_PER_PAGE_OPTIONS = (25, 50, 100)
 
 
-@dataclass(frozen=True)
-class ImportDocumentAccountDto:
+class ImportDocumentAccountDto(ApplicationModel):
     id: UUID
     name: str
     currency: str
     bank_name: str | None = None
 
 
-@dataclass(frozen=True)
-class ImportRawTransactionRow:
+class ImportRawTransactionRow(ApplicationModel):
     row_index: int
     status: RawTransactionStatus
     display_date: date | str | None
@@ -38,8 +36,7 @@ class ImportRawTransactionRow:
     linked_operation_id: UUID | None = None
 
 
-@dataclass(frozen=True)
-class ImportParseAttemptSnapshot:
+class ImportParseAttemptSnapshot(ApplicationModel):
     id: UUID
     status: ParseAttemptStatus
     parser_name: str
@@ -59,8 +56,7 @@ class ImportParseAttemptSnapshot:
         return self.validation.message
 
 
-@dataclass(frozen=True)
-class ImportDocumentSnapshot:
+class ImportDocumentSnapshot(ApplicationModel):
     id: UUID
     status: UploadedDocumentStatus
     original_filename: str
@@ -98,8 +94,7 @@ class ImportDocumentListSort(StrEnum):
     CREATED_AT_ASC = "created_at_asc"
 
 
-@dataclass(frozen=True)
-class ImportDocumentListFilters:
+class ImportDocumentListFilters(ApplicationModel):
     state: ImportDocumentListState | None = None
     account_id: UUID | None = None
     period_from: date | None = None
@@ -111,8 +106,7 @@ class ImportDocumentListFilters:
         return any((self.state, self.account_id, self.period_from, self.period_to))
 
 
-@dataclass(frozen=True)
-class ImportDocumentListPagination:
+class ImportDocumentListPagination(ApplicationModel):
     page: int = 1
     per_page: int = DEFAULT_IMPORT_DOCUMENTS_PER_PAGE
 
@@ -121,8 +115,7 @@ class ImportDocumentListPagination:
         return (self.page - 1) * self.per_page
 
 
-@dataclass(frozen=True)
-class ImportDocumentListPageDto:
+class ImportDocumentListPageDto(ApplicationModel):
     page: int
     per_page: int
     total: int
@@ -140,8 +133,7 @@ class ImportDocumentListPageDto:
         return self.page < self.total_pages
 
 
-@dataclass(frozen=True)
-class ImportDocumentListRow:
+class ImportDocumentListRow(ApplicationModel):
     id: UUID
     filename: str
     status: UploadedDocumentStatus
@@ -159,21 +151,18 @@ class ImportDocumentListRow:
     latest_parse_attempt_status: ParseAttemptStatus | None
 
 
-@dataclass(frozen=True)
-class ImportDocumentStatementPeriodDto:
+class ImportDocumentStatementPeriodDto(ApplicationModel):
     start: date
     end: date
 
 
-@dataclass(frozen=True)
-class ImportDocumentListItemCapabilitiesDto:
+class ImportDocumentListItemCapabilitiesDto(ApplicationModel):
     can_open_detail: bool
     can_map: bool
     can_review: bool
 
 
-@dataclass(frozen=True)
-class ImportDocumentListItemDto:
+class ImportDocumentListItemDto(ApplicationModel):
     id: UUID
     filename: str
     status: UploadedDocumentStatus
@@ -188,26 +177,22 @@ class ImportDocumentListItemDto:
     next_step_kind: ImportDocumentNextStepKind
 
 
-@dataclass(frozen=True)
-class ImportDocumentListCapabilitiesDto:
+class ImportDocumentListCapabilitiesDto(ApplicationModel):
     can_upload: bool
     readonly_reason_code: ImportDocumentListReadonlyReasonCode | None
 
 
-@dataclass(frozen=True)
-class ImportDocumentListFilterOptionsDto:
+class ImportDocumentListFilterOptionsDto(ApplicationModel):
     accounts: tuple[ImportDocumentAccountDto, ...]
     per_page: tuple[int, ...]
 
 
-@dataclass(frozen=True)
-class ImportDocumentListSummaryDto:
+class ImportDocumentListSummaryDto(ApplicationModel):
     total_document_count: int
     attention_document_count: int
 
 
-@dataclass(frozen=True)
-class ImportDocumentListReadModel:
+class ImportDocumentListReadModel(ApplicationModel):
     workspace_id: UUID
     workspace_name: str
     items: tuple[ImportDocumentListItemDto, ...]
@@ -249,8 +234,7 @@ class ImportDocumentDetailValidationReasonCode(StrEnum):
     VALIDATION_FAILED = "validation_failed"
 
 
-@dataclass(frozen=True)
-class ImportDocumentDetailWorkflowDto:
+class ImportDocumentDetailWorkflowDto(ApplicationModel):
     upload: ImportDocumentWorkflowStepState
     extract: ImportDocumentWorkflowStepState
     mapping: ImportDocumentWorkflowStepState
@@ -258,8 +242,7 @@ class ImportDocumentDetailWorkflowDto:
     ledger: ImportDocumentWorkflowStepState
 
 
-@dataclass(frozen=True)
-class ImportDocumentDetailValidationDto:
+class ImportDocumentDetailValidationDto(ApplicationModel):
     status: str
     reason_code: ImportDocumentDetailValidationReasonCode
     message: str
@@ -274,8 +257,7 @@ class ImportDocumentDetailValidationDto:
     needs_mapping: bool
 
 
-@dataclass(frozen=True)
-class ImportDocumentDetailRawRowDto:
+class ImportDocumentDetailRawRowDto(ApplicationModel):
     row_index: int
     status: RawTransactionStatus
     display_date: date | str | None
@@ -286,8 +268,7 @@ class ImportDocumentDetailRawRowDto:
     normalization_error: str
 
 
-@dataclass(frozen=True)
-class ImportDocumentDetailAttemptDto:
+class ImportDocumentDetailAttemptDto(ApplicationModel):
     id: UUID
     status: ParseAttemptStatus
     parser_name: str
@@ -297,28 +278,24 @@ class ImportDocumentDetailAttemptDto:
     message: str
 
 
-@dataclass(frozen=True)
-class ImportDocumentDetailCollectionDto[T]:
+class ImportDocumentDetailCollectionDto[T](ApplicationModel):
     items: tuple[T, ...]
     total: int
     limit: int
 
 
-@dataclass(frozen=True)
-class ImportDocumentActionCapabilityDto:
+class ImportDocumentActionCapabilityDto(ApplicationModel):
     allowed: bool
     blocking_reason_codes: tuple[ImportDocumentActionBlockingReason, ...]
 
 
-@dataclass(frozen=True)
-class ImportDocumentDetailCapabilitiesDto:
+class ImportDocumentDetailCapabilitiesDto(ApplicationModel):
     can_manage: bool
     ignore: ImportDocumentActionCapabilityDto
     delete: ImportDocumentActionCapabilityDto
 
 
-@dataclass(frozen=True)
-class ImportDocumentDetailReadModel:
+class ImportDocumentDetailReadModel(ApplicationModel):
     id: UUID
     filename: str
     status: UploadedDocumentStatus

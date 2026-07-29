@@ -55,7 +55,14 @@ Safety baseline
   -> 6C typed mapping consumers and decoder cleanup completed 2026-07-29
 
 Шаг 7  mapping
-  -> next
+  -> completed 2026-07-29
+  -> 7A core ownership completed 2026-07-29
+  -> 7B templates and persistence completed 2026-07-29
+  -> 7C commands and queries completed 2026-07-29
+  -> 7D analysis consolidation completed 2026-07-29
+
+Шаг 10  post-architecture cleanup
+  -> 10A documents Pydantic models and mechanical mapping cleanup completed 2026-07-29
 ```
 
 Перед массовыми moves не выполняется общая полировка старой структуры.

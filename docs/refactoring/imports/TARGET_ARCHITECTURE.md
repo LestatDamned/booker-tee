@@ -39,7 +39,8 @@ mapping     описание и импорт неизвестного табли
 
 Внутри возможности слой выделяется только когда он помогает чтению:
 
-- `dto.py` — внутренние application values, не HTTP-схемы и не ORM;
+- `dto.py` — внутренние immutable Pydantic application models, не HTTP-схемы
+  и не ORM;
 - `commands/` — сценарии, меняющие состояние;
 - `queries/` — сценарии чтения и их проекции;
 - `repository.py` — SQLAlchemy queries и persistence mapping;
@@ -276,9 +277,10 @@ API продолжает переводить application errors в HTTP respons
 - промежуточный typed boundary.
 
 DTO не содержит SQLAlchemy entities, `Request`, `UploadFile`, HTTP status codes
-или repository calls. Pydantic используется там, где данные пересекают
-недоверенную или persisted JSON boundary; внутренний простой value может быть
-dataclass.
+или repository calls. Все application data по умолчанию описываются Pydantic-
+моделями на общей immutable базе. `dataclass` остаётся только для
+runtime-композиции зависимостей или технического состояния, которое не
+валидируется, не сериализуется и не пересекает application boundary.
 
 ### `commands/` и `queries/`
 
@@ -904,9 +906,23 @@ repository abstraction. Существующие API-преобразовани�
 
 - физически разложить tests по новым capabilities;
 - удалить implementation-detail и wrapper tests только после проверки риска;
-- сократить изоморфные API mappings;
+- 10A: перевести document DTO/read projections на общий immutable Pydantic
+  contract, удалить изоморфный API mapper и positional SQL row mapping;
+- следующие capabilities переводить на Pydantic по одному законченному срезу,
+  одновременно удаляя механические mappings и JSON codecs;
 - пересмотреть оставшиеся маленькие helpers и названия;
 - обновить module-level architecture documentation.
+
+10A завершён 2026-07-29. Document DTO, snapshots, filters и read projections
+переведены на общий immutable `ApplicationModel`. Изоморфный 199-строчный
+document API mapper удалён; API вызывает response
+`model_validate(...)` напрямую. List repository использует именованные
+SQLAlchemy mappings вместо позиционной распаковки 15 колонок.
+
+Change set уменьшил production Python на 236 строк. Формат `Decimal` в document
+detail остаётся decimal string и теперь принадлежит serializer API-схемы.
+Regression gate: Ruff, ty, 604 tests; один отдельный PostgreSQL concurrency test
+пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
 
 ### Шаг 11. Parser normalization
 
@@ -937,7 +953,8 @@ repository abstraction. Существующие API-преобразовани�
 | 7B. Mapping templates and persistence boundary | completed 2026-07-29 |
 | 7C. Mapping commands and queries | completed 2026-07-29 |
 | 7D. Mapping analysis consolidation and old-path cleanup | completed 2026-07-29 |
-| 8–11 | pending |
+| 10A. Documents Pydantic models and mechanical mapping cleanup | completed 2026-07-29 |
+| 8–9, 10B+, 11 | pending |
 
 ## 15. Gate для каждого шага
 
@@ -1022,6 +1039,7 @@ Backlog не является причиной откладывать архит
 | 2026-07-28 | Ledger больше не управляет import-review mutation |
 | 2026-07-29 | Feature-first target принят как единственный активный план |
 | 2026-07-29 | Review reads, locks, queue, status и links перенесены в `ImportReviewRepository` |
+| 2026-07-29 | Pydantic принят стандартом application data; `dataclass` оставлен для runtime-композиции |
 
 Подробности завершённых implementation plans доступны в Git history и не
 поддерживаются как параллельная активная документация.

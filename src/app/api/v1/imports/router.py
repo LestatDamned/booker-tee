@@ -14,10 +14,6 @@ from app.api.v1.imports.list_parameters import (
     ImportDocumentListParameters,
     parse_import_document_list_parameters,
 )
-from app.api.v1.imports.mapping import (
-    ImportDocumentDetailResponseMapper,
-    ImportDocumentListResponseMapper,
-)
 from app.api.v1.imports.mapping_router import router as mapping_router
 from app.api.v1.imports.schemas import (
     ImportDocumentDeleteApiResponse,
@@ -198,7 +194,7 @@ async def list_import_documents(
         filters=parameters.filters,
         pagination=parameters.pagination,
     )
-    return ImportDocumentListResponseMapper.response(documents)
+    return ImportDocumentListApiResponse.model_validate(documents)
 
 
 @router.get(
@@ -229,7 +225,7 @@ async def get_import_document(
             code="import_document_not_found",
             message="Документ не найден.",
         )
-    return ImportDocumentDetailResponseMapper.response(detail)
+    return ImportDocumentDetailApiResponse.model_validate(detail)
 
 
 @router.post(
@@ -315,7 +311,7 @@ async def _read_committed_detail(
             code="import_document_not_found",
             message="Документ не найден.",
         )
-    return ImportDocumentDetailResponseMapper.response(detail)
+    return ImportDocumentDetailApiResponse.model_validate(detail)
 
 
 def _require_import_management(context: ApiRequestContext) -> None:
