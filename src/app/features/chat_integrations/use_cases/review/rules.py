@@ -22,7 +22,7 @@ from app.features.chat_integrations.use_cases.review.state import (
     ChatReviewStateClaimer,
     ChatReviewStateReader,
 )
-from app.features.import_review.application.commands.rules import ImportReviewRuleCreator
+from app.features.import_review.application.rules import ImportReviewRuleCreator
 from app.features.transaction_rules.errors import TransactionRuleError
 from app.features.workspaces.service import WorkspaceContext
 

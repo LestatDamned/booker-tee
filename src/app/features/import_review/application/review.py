@@ -1,35 +1,14 @@
-"""Authoritative read model for import review."""
+"""Authoritative import-review read workflow."""
 
-from datetime import date
-from decimal import Decimal
-from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
 from app.features.accounts.models import Account
-from app.features.import_review.application.queries.classification import (
-    ImportReviewClassificationDto,
-    ImportReviewConfirmabilityDto,
-    ImportReviewDraftEvaluationDto,
+from app.features.import_review.application.classification import (
     ImportReviewReferenceReader,
-    ImportReviewReferencesDto,
-    ImportReviewRuleSuggestionDto,
-    ImportReviewSelectionDto,
     build_import_review_draft_evaluation,
 )
-from app.features.import_review.application.queries.duplicates import (
-    ImportReviewDuplicateEvidenceDto,
-)
-from app.features.import_review.application.queries.transfer_options import (
-    EMPTY_TRANSFER_OPTIONS,
-    ImportReviewTransferOptionsDto,
-)
-from app.features.import_review.application.queries.validation import (
-    ImportReviewValidationDto,
-    build_import_review_validation,
-)
 from app.features.import_review.domain.lifecycle import (
-    ImportReviewLifecycleSnapshot,
     import_review_lifecycle_snapshot,
 )
 from app.features.import_review.domain.queue import (
@@ -37,11 +16,43 @@ from app.features.import_review.domain.queue import (
     is_reviewable,
     review_queue_snapshot,
 )
-from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.import_review.schemas.review import (
+    EMPTY_TRANSFER_OPTIONS,
+    ImportReviewAccountDto,
+    ImportReviewBalanceChainDto,
+    ImportReviewCapabilitiesDto,
+    ImportReviewDocumentDto,
+    ImportReviewDraftEvaluationDto,
+    ImportReviewDuplicateCandidateDto,
+    ImportReviewDuplicateEvidenceDto,
+    ImportReviewDuplicateMatchingField,
+    ImportReviewDuplicateMatchReasonCode,
+    ImportReviewItemDto,
+    ImportReviewNormalizedSourceDto,
+    ImportReviewPostingDto,
+    ImportReviewQueueDto,
+    ImportReviewRawSourceDto,
+    ImportReviewReadModel,
+    ImportReviewReadonlyReasonCode,
+    ImportReviewReferencesDto,
+    ImportReviewRowProblemCode,
+    ImportReviewRowProblemDto,
+    ImportReviewTransferOptionsDto,
+    ImportReviewValidationDto,
+    ImportReviewValidationReasonCode,
+)
 from app.features.imports.models import RawTransaction, UploadedDocument
+from app.features.imports.statements.deduplication import (
+    RawTransactionFingerprint,
+    possible_duplicate_fingerprint,
+)
 from app.features.imports.statements.types import RawTransactionStatus
+from app.features.imports.statements.validation import (
+    StatementValidationReport,
+    resolve_statement_validation_reason,
+)
+from app.features.imports.statements.validation_service import StatementValidationService
 from app.features.ledger.domain.types import OperationStatus, OperationType
-from app.shared.schemas import ApplicationModel
 
 
 class ImportReviewDocumentSource(Protocol):
@@ -70,92 +81,82 @@ class ImportReviewDuplicateEvidenceSource(Protocol):
     ) -> dict[UUID, ImportReviewDuplicateEvidenceDto]: ...
 
 
-class ImportReviewReadonlyReasonCode(StrEnum):
-    FINANCIAL_WRITE_FORBIDDEN = "financial_write_forbidden"
+class ImportReviewDuplicateSource(Protocol):
+    async def list_possible_duplicate_candidates(
+        self,
+        *,
+        workspace_id: UUID,
+        fingerprints: set[RawTransactionFingerprint],
+        exclude_document_id: UUID,
+    ) -> list[RawTransaction]: ...
 
 
-class ImportReviewAccountDto(ApplicationModel):
-    id: UUID
-    name: str
-    currency: str
+class ImportReviewDuplicateReader:
+    def __init__(self, source: ImportReviewDuplicateSource) -> None:
+        self._source = source
 
+    async def read_for_document(
+        self,
+        *,
+        workspace_id: UUID,
+        document: UploadedDocument,
+    ) -> dict[UUID, ImportReviewDuplicateEvidenceDto]:
+        targets = [
+            row
+            for row in document.raw_transactions
+            if row.status is RawTransactionStatus.POSSIBLE_DUPLICATE
+        ]
+        target_fingerprints = {
+            fingerprint
+            for row in targets
+            if (fingerprint := possible_duplicate_fingerprint(row)) is not None
+        }
+        candidates = await self._source.list_possible_duplicate_candidates(
+            workspace_id=workspace_id,
+            fingerprints=target_fingerprints,
+            exclude_document_id=document.id,
+        )
+        candidates_by_fingerprint: dict[RawTransactionFingerprint, RawTransaction] = {}
+        for candidate in candidates:
+            fingerprint = possible_duplicate_fingerprint(candidate)
+            if fingerprint is not None:
+                candidates_by_fingerprint.setdefault(fingerprint, candidate)
 
-class ImportReviewCapabilitiesDto(ApplicationModel):
-    can_write: bool
-    readonly_reason_code: ImportReviewReadonlyReasonCode | None
-
-
-class ImportReviewQueueDto(ApplicationModel):
-    total: int
-    completed: int
-    remaining: int
-    first_remaining_item_id: UUID | None
-    ordered_item_ids: tuple[UUID, ...]
-
-
-class ImportReviewRawSourceDto(ApplicationModel):
-    operation_date: str | None
-    posting_date: str | None
-    description: str | None
-    amount: str | None
-    currency: str | None
-    balance_after: str | None
-    account_hint: str | None
-
-
-class ImportReviewNormalizedSourceDto(ApplicationModel):
-    operation_date: date | None
-    posting_date: date | None
-    description: str | None
-    amount: Decimal | None
-    currency: str | None
-    balance_after: Decimal | None
-
-
-class ImportReviewPostingDto(ApplicationModel):
-    operation_id: UUID | None
-    can_undo: bool
-
-
-EMPTY_IMPORT_REVIEW_POSTING = ImportReviewPostingDto(
-    operation_id=None,
-    can_undo=False,
-)
-
-
-class ImportReviewItemDto(ApplicationModel):
-    id: UUID
-    row_index: int
-    status: RawTransactionStatus
-    is_terminal: bool
-    is_reviewable: bool
-    source_account: ImportReviewAccountDto | None
-    raw: ImportReviewRawSourceDto
-    normalized: ImportReviewNormalizedSourceDto
-    classification: ImportReviewClassificationDto
-    selection: ImportReviewSelectionDto
-    confirmability: ImportReviewConfirmabilityDto
-    rule_suggestion: ImportReviewRuleSuggestionDto
-    posting: ImportReviewPostingDto = EMPTY_IMPORT_REVIEW_POSTING
-    transfer: ImportReviewTransferOptionsDto = EMPTY_TRANSFER_OPTIONS
-    lifecycle: ImportReviewLifecycleSnapshot = ImportReviewLifecycleSnapshot(allowed_actions=())
-    duplicate_evidence: ImportReviewDuplicateEvidenceDto | None = None
-
-
-class ImportReviewDocumentDto(ApplicationModel):
-    id: UUID
-    filename: str
-    status: UploadedDocumentStatus
-    source_account: ImportReviewAccountDto | None
-
-
-class ImportReviewReadModel(ApplicationModel):
-    document: ImportReviewDocumentDto
-    queue: ImportReviewQueueDto
-    items: list[ImportReviewItemDto]
-    references: ImportReviewReferencesDto
-    validation: ImportReviewValidationDto | None
-    capabilities: ImportReviewCapabilitiesDto
+        evidence: dict[UUID, ImportReviewDuplicateEvidenceDto] = {}
+        for target in targets:
+            fingerprint = possible_duplicate_fingerprint(target)
+            candidate = candidates_by_fingerprint.get(fingerprint) if fingerprint else None
+            if candidate is None:
+                continue
+            candidate_document = candidate.uploaded_document
+            if (
+                candidate.operation_date is None
+                or candidate.amount is None
+                or candidate.currency is None
+            ):
+                continue
+            evidence[target.id] = ImportReviewDuplicateEvidenceDto(
+                reason_code=(
+                    ImportReviewDuplicateMatchReasonCode.SAME_ACCOUNT_DATE_AMOUNT_CURRENCY
+                ),
+                matching_fields=(
+                    ImportReviewDuplicateMatchingField.ACCOUNT,
+                    ImportReviewDuplicateMatchingField.OPERATION_DATE,
+                    ImportReviewDuplicateMatchingField.AMOUNT,
+                    ImportReviewDuplicateMatchingField.CURRENCY,
+                ),
+                candidate=ImportReviewDuplicateCandidateDto(
+                    item_id=candidate.id,
+                    document_id=candidate.uploaded_document_id,
+                    document_filename=candidate_document.original_filename,
+                    operation_id=candidate.linked_operation_id,
+                    operation_date=candidate.operation_date,
+                    description=candidate.description_normalized,
+                    amount=candidate.amount,
+                    currency=candidate.currency,
+                ),
+            )
+        return evidence
 
 
 class ImportReviewReader:
@@ -353,3 +354,71 @@ def _posting_dto(row: RawTransaction) -> ImportReviewPostingDto:
         operation_id=row.linked_operation_id,
         can_undo=operation is not None and operation.status is OperationStatus.CONFIRMED,
     )
+
+
+def build_import_review_validation(
+    document: UploadedDocument,
+) -> ImportReviewValidationDto | None:
+    calculated = StatementValidationService.calculate_for_document(document)
+    if calculated is None:
+        return None
+    report = calculated.report
+    control_totals = report.control_totals
+    return ImportReviewValidationDto(
+        status=report.status,
+        reason_code=ImportReviewValidationReasonCode(
+            resolve_statement_validation_reason(
+                status=report.status,
+                balance_chain_status=report.balance_chain.status,
+                unexplained_inflow_difference=report.unexplained_inflow_difference,
+                unexplained_outflow_difference=report.unexplained_outflow_difference,
+            ).value
+        ),
+        currency=report.totals.currency or (control_totals.currency if control_totals else None),
+        extracted_count=report.totals.extracted_count,
+        normalized_count=report.totals.normalized_count,
+        needs_review_count=report.totals.needs_review_count,
+        calculated_total_inflow=report.totals.calculated_total_inflow,
+        calculated_total_outflow=report.totals.calculated_total_outflow,
+        ignored_total_inflow=report.totals.ignored_total_inflow,
+        ignored_total_outflow=report.totals.ignored_total_outflow,
+        statement_total_inflow=(control_totals.total_inflow if control_totals else None),
+        statement_total_outflow=(control_totals.total_outflow if control_totals else None),
+        opening_balance=(control_totals.opening_balance if control_totals else None),
+        closing_balance=(control_totals.closing_balance if control_totals else None),
+        inflow_difference=report.inflow_difference,
+        outflow_difference=report.outflow_difference,
+        unexplained_inflow_difference=report.unexplained_inflow_difference,
+        unexplained_outflow_difference=report.unexplained_outflow_difference,
+        balance_chain=ImportReviewBalanceChainDto(
+            status=report.balance_chain.status,
+            direction=report.balance_chain.direction,
+            checked_pair_count=report.balance_chain.checked_pair_count,
+            mismatch_count=report.balance_chain.mismatch_count,
+        ),
+        row_problems=_row_problems(document.raw_transactions, report),
+    )
+
+
+def _row_problems(
+    rows: list[RawTransaction],
+    report: StatementValidationReport,
+) -> tuple[ImportReviewRowProblemDto, ...]:
+    problems: list[ImportReviewRowProblemDto] = []
+    for mismatch in report.balance_chain.mismatches:
+        if mismatch.row_index >= len(rows) or mismatch.previous_row_index >= len(rows):
+            continue
+        row = rows[mismatch.row_index]
+        previous = rows[mismatch.previous_row_index]
+        problems.append(
+            ImportReviewRowProblemDto(
+                item_id=row.id,
+                row_index=row.row_index,
+                previous_item_id=previous.id,
+                previous_row_index=previous.row_index,
+                code=ImportReviewRowProblemCode.BALANCE_CHAIN_MISMATCH,
+                expected_balance_after=mismatch.expected_balance_after,
+                actual_balance_after=mismatch.actual_balance_after,
+            )
+        )
+    return tuple(problems)

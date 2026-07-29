@@ -1,2 +1,0 @@
-class RawTransactionReviewError(ValueError):
-    pass

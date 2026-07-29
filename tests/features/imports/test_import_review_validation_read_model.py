@@ -4,10 +4,8 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
-from app.features.import_review.application.queries.validation import (
-    ImportReviewValidationReasonCode,
-    build_import_review_validation,
-)
+from app.features.import_review.application.review import build_import_review_validation
+from app.features.import_review.schemas.review import ImportReviewValidationReasonCode
 from app.features.imports.models import UploadedDocument
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.imports.statements.validation import StatementValidationStatus

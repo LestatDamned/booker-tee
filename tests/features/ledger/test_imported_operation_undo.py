@@ -5,10 +5,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.import_review.application.commands.undo import (
-    ImportReviewUndoService,
-    UndoImportReviewPostingCommand,
-)
+from app.features.import_review.application.undo import ImportReviewUndoService
+from app.features.import_review.schemas.commands import UndoImportReviewPostingCommand
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationSource, OperationStatus

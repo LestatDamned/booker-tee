@@ -11,16 +11,16 @@ from app.api.v1.import_review.dependencies import (
 )
 from app.features.categories.models import CategoryKind
 from app.features.categories.service import CategoryError
-from app.features.import_review.application.queries.classification import (
+from app.features.import_review.domain.classification import ReviewClassificationSource
+from app.features.import_review.errors import ImportReviewDraftValidationError
+from app.features.import_review.schemas.review import (
     ImportReviewCategoryReferenceDto,
     ImportReviewClassificationDto,
     ImportReviewConfirmabilityDto,
     ImportReviewDraftEvaluationDto,
-    ImportReviewDraftValidationError,
     ImportReviewRuleSuggestionDto,
     ImportReviewSelectionDto,
 )
-from app.features.import_review.domain.classification import ReviewClassificationSource
 from app.features.ledger.domain.types import OperationType
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (

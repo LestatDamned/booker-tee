@@ -1,41 +1,27 @@
 """Undo ledger postings from the import review workflow."""
 
-from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.import_review.application.commands.confirmation import (
-    ImportReviewConfirmationConflictError,
-)
 from app.features.import_review.domain.lifecycle import restored_review_status_after_unlink
+from app.features.import_review.errors import (
+    ImportReviewConfirmationConflictError,
+    RawTransactionReviewError,
+)
 from app.features.import_review.repository import ImportReviewRepository
+from app.features.import_review.schemas.commands import (
+    ImportReviewUndoResult,
+    UndoImportReviewPostingCommand,
+)
 from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.documents.types import UploadedDocumentStatus
-from app.features.imports.errors import RawTransactionReviewError
 from app.features.imports.statements.validation_service import StatementValidationService
 from app.features.ledger.application.imported_operations import ImportedOperationCorrection
 from app.features.ledger.domain.types import OperationSource, OperationStatus
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
-
-
-@dataclass(frozen=True)
-class UndoImportReviewPostingCommand:
-    document_id: UUID
-    item_id: UUID
-    expected_operation_id: UUID
-
-
-@dataclass(frozen=True)
-class ImportReviewUndoResult:
-    document_id: UUID
-    item_id: UUID
-    operation_id: UUID
-    affected_document_ids: frozenset[UUID]
-    updated_item_ids: frozenset[UUID]
-    replayed: bool
 
 
 class ImportReviewUndoService:

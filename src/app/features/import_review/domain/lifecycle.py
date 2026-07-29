@@ -5,6 +5,10 @@ from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
+from app.features.import_review.errors import (
+    ImportReviewLifecycleConflictError,
+    ImportReviewLifecycleError,
+)
 from app.features.imports.statements.types import RawTransactionStatus
 
 
@@ -13,14 +17,6 @@ class ImportReviewLifecycleAction(StrEnum):
     MARK_DUPLICATE = "mark_duplicate"
     IGNORE = "ignore"
     NEEDS_REVIEW = "needs_review"
-
-
-class ImportReviewLifecycleError(ValueError):
-    pass
-
-
-class ImportReviewLifecycleConflictError(ImportReviewLifecycleError):
-    pass
 
 
 @dataclass(frozen=True)

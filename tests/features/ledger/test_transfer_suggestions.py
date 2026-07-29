@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.import_review.application.queries.transfer_suggestions import (
+from app.features.import_review.application.transfer_options import (
     TransferSuggestionUseCase,
 )
 

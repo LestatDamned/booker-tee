@@ -4,19 +4,21 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.import_review.application.commands.lifecycle import (
+from app.features.import_review.application.lifecycle import (
     ImportReviewLifecycleActor,
-    ImportReviewLifecycleCommand,
     ImportReviewLifecycleService,
 )
 from app.features.import_review.domain.lifecycle import (
     ImportReviewLifecycleAction,
-    ImportReviewLifecycleConflictError,
-    ImportReviewLifecycleError,
     import_review_lifecycle_snapshot,
     resolve_import_review_lifecycle_transition,
     restored_review_status_after_unlink,
 )
+from app.features.import_review.errors import (
+    ImportReviewLifecycleConflictError,
+    ImportReviewLifecycleError,
+)
+from app.features.import_review.schemas.commands import ImportReviewLifecycleCommand
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.statements.types import RawTransactionStatus
 

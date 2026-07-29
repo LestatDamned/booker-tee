@@ -1,35 +1,21 @@
 """Apply user-selected lifecycle transitions to import review rows."""
 
-from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.import_review.domain.lifecycle import (
-    ImportReviewLifecycleAction,
     resolve_import_review_lifecycle_transition,
 )
+from app.features.import_review.errors import RawTransactionReviewError
 from app.features.import_review.repository import ImportReviewRepository
+from app.features.import_review.schemas.commands import (
+    ImportReviewLifecycleCommand,
+    ImportReviewLifecycleResult,
+)
 from app.features.imports.documents.lifecycle import ImportedDocumentStatusUpdater
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.errors import RawTransactionReviewError
-from app.features.imports.statements.types import RawTransactionStatus
 from app.features.imports.statements.validation_service import StatementValidationService
-
-
-@dataclass(frozen=True)
-class ImportReviewLifecycleCommand:
-    document_id: UUID
-    item_id: UUID
-    action: ImportReviewLifecycleAction
-    expected_status: RawTransactionStatus
-
-
-@dataclass(frozen=True)
-class ImportReviewLifecycleResult:
-    item_id: UUID
-    document_id: UUID
-    replayed: bool
 
 
 class ImportReviewLifecycleActor:

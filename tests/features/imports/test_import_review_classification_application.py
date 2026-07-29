@@ -8,15 +8,13 @@ import pytest
 
 from app.features.categories.models import CategoryKind
 from app.features.categories.service import CategoryError
-from app.features.import_review.application.commands.categories import (
+from app.features.import_review.application.classification import (
     ImportReviewCategoryCreator,
-)
-from app.features.import_review.application.queries.classification import (
     ImportReviewDraftEvaluator,
-    ImportReviewDraftValidationError,
     rule_suggestion_dto,
 )
 from app.features.import_review.domain.classification import ReviewClassificationSource
+from app.features.import_review.errors import ImportReviewDraftValidationError
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationType
 

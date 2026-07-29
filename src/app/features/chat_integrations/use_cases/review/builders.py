@@ -21,15 +21,15 @@ from app.features.chat_integrations.use_cases.review.dto import (
     StartedChatReviewCategorySelection,
 )
 from app.features.chat_integrations.use_cases.review.state import ChatReviewStateReader
-from app.features.import_review.application.commands.transfers import (
+from app.features.import_review.application.transfer_options import (
+    ExistingTransferSuggestion,
+    TransferSuggestion,
+)
+from app.features.import_review.schemas.commands import (
     CreateImportReviewTransferCommand,
     ImportReviewTransferCommand,
     LinkImportReviewExistingTransferCommand,
     MatchImportReviewRawRowCommand,
-)
-from app.features.import_review.application.queries.transfer_suggestions import (
-    ExistingTransferSuggestion,
-    TransferSuggestion,
 )
 from app.features.imports.models import RawTransaction
 from app.features.properties.models import Property

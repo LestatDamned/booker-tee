@@ -5,13 +5,11 @@ from uuid import uuid4
 import pytest
 
 from app.features.import_review.domain.classification import (
-    ReviewClassificationSource,
-    resolve_review_classification,
-)
-from app.features.import_review.domain.confirmability import (
     ReviewBlockingReasonCode,
+    ReviewClassificationSource,
     ReviewConfirmabilityInput,
     evaluate_review_confirmability,
+    resolve_review_classification,
 )
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationType

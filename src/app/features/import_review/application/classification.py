@@ -1,23 +1,29 @@
-"""References, draft evaluation, and classification for import review."""
+"""Classification references, draft evaluation, and category creation."""
 
 from typing import Protocol
 from uuid import UUID
 
 from app.features.categories.models import Category, CategoryKind
 from app.features.import_review.domain.classification import (
-    ReviewClassificationSource,
-    resolve_review_classification,
-)
-from app.features.import_review.domain.confirmability import (
-    ReviewBlockingReasonCode,
     ReviewConfirmabilityInput,
     evaluate_review_confirmability,
+    resolve_review_classification,
+)
+from app.features.import_review.errors import ImportReviewDraftValidationError
+from app.features.import_review.schemas.review import (
+    ImportReviewCategoryReferenceDto,
+    ImportReviewClassificationDto,
+    ImportReviewConfirmabilityDto,
+    ImportReviewDraftEvaluationDto,
+    ImportReviewPropertyReferenceDto,
+    ImportReviewReferencesDto,
+    ImportReviewRuleSuggestionDto,
+    ImportReviewSelectionDto,
 )
 from app.features.imports.models import RawTransaction, UploadedDocument
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationType
 from app.features.properties.models import Property
-from app.shared.schemas import ApplicationModel
 
 
 class ImportReviewClassificationDocumentSource(Protocol):
@@ -48,61 +54,15 @@ class ImportReviewPropertySource(Protocol):
     ) -> Property | None: ...
 
 
-class ImportReviewCategoryReferenceDto(ApplicationModel):
-    id: UUID
-    name: str
-    kind: CategoryKind
-    is_uncategorized: bool
-
-
-class ImportReviewPropertyReferenceDto(ApplicationModel):
-    id: UUID
-    name: str
-
-
-class ImportReviewReferencesDto(ApplicationModel):
-    categories: tuple[ImportReviewCategoryReferenceDto, ...]
-    properties: tuple[ImportReviewPropertyReferenceDto, ...]
-
-
-class ImportReviewClassificationDto(ApplicationModel):
-    operation_type: OperationType | None
-    source: ReviewClassificationSource
-
-
-class ImportReviewSelectionDto(ApplicationModel):
-    category_id: UUID | None
-    property_id: UUID | None
-
-
-class ImportReviewConfirmabilityDto(ApplicationModel):
-    can_confirm: bool
-    blocking_reason_codes: tuple[ReviewBlockingReasonCode, ...]
-
-
-class ImportReviewRuleSuggestionDto(ApplicationModel):
-    is_active: bool
-    was_auto_applied: bool
-    rule_id: UUID | None
-    rule_name: str | None = None
-    pattern: str | None = None
-    operation_type: OperationType | None = None
-    category_id: UUID | None = None
-    property_id: UUID | None = None
-
-
-class ImportReviewDraftEvaluationDto(ApplicationModel):
-    item_id: UUID
-    classification: ImportReviewClassificationDto
-    selection: ImportReviewSelectionDto
-    confirmability: ImportReviewConfirmabilityDto
-    rule_suggestion: ImportReviewRuleSuggestionDto
-
-
-class ImportReviewDraftValidationError(ValueError):
-    def __init__(self, *, field: str, message: str) -> None:
-        super().__init__(message)
-        self.field = field
+class ImportReviewCategoryWriter(Protocol):
+    async def create_custom(
+        self,
+        *,
+        workspace_id: UUID,
+        name: str,
+        kind: CategoryKind,
+        notes: str | None = None,
+    ) -> Category: ...
 
 
 class ImportReviewReferenceReader:
@@ -177,6 +137,35 @@ class ImportReviewDraftEvaluator:
                 field="propertyId",
                 message="Объект недоступен в этом workspace.",
             ) from exc
+
+
+class ImportReviewCategoryCreator:
+    def __init__(
+        self,
+        documents: ImportReviewClassificationDocumentSource,
+        categories: ImportReviewCategoryWriter,
+    ) -> None:
+        self._documents = documents
+        self._categories = categories
+
+    async def create(
+        self,
+        *,
+        workspace_id: UUID,
+        document_id: UUID,
+        item_id: UUID,
+        name: str,
+        kind: CategoryKind,
+    ) -> ImportReviewCategoryReferenceDto | None:
+        document = await self._documents.get_document_for_workspace(workspace_id, document_id)
+        if document is None or not any(row.id == item_id for row in document.raw_transactions):
+            return None
+        category = await self._categories.create_custom(
+            workspace_id=workspace_id,
+            name=name,
+            kind=kind,
+        )
+        return category_reference_dto(category)
 
 
 def build_import_review_references(

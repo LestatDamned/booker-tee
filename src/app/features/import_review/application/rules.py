@@ -1,11 +1,12 @@
 """Apply transaction rules when requested from the import review workflow."""
 
-from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.import_review.errors import ImportReviewRuleApplicationNotFoundError
 from app.features.import_review.repository import ImportReviewRepository
+from app.features.import_review.schemas.commands import ImportReviewRuleApplicationResult
 from app.features.transaction_rules.application.rule_application import (
     RuleApplicationSummary,
     TransactionRuleApplicationUseCase,
@@ -14,17 +15,6 @@ from app.features.transaction_rules.application.rule_management import (
     TransactionRuleManagementUseCase,
 )
 from app.features.workspaces.service import WorkspaceContext
-
-
-class ImportReviewRuleApplicationNotFoundError(ValueError):
-    """Raised when the review document is outside the current workspace."""
-
-
-@dataclass(frozen=True)
-class ImportReviewRuleApplicationResult:
-    checked_count: int
-    suggested_count: int
-    updated_item_ids: frozenset[UUID]
 
 
 class ImportReviewRuleCreator:

@@ -1,4 +1,3 @@
-from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
@@ -8,15 +7,19 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.features.import_review.application.commands.confirmation import (
-    ConfirmImportReviewItemCommand,
+from app.features.import_review.application.confirmation import (
     ImportReviewConfirmationActor,
-    ImportReviewConfirmationConflictError,
-    ImportReviewConfirmationResult,
     ImportReviewConfirmationService,
+)
+from app.features.import_review.domain.classification import ReviewBlockingReasonCode
+from app.features.import_review.errors import (
+    ImportReviewConfirmationConflictError,
     ImportReviewConfirmationValidationError,
 )
-from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
+from app.features.import_review.schemas.commands import (
+    ConfirmImportReviewItemCommand,
+    ImportReviewConfirmationResult,
+)
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.models import RawTransaction
 from app.features.imports.statements.types import RawTransactionStatus
@@ -224,7 +227,7 @@ async def test_confirmation_requires_manual_rule_pattern_before_posting() -> Non
     row = confirmable_row()
     service = confirmation_service(SessionStub(), row)
     command = confirmation_command(row, remember_rule=True)
-    command = replace(command, rule_pattern="   ")
+    command = command.model_copy(update={"rule_pattern": "   "})
 
     with pytest.raises(ImportReviewConfirmationValidationError) as result:
         await service.execute(context=workspace_context(), command=command)
@@ -243,7 +246,7 @@ async def test_confirmation_actor_leaves_transaction_to_outer_workflow() -> None
 
     await actor.apply(
         context=workspace_context(),
-        command=replace(confirmation_command(row), operation_type=None),
+        command=confirmation_command(row).model_copy(update={"operation_type": None}),
     )
 
     assert session.commits == 0

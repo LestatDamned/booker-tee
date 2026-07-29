@@ -35,12 +35,12 @@ from app.features.chat_integrations.use_cases.review.state import (
     ChatReviewStateClaimer,
     ChatReviewStateReader,
 )
-from app.features.import_review.application.commands.confirmation import (
-    ConfirmImportReviewItemCommand,
+from app.features.import_review.application.confirmation import (
     ImportReviewConfirmationActor,
 )
+from app.features.import_review.errors import RawTransactionReviewError
 from app.features.import_review.repository import ImportReviewRepository
-from app.features.imports.errors import RawTransactionReviewError
+from app.features.import_review.schemas.commands import ConfirmImportReviewItemCommand
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.errors import LedgerPostingError
 from app.features.properties.service import PropertyService

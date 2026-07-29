@@ -48,7 +48,10 @@ mapping     описание и импорт неизвестного табли
 - внешние форматы и файловый ввод остаются infrastructure adapters.
 
 `import_review` остаётся отдельной feature. Он использует результат импорта, но
-не является частью распознавания документа.
+не является частью распознавания документа. Из-за количества связанных
+сценариев он имеет собственные локальные слои `schemas/`, `application/` и
+`domain/`. Внутри `application/` файлы названы по возможностям, а не разложены
+механически по `commands/` и `queries/`.
 
 ## 2. Текущее состояние и принятые решения
 
@@ -481,31 +484,47 @@ mapping executions, idempotency и source-row queries. Review status/locking в
 
 ## 11. Целевая структура Import Review
 
-`import_review` не переносится обратно в `imports`. Его структура постепенно
-становится:
+`import_review` не переносится обратно в `imports`. Это самостоятельная
+небольшая feature с локальными слоями:
 
 ```text
 src/app/features/import_review/
 ├── errors.py
 ├── repository.py
+├── schemas/
+│   ├── commands.py
+│   └── review.py
 ├── application/
-│   ├── commands/
-│   │   ├── categories.py
-│   │   ├── confirmation.py
-│   │   ├── lifecycle.py
-│   │   ├── rules.py
-│   │   ├── transfers.py
-│   │   └── undo.py
-│   └── queries/
-│       ├── classification.py
-│       ├── duplicates.py
-│       ├── review.py
-│       ├── transfer_options.py
-│       ├── transfer_suggestions.py
-│       └── validation.py
+│   ├── review.py
+│   ├── classification.py
+│   ├── confirmation.py
+│   ├── transfer_options.py
+│   ├── transfers.py
+│   ├── lifecycle.py
+│   ├── rules.py
+│   └── undo.py
 └── domain/
-    └── текущие cohesive policies
+    ├── classification.py
+    ├── lifecycle.py
+    ├── posting.py
+    └── queue.py
 ```
+
+Границы слоёв:
+
+- `schemas/` содержит внутренние Pydantic application contracts: команды,
+  результаты и read models; HTTP/OpenAPI contracts остаются в
+  `api/v1/import_review/schemas/`;
+- `application/` содержит исполняемые actors, services, readers и orchestration;
+- `domain/` содержит чистые policies, transitions и calculations;
+- `repository.py` содержит только workspace-scoped SQLAlchemy reads, locks и
+  persistence operations;
+- `errors.py` содержит feature-owned ошибки без HTTP semantics.
+
+Папки `application/commands/` и `application/queries/` здесь не используются.
+Они добавляли дополнительный уровень навигации, дробили связанные сценарии и
+создавали ложное впечатление полного CQRS. Mutation/read intent уже ясно виден
+из конкретных имён actor/service/reader и контрактов.
 
 В `ImportReviewRepository` переходят:
 
@@ -891,12 +910,12 @@ repository abstraction. Существующие API-преобразовани�
    конкурентного mapping import/idempotency либо явно зафиксирована причина,
    почему он отложен.
 
-### Шаг 8. Import Review commands/queries
+### Шаг 8. Локальная архитектура Import Review
 
 - 8A: перевести review read contracts на Pydantic, закрепить денежный wire
   format в API schemas и удалить изоморфный response mapper;
-- 8B: физически сгруппировать существующие actors по mutation/read intent,
-  разделив смешанный classification/category creation module;
+- 8B: оформить `import_review` как самостоятельную feature с локальными
+  `schemas`, `application` и `domain`, убрать механический command/query split;
 - сохранить domain policies отдельными только при самостоятельной
   ответственности.
 
@@ -913,23 +932,21 @@ domain lifecycle snapshots не менялись. Production Python уменьш
 строку. Regression gate: Ruff, ty, 606 tests; один отдельный PostgreSQL
 concurrency test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
 
-8B завершён 2026-07-29. Mutation workflows находятся в
-`application/commands/`, read orchestration и projections — в
-`application/queries/`. Старые плоские application paths удалены без
-compatibility facades; API, chat integrations и tests импортируют actors из
-модулей-владельцев.
+8B исправлен 2026-07-29 после повторной архитектурной проверки. Внутренние
+Pydantic contracts находятся в `schemas/`, исполняемая логика — в локальном
+слое `application/`, чистые правила — в `domain/`. HTTP schemas остаются
+отдельной presentation boundary.
 
-Смешанный `classification.py` разделён по intent:
-`queries/classification.py` владеет references, draft evaluation и
-classification projections, а `commands/categories.py` — созданием категории
-из review. Domain policies и transaction ownership не менялись.
+Предыдущий механический split `application/commands/` и
+`application/queries/` полностью удалён без compatibility facades. Связанные
+classification/category, review/duplicate/validation и
+transfer-options/suggestions собраны по одной причине изменения. API, chat и
+tests импортируют contracts и actors непосредственно из модулей-владельцев.
+Transaction ownership и поведение не менялись.
 
-Это структурный этап, а не этап сокращения: `import_review` теперь содержит 23
-Python-файла и 3 633 строки — на три package/module entrypoint и 21 строку
-больше, чем после 8A. Цена за явную навигацию зафиксирована намеренно; новые
-facades и параллельные реализации не добавлены. Regression gate: Ruff, ty,
-606 tests; один отдельный PostgreSQL concurrency test пропущен без
-`BOOKER_TEE_TEST_DATABASE_URL`.
+Это этап улучшения навигации и ownership, а не искусственного уменьшения LOC.
+После исправления `import_review` содержит 20 Python-файлов и 3 633 строки:
+меньше файлов, чем command/query вариант, без параллельных реализаций.
 
 ### Шаг 9. Удаление старой структуры
 
@@ -1068,7 +1085,7 @@ test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
 | 7C. Mapping commands and queries | completed 2026-07-29 |
 | 7D. Mapping analysis consolidation and old-path cleanup | completed 2026-07-29 |
 | 8A. Import Review Pydantic read contracts and API mapper cleanup | completed 2026-07-29 |
-| 8B. Import Review command/query package split | completed 2026-07-29 |
+| 8B. Import Review local layered feature | completed 2026-07-29 |
 | 10A. Documents Pydantic models and mechanical mapping cleanup | completed 2026-07-29 |
 | 10B. Upload data contracts | completed 2026-07-29 |
 | 10C. Statements Pydantic contracts and JSON cleanup | completed 2026-07-29 |
@@ -1161,6 +1178,7 @@ Backlog не является причиной откладывать архит
 | 2026-07-29 | Feature-first target принят как единственный активный план |
 | 2026-07-29 | Review reads, locks, queue, status и links перенесены в `ImportReviewRepository` |
 | 2026-07-29 | Pydantic принят стандартом application data; `dataclass` оставлен для runtime-композиции |
+| 2026-07-29 | `import_review` оформлен как локальная layered feature без механического command/query split |
 
 Подробности завершённых implementation plans доступны в Git history и не
 поддерживаются как параллельная активная документация.

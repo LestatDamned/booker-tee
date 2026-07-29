@@ -33,33 +33,29 @@ from app.api.v1.import_review.schemas.responses import (
     ImportReviewTransferMutationApiResponse,
 )
 from app.features.categories.service import CategoryError
-from app.features.import_review.application.commands.categories import (
+from app.features.import_review.application.classification import (
     ImportReviewCategoryCreator,
+    ImportReviewDraftEvaluator,
 )
-from app.features.import_review.application.commands.lifecycle import (
-    ImportReviewLifecycleCommand,
-    ImportReviewLifecycleService,
-)
-from app.features.import_review.application.commands.rules import (
-    ImportReviewRuleApplicationNotFoundError,
+from app.features.import_review.application.lifecycle import ImportReviewLifecycleService
+from app.features.import_review.application.review import ImportReviewReader
+from app.features.import_review.application.rules import (
     ImportReviewRuleApplicationService,
 )
-from app.features.import_review.application.commands.transfers import (
+from app.features.import_review.application.transfers import ImportReviewTransferService
+from app.features.import_review.errors import (
+    ImportReviewDraftValidationError,
+    ImportReviewLifecycleConflictError,
+    ImportReviewLifecycleError,
+    ImportReviewRuleApplicationNotFoundError,
+    RawTransactionReviewError,
+)
+from app.features.import_review.schemas.commands import (
     CreateImportReviewTransferCommand,
-    ImportReviewTransferService,
+    ImportReviewLifecycleCommand,
     LinkImportReviewExistingTransferCommand,
     MatchImportReviewRawRowCommand,
 )
-from app.features.import_review.application.queries.classification import (
-    ImportReviewDraftEvaluator,
-    ImportReviewDraftValidationError,
-)
-from app.features.import_review.application.queries.review import ImportReviewReader
-from app.features.import_review.domain.lifecycle import (
-    ImportReviewLifecycleConflictError,
-    ImportReviewLifecycleError,
-)
-from app.features.imports.errors import RawTransactionReviewError
 from app.features.ledger.errors import LedgerPostingError
 from app.features.workspaces.permissions import permission_flags_for
 

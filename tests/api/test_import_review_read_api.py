@@ -14,67 +14,55 @@ from app.api.v1.import_review.dependencies import (
     get_import_review_transfer_service,
     get_import_review_undo_service,
 )
-from app.features.import_review.application.commands.confirmation import (
-    ConfirmImportReviewItemCommand,
+from app.features.import_review.domain.classification import (
+    ReviewBlockingReasonCode,
+    ReviewClassificationSource,
+)
+from app.features.import_review.domain.lifecycle import (
+    ImportReviewLifecycleAction,
+)
+from app.features.import_review.errors import (
     ImportReviewConfirmationConflictError,
-    ImportReviewConfirmationResult,
     ImportReviewConfirmationValidationError,
+    ImportReviewLifecycleConflictError,
 )
-from app.features.import_review.application.commands.lifecycle import (
+from app.features.import_review.schemas.commands import (
+    ConfirmImportReviewItemCommand,
+    ImportReviewConfirmationResult,
     ImportReviewLifecycleResult,
-)
-from app.features.import_review.application.commands.rules import (
     ImportReviewRuleApplicationResult,
-)
-from app.features.import_review.application.commands.transfers import (
     ImportReviewTransferResult,
-    MatchImportReviewRawRowCommand,
-)
-from app.features.import_review.application.commands.undo import (
     ImportReviewUndoResult,
+    MatchImportReviewRawRowCommand,
     UndoImportReviewPostingCommand,
 )
-from app.features.import_review.application.queries.classification import (
+from app.features.import_review.schemas.review import (
+    ImportReviewAccountDto,
+    ImportReviewBalanceChainDto,
+    ImportReviewCapabilitiesDto,
     ImportReviewClassificationDto,
     ImportReviewConfirmabilityDto,
-    ImportReviewReferencesDto,
-    ImportReviewRuleSuggestionDto,
-    ImportReviewSelectionDto,
-)
-from app.features.import_review.application.queries.duplicates import (
+    ImportReviewDocumentDto,
     ImportReviewDuplicateCandidateDto,
     ImportReviewDuplicateEvidenceDto,
     ImportReviewDuplicateMatchingField,
     ImportReviewDuplicateMatchReasonCode,
-)
-from app.features.import_review.application.queries.review import (
-    ImportReviewAccountDto,
-    ImportReviewCapabilitiesDto,
-    ImportReviewDocumentDto,
     ImportReviewItemDto,
     ImportReviewNormalizedSourceDto,
     ImportReviewQueueDto,
     ImportReviewRawSourceDto,
     ImportReviewReadModel,
     ImportReviewReadonlyReasonCode,
-)
-from app.features.import_review.application.queries.transfer_options import (
+    ImportReviewReferencesDto,
+    ImportReviewRowProblemCode,
+    ImportReviewRowProblemDto,
+    ImportReviewRuleSuggestionDto,
+    ImportReviewSelectionDto,
     ImportReviewTransferAccountDto,
     ImportReviewTransferDirection,
     ImportReviewTransferOptionsDto,
-)
-from app.features.import_review.application.queries.validation import (
-    ImportReviewBalanceChainDto,
-    ImportReviewRowProblemCode,
-    ImportReviewRowProblemDto,
     ImportReviewValidationDto,
     ImportReviewValidationReasonCode,
-)
-from app.features.import_review.domain.classification import ReviewClassificationSource
-from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
-from app.features.import_review.domain.lifecycle import (
-    ImportReviewLifecycleAction,
-    ImportReviewLifecycleConflictError,
 )
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.statements.types import RawTransactionStatus

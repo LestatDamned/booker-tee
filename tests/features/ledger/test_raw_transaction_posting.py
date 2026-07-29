@@ -7,9 +7,11 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.features.accounts.models import Account, AccountType
-from app.features.import_review.application.commands.transfers import (
-    CreateImportReviewTransferCommand,
+from app.features.import_review.application.transfers import (
     ImportReviewTransferActor,
+)
+from app.features.import_review.schemas.commands import (
+    CreateImportReviewTransferCommand,
     LinkImportReviewExistingTransferCommand,
     MatchImportReviewRawRowCommand,
 )

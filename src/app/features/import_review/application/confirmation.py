@@ -1,25 +1,31 @@
 """Confirm imported income and expense rows from the review workflow."""
 
-from dataclasses import dataclass
 from hashlib import sha256
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.import_review.application.commands.rules import ImportReviewRuleCreator
-from app.features.import_review.application.queries.classification import (
+from app.features.import_review.application.classification import (
     build_import_review_draft_evaluation,
 )
-from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
+from app.features.import_review.application.rules import ImportReviewRuleCreator
 from app.features.import_review.domain.posting import (
     prepare_income_expense_posting,
     require_raw_transaction_account_id,
 )
+from app.features.import_review.errors import (
+    ImportReviewConfirmationConflictError,
+    ImportReviewConfirmationValidationError,
+    RawTransactionReviewError,
+)
 from app.features.import_review.repository import ImportReviewRepository
+from app.features.import_review.schemas.commands import (
+    ConfirmImportReviewItemCommand,
+    ImportReviewConfirmationResult,
+)
 from app.features.imports.documents.lifecycle import ImportedDocumentStatusUpdater
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.errors import RawTransactionReviewError
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.imports.statements.validation_service import StatementValidationService
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
@@ -29,48 +35,6 @@ from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.repository import LedgerRepository
 from app.features.transaction_rules.domain.suggestions import rule_suggestion_auto_applies
 from app.features.workspaces.service import WorkspaceContext
-
-
-class ImportReviewConfirmationError(ValueError):
-    pass
-
-
-class ImportReviewConfirmationConflictError(ImportReviewConfirmationError):
-    pass
-
-
-class ImportReviewConfirmationValidationError(ImportReviewConfirmationError):
-    def __init__(
-        self,
-        *,
-        blocking_reason_codes: tuple[ReviewBlockingReasonCode, ...] = (),
-        field_errors: dict[str, list[str]] | None = None,
-    ) -> None:
-        super().__init__("Import review confirmation is not valid.")
-        self.blocking_reason_codes = blocking_reason_codes
-        self.field_errors = field_errors or {}
-
-
-@dataclass(frozen=True)
-class ConfirmImportReviewItemCommand:
-    document_id: UUID
-    item_id: UUID
-    operation_type: OperationType | None
-    category_id: UUID
-    property_id: UUID | None
-    expected_status: RawTransactionStatus
-    remember_rule: bool
-    rule_pattern: str | None
-    idempotency_key: UUID
-
-
-@dataclass(frozen=True)
-class ImportReviewConfirmationResult:
-    document_id: UUID
-    item_id: UUID
-    operation_id: UUID
-    updated_item_ids: frozenset[UUID]
-    replayed: bool
 
 
 class ImportReviewConfirmationActor:

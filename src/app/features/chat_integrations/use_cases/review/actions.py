@@ -21,15 +21,15 @@ from app.features.chat_integrations.use_cases.review.state import (
     ChatReviewStateClaimer,
     ChatReviewStateReader,
 )
-from app.features.import_review.application.commands.lifecycle import (
+from app.features.import_review.application.lifecycle import (
     ImportReviewLifecycleActor,
-    ImportReviewLifecycleCommand,
 )
-from app.features.import_review.domain.lifecycle import (
-    ImportReviewLifecycleAction,
+from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
+from app.features.import_review.errors import (
     ImportReviewLifecycleError,
+    RawTransactionReviewError,
 )
-from app.features.imports.errors import RawTransactionReviewError
+from app.features.import_review.schemas.commands import ImportReviewLifecycleCommand
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.workspaces.service import WorkspaceContext
 

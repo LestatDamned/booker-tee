@@ -17,6 +17,13 @@ from app.features.import_review.domain.posting import (
     require_raw_transaction_account_id,
 )
 from app.features.import_review.repository import ImportReviewRepository
+from app.features.import_review.schemas.commands import (
+    CreateImportReviewTransferCommand,
+    ImportReviewTransferCommand,
+    ImportReviewTransferResult,
+    LinkImportReviewExistingTransferCommand,
+    MatchImportReviewRawRowCommand,
+)
 from app.features.imports.documents.lifecycle import ImportedDocumentStatusUpdater
 from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.models import RawTransaction
@@ -26,43 +33,6 @@ from app.features.ledger.application.posting import LedgerPostingService
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
-
-
-@dataclass(frozen=True)
-class CreateImportReviewTransferCommand:
-    document_id: UUID
-    item_id: UUID
-    counterparty_account_id: UUID
-    idempotency_key: UUID
-
-
-@dataclass(frozen=True)
-class MatchImportReviewRawRowCommand:
-    document_id: UUID
-    item_id: UUID
-    matched_item_id: UUID
-    idempotency_key: UUID
-
-
-@dataclass(frozen=True)
-class LinkImportReviewExistingTransferCommand:
-    document_id: UUID
-    item_id: UUID
-    operation_id: UUID
-    idempotency_key: UUID
-
-
-ImportReviewTransferCommand = (
-    CreateImportReviewTransferCommand
-    | MatchImportReviewRawRowCommand
-    | LinkImportReviewExistingTransferCommand
-)
-
-
-@dataclass(frozen=True)
-class ImportReviewTransferResult:
-    updated_item_ids: frozenset[UUID]
-    affected_document_ids: frozenset[UUID]
 
 
 @dataclass(frozen=True)

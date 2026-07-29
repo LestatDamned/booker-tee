@@ -7,23 +7,19 @@ from pydantic import BeforeValidator
 
 from app.api.schemas import ApiModel
 from app.features.categories.models import CategoryKind
-from app.features.import_review.application.queries.duplicates import (
+from app.features.import_review.domain.classification import (
+    ReviewBlockingReasonCode,
+    ReviewClassificationSource,
+)
+from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
+from app.features.import_review.schemas.review import (
     ImportReviewDuplicateMatchingField,
     ImportReviewDuplicateMatchReasonCode,
-)
-from app.features.import_review.application.queries.review import (
     ImportReviewReadonlyReasonCode,
-)
-from app.features.import_review.application.queries.transfer_options import (
-    ImportReviewTransferDirection,
-)
-from app.features.import_review.application.queries.validation import (
     ImportReviewRowProblemCode,
+    ImportReviewTransferDirection,
     ImportReviewValidationReasonCode,
 )
-from app.features.import_review.domain.classification import ReviewClassificationSource
-from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
-from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.imports.statements.validation import StatementValidationStatus

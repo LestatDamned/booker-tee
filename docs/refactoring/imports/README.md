@@ -61,9 +61,9 @@ Safety baseline
   -> 7C commands and queries completed 2026-07-29
   -> 7D analysis consolidation completed 2026-07-29
 
-Шаг 8  import review commands/queries
+Шаг 8  import review local layered feature
   -> 8A Pydantic read contracts and API mapper cleanup completed 2026-07-29
-  -> 8B command/query package split completed 2026-07-29
+  -> 8B schemas/application/domain structure completed 2026-07-29
 
 Шаг 10  post-architecture cleanup
   -> 10A documents Pydantic models and mechanical mapping cleanup completed 2026-07-29

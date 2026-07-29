@@ -8,34 +8,30 @@ from app.api.errors import ApiError
 from app.db.session import get_session
 from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
-from app.features.import_review.application.commands.categories import (
+from app.features.import_review.application.classification import (
     ImportReviewCategoryCreator,
-)
-from app.features.import_review.application.commands.confirmation import (
-    ImportReviewConfirmationService,
-)
-from app.features.import_review.application.commands.lifecycle import (
-    ImportReviewLifecycleService,
-)
-from app.features.import_review.application.commands.rules import (
-    ImportReviewRuleApplicationService,
-)
-from app.features.import_review.application.commands.transfers import ImportReviewTransferService
-from app.features.import_review.application.commands.undo import ImportReviewUndoService
-from app.features.import_review.application.queries.classification import (
     ImportReviewDraftEvaluator,
     ImportReviewReferenceReader,
 )
-from app.features.import_review.application.queries.duplicates import (
+from app.features.import_review.application.confirmation import (
+    ImportReviewConfirmationService,
+)
+from app.features.import_review.application.lifecycle import (
+    ImportReviewLifecycleService,
+)
+from app.features.import_review.application.review import (
     ImportReviewDuplicateReader,
+    ImportReviewReader,
 )
-from app.features.import_review.application.queries.review import ImportReviewReader
-from app.features.import_review.application.queries.transfer_options import (
+from app.features.import_review.application.rules import (
+    ImportReviewRuleApplicationService,
+)
+from app.features.import_review.application.transfer_options import (
     ImportReviewTransferReader,
-)
-from app.features.import_review.application.queries.transfer_suggestions import (
     TransferSuggestionUseCase,
 )
+from app.features.import_review.application.transfers import ImportReviewTransferService
+from app.features.import_review.application.undo import ImportReviewUndoService
 from app.features.import_review.repository import ImportReviewRepository
 from app.features.properties.service import PropertyService
 from app.features.workspaces.permissions import permission_flags_for

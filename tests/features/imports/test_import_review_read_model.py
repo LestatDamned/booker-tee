@@ -6,20 +6,18 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.import_review.application.queries.classification import ImportReviewReferencesDto
-from app.features.import_review.application.queries.duplicates import (
+from app.features.import_review.application.review import ImportReviewReader
+from app.features.import_review.domain.classification import (
+    ReviewBlockingReasonCode,
+    ReviewClassificationSource,
+)
+from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
+from app.features.import_review.schemas.review import (
     ImportReviewDuplicateEvidenceDto,
-)
-from app.features.import_review.application.queries.review import (
-    ImportReviewReader,
     ImportReviewReadonlyReasonCode,
-)
-from app.features.import_review.application.queries.transfer_options import (
+    ImportReviewReferencesDto,
     ImportReviewTransferOptionsDto,
 )
-from app.features.import_review.domain.classification import ReviewClassificationSource
-from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
-from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.models import UploadedDocument
 from app.features.imports.statements.types import RawTransactionStatus
@@ -165,7 +163,7 @@ async def test_import_review_reader_returns_none_for_unknown_document() -> None:
 
 @pytest.mark.asyncio
 async def test_possible_duplicate_evidence_is_built_from_workspace_scoped_candidate() -> None:
-    from app.features.import_review.application.queries.duplicates import (
+    from app.features.import_review.application.review import (
         ImportReviewDuplicateReader,
     )
 
