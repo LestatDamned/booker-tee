@@ -7,9 +7,6 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
-    StatementMappingDefaultResolver,
-)
 from app.features.imports.application.unknown_statements.analyzer import (
     analyze_unknown_statement,
 )
@@ -32,6 +29,9 @@ from app.features.imports.mapping.engine import (
 )
 from app.features.imports.mapping.raw_tables import (
     compatible_mapping_tables,
+)
+from app.features.imports.mapping.templates import (
+    StatementMappingDefaultResolver,
 )
 from app.features.imports.parsers.extractors.dto import (
     ExtractedStatement,

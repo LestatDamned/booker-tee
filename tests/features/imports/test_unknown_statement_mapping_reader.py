@@ -1,12 +1,12 @@
 from copy import deepcopy
 from datetime import UTC, datetime
+from typing import cast
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
-    MappingDefaultSource,
-)
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingRowErrorCode,
     MappingTableRefDto,
@@ -24,9 +24,11 @@ from app.features.imports.documents.dto import (
 from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
 from app.features.imports.documents.validation_report import StoredValidationReport
 from app.features.imports.mapping.dto import (
+    MappingDefaultSource,
     StatementMappingSpec,
     UnsignedAmountDirection,
 )
+from app.features.imports.mapping.repository import MappingRepository
 
 
 class DocumentSnapshotReaderStub:
@@ -60,6 +62,21 @@ class TemplateServiceStub:
         statement_type: str | None,
     ):
         return []
+
+
+@pytest.mark.asyncio
+async def test_mapping_repository_skips_template_query_without_bank_or_type() -> None:
+    session = AsyncMock()
+    repository = MappingRepository(cast(AsyncSession, session))
+
+    templates = await repository.list_matching_templates(
+        workspace_id=uuid4(),
+        bank_name=None,
+        statement_type=None,
+    )
+
+    assert templates == []
+    session.execute.assert_not_awaited()
 
 
 @pytest.mark.asyncio

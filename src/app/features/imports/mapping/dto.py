@@ -2,12 +2,19 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
+from uuid import UUID
 
 
 class UnsignedAmountDirection(StrEnum):
     REQUIRE_SIGN = "require_sign"
     INCOME = "income"
     EXPENSE = "expense"
+
+
+class MappingDefaultSource(StrEnum):
+    TEMPLATE = "template"
+    ANALYZER = "analyzer"
+    FALLBACK = "fallback"
 
 
 @dataclass(frozen=True)
@@ -38,11 +45,20 @@ class StatementMappingSpec:
 
 
 @dataclass(frozen=True)
-class SaveImportMappingTemplateCommand:
+class MappingTemplateSnapshot:
+    id: UUID
     name: str
     bank_name: str | None
     statement_type: str | None
-    mapping: StatementMappingSpec
+    default_currency: str
+    column_mapping: dict[str, object]
+
+
+@dataclass(frozen=True)
+class ResolvedMappingDefault:
+    spec: StatementMappingSpec
+    source: MappingDefaultSource
+    template_id: UUID | None
 
 
 @dataclass(frozen=True)

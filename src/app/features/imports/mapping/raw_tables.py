@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, cast
 
-from app.features.imports.application.unknown_statement_mappings.values import int_value
 from app.features.imports.mapping.dto import (
     StatementMappingSpec,
 )
@@ -55,7 +54,7 @@ def iter_raw_tables(raw_tables: list[dict[str, object]] | None) -> list[RawTable
         return []
     table_refs: list[RawTableRef] = []
     for page_tables in raw_tables:
-        page_number = int_value(page_tables.get("page_number"), default=0)
+        page_number = _page_number(page_tables.get("page_number"))
         tables = page_tables.get("tables")
         if page_number < 1 or not isinstance(tables, list):
             continue
@@ -162,3 +161,14 @@ def normalize_raw_table(table: list[Any]) -> list[list[str]]:
 
 def normalize_raw_row(row: list[Any]) -> list[str]:
     return [str(cell).strip() if cell is not None else "" for cell in row]
+
+
+def _page_number(value: object) -> int:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return 0
+    return 0

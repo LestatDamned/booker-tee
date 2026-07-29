@@ -3,9 +3,6 @@ from datetime import date
 from enum import StrEnum
 from uuid import UUID
 
-from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
-    MappingDefaultSource,
-)
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.mapping.control_totals import (
     MappingControlTotalKind,
@@ -13,6 +10,7 @@ from app.features.imports.mapping.control_totals import (
 from app.features.imports.mapping.dto import (
     MappedStatementRow,
     MappingControlTotalCellRef,
+    MappingDefaultSource,
     StatementMappingSpec,
     UnknownStatementMappingWarning,
     UnsignedAmountDirection,

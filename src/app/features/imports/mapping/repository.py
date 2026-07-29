@@ -3,6 +3,9 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.imports.mapping.dto import (
+    MappingTemplateSnapshot,
+)
 from app.features.imports.models import (
     ImportMappingExecution,
     ImportMappingTemplate,
@@ -15,11 +18,25 @@ class MappingRepository:
 
     async def create_mapping_template(
         self,
-        template: ImportMappingTemplate,
-    ) -> ImportMappingTemplate:
-        self.session.add(template)
+        *,
+        workspace_id: UUID,
+        name: str,
+        bank_name: str | None,
+        statement_type: str | None,
+        default_currency: str,
+        column_mapping: dict[str, object],
+    ) -> MappingTemplateSnapshot:
+        model = ImportMappingTemplate(
+            workspace_id=workspace_id,
+            name=name,
+            bank_name=bank_name,
+            statement_type=statement_type,
+            default_currency=default_currency,
+            column_mapping_json=column_mapping,
+        )
+        self.session.add(model)
         await self.session.flush()
-        return template
+        return _template_snapshot(model)
 
     async def create_mapping_execution(
         self,
@@ -45,13 +62,15 @@ class MappingRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_mapping_templates(
+    async def list_matching_templates(
         self,
         *,
         workspace_id: UUID,
         bank_name: str | None = None,
         statement_type: str | None = None,
-    ) -> list[ImportMappingTemplate]:
+    ) -> list[MappingTemplateSnapshot]:
+        if not bank_name and not statement_type:
+            return []
         query = select(ImportMappingTemplate).where(
             ImportMappingTemplate.workspace_id == workspace_id
         )
@@ -61,4 +80,15 @@ class MappingRepository:
             query = query.where(ImportMappingTemplate.statement_type == statement_type)
         query = query.order_by(ImportMappingTemplate.updated_at.desc())
         result = await self.session.execute(query)
-        return list(result.scalars().all())
+        return [_template_snapshot(template) for template in result.scalars().all()]
+
+
+def _template_snapshot(template: ImportMappingTemplate) -> MappingTemplateSnapshot:
+    return MappingTemplateSnapshot(
+        id=template.id,
+        name=template.name,
+        bank_name=template.bank_name,
+        statement_type=template.statement_type,
+        default_currency=template.default_currency,
+        column_mapping=template.column_mapping_json,
+    )

@@ -10,14 +10,12 @@ from app.features.imports.application.unknown_statement_mappings.import_use_case
 from app.features.imports.application.unknown_statement_mappings.reader import (
     UnknownStatementMappingReader,
 )
-from app.features.imports.application.unknown_statement_mappings.template_use_case import (
-    UnknownStatementMappingTemplateUseCase,
-)
 from app.features.imports.documents.queries.detail import (
     ImportDocumentDetailReader,
 )
 from app.features.imports.documents.queries.list import ImportDocumentListReader
 from app.features.imports.documents.repository import DocumentRepository
+from app.features.imports.mapping.repository import MappingRepository
 
 
 def get_import_document_list_reader(
@@ -37,7 +35,7 @@ def get_unknown_statement_mapping_reader(
 ) -> UnknownStatementMappingReader:
     return UnknownStatementMappingReader(
         DocumentRepository(session),
-        UnknownStatementMappingTemplateUseCase(session),
+        MappingRepository(session),
     )
 
 

@@ -2,23 +2,15 @@ from decimal import Decimal
 from typing import cast
 from uuid import uuid4
 
-from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
-    MappingDefaultSource,
-    StatementMappingDefaultResolver,
-)
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingRowErrorCode,
     mapping_row_error_codes,
 )
-from app.features.imports.application.unknown_statement_mappings.template_commands import (
-    compatible_mapping_templates,
-    mapping_spec_as_json,
-    mapping_spec_from_template,
-    mapping_template_matches_raw_tables,
-)
 from app.features.imports.documents.validation_report import StoredValidationReport
 from app.features.imports.mapping.drafts import StatementMappingDraftBuilder
 from app.features.imports.mapping.dto import (
+    MappingDefaultSource,
+    MappingTemplateSnapshot,
     StatementMappingSpec,
     UnsignedAmountDirection,
 )
@@ -28,7 +20,13 @@ from app.features.imports.mapping.engine import (
 from app.features.imports.mapping.raw_tables import (
     compatible_mapping_tables,
 )
-from app.features.imports.models import ImportMappingTemplate
+from app.features.imports.mapping.templates import (
+    StatementMappingDefaultResolver,
+    compatible_mapping_templates,
+    mapping_spec_as_json,
+    mapping_spec_from_template,
+    mapping_template_matches_raw_tables,
+)
 from app.features.imports.parsers.support.normalization import parse_bank_date
 from app.features.imports.statements.types import RawTransactionStatus
 
@@ -624,13 +622,13 @@ def test_import_mapping_template_round_trips_mapping_command() -> None:
         default_currency="RUB",
         unsigned_amount_direction=UnsignedAmountDirection.EXPENSE,
     )
-    template = ImportMappingTemplate(
-        workspace_id=uuid4(),
+    template = MappingTemplateSnapshot(
+        id=uuid4(),
         name="Ozon card",
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping_json=mapping_spec_as_json(command),
+        column_mapping=mapping_spec_as_json(command),
     )
 
     restored = mapping_spec_from_template(template)
@@ -652,13 +650,13 @@ def test_legacy_mapping_template_requires_direction_for_unsigned_amounts() -> No
     )
     payload = mapping_spec_as_json(command)
     payload.pop("unsigned_amount_direction")
-    template = ImportMappingTemplate(
-        workspace_id=uuid4(),
+    template = MappingTemplateSnapshot(
+        id=uuid4(),
         name="Legacy template",
         bank_name=None,
         statement_type=None,
         default_currency="RUB",
-        column_mapping_json=payload,
+        column_mapping=payload,
     )
 
     restored = mapping_spec_from_template(template)
@@ -679,13 +677,13 @@ def test_import_mapping_template_matches_same_table_signature() -> None:
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
     raw_tables = ozon_like_raw_tables()
-    template = ImportMappingTemplate(
-        workspace_id=uuid4(),
+    template = MappingTemplateSnapshot(
+        id=uuid4(),
         name="Ozon card",
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping_json=mapping_spec_as_json(command, raw_tables=raw_tables),
+        column_mapping=mapping_spec_as_json(command, raw_tables=raw_tables),
     )
 
     assert mapping_template_matches_raw_tables(template, raw_tables)
@@ -704,13 +702,13 @@ def test_import_mapping_template_matches_changed_headers_with_same_profiles() ->
         default_currency="RUB",
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
-    template = ImportMappingTemplate(
-        workspace_id=uuid4(),
+    template = MappingTemplateSnapshot(
+        id=uuid4(),
         name="Ozon card",
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping_json=mapping_spec_as_json(command, raw_tables=ozon_like_raw_tables()),
+        column_mapping=mapping_spec_as_json(command, raw_tables=ozon_like_raw_tables()),
     )
     changed_tables: list[dict[str, object]] = [
         {
@@ -740,13 +738,13 @@ def test_import_mapping_template_rejects_incompatible_column_profiles() -> None:
         default_currency="RUB",
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
-    template = ImportMappingTemplate(
-        workspace_id=uuid4(),
+    template = MappingTemplateSnapshot(
+        id=uuid4(),
         name="Ozon card",
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping_json=mapping_spec_as_json(command, raw_tables=ozon_like_raw_tables()),
+        column_mapping=mapping_spec_as_json(command, raw_tables=ozon_like_raw_tables()),
     )
     changed_tables: list[dict[str, object]] = [
         {
@@ -776,13 +774,13 @@ def test_mapping_default_resolver_prefers_saved_template() -> None:
         default_currency="RUB",
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
-    template = ImportMappingTemplate(
-        workspace_id=uuid4(),
+    template = MappingTemplateSnapshot(
+        id=uuid4(),
         name="Ozon card",
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping_json=mapping_spec_as_json(saved_command),
+        column_mapping=mapping_spec_as_json(saved_command),
     )
     validation: dict[str, object] = {
         "table_previews": [

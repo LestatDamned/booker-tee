@@ -11,6 +11,7 @@ from app.features.imports.application.unknown_statement_mappings.import_use_case
     UnknownStatementMappingImportUseCase,
 )
 from app.features.imports.mapping.dto import (
+    MappingTemplateSnapshot,
     StatementMappingSpec,
     UnsignedAmountDirection,
 )
@@ -36,10 +37,32 @@ class MappingImportsStub:
         self.execution = execution
         return execution
 
-    async def create_mapping_template(self, template):
-        template.id = uuid4()
+    async def create_mapping_template(
+        self,
+        *,
+        workspace_id: UUID,
+        name: str,
+        bank_name: str | None,
+        statement_type: str | None,
+        default_currency: str,
+        column_mapping: dict[str, object],
+    ) -> MappingTemplateSnapshot:
+        template = SimpleNamespace(
+            name=name,
+            bank_name=bank_name,
+            statement_type=statement_type,
+            default_currency=default_currency,
+            column_mapping=column_mapping,
+        )
         self.created_templates.append(template)
-        return template
+        return MappingTemplateSnapshot(
+            id=uuid4(),
+            name=template.name,
+            bank_name=template.bank_name,
+            statement_type=template.statement_type,
+            default_currency=template.default_currency,
+            column_mapping=template.column_mapping,
+        )
 
 
 class SessionStub:

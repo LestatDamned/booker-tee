@@ -1,8 +1,5 @@
 from decimal import Decimal
 
-from app.features.imports.application.unknown_statement_mappings.template_signatures import (
-    mapped_field_indexes,
-)
 from app.features.imports.mapping.dto import (
     MappedStatementRow,
     StatementMappingResult,
@@ -18,6 +15,7 @@ from app.features.imports.mapping.rows import (
     explicit_amount_direction,
     map_table_rows,
 )
+from app.features.imports.mapping.templates import mapped_field_indexes
 
 DEFAULT_MAPPING_ROW_LIMIT = 20
 

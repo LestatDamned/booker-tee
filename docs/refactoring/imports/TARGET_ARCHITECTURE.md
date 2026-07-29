@@ -770,6 +770,23 @@ import-review ошибкой. Production Python уменьшился с 10 900 �
 только если после переноса действительно содержит несколько устойчивых причин
 изменения.
 
+7B завершён 2026-07-29. Defaults, codec, signature matching и save operation
+собраны в `mapping/templates.py`; пять старых template-модулей, включая
+forwarding `template_use_case.py` и `values.py`, удалены. Reader получает
+`MappingRepository` напрямую через узкий protocol.
+
+Application и query actors работают с immutable `MappingTemplateSnapshot`.
+`ImportMappingTemplate` теперь виден только persistence-моделям и
+`mapping/repository.py`. Repository создаёт ORM entity из явных значений,
+возвращает snapshot и не выполняет запрос без bank и statement type.
+Одноразовые create/command DTO не добавлялись.
+
+После 7B пакет `imports` уменьшился с 81 до 77 Python-файлов и с 10 898 до
+10 892 строк production Python. Consolidated `templates.py` содержит 501 строку
+после форматирования: это осознанная единая template capability без ORM и
+workflow orchestration; повторное разделение допускается только при появлении
+разных устойчивых причин изменения. Regression gate: Ruff, ty и 603 tests.
+
 #### 7C. Commands и queries
 
 - разделить текущий reader на overview, preview и source-row queries;
@@ -874,8 +891,8 @@ repository abstraction. Существующие API-преобразовани�
 | 6B. Decode once on documents read boundary | completed 2026-07-29 |
 | 6C. Typed mapping consumers and decoder cleanup | completed 2026-07-29 |
 | 7A. Mapping core ownership | completed 2026-07-29 |
-| 7B. Mapping templates and persistence boundary | next |
-| 7C. Mapping commands and queries | pending |
+| 7B. Mapping templates and persistence boundary | completed 2026-07-29 |
+| 7C. Mapping commands and queries | next |
 | 7D. Mapping analysis consolidation and old-path cleanup | pending |
 | 8–11 | pending |
 

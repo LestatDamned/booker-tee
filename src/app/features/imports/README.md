@@ -198,16 +198,21 @@ application/unknown_statements/
   fallback.py
 
 application/unknown_statement_mappings/
-  engine.py
   import_use_case.py
-  template_use_case.py
-  template_commands.py
-  template_signatures.py
-  mapping_defaults.py
-  values.py
-  raw_tables.py
-  row_mapping.py
+  read_models.py
+  reader.py
+
+mapping/
+  dto.py
+  errors.py
+  engine.py
+  rows.py
   drafts.py
+  raw_tables.py
+  control_totals.py
+  validation.py
+  templates.py
+  repository.py
 ```
 
 ### Import Review boundary
@@ -276,18 +281,20 @@ imports/
       fallback.py
 
     unknown_statement_mappings/
-      engine.py
       import_use_case.py
-      template_use_case.py
-      template_commands.py
-      template_signatures.py
-      mapping_defaults.py
-      values.py
-      raw_tables.py
-      row_mapping.py
-      drafts.py
+      read_models.py
+      reader.py
 
   mapping/
+    dto.py
+    errors.py
+    engine.py
+    rows.py
+    drafts.py
+    raw_tables.py
+    control_totals.py
+    validation.py
+    templates.py
     repository.py
 
   parsers/

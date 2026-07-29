@@ -5,10 +5,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.imports.application.unknown_statement_mappings.template_commands import (
-    clean_template_name,
-    mapping_spec_as_json,
-)
 from app.features.imports.application.unknown_statements.control_totals import (
     extract_unknown_statement_control_totals,
 )
@@ -28,7 +24,6 @@ from app.features.imports.mapping.drafts import (
 )
 from app.features.imports.mapping.dto import (
     MappingControlTotalCellRef,
-    SaveImportMappingTemplateCommand,
     StatementMappingSpec,
 )
 from app.features.imports.mapping.engine import (
@@ -44,13 +39,17 @@ from app.features.imports.mapping.raw_tables import (
     find_raw_table,
 )
 from app.features.imports.mapping.repository import MappingRepository
+from app.features.imports.mapping.templates import (
+    StatementMappingTemplateService,
+    clean_template_name,
+    mapping_spec_as_json,
+)
 from app.features.imports.mapping.validation import (
     StatementMappingValidator,
     raise_for_mapping_validation_issues,
 )
 from app.features.imports.models import (
     ImportMappingExecution,
-    ImportMappingTemplate,
     ParseAttempt,
     RawTransaction,
     UploadedDocument,
@@ -135,14 +134,12 @@ class UnknownStatementMappingImportUseCase:
             supersede_existing_rows=True,
         )
         template = (
-            await self.save_template(
+            await StatementMappingTemplateService(self.mappings).save(
                 workspace_id=workspace_id,
-                command=SaveImportMappingTemplateCommand(
-                    name=normalized_template_name,
-                    bank_name=document.bank_name,
-                    statement_type=document.statement_type,
-                    mapping=spec,
-                ),
+                name=normalized_template_name,
+                bank_name=document.bank_name,
+                statement_type=document.statement_type,
+                mapping=spec,
                 raw_tables=attempt.raw_tables_json,
             )
             if normalized_template_name is not None
@@ -211,26 +208,6 @@ class UnknownStatementMappingImportUseCase:
                 "Исправьте блокирующие ошибки и обновите предпросмотр."
             )
         return attempt
-
-    async def save_template(
-        self,
-        *,
-        workspace_id: UUID,
-        command: SaveImportMappingTemplateCommand,
-        raw_tables: list[dict[str, object]] | None,
-    ) -> ImportMappingTemplate:
-        template = ImportMappingTemplate(
-            workspace_id=workspace_id,
-            name=clean_template_name(command.name),
-            bank_name=command.bank_name,
-            statement_type=command.statement_type,
-            default_currency=command.mapping.default_currency,
-            column_mapping_json=mapping_spec_as_json(
-                command.mapping,
-                raw_tables=raw_tables,
-            ),
-        )
-        return await self.mappings.create_mapping_template(template)
 
 
 async def create_raw_transactions_from_mapping(

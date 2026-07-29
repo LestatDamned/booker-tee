@@ -5,10 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.imports.application.unknown_statement_mappings.import_use_case import (
     create_raw_transactions_from_mapping,
 )
-from app.features.imports.application.unknown_statement_mappings.template_commands import (
-    mapping_spec_from_template,
-    select_compatible_mapping_template,
-)
 from app.features.imports.application.unknown_statements.analyzer import (
     analyze_unknown_statement,
 )
@@ -21,6 +17,10 @@ from app.features.imports.documents.attempts import (
 from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.mapping.errors import UnknownStatementMappingError
 from app.features.imports.mapping.repository import MappingRepository
+from app.features.imports.mapping.templates import (
+    mapping_spec_from_template,
+    select_compatible_mapping_template,
+)
 from app.features.imports.models import ParseAttempt, UploadedDocument
 from app.features.imports.parsers.extractors.dto import ExtractedStatement
 from app.features.imports.statements.repository import StatementRepository
@@ -85,7 +85,7 @@ class UnknownStatementFallbackPipeline:
             return False
         if not document.bank_name and not document.statement_type:
             return False
-        templates = await self.mappings.list_mapping_templates(
+        templates = await self.mappings.list_matching_templates(
             workspace_id=document.workspace_id,
             bank_name=document.bank_name,
             statement_type=document.statement_type,

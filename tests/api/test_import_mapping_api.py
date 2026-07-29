@@ -8,9 +8,6 @@ from app.api.v1.imports.dependencies import (
     get_unknown_statement_mapping_importer,
     get_unknown_statement_mapping_reader,
 )
-from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
-    MappingDefaultSource,
-)
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingAccountDto,
     MappingCapabilityDto,
@@ -22,6 +19,7 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
 )
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.mapping.dto import (
+    MappingDefaultSource,
     StatementMappingSpec,
     UnknownStatementMappingWarning,
     UnsignedAmountDirection,

@@ -3,9 +3,6 @@ from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
-from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
-    StatementMappingDefaultResolver,
-)
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingAccountDto,
     MappingBalanceReconciliationDto,
@@ -25,9 +22,6 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
     UnknownStatementMappingReadModel,
     mapping_preview_row,
 )
-from app.features.imports.application.unknown_statement_mappings.template_commands import (
-    compatible_mapping_templates,
-)
 from app.features.imports.documents.dto import (
     ImportDocumentSnapshot,
 )
@@ -44,6 +38,7 @@ from app.features.imports.mapping.control_totals import (
 )
 from app.features.imports.mapping.dto import (
     MappedStatementRow,
+    MappingTemplateSnapshot,
     StatementMappingSpec,
 )
 from app.features.imports.mapping.engine import (
@@ -53,11 +48,14 @@ from app.features.imports.mapping.raw_tables import (
     compatible_mapping_tables,
     find_raw_table,
 )
+from app.features.imports.mapping.templates import (
+    StatementMappingDefaultResolver,
+    compatible_mapping_templates,
+)
 from app.features.imports.mapping.validation import (
     StatementMappingValidator,
     raise_for_mapping_validation_issues,
 )
-from app.features.imports.models import ImportMappingTemplate
 from app.features.imports.statements.types import RawTransactionStatus
 
 MAX_MAPPING_SOURCE_TABLES = 100
@@ -83,7 +81,7 @@ class MappingTemplateReader(Protocol):
         workspace_id: UUID,
         bank_name: str | None,
         statement_type: str | None,
-    ) -> list[ImportMappingTemplate]: ...
+    ) -> list[MappingTemplateSnapshot]: ...
 
 
 @dataclass(frozen=True)
