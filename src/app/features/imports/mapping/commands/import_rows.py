@@ -33,7 +33,6 @@ from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.mapping.templates import (
     StatementMappingTemplateService,
     clean_template_name,
-    mapping_spec_as_json,
 )
 from app.features.imports.mapping.validation import (
     StatementMappingValidator,
@@ -361,7 +360,7 @@ def mapping_import_fingerprint(
     template_name: str | None,
 ) -> str:
     payload = {
-        "mapping": mapping_spec_as_json(spec),
+        "mapping": spec.model_dump(mode="json"),
         "control_total_cells": {
             "opening_balance": _control_total_cell_as_json(spec.opening_balance_cell),
             "closing_balance": _control_total_cell_as_json(spec.closing_balance_cell),
@@ -379,12 +378,5 @@ def mapping_import_fingerprint(
 
 def _control_total_cell_as_json(
     cell: MappingControlTotalCellRef | None,
-) -> dict[str, int] | None:
-    if cell is None:
-        return None
-    return {
-        "page_number": cell.page_number,
-        "table_index": cell.table_index,
-        "row_number": cell.row_number,
-        "column_index": cell.column_index,
-    }
+) -> dict[str, object] | None:
+    return cell.model_dump(mode="json") if cell is not None else None

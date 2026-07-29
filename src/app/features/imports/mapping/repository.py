@@ -1,3 +1,4 @@
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -5,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.imports.mapping.dto import (
     MappingTemplateSnapshot,
+    StatementMappingSpec,
 )
 from app.features.imports.models import (
     ImportMappingExecution,
@@ -23,15 +25,18 @@ class MappingRepository:
         name: str,
         bank_name: str | None,
         statement_type: str | None,
-        default_currency: str,
-        column_mapping: dict[str, object],
+        mapping: StatementMappingSpec,
+        table_signature: dict[str, object] | None,
     ) -> MappingTemplateSnapshot:
+        column_mapping = mapping.model_dump(mode="json")
+        if table_signature is not None:
+            column_mapping["table_signature"] = table_signature
         model = ImportMappingTemplate(
             workspace_id=workspace_id,
             name=name,
             bank_name=bank_name,
             statement_type=statement_type,
-            default_currency=default_currency,
+            default_currency=mapping.default_currency,
             column_mapping_json=column_mapping,
         )
         self.session.add(model)
@@ -84,11 +89,22 @@ class MappingRepository:
 
 
 def _template_snapshot(template: ImportMappingTemplate) -> MappingTemplateSnapshot:
+    column_mapping = template.column_mapping_json
+    default_currency = column_mapping.get("default_currency") or template.default_currency
+    table_signature = column_mapping.get("table_signature")
     return MappingTemplateSnapshot(
         id=template.id,
         name=template.name,
         bank_name=template.bank_name,
         statement_type=template.statement_type,
         default_currency=template.default_currency,
-        column_mapping=template.column_mapping_json,
+        mapping=StatementMappingSpec.model_validate(
+            {
+                **column_mapping,
+                "default_currency": default_currency,
+            }
+        ),
+        table_signature=(
+            cast(dict[str, object], table_signature) if isinstance(table_signature, dict) else None
+        ),
     )

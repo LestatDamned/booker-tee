@@ -1,5 +1,3 @@
-from dataclasses import replace
-
 from app.features.imports.mapping.dto import (
     MappingControlTotalCellRef,
     StatementMappingSpec,
@@ -24,12 +22,13 @@ def test_valid_statement_mapping_has_no_issues() -> None:
 
 
 def test_statement_mapping_validator_returns_all_column_issues() -> None:
-    spec = replace(
-        mapping_spec(),
-        description_column=0,
-        amount_column=5,
-        debit_amount_column=2,
-        first_data_row=4,
+    spec = mapping_spec().model_copy(
+        update={
+            "description_column": 0,
+            "amount_column": 5,
+            "debit_amount_column": 2,
+            "first_data_row": 4,
+        }
     )
 
     issues = StatementMappingValidator.validate(
@@ -68,10 +67,11 @@ def test_control_total_validation_returns_duplicate_and_invalid_cell_issues() ->
         row_number=0,
         column_index=0,
     )
-    spec = replace(
-        mapping_spec(),
-        opening_balance_cell=invalid_cell,
-        closing_balance_cell=invalid_cell,
+    spec = mapping_spec().model_copy(
+        update={
+            "opening_balance_cell": invalid_cell,
+            "closing_balance_cell": invalid_cell,
+        }
     )
 
     issues = StatementMappingValidator.validate(

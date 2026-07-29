@@ -4,7 +4,10 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
+from pydantic import ConfigDict, Field
+
 from app.features.imports.documents.types import UploadedDocumentStatus
+from app.shared.schemas import ApplicationModel
 
 
 class UnsignedAmountDirection(StrEnum):
@@ -45,45 +48,50 @@ class MappingRowErrorCode(StrEnum):
     DESCRIPTION_REQUIRED = "description_required"
 
 
-@dataclass(frozen=True)
-class MappingControlTotalCellRef:
+class MappingControlTotalCellRef(ApplicationModel):
     page_number: int
     table_index: int
     row_number: int
     column_index: int
 
 
-@dataclass(frozen=True)
-class StatementMappingSpec:
-    page_number: int
-    table_index: int
-    operation_date_column: int
-    description_column: int
-    amount_column: int | None
-    currency_column: int | None
-    first_data_row: int
+class StatementMappingSpec(ApplicationModel):
+    model_config = ConfigDict(extra="ignore")
+
+    page_number: int = 1
+    table_index: int = 0
+    operation_date_column: int = 0
+    description_column: int = 2
+    amount_column: int | None = None
+    currency_column: int | None = None
+    first_data_row: int = 1
     default_currency: str
-    unsigned_amount_direction: UnsignedAmountDirection
+    unsigned_amount_direction: UnsignedAmountDirection = UnsignedAmountDirection.REQUIRE_SIGN
     posting_date_column: int | None = None
     debit_amount_column: int | None = None
     credit_amount_column: int | None = None
     balance_after_column: int | None = None
-    opening_balance_cell: MappingControlTotalCellRef | None = None
-    closing_balance_cell: MappingControlTotalCellRef | None = None
+    opening_balance_cell: MappingControlTotalCellRef | None = Field(
+        default=None,
+        exclude=True,
+    )
+    closing_balance_cell: MappingControlTotalCellRef | None = Field(
+        default=None,
+        exclude=True,
+    )
 
 
-@dataclass(frozen=True)
-class MappingTemplateSnapshot:
+class MappingTemplateSnapshot(ApplicationModel):
     id: UUID
     name: str
     bank_name: str | None
     statement_type: str | None
     default_currency: str
-    column_mapping: dict[str, object]
+    mapping: StatementMappingSpec
+    table_signature: dict[str, object] | None = None
 
 
-@dataclass(frozen=True)
-class ResolvedMappingDefault:
+class ResolvedMappingDefault(ApplicationModel):
     spec: StatementMappingSpec
     source: MappingDefaultSource
     template_id: UUID | None

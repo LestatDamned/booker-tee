@@ -1,4 +1,3 @@
-from dataclasses import replace
 from typing import Protocol
 from uuid import UUID
 
@@ -95,16 +94,17 @@ class StatementMappingOverviewReader:
             compatible_templates=compatible_templates,
         )
         control_total_candidates = detect_control_total_candidates(raw_tables)
-        spec = replace(
-            default.spec,
-            opening_balance_cell=automatic_control_total_cell(
-                control_total_candidates,
-                MappingControlTotalKind.OPENING_BALANCE,
-            ),
-            closing_balance_cell=automatic_control_total_cell(
-                control_total_candidates,
-                MappingControlTotalKind.CLOSING_BALANCE,
-            ),
+        spec = default.spec.model_copy(
+            update={
+                "opening_balance_cell": automatic_control_total_cell(
+                    control_total_candidates,
+                    MappingControlTotalKind.OPENING_BALANCE,
+                ),
+                "closing_balance_cell": automatic_control_total_cell(
+                    control_total_candidates,
+                    MappingControlTotalKind.CLOSING_BALANCE,
+                ),
+            }
         )
         table_options = (
             snapshot.validation.table_previews if snapshot.validation is not None else ()

@@ -65,6 +65,7 @@ Safety baseline
   -> 10A documents Pydantic models and mechanical mapping cleanup completed 2026-07-29
   -> 10B upload data contracts completed 2026-07-29
   -> 10C statements Pydantic contracts and JSON cleanup completed 2026-07-29
+  -> 10D mapping persisted contracts completed 2026-07-29
 ```
 
 Перед массовыми moves не выполняется общая полировка старой структуры.

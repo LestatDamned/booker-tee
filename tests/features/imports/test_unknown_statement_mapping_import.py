@@ -1,4 +1,3 @@
-from dataclasses import replace
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any, cast
@@ -45,15 +44,15 @@ class MappingImportsStub:
         name: str,
         bank_name: str | None,
         statement_type: str | None,
-        default_currency: str,
-        column_mapping: dict[str, object],
+        mapping: StatementMappingSpec,
+        table_signature: dict[str, object] | None,
     ) -> MappingTemplateSnapshot:
         template = SimpleNamespace(
             name=name,
             bank_name=bank_name,
             statement_type=statement_type,
-            default_currency=default_currency,
-            column_mapping=column_mapping,
+            mapping=mapping,
+            table_signature=table_signature,
         )
         self.created_templates.append(template)
         return MappingTemplateSnapshot(
@@ -61,8 +60,9 @@ class MappingImportsStub:
             name=template.name,
             bank_name=template.bank_name,
             statement_type=template.statement_type,
-            default_currency=template.default_currency,
-            column_mapping=template.column_mapping,
+            default_currency=template.mapping.default_currency,
+            mapping=template.mapping,
+            table_signature=template.table_signature,
         )
 
 
@@ -134,7 +134,7 @@ async def test_mapping_import_rejects_same_key_with_changed_payload() -> None:
         spec=mapping_command(),
         idempotency_key=idempotency_key,
     )
-    changed = replace(mapping_command(), default_currency="USD")
+    changed = mapping_command().model_copy(update={"default_currency": "USD"})
 
     with pytest.raises(MappingImportIdempotencyConflictError):
         await service.import_rows_idempotently(

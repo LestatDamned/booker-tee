@@ -5,6 +5,7 @@ from uuid import uuid4
 from app.features.imports.documents.validation_report import StoredValidationReport
 from app.features.imports.mapping.drafts import StatementMappingDraftBuilder
 from app.features.imports.mapping.dto import (
+    MappingControlTotalCellRef,
     MappingDefaultSource,
     MappingRowErrorCode,
     MappingTemplateSnapshot,
@@ -21,9 +22,8 @@ from app.features.imports.mapping.raw_tables import (
 from app.features.imports.mapping.templates import (
     StatementMappingDefaultResolver,
     compatible_mapping_templates,
-    mapping_spec_as_json,
-    mapping_spec_from_template,
     mapping_template_matches_raw_tables,
+    table_signature_for_mapping,
 )
 from app.features.imports.parsers.support.normalization import parse_bank_date
 from app.features.imports.statements.types import RawTransactionStatus
@@ -620,18 +620,32 @@ def test_import_mapping_template_round_trips_mapping_command() -> None:
         default_currency="RUB",
         unsigned_amount_direction=UnsignedAmountDirection.EXPENSE,
     )
-    template = MappingTemplateSnapshot(
-        id=uuid4(),
-        name="Ozon card",
-        bank_name="Ozon Bank",
-        statement_type="card_statement",
-        default_currency="RUB",
-        column_mapping=mapping_spec_as_json(command),
-    )
-
-    restored = mapping_spec_from_template(template)
+    restored = StatementMappingSpec.model_validate(command.model_dump(mode="json"))
 
     assert restored == command
+
+
+def test_mapping_template_payload_excludes_statement_control_total_cells() -> None:
+    command = StatementMappingSpec(
+        default_currency="RUB",
+        opening_balance_cell=MappingControlTotalCellRef(
+            page_number=1,
+            table_index=0,
+            row_number=1,
+            column_index=2,
+        ),
+        closing_balance_cell=MappingControlTotalCellRef(
+            page_number=2,
+            table_index=0,
+            row_number=10,
+            column_index=2,
+        ),
+    )
+
+    payload = command.model_dump(mode="json")
+
+    assert "opening_balance_cell" not in payload
+    assert "closing_balance_cell" not in payload
 
 
 def test_legacy_mapping_template_requires_direction_for_unsigned_amounts() -> None:
@@ -646,18 +660,9 @@ def test_legacy_mapping_template_requires_direction_for_unsigned_amounts() -> No
         default_currency="RUB",
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
-    payload = mapping_spec_as_json(command)
+    payload = command.model_dump(mode="json")
     payload.pop("unsigned_amount_direction")
-    template = MappingTemplateSnapshot(
-        id=uuid4(),
-        name="Legacy template",
-        bank_name=None,
-        statement_type=None,
-        default_currency="RUB",
-        column_mapping=payload,
-    )
-
-    restored = mapping_spec_from_template(template)
+    restored = StatementMappingSpec.model_validate(payload)
 
     assert restored.unsigned_amount_direction is UnsignedAmountDirection.REQUIRE_SIGN
 
@@ -681,7 +686,8 @@ def test_import_mapping_template_matches_same_table_signature() -> None:
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping=mapping_spec_as_json(command, raw_tables=raw_tables),
+        mapping=command,
+        table_signature=table_signature_for_mapping(raw_tables, command),
     )
 
     assert mapping_template_matches_raw_tables(template, raw_tables)
@@ -706,7 +712,11 @@ def test_import_mapping_template_matches_changed_headers_with_same_profiles() ->
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping=mapping_spec_as_json(command, raw_tables=ozon_like_raw_tables()),
+        mapping=command,
+        table_signature=table_signature_for_mapping(
+            ozon_like_raw_tables(),
+            command,
+        ),
     )
     changed_tables: list[dict[str, object]] = [
         {
@@ -742,7 +752,11 @@ def test_import_mapping_template_rejects_incompatible_column_profiles() -> None:
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping=mapping_spec_as_json(command, raw_tables=ozon_like_raw_tables()),
+        mapping=command,
+        table_signature=table_signature_for_mapping(
+            ozon_like_raw_tables(),
+            command,
+        ),
     )
     changed_tables: list[dict[str, object]] = [
         {
@@ -778,7 +792,7 @@ def test_mapping_default_resolver_prefers_saved_template() -> None:
         bank_name="Ozon Bank",
         statement_type="card_statement",
         default_currency="RUB",
-        column_mapping=mapping_spec_as_json(saved_command),
+        mapping=saved_command,
     )
     validation: dict[str, object] = {
         "table_previews": [

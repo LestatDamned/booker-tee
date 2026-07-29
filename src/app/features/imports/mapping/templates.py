@@ -38,8 +38,8 @@ class MappingTemplateStore(Protocol):
         name: str,
         bank_name: str | None,
         statement_type: str | None,
-        default_currency: str,
-        column_mapping: dict[str, object],
+        mapping: StatementMappingSpec,
+        table_signature: dict[str, object] | None,
     ) -> MappingTemplateSnapshot: ...
 
 
@@ -62,8 +62,8 @@ class StatementMappingTemplateService:
             name=clean_template_name(name),
             bank_name=bank_name,
             statement_type=statement_type,
-            default_currency=mapping.default_currency,
-            column_mapping=mapping_spec_as_json(mapping, raw_tables=raw_tables),
+            mapping=mapping,
+            table_signature=table_signature_for_mapping(raw_tables, mapping),
         )
 
 
@@ -78,7 +78,7 @@ class StatementMappingDefaultResolver:
         if compatible_templates:
             template = compatible_templates[0]
             return ResolvedMappingDefault(
-                spec=mapping_spec_from_template(template),
+                spec=template.mapping,
                 source=MappingDefaultSource.TEMPLATE,
                 template_id=template.id,
             )
@@ -145,41 +145,14 @@ def select_compatible_mapping_template(
     return compatible_templates[0] if compatible_templates else None
 
 
-def mapping_spec_as_json(
-    spec: StatementMappingSpec,
-    *,
-    raw_tables: list[dict[str, object]] | None = None,
-) -> dict[str, object]:
-    payload: dict[str, object] = {
-        "page_number": spec.page_number,
-        "table_index": spec.table_index,
-        "operation_date_column": spec.operation_date_column,
-        "posting_date_column": spec.posting_date_column,
-        "description_column": spec.description_column,
-        "amount_column": spec.amount_column,
-        "debit_amount_column": spec.debit_amount_column,
-        "credit_amount_column": spec.credit_amount_column,
-        "balance_after_column": spec.balance_after_column,
-        "currency_column": spec.currency_column,
-        "first_data_row": spec.first_data_row,
-        "default_currency": spec.default_currency,
-        "unsigned_amount_direction": spec.unsigned_amount_direction.value,
-    }
-    signature = table_signature_for_mapping(raw_tables, spec)
-    if signature is not None:
-        payload["table_signature"] = signature
-    return payload
-
-
 def mapping_template_matches_raw_tables(
     template: MappingTemplateSnapshot,
     raw_tables: list[dict[str, object]] | None,
 ) -> bool:
-    expected_signature = template.column_mapping.get("table_signature")
-    if not isinstance(expected_signature, dict):
+    expected_signature = template.table_signature
+    if expected_signature is None:
         return False
-    expected_signature = cast(dict[str, object], expected_signature)
-    spec = mapping_spec_from_template(template)
+    spec = template.mapping
     actual_signature = table_signature_for_mapping(raw_tables, spec)
     if actual_signature is None:
         return False
@@ -187,30 +160,6 @@ def mapping_template_matches_raw_tables(
         expected_signature,
         actual_signature,
         spec=spec,
-    )
-
-
-def mapping_spec_from_template(
-    template: MappingTemplateSnapshot,
-) -> StatementMappingSpec:
-    mapping = template.column_mapping
-    return StatementMappingSpec(
-        page_number=_int_value(mapping.get("page_number"), default=1),
-        table_index=_int_value(mapping.get("table_index"), default=0),
-        operation_date_column=_int_value(mapping.get("operation_date_column"), default=0),
-        posting_date_column=_optional_int_value(mapping.get("posting_date_column")),
-        description_column=_int_value(mapping.get("description_column"), default=2),
-        amount_column=_optional_int_value(mapping.get("amount_column")),
-        currency_column=_optional_int_value(mapping.get("currency_column")),
-        first_data_row=_int_value(mapping.get("first_data_row"), default=1),
-        default_currency=str(mapping.get("default_currency") or template.default_currency),
-        debit_amount_column=_optional_int_value(mapping.get("debit_amount_column")),
-        credit_amount_column=_optional_int_value(mapping.get("credit_amount_column")),
-        balance_after_column=_optional_int_value(mapping.get("balance_after_column")),
-        unsigned_amount_direction=_unsigned_amount_direction(
-            mapping.get("unsigned_amount_direction"),
-            default=UnsignedAmountDirection.REQUIRE_SIGN,
-        ),
     )
 
 
@@ -464,30 +413,6 @@ def _int_value(value: object, *, default: int) -> int:
         except ValueError:
             return default
     return default
-
-
-def _optional_int_value(value: object) -> int | None:
-    if value is None:
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str):
-        try:
-            return int(value)
-        except ValueError:
-            return None
-    return None
-
-
-def _unsigned_amount_direction(
-    value: object,
-    *,
-    default: UnsignedAmountDirection,
-) -> UnsignedAmountDirection:
-    try:
-        return UnsignedAmountDirection(value)
-    except (TypeError, ValueError):
-        return default
 
 
 _OPTIONAL_SPARSE_PROFILE_FIELDS = {

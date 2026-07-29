@@ -1,4 +1,3 @@
-from dataclasses import replace
 from decimal import Decimal
 from typing import cast
 
@@ -25,16 +24,17 @@ def test_detects_exact_balance_rows_and_excludes_them_from_transactions() -> Non
         (MappingControlTotalKind.OPENING_BALANCE, Decimal("1000.00")),
         (MappingControlTotalKind.CLOSING_BALANCE, Decimal("1250.00")),
     ]
-    command = replace(
-        mapping_command(),
-        opening_balance_cell=automatic_control_total_cell(
-            candidates,
-            MappingControlTotalKind.OPENING_BALANCE,
-        ),
-        closing_balance_cell=automatic_control_total_cell(
-            candidates,
-            MappingControlTotalKind.CLOSING_BALANCE,
-        ),
+    command = mapping_command().model_copy(
+        update={
+            "opening_balance_cell": automatic_control_total_cell(
+                candidates,
+                MappingControlTotalKind.OPENING_BALANCE,
+            ),
+            "closing_balance_cell": automatic_control_total_cell(
+                candidates,
+                MappingControlTotalKind.CLOSING_BALANCE,
+            ),
+        }
     )
 
     preview = StatementMappingEngine.apply(

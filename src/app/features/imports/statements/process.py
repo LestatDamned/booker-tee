@@ -13,7 +13,6 @@ from app.features.imports.mapping.commands.import_rows import MappedStatementRow
 from app.features.imports.mapping.errors import UnknownStatementMappingError
 from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.mapping.templates import (
-    mapping_spec_from_template,
     select_compatible_mapping_template,
 )
 from app.features.imports.models import (
@@ -177,7 +176,7 @@ class StatementMappingFallbackPipeline:
         ).import_rows(
             document=document,
             attempt=attempt,
-            spec=mapping_spec_from_template(template),
+            spec=template.mapping,
             exclude_duplicate_document_id=exclude_duplicate_document_id,
         )
         return True
