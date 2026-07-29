@@ -2,9 +2,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.imports.application.unknown_statement_mappings.import_use_case import (
-    create_raw_transactions_from_mapping,
-)
 from app.features.imports.application.unknown_statements.analyzer import (
     analyze_unknown_statement,
 )
@@ -15,6 +12,7 @@ from app.features.imports.documents.attempts import (
     mark_attempt_requires_review,
 )
 from app.features.imports.documents.repository import DocumentRepository
+from app.features.imports.mapping.commands.import_rows import MappedStatementRowImporter
 from app.features.imports.mapping.errors import UnknownStatementMappingError
 from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.mapping.templates import (
@@ -96,14 +94,14 @@ class UnknownStatementFallbackPipeline:
         if template is None:
             return False
 
-        await create_raw_transactions_from_mapping(
-            session=self.session,
-            documents=self.documents,
-            statements=self.statements,
+        await MappedStatementRowImporter(
+            self.session,
+            self.documents,
+            self.statements,
+        ).import_rows(
             document=document,
             attempt=attempt,
             spec=mapping_spec_from_template(template),
             exclude_duplicate_document_id=exclude_duplicate_document_id,
-            supersede_existing_rows=False,
         )
         return True

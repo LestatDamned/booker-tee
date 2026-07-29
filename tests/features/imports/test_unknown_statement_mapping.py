@@ -2,14 +2,11 @@ from decimal import Decimal
 from typing import cast
 from uuid import uuid4
 
-from app.features.imports.application.unknown_statement_mappings.read_models import (
-    MappingRowErrorCode,
-    mapping_row_error_codes,
-)
 from app.features.imports.documents.validation_report import StoredValidationReport
 from app.features.imports.mapping.drafts import StatementMappingDraftBuilder
 from app.features.imports.mapping.dto import (
     MappingDefaultSource,
+    MappingRowErrorCode,
     MappingTemplateSnapshot,
     StatementMappingSpec,
     UnsignedAmountDirection,
@@ -17,6 +14,7 @@ from app.features.imports.mapping.dto import (
 from app.features.imports.mapping.engine import (
     StatementMappingEngine,
 )
+from app.features.imports.mapping.queries.preview import mapping_row_error_codes
 from app.features.imports.mapping.raw_tables import (
     compatible_mapping_tables,
 )

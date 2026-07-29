@@ -5,21 +5,21 @@ from uuid import UUID, uuid4
 from api_client import ApiTestClient as TestClient
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.v1.imports.dependencies import (
-    get_unknown_statement_mapping_importer,
-    get_unknown_statement_mapping_reader,
-)
-from app.features.imports.application.unknown_statement_mappings.read_models import (
-    MappingAccountDto,
-    MappingCapabilityDto,
-    MappingSourceRowDto,
-    MappingSourceRowsDto,
-    MappingTableRefDto,
-    UnknownStatementMappingPreviewResult,
-    UnknownStatementMappingReadModel,
+    get_statement_mapping_importer,
+    get_statement_mapping_overview_reader,
+    get_statement_mapping_preview_reader,
+    get_statement_mapping_source_rows_reader,
 )
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.mapping.dto import (
+    MappingAccountDto,
+    MappingCapabilityDto,
     MappingDefaultSource,
+    MappingSourceRowDto,
+    MappingSourceRowsDto,
+    MappingTableRefDto,
+    StatementMappingOverview,
+    StatementMappingPreview,
     StatementMappingSpec,
     UnknownStatementMappingWarning,
     UnsignedAmountDirection,
@@ -45,7 +45,7 @@ from app.main import create_app
 class MappingReaderStub:
     def __init__(
         self,
-        mapping: UnknownStatementMappingReadModel | None,
+        mapping: StatementMappingOverview | None,
         *,
         validation_error: MappingCommandValidationError | None = None,
     ) -> None:
@@ -55,17 +55,17 @@ class MappingReaderStub:
         self.preview_calls: list[dict[str, object]] = []
         self.source_rows_calls: list[dict[str, object]] = []
 
-    async def read(self, **kwargs):
+    async def read_overview(self, **kwargs):
         self.read_calls.append(kwargs)
         return self.mapping
 
-    async def preview(self, **kwargs):
+    async def read_preview(self, **kwargs):
         self.preview_calls.append(kwargs)
         if self.validation_error is not None:
             raise self.validation_error
         if self.mapping is None:
             return None
-        return UnknownStatementMappingPreviewResult(
+        return StatementMappingPreview(
             rows=(),
             total_row_count=24,
             valid_row_count=23,
@@ -84,7 +84,7 @@ class MappingReaderStub:
             can_import=True,
         )
 
-    async def source_rows(self, **kwargs):
+    async def read_source_rows(self, **kwargs):
         self.source_rows_calls.append(kwargs)
         if self.mapping is None:
             return None
@@ -107,16 +107,14 @@ class MappingImporterStub:
         self.calls: list[dict[str, object]] = []
         self.error: Exception | None = None
 
-    async def import_mapped_rows_idempotently(self, **kwargs):
+    async def import_rows_idempotently(self, **kwargs):
         self.calls.append(kwargs)
         if self.error is not None:
             raise self.error
         document_id = cast(UUID, kwargs["document_id"])
         return SimpleNamespace(
-            document=SimpleNamespace(
-                id=document_id,
-                status=UploadedDocumentStatus.REQUIRES_REVIEW,
-            ),
+            document_id=document_id,
+            document_status=UploadedDocumentStatus.REQUIRES_REVIEW,
             imported_row_count=24,
             template_id=uuid4() if kwargs["template_name"] else None,
             replayed=False,
@@ -374,7 +372,7 @@ def test_mapping_import_requires_key_and_maps_payload_conflict() -> None:
     assert conflict.json()["error"]["code"] == "mapping_import_idempotency_conflict"
 
 
-def mapping_read_model() -> UnknownStatementMappingReadModel:
+def mapping_read_model() -> StatementMappingOverview:
     command = StatementMappingSpec(
         page_number=1,
         table_index=0,
@@ -386,7 +384,7 @@ def mapping_read_model() -> UnknownStatementMappingReadModel:
         default_currency="RUB",
         unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
     )
-    return UnknownStatementMappingReadModel(
+    return StatementMappingOverview(
         document_id=uuid4(),
         filename="statement.xlsx",
         status=UploadedDocumentStatus.REQUIRES_REVIEW,
@@ -412,12 +410,20 @@ def mapping_app(
 ):
     app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
-    app.dependency_overrides[get_unknown_statement_mapping_reader] = lambda: cast(
+    app.dependency_overrides[get_statement_mapping_overview_reader] = lambda: cast(
         Any,
-        reader,
+        SimpleNamespace(read=reader.read_overview),
+    )
+    app.dependency_overrides[get_statement_mapping_preview_reader] = lambda: cast(
+        Any,
+        SimpleNamespace(read=reader.read_preview),
+    )
+    app.dependency_overrides[get_statement_mapping_source_rows_reader] = lambda: cast(
+        Any,
+        SimpleNamespace(read=reader.read_source_rows),
     )
     if importer is not None:
-        app.dependency_overrides[get_unknown_statement_mapping_importer] = lambda: cast(
+        app.dependency_overrides[get_statement_mapping_importer] = lambda: cast(
             Any,
             importer,
         )

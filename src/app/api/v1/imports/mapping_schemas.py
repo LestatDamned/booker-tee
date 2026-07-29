@@ -5,13 +5,11 @@ from uuid import UUID
 from pydantic import Field, StringConstraints
 
 from app.api.schemas import ApiModel, ApiRequestModel
-from app.features.imports.application.unknown_statement_mappings.read_models import (
-    MappingBlockingReasonCode,
-    MappingRowErrorCode,
-)
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.mapping.dto import (
+    MappingBlockingReasonCode,
     MappingDefaultSource,
+    MappingRowErrorCode,
     UnsignedAmountDirection,
 )
 

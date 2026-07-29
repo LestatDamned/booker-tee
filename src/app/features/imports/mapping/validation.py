@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from app.features.imports.mapping.control_totals import (
-    MappingControlTotalKind,
     resolve_control_total_cell,
 )
 from app.features.imports.mapping.dto import (
+    MappingControlTotalKind,
     StatementMappingSpec,
 )
 

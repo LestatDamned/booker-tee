@@ -3,12 +3,12 @@ from decimal import Decimal
 from typing import cast
 
 from app.features.imports.mapping.control_totals import (
-    MappingControlTotalKind,
     automatic_control_total_cell,
     detect_control_total_candidates,
     resolve_mapping_control_totals,
 )
 from app.features.imports.mapping.dto import (
+    MappingControlTotalKind,
     StatementMappingSpec,
     UnsignedAmountDirection,
 )

@@ -7,15 +7,6 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.imports.application.unknown_statement_mappings.read_models import (
-    MappingRowErrorCode,
-    MappingTableRefDto,
-)
-from app.features.imports.application.unknown_statement_mappings.reader import (
-    MAX_MAPPING_PREVIEW_RESPONSE_ROWS,
-    MAX_MAPPING_SOURCE_SAMPLE_ROWS,
-    UnknownStatementMappingReader,
-)
 from app.features.imports.documents.dto import (
     ImportDocumentAccountDto,
     ImportDocumentSnapshot,
@@ -25,8 +16,21 @@ from app.features.imports.documents.types import ParseAttemptStatus, UploadedDoc
 from app.features.imports.documents.validation_report import StoredValidationReport
 from app.features.imports.mapping.dto import (
     MappingDefaultSource,
+    MappingRowErrorCode,
+    MappingTableRefDto,
     StatementMappingSpec,
     UnsignedAmountDirection,
+)
+from app.features.imports.mapping.queries.overview import (
+    MAX_MAPPING_SOURCE_SAMPLE_ROWS,
+    StatementMappingOverviewReader,
+)
+from app.features.imports.mapping.queries.preview import (
+    MAX_MAPPING_PREVIEW_RESPONSE_ROWS,
+    StatementMappingPreviewReader,
+)
+from app.features.imports.mapping.queries.source_rows import (
+    StatementMappingSourceRowsReader,
 )
 from app.features.imports.mapping.repository import MappingRepository
 
@@ -84,7 +88,7 @@ async def test_mapping_read_model_is_bounded_and_uses_analyzer_defaults() -> Non
     workspace_id = uuid4()
     snapshot = mapping_document_snapshot()
     documents = DocumentSnapshotReaderStub(snapshot, workspace_id=workspace_id)
-    reader = UnknownStatementMappingReader(documents, TemplateServiceStub())
+    reader = StatementMappingOverviewReader(documents, TemplateServiceStub())
 
     mapping = await reader.read(
         workspace_id=workspace_id,
@@ -111,15 +115,13 @@ async def test_mapping_preview_counts_all_compatible_rows_but_bounds_payload() -
     workspace_id = uuid4()
     snapshot = mapping_document_snapshot()
     raw_tables_before = deepcopy(snapshot.parse_attempts[0].raw_tables)
-    reader = UnknownStatementMappingReader(
-        DocumentSnapshotReaderStub(snapshot, workspace_id=workspace_id),
-        TemplateServiceStub(),
+    reader = StatementMappingPreviewReader(
+        DocumentSnapshotReaderStub(snapshot, workspace_id=workspace_id)
     )
 
-    preview = await reader.preview(
+    preview = await reader.read(
         workspace_id=workspace_id,
         document_id=snapshot.id,
-        workspace_default_currency="RUB",
         spec=mapping_command(),
     )
 
@@ -138,6 +140,30 @@ async def test_mapping_preview_counts_all_compatible_rows_but_bounds_payload() -
     assert preview.can_import is True
     assert snapshot.parse_attempts[0].raw_tables == raw_tables_before
     assert snapshot.raw_transactions == []
+
+
+@pytest.mark.asyncio
+async def test_mapping_source_rows_reader_returns_requested_window() -> None:
+    workspace_id = uuid4()
+    snapshot = mapping_document_snapshot()
+    reader = StatementMappingSourceRowsReader(
+        DocumentSnapshotReaderStub(snapshot, workspace_id=workspace_id)
+    )
+
+    rows = await reader.read(
+        workspace_id=workspace_id,
+        document_id=snapshot.id,
+        page_number=2,
+        table_index=0,
+        start_row_number=3,
+        row_limit=2,
+    )
+
+    assert rows is not None
+    assert rows.table_ref == MappingTableRefDto(2, 0)
+    assert [row.row_number for row in rows.rows] == [3, 4]
+    assert rows.has_previous is True
+    assert rows.has_next is True
 
 
 def mapping_document_snapshot() -> ImportDocumentSnapshot:

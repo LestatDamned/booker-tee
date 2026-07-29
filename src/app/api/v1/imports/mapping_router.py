@@ -6,11 +6,13 @@ from fastapi import APIRouter, Depends, Header, Query, status
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.errors import ApiError, api_error_responses
 from app.api.v1.imports.dependencies import (
-    get_unknown_statement_mapping_importer,
-    get_unknown_statement_mapping_reader,
+    get_statement_mapping_importer,
+    get_statement_mapping_overview_reader,
+    get_statement_mapping_preview_reader,
+    get_statement_mapping_source_rows_reader,
 )
 from app.api.v1.imports.mapping_response import (
-    UnknownStatementMappingResponseMapper,
+    StatementMappingResponseMapper,
 )
 from app.api.v1.imports.mapping_schemas import (
     MappingControlTotalCellApiModel,
@@ -22,13 +24,7 @@ from app.api.v1.imports.mapping_schemas import (
     MappingReadApiResponse,
     MappingSourceRowsApiResponse,
 )
-from app.features.imports.application.unknown_statement_mappings.import_use_case import (
-    UnknownStatementMappingImportUseCase,
-)
-from app.features.imports.application.unknown_statement_mappings.reader import (
-    MappingUnavailableError,
-    UnknownStatementMappingReader,
-)
+from app.features.imports.mapping.commands.import_rows import StatementMappingImportService
 from app.features.imports.mapping.dto import (
     MappingControlTotalCellRef,
     StatementMappingSpec,
@@ -37,7 +33,13 @@ from app.features.imports.mapping.errors import (
     MappingImportIdempotencyConflictError,
     MappingImportNotFoundError,
     MappingImportUnavailableError,
+    StatementMappingUnavailableError,
     UnknownStatementMappingError,
+)
+from app.features.imports.mapping.queries.overview import StatementMappingOverviewReader
+from app.features.imports.mapping.queries.preview import StatementMappingPreviewReader
+from app.features.imports.mapping.queries.source_rows import (
+    StatementMappingSourceRowsReader,
 )
 from app.features.imports.mapping.validation import (
     MappingCommandValidationError,
@@ -60,8 +62,8 @@ async def get_unknown_statement_mapping(
     document_id: UUID,
     context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
     reader: Annotated[
-        UnknownStatementMappingReader,
-        Depends(get_unknown_statement_mapping_reader),
+        StatementMappingOverviewReader,
+        Depends(get_statement_mapping_overview_reader),
     ],
 ) -> MappingReadApiResponse:
     _require_import_management(context)
@@ -72,7 +74,7 @@ async def get_unknown_statement_mapping(
     )
     if mapping is None:
         raise _not_found()
-    return UnknownStatementMappingResponseMapper.read(mapping)
+    return StatementMappingResponseMapper.read(mapping)
 
 
 @router.get(
@@ -90,14 +92,14 @@ async def get_unknown_statement_mapping_source_rows(
     table_index: int,
     context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
     reader: Annotated[
-        UnknownStatementMappingReader,
-        Depends(get_unknown_statement_mapping_reader),
+        StatementMappingSourceRowsReader,
+        Depends(get_statement_mapping_source_rows_reader),
     ],
     start_row_number: Annotated[int, Query(ge=1, alias="startRowNumber")] = 1,
     row_limit: Annotated[int, Query(ge=1, le=50, alias="rowLimit")] = 30,
 ) -> MappingSourceRowsApiResponse:
     _require_import_management(context)
-    rows = await reader.source_rows(
+    rows = await reader.read(
         workspace_id=context.workspace.workspace.id,
         document_id=document_id,
         page_number=page_number,
@@ -107,7 +109,7 @@ async def get_unknown_statement_mapping_source_rows(
     )
     if rows is None:
         raise _not_found()
-    return UnknownStatementMappingResponseMapper.source_rows(rows)
+    return StatementMappingResponseMapper.source_rows(rows)
 
 
 @router.post(
@@ -126,21 +128,20 @@ async def preview_unknown_statement_mapping(
     request: MappingPreviewApiRequest,
     context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
     reader: Annotated[
-        UnknownStatementMappingReader,
-        Depends(get_unknown_statement_mapping_reader),
+        StatementMappingPreviewReader,
+        Depends(get_statement_mapping_preview_reader),
     ],
 ) -> MappingPreviewApiResponse:
     _require_import_management(context)
     try:
-        preview = await reader.preview(
+        preview = await reader.read(
             workspace_id=context.workspace.workspace.id,
             document_id=document_id,
-            workspace_default_currency=context.workspace.workspace.default_currency,
             spec=_mapping_spec(request),
         )
     except MappingCommandValidationError as error:
         raise _mapping_validation_api_error(error) from error
-    except MappingUnavailableError as error:
+    except StatementMappingUnavailableError as error:
         reason = error.reason_codes[0]
         raise ApiError(
             status_code=status.HTTP_409_CONFLICT,
@@ -149,7 +150,7 @@ async def preview_unknown_statement_mapping(
         ) from error
     if preview is None:
         raise _not_found()
-    return UnknownStatementMappingResponseMapper.preview(preview)
+    return StatementMappingResponseMapper.preview(preview)
 
 
 @router.post(
@@ -168,14 +169,14 @@ async def import_unknown_statement_mapping(
     request: MappingImportApiRequest,
     context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
     importer: Annotated[
-        UnknownStatementMappingImportUseCase,
-        Depends(get_unknown_statement_mapping_importer),
+        StatementMappingImportService,
+        Depends(get_statement_mapping_importer),
     ],
     idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
 ) -> MappingImportApiResponse:
     _require_import_management(context)
     try:
-        result = await importer.import_mapped_rows_idempotently(
+        result = await importer.import_rows_idempotently(
             workspace_id=context.workspace.workspace.id,
             document_id=document_id,
             spec=_mapping_spec(request),
@@ -206,14 +207,14 @@ async def import_unknown_statement_mapping(
         ) from error
 
     return MappingImportApiResponse(
-        document_id=result.document.id,
-        status=result.document.status,
+        document_id=result.document_id,
+        status=result.document_status,
         imported_row_count=result.imported_row_count,
         template_id=result.template_id,
         replayed=result.replayed,
         review_target=MappingImportTargetApiResponse(
             kind="import_review",
-            document_id=result.document.id,
+            document_id=result.document_id,
         ),
     )
 

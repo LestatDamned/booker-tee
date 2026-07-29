@@ -1,6 +1,5 @@
 import hashlib
 import json
-from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,29 +14,22 @@ from app.features.imports.documents.attempts import (
 from app.features.imports.documents.lifecycle import transition_document_status
 from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
-from app.features.imports.mapping.control_totals import (
-    MappingControlTotalKind,
-    resolve_mapping_control_totals,
-)
-from app.features.imports.mapping.drafts import (
-    StatementMappingDraftBuilder,
-)
+from app.features.imports.mapping.control_totals import resolve_mapping_control_totals
+from app.features.imports.mapping.drafts import StatementMappingDraftBuilder
 from app.features.imports.mapping.dto import (
     MappingControlTotalCellRef,
+    MappingControlTotalKind,
+    StatementMappingImportResult,
     StatementMappingSpec,
 )
-from app.features.imports.mapping.engine import (
-    StatementMappingEngine,
-)
+from app.features.imports.mapping.engine import StatementMappingEngine
 from app.features.imports.mapping.errors import (
     MappingImportIdempotencyConflictError,
     MappingImportNotFoundError,
     MappingImportUnavailableError,
     UnknownStatementMappingError,
 )
-from app.features.imports.mapping.raw_tables import (
-    find_raw_table,
-)
+from app.features.imports.mapping.raw_tables import find_raw_table
 from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.mapping.templates import (
     StatementMappingTemplateService,
@@ -54,9 +46,7 @@ from app.features.imports.models import (
     RawTransaction,
     UploadedDocument,
 )
-from app.features.imports.statements.deduplication import (
-    RawTransactionDeduplicator,
-)
+from app.features.imports.statements.deduplication import RawTransactionDeduplicator
 from app.features.imports.statements.dto import StatementControlTotals
 from app.features.imports.statements.raw_transactions import RawTransactionMapper
 from app.features.imports.statements.repository import StatementRepository
@@ -67,22 +57,19 @@ from app.features.transaction_rules.application.rule_application import (
 )
 
 
-@dataclass(frozen=True)
-class MappingImportResult:
-    document: UploadedDocument
-    imported_row_count: int
-    template_id: UUID | None
-    replayed: bool
-
-
-class UnknownStatementMappingImportUseCase:
+class StatementMappingImportService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.documents = DocumentRepository(session)
         self.mappings = MappingRepository(session)
         self.statements = StatementRepository(session)
+        self.row_importer = MappedStatementRowImporter(
+            session,
+            self.documents,
+            self.statements,
+        )
 
-    async def import_mapped_rows_idempotently(
+    async def import_rows_idempotently(
         self,
         *,
         workspace_id: UUID,
@@ -90,7 +77,7 @@ class UnknownStatementMappingImportUseCase:
         spec: StatementMappingSpec,
         idempotency_key: UUID,
         template_name: str | None = None,
-    ) -> MappingImportResult:
+    ) -> StatementMappingImportResult:
         normalized_template_name = (
             clean_template_name(template_name) if template_name is not None else None
         )
@@ -115,23 +102,20 @@ class UnknownStatementMappingImportUseCase:
                 raise MappingImportIdempotencyConflictError(
                     "Этот ключ повторной отправки уже использован для другой настройки."
                 )
-            return MappingImportResult(
-                document=document,
+            return StatementMappingImportResult(
+                document_id=document.id,
+                document_status=document.status,
                 imported_row_count=existing.imported_row_count,
                 template_id=existing.template_id,
                 replayed=True,
             )
 
         attempt = self._validate_import(document, spec)
-        raw_transactions = await create_raw_transactions_from_mapping(
-            session=self.session,
-            documents=self.documents,
-            statements=self.statements,
+        raw_transactions = await self.row_importer.replace_rows(
             document=document,
             attempt=attempt,
             spec=spec,
             exclude_duplicate_document_id=document.id,
-            supersede_existing_rows=True,
         )
         template = (
             await StatementMappingTemplateService(self.mappings).save(
@@ -156,15 +140,9 @@ class UnknownStatementMappingImportUseCase:
             )
         )
         await self.session.commit()
-
-        imported_document = await self.documents.get_document_for_workspace(
-            workspace_id,
-            document_id,
-        )
-        if imported_document is None:
-            raise MappingImportNotFoundError("Документ не найден после импорта.")
-        return MappingImportResult(
-            document=imported_document,
+        return StatementMappingImportResult(
+            document_id=document.id,
+            document_status=document.status,
             imported_row_count=len(raw_transactions),
             template_id=template.id if template is not None else None,
             replayed=False,
@@ -210,140 +188,170 @@ class UnknownStatementMappingImportUseCase:
         return attempt
 
 
-async def create_raw_transactions_from_mapping(
-    *,
-    session: AsyncSession,
-    documents: DocumentRepository,
-    statements: StatementRepository,
-    document: UploadedDocument,
-    attempt: ParseAttempt,
-    spec: StatementMappingSpec,
-    exclude_duplicate_document_id: UUID | None,
-    supersede_existing_rows: bool,
-) -> list[RawTransaction]:
-    if document.account_id is None:
-        raise UnknownStatementMappingError("Select an account before importing rows.")
-    if attempt.raw_tables_json is None:
-        raise UnknownStatementMappingError("Raw tables are not available for this document.")
+class MappedStatementRowImporter:
+    def __init__(
+        self,
+        session: AsyncSession,
+        documents: DocumentRepository,
+        statements: StatementRepository,
+    ) -> None:
+        self._session = session
+        self._documents = documents
+        self._statements = statements
 
-    result = StatementMappingEngine.apply(
-        attempt.raw_tables_json,
-        spec,
-        max_rows=None,
-    )
-    if not result.rows:
-        raise UnknownStatementMappingError("No rows matched the selected mapping.")
-
-    if supersede_existing_rows:
-        await statements.mark_reviewable_rows_superseded(document)
-    raw_transactions = await statements.create_raw_transactions(
-        RawTransactionMapper.from_drafts(
-            StatementMappingDraftBuilder(
-                spec=spec,
-                account_id=document.account_id,
-            ).build_rows(result.rows),
-            workspace_id=document.workspace_id,
-            uploaded_document_id=document.id,
-            parse_attempt_id=attempt.id,
+    async def replace_rows(
+        self,
+        *,
+        document: UploadedDocument,
+        attempt: ParseAttempt,
+        spec: StatementMappingSpec,
+        exclude_duplicate_document_id: UUID | None,
+    ) -> list[RawTransaction]:
+        await self._statements.mark_reviewable_rows_superseded(document)
+        return await self.import_rows(
+            document=document,
+            attempt=attempt,
+            spec=spec,
+            exclude_duplicate_document_id=exclude_duplicate_document_id,
         )
-    )
-    await RawTransactionDeduplicator(statements).mark_duplicate_candidates(
-        workspace_id=document.workspace_id,
-        raw_transactions=raw_transactions,
-        exclude_document_id=exclude_duplicate_document_id,
-    )
-    await TransactionRuleApplicationUseCase(session).apply_rules_to_raw_transactions(
-        workspace_id=document.workspace_id,
-        raw_transactions=raw_transactions,
-    )
-    await store_mapping_validation_result(
-        documents,
-        document,
-        attempt,
-        raw_transactions,
-        spec,
-    )
-    return raw_transactions
 
+    async def import_rows(
+        self,
+        *,
+        document: UploadedDocument,
+        attempt: ParseAttempt,
+        spec: StatementMappingSpec,
+        exclude_duplicate_document_id: UUID | None,
+    ) -> list[RawTransaction]:
+        if document.account_id is None:
+            raise UnknownStatementMappingError("Select an account before importing rows.")
+        if attempt.raw_tables_json is None:
+            raise UnknownStatementMappingError("Raw tables are not available for this document.")
 
-async def store_mapping_validation_result(
-    documents: DocumentRepository,
-    document: UploadedDocument,
-    attempt: ParseAttempt,
-    raw_transactions: list[RawTransaction],
-    spec: StatementMappingSpec,
-) -> None:
-    extracted_control_totals = statement_control_totals_from_json(
-        attempt.control_totals_json
-    ) or extract_unknown_statement_control_totals(attempt.raw_text_by_page_json)
-    resolved = resolve_mapping_control_totals(attempt.raw_tables_json, spec)
-    opening = next(
-        (
-            total.amount
-            for total in resolved
-            if total.kind is MappingControlTotalKind.OPENING_BALANCE
-        ),
-        None,
-    )
-    closing = next(
-        (
-            total.amount
-            for total in resolved
-            if total.kind is MappingControlTotalKind.CLOSING_BALANCE
-        ),
-        None,
-    )
-    control_totals = StatementControlTotals(
-        currency=(
-            extracted_control_totals.currency
-            if extracted_control_totals is not None
-            and extracted_control_totals.currency is not None
-            else spec.default_currency
-        ),
-        opening_balance=(
-            opening
-            if opening is not None
-            else (
-                extracted_control_totals.opening_balance
+        result = StatementMappingEngine.apply(
+            attempt.raw_tables_json,
+            spec,
+            max_rows=None,
+        )
+        if not result.rows:
+            raise UnknownStatementMappingError("No rows matched the selected mapping.")
+
+        raw_transactions = await self._statements.create_raw_transactions(
+            RawTransactionMapper.from_drafts(
+                StatementMappingDraftBuilder(
+                    spec=spec,
+                    account_id=document.account_id,
+                ).build_rows(result.rows),
+                workspace_id=document.workspace_id,
+                uploaded_document_id=document.id,
+                parse_attempt_id=attempt.id,
+            )
+        )
+        await RawTransactionDeduplicator(self._statements).mark_duplicate_candidates(
+            workspace_id=document.workspace_id,
+            raw_transactions=raw_transactions,
+            exclude_document_id=exclude_duplicate_document_id,
+        )
+        await TransactionRuleApplicationUseCase(self._session).apply_rules_to_raw_transactions(
+            workspace_id=document.workspace_id,
+            raw_transactions=raw_transactions,
+        )
+        await self._store_validation_result(
+            document,
+            attempt,
+            raw_transactions,
+            spec,
+        )
+        return raw_transactions
+
+    async def _store_validation_result(
+        self,
+        document: UploadedDocument,
+        attempt: ParseAttempt,
+        raw_transactions: list[RawTransaction],
+        spec: StatementMappingSpec,
+    ) -> None:
+        extracted_control_totals = statement_control_totals_from_json(
+            attempt.control_totals_json
+        ) or extract_unknown_statement_control_totals(attempt.raw_text_by_page_json)
+        resolved = resolve_mapping_control_totals(attempt.raw_tables_json, spec)
+        opening = next(
+            (
+                total.amount
+                for total in resolved
+                if total.kind is MappingControlTotalKind.OPENING_BALANCE
+            ),
+            None,
+        )
+        closing = next(
+            (
+                total.amount
+                for total in resolved
+                if total.kind is MappingControlTotalKind.CLOSING_BALANCE
+            ),
+            None,
+        )
+        control_totals = StatementControlTotals(
+            currency=(
+                extracted_control_totals.currency
+                if extracted_control_totals is not None
+                and extracted_control_totals.currency is not None
+                else spec.default_currency
+            ),
+            opening_balance=(
+                opening
+                if opening is not None
+                else (
+                    extracted_control_totals.opening_balance
+                    if extracted_control_totals is not None
+                    else None
+                )
+            ),
+            closing_balance=(
+                closing
+                if closing is not None
+                else (
+                    extracted_control_totals.closing_balance
+                    if extracted_control_totals is not None
+                    else None
+                )
+            ),
+            total_inflow=(
+                extracted_control_totals.total_inflow
                 if extracted_control_totals is not None
                 else None
-            )
-        ),
-        closing_balance=(
-            closing
-            if closing is not None
-            else (
-                extracted_control_totals.closing_balance
+            ),
+            total_outflow=(
+                extracted_control_totals.total_outflow
                 if extracted_control_totals is not None
                 else None
-            )
-        ),
-        total_inflow=(
-            extracted_control_totals.total_inflow if extracted_control_totals is not None else None
-        ),
-        total_outflow=(
-            extracted_control_totals.total_outflow if extracted_control_totals is not None else None
-        ),
-    )
-    report = validate_statement_totals(rows=raw_transactions, control_totals=control_totals)
-    control_totals_payload = control_totals.as_json()
-    control_totals_payload["mapping_sources"] = {
-        total.kind.value: _control_total_cell_as_json(total.cell) for total in resolved
-    }
-    await documents.store_attempt_validation(
-        attempt,
-        control_totals=control_totals_payload,
-        validation_report={
-            **report.as_json(),
-            "source": "unknown_statement_mapping",
-        },
-    )
-    await documents.mark_attempt_status(attempt, ParseAttemptStatus.REQUIRES_REVIEW)
-    await transition_document_status(
-        documents,
-        document,
-        UploadedDocumentStatus.REQUIRES_REVIEW,
-    )
+            ),
+        )
+        report = validate_statement_totals(
+            rows=raw_transactions,
+            control_totals=control_totals,
+        )
+        control_totals_payload = control_totals.as_json()
+        control_totals_payload["mapping_sources"] = {
+            total.kind.value: _control_total_cell_as_json(total.cell) for total in resolved
+        }
+        await self._documents.store_attempt_validation(
+            attempt,
+            control_totals=control_totals_payload,
+            validation_report={
+                **report.as_json(),
+                "source": "unknown_statement_mapping",
+            },
+        )
+        await self._documents.mark_attempt_status(
+            attempt,
+            ParseAttemptStatus.REQUIRES_REVIEW,
+        )
+        await transition_document_status(
+            self._documents,
+            document,
+            UploadedDocumentStatus.REQUIRES_REVIEW,
+        )
 
 
 def mapping_import_fingerprint(

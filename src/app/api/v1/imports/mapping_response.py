@@ -21,23 +21,21 @@ from app.api.v1.imports.mapping_schemas import (
     MappingTemplateApiResponse,
     MappingWarningApiResponse,
 )
-from app.features.imports.application.unknown_statement_mappings.read_models import (
+from app.features.imports.mapping.dto import (
+    MappingControlTotalCellRef,
     MappingSourceRowsDto,
     MappingSourceTableDto,
     MappingSuggestionDto,
     MappingTableRefDto,
-    UnknownStatementMappingPreviewResult,
-    UnknownStatementMappingReadModel,
-)
-from app.features.imports.mapping.dto import (
-    MappingControlTotalCellRef,
+    StatementMappingOverview,
+    StatementMappingPreview,
     StatementMappingSpec,
 )
 
 
-class UnknownStatementMappingResponseMapper:
+class StatementMappingResponseMapper:
     @staticmethod
-    def read(mapping: UnknownStatementMappingReadModel) -> MappingReadApiResponse:
+    def read(mapping: StatementMappingOverview) -> MappingReadApiResponse:
         return MappingReadApiResponse(
             document_id=mapping.document_id,
             filename=mapping.filename,
@@ -57,24 +55,21 @@ class UnknownStatementMappingResponseMapper:
                 mapping.capability,
                 from_attributes=True,
             ),
-            default_mapping=UnknownStatementMappingResponseMapper.spec(mapping.default_mapping),
+            default_mapping=StatementMappingResponseMapper.spec(mapping.default_mapping),
             default_source=mapping.default_source,
             selected_template_id=mapping.selected_template_id,
             templates=[
                 MappingTemplateApiResponse.model_validate(template, from_attributes=True)
                 for template in mapping.templates
             ],
-            tables=[
-                UnknownStatementMappingResponseMapper.source_table(table)
-                for table in mapping.tables
-            ],
+            tables=[StatementMappingResponseMapper.source_table(table) for table in mapping.tables],
             control_total_candidates=[
                 MappingControlTotalCandidateApiResponse(
                     kind=cast(
                         Literal["opening_balance", "closing_balance"],
                         candidate.kind,
                     ),
-                    cell=UnknownStatementMappingResponseMapper.control_total_cell(candidate.cell),
+                    cell=StatementMappingResponseMapper.control_total_cell(candidate.cell),
                     label=candidate.label,
                     raw_value=candidate.raw_value,
                     amount=candidate.amount,
@@ -89,12 +84,12 @@ class UnknownStatementMappingResponseMapper:
 
     @staticmethod
     def preview(
-        preview: UnknownStatementMappingPreviewResult,
+        preview: StatementMappingPreview,
     ) -> MappingPreviewApiResponse:
         return MappingPreviewApiResponse(
             rows=[
                 MappingPreviewRowApiResponse(
-                    table_ref=UnknownStatementMappingResponseMapper.table_ref(row.table_ref),
+                    table_ref=StatementMappingResponseMapper.table_ref(row.table_ref),
                     source_row_number=row.source_row_number,
                     operation_date=row.operation_date,
                     operation_date_raw=row.operation_date_raw,
@@ -117,7 +112,7 @@ class UnknownStatementMappingResponseMapper:
             row_limit=preview.row_limit,
             rows_truncated=preview.rows_truncated,
             compatible_tables=[
-                UnknownStatementMappingResponseMapper.table_ref(table)
+                StatementMappingResponseMapper.table_ref(table)
                 for table in preview.compatible_tables
             ],
             warnings=[
@@ -138,7 +133,7 @@ class UnknownStatementMappingResponseMapper:
                         Literal["opening_balance", "closing_balance"],
                         total.kind,
                     ),
-                    cell=UnknownStatementMappingResponseMapper.control_total_cell(total.cell),
+                    cell=StatementMappingResponseMapper.control_total_cell(total.cell),
                     raw_value=total.raw_value,
                     amount=total.amount,
                     currency=total.currency,
@@ -159,7 +154,7 @@ class UnknownStatementMappingResponseMapper:
     @staticmethod
     def source_rows(rows: MappingSourceRowsDto) -> MappingSourceRowsApiResponse:
         return MappingSourceRowsApiResponse(
-            table_ref=UnknownStatementMappingResponseMapper.table_ref(rows.table_ref),
+            table_ref=StatementMappingResponseMapper.table_ref(rows.table_ref),
             rows=[
                 MappingSourceRowApiResponse.model_validate(row, from_attributes=True)
                 for row in rows.rows
@@ -174,7 +169,7 @@ class UnknownStatementMappingResponseMapper:
     @staticmethod
     def source_table(table: MappingSourceTableDto) -> MappingSourceTableApiResponse:
         return MappingSourceTableApiResponse(
-            ref=UnknownStatementMappingResponseMapper.table_ref(table.ref),
+            ref=StatementMappingResponseMapper.table_ref(table.ref),
             source_type=table.source_type,
             row_count=table.row_count,
             column_count=table.column_count,
@@ -191,7 +186,7 @@ class UnknownStatementMappingResponseMapper:
                 for candidate in table.candidates
             ],
             suggestion=(
-                UnknownStatementMappingResponseMapper.suggestion(table.suggestion)
+                StatementMappingResponseMapper.suggestion(table.suggestion)
                 if table.suggestion is not None
                 else None
             ),
@@ -202,7 +197,7 @@ class UnknownStatementMappingResponseMapper:
         suggestion: MappingSuggestionDto,
     ) -> MappingSuggestionApiResponse:
         return MappingSuggestionApiResponse(
-            mapping=UnknownStatementMappingResponseMapper.spec(suggestion.spec),
+            mapping=StatementMappingResponseMapper.spec(suggestion.spec),
             reasons=[
                 MappingSuggestionReasonApiResponse.model_validate(
                     reason,
@@ -232,12 +227,12 @@ class UnknownStatementMappingResponseMapper:
             default_currency=spec.default_currency,
             unsigned_amount_direction=spec.unsigned_amount_direction,
             opening_balance_cell=(
-                UnknownStatementMappingResponseMapper.control_total_cell(spec.opening_balance_cell)
+                StatementMappingResponseMapper.control_total_cell(spec.opening_balance_cell)
                 if spec.opening_balance_cell is not None
                 else None
             ),
             closing_balance_cell=(
-                UnknownStatementMappingResponseMapper.control_total_cell(spec.closing_balance_cell)
+                StatementMappingResponseMapper.control_total_cell(spec.closing_balance_cell)
                 if spec.closing_balance_cell is not None
                 else None
             ),

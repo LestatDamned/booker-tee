@@ -52,7 +52,7 @@ API
 
 ```text
 src/app/api/v1/imports router
--> documents command/query or mapping use case
+-> documents or mapping command/query
 -> statements workflow
 -> parser/mapping policy
 -> capability repository/storage
@@ -180,7 +180,7 @@ extracted statement data
 -> RawTransactionDraft[]
 ```
 
-Целевые пакеты:
+Текущий analysis package остаётся временным до этапа 7D:
 
 ```text
 application/unknown_statements/
@@ -196,12 +196,11 @@ application/unknown_statements/
   continuations.py
   control_totals.py
   fallback.py
+```
 
-application/unknown_statement_mappings/
-  import_use_case.py
-  read_models.py
-  reader.py
+Canonical mapping package:
 
+```text
 mapping/
   dto.py
   errors.py
@@ -213,6 +212,19 @@ mapping/
   validation.py
   templates.py
   repository.py
+  commands/
+    import_rows.py
+  queries/
+    overview.py
+    preview.py
+    source_rows.py
+  analysis/
+    dto.py
+    analyzer.py
+    tables.py
+    columns.py
+    text_tables.py
+    hints.py
 ```
 
 ### Import Review boundary
@@ -265,26 +277,6 @@ imports/
     validation_service.py
     repository.py
 
-  application/
-    unknown_statements/
-      analyzer.py
-      analysis_models.py
-      hints.py
-      value_detectors.py
-      table_detection.py
-      column_profiles.py
-      mapping_suggestions.py
-      table_analysis.py
-      text_tables.py
-      continuations.py
-      control_totals.py
-      fallback.py
-
-    unknown_statement_mappings/
-      import_use_case.py
-      read_models.py
-      reader.py
-
   mapping/
     dto.py
     errors.py
@@ -296,6 +288,19 @@ imports/
     validation.py
     templates.py
     repository.py
+    commands/
+      import_rows.py
+    queries/
+      overview.py
+      preview.py
+      source_rows.py
+    analysis/
+      dto.py
+      analyzer.py
+      tables.py
+      columns.py
+      text_tables.py
+      hints.py
 
   parsers/
     protocol.py
@@ -524,20 +529,15 @@ import path easy to test.
 - `statements/repository.py` - raw row creation, dedupe lookups and
   superseding.
 - `application/unknown_statements/` - unknown statement fallback and analysis internals: fallback/template pipeline, hints, DTOs, table detection, column profiles, profile helpers, suggestions, suggestion scoring, continuations, and control totals.
-- `application/unknown_statement_mappings/` - unknown statement mapping workflows
-  and internals: mapping engine, idempotent import use case, template use case,
-  template matching, table signatures, typed stored-report defaults, typed
-  command validation, DTOs, raw table navigation, row mapping, and draft
-  conversion.
+- `mapping/` - mapping DTOs, engine, templates, validation, persistence,
+  idempotent import command and focused overview/preview/source-row queries.
 - `documents/lifecycle.py` - document status transition matrix, review status
   resolution and linked-operation predicate.
 - `documents/queries/detail.py` и `/api/v1/imports/documents/{id}`
   владеют безопасной typed projection React document detail; technical storage
   paths и полный raw payload в browser DTO не входят.
-- `errors.py` - temporary shared mapping/review exceptions until their owning
-  capabilities move.
-- `mapping/repository.py` - mapping templates and execution persistence pending
-  the full mapping move.
+- `errors.py` - temporary review exception until its owning capability moves.
+- `mapping/repository.py` - mapping template and execution persistence.
 - `documents/storage.py` - local upload storage.
 - `parsers/extractors/` - extraction DTO, resolver and local PDF/XLSX adapters.
 - `parsers/protocol.py` - canonical parser protocol; shared result values live in
@@ -674,9 +674,9 @@ facade / use case
 -> validation/storage side effects
 ```
 
-The old broad unknown-statement facade files were removed. Put new
-implementation details into the cohesive packages underneath
-`application/unknown_statements/` and `application/unknown_statement_mappings/`.
+The old broad unknown-statement facade files were removed. Mapping
+implementation details belong to `mapping/`; analysis internals remain under
+`application/unknown_statements/` until Step 7D.
 
 ## Near-term cleanup plan
 

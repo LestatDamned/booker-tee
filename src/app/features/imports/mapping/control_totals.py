@@ -1,7 +1,6 @@
 import re
 from dataclasses import dataclass
 from decimal import Decimal
-from enum import StrEnum
 
 from app.features.imports.application.unknown_statements.hints import (
     control_total_label_sets_for_text,
@@ -9,6 +8,7 @@ from app.features.imports.application.unknown_statements.hints import (
 )
 from app.features.imports.mapping.dto import (
     MappingControlTotalCellRef,
+    MappingControlTotalKind,
     StatementMappingSpec,
 )
 from app.features.imports.mapping.raw_tables import (
@@ -18,11 +18,6 @@ from app.features.imports.mapping.raw_tables import (
 from app.features.imports.parsers.support.normalization import parse_money_amount
 
 MONEY_FRAGMENT = re.compile(r"[+\-−]?\s*\d[\d\s\u00a0]*(?:[.,]\d{1,2})?")
-
-
-class MappingControlTotalKind(StrEnum):
-    OPENING_BALANCE = "opening_balance"
-    CLOSING_BALANCE = "closing_balance"
 
 
 @dataclass(frozen=True)

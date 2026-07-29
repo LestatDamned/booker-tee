@@ -7,8 +7,9 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.imports.application.unknown_statement_mappings.import_use_case import (
-    UnknownStatementMappingImportUseCase,
+from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.mapping.commands.import_rows import (
+    StatementMappingImportService,
 )
 from app.features.imports.mapping.dto import (
     MappingTemplateSnapshot,
@@ -74,34 +75,29 @@ class SessionStub:
 
 
 @pytest.mark.asyncio
-async def test_mapping_import_replays_rows_and_template_once(monkeypatch) -> None:
+async def test_mapping_import_replays_rows_and_template_once() -> None:
     workspace_id = uuid4()
     document_id = uuid4()
     document = mapping_document(workspace_id, document_id)
     imports = MappingImportsStub(document)
     session = SessionStub()
-    use_case = object.__new__(UnknownStatementMappingImportUseCase)
-    use_case.session = cast(Any, session)
-    use_case.documents = cast(Any, imports)
-    use_case.mappings = cast(Any, imports)
-    use_case.statements = cast(Any, imports)
+    service = object.__new__(StatementMappingImportService)
+    service.session = cast(Any, session)
+    service.documents = cast(Any, imports)
+    service.mappings = cast(Any, imports)
     create_rows = AsyncMock(return_value=[SimpleNamespace(), SimpleNamespace()])
-    monkeypatch.setattr(
-        "app.features.imports.application.unknown_statement_mappings.import_use_case."
-        "create_raw_transactions_from_mapping",
-        create_rows,
-    )
+    service.row_importer = SimpleNamespace(replace_rows=create_rows)
     idempotency_key = uuid4()
     command = mapping_command()
 
-    first = await use_case.import_mapped_rows_idempotently(
+    first = await service.import_rows_idempotently(
         workspace_id=workspace_id,
         document_id=document_id,
         spec=command,
         idempotency_key=idempotency_key,
         template_name="  Моя   выписка  ",
     )
-    replay = await use_case.import_mapped_rows_idempotently(
+    replay = await service.import_rows_idempotently(
         workspace_id=workspace_id,
         document_id=document_id,
         spec=command,
@@ -120,24 +116,19 @@ async def test_mapping_import_replays_rows_and_template_once(monkeypatch) -> Non
 
 
 @pytest.mark.asyncio
-async def test_mapping_import_rejects_same_key_with_changed_payload(monkeypatch) -> None:
+async def test_mapping_import_rejects_same_key_with_changed_payload() -> None:
     workspace_id = uuid4()
     document_id = uuid4()
     imports = MappingImportsStub(mapping_document(workspace_id, document_id))
     session = SessionStub()
-    use_case = object.__new__(UnknownStatementMappingImportUseCase)
-    use_case.session = cast(Any, session)
-    use_case.documents = cast(Any, imports)
-    use_case.mappings = cast(Any, imports)
-    use_case.statements = cast(Any, imports)
-    monkeypatch.setattr(
-        "app.features.imports.application.unknown_statement_mappings.import_use_case."
-        "create_raw_transactions_from_mapping",
-        AsyncMock(return_value=[SimpleNamespace()]),
-    )
+    service = object.__new__(StatementMappingImportService)
+    service.session = cast(Any, session)
+    service.documents = cast(Any, imports)
+    service.mappings = cast(Any, imports)
+    service.row_importer = SimpleNamespace(replace_rows=AsyncMock(return_value=[SimpleNamespace()]))
     idempotency_key = uuid4()
 
-    await use_case.import_mapped_rows_idempotently(
+    await service.import_rows_idempotently(
         workspace_id=workspace_id,
         document_id=document_id,
         spec=mapping_command(),
@@ -146,7 +137,7 @@ async def test_mapping_import_rejects_same_key_with_changed_payload(monkeypatch)
     changed = replace(mapping_command(), default_currency="USD")
 
     with pytest.raises(MappingImportIdempotencyConflictError):
-        await use_case.import_mapped_rows_idempotently(
+        await service.import_rows_idempotently(
             workspace_id=workspace_id,
             document_id=document_id,
             spec=changed,
@@ -163,6 +154,7 @@ def mapping_document(workspace_id: UUID, document_id: UUID):
         account_id=uuid4(),
         bank_name="Тест Банк",
         statement_type="card_statement",
+        status=UploadedDocumentStatus.REQUIRES_REVIEW,
         raw_transactions=[],
         parse_attempts=[
             SimpleNamespace(

@@ -813,6 +813,31 @@ MappedStatementRowImporter.import_rows(...)
 `Class.action` сохраняется намеренно. Не вводятся неопределённые `Manager`,
 `Processor`, generic `UseCase` или свободные workflow-функции.
 
+7C завершён 2026-07-29. Общий reader разделён на три независимых query actor:
+overview, preview и source rows. Preview больше не загружает templates и не
+принимает неиспользуемую default currency. Изменяющий состояние workflow
+перенесён в `mapping/commands/import_rows.py`; command возвращает
+`StatementMappingImportResult` с document id/status вместо ORM entity.
+
+Оба пути импорта используют одного actor:
+`MappedStatementRowImporter.replace_rows(...)` для manual mapping и
+`MappedStatementRowImporter.import_rows(...)` для fallback. Булевый
+переключатель поведения не используется. Внешняя транзакция, fingerprint,
+idempotency replay и conflict contract сохранены. Старый
+`application/unknown_statement_mappings/` удалён уже на этом шаге без facade и
+compatibility imports.
+
+После 7C пакет `imports` содержит 79 Python-файлов и 10 924 строки production
+Python. Рост относительно 7B составляет два файла и 32 строки: один широкий
+reader физически разделён на три query-модуля, добавлены явные узкие protocols
+и result DTO. Это осознанная цена явных read/write boundaries; старый package
+из четырёх файлов и 1 127 строк при этом удалён.
+
+PostgreSQL characterization подтверждает, что два конкурентных запроса с одним
+idempotency key создают одну execution record: первый выполняет импорт, второй
+получает replay. Regression gate после 7C: Ruff, ty, 604 обычных tests и
+отдельно прошедший PostgreSQL concurrency test.
+
 #### 7D. Analysis consolidation и удаление старых путей
 
 - перенести unknown-statement analysis в `mapping/analysis/`;
@@ -822,8 +847,8 @@ MappedStatementRowImporter.import_rows(...)
 - объединить hints и control-total detection в `hints.py`;
 - оставить самостоятельными `analyzer.py`, `text_tables.py` и analysis DTO;
 - перенести fallback orchestration в `statements/process.py`;
-- удалить `application/unknown_statement_mappings/` и
-  `application/unknown_statements/` после обновления всех consumers;
+- удалить оставшийся `application/unknown_statements/` после обновления всех
+  consumers (`application/unknown_statement_mappings/` удалён в 7C);
 - не оставлять пустые packages, aliases и compatibility imports.
 
 Этап 7 не вводит generic Unit of Work, event bus, plugin architecture или новый
@@ -892,7 +917,7 @@ repository abstraction. Существующие API-преобразовани�
 | 6C. Typed mapping consumers and decoder cleanup | completed 2026-07-29 |
 | 7A. Mapping core ownership | completed 2026-07-29 |
 | 7B. Mapping templates and persistence boundary | completed 2026-07-29 |
-| 7C. Mapping commands and queries | next |
+| 7C. Mapping commands and queries | completed 2026-07-29 |
 | 7D. Mapping analysis consolidation and old-path cleanup | pending |
 | 8–11 | pending |
 
