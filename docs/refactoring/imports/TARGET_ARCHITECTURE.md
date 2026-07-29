@@ -85,7 +85,6 @@ import_review
 
 | Priority | Проблема | Решение |
 |---|---|---|
-| P1 | Duplicate evidence хранится в `normalization_error`; `MARK_UNIQUE` может оставить строку заблокированной | Отдельный behavioral шаг после persistence ownership |
 | P2 | Persisted unknown-analysis JSON декодируется вручную | Один frozen Pydantic projection на JSON boundary |
 | P2 | `ParseAttemptStatus` всё ещё определяется в ORM module | Перенести в documents-owned types при перестройке Documents |
 | P2 | Imports repositories всё ещё смешивают document, statement и mapping persistence | Разнести по capability на шагах 3, 4 и 7 |
@@ -355,8 +354,9 @@ review-specific loader, причём второй принадлежит `import
 - superseding mapped rows;
 - persistence данных, необходимых statement processing.
 
-`review_messages.py` остаётся временным compatibility code только до отделения
-duplicate evidence от `normalization_error`, после чего удаляется.
+`review_messages.py` удалён на Step 2. Duplicate detection меняет только status,
+структурированное evidence строится review read model, а `normalization_error`
+содержит только ошибки преобразования исходных данных.
 
 ## 9. Карта перемещений: Parsers
 
@@ -504,7 +504,8 @@ bus для синхронной mutation не нужен.
 5. удалить `save_pdf` после перехода на `save_upload`;
 6. объединить раздробленные known/unknown process modules;
 7. объединить analysis modules с одной причиной изменения;
-8. удалить `review_messages.py` после исправления duplicate evidence;
+8. удалить `review_messages.py` после исправления duplicate evidence — выполнено
+   на Step 2;
 9. заменить повторный ручной JSON decoding одной typed boundary;
 10. удалить repository forwarding и старые broad repositories;
 11. не оставлять import compatibility facades после внутренних moves.
@@ -520,6 +521,11 @@ import_review  20 Python-файлов,  3 117 строк
 `imports` — 11 070 строк, `import_review` — 3 651 строк. Общий объём production
 code практически не изменился; целью шага было направление dependencies, а не
 LOC reduction.
+
+После Step 2 `imports` содержит 89 Python-файлов и 11 024 строки, а
+`import_review` — 20 файлов и 3 649 строк. Удалены строковые duplicate messages,
+однополевая `DuplicateDecision` и compatibility helper; migration БД не
+потребовалась.
 
 Ориентир после безопасных объединений — примерно 55–65 содержательных
 Python-файлов внутри `imports`. Это не KPI: cohesive файл не дробится и не
@@ -571,10 +577,11 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 
 ### Шаг 2. Duplicate evidence
 
-- добавить overlapping-statement characterization;
-- отделить duplicate signal от `normalization_error`;
-- закрепить `MARK_UNIQUE` и `MARK_DUPLICATE`;
-- проверить PostgreSQL confirmation race.
+- добавить overlapping-statement characterization — выполнено;
+- отделить duplicate signal от `normalization_error` — выполнено;
+- закрепить `MARK_UNIQUE` и `MARK_DUPLICATE` — выполнено;
+- проверить PostgreSQL confirmation race — выполнено через recovery и partial
+  unique-index characterization.
 
 Это отдельный behavioral change set. Он выполняется до переноса statements,
 чтобы новая структура не закрепляла ошибочную модель duplicate evidence.
@@ -649,8 +656,9 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 | 0. Documentation consolidation | completed 2026-07-29 |
 | Safety baseline | completed 2026-07-29: Ruff, ty, 601 tests |
 | 1. Persistence ownership | completed 2026-07-29 |
-| 2. Duplicate evidence | next |
-| 3–11 | pending |
+| 2. Duplicate evidence | completed 2026-07-29 |
+| 3. Documents | next |
+| 4–11 | pending |
 
 ## 15. Gate для каждого шага
 

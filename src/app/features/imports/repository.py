@@ -6,7 +6,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.features.imports.domain.review_messages import append_review_message
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.models import (
     ImportMappingExecution,
@@ -197,8 +196,6 @@ class ImportRepository:
     async def mark_reviewable_raw_transactions_superseded(
         self,
         document: UploadedDocument,
-        *,
-        superseded_by_attempt_id: UUID,
     ) -> None:
         for raw_transaction in document.raw_transactions:
             if raw_transaction.status in {
@@ -208,11 +205,6 @@ class ImportRepository:
             }:
                 continue
             raw_transaction.status = RawTransactionStatus.DUPLICATE
-            message = f"Superseded by mapped rows from parse attempt {superseded_by_attempt_id}."
-            raw_transaction.normalization_error = append_review_message(
-                raw_transaction.normalization_error,
-                message,
-            )
         await self.session.flush()
 
     async def mark_document_status(

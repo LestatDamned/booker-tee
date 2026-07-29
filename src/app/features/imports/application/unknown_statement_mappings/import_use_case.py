@@ -252,10 +252,7 @@ async def create_raw_transactions_from_mapping(
         raise UnknownStatementMappingError("No rows matched the selected mapping.")
 
     if supersede_existing_rows:
-        await imports.mark_reviewable_raw_transactions_superseded(
-            document,
-            superseded_by_attempt_id=attempt.id,
-        )
+        await imports.mark_reviewable_raw_transactions_superseded(document)
     raw_transactions = await imports.create_raw_transactions(
         RawTransactionMapper.from_drafts(
             UnknownStatementDraftMapper(

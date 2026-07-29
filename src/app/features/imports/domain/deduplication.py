@@ -1,5 +1,4 @@
 from collections.abc import Iterable
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Protocol
@@ -8,9 +7,6 @@ from uuid import UUID
 from app.features.imports.domain.types import RawTransactionStatus
 
 RawTransactionFingerprint = tuple[UUID, date, Decimal, str]
-
-EXACT_DUPLICATE_MESSAGE = "Exact duplicate: another row has the same dedupe hash."
-POSSIBLE_DUPLICATE_MESSAGE = "Possible duplicate: same account, date, amount, and currency."
 
 
 class DuplicateFingerprintSource(Protocol):
@@ -27,12 +23,6 @@ class DuplicateFingerprintSource(Protocol):
     def currency(self) -> str | None: ...
 
 
-@dataclass(frozen=True)
-class DuplicateDecision:
-    status: RawTransactionStatus
-    message: str
-
-
 class DuplicatePolicy:
     @staticmethod
     def classify(
@@ -41,17 +31,11 @@ class DuplicatePolicy:
         fingerprint: RawTransactionFingerprint | None,
         existing_hashes: set[str],
         existing_fingerprints: set[RawTransactionFingerprint],
-    ) -> DuplicateDecision | None:
+    ) -> RawTransactionStatus | None:
         if dedupe_hash is not None and dedupe_hash in existing_hashes:
-            return DuplicateDecision(
-                status=RawTransactionStatus.DUPLICATE,
-                message=EXACT_DUPLICATE_MESSAGE,
-            )
+            return RawTransactionStatus.DUPLICATE
         if fingerprint is not None and fingerprint in existing_fingerprints:
-            return DuplicateDecision(
-                status=RawTransactionStatus.POSSIBLE_DUPLICATE,
-                message=POSSIBLE_DUPLICATE_MESSAGE,
-            )
+            return RawTransactionStatus.POSSIBLE_DUPLICATE
         return None
 
 

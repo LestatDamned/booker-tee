@@ -17,13 +17,7 @@ from app.features.imports.application.documents.upload import (
     StatementUploadUseCase,
     validate_statement_upload,
 )
-from app.features.imports.application.pipelines.deduplication import (
-    apply_duplicate_decision,
-)
-from app.features.imports.domain.deduplication import (
-    DuplicateDecision,
-    possible_duplicate_fingerprint,
-)
+from app.features.imports.domain.deduplication import possible_duplicate_fingerprint
 from app.features.imports.errors import (
     UploadIdempotencyConflictError,
     UploadTooLargeError,
@@ -324,26 +318,10 @@ def test_possible_duplicate_fingerprint_requires_normalized_fields() -> None:
     assert possible_duplicate_fingerprint(raw_transaction) is None
 
 
-def test_apply_duplicate_decision_preserves_review_message() -> None:
-    raw_transaction = raw_transaction_from_values(normalization_error="Existing issue.")
-
-    apply_duplicate_decision(
-        raw_transaction,
-        DuplicateDecision(
-            status=RawTransactionStatus.DUPLICATE,
-            message="Exact duplicate.",
-        ),
-    )
-
-    assert raw_transaction.status == RawTransactionStatus.DUPLICATE
-    assert raw_transaction.normalization_error == "Existing issue.; Exact duplicate."
-
-
 def raw_transaction_from_values(
     *,
     account_id: UUID | None = None,
     amount: Decimal | None = Decimal("10.00"),
-    normalization_error: str | None = None,
 ) -> RawTransaction:
     return RawTransaction(
         workspace_id=uuid4(),
@@ -356,5 +334,5 @@ def raw_transaction_from_values(
         operation_date=parse_bank_date("29.05.2026"),
         amount=amount,
         currency="RUB",
-        normalization_error=normalization_error,
+        normalization_error=None,
     )

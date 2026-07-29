@@ -2,13 +2,11 @@ from typing import Protocol
 from uuid import UUID
 
 from app.features.imports.domain.deduplication import (
-    DuplicateDecision,
     DuplicatePolicy,
     RawTransactionFingerprint,
     possible_duplicate_fingerprint,
     possible_duplicate_fingerprints,
 )
-from app.features.imports.domain.review_messages import append_review_message
 from app.features.imports.models import RawTransaction
 
 
@@ -53,14 +51,14 @@ class RawTransactionDeduplicator:
         )
 
         for raw_transaction in raw_transactions:
-            decision = DuplicatePolicy.classify(
+            duplicate_status = DuplicatePolicy.classify(
                 dedupe_hash=raw_transaction.dedupe_hash,
                 fingerprint=possible_duplicate_fingerprint(raw_transaction),
                 existing_hashes=existing_hashes,
                 existing_fingerprints=existing_fingerprints,
             )
-            if decision is not None:
-                apply_duplicate_decision(raw_transaction, decision)
+            if duplicate_status is not None:
+                raw_transaction.status = duplicate_status
 
     async def _existing_dedupe_hashes(
         self,
@@ -93,14 +91,3 @@ class RawTransactionDeduplicator:
             fingerprints=fingerprints,
             exclude_document_id=exclude_document_id,
         )
-
-
-def apply_duplicate_decision(
-    raw_transaction: RawTransaction,
-    decision: DuplicateDecision,
-) -> None:
-    raw_transaction.status = decision.status
-    raw_transaction.normalization_error = append_review_message(
-        raw_transaction.normalization_error,
-        decision.message,
-    )

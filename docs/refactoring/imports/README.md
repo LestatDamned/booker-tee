@@ -31,6 +31,9 @@ Safety baseline
   -> completed 2026-07-29
 
 Шаг 2  duplicate evidence
+  -> completed 2026-07-29
+
+Шаг 3  documents
   -> next
 ```
 
