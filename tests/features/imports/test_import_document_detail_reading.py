@@ -23,6 +23,7 @@ from app.features.imports.documents.queries.detail import (
     ImportDocumentDetailReader,
 )
 from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
+from app.features.imports.documents.validation_report import StoredValidationReport
 from app.features.imports.statements.types import RawTransactionStatus
 
 
@@ -200,7 +201,9 @@ def document_snapshot(
         bank_name="Альфа-Банк",
         statement_type="account_statement",
         account=None,
-        validation=validation,
+        validation=(
+            StoredValidationReport.model_validate(validation) if validation is not None else None
+        ),
         raw_transactions=raw_transactions or [],
         parse_attempts=parse_attempts or [],
         statement_period_start=date(2026, 7, 1),
@@ -239,6 +242,6 @@ def parse_attempt(index: int) -> ImportParseAttemptSnapshot:
         started_at=datetime(2026, 7, 24, 10, tzinfo=UTC),
         finished_at=datetime(2026, 7, 24, 10, 1, tzinfo=UTC),
         error_message=None,
-        validation_report=None,
+        validation=None,
         raw_tables=None,
     )

@@ -21,6 +21,7 @@ from app.features.imports.documents.dto import (
     ImportRawTransactionRow,
 )
 from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
+from app.features.imports.documents.validation_report import StoredValidationReport
 from app.features.imports.models import (
     ParseAttempt,
     RawTransaction,
@@ -439,7 +440,7 @@ def _document_snapshot(document: UploadedDocument) -> ImportDocumentSnapshot:
         created_at=document.created_at,
         updated_at=document.updated_at,
         account=_account_ref(document),
-        validation=latest_attempt.validation_report if latest_attempt else None,
+        validation=latest_attempt.validation if latest_attempt else None,
         raw_transactions=[_raw_transaction_row(row) for row in document.raw_transactions],
         parse_attempts=attempts,
     )
@@ -479,6 +480,10 @@ def _parse_attempt_snapshot(attempt: ParseAttempt) -> ImportParseAttemptSnapshot
         started_at=attempt.started_at,
         finished_at=attempt.finished_at,
         error_message=attempt.error_message_sanitized,
-        validation_report=attempt.validation_report_json,
+        validation=(
+            StoredValidationReport.model_validate(attempt.validation_report_json)
+            if attempt.validation_report_json is not None
+            else None
+        ),
         raw_tables=attempt.raw_tables_json,
     )

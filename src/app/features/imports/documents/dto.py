@@ -47,16 +47,16 @@ class ImportParseAttemptSnapshot:
     started_at: datetime
     finished_at: datetime | None
     error_message: str | None
-    validation_report: dict[str, object] | None
+    validation: StoredValidationReport | None
     raw_tables: list[dict[str, object]] | None
 
     @property
     def message(self) -> str:
         if self.error_message:
             return self.error_message
-        if self.validation_report is None:
+        if self.validation is None:
             return ""
-        return StoredValidationReport.model_validate(self.validation_report).message
+        return self.validation.message
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,7 @@ class ImportDocumentSnapshot:
     bank_name: str | None
     statement_type: str | None
     account: ImportDocumentAccountDto | None
-    validation: dict[str, object] | None
+    validation: StoredValidationReport | None
     raw_transactions: list[ImportRawTransactionRow]
     parse_attempts: list[ImportParseAttemptSnapshot]
     statement_period_start: date | None = None

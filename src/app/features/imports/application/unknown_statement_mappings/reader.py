@@ -125,6 +125,9 @@ class UnknownStatementMappingReader:
         snapshot: ImportDocumentSnapshot,
     ) -> UnknownStatementMappingReadModel:
         raw_tables = _latest_raw_tables(snapshot)
+        validation_payload = (
+            snapshot.validation.model_dump(mode="json") if snapshot.validation is not None else None
+        )
         templates = await self._templates.list_matching_templates(
             workspace_id=workspace_id,
             bank_name=snapshot.bank_name,
@@ -137,7 +140,7 @@ class UnknownStatementMappingReader:
             else workspace_default_currency
         )
         default = StatementMappingDefaultResolver.resolve(
-            snapshot.validation,
+            validation_payload,
             default_currency=default_currency,
             compatible_templates=compatible_templates,
         )
@@ -153,7 +156,7 @@ class UnknownStatementMappingReader:
                 MappingControlTotalKind.CLOSING_BALANCE,
             ),
         )
-        table_options = table_previews_from_validation(snapshot.validation)
+        table_options = table_previews_from_validation(validation_payload)
         projected_tables = tuple(
             _source_table(option, raw_tables, default_currency=default_currency)
             for option in table_options[:MAX_MAPPING_SOURCE_TABLES]
@@ -326,15 +329,11 @@ def _mapping_capability(
         reasons.append(MappingBlockingReasonCode.ACCOUNT_REQUIRED)
     if not raw_tables:
         reasons.append(MappingBlockingReasonCode.RAW_TABLES_UNAVAILABLE)
-    if not _needs_mapping(snapshot.validation):
+    if snapshot.validation is None or not snapshot.validation.needs_mapping:
         reasons.append(MappingBlockingReasonCode.MAPPING_NOT_REQUIRED)
     if any(row.status is RawTransactionStatus.CONFIRMED for row in snapshot.raw_transactions):
         reasons.append(MappingBlockingReasonCode.CONFIRMED_ROWS_EXIST)
     return MappingCapabilityDto(allowed=not reasons, blocking_reason_codes=tuple(reasons))
-
-
-def _needs_mapping(validation: dict[str, object] | None) -> bool:
-    return validation is not None and validation.get("status") == "needs_mapping"
 
 
 def _latest_raw_tables(

@@ -689,7 +689,7 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 - 6A: описать обе stored-формы `validation_report_json` через immutable
   Pydantic-модели — выполнено;
 - 6B: декодировать report один раз на documents read boundary и передавать
-  typed snapshot;
+  typed snapshot — выполнено;
 - 6C: перевести mapping consumers на typed attributes, удалить локальные
   `dict.get`/`isinstance` decoders и сократить изоморфные API mappings.
 
@@ -702,8 +702,15 @@ forward-compatible stored contract для:
 - unknown-statement table previews;
 - column candidates и mapping suggestions.
 
-До 6B snapshots намеренно сохраняют `dict[str, object]`: контракт уже проверяет
-stored payload, но смена типов на read side выполняется отдельным change set.
+После 6B `DocumentRepository` вызывает
+`StoredValidationReport.model_validate(...)` при создании parse-attempt
+snapshot. Document snapshot переиспользует тот же typed report, поэтому detail
+и другие read consumers не декодируют JSON повторно.
+
+До 6C mapping reader временно преобразует typed report через
+`model_dump(mode="json")`, чтобы существующий mapping behavior оставался
+неизменным. Этот переход и локальные `dict.get`/`isinstance` decoders удаляются
+в следующем change set.
 
 ### Шаг 7. Mapping
 
@@ -756,8 +763,8 @@ stored payload, но смена типов на read side выполняется
 | 5C. Bank parsers | completed 2026-07-29 |
 | 5D. Old parsing package cleanup | completed 2026-07-29 |
 | 6A. Stored report schema | completed 2026-07-29 |
-| 6B. Decode once on documents read boundary | next |
-| 6C. Typed mapping consumers and decoder cleanup | pending |
+| 6B. Decode once on documents read boundary | completed 2026-07-29 |
+| 6C. Typed mapping consumers and decoder cleanup | next |
 | 7–11 | pending |
 
 ## 15. Gate для каждого шага

@@ -167,26 +167,25 @@ def _capabilities(
 
 
 def _validation(
-    report: dict[str, object] | None,
+    report: StoredValidationReport | None,
     *,
     rows: list[ImportRawTransactionRow],
 ) -> ImportDocumentDetailValidationDto | None:
     if report is None:
         return None
-    stored = StoredValidationReport.model_validate(report)
     return ImportDocumentDetailValidationDto(
-        status=stored.status,
-        reason_code=_validation_reason_code(stored),
-        message=stored.message,
-        extracted_count=stored.extracted_count,
-        calculated_total_inflow=stored.calculated_total_inflow,
-        calculated_total_outflow=stored.calculated_total_outflow,
+        status=report.status,
+        reason_code=_validation_reason_code(report),
+        message=report.message,
+        extracted_count=report.extracted_count,
+        calculated_total_inflow=report.calculated_total_inflow,
+        calculated_total_outflow=report.calculated_total_outflow,
         ignored_row_count=sum(row.status is RawTransactionStatus.IGNORED for row in rows),
-        ignored_total_inflow=stored.ignored_total_inflow,
-        ignored_total_outflow=stored.ignored_total_outflow,
-        currency=stored.currency,
-        table_count=stored.table_count,
-        needs_mapping=stored.needs_mapping,
+        ignored_total_inflow=report.ignored_total_inflow,
+        ignored_total_outflow=report.ignored_total_outflow,
+        currency=report.currency,
+        table_count=report.table_count,
+        needs_mapping=report.needs_mapping,
     )
 
 

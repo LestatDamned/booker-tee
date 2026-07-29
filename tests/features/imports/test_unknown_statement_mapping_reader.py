@@ -26,6 +26,7 @@ from app.features.imports.documents.dto import (
     ImportParseAttemptSnapshot,
 )
 from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
+from app.features.imports.documents.validation_report import StoredValidationReport
 
 
 class DocumentSnapshotReaderStub:
@@ -193,6 +194,12 @@ def mapping_document_snapshot() -> ImportDocumentSnapshot:
         }
         for page_number in (1, 2)
     ]
+    validation = StoredValidationReport.model_validate(
+        {
+            "status": "needs_mapping",
+            "table_previews": previews,
+        }
+    )
     return ImportDocumentSnapshot(
         id=document_id,
         status=UploadedDocumentStatus.REQUIRES_REVIEW,
@@ -204,10 +211,7 @@ def mapping_document_snapshot() -> ImportDocumentSnapshot:
             name="Основной счёт",
             currency="RUB",
         ),
-        validation={
-            "status": "needs_mapping",
-            "table_previews": previews,
-        },
+        validation=validation,
         raw_transactions=[],
         parse_attempts=[
             ImportParseAttemptSnapshot(
@@ -218,10 +222,7 @@ def mapping_document_snapshot() -> ImportDocumentSnapshot:
                 started_at=datetime(2026, 7, 24, tzinfo=UTC),
                 finished_at=datetime(2026, 7, 24, tzinfo=UTC),
                 error_message=None,
-                validation_report={
-                    "status": "needs_mapping",
-                    "table_previews": previews,
-                },
+                validation=validation,
                 raw_tables=raw_tables,
             )
         ],

@@ -504,7 +504,8 @@ import path easy to test.
   mutation services for confirmation, lifecycle, transfers, rules and undo.
 - `documents/` - document commands, DTO, list/detail queries, repository,
   lifecycle, parse attempts, storage, errors and the typed stored validation
-  report contract.
+  report contract. Repository snapshots decode that JSONB contract once before
+  application readers receive it.
 - `statements/process.py` - parse completion and known parser import workflows
   with explicit `Class.action` APIs.
 - `statements/dto.py`, `types.py`, `raw_transactions.py` - shared parser/mapping

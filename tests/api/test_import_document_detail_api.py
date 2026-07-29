@@ -17,6 +17,7 @@ from app.features.imports.documents.queries.detail import (
     ImportDocumentDetailReader,
 )
 from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.documents.validation_report import StoredValidationReport
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
@@ -138,7 +139,7 @@ def document_snapshot() -> ImportDocumentSnapshot:
         bank_name="Альфа-Банк",
         statement_type="account_statement",
         account=None,
-        validation={"status": "valid", "extracted_count": 1},
+        validation=StoredValidationReport.model_validate({"status": "valid", "extracted_count": 1}),
         raw_transactions=[
             ImportRawTransactionRow(
                 row_index=1,
