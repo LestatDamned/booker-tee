@@ -1,15 +1,9 @@
 from pathlib import Path
 from typing import Protocol
 
-from app.features.imports.infrastructure.extraction.extracted_statement import (
-    ExtractedStatement,
-)
-from app.features.imports.infrastructure.extraction.openpyxl_extractor import (
-    OpenPyxlStatementExtractor,
-)
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import (
-    PdfPlumberExtractor,
-)
+from app.features.imports.parsers.extractors.dto import ExtractedStatement
+from app.features.imports.parsers.extractors.pdf import PdfPlumberStatementExtractor
+from app.features.imports.parsers.extractors.xlsx import OpenPyxlStatementExtractor
 
 SUPPORTED_STATEMENT_EXTENSIONS = frozenset({".pdf", ".xlsx"})
 
@@ -25,7 +19,7 @@ class StatementExtractorResolver:
         pdf_extractor: StatementExtractor | None = None,
         xlsx_extractor: StatementExtractor | None = None,
     ) -> None:
-        self.pdf_extractor = pdf_extractor or PdfPlumberExtractor()
+        self.pdf_extractor = pdf_extractor or PdfPlumberStatementExtractor()
         self.xlsx_extractor = xlsx_extractor or OpenPyxlStatementExtractor()
 
     def extractor_for_path(self, file_path: Path) -> StatementExtractor:

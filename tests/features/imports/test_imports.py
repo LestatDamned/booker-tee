@@ -26,14 +26,14 @@ from app.features.imports.documents.storage import (
     UploadStorage,
     sanitize_upload_filename,
 )
-from app.features.imports.infrastructure.extraction.openpyxl_extractor import (
+from app.features.imports.models import RawTransaction
+from app.features.imports.parsers.extractors.pdf import (
+    PdfPlumberStatementExtractor,
+)
+from app.features.imports.parsers.extractors.resolver import StatementExtractorResolver
+from app.features.imports.parsers.extractors.xlsx import (
     OpenPyxlStatementExtractor,
 )
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import (
-    PdfPlumberExtractor,
-)
-from app.features.imports.infrastructure.extraction.resolver import StatementExtractorResolver
-from app.features.imports.models import RawTransaction
 from app.features.imports.parsing.support.normalization import (
     parse_bank_date,
 )
@@ -200,7 +200,9 @@ def test_validate_statement_upload_rejects_unknown_extension() -> None:
 
 
 def test_pdfplumber_extractor_preserves_raw_pages() -> None:
-    extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/expobank_statement.pdf"))
+    extracted = PdfPlumberStatementExtractor().extract(
+        Path("tests/fixtures/expobank_statement.pdf")
+    )
 
     assert extracted.text_by_page
     assert len(extracted.tables_by_page) == len(extracted.text_by_page)

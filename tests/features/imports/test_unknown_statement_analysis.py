@@ -32,14 +32,14 @@ from app.features.imports.application.unknown_statements.hints import (
 from app.features.imports.application.unknown_statements.text_tables import (
     raw_tables_with_text_candidate_tables,
 )
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import (
-    ExtractedPdf,
-    ExtractedPdfPageTables,
+from app.features.imports.parsers.extractors.dto import (
+    ExtractedStatement,
+    ExtractedStatementPageTables,
 )
 from app.features.imports.parsing.support.normalization import parse_bank_date
 
 
-def sanitized_unknown_statement_fixture(name: str) -> ExtractedPdf:
+def sanitized_unknown_statement_fixture(name: str) -> ExtractedStatement:
     path = Path("tests/fixtures/unknown_statements") / name
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(payload, dict)
@@ -49,10 +49,10 @@ def sanitized_unknown_statement_fixture(name: str) -> ExtractedPdf:
     assert isinstance(text_by_page, list)
     assert isinstance(tables_by_page, list)
     assert isinstance(metadata, dict)
-    return ExtractedPdf(
+    return ExtractedStatement(
         text_by_page=[str(page_text) for page_text in text_by_page],
         tables_by_page=[
-            extracted_pdf_page_tables_from_payload(page_tables)
+            extracted_page_tables_from_payload(page_tables)
             for page_tables in tables_by_page
             if isinstance(page_tables, dict)
         ],
@@ -60,20 +60,20 @@ def sanitized_unknown_statement_fixture(name: str) -> ExtractedPdf:
     )
 
 
-def extracted_pdf_page_tables_from_payload(
+def extracted_page_tables_from_payload(
     payload: dict[object, object],
-) -> ExtractedPdfPageTables:
+) -> ExtractedStatementPageTables:
     page_number = payload.get("page_number")
     tables = payload.get("tables")
     assert isinstance(page_number, int)
     assert isinstance(tables, list)
-    return ExtractedPdfPageTables(
+    return ExtractedStatementPageTables(
         page_number=page_number,
         tables=cast(list[list[list[str | None]]], tables),
     )
 
 
-def raw_tables_from_extracted_fixture(extracted: ExtractedPdf) -> list[dict[str, object]]:
+def raw_tables_from_extracted_fixture(extracted: ExtractedStatement) -> list[dict[str, object]]:
     return [
         {
             "page_number": page_tables.page_number,
@@ -126,7 +126,7 @@ def test_unknown_statement_hints_reject_invalid_nested_config(tmp_path: Path) ->
 
 
 def test_unknown_statement_analysis_finds_mapping_candidates() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=[
             "\n".join(
                 [
@@ -137,7 +137,7 @@ def test_unknown_statement_analysis_finds_mapping_candidates() -> None:
             )
         ],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -193,7 +193,7 @@ def test_unknown_statement_analysis_finds_mapping_candidates() -> None:
 
 
 def test_unknown_statement_analysis_finds_header_after_preamble() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=[
             "\n".join(
                 [
@@ -203,7 +203,7 @@ def test_unknown_statement_analysis_finds_header_after_preamble() -> None:
             )
         ],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -238,10 +238,10 @@ def test_unknown_statement_analysis_finds_header_after_preamble() -> None:
 
 
 def test_unknown_statement_analysis_keeps_all_table_candidates() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=["Оплата товаров по карте" for _ in range(4)],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=page_number,
                 tables=[
                     [
@@ -264,10 +264,10 @@ def test_unknown_statement_analysis_keeps_all_table_candidates() -> None:
 
 
 def test_unknown_statement_analysis_detects_english_table_with_date_not_first() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=["Account statement"],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -306,10 +306,10 @@ def test_unknown_statement_analysis_detects_english_table_with_date_not_first() 
 
 
 def test_unknown_statement_analysis_keeps_column_profiles_internal() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=["Account statement"],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -340,10 +340,10 @@ def test_unknown_statement_analysis_keeps_column_profiles_internal() -> None:
 
 
 def test_unknown_statement_analysis_includes_mapping_suggestions() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=["Account statement"],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -379,10 +379,10 @@ def test_unknown_statement_analysis_includes_mapping_suggestions() -> None:
 
 
 def test_unknown_statement_analysis_detects_balance_after_column() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=["Account statement"],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -420,10 +420,10 @@ def test_unknown_statement_analysis_detects_balance_after_column() -> None:
 
 
 def test_unknown_statement_analysis_detects_posting_date_column() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=["Account statement"],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -462,10 +462,10 @@ def test_unknown_statement_analysis_detects_posting_date_column() -> None:
 
 
 def test_unknown_statement_analysis_uses_structured_mapping_warnings() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=["Account statement"],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -493,10 +493,10 @@ def test_unknown_statement_analysis_uses_structured_mapping_warnings() -> None:
 
 
 def test_unknown_statement_analysis_suggests_mapping_for_table_without_headers() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=["Account statement"],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -543,7 +543,7 @@ def test_unknown_statement_analysis_suggests_mapping_for_table_without_headers()
 
 
 def test_unknown_statement_analysis_builds_text_candidate_table_when_pdf_tables_are_empty() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=[
             "\n".join(
                 [
@@ -555,7 +555,7 @@ def test_unknown_statement_analysis_builds_text_candidate_table_when_pdf_tables_
             )
         ],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [],
@@ -620,7 +620,7 @@ def test_unknown_statement_analysis_builds_text_candidate_table_when_pdf_tables_
 
 def test_unknown_statement_persists_all_generated_rows_beyond_preview() -> None:
     transaction_lines = [f"{day:02d}.05.2026 Operation {day} -{day},00 RUB" for day in range(1, 9)]
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=["\n".join(transaction_lines)],
         tables_by_page=[],
         metadata={},
@@ -646,10 +646,10 @@ def test_unknown_statement_analysis_does_not_treat_transaction_text_as_header() 
         "Оплата товаров по карте 3977 сумма 390.00 RUB в MERCHANT EXAMPLE CITY RU "
         "дата 2026-05-30 время 18:16:34"
     )
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=["Account statement"],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -704,10 +704,10 @@ def test_unknown_statement_analysis_does_not_treat_transaction_text_as_header() 
 
 
 def test_unknown_statement_analysis_split_debit_credit_suggestion_has_no_warning() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=["Account statement"],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -733,10 +733,10 @@ def test_unknown_statement_analysis_split_debit_credit_suggestion_has_no_warning
 
 
 def test_unknown_statement_analysis_detects_split_debit_credit_table() -> None:
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=["Выписка по счету"],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [

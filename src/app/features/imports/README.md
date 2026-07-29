@@ -143,7 +143,7 @@ statements/process.py
   KnownStatementImportPipeline.import_parsed_transactions()
 ```
 
-Банковские парсеры остаются в нижнем слое:
+До Step 5C банковские реализации остаются по старым путям:
 
 ```text
 parsing/parsers/
@@ -167,6 +167,9 @@ parsing/parsers/
 
 ```text
 parsing/parsers/* = как прочитать конкретный банковский формат выписки
+parsers/protocol.py = canonical parser contract
+parsers/registry.py = явный выбор подходящего parser
+parsers/extractors/* = локальное извлечение PDF/XLSX
 statements/process.py = что приложение делает с результатом парсера
 ```
 
@@ -292,35 +295,27 @@ imports/
   mapping/
     repository.py
 
-  infrastructure/
-    extraction/
-      extracted_statement.py
-      pdfplumber_extractor.py
-      openpyxl_extractor.py
-      resolver.py
-
-  parsing/
-    parser_types.py
+  parsers/
+    protocol.py
     registry.py
+    extractors/
+      dto.py
+      pdf.py
+      xlsx.py
+      resolver.py
     support/
-      common.py
-      header_fields.py
+      drafts.py
+      headers.py
       normalization.py
-    parsers/
-      sberbank/
-        card.py
-      vtb/
-        card.py
-        deposit.py
-        shared.py
-      expobank/
-        card.py
-      tbank/
-        card.py
-      ozon_bank/
-        card.py
-      alfabank/
-        xlsx.py
+    alfabank.py
+    expobank.py
+    ozon_bank.py
+    sberbank.py
+    tbank.py
+    vtb/
+      card.py
+      deposit.py
+      statement_period.py
 
 import_review/
   application/
@@ -451,28 +446,40 @@ the dedicated parser work is in progress.
 
 ## Parser package direction
 
-`parsing/parsers/` is for known bank parser plugins only. Shared parser helpers
-belong outside that package:
+`parsers/` is the single capability package for statement recognition. Its
+root contains the explicit parser contract, registry and bank implementations;
+file extraction and shared pure helpers live in named subpackages:
 
 ```text
-parsing/
-  parser_types.py
+parsers/
+  protocol.py
   registry.py
+  extractors/
+    dto.py
+    resolver.py
+    pdf.py
+    xlsx.py
   support/
-    common.py
-    header_fields.py
+    drafts.py
+    headers.py
     normalization.py
-  parsers/
-    <bank>/
-      <statement_type>.py
+  alfabank.py
+  expobank.py
+  ozon_bank.py
+  sberbank.py
+  tbank.py
+  vtb/
+    card.py
+    deposit.py
+    statement_period.py
 ```
 
-Use bank folders once a bank has more than one parser or a parser is large
-enough that flat filenames make navigation noisy. Keep small parsers in one
-file first. Split a parser further only when the file stops reading linearly:
+Use a bank folder only when the bank has several statement formats or shared
+bank-specific code. Keep a single-format bank parser in one file. Split a
+parser further only when the file stops reading linearly:
 
 ```text
-parsing/parsers/tbank/card/
+parsers/tbank/card/
   parser.py
   rows.py
   totals.py
@@ -480,14 +487,15 @@ parsing/parsers/tbank/card/
 
 Avoid introducing a base parser class or inheritance tree until there is a
 clear repeated algorithm that a small helper function cannot handle. The current
-`BankStatementRawTransactionParser` `Protocol` is the preferred extension point:
+`BankStatementParser` `Protocol` is the preferred extension point:
 plain dataclasses, pure helpers, and explicit parser registration keep the
 import path easy to test.
 
 ## Naming guide
 
 - `*UseCase` - пользовательский сценарий или action с транзакционными эффектами.
-- `*Processor` - внутренний pipeline из нескольких шагов без HTTP-контекста.
+- `*Service` / `*Pipeline` - внутренний workflow; имя actor должно объяснять,
+  какой результат он создаёт или какой этап завершает.
 - `*Mapper` - преобразование между ORM, DTO, drafts и view models.
 - `*Draft` - данные, которые еще не являются ORM-моделью.
 - `*View` / `*ViewModel` - данные, подготовленные для Jinja-шаблона.
@@ -527,10 +535,10 @@ import path easy to test.
 - `mapping/repository.py` - mapping templates and execution persistence pending
   the full mapping move.
 - `documents/storage.py` - local upload storage.
-- `infrastructure/extraction/` - file extraction adapters such as PDF and XLSX.
-- `parsing/parser_types.py` - parser protocol; shared result values live in
+- `parsers/extractors/` - extraction DTO, resolver and local PDF/XLSX adapters.
+- `parsers/protocol.py` - canonical parser protocol; shared result values live in
   `statements/dto.py`.
-- `parsing/registry.py` - parser registry for known statement parsers.
+- `parsers/registry.py` - parser registry for known statement parsers.
 - `parsing/support/` - shared parser helpers such as normalization and draft building.
 - `parsing/parsers/` - bank and statement-type parser plugins.
 
@@ -689,10 +697,21 @@ implementation details into the cohesive packages underneath
 
 Completed cleanup:
 
-- Parser shared helpers live in `parsing/support/`.
-- Known parser registry lives in `parsing/registry.py`.
-- Existing bank parsers live in bank folders under `parsing/parsers/`.
-- Statement extraction supports both PDF and XLSX through a format-aware resolver.
+- Canonical parser contract and registry live in `parsers/protocol.py` and
+  `parsers/registry.py`.
+- Statement extraction DTO, resolver and PDF/XLSX adapters live in
+  `parsers/extractors/`.
+- Parser selection and parsing use explicit actor actions:
+  `StatementParserRegistry.find_matching_parser()` and
+  `BankStatementParser.parse_transaction_drafts()`.
+- Extraction compatibility aliases and old `infrastructure/extraction/`,
+  `parsing/parser_types.py` and `parsing/registry.py` paths are removed.
+
+Pending Step 5B-5C cleanup:
+
+- Move and rename shared helpers from `parsing/support/` to `parsers/support/`.
+- Move bank implementations from `parsing/parsers/` into `parsers/`, flattening
+  single-format bank packages.
 
 ## Remaining cleanup plan
 

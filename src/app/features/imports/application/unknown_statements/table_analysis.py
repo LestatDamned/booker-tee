@@ -16,7 +16,7 @@ from app.features.imports.application.unknown_statements.table_detection import 
     compact_preview_rows,
     looks_like_transaction_table,
 )
-from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
+from app.features.imports.parsers.extractors.dto import ExtractedStatement
 
 
 def build_table_previews(extracted: ExtractedStatement) -> list[UnknownStatementTablePreview]:

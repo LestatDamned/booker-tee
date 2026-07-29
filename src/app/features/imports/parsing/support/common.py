@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
+from app.features.imports.parsers.extractors.dto import ExtractedStatement
 from app.features.imports.statements.dto import RawTransactionDraft
 from app.features.imports.statements.types import RawTransactionStatus
 

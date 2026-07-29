@@ -25,15 +25,15 @@ from app.features.imports.documents.types import (
     UploadedDocumentStatus,
     UploadedDocumentType,
 )
-from app.features.imports.infrastructure.extraction.resolver import (
-    SUPPORTED_STATEMENT_EXTENSIONS,
-    StatementExtractorResolver,
-)
 from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.models import (
     UploadedDocument,
 )
-from app.features.imports.parsing.registry import default_statement_parser_registry
+from app.features.imports.parsers.extractors.resolver import (
+    SUPPORTED_STATEMENT_EXTENSIONS,
+    StatementExtractorResolver,
+)
+from app.features.imports.parsers.registry import StatementParserRegistry
 from app.features.imports.statements.process import StatementParseCompletionService
 from app.features.imports.statements.repository import StatementRepository
 from app.features.workspaces.service import WorkspaceContext
@@ -60,7 +60,7 @@ class StatementUploadUseCase:
             documents=self.documents,
             statements=self.statements,
             mappings=self.mappings,
-            parser_registry=default_statement_parser_registry(),
+            parser_registry=StatementParserRegistry.with_default_parsers(),
         )
 
     async def upload_and_extract_statement(

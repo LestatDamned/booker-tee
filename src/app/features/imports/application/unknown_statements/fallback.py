@@ -20,9 +20,9 @@ from app.features.imports.documents.attempts import (
 )
 from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.errors import UnknownStatementMappingError
-from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.models import ParseAttempt, UploadedDocument
+from app.features.imports.parsers.extractors.dto import ExtractedStatement
 from app.features.imports.statements.repository import StatementRepository
 
 

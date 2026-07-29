@@ -17,7 +17,7 @@ from app.features.imports.application.unknown_statements.text_tables import (
     build_text_candidate_table_previews,
     build_text_candidate_tables,
 )
-from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
+from app.features.imports.parsers.extractors.dto import ExtractedStatement
 
 
 def analyze_unknown_statement(extracted: ExtractedStatement) -> UnknownStatementAnalysis:

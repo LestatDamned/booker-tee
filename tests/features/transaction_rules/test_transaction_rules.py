@@ -4,8 +4,8 @@ from typing import cast
 from uuid import UUID, uuid4
 
 from app.features.categories.models import CategoryKind
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import PdfPlumberExtractor
 from app.features.imports.models import RawTransaction
+from app.features.imports.parsers.extractors.pdf import PdfPlumberStatementExtractor
 from app.features.imports.parsing.parsers.expobank.card import ExpobankCardStatementParser
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.models import OperationType
@@ -148,8 +148,10 @@ def test_contains_rule_matches_noisy_yandex_go_variants() -> None:
 def test_default_merchant_rule_suggests_products_for_krasnoe_beloe() -> None:
     workspace_id = uuid4()
     products_category_id = uuid4()
-    extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/expobank_statement.pdf"))
-    drafts = ExpobankCardStatementParser().extract_raw_transactions(
+    extracted = PdfPlumberStatementExtractor().extract(
+        Path("tests/fixtures/expobank_statement.pdf")
+    )
+    drafts = ExpobankCardStatementParser().parse_transaction_drafts(
         extracted,
         account_id=None,
         currency="RUB",

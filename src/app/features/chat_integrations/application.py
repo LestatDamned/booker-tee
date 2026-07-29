@@ -26,8 +26,8 @@ from app.features.chat_integrations.schemas import (
 from app.features.chat_integrations.use_cases.action_tokens import ChatActionTokenBuilder
 from app.features.imports.documents.commands.upload import StatementUploadUseCase
 from app.features.imports.documents.errors import UploadValidationError
-from app.features.imports.infrastructure.extraction.resolver import SUPPORTED_STATEMENT_EXTENSIONS
 from app.features.imports.models import UploadedDocument
+from app.features.imports.parsers.extractors.resolver import SUPPORTED_STATEMENT_EXTENSIONS
 from app.features.workspaces.service import WorkspaceContext
 
 TELEGRAM_DOCUMENT_DOWNLOAD_LIMIT_BYTES = 20 * 1024 * 1024

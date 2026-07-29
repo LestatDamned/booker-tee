@@ -8,14 +8,14 @@ from app.features.imports.application.unknown_statements.fallback import (
 )
 from app.features.imports.documents.attempts import mark_attempt_requires_review
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.models import (
     ParseAttempt,
     UploadedDocument,
 )
-from app.features.imports.parsing.parser_types import BankStatementRawTransactionParser
-from app.features.imports.parsing.registry import StatementParserRegistry
+from app.features.imports.parsers.extractors.dto import ExtractedStatement
+from app.features.imports.parsers.protocol import BankStatementParser
+from app.features.imports.parsers.registry import StatementParserRegistry
 from app.features.imports.statements.deduplication import RawTransactionDeduplicator
 from app.features.imports.statements.raw_transactions import RawTransactionMapper
 from app.features.imports.statements.repository import StatementRepository
@@ -51,7 +51,7 @@ class StatementParseCompletionService:
         currency: str,
         exclude_duplicate_document_id: UUID | None = None,
     ) -> None:
-        parser = self.parser_registry.find_parser(extracted)
+        parser = self.parser_registry.find_matching_parser(extracted)
         if parser is not None:
             attempt.parser_name = parser.parser_name
             attempt.parser_version = parser.parser_version
@@ -110,11 +110,11 @@ class KnownStatementImportPipeline:
         document: UploadedDocument,
         attempt: ParseAttempt,
         extracted: ExtractedStatement,
-        parser: BankStatementRawTransactionParser,
+        parser: BankStatementParser,
         currency: str,
         exclude_duplicate_document_id: UUID | None,
     ) -> None:
-        drafts = parser.extract_raw_transactions(
+        drafts = parser.parse_transaction_drafts(
             extracted,
             account_id=document.account_id,
             currency=currency,

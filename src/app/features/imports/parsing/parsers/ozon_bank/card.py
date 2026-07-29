@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
+from app.features.imports.parsers.extractors.dto import ExtractedStatement
 from app.features.imports.parsing.support.common import (
     build_raw_transaction_draft,
     cell,
@@ -62,7 +62,7 @@ class OzonBankCardStatementParser:
     parser_name: str = "ozon_bank_card_statement_v1"
     parser_version: str = "0.1"
 
-    def can_parse(self, extracted: ExtractedStatement) -> bool:
+    def matches_statement(self, extracted: ExtractedStatement) -> bool:
         if extracted.metadata.get("source_format") != "pdf":
             return False
         text = extracted_text(extracted).casefold()
@@ -70,7 +70,7 @@ class OzonBankCardStatementParser:
             return False
         return any(table_has_ozon_header(table) for table in extracted_tables(extracted))
 
-    def extract_raw_transactions(
+    def parse_transaction_drafts(
         self,
         extracted: ExtractedStatement,
         *,

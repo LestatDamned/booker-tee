@@ -5,7 +5,7 @@ from typing import Any
 
 from openpyxl import load_workbook
 
-from app.features.imports.infrastructure.extraction.extracted_statement import (
+from app.features.imports.parsers.extractors.dto import (
     ExtractedStatement,
     ExtractedStatementPageTables,
 )

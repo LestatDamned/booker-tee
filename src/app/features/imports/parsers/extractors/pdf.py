@@ -2,16 +2,13 @@ from pathlib import Path
 
 import pdfplumber
 
-from app.features.imports.infrastructure.extraction.extracted_statement import (
+from app.features.imports.parsers.extractors.dto import (
     ExtractedStatement,
     ExtractedStatementPageTables,
 )
 
-ExtractedPdfPageTables = ExtractedStatementPageTables
-ExtractedPdf = ExtractedStatement
 
-
-class PdfPlumberExtractor:
+class PdfPlumberStatementExtractor:
     parser_name = "pdfplumber_raw_extractor"
     parser_version = "0.1"
 

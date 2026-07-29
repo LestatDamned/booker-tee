@@ -1,11 +1,11 @@
 from typing import Protocol
 from uuid import UUID
 
-from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
+from app.features.imports.parsers.extractors.dto import ExtractedStatement
 from app.features.imports.statements.dto import RawTransactionDraft, StatementControlTotals
 
 
-class BankStatementRawTransactionParser(Protocol):
+class BankStatementParser(Protocol):
     @property
     def bank_code(self) -> str: ...
 
@@ -18,9 +18,9 @@ class BankStatementRawTransactionParser(Protocol):
     @property
     def parser_version(self) -> str: ...
 
-    def can_parse(self, extracted: ExtractedStatement) -> bool: ...
+    def matches_statement(self, extracted: ExtractedStatement) -> bool: ...
 
-    def extract_raw_transactions(
+    def parse_transaction_drafts(
         self,
         extracted: ExtractedStatement,
         *,

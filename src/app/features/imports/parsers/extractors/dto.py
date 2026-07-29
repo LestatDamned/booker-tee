@@ -12,7 +12,3 @@ class ExtractedStatement:
     text_by_page: list[str]
     tables_by_page: list[ExtractedStatementPageTables]
     metadata: dict[str, object]
-
-
-ExtractedPdfPageTables = ExtractedStatementPageTables
-ExtractedPdf = ExtractedStatement

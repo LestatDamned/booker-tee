@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
+from app.features.imports.parsers.extractors.dto import ExtractedStatement
 from app.features.imports.parsing.support.common import (
     build_raw_transaction_draft,
     extracted_text,
@@ -92,13 +92,13 @@ class TbankCardStatementParser:
     parser_name: str = "tbank_card_statement_v1"
     parser_version: str = "0.1"
 
-    def can_parse(self, extracted: ExtractedStatement) -> bool:
+    def matches_statement(self, extracted: ExtractedStatement) -> bool:
         if extracted.metadata.get("source_format") != "pdf":
             return False
         text = normalized_text(extracted)
         return all(marker in text for marker in TBANK_MARKERS)
 
-    def extract_raw_transactions(
+    def parse_transaction_drafts(
         self,
         extracted: ExtractedStatement,
         *,

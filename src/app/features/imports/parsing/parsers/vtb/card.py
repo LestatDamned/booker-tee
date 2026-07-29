@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
-from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
+from app.features.imports.parsers.extractors.dto import ExtractedStatement
 from app.features.imports.parsing.parsers.vtb.shared import extract_statement_period
 from app.features.imports.parsing.support.common import (
     build_raw_transaction_draft,
@@ -79,11 +79,11 @@ class VtbCardStatementParser:
     parser_name: str = "vtb_card_statement_v1"
     parser_version: str = "0.1"
 
-    def can_parse(self, extracted: ExtractedStatement) -> bool:
+    def matches_statement(self, extracted: ExtractedStatement) -> bool:
         text = extracted_text(extracted)
         return all(marker in text for marker in VTB_CARD_MARKERS)
 
-    def extract_raw_transactions(
+    def parse_transaction_drafts(
         self,
         extracted: ExtractedStatement,
         *,

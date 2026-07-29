@@ -152,19 +152,18 @@ src/app/features/imports/
 │   │   ├── pdf.py
 │   │   └── xlsx.py
 │   ├── support/
-│   │   ├── common.py
+│   │   ├── drafts.py
 │   │   ├── headers.py
 │   │   └── normalization.py
-│   └── banks/
-│       ├── alfabank.py
-│       ├── expobank.py
-│       ├── ozon_bank.py
-│       ├── sberbank.py
-│       ├── tbank.py
-│       └── vtb/
-│           ├── card.py
-│           ├── deposit.py
-│           └── shared.py
+│   ├── alfabank.py
+│   ├── expobank.py
+│   ├── ozon_bank.py
+│   ├── sberbank.py
+│   ├── tbank.py
+│   └── vtb/
+│       ├── card.py
+│       ├── deposit.py
+│       └── statement_period.py
 └── mapping/
     ├── dto.py
     ├── errors.py
@@ -393,12 +392,13 @@ facades.
 | extraction DTO | `parsers/extractors/dto.py` |
 | extraction resolver | `parsers/extractors/resolver.py` |
 | PDF/XLSX extraction adapters | `parsers/extractors/pdf.py`, `xlsx.py` |
-| общие parser helpers | `parsers/support/common.py` |
+| draft building helpers | `parsers/support/drafts.py` |
 | header recognition | `parsers/support/headers.py` |
 | текстовая нормализация | `parsers/support/normalization.py` |
-| dedupe hash helper | `statements/deduplication.py` |
+| dedupe hash helper | временно `parsers/support/normalization.py`, ownership cleanup на Step 11 |
 
-Однофайловые bank packages становятся файлами в `parsers/banks/`. `vtb`
+Однофайловые bank packages становятся файлами непосредственно в `parsers/`:
+промежуточный каталог `banks/` не добавляет полезной информации. `vtb`
 остаётся подпакетом, поскольку уже содержит несколько связанных форматов и
 общую реализацию.
 
@@ -408,6 +408,14 @@ facades.
 - test-only aliases вроде `ExtractedPdf`;
 - специализированный `UploadStorage.save_pdf` — удалён на Step 3C после
   перевода tests на общий `save_upload`.
+
+Step 5A завершён 2026-07-29: protocol, registry и extraction adapters находятся
+в `parsers/`; canonical API использует
+`BankStatementParser.matches_statement()`,
+`BankStatementParser.parse_transaction_drafts()` и
+`StatementParserRegistry.find_matching_parser()`. PDF-only aliases удалены,
+bank-specific parsing behavior не менялось. Число файлов пока не изменилось,
+production Python уменьшился с 10 949 до 10 937 строк.
 
 ## 10. Карта перемещений: Mapping
 
@@ -646,9 +654,12 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 
 ### Шаг 5. Parsers и extractors
 
-- выполнить преимущественно механические moves;
-- обновить defining-module imports;
-- удалить aliases после обновления тестов;
+- 5A: перенести protocol, registry и extractors — выполнено;
+- 5A: обновить canonical actor method names — выполнено;
+- 5A: удалить extraction aliases после обновления тестов — выполнено;
+- 5B: перенести и переименовать parser support;
+- 5C: переместить bank parsers и сократить однофайловые packages;
+- 5D: удалить оставшиеся старые пути и выполнить финальный cleanup;
 - не менять bank-specific parsing behavior.
 
 ### Шаг 6. Typed unknown-analysis boundary
@@ -703,7 +714,9 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 | 3B. Documents lifecycle and persistence | completed 2026-07-29 |
 | 3C. Documents commands and infrastructure | completed 2026-07-29 |
 | 4. Statements | completed 2026-07-29 |
-| 5. Parsers and extractors | next |
+| 5A. Protocol, registry and extractors | completed 2026-07-29 |
+| 5B. Parser support | next |
+| 5C–5D | pending |
 | 6–11 | pending |
 
 ## 15. Gate для каждого шага

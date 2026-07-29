@@ -1,11 +1,14 @@
 from decimal import Decimal
 from pathlib import Path
 
-from app.features.imports.infrastructure.extraction.pdfplumber_extractor import (
-    ExtractedPdf,
-    ExtractedPdfPageTables,
-    PdfPlumberExtractor,
+from app.features.imports.parsers.extractors.dto import (
+    ExtractedStatement,
+    ExtractedStatementPageTables,
 )
+from app.features.imports.parsers.extractors.pdf import (
+    PdfPlumberStatementExtractor,
+)
+from app.features.imports.parsers.registry import StatementParserRegistry
 from app.features.imports.parsing.parsers.alfabank.xlsx import AlfabankXlsxStatementParser
 from app.features.imports.parsing.parsers.expobank.card import ExpobankCardStatementParser
 from app.features.imports.parsing.parsers.ozon_bank.card import OzonBankCardStatementParser
@@ -13,7 +16,6 @@ from app.features.imports.parsing.parsers.sberbank.card import SberbankCardState
 from app.features.imports.parsing.parsers.tbank.card import TbankCardStatementParser
 from app.features.imports.parsing.parsers.vtb.card import VtbCardStatementParser
 from app.features.imports.parsing.parsers.vtb.deposit import VtbDepositStatementParser
-from app.features.imports.parsing.registry import default_statement_parser_registry
 from app.features.imports.parsing.support.normalization import (
     normalize_description,
     parse_bank_date,
@@ -23,12 +25,14 @@ from app.features.imports.statements.types import RawTransactionStatus
 
 
 def test_expobank_parser_creates_normalized_raw_transactions_from_fixture() -> None:
-    extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/expobank_statement.pdf"))
+    extracted = PdfPlumberStatementExtractor().extract(
+        Path("tests/fixtures/expobank_statement.pdf")
+    )
     parser = ExpobankCardStatementParser()
 
-    rows = parser.extract_raw_transactions(extracted, account_id=None, currency="RUB")
+    rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
 
-    assert parser.can_parse(extracted)
+    assert parser.matches_statement(extracted)
     assert len(rows) == 91
     assert rows[0].status == RawTransactionStatus.NORMALIZED
     assert rows[0].operation_date == parse_bank_date("29.05.2026")
@@ -39,7 +43,9 @@ def test_expobank_parser_creates_normalized_raw_transactions_from_fixture() -> N
 
 
 def test_expobank_parser_extracts_statement_control_totals_from_fixture() -> None:
-    extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/expobank_statement.pdf"))
+    extracted = PdfPlumberStatementExtractor().extract(
+        Path("tests/fixtures/expobank_statement.pdf")
+    )
     parser = ExpobankCardStatementParser()
 
     control_totals = parser.extract_control_totals(extracted, currency="RUB")
@@ -51,28 +57,30 @@ def test_expobank_parser_extracts_statement_control_totals_from_fixture() -> Non
 
 
 def test_statement_parser_registry_detects_bank_and_statement_type() -> None:
-    registry = default_statement_parser_registry()
-    expobank_extracted = PdfPlumberExtractor().extract(
+    registry = StatementParserRegistry.with_default_parsers()
+    expobank_extracted = PdfPlumberStatementExtractor().extract(
         Path("tests/fixtures/expobank_statement.pdf")
     )
-    vtb_extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/VTB_statement_june.pdf"))
-    vtb_card_extracted = PdfPlumberExtractor().extract(
+    vtb_extracted = PdfPlumberStatementExtractor().extract(
+        Path("tests/fixtures/VTB_statement_june.pdf")
+    )
+    vtb_card_extracted = PdfPlumberStatementExtractor().extract(
         Path("tests/fixtures/vtb_card_statement.pdf")
     )
-    sberbank_extracted = PdfPlumberExtractor().extract(
+    sberbank_extracted = PdfPlumberStatementExtractor().extract(
         Path("tests/fixtures/sberbank_statement.pdf")
     )
     alfabank_extracted = alfabank_xlsx_extracted_fixture()
     ozon_extracted = ozon_bank_card_extracted_fixture()
     tbank_extracted = tbank_card_extracted_fixture()
 
-    expobank_parser = registry.find_parser(expobank_extracted)
-    vtb_parser = registry.find_parser(vtb_extracted)
-    vtb_card_parser = registry.find_parser(vtb_card_extracted)
-    sberbank_parser = registry.find_parser(sberbank_extracted)
-    alfabank_parser = registry.find_parser(alfabank_extracted)
-    ozon_parser = registry.find_parser(ozon_extracted)
-    tbank_parser = registry.find_parser(tbank_extracted)
+    expobank_parser = registry.find_matching_parser(expobank_extracted)
+    vtb_parser = registry.find_matching_parser(vtb_extracted)
+    vtb_card_parser = registry.find_matching_parser(vtb_card_extracted)
+    sberbank_parser = registry.find_matching_parser(sberbank_extracted)
+    alfabank_parser = registry.find_matching_parser(alfabank_extracted)
+    ozon_parser = registry.find_matching_parser(ozon_extracted)
+    tbank_parser = registry.find_matching_parser(tbank_extracted)
 
     assert expobank_parser is not None
     assert expobank_parser.parser_name == "expobank_card_statement_v1"
@@ -101,10 +109,10 @@ def test_alfabank_xlsx_parser_creates_raw_transactions_from_table_with_preamble(
     extracted = alfabank_xlsx_extracted_fixture()
     parser = AlfabankXlsxStatementParser()
 
-    rows = parser.extract_raw_transactions(extracted, account_id=None, currency="RUB")
+    rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
     control_totals = parser.extract_control_totals(extracted, currency="RUB")
 
-    assert parser.can_parse(extracted)
+    assert parser.matches_statement(extracted)
     assert len(rows) == 2
     assert rows[0].status == RawTransactionStatus.NORMALIZED
     assert rows[0].operation_date == parse_bank_date("2026-06-01")
@@ -130,10 +138,10 @@ def test_ozon_bank_card_parser_creates_raw_transactions_from_pdf_table() -> None
     extracted = ozon_bank_card_extracted_fixture()
     parser = OzonBankCardStatementParser()
 
-    rows = parser.extract_raw_transactions(extracted, account_id=None, currency="RUB")
+    rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
     control_totals = parser.extract_control_totals(extracted, currency="RUB")
 
-    assert parser.can_parse(extracted)
+    assert parser.matches_statement(extracted)
     assert len(rows) == 2
     assert rows[0].status == RawTransactionStatus.NORMALIZED
     assert rows[0].operation_date == parse_bank_date("2026-06-01")
@@ -159,10 +167,10 @@ def test_tbank_card_parser_creates_raw_transactions_from_text_layout() -> None:
     extracted = tbank_card_extracted_fixture()
     parser = TbankCardStatementParser()
 
-    rows = parser.extract_raw_transactions(extracted, account_id=None, currency="RUB")
+    rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
     control_totals = parser.extract_control_totals(extracted, currency="RUB")
 
-    assert parser.can_parse(extracted)
+    assert parser.matches_statement(extracted)
     assert len(rows) == 3
     assert rows[0].status == RawTransactionStatus.NORMALIZED
     assert rows[0].operation_date == parse_bank_date("01.06.2026")
@@ -188,13 +196,15 @@ def test_tbank_card_parser_creates_raw_transactions_from_text_layout() -> None:
 
 
 def test_sberbank_card_parser_creates_raw_transactions_from_fixture() -> None:
-    extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/sberbank_statement.pdf"))
+    extracted = PdfPlumberStatementExtractor().extract(
+        Path("tests/fixtures/sberbank_statement.pdf")
+    )
     parser = SberbankCardStatementParser()
 
-    rows = parser.extract_raw_transactions(extracted, account_id=None, currency="RUB")
+    rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
     control_totals = parser.extract_control_totals(extracted, currency="RUB")
 
-    assert parser.can_parse(extracted)
+    assert parser.matches_statement(extracted)
     assert len(rows) == 11
     assert rows[0].operation_date == parse_bank_date("27.04.2026")
     assert rows[0].posting_date == parse_bank_date("27.04.2026")
@@ -218,13 +228,15 @@ def test_sberbank_card_parser_creates_raw_transactions_from_fixture() -> None:
 
 
 def test_vtb_card_parser_creates_raw_transactions_from_fixture() -> None:
-    extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/vtb_card_statement.pdf"))
+    extracted = PdfPlumberStatementExtractor().extract(
+        Path("tests/fixtures/vtb_card_statement.pdf")
+    )
     parser = VtbCardStatementParser()
 
-    rows = parser.extract_raw_transactions(extracted, account_id=None, currency="RUB")
+    rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
     control_totals = parser.extract_control_totals(extracted, currency="RUB")
 
-    assert parser.can_parse(extracted)
+    assert parser.matches_statement(extracted)
     assert len(rows) == 8
     assert rows[0].operation_date == parse_bank_date("26.05.2026")
     assert rows[0].posting_date == parse_bank_date("29.05.2026")
@@ -246,13 +258,15 @@ def test_vtb_card_parser_creates_raw_transactions_from_fixture() -> None:
 
 
 def test_vtb_deposit_parser_creates_raw_transactions_from_may_period_fixture() -> None:
-    extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/VTB_statement_june.pdf"))
+    extracted = PdfPlumberStatementExtractor().extract(
+        Path("tests/fixtures/VTB_statement_june.pdf")
+    )
     parser = VtbDepositStatementParser()
 
-    rows = parser.extract_raw_transactions(extracted, account_id=None, currency="RUB")
+    rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
     control_totals = parser.extract_control_totals(extracted, currency="RUB")
 
-    assert parser.can_parse(extracted)
+    assert parser.matches_statement(extracted)
     assert len(rows) == 3
     assert rows[0].operation_date == parse_bank_date("08.05.2026")
     assert rows[0].posting_date == parse_bank_date("08.05.2026")
@@ -270,10 +284,10 @@ def test_vtb_deposit_parser_creates_raw_transactions_from_may_period_fixture() -
 
 
 def test_vtb_deposit_parser_creates_raw_transactions_from_june_period_fixture() -> None:
-    extracted = PdfPlumberExtractor().extract(Path("tests/fixtures/VTB_statement_may.pdf"))
+    extracted = PdfPlumberStatementExtractor().extract(Path("tests/fixtures/VTB_statement_may.pdf"))
     parser = VtbDepositStatementParser()
 
-    rows = parser.extract_raw_transactions(extracted, account_id=None, currency="RUB")
+    rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
     control_totals = parser.extract_control_totals(extracted, currency="RUB")
 
     assert len(rows) == 3
@@ -301,13 +315,13 @@ def test_expobank_parser_marks_ambiguous_amounts_for_review() -> None:
         ],
         ["№1", "29.05.2026", "100.00", "50.00", "Counterparty", "Account", "Purpose"],
     ]
-    extracted = ExtractedPdf(
+    extracted = ExtractedStatement(
         text_by_page=[""],
-        tables_by_page=[ExtractedPdfPageTables(page_number=1, tables=[table])],
+        tables_by_page=[ExtractedStatementPageTables(page_number=1, tables=[table])],
         metadata={},
     )
 
-    rows = ExpobankCardStatementParser().extract_raw_transactions(
+    rows = ExpobankCardStatementParser().parse_transaction_drafts(
         extracted,
         account_id=None,
         currency="RUB",
@@ -329,8 +343,8 @@ def test_normalizers_parse_bank_values_without_float() -> None:
     assert normalize_description("  Payment\nfor rent ", " Sender ") == "Payment for rent | Sender"
 
 
-def alfabank_xlsx_extracted_fixture() -> ExtractedPdf:
-    return ExtractedPdf(
+def alfabank_xlsx_extracted_fixture() -> ExtractedStatement:
+    return ExtractedStatement(
         text_by_page=[
             "\n".join(
                 [
@@ -341,7 +355,7 @@ def alfabank_xlsx_extracted_fixture() -> ExtractedPdf:
             )
         ],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -392,8 +406,8 @@ def alfabank_xlsx_extracted_fixture() -> ExtractedPdf:
     )
 
 
-def ozon_bank_card_extracted_fixture() -> ExtractedPdf:
-    return ExtractedPdf(
+def ozon_bank_card_extracted_fixture() -> ExtractedStatement:
+    return ExtractedStatement(
         text_by_page=[
             "\n".join(
                 [
@@ -407,7 +421,7 @@ def ozon_bank_card_extracted_fixture() -> ExtractedPdf:
             )
         ],
         tables_by_page=[
-            ExtractedPdfPageTables(
+            ExtractedStatementPageTables(
                 page_number=1,
                 tables=[
                     [
@@ -441,8 +455,8 @@ def ozon_bank_card_extracted_fixture() -> ExtractedPdf:
     )
 
 
-def tbank_card_extracted_fixture() -> ExtractedPdf:
-    return ExtractedPdf(
+def tbank_card_extracted_fixture() -> ExtractedStatement:
+    return ExtractedStatement(
         text_by_page=[
             "\n".join(
                 [
@@ -461,7 +475,7 @@ def tbank_card_extracted_fixture() -> ExtractedPdf:
                 ]
             )
         ],
-        tables_by_page=[ExtractedPdfPageTables(page_number=1, tables=[])],
+        tables_by_page=[ExtractedStatementPageTables(page_number=1, tables=[])],
         metadata={"source_format": "pdf"},
     )
 

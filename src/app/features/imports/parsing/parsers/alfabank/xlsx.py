@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
+from app.features.imports.parsers.extractors.dto import ExtractedStatement
 from app.features.imports.parsing.support.common import (
     build_raw_transaction_draft,
     cell,
@@ -73,14 +73,14 @@ class AlfabankXlsxStatementParser:
     parser_name: str = "alfabank_xlsx_statement_v1"
     parser_version: str = "0.1"
 
-    def can_parse(self, extracted: ExtractedStatement) -> bool:
+    def matches_statement(self, extracted: ExtractedStatement) -> bool:
         if extracted.metadata.get("source_format") != "xlsx":
             return False
         if not contains_alfabank_marker(extracted):
             return False
         return any(find_alfabank_header(table) is not None for table in extracted_tables(extracted))
 
-    def extract_raw_transactions(
+    def parse_transaction_drafts(
         self,
         extracted: ExtractedStatement,
         *,
