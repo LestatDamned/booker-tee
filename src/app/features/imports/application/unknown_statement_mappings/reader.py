@@ -1,6 +1,6 @@
 from dataclasses import dataclass, replace
 from decimal import Decimal
-from typing import Protocol, cast
+from typing import Protocol
 from uuid import UUID
 
 from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
@@ -13,14 +13,12 @@ from app.features.imports.application.unknown_statement_mappings.control_total_c
 from app.features.imports.application.unknown_statement_mappings.dto import (
     MappedStatementRow,
     StatementMappingSpec,
-    UnsignedAmountDirection,
 )
 from app.features.imports.application.unknown_statement_mappings.engine import (
     StatementMappingEngine,
 )
 from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
     StatementMappingDefaultResolver,
-    table_previews_from_validation,
 )
 from app.features.imports.application.unknown_statement_mappings.raw_tables import (
     compatible_mapping_tables,
@@ -54,6 +52,10 @@ from app.features.imports.application.unknown_statement_mappings.validation impo
 )
 from app.features.imports.documents.dto import (
     ImportDocumentSnapshot,
+)
+from app.features.imports.documents.validation_report import (
+    StoredSuggestionReason,
+    StoredTablePreview,
 )
 from app.features.imports.models import ImportMappingTemplate
 from app.features.imports.statements.types import RawTransactionStatus
@@ -125,9 +127,6 @@ class UnknownStatementMappingReader:
         snapshot: ImportDocumentSnapshot,
     ) -> UnknownStatementMappingReadModel:
         raw_tables = _latest_raw_tables(snapshot)
-        validation_payload = (
-            snapshot.validation.model_dump(mode="json") if snapshot.validation is not None else None
-        )
         templates = await self._templates.list_matching_templates(
             workspace_id=workspace_id,
             bank_name=snapshot.bank_name,
@@ -140,7 +139,7 @@ class UnknownStatementMappingReader:
             else workspace_default_currency
         )
         default = StatementMappingDefaultResolver.resolve(
-            validation_payload,
+            snapshot.validation,
             default_currency=default_currency,
             compatible_templates=compatible_templates,
         )
@@ -156,7 +155,9 @@ class UnknownStatementMappingReader:
                 MappingControlTotalKind.CLOSING_BALANCE,
             ),
         )
-        table_options = table_previews_from_validation(validation_payload)
+        table_options = (
+            snapshot.validation.table_previews if snapshot.validation is not None else ()
+        )
         projected_tables = tuple(
             _source_table(option, raw_tables, default_currency=default_currency)
             for option in table_options[:MAX_MAPPING_SOURCE_TABLES]
@@ -344,17 +345,15 @@ def _latest_raw_tables(
 
 
 def _source_table(
-    value: dict[str, object],
+    table: StoredTablePreview,
     raw_tables: list[dict[str, object]] | None,
     *,
     default_currency: str,
 ) -> MappingSourceTableDto:
-    page_number = _int(value.get("page_number"), 1)
-    table_index = _int(value.get("table_index"), 0)
     raw_table = find_raw_table(
         raw_tables,
-        page_number=page_number,
-        table_index=table_index,
+        page_number=table.page_number,
+        table_index=table.table_index,
     )
     rows = tuple(
         MappingSourceRowDto(
@@ -367,21 +366,21 @@ def _source_table(
         for index, row in enumerate(raw_table[:MAX_MAPPING_SOURCE_SAMPLE_ROWS])
     )
     return MappingSourceTableDto(
-        ref=MappingTableRefDto(page_number, table_index),
-        source_type=_string(value.get("source_type")) or "pdf_table",
-        row_count=_int(value.get("row_count"), len(raw_table)),
-        column_count=_int(
-            value.get("column_count"),
-            max((len(row) for row in raw_table), default=0),
-        ),
-        is_continuation=bool(value.get("is_continuation")),
+        ref=MappingTableRefDto(table.page_number, table.table_index),
+        source_type=table.source_type,
+        row_count=table.row_count or len(raw_table),
+        column_count=table.column_count or max((len(row) for row in raw_table), default=0),
+        is_continuation=table.is_continuation,
         sample_rows=rows,
         candidates=tuple(
-            candidate
-            for item in _list(value.get("column_candidates"))
-            if (candidate := _column_candidate(item)) is not None
+            MappingColumnCandidateDto(
+                field=candidate.field,
+                column_index=candidate.column_index,
+                header=candidate.header,
+            )
+            for candidate in table.column_candidates
         ),
-        suggestion=_mapping_suggestion(value, default_currency=default_currency),
+        suggestion=_mapping_suggestion(table, default_currency=default_currency),
     )
 
 
@@ -423,100 +422,34 @@ def _balance_reconciliation(
     )
 
 
-def _column_candidate(value: object) -> MappingColumnCandidateDto | None:
-    if not isinstance(value, dict):
-        return None
-    field = _string(value.get("field"))
-    column_index = value.get("column_index")
-    if not field or not isinstance(column_index, int):
-        return None
-    return MappingColumnCandidateDto(
-        field=field,
-        column_index=column_index,
-        header=_string(value.get("header")),
-    )
-
-
 def _mapping_suggestion(
-    value: dict[str, object],
+    table: StoredTablePreview,
     *,
     default_currency: str,
 ) -> MappingSuggestionDto | None:
-    suggestions = _list(value.get("mapping_suggestions"))
-    if not suggestions or not isinstance(suggestions[0], dict):
+    if not table.mapping_suggestions:
         return None
-    suggestion = cast(dict[str, object], suggestions[0])
-    spec = _command_from_suggestion(
-        value,
+    suggestion = table.mapping_suggestions[0]
+    spec = StatementMappingDefaultResolver.suggested_spec(
+        table,
         suggestion,
         default_currency=default_currency,
     )
     return MappingSuggestionDto(
         spec=spec,
-        reasons=tuple(
-            reason
-            for item in _list(suggestion.get("reasons"))
-            if (reason := _suggestion_reason(item)) is not None
-        ),
-        warning_codes=tuple(
-            code
-            for item in _list(suggestion.get("warnings"))
-            if isinstance(item, dict) and (code := _string(item.get("code")))
-        ),
+        reasons=tuple(_suggestion_reason(reason) for reason in suggestion.reasons),
+        warning_codes=tuple(warning.code for warning in suggestion.warnings),
     )
 
 
-def _command_from_suggestion(
-    table: dict[str, object],
-    suggestion: dict[str, object],
-    *,
-    default_currency: str,
-) -> StatementMappingSpec:
-    return StatementMappingSpec(
-        page_number=_int(table.get("page_number"), 1),
-        table_index=_int(table.get("table_index"), 0),
-        operation_date_column=_int(suggestion.get("operation_date_column"), 0),
-        posting_date_column=_optional_int(suggestion.get("posting_date_column")),
-        description_column=_int(suggestion.get("description_column"), 0),
-        amount_column=_optional_int(suggestion.get("amount_column")),
-        debit_amount_column=_optional_int(suggestion.get("debit_amount_column")),
-        credit_amount_column=_optional_int(suggestion.get("credit_amount_column")),
-        currency_column=_optional_int(suggestion.get("currency_column")),
-        balance_after_column=_optional_int(suggestion.get("balance_after_column")),
-        first_data_row=_int(suggestion.get("first_data_row"), 1),
-        default_currency=default_currency,
-        unsigned_amount_direction=UnsignedAmountDirection.REQUIRE_SIGN,
-    )
-
-
-def _suggestion_reason(value: object) -> MappingSuggestionReasonDto | None:
-    if not isinstance(value, dict):
-        return None
-    field = _string(value.get("field"))
-    column_index = value.get("column_index")
-    if not field or not isinstance(column_index, int):
-        return None
+def _suggestion_reason(
+    reason: StoredSuggestionReason,
+) -> MappingSuggestionReasonDto:
     return MappingSuggestionReasonDto(
-        field=field,
-        column_index=column_index,
-        header=_string(value.get("header")),
-        evidence=_string(value.get("evidence")),
-        matched_count=_optional_int(value.get("matched_count")),
-        sample_count=_optional_int(value.get("sample_count")),
+        field=reason.field,
+        column_index=reason.column_index,
+        header=reason.header,
+        evidence=reason.evidence,
+        matched_count=reason.matched_count,
+        sample_count=reason.sample_count,
     )
-
-
-def _list(value: object) -> list[object]:
-    return cast(list[object], value) if isinstance(value, list) else []
-
-
-def _string(value: object) -> str:
-    return value if isinstance(value, str) else ""
-
-
-def _int(value: object, default: int) -> int:
-    return value if isinstance(value, int) else default
-
-
-def _optional_int(value: object) -> int | None:
-    return value if isinstance(value, int) else None

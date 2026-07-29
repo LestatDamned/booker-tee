@@ -519,8 +519,9 @@ import path easy to test.
 - `application/unknown_statements/` - unknown statement fallback and analysis internals: fallback/template pipeline, hints, DTOs, table detection, column profiles, profile helpers, suggestions, suggestion scoring, continuations, and control totals.
 - `application/unknown_statement_mappings/` - unknown statement mapping workflows
   and internals: mapping engine, idempotent import use case, template use case,
-  template matching, table signatures, mapping defaults, typed command
-  validation, DTOs, raw table navigation, row mapping, and draft conversion.
+  template matching, table signatures, typed stored-report defaults, typed
+  command validation, DTOs, raw table navigation, row mapping, and draft
+  conversion.
 - `documents/lifecycle.py` - document status transition matrix, review status
   resolution and linked-operation predicate.
 - `documents/queries/detail.py` и `/api/v1/imports/documents/{id}`

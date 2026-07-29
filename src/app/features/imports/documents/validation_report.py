@@ -56,9 +56,9 @@ class StoredSuggestionWarning(_StoredReportModel):
 
 
 class StoredMappingSuggestion(_StoredReportModel):
-    operation_date_column: int
-    description_column: int
-    first_data_row: int
+    operation_date_column: int = 0
+    description_column: int = 0
+    first_data_row: int = 1
     posting_date_column: int | None = None
     amount_column: int | None = None
     debit_amount_column: int | None = None
@@ -75,10 +75,10 @@ class StoredContinuationField(_StoredReportModel):
 
 
 class StoredTablePreview(_StoredReportModel):
-    page_number: int
-    table_index: int
-    row_count: int
-    column_count: int
+    page_number: int = 1
+    table_index: int = 0
+    row_count: int = 0
+    column_count: int = 0
     preview_row_count: int = 0
     rows: tuple[tuple[str, ...], ...] = ()
     column_candidates: tuple[StoredColumnCandidate, ...] = ()

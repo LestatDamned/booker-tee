@@ -29,6 +29,7 @@ from app.features.imports.application.unknown_statement_mappings.template_comman
     mapping_spec_from_template,
     mapping_template_matches_raw_tables,
 )
+from app.features.imports.documents.validation_report import StoredValidationReport
 from app.features.imports.models import ImportMappingTemplate
 from app.features.imports.parsers.support.normalization import parse_bank_date
 from app.features.imports.statements.types import RawTransactionStatus
@@ -269,7 +270,7 @@ def test_mapping_default_resolver_uses_split_debit_credit_candidates() -> None:
     }
 
     resolved = StatementMappingDefaultResolver.resolve(
-        validation,
+        StoredValidationReport.model_validate(validation),
         default_currency="RUB",
     )
 
@@ -309,7 +310,7 @@ def test_mapping_default_resolver_prefers_analyzer_suggestion() -> None:
     }
 
     resolved = StatementMappingDefaultResolver.resolve(
-        validation,
+        StoredValidationReport.model_validate(validation),
         default_currency="USD",
     )
 
@@ -800,7 +801,7 @@ def test_mapping_default_resolver_prefers_saved_template() -> None:
     }
 
     resolved = StatementMappingDefaultResolver.resolve(
-        validation,
+        StoredValidationReport.model_validate(validation),
         default_currency="RUB",
         compatible_templates=[template],
     )

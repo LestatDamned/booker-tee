@@ -52,7 +52,10 @@ Safety baseline
 Шаг 6  typed unknown-analysis boundary
   -> 6A stored Pydantic report schema completed 2026-07-29
   -> 6B decode once on documents read boundary completed 2026-07-29
-  -> 6C typed mapping consumers and decoder cleanup next
+  -> 6C typed mapping consumers and decoder cleanup completed 2026-07-29
+
+Шаг 7  mapping
+  -> next
 ```
 
 Перед массовыми moves не выполняется общая полировка старой структуры.

@@ -575,7 +575,7 @@ def test_unknown_statement_analysis_builds_text_candidate_table_when_pdf_tables_
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
     command = StatementMappingDefaultResolver.resolve(
-        report,
+        StoredValidationReport.model_validate(report),
         default_currency="RUB",
     ).spec
     mapped_preview = StatementMappingEngine.apply(
@@ -786,7 +786,7 @@ def test_sanitized_unknown_statement_fixture_covers_posting_date_and_balance() -
 
     report = analyze_unknown_statement(extracted).as_validation_report()
     command = StatementMappingDefaultResolver.resolve(
-        report,
+        StoredValidationReport.model_validate(report),
         default_currency="USD",
     ).spec
     preview = StatementMappingEngine.apply(
@@ -822,7 +822,7 @@ def test_sanitized_unknown_statement_fixture_covers_split_continuation_tables() 
     table_previews = cast(list[dict[str, object]], report["table_previews"])
     continuation_preview = table_previews[1]
     command = StatementMappingDefaultResolver.resolve(
-        report,
+        StoredValidationReport.model_validate(report),
         default_currency="RUB",
     ).spec
     preview = StatementMappingEngine.apply(

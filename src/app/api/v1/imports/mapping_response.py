@@ -45,24 +45,23 @@ class UnknownStatementMappingResponseMapper:
             bank_name=mapping.bank_name,
             statement_type=mapping.statement_type,
             account=(
-                MappingAccountApiResponse(
-                    id=mapping.account.id,
-                    name=mapping.account.name,
-                    currency=mapping.account.currency,
+                MappingAccountApiResponse.model_validate(
+                    mapping.account,
+                    from_attributes=True,
                 )
                 if mapping.account is not None
                 else None
             ),
             default_currency=mapping.default_currency,
-            capability=MappingCapabilityApiResponse(
-                allowed=mapping.capability.allowed,
-                blocking_reason_codes=list(mapping.capability.blocking_reason_codes),
+            capability=MappingCapabilityApiResponse.model_validate(
+                mapping.capability,
+                from_attributes=True,
             ),
             default_mapping=UnknownStatementMappingResponseMapper.spec(mapping.default_mapping),
             default_source=mapping.default_source,
             selected_template_id=mapping.selected_template_id,
             templates=[
-                MappingTemplateApiResponse(id=template.id, name=template.name)
+                MappingTemplateApiResponse.model_validate(template, from_attributes=True)
                 for template in mapping.templates
             ],
             tables=[
@@ -147,13 +146,9 @@ class UnknownStatementMappingResponseMapper:
                 for total in preview.control_totals
             ],
             reconciliation=(
-                MappingBalanceReconciliationApiResponse(
-                    opening_balance=preview.reconciliation.opening_balance,
-                    movement=preview.reconciliation.movement,
-                    calculated_closing_balance=(preview.reconciliation.calculated_closing_balance),
-                    statement_closing_balance=(preview.reconciliation.statement_closing_balance),
-                    difference=preview.reconciliation.difference,
-                    matches=preview.reconciliation.matches,
+                MappingBalanceReconciliationApiResponse.model_validate(
+                    preview.reconciliation,
+                    from_attributes=True,
                 )
                 if preview.reconciliation is not None
                 else None
@@ -166,10 +161,7 @@ class UnknownStatementMappingResponseMapper:
         return MappingSourceRowsApiResponse(
             table_ref=UnknownStatementMappingResponseMapper.table_ref(rows.table_ref),
             rows=[
-                MappingSourceRowApiResponse(
-                    row_number=row.row_number,
-                    cells=list(row.cells),
-                )
+                MappingSourceRowApiResponse.model_validate(row, from_attributes=True)
                 for row in rows.rows
             ],
             total_row_count=rows.total_row_count,
@@ -188,17 +180,13 @@ class UnknownStatementMappingResponseMapper:
             column_count=table.column_count,
             is_continuation=table.is_continuation,
             sample_rows=[
-                MappingSourceRowApiResponse(
-                    row_number=row.row_number,
-                    cells=list(row.cells),
-                )
+                MappingSourceRowApiResponse.model_validate(row, from_attributes=True)
                 for row in table.sample_rows
             ],
             candidates=[
-                MappingColumnCandidateApiResponse(
-                    field=candidate.field,
-                    column_index=candidate.column_index,
-                    header=candidate.header,
+                MappingColumnCandidateApiResponse.model_validate(
+                    candidate,
+                    from_attributes=True,
                 )
                 for candidate in table.candidates
             ],
@@ -216,13 +204,9 @@ class UnknownStatementMappingResponseMapper:
         return MappingSuggestionApiResponse(
             mapping=UnknownStatementMappingResponseMapper.spec(suggestion.spec),
             reasons=[
-                MappingSuggestionReasonApiResponse(
-                    field=reason.field,
-                    column_index=reason.column_index,
-                    header=reason.header,
-                    evidence=reason.evidence,
-                    matched_count=reason.matched_count,
-                    sample_count=reason.sample_count,
+                MappingSuggestionReasonApiResponse.model_validate(
+                    reason,
+                    from_attributes=True,
                 )
                 for reason in suggestion.reasons
             ],
@@ -261,10 +245,7 @@ class UnknownStatementMappingResponseMapper:
 
     @staticmethod
     def table_ref(table: MappingTableRefDto) -> MappingTableRefApiModel:
-        return MappingTableRefApiModel(
-            page_number=table.page_number,
-            table_index=table.table_index,
-        )
+        return MappingTableRefApiModel.model_validate(table, from_attributes=True)
 
     @staticmethod
     def control_total_cell(

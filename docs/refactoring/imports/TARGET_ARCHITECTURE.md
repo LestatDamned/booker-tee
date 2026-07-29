@@ -691,7 +691,8 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 - 6B: декодировать report один раз на documents read boundary и передавать
   typed snapshot — выполнено;
 - 6C: перевести mapping consumers на typed attributes, удалить локальные
-  `dict.get`/`isinstance` decoders и сократить изоморфные API mappings.
+  `dict.get`/`isinstance` decoders и сократить изоморфные API mappings —
+  выполнено.
 
 6A не меняет JSONB-схему, parser output или API. Существующий
 `documents/validation_report.py` теперь является единственным владельцем
@@ -707,10 +708,16 @@ forward-compatible stored contract для:
 snapshot. Document snapshot переиспользует тот же typed report, поэтому detail
 и другие read consumers не декодируют JSON повторно.
 
-До 6C mapping reader временно преобразует typed report через
-`model_dump(mode="json")`, чтобы существующий mapping behavior оставался
-неизменным. Этот переход и локальные `dict.get`/`isinstance` decoders удаляются
-в следующем change set.
+После 6C mapping default resolver и mapping reader используют
+`StoredTablePreview`, `StoredMappingSuggestion` и вложенные typed values
+напрямую. Временный `model_dump(mode="json")` и локальные defensive decoders
+удалены. Сборка `StatementMappingSpec` из analyzer suggestion имеет одного
+владельца: `StatementMappingDefaultResolver.suggested_spec(...)`.
+
+В API явными остались только преобразования с реальной семантикой:
+zero-based/one-based индексы, warning field names и control-total references.
+Изоморфные DTO → response schema преобразования используют Pydantic
+`model_validate(..., from_attributes=True)`.
 
 ### Шаг 7. Mapping
 
@@ -764,8 +771,9 @@ snapshot. Document snapshot переиспользует тот же typed repor
 | 5D. Old parsing package cleanup | completed 2026-07-29 |
 | 6A. Stored report schema | completed 2026-07-29 |
 | 6B. Decode once on documents read boundary | completed 2026-07-29 |
-| 6C. Typed mapping consumers and decoder cleanup | next |
-| 7–11 | pending |
+| 6C. Typed mapping consumers and decoder cleanup | completed 2026-07-29 |
+| 7. Mapping | next |
+| 8–11 | pending |
 
 ## 15. Gate для каждого шага
 
