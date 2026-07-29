@@ -22,8 +22,7 @@ from app.features.imports.documents.dto import (
 )
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.documents.validation_report import (
-    PersistedStatementValidationReport,
-    decode_persisted_statement_validation_report,
+    StoredValidationReport,
 )
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.imports.statements.validation import (
@@ -174,25 +173,25 @@ def _validation(
 ) -> ImportDocumentDetailValidationDto | None:
     if report is None:
         return None
-    persisted = decode_persisted_statement_validation_report(report)
+    stored = StoredValidationReport.model_validate(report)
     return ImportDocumentDetailValidationDto(
-        status=persisted.status,
-        reason_code=_validation_reason_code(persisted),
-        message=persisted.message,
-        extracted_count=persisted.extracted_count,
-        calculated_total_inflow=persisted.calculated_total_inflow,
-        calculated_total_outflow=persisted.calculated_total_outflow,
+        status=stored.status,
+        reason_code=_validation_reason_code(stored),
+        message=stored.message,
+        extracted_count=stored.extracted_count,
+        calculated_total_inflow=stored.calculated_total_inflow,
+        calculated_total_outflow=stored.calculated_total_outflow,
         ignored_row_count=sum(row.status is RawTransactionStatus.IGNORED for row in rows),
-        ignored_total_inflow=persisted.ignored_total_inflow,
-        ignored_total_outflow=persisted.ignored_total_outflow,
-        currency=persisted.currency,
-        table_count=persisted.table_count,
-        needs_mapping=persisted.needs_mapping,
+        ignored_total_inflow=stored.ignored_total_inflow,
+        ignored_total_outflow=stored.ignored_total_outflow,
+        currency=stored.currency,
+        table_count=stored.table_count,
+        needs_mapping=stored.needs_mapping,
     )
 
 
 def _validation_reason_code(
-    report: PersistedStatementValidationReport,
+    report: StoredValidationReport,
 ) -> ImportDocumentDetailValidationReasonCode:
     reason = ImportDocumentDetailValidationReasonCode
     if report.needs_mapping:

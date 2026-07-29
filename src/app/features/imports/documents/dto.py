@@ -9,7 +9,7 @@ from uuid import UUID
 
 from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
 from app.features.imports.documents.validation_report import (
-    decode_persisted_statement_validation_report,
+    StoredValidationReport,
 )
 from app.features.imports.statements.types import RawTransactionStatus
 
@@ -56,7 +56,7 @@ class ImportParseAttemptSnapshot:
             return self.error_message
         if self.validation_report is None:
             return ""
-        return decode_persisted_statement_validation_report(self.validation_report).message
+        return StoredValidationReport.model_validate(self.validation_report).message
 
 
 @dataclass(frozen=True)

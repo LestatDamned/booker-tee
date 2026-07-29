@@ -503,8 +503,8 @@ import path easy to test.
   duplicate evidence, transfer options, transfer candidate matching and typed
   mutation services for confirmation, lifecycle, transfers, rules and undo.
 - `documents/` - document commands, DTO, list/detail queries, repository,
-  lifecycle, parse attempts, storage, errors and persisted document-owned
-  types.
+  lifecycle, parse attempts, storage, errors and the typed stored validation
+  report contract.
 - `statements/process.py` - parse completion and known parser import workflows
   with explicit `Class.action` APIs.
 - `statements/dto.py`, `types.py`, `raw_transactions.py` - shared parser/mapping

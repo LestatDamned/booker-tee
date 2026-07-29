@@ -32,11 +32,15 @@ from app.features.imports.application.unknown_statements.hints import (
 from app.features.imports.application.unknown_statements.text_tables import (
     raw_tables_with_text_candidate_tables,
 )
+from app.features.imports.documents.validation_report import (
+    StoredValidationReport,
+)
 from app.features.imports.parsers.extractors.dto import (
     ExtractedStatement,
     ExtractedStatementPageTables,
 )
 from app.features.imports.parsers.support.normalization import parse_bank_date
+from app.features.imports.statements.validation import StatementValidationStatus
 
 
 def sanitized_unknown_statement_fixture(name: str) -> ExtractedStatement:
@@ -866,6 +870,49 @@ def test_sanitized_unknown_statement_fixture_covers_split_continuation_tables() 
         Decimal("19180.00"),
         Decimal("19330.00"),
     ]
+
+
+def test_stored_unknown_statement_report_decodes_nested_mapping_contract() -> None:
+    extracted = sanitized_unknown_statement_fixture("generic_english_card_statement.json")
+
+    stored = StoredValidationReport.model_validate(
+        analyze_unknown_statement(extracted).as_validation_report()
+    )
+
+    assert stored.needs_mapping is True
+    assert stored.statement_status is None
+    assert stored.statement_total_inflow == "250.25"
+    assert stored.opening_balance == "1000.00"
+    assert len(stored.table_previews) == 1
+    preview = stored.table_previews[0]
+    assert preview.page_number == 1
+    assert preview.column_candidates[0].column_index == 0
+    assert preview.mapping_suggestions[0].posting_date_column == 1
+    assert preview.mapping_suggestions[0].reasons
+
+
+def test_stored_validation_report_decodes_known_and_legacy_fields() -> None:
+    stored = StoredValidationReport.model_validate(
+        {
+            "status": "mismatch",
+            "message": "Totals differ.",
+            "extracted_count": 2,
+            "calculated_total_inflow": Decimal("10.00"),
+            "unexplained_inflow_difference": "",
+            "balance_chain": {
+                "status": "valid",
+                "checked_pair_count": 1,
+                "mismatch_count": 0,
+            },
+            "future_field": "ignored",
+        }
+    )
+
+    assert stored.statement_status is StatementValidationStatus.MISMATCH
+    assert stored.balance_chain_status is StatementValidationStatus.VALID
+    assert stored.calculated_total_inflow == "10.00"
+    assert stored.unexplained_inflow_difference is None
+    assert stored.table_previews == ()
 
 
 def test_unknown_statement_extracts_ozon_control_totals_from_text() -> None:

@@ -85,7 +85,7 @@ import_review
 
 | Priority | Проблема | Решение |
 |---|---|---|
-| P2 | Persisted unknown-analysis JSON декодируется вручную | Один frozen Pydantic projection на JSON boundary |
+| P2 | Stored unknown-analysis JSON декодируется вручную | Один frozen Pydantic projection на JSON boundary |
 | P2 | `ParseAttemptStatus` всё ещё определяется в ORM module | Перенести в documents-owned types при перестройке Documents |
 | P2 | Imports repositories всё ещё смешивают document, statement и mapping persistence | Разнести по capability на шагах 3, 4 и 7 |
 
@@ -319,7 +319,7 @@ Repository группируется по владельцу поведения, 
 | `application/documents/parse_attempts.py` | `documents/attempts.py` | Cohesive lifecycle policy |
 | `application/documents/status.py`, `domain/document_lifecycle.py` | `documents/lifecycle.py` | Один владелец status transitions |
 | `infrastructure/storage.py` | `documents/storage.py` | Storage принадлежит document capability |
-| document enums из `models.py` | `documents/types.py` | Persisted values не принадлежат ORM module |
+| document enums из `models.py` | `documents/types.py` | Stored values не принадлежат ORM module |
 | upload/document errors из `errors.py` | `documents/errors.py` | Ошибки рядом с owning capability |
 
 Step 3A завершён 2026-07-29: первые три перемещения выполнены без package
@@ -475,7 +475,7 @@ matching actors. Untyped `values.py` объединяется с typed template 
 | value detectors | `mapping/analysis/values.py` |
 | fallback orchestration | `statements/process.py` |
 
-Persisted JSON analysis декодируется один раз в Pydantic projection. Ручные
+Stored JSON analysis декодируется один раз в Pydantic projection. Ручные
 цепочки `cast`, `isinstance`, `.get()` и повторные API mappings после этого
 удаляются.
 
@@ -686,9 +686,24 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 
 ### Шаг 6. Typed unknown-analysis boundary
 
-- описать persisted JSON через Pydantic;
-- декодировать его один раз;
-- сократить defensive decoding и изоморфные API mappings.
+- 6A: описать обе stored-формы `validation_report_json` через immutable
+  Pydantic-модели — выполнено;
+- 6B: декодировать report один раз на documents read boundary и передавать
+  typed snapshot;
+- 6C: перевести mapping consumers на typed attributes, удалить локальные
+  `dict.get`/`isinstance` decoders и сократить изоморфные API mappings.
+
+6A не меняет JSONB-схему, parser output или API. Существующий
+`documents/validation_report.py` теперь является единственным владельцем
+forward-compatible stored contract для:
+
+- обычного statement validation report;
+- balance-chain validation;
+- unknown-statement table previews;
+- column candidates и mapping suggestions.
+
+До 6B snapshots намеренно сохраняют `dict[str, object]`: контракт уже проверяет
+stored payload, но смена типов на read side выполняется отдельным change set.
 
 ### Шаг 7. Mapping
 
@@ -740,7 +755,9 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 | 5B. Parser support | completed 2026-07-29 |
 | 5C. Bank parsers | completed 2026-07-29 |
 | 5D. Old parsing package cleanup | completed 2026-07-29 |
-| 6. Typed unknown-analysis boundary | next |
+| 6A. Stored report schema | completed 2026-07-29 |
+| 6B. Decode once on documents read boundary | next |
+| 6C. Typed mapping consumers and decoder cleanup | pending |
 | 7–11 | pending |
 
 ## 15. Gate для каждого шага
