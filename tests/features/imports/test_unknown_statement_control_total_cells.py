@@ -2,17 +2,17 @@ from dataclasses import replace
 from decimal import Decimal
 from typing import cast
 
-from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
+from app.features.imports.mapping.control_totals import (
     MappingControlTotalKind,
     automatic_control_total_cell,
     detect_control_total_candidates,
     resolve_mapping_control_totals,
 )
-from app.features.imports.application.unknown_statement_mappings.dto import (
+from app.features.imports.mapping.dto import (
     StatementMappingSpec,
     UnsignedAmountDirection,
 )
-from app.features.imports.application.unknown_statement_mappings.engine import (
+from app.features.imports.mapping.engine import (
     StatementMappingEngine,
 )
 

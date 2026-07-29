@@ -7,17 +7,8 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from app.features.imports.application.unknown_statement_mappings.drafts import (
-    UnknownStatementDraftMapper,
-)
-from app.features.imports.application.unknown_statement_mappings.engine import (
-    StatementMappingEngine,
-)
 from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
     StatementMappingDefaultResolver,
-)
-from app.features.imports.application.unknown_statement_mappings.raw_tables import (
-    compatible_mapping_tables,
 )
 from app.features.imports.application.unknown_statements.analyzer import (
     analyze_unknown_statement,
@@ -34,6 +25,13 @@ from app.features.imports.application.unknown_statements.text_tables import (
 )
 from app.features.imports.documents.validation_report import (
     StoredValidationReport,
+)
+from app.features.imports.mapping.drafts import StatementMappingDraftBuilder
+from app.features.imports.mapping.engine import (
+    StatementMappingEngine,
+)
+from app.features.imports.mapping.raw_tables import (
+    compatible_mapping_tables,
 )
 from app.features.imports.parsers.extractors.dto import (
     ExtractedStatement,
@@ -794,10 +792,10 @@ def test_sanitized_unknown_statement_fixture_covers_posting_date_and_balance() -
         command,
         max_rows=None,
     )
-    drafts = UnknownStatementDraftMapper(
+    drafts = StatementMappingDraftBuilder(
         spec=command,
         account_id=uuid4(),
-    ).map_rows(preview.rows)
+    ).build_rows(preview.rows)
 
     assert extracted.metadata["fixture_kind"] == "sanitized_unknown_statement"
     assert report["detected_bank_name"] is None

@@ -4,10 +4,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.imports.application.unknown_statement_mappings.dto import (
-    StatementMappingSpec,
-    UnsignedAmountDirection,
-)
 from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
     MappingDefaultSource,
 )
@@ -27,6 +23,10 @@ from app.features.imports.documents.dto import (
 )
 from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
 from app.features.imports.documents.validation_report import StoredValidationReport
+from app.features.imports.mapping.dto import (
+    StatementMappingSpec,
+    UnsignedAmountDirection,
+)
 
 
 class DocumentSnapshotReaderStub:

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.application.unknown_statement_mappings.dto import (
+from app.features.imports.mapping.dto import (
     MappedStatementRow,
     StatementMappingSpec,
 )
@@ -12,11 +12,11 @@ from app.features.imports.statements.types import RawTransactionStatus
 
 
 @dataclass(frozen=True)
-class UnknownStatementDraftMapper:
+class StatementMappingDraftBuilder:
     spec: StatementMappingSpec
     account_id: UUID
 
-    def map_rows(self, rows: list[MappedStatementRow]) -> list[RawTransactionDraft]:
+    def build_rows(self, rows: list[MappedStatementRow]) -> list[RawTransactionDraft]:
         return [self.map_row(row, row_index=row_index) for row_index, row in enumerate(rows)]
 
     def map_row(
@@ -27,7 +27,7 @@ class UnknownStatementDraftMapper:
     ) -> RawTransactionDraft:
         return RawTransactionDraft(
             row_index=row_index,
-            status=UnknownStatementDraftMapper.raw_transaction_status_for(row),
+            status=StatementMappingDraftBuilder.raw_transaction_status_for(row),
             raw_payload={
                 "source": "unknown_statement_mapping",
                 "document_row_index": row_index,
@@ -66,7 +66,7 @@ class UnknownStatementDraftMapper:
                 amount=row.amount,
                 currency=row.currency,
                 description_normalized=row.description,
-                source_row_id=UnknownStatementDraftMapper.source_row_id(row),
+                source_row_id=StatementMappingDraftBuilder.source_row_id(row),
             ),
             confidence_score=Decimal("0.7000") if row.status == "valid" else Decimal("0.2500"),
             normalization_error=row.error or None,

@@ -8,11 +8,6 @@ from app.api.v1.imports.dependencies import (
     get_unknown_statement_mapping_importer,
     get_unknown_statement_mapping_reader,
 )
-from app.features.imports.application.unknown_statement_mappings.dto import (
-    StatementMappingSpec,
-    UnknownStatementMappingWarning,
-    UnsignedAmountDirection,
-)
 from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
     MappingDefaultSource,
 )
@@ -25,14 +20,19 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
     UnknownStatementMappingPreviewResult,
     UnknownStatementMappingReadModel,
 )
-from app.features.imports.application.unknown_statement_mappings.validation import (
+from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.mapping.dto import (
+    StatementMappingSpec,
+    UnknownStatementMappingWarning,
+    UnsignedAmountDirection,
+)
+from app.features.imports.mapping.errors import MappingImportIdempotencyConflictError
+from app.features.imports.mapping.validation import (
     MappingCommandValidationError,
     MappingValidationCode,
     MappingValidationIssue,
     MappingValidationSeverity,
 )
-from app.features.imports.documents.types import UploadedDocumentStatus
-from app.features.imports.errors import MappingImportIdempotencyConflictError
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
     WorkspaceMemberStatus,

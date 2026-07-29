@@ -22,10 +22,6 @@ from app.api.v1.imports.mapping_schemas import (
     MappingReadApiResponse,
     MappingSourceRowsApiResponse,
 )
-from app.features.imports.application.unknown_statement_mappings.dto import (
-    MappingControlTotalCellRef,
-    StatementMappingSpec,
-)
 from app.features.imports.application.unknown_statement_mappings.import_use_case import (
     UnknownStatementMappingImportUseCase,
 )
@@ -33,14 +29,18 @@ from app.features.imports.application.unknown_statement_mappings.reader import (
     MappingUnavailableError,
     UnknownStatementMappingReader,
 )
-from app.features.imports.application.unknown_statement_mappings.validation import (
-    MappingCommandValidationError,
+from app.features.imports.mapping.dto import (
+    MappingControlTotalCellRef,
+    StatementMappingSpec,
 )
-from app.features.imports.errors import (
+from app.features.imports.mapping.errors import (
     MappingImportIdempotencyConflictError,
     MappingImportNotFoundError,
     MappingImportUnavailableError,
     UnknownStatementMappingError,
+)
+from app.features.imports.mapping.validation import (
+    MappingCommandValidationError,
 )
 from app.features.workspaces.permissions import can_manage_imports
 

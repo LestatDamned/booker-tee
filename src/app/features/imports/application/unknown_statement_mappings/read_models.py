@@ -3,23 +3,23 @@ from datetime import date
 from enum import StrEnum
 from uuid import UUID
 
-from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
+from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
+    MappingDefaultSource,
+)
+from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.mapping.control_totals import (
     MappingControlTotalKind,
 )
-from app.features.imports.application.unknown_statement_mappings.dto import (
+from app.features.imports.mapping.dto import (
     MappedStatementRow,
     MappingControlTotalCellRef,
     StatementMappingSpec,
     UnknownStatementMappingWarning,
     UnsignedAmountDirection,
 )
-from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
-    MappingDefaultSource,
-)
-from app.features.imports.application.unknown_statement_mappings.row_mapping import (
+from app.features.imports.mapping.rows import (
     explicit_amount_direction,
 )
-from app.features.imports.documents.types import UploadedDocumentStatus
 
 MAX_MAPPING_PREVIEW_RAW_CHARS = 1_000
 MAX_MAPPING_PREVIEW_DESCRIPTION_CHARS = 2_000

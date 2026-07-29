@@ -7,14 +7,14 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.imports.application.unknown_statement_mappings.dto import (
-    StatementMappingSpec,
-    UnsignedAmountDirection,
-)
 from app.features.imports.application.unknown_statement_mappings.import_use_case import (
     UnknownStatementMappingImportUseCase,
 )
-from app.features.imports.errors import MappingImportIdempotencyConflictError
+from app.features.imports.mapping.dto import (
+    StatementMappingSpec,
+    UnsignedAmountDirection,
+)
+from app.features.imports.mapping.errors import MappingImportIdempotencyConflictError
 
 
 class MappingImportsStub:

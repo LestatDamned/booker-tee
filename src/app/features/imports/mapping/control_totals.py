@@ -3,17 +3,17 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 
-from app.features.imports.application.unknown_statement_mappings.dto import (
-    MappingControlTotalCellRef,
-    StatementMappingSpec,
-)
-from app.features.imports.application.unknown_statement_mappings.raw_tables import (
-    find_raw_table,
-    iter_raw_tables,
-)
 from app.features.imports.application.unknown_statements.hints import (
     control_total_label_sets_for_text,
     normalize_hint_text,
+)
+from app.features.imports.mapping.dto import (
+    MappingControlTotalCellRef,
+    StatementMappingSpec,
+)
+from app.features.imports.mapping.raw_tables import (
+    find_raw_table,
+    iter_raw_tables,
 )
 from app.features.imports.parsers.support.normalization import parse_money_amount
 

@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from app.features.imports.application.unknown_statement_mappings.dto import (
+from app.features.imports.mapping.dto import (
     MappedStatementRow,
     StatementMappingSpec,
     UnsignedAmountDirection,

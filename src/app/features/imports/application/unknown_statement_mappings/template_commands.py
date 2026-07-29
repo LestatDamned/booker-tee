@@ -1,9 +1,5 @@
 from typing import cast
 
-from app.features.imports.application.unknown_statement_mappings.dto import (
-    StatementMappingSpec,
-    UnsignedAmountDirection,
-)
 from app.features.imports.application.unknown_statement_mappings.template_signatures import (
     table_signature_for_mapping,
     table_signatures_match,
@@ -12,7 +8,11 @@ from app.features.imports.application.unknown_statement_mappings.values import (
     int_value,
     optional_int_value,
 )
-from app.features.imports.errors import UnknownStatementMappingError
+from app.features.imports.mapping.dto import (
+    StatementMappingSpec,
+    UnsignedAmountDirection,
+)
+from app.features.imports.mapping.errors import UnknownStatementMappingError
 from app.features.imports.models import ImportMappingTemplate
 
 

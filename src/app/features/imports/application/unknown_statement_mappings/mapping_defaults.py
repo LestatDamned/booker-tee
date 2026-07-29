@@ -3,10 +3,6 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
-from app.features.imports.application.unknown_statement_mappings.dto import (
-    StatementMappingSpec,
-    UnsignedAmountDirection,
-)
 from app.features.imports.application.unknown_statement_mappings.template_commands import (
     mapping_spec_from_template,
 )
@@ -14,6 +10,10 @@ from app.features.imports.documents.validation_report import (
     StoredMappingSuggestion,
     StoredTablePreview,
     StoredValidationReport,
+)
+from app.features.imports.mapping.dto import (
+    StatementMappingSpec,
+    UnsignedAmountDirection,
 )
 from app.features.imports.models import ImportMappingTemplate
 

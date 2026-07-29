@@ -5,9 +5,6 @@ from uuid import UUID
 from pydantic import Field, StringConstraints
 
 from app.api.schemas import ApiModel, ApiRequestModel
-from app.features.imports.application.unknown_statement_mappings.dto import (
-    UnsignedAmountDirection,
-)
 from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
     MappingDefaultSource,
 )
@@ -16,6 +13,9 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
     MappingRowErrorCode,
 )
 from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.mapping.dto import (
+    UnsignedAmountDirection,
+)
 
 CurrencyCode = Annotated[
     str,

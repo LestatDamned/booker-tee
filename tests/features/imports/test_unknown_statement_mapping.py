@@ -2,22 +2,9 @@ from decimal import Decimal
 from typing import cast
 from uuid import uuid4
 
-from app.features.imports.application.unknown_statement_mappings.drafts import (
-    UnknownStatementDraftMapper,
-)
-from app.features.imports.application.unknown_statement_mappings.dto import (
-    StatementMappingSpec,
-    UnsignedAmountDirection,
-)
-from app.features.imports.application.unknown_statement_mappings.engine import (
-    StatementMappingEngine,
-)
 from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
     MappingDefaultSource,
     StatementMappingDefaultResolver,
-)
-from app.features.imports.application.unknown_statement_mappings.raw_tables import (
-    compatible_mapping_tables,
 )
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingRowErrorCode,
@@ -30,6 +17,17 @@ from app.features.imports.application.unknown_statement_mappings.template_comman
     mapping_template_matches_raw_tables,
 )
 from app.features.imports.documents.validation_report import StoredValidationReport
+from app.features.imports.mapping.drafts import StatementMappingDraftBuilder
+from app.features.imports.mapping.dto import (
+    StatementMappingSpec,
+    UnsignedAmountDirection,
+)
+from app.features.imports.mapping.engine import (
+    StatementMappingEngine,
+)
+from app.features.imports.mapping.raw_tables import (
+    compatible_mapping_tables,
+)
 from app.features.imports.models import ImportMappingTemplate
 from app.features.imports.parsers.support.normalization import parse_bank_date
 from app.features.imports.statements.types import RawTransactionStatus
@@ -89,10 +87,10 @@ def test_unknown_statement_mapping_preview_supports_split_debit_credit_columns()
     )
 
     preview = StatementMappingEngine.apply(raw_tables, command, max_rows=None)
-    drafts = UnknownStatementDraftMapper(
+    drafts = StatementMappingDraftBuilder(
         spec=command,
         account_id=uuid4(),
-    ).map_rows(preview.rows)
+    ).build_rows(preview.rows)
 
     assert preview.valid_count == 2
     assert preview.error_count == 0
@@ -401,10 +399,10 @@ def test_unknown_statement_mapping_preview_normalizes_balance_after_column() -> 
     )
 
     preview = StatementMappingEngine.apply(raw_tables, command, max_rows=None)
-    drafts = UnknownStatementDraftMapper(
+    drafts = StatementMappingDraftBuilder(
         spec=command,
         account_id=account_id,
-    ).map_rows(preview.rows)
+    ).build_rows(preview.rows)
 
     assert preview.valid_count == 1
     assert preview.rows[0].balance_after_raw == "9 500,00 ₽"
@@ -442,10 +440,10 @@ def test_unknown_statement_mapping_preview_normalizes_posting_date_column() -> N
     )
 
     preview = StatementMappingEngine.apply(raw_tables, command, max_rows=None)
-    drafts = UnknownStatementDraftMapper(
+    drafts = StatementMappingDraftBuilder(
         spec=command,
         account_id=account_id,
-    ).map_rows(preview.rows)
+    ).build_rows(preview.rows)
 
     assert preview.valid_count == 1
     assert preview.rows[0].posting_date_raw == "13.05.2026"
@@ -483,10 +481,10 @@ def test_unknown_statement_mapping_builds_raw_transaction_drafts() -> None:
     )
     preview = StatementMappingEngine.apply(raw_tables, command, max_rows=None)
 
-    drafts = UnknownStatementDraftMapper(
+    drafts = StatementMappingDraftBuilder(
         spec=command,
         account_id=account_id,
-    ).map_rows(preview.rows)
+    ).build_rows(preview.rows)
 
     assert len(drafts) == 2
     assert drafts[0].status == RawTransactionStatus.NORMALIZED
@@ -544,10 +542,10 @@ def test_unknown_statement_mapping_can_import_all_compatible_tables() -> None:
         command,
         max_rows=None,
     )
-    drafts = UnknownStatementDraftMapper(
+    drafts = StatementMappingDraftBuilder(
         spec=command,
         account_id=account_id,
-    ).map_rows(preview.rows)
+    ).build_rows(preview.rows)
 
     assert len(compatible_mapping_tables(raw_tables, command)) == 2
     assert [row.page_number for row in preview.rows] == [1, 2]
@@ -596,10 +594,10 @@ def test_unknown_statement_mapping_imports_headerless_continuation_with_new_tabl
         command,
         max_rows=None,
     )
-    drafts = UnknownStatementDraftMapper(
+    drafts = StatementMappingDraftBuilder(
         spec=command,
         account_id=account_id,
-    ).map_rows(preview.rows)
+    ).build_rows(preview.rows)
 
     assert len(compatible_mapping_tables(raw_tables, command)) == 2
     assert [(row.page_number, row.table_index) for row in preview.rows] == [

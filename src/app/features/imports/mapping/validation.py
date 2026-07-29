@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
+from app.features.imports.mapping.control_totals import (
     MappingControlTotalKind,
     resolve_control_total_cell,
 )
-from app.features.imports.application.unknown_statement_mappings.dto import (
+from app.features.imports.mapping.dto import (
     StatementMappingSpec,
 )
 

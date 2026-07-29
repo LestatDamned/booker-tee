@@ -3,26 +3,8 @@ from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
-from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
-    MappingControlTotalKind,
-    ResolvedMappingControlTotal,
-    automatic_control_total_cell,
-    detect_control_total_candidates,
-    resolve_mapping_control_totals,
-)
-from app.features.imports.application.unknown_statement_mappings.dto import (
-    MappedStatementRow,
-    StatementMappingSpec,
-)
-from app.features.imports.application.unknown_statement_mappings.engine import (
-    StatementMappingEngine,
-)
 from app.features.imports.application.unknown_statement_mappings.mapping_defaults import (
     StatementMappingDefaultResolver,
-)
-from app.features.imports.application.unknown_statement_mappings.raw_tables import (
-    compatible_mapping_tables,
-    find_raw_table,
 )
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingAccountDto,
@@ -46,16 +28,34 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
 from app.features.imports.application.unknown_statement_mappings.template_commands import (
     compatible_mapping_templates,
 )
-from app.features.imports.application.unknown_statement_mappings.validation import (
-    StatementMappingValidator,
-    raise_for_mapping_validation_issues,
-)
 from app.features.imports.documents.dto import (
     ImportDocumentSnapshot,
 )
 from app.features.imports.documents.validation_report import (
     StoredSuggestionReason,
     StoredTablePreview,
+)
+from app.features.imports.mapping.control_totals import (
+    MappingControlTotalKind,
+    ResolvedMappingControlTotal,
+    automatic_control_total_cell,
+    detect_control_total_candidates,
+    resolve_mapping_control_totals,
+)
+from app.features.imports.mapping.dto import (
+    MappedStatementRow,
+    StatementMappingSpec,
+)
+from app.features.imports.mapping.engine import (
+    StatementMappingEngine,
+)
+from app.features.imports.mapping.raw_tables import (
+    compatible_mapping_tables,
+    find_raw_table,
+)
+from app.features.imports.mapping.validation import (
+    StatementMappingValidator,
+    raise_for_mapping_validation_issues,
 )
 from app.features.imports.models import ImportMappingTemplate
 from app.features.imports.statements.types import RawTransactionStatus

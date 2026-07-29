@@ -1,22 +1,22 @@
 from decimal import Decimal
 
-from app.features.imports.application.unknown_statement_mappings.dto import (
+from app.features.imports.application.unknown_statement_mappings.template_signatures import (
+    mapped_field_indexes,
+)
+from app.features.imports.mapping.dto import (
     MappedStatementRow,
     StatementMappingResult,
     StatementMappingSpec,
     UnknownStatementMappingWarning,
     UnsignedAmountDirection,
 )
-from app.features.imports.application.unknown_statement_mappings.raw_tables import (
+from app.features.imports.mapping.raw_tables import (
     compatible_mapping_tables,
     mapping_start_row_for_table,
 )
-from app.features.imports.application.unknown_statement_mappings.row_mapping import (
+from app.features.imports.mapping.rows import (
     explicit_amount_direction,
     map_table_rows,
-)
-from app.features.imports.application.unknown_statement_mappings.template_signatures import (
-    mapped_field_indexes,
 )
 
 DEFAULT_MAPPING_ROW_LIMIT = 20

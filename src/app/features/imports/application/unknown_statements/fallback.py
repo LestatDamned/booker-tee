@@ -19,7 +19,7 @@ from app.features.imports.documents.attempts import (
     mark_attempt_requires_review,
 )
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.errors import UnknownStatementMappingError
+from app.features.imports.mapping.errors import UnknownStatementMappingError
 from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.models import ParseAttempt, UploadedDocument
 from app.features.imports.parsers.extractors.dto import ExtractedStatement

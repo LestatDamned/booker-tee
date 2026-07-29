@@ -21,10 +21,6 @@ from app.api.v1.imports.mapping_schemas import (
     MappingTemplateApiResponse,
     MappingWarningApiResponse,
 )
-from app.features.imports.application.unknown_statement_mappings.dto import (
-    MappingControlTotalCellRef,
-    StatementMappingSpec,
-)
 from app.features.imports.application.unknown_statement_mappings.read_models import (
     MappingSourceRowsDto,
     MappingSourceTableDto,
@@ -32,6 +28,10 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
     MappingTableRefDto,
     UnknownStatementMappingPreviewResult,
     UnknownStatementMappingReadModel,
+)
+from app.features.imports.mapping.dto import (
+    MappingControlTotalCellRef,
+    StatementMappingSpec,
 )
 
 

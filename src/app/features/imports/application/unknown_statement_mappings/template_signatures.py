@@ -1,16 +1,16 @@
 from decimal import Decimal
 from typing import cast
 
-from app.features.imports.application.unknown_statement_mappings.dto import (
+from app.features.imports.application.unknown_statement_mappings.values import int_value
+from app.features.imports.mapping.dto import (
     StatementMappingSpec,
 )
-from app.features.imports.application.unknown_statement_mappings.raw_tables import find_raw_table
-from app.features.imports.application.unknown_statement_mappings.row_mapping import (
+from app.features.imports.mapping.raw_tables import find_raw_table
+from app.features.imports.mapping.rows import (
     cell_at,
     parse_optional_mapped_amount,
     parse_optional_mapped_date,
 )
-from app.features.imports.application.unknown_statement_mappings.values import int_value
 from app.features.imports.parsers.support.normalization import normalize_description
 
 

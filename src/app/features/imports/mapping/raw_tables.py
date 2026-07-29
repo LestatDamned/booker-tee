@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from typing import Any, cast
 
-from app.features.imports.application.unknown_statement_mappings.dto import (
+from app.features.imports.application.unknown_statement_mappings.values import int_value
+from app.features.imports.mapping.dto import (
     StatementMappingSpec,
 )
-from app.features.imports.application.unknown_statement_mappings.row_mapping import (
+from app.features.imports.mapping.rows import (
     map_table_rows,
 )
-from app.features.imports.application.unknown_statement_mappings.values import int_value
 
 
 @dataclass(frozen=True)

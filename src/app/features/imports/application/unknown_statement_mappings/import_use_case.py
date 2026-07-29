@@ -5,31 +5,9 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
-    MappingControlTotalKind,
-    resolve_mapping_control_totals,
-)
-from app.features.imports.application.unknown_statement_mappings.drafts import (
-    UnknownStatementDraftMapper,
-)
-from app.features.imports.application.unknown_statement_mappings.dto import (
-    MappingControlTotalCellRef,
-    SaveImportMappingTemplateCommand,
-    StatementMappingSpec,
-)
-from app.features.imports.application.unknown_statement_mappings.engine import (
-    StatementMappingEngine,
-)
-from app.features.imports.application.unknown_statement_mappings.raw_tables import (
-    find_raw_table,
-)
 from app.features.imports.application.unknown_statement_mappings.template_commands import (
     clean_template_name,
     mapping_spec_as_json,
-)
-from app.features.imports.application.unknown_statement_mappings.validation import (
-    StatementMappingValidator,
-    raise_for_mapping_validation_issues,
 )
 from app.features.imports.application.unknown_statements.control_totals import (
     extract_unknown_statement_control_totals,
@@ -41,13 +19,35 @@ from app.features.imports.documents.attempts import (
 from app.features.imports.documents.lifecycle import transition_document_status
 from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
-from app.features.imports.errors import (
+from app.features.imports.mapping.control_totals import (
+    MappingControlTotalKind,
+    resolve_mapping_control_totals,
+)
+from app.features.imports.mapping.drafts import (
+    StatementMappingDraftBuilder,
+)
+from app.features.imports.mapping.dto import (
+    MappingControlTotalCellRef,
+    SaveImportMappingTemplateCommand,
+    StatementMappingSpec,
+)
+from app.features.imports.mapping.engine import (
+    StatementMappingEngine,
+)
+from app.features.imports.mapping.errors import (
     MappingImportIdempotencyConflictError,
     MappingImportNotFoundError,
     MappingImportUnavailableError,
     UnknownStatementMappingError,
 )
+from app.features.imports.mapping.raw_tables import (
+    find_raw_table,
+)
 from app.features.imports.mapping.repository import MappingRepository
+from app.features.imports.mapping.validation import (
+    StatementMappingValidator,
+    raise_for_mapping_validation_issues,
+)
 from app.features.imports.models import (
     ImportMappingExecution,
     ImportMappingTemplate,
@@ -261,10 +261,10 @@ async def create_raw_transactions_from_mapping(
         await statements.mark_reviewable_rows_superseded(document)
     raw_transactions = await statements.create_raw_transactions(
         RawTransactionMapper.from_drafts(
-            UnknownStatementDraftMapper(
+            StatementMappingDraftBuilder(
                 spec=spec,
                 account_id=document.account_id,
-            ).map_rows(result.rows),
+            ).build_rows(result.rows),
             workspace_id=document.workspace_id,
             uploaded_document_id=document.id,
             parse_attempt_id=attempt.id,

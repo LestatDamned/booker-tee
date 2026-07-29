@@ -575,9 +575,7 @@ Prefer:
 from app.features.imports.application.unknown_statements.analyzer import (
     analyze_unknown_statement,
 )
-from app.features.imports.application.unknown_statement_mappings.row_mapping import (
-    map_table_rows,
-)
+from app.features.imports.mapping.rows import map_table_rows
 ```
 
 Avoid creating new broad facade modules:
@@ -628,8 +626,8 @@ state, or parser/import status.
 Prefer mapper objects for cross-layer transformations:
 
 ```python
-mapper = UnknownStatementDraftMapper(command=command, account_id=account_id)
-drafts = mapper.map_rows(mapped_rows)
+builder = StatementMappingDraftBuilder(spec=spec, account_id=account_id)
+drafts = builder.build_rows(mapped_rows)
 ```
 
 This keeps DTOs small and still gives the code a readable `Class.action()`

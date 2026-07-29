@@ -169,10 +169,11 @@ src/app/features/imports/
     ├── errors.py
     ├── engine.py
     ├── rows.py
-    ├── raw_transactions.py
+    ├── drafts.py
     ├── raw_tables.py
     ├── control_totals.py
     ├── validation.py
+    ├── templates.py
     ├── repository.py
     ├── commands/
     │   └── import_rows.py
@@ -180,25 +181,21 @@ src/app/features/imports/
     │   ├── overview.py
     │   ├── preview.py
     │   └── source_rows.py
-    ├── templates/
-    │   ├── defaults.py
-    │   ├── codec.py
-    │   └── matching.py
     └── analysis/
         ├── dto.py
         ├── analyzer.py
         ├── tables.py
         ├── columns.py
         ├── text_tables.py
-        ├── control_totals.py
         ├── hints.py
-        ├── unknown_statement_hints.json
-        └── values.py
+        └── unknown_statement_hints.json
 ```
 
 Это целевой ориентир, а не требование создать пустой файл под каждое имя.
 Если после объединения ответственность остаётся небольшой и cohesive, соседние
-файлы могут остаться одним модулем.
+файлы могут остаться одним модулем. В частности, template defaults, codec и
+signature matching сначала собираются в одном `templates.py`. Делить его можно
+только после появления нескольких самостоятельных причин изменения.
 
 ## 5. Направление зависимостей
 
@@ -446,20 +443,18 @@ production Python — с 10 939 до 10 938 строк. Step 5 закрыт.
 | mapping models и read models | `mapping/dto.py` |
 | mapping engine | `mapping/engine.py` |
 | row mapping | `mapping/rows.py` |
-| draft conversion | `mapping/raw_transactions.py` |
+| mapped rows → `RawTransactionDraft` | `mapping/drafts.py` |
 | raw table handling | `mapping/raw_tables.py` |
 | mapping control totals | `mapping/control_totals.py` |
 | mapping validation | `mapping/validation.py` |
 | import use case | `mapping/commands/import_rows.py` |
 | reader | `mapping/queries/overview.py`, `preview.py`, `source_rows.py` |
-| mapping defaults | `mapping/templates/defaults.py` |
-| template serialization | `mapping/templates/codec.py` |
-| template signatures/use | `mapping/templates/matching.py` |
+| mapping defaults, serialization и signatures/use | `mapping/templates.py` |
 | mapping errors из `errors.py` | `mapping/errors.py` |
 
 `template_use_case.py` удаляется после переноса callers к конкретным command или
-matching actors. Untyped `values.py` объединяется с typed template codec, если
-это одна сериализационная ответственность.
+template actors. `values.py` объединяется с `templates.py`: отдельный модуль для
+одного JSON integer decoder не имеет самостоятельной ответственности.
 
 ### Unknown statement analysis
 
@@ -467,12 +462,10 @@ matching actors. Untyped `values.py` объединяется с typed template 
 |---|---|
 | analysis models | `mapping/analysis/dto.py` |
 | analyzer | `mapping/analysis/analyzer.py` |
-| column profiles и suggestions | `mapping/analysis/columns.py` |
+| column profiles, suggestions и value detectors | `mapping/analysis/columns.py` |
 | table analysis/detection/continuations | `mapping/analysis/tables.py` |
 | text table extraction | `mapping/analysis/text_tables.py` |
-| control total detection | `mapping/analysis/control_totals.py` |
-| hints и JSON data | `mapping/analysis/hints.py` и JSON рядом |
-| value detectors | `mapping/analysis/values.py` |
+| hints, control total detection и JSON data | `mapping/analysis/hints.py` и JSON рядом |
 | fallback orchestration | `statements/process.py` |
 
 Stored JSON analysis декодируется один раз в Pydantic projection. Ручные
@@ -721,10 +714,118 @@ zero-based/one-based индексы, warning field names и control-total refere
 
 ### Шаг 7. Mapping
 
-- разделить commands и queries;
-- собрать template responsibilities;
-- объединить мелкие analysis modules;
-- удалить старые wrappers.
+Mapping рассматривается как одна capability, включающая анализ неизвестной
+таблицы, preview, templates и импорт сопоставленных строк. Текущая реализация
+разделена между:
+
+- `application/unknown_statement_mappings/`;
+- `application/unknown_statements/`;
+- почти пустым `mapping/`.
+
+До начала шага это 31 Python-файл и 4 370 строк. Цель этапа — один canonical
+root `mapping/`, ориентировочно 22–24 Python-файла и отсутствие старых import
+paths. Уменьшение количества строк не является отдельным KPI: оно должно
+получиться из удаления wrappers, повторной orchestration и лишних границ, а не
+из уплотнения читаемого кода.
+
+#### 7A. Core ownership
+
+- перенести DTO, engine, row mapping, raw tables, draft building,
+  control totals и validation в canonical `mapping/`;
+- перенести mapping-specific errors в `mapping/errors.py`;
+- сохранить `Class.action` и поведение, убрав из actor names избыточный
+  `UnknownStatement` после переноса в однозначный `mapping/`;
+- переименовать draft actor в
+  `StatementMappingDraftBuilder.build_rows(...)`;
+- обновить consumers напрямую, без compatibility facades и package re-exports;
+- не считать отсутствие сокращения строк на этом механическом шаге проблемой.
+
+После 7A одна core mapping responsibility не должна одновременно существовать
+в старом application package и в `mapping/`.
+
+7A завершён 2026-07-29. `dto.py`, `engine.py`, `rows.py`, `raw_tables.py`,
+`drafts.py`, `control_totals.py`, `validation.py` и mapping-specific errors
+теперь принадлежат canonical `mapping/`. Старые семь core-модулей удалены,
+consumers переведены напрямую без facades. Draft actor переименован в
+`StatementMappingDraftBuilder.build_rows(...)`.
+
+Число production Python-файлов временно изменилось с 80 до 81, потому что
+mapping errors отделены от всё ещё существующего root `errors.py` с
+import-review ошибкой. Production Python уменьшился с 10 900 до 10 898 строк.
+Это ожидаемый ownership change; сокращение packages и wrappers выполняется в
+7B–7D. Полный regression gate после 7A: Ruff, ty и 602 tests.
+
+#### 7B. Templates и persistence boundary
+
+- собрать defaults, JSON codec, signatures и template operations в
+  `mapping/templates.py`;
+- удалить `template_use_case.py` как forwarding wrapper;
+- repository оставляет у себя только SQLAlchemy queries и persistence;
+- application/query actors не возвращают ORM template entities;
+- отсутствие bank или statement type означает отсутствие matching templates,
+  а не отдельный use case;
+- сохранить workspace scope и точный template-signature contract.
+
+Один `templates.py` предпочтительнее трёх маленьких модулей. Он разделяется
+только если после переноса действительно содержит несколько устойчивых причин
+изменения.
+
+#### 7C. Commands и queries
+
+- разделить текущий reader на overview, preview и source-row queries;
+- preview не загружает templates через общий snapshot, если они ему не нужны;
+- перенести изменяющий состояние workflow в
+  `mapping/commands/import_rows.py`;
+- результат import command возвращает DTO с document id/status, а не
+  `UploadedDocument` ORM entity;
+- общий workflow от mapped rows до сохранённых и проверенных raw transactions
+  выразить actor API `MappedStatementRowImporter.import_rows(...)`;
+- сохранить одну внешнюю транзакцию, idempotency fingerprint, replay и
+  conflict behavior.
+
+Целевые читаемые точки входа:
+
+```text
+StatementMappingOverviewReader.read(...)
+StatementMappingPreviewReader.read(...)
+StatementMappingSourceRowsReader.read(...)
+StatementMappingImportService.import_rows_idempotently(...)
+MappedStatementRowImporter.import_rows(...)
+```
+
+`Class.action` сохраняется намеренно. Не вводятся неопределённые `Manager`,
+`Processor`, generic `UseCase` или свободные workflow-функции.
+
+#### 7D. Analysis consolidation и удаление старых путей
+
+- перенести unknown-statement analysis в `mapping/analysis/`;
+- объединить profiles, suggestions и value detectors в `columns.py`;
+- объединить table detection, continuation и table construction в
+  `tables.py`;
+- объединить hints и control-total detection в `hints.py`;
+- оставить самостоятельными `analyzer.py`, `text_tables.py` и analysis DTO;
+- перенести fallback orchestration в `statements/process.py`;
+- удалить `application/unknown_statement_mappings/` и
+  `application/unknown_statements/` после обновления всех consumers;
+- не оставлять пустые packages, aliases и compatibility imports.
+
+Этап 7 не вводит generic Unit of Work, event bus, plugin architecture или новый
+repository abstraction. Существующие API-преобразования с реальной семантикой
+— zero/one-based индексы, warning field names и control-total references —
+остаются явными.
+
+Критерии завершения этапа:
+
+1. вся capability доступна через один root `imports/mapping`;
+2. commands не возвращают ORM наружу, queries не выполняют mutations;
+3. auto-template fallback и manual mapping создают одинаковые raw drafts;
+4. workspace scope, idempotency и одна внешняя транзакция сохранены;
+5. старые два application package удалены;
+6. mapping preview/import, validation, template matching и source-row tests
+   проходят;
+7. перед изменением mutation boundary на 7C существует PostgreSQL gate для
+   конкурентного mapping import/idempotency либо явно зафиксирована причина,
+   почему он отложен.
 
 ### Шаг 8. Import Review commands/queries
 
@@ -772,7 +873,10 @@ zero-based/one-based индексы, warning field names и control-total refere
 | 6A. Stored report schema | completed 2026-07-29 |
 | 6B. Decode once on documents read boundary | completed 2026-07-29 |
 | 6C. Typed mapping consumers and decoder cleanup | completed 2026-07-29 |
-| 7. Mapping | next |
+| 7A. Mapping core ownership | completed 2026-07-29 |
+| 7B. Mapping templates and persistence boundary | next |
+| 7C. Mapping commands and queries | pending |
+| 7D. Mapping analysis consolidation and old-path cleanup | pending |
 | 8–11 | pending |
 
 ## 15. Gate для каждого шага

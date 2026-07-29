@@ -1,11 +1,11 @@
 from dataclasses import replace
 
-from app.features.imports.application.unknown_statement_mappings.dto import (
+from app.features.imports.mapping.dto import (
     MappingControlTotalCellRef,
     StatementMappingSpec,
     UnsignedAmountDirection,
 )
-from app.features.imports.application.unknown_statement_mappings.validation import (
+from app.features.imports.mapping.validation import (
     MappingValidationCode,
     MappingValidationSeverity,
     StatementMappingValidator,
