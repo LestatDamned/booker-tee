@@ -8,12 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
 from app.features.accounts.repository import AccountRepository
-from app.features.imports.application.documents.parse_attempts import (
+from app.features.imports.application.processing import StatementParseProcessor
+from app.features.imports.documents.attempts import (
     PARSER_EXCEPTIONS,
     create_running_parse_attempt,
     record_failed_parse_attempt,
 )
-from app.features.imports.application.processing import StatementParseProcessor
+from app.features.imports.documents.repository import DocumentRepository
+from app.features.imports.documents.types import (
+    UploadedDocumentSource,
+    UploadedDocumentType,
+)
 from app.features.imports.domain.types import UploadedDocumentStatus
 from app.features.imports.errors import (
     UploadAccountNotFoundError,
@@ -27,8 +32,6 @@ from app.features.imports.infrastructure.extraction.resolver import (
 from app.features.imports.infrastructure.storage import UploadStorage
 from app.features.imports.models import (
     UploadedDocument,
-    UploadedDocumentSource,
-    UploadedDocumentType,
 )
 from app.features.imports.parsing.registry import default_statement_parser_registry
 from app.features.imports.repository import ImportRepository
@@ -46,11 +49,13 @@ class StatementUploadUseCase:
         self.session = session
         self.settings = settings
         self.accounts = AccountRepository(session)
+        self.documents = DocumentRepository(session)
         self.imports = ImportRepository(session)
         self.storage = UploadStorage(settings.upload_storage_dir)
         self.extractor = StatementExtractorResolver()
         self.parse_processor = StatementParseProcessor(
             session=session,
+            documents=self.documents,
             imports=self.imports,
             parser_registry=default_statement_parser_registry(),
         )
@@ -88,7 +93,7 @@ class StatementUploadUseCase:
             else uuid4()
         )
         if idempotency_key is not None:
-            existing = await self.imports.get_document_for_workspace(
+            existing = await self.documents.get_document_for_workspace(
                 context.workspace.id,
                 document_id,
             )
@@ -129,7 +134,7 @@ class StatementUploadUseCase:
         except IntegrityError as error:
             await self.session.rollback()
             await self.storage.delete_stored_upload(stored_upload)
-            existing = await self.imports.get_document_for_workspace(
+            existing = await self.documents.get_document_for_workspace(
                 context.workspace.id,
                 document_id,
             )
@@ -144,7 +149,7 @@ class StatementUploadUseCase:
             ) from error
 
         attempt = await create_running_parse_attempt(
-            self.imports,
+            self.documents,
             workspace_id=context.workspace.id,
             document_id=document.id,
         )
@@ -153,7 +158,7 @@ class StatementUploadUseCase:
         try:
             extracted = self.extractor.extract(stored_upload.path)
         except PARSER_EXCEPTIONS as exc:
-            await record_failed_parse_attempt(self.imports, document, attempt, exc)
+            await record_failed_parse_attempt(self.documents, document, attempt, exc)
         else:
             await self.parse_processor.record_successful_attempt(
                 document,
@@ -191,7 +196,7 @@ class StatementUploadUseCase:
             uploaded_by_user_id=context.user.id,
             account_id=account_id,
         )
-        return await self.imports.create_uploaded_document(document)
+        return await self.documents.create_uploaded_document(document)
 
 
 def validate_statement_upload(upload_file: UploadFile) -> None:

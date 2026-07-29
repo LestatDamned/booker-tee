@@ -1,16 +1,16 @@
-from app.features.imports.application.documents.status import transition_document_status
+from app.features.imports.documents.lifecycle import transition_document_status
+from app.features.imports.documents.repository import DocumentRepository
+from app.features.imports.documents.types import ParseAttemptStatus
 from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.domain.types import UploadedDocumentStatus
 from app.features.imports.models import (
     ParseAttempt,
-    ParseAttemptStatus,
     UploadedDocument,
 )
-from app.features.imports.repository import ImportRepository
 
 
 async def mark_attempt_requires_review(
-    imports: ImportRepository,
+    documents: DocumentRepository,
     document: UploadedDocument,
     attempt: ParseAttempt,
     message: str,
@@ -21,20 +21,20 @@ async def mark_attempt_requires_review(
     report.setdefault("message", message)
     report.setdefault("parser_message", message)
     if control_totals is not None:
-        await imports.store_attempt_validation(
+        await documents.store_attempt_validation(
             attempt,
             control_totals=control_totals.as_json(),
             validation_report=report,
         )
-        await imports.mark_attempt_status(attempt, ParseAttemptStatus.REQUIRES_REVIEW)
+        await documents.mark_attempt_status(attempt, ParseAttemptStatus.REQUIRES_REVIEW)
     else:
-        await imports.mark_attempt_requires_review(
+        await documents.mark_attempt_requires_review(
             attempt,
             message=message,
             validation_report=report,
         )
     await transition_document_status(
-        imports,
+        documents,
         document,
         UploadedDocumentStatus.REQUIRES_REVIEW,
     )

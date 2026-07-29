@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
@@ -25,6 +24,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
 
 from app.db.base import Base, utc_now
+from app.features.imports.documents.types import (
+    ParseAttemptStatus,
+    UploadedDocumentSource,
+    UploadedDocumentType,
+)
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.ledger.domain.types import OperationType
 from app.features.workspaces.models import enum_values
@@ -34,23 +38,6 @@ if TYPE_CHECKING:
     from app.features.categories.models import Category
     from app.features.ledger.models import Operation
     from app.features.workspaces.models import Workspace
-
-
-class UploadedDocumentSource(StrEnum):
-    WEB_UPLOAD = "web_upload"
-    SYSTEM = "system"
-
-
-class UploadedDocumentType(StrEnum):
-    BANK_STATEMENT = "bank_statement"
-    OTHER = "other"
-
-
-class ParseAttemptStatus(StrEnum):
-    RUNNING = "running"
-    SUCCESS = "success"
-    REQUIRES_REVIEW = "requires_review"
-    FAILED = "failed"
 
 
 class ImportMappingTemplate(Base):

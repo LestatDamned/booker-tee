@@ -13,9 +13,9 @@ from app.features.import_review.repository import ImportReviewRepository
 from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
 )
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.domain.types import UploadedDocumentStatus
 from app.features.imports.errors import RawTransactionReviewError
-from app.features.imports.repository import ImportRepository
 from app.features.ledger.application.imported_operations import ImportedOperationCorrection
 from app.features.ledger.domain.types import OperationSource, OperationStatus
 from app.features.ledger.errors import LedgerPostingError
@@ -43,7 +43,7 @@ class ImportReviewUndoResult:
 class ImportReviewUndoService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
-        self._imports = ImportRepository(session)
+        self._documents = DocumentRepository(session)
         self._review_repository = ImportReviewRepository(session)
         self._ledger = LedgerRepository(session)
         self._correction = ImportedOperationCorrection(session)
@@ -166,14 +166,14 @@ class ImportReviewUndoService:
         document_ids: set[UUID],
     ) -> None:
         for document_id in document_ids:
-            document = await self._imports.get_document_for_workspace(
+            document = await self._documents.get_document_for_workspace(
                 workspace_id,
                 document_id,
             )
             if document is None:
                 continue
-            await refresh_document_validation(self._imports, document)
-            await self._imports.mark_document_status(
+            await refresh_document_validation(self._documents, document)
+            await self._documents.mark_document_status(
                 document,
                 UploadedDocumentStatus.REQUIRES_REVIEW,
             )

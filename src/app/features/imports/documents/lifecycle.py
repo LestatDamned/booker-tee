@@ -1,11 +1,15 @@
 from collections.abc import Iterable
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 from app.features.imports.domain.types import (
     RawTransactionStatus,
     UploadedDocumentStatus,
 )
+from app.features.imports.models import UploadedDocument
+
+if TYPE_CHECKING:
+    from app.features.imports.documents.repository import DocumentRepository
 
 COMPLETE_RAW_TRANSACTION_STATUSES = frozenset(
     {
@@ -115,3 +119,46 @@ def resolve_document_review_status(
 
 def has_linked_operations(rows: Iterable[LinkedOperationSource]) -> bool:
     return any(row.linked_operation_id is not None for row in rows)
+
+
+class ImportedDocumentStatusUpdater:
+    def __init__(self, documents: "DocumentRepository") -> None:
+        self.documents = documents
+
+    async def mark_imported_if_complete(
+        self,
+        *,
+        workspace_id: UUID,
+        document_id: UUID,
+    ) -> bool:
+        document = await self.documents.get_document_for_workspace(workspace_id, document_id)
+        if document is None:
+            return False
+        target_status = resolve_document_review_status(
+            row.status for row in document.raw_transactions
+        )
+        if target_status is not UploadedDocumentStatus.IMPORTED:
+            return False
+        await transition_document_status(self.documents, document, target_status)
+        return True
+
+    async def sync_review_status(self, document: UploadedDocument) -> bool:
+        target_status = resolve_document_review_status(
+            row.status for row in document.raw_transactions
+        )
+        if target_status is None or document.status is target_status:
+            return False
+        await transition_document_status(self.documents, document, target_status)
+        return True
+
+
+async def transition_document_status(
+    documents: "DocumentRepository",
+    document: UploadedDocument,
+    target_status: UploadedDocumentStatus,
+) -> None:
+    resolved_status = resolve_document_status_transition(
+        current_status=document.status,
+        target_status=target_status,
+    )
+    await documents.mark_document_status(document, resolved_status)

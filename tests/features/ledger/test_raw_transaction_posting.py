@@ -425,7 +425,7 @@ def transfer_actor(
     document_status: DocumentStatusStub,
 ) -> ImportReviewTransferActor:
     actor = ImportReviewTransferActor(cast(Any, session))
-    actor._imports = cast(Any, imports)
+    actor._documents = cast(Any, imports)
     actor._ledger = cast(Any, ledger)
     if review_repository is not None:
         review_repository.raw_repository = imports

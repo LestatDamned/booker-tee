@@ -18,6 +18,7 @@ from app.features.imports.application.unknown_statements.analyzer import (
 from app.features.imports.application.unknown_statements.text_tables import (
     raw_tables_with_text_candidate_tables,
 )
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.errors import UnknownStatementMappingError
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.models import ParseAttempt, UploadedDocument
@@ -25,8 +26,14 @@ from app.features.imports.repository import ImportRepository
 
 
 class UnknownStatementFallbackPipeline:
-    def __init__(self, session: AsyncSession, imports: ImportRepository) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        documents: DocumentRepository,
+        imports: ImportRepository,
+    ) -> None:
         self.session = session
+        self.documents = documents
         self.imports = imports
 
     async def record_requires_review_or_apply_template(
@@ -56,7 +63,7 @@ class UnknownStatementFallbackPipeline:
         except UnknownStatementMappingError as exc:
             validation_report["template_auto_apply_error"] = str(exc)
         await mark_attempt_requires_review(
-            self.imports,
+            self.documents,
             document,
             attempt,
             "No supported bank statement parser matched this document.",
@@ -88,6 +95,7 @@ class UnknownStatementFallbackPipeline:
 
         await create_raw_transactions_from_mapping(
             session=self.session,
+            documents=self.documents,
             imports=self.imports,
             document=document,
             attempt=attempt,

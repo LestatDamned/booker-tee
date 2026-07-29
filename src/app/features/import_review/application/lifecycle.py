@@ -10,13 +10,13 @@ from app.features.import_review.domain.lifecycle import (
     resolve_import_review_lifecycle_transition,
 )
 from app.features.import_review.repository import ImportReviewRepository
-from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
 )
+from app.features.imports.documents.lifecycle import ImportedDocumentStatusUpdater
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.errors import RawTransactionReviewError
-from app.features.imports.repository import ImportRepository
 
 
 @dataclass(frozen=True)
@@ -36,7 +36,7 @@ class ImportReviewLifecycleResult:
 
 class ImportReviewLifecycleActor:
     def __init__(self, session: AsyncSession) -> None:
-        self._imports = ImportRepository(session)
+        self._documents = DocumentRepository(session)
         self._review_repository = ImportReviewRepository(session)
 
     async def apply(
@@ -63,14 +63,14 @@ class ImportReviewLifecycleActor:
                 row,
                 transition.target_status,
             )
-        document = await self._imports.get_document_for_workspace_for_update(
+        document = await self._documents.get_document_for_workspace_for_update(
             workspace_id,
             command.document_id,
         )
         if document is None:
             raise RawTransactionReviewError("Document was not found.")
-        await refresh_document_validation(self._imports, document)
-        await ImportedDocumentStatusUpdater(self._imports).sync_review_status(document)
+        await refresh_document_validation(self._documents, document)
+        await ImportedDocumentStatusUpdater(self._documents).sync_review_status(document)
         return ImportReviewLifecycleResult(
             item_id=row.id,
             document_id=document.id,

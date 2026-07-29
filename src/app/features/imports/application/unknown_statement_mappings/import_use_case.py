@@ -5,11 +5,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.imports.application.documents.parse_attempts import (
-    latest_parse_attempt,
-    statement_control_totals_from_json,
-)
-from app.features.imports.application.documents.status import transition_document_status
 from app.features.imports.application.pipelines.deduplication import (
     RawTransactionDeduplicator,
 )
@@ -42,6 +37,13 @@ from app.features.imports.application.unknown_statement_mappings.validation impo
 from app.features.imports.application.unknown_statements.control_totals import (
     extract_unknown_statement_control_totals,
 )
+from app.features.imports.documents.attempts import (
+    latest_parse_attempt,
+    statement_control_totals_from_json,
+)
+from app.features.imports.documents.lifecycle import transition_document_status
+from app.features.imports.documents.repository import DocumentRepository
+from app.features.imports.documents.types import ParseAttemptStatus
 from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.domain.validation import validate_statement_totals
@@ -56,7 +58,6 @@ from app.features.imports.models import (
     ImportMappingExecution,
     ImportMappingTemplate,
     ParseAttempt,
-    ParseAttemptStatus,
     RawTransaction,
     UploadedDocument,
 )
@@ -77,6 +78,7 @@ class MappingImportResult:
 class UnknownStatementMappingImportUseCase:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+        self.documents = DocumentRepository(session)
         self.imports = ImportRepository(session)
 
     async def import_mapped_rows_idempotently(
@@ -95,7 +97,7 @@ class UnknownStatementMappingImportUseCase:
             spec,
             template_name=normalized_template_name,
         )
-        document = await self.imports.get_document_for_workspace_for_update(
+        document = await self.documents.get_document_for_workspace_for_update(
             workspace_id,
             document_id,
         )
@@ -122,6 +124,7 @@ class UnknownStatementMappingImportUseCase:
         attempt = self._validate_import(document, spec)
         raw_transactions = await create_raw_transactions_from_mapping(
             session=self.session,
+            documents=self.documents,
             imports=self.imports,
             document=document,
             attempt=attempt,
@@ -155,7 +158,7 @@ class UnknownStatementMappingImportUseCase:
         )
         await self.session.commit()
 
-        imported_document = await self.imports.get_document_for_workspace(
+        imported_document = await self.documents.get_document_for_workspace(
             workspace_id,
             document_id,
         )
@@ -231,6 +234,7 @@ class UnknownStatementMappingImportUseCase:
 async def create_raw_transactions_from_mapping(
     *,
     session: AsyncSession,
+    documents: DocumentRepository,
     imports: ImportRepository,
     document: UploadedDocument,
     attempt: ParseAttempt,
@@ -274,7 +278,7 @@ async def create_raw_transactions_from_mapping(
         raw_transactions=raw_transactions,
     )
     await store_mapping_validation_result(
-        imports,
+        documents,
         document,
         attempt,
         raw_transactions,
@@ -284,7 +288,7 @@ async def create_raw_transactions_from_mapping(
 
 
 async def store_mapping_validation_result(
-    imports: ImportRepository,
+    documents: DocumentRepository,
     document: UploadedDocument,
     attempt: ParseAttempt,
     raw_transactions: list[RawTransaction],
@@ -347,7 +351,7 @@ async def store_mapping_validation_result(
     control_totals_payload["mapping_sources"] = {
         total.kind.value: _control_total_cell_as_json(total.cell) for total in resolved
     }
-    await imports.store_attempt_validation(
+    await documents.store_attempt_validation(
         attempt,
         control_totals=control_totals_payload,
         validation_report={
@@ -355,9 +359,9 @@ async def store_mapping_validation_result(
             "source": "unknown_statement_mapping",
         },
     )
-    await imports.mark_attempt_status(attempt, ParseAttemptStatus.REQUIRES_REVIEW)
+    await documents.mark_attempt_status(attempt, ParseAttemptStatus.REQUIRES_REVIEW)
     await transition_document_status(
-        imports,
+        documents,
         document,
         UploadedDocumentStatus.REQUIRES_REVIEW,
     )

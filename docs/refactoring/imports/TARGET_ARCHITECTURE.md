@@ -327,7 +327,11 @@ Step 3A завершён 2026-07-29: первые три перемещения 
 re-export facades. `query_repository.py` удалён целиком; list/detail/snapshot
 reads принадлежат `DocumentRepository`, DTO отделены от query orchestration.
 Существующий `ImportRepository.get_document_for_workspace` временно делегирует
-read новому владельцу для ещё не перенесённых write workflows и удаляется в 3B.
+read новому владельцу для ещё не перенесённых write workflows и удалён в 3B.
+
+Step 3B завершён 2026-07-29: document/attempt write persistence, workspace lock,
+lifecycle, attempts и document-owned enums принадлежат `documents`.
+`ImportRepository` больше не содержит document reads или lifecycle mutations.
 
 В `documents/repository.py` переходят:
 
@@ -537,6 +541,11 @@ LOC reduction.
 entrypoint добавлены ради явной границы `documents/queries`, но общий production
 code сократился на 30 строк за счёт удаления повторных DTO и list forwarding.
 
+После Step 3B количество файлов не изменилось, `imports` содержит 11 013 строк.
+Явные зависимости `DocumentRepository` добавили 19 строк orchestration, при
+этом широкий `ImportRepository` сократился с 279 до 162 строк и полностью
+освобождён от document lifecycle persistence.
+
 Ориентир после безопасных объединений — примерно 55–65 содержательных
 Python-файлов внутри `imports`. Это не KPI: cohesive файл не дробится и не
 сливается ради числа.
@@ -600,8 +609,9 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 
 - выделить DTO и list/detail queries — выполнено в 3A;
 - удалить `query_repository.py` и перевести read consumers — выполнено в 3A;
-- собрать lifecycle и attempts;
-- дополнить document repository write-side persistence;
+- собрать lifecycle и attempts — выполнено в 3B;
+- дополнить document repository write-side persistence — выполнено в 3B;
+- перенести document-owned enums в `documents/types.py` — выполнено в 3B;
 - перенести storage;
 - распределить document types и errors;
 - удалить исходные файлы в том же change set.
@@ -669,8 +679,8 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 | 1. Persistence ownership | completed 2026-07-29 |
 | 2. Duplicate evidence | completed 2026-07-29 |
 | 3A. Documents read side | completed 2026-07-29 |
-| 3B. Documents lifecycle and persistence | next |
-| 3C. Documents commands and infrastructure | pending |
+| 3B. Documents lifecycle and persistence | completed 2026-07-29 |
+| 3C. Documents commands and infrastructure | next |
 | 4–11 | pending |
 
 ## 15. Gate для каждого шага

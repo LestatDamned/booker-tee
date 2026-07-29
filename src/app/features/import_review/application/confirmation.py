@@ -17,13 +17,13 @@ from app.features.import_review.domain.posting import (
     require_raw_transaction_account_id,
 )
 from app.features.import_review.repository import ImportReviewRepository
-from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
 )
+from app.features.imports.documents.lifecycle import ImportedDocumentStatusUpdater
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.errors import RawTransactionReviewError
-from app.features.imports.repository import ImportRepository
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.application.posting import LedgerPostingService
 from app.features.ledger.domain.types import OperationStatus, OperationType
@@ -77,7 +77,7 @@ class ImportReviewConfirmationResult:
 
 class ImportReviewConfirmationActor:
     def __init__(self, session: AsyncSession) -> None:
-        self._imports = ImportRepository(session)
+        self._documents = DocumentRepository(session)
         self._review_repository = ImportReviewRepository(session)
         self._ledger = LedgerRepository(session)
         self._references = LedgerReferenceResolver(session)
@@ -101,7 +101,7 @@ class ImportReviewConfirmationActor:
         replay = await self.find_replay(context=context, command=command)
         if replay is not None:
             return replay
-        document = await self._imports.get_document_for_workspace_for_update(
+        document = await self._documents.get_document_for_workspace_for_update(
             context.workspace.id,
             command.document_id,
         )
@@ -193,8 +193,8 @@ class ImportReviewConfirmationActor:
                 pattern=command.rule_pattern,
             )
             updated_item_ids.update(summary.updated_raw_transaction_ids)
-        await refresh_document_validation(self._imports, document)
-        await ImportedDocumentStatusUpdater(self._imports).sync_review_status(document)
+        await refresh_document_validation(self._documents, document)
+        await ImportedDocumentStatusUpdater(self._documents).sync_review_status(document)
         return ImportReviewConfirmationResult(
             document_id=command.document_id,
             item_id=command.item_id,

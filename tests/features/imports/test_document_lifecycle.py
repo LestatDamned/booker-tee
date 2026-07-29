@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.imports.domain.document_lifecycle import (
+from app.features.imports.documents.lifecycle import (
     DocumentLifecycleError,
     allowed_document_status_transitions,
     has_linked_operations,

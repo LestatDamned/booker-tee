@@ -20,6 +20,7 @@ from app.features.imports.documents.dto import (
     ImportParseAttemptSnapshot,
     ImportRawTransactionRow,
 )
+from app.features.imports.documents.types import ParseAttemptStatus
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.models import (
     ParseAttempt,
@@ -56,6 +57,19 @@ class DocumentRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def create_uploaded_document(
+        self,
+        document: UploadedDocument,
+    ) -> UploadedDocument:
+        self.session.add(document)
+        await self.session.flush()
+        return document
+
+    async def create_parse_attempt(self, attempt: ParseAttempt) -> ParseAttempt:
+        self.session.add(attempt)
+        await self.session.flush()
+        return attempt
+
     async def get_document_for_workspace(
         self,
         workspace_id: UUID,
@@ -87,6 +101,25 @@ class DocumentRepository:
         if document is None:
             return None
         return _document_snapshot(document)
+
+    async def get_document_for_workspace_for_update(
+        self,
+        workspace_id: UUID,
+        document_id: UUID,
+    ) -> UploadedDocument | None:
+        result = await self.session.execute(
+            select(UploadedDocument)
+            .options(
+                selectinload(UploadedDocument.parse_attempts),
+                selectinload(UploadedDocument.raw_transactions),
+            )
+            .where(
+                UploadedDocument.id == document_id,
+                UploadedDocument.workspace_id == workspace_id,
+            )
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
 
     async def list_documents_for_workspace(self, workspace_id: UUID) -> list[UploadedDocument]:
         result = await self.session.execute(
@@ -313,6 +346,77 @@ class DocumentRepository:
             )
         )
         return result.scalar_one()
+
+    async def mark_document_status(
+        self,
+        document: UploadedDocument,
+        status: UploadedDocumentStatus,
+    ) -> None:
+        document.status = status
+        await self.session.flush()
+
+    async def delete_document(self, document: UploadedDocument) -> None:
+        await self.session.delete(document)
+        await self.session.flush()
+
+    async def mark_attempt_success(
+        self,
+        attempt: ParseAttempt,
+        *,
+        raw_text_by_page_json: list[str],
+        raw_tables_json: list[dict[str, object]],
+        metadata: dict[str, object],
+    ) -> None:
+        attempt.status = ParseAttemptStatus.SUCCESS
+        attempt.raw_text_by_page_json = raw_text_by_page_json
+        attempt.raw_tables_json = raw_tables_json
+        attempt.extra_metadata = metadata
+        await self.session.flush()
+
+    async def mark_attempt_status(
+        self,
+        attempt: ParseAttempt,
+        status: ParseAttemptStatus,
+    ) -> None:
+        attempt.status = status
+        await self.session.flush()
+
+    async def mark_attempt_failed(
+        self,
+        attempt: ParseAttempt,
+        *,
+        error_code: str,
+        error_message: str,
+    ) -> None:
+        attempt.status = ParseAttemptStatus.FAILED
+        attempt.error_code = error_code
+        attempt.error_message_sanitized = error_message
+        await self.session.flush()
+
+    async def store_attempt_validation(
+        self,
+        attempt: ParseAttempt,
+        *,
+        control_totals: dict[str, object] | None,
+        validation_report: dict[str, object],
+    ) -> None:
+        attempt.control_totals_json = control_totals
+        attempt.validation_report_json = validation_report
+        await self.session.flush()
+
+    async def mark_attempt_requires_review(
+        self,
+        attempt: ParseAttempt,
+        *,
+        message: str,
+        validation_report: dict[str, object] | None = None,
+    ) -> None:
+        report = dict(validation_report or {})
+        report.setdefault("message", message)
+        report.setdefault("parser_message", message)
+        attempt.status = ParseAttemptStatus.REQUIRES_REVIEW
+        attempt.validation_report_json = report
+        await self.session.flush()
 
 
 def _document_snapshot(document: UploadedDocument) -> ImportDocumentSnapshot:

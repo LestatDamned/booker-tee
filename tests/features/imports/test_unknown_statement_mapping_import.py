@@ -59,6 +59,7 @@ async def test_mapping_import_replays_rows_and_template_once(monkeypatch) -> Non
     session = SessionStub()
     use_case = object.__new__(UnknownStatementMappingImportUseCase)
     use_case.session = cast(Any, session)
+    use_case.documents = cast(Any, imports)
     use_case.imports = cast(Any, imports)
     create_rows = AsyncMock(return_value=[SimpleNamespace(), SimpleNamespace()])
     monkeypatch.setattr(
@@ -102,6 +103,7 @@ async def test_mapping_import_rejects_same_key_with_changed_payload(monkeypatch)
     session = SessionStub()
     use_case = object.__new__(UnknownStatementMappingImportUseCase)
     use_case.session = cast(Any, session)
+    use_case.documents = cast(Any, imports)
     use_case.imports = cast(Any, imports)
     monkeypatch.setattr(
         "app.features.imports.application.unknown_statement_mappings.import_use_case."

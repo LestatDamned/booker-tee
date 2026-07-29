@@ -17,12 +17,12 @@ from app.features.import_review.domain.posting import (
     require_raw_transaction_account_id,
 )
 from app.features.import_review.repository import ImportReviewRepository
-from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
 )
+from app.features.imports.documents.lifecycle import ImportedDocumentStatusUpdater
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.models import RawTransaction
-from app.features.imports.repository import ImportRepository
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.application.posting import LedgerPostingService
 from app.features.ledger.errors import LedgerPostingError
@@ -76,12 +76,12 @@ class TransferCounterparty:
 
 class ImportReviewTransferActor:
     def __init__(self, session: AsyncSession) -> None:
-        self._imports = ImportRepository(session)
+        self._documents = DocumentRepository(session)
         self._review_repository = ImportReviewRepository(session)
         self._ledger = LedgerRepository(session)
         self._references = LedgerReferenceResolver(session)
         self._posting = LedgerPostingService(session)
-        self._document_status = ImportedDocumentStatusUpdater(self._imports)
+        self._document_status = ImportedDocumentStatusUpdater(self._documents)
 
     async def apply(
         self,
@@ -395,12 +395,12 @@ class ImportReviewTransferActor:
         document_ids: set[UUID],
     ) -> None:
         for document_id in document_ids:
-            document = await self._imports.get_document_for_workspace(
+            document = await self._documents.get_document_for_workspace(
                 workspace_id,
                 document_id,
             )
             if document is not None:
-                await refresh_document_validation(self._imports, document)
+                await refresh_document_validation(self._documents, document)
             await self._document_status.mark_imported_if_complete(
                 workspace_id=workspace_id,
                 document_id=document_id,

@@ -21,9 +21,9 @@ from app.features.imports.documents.queries.detail import (
     DETAIL_ROW_LIMIT,
     ImportDocumentDetailReader,
 )
+from app.features.imports.documents.types import ParseAttemptStatus
 from app.features.imports.errors import ImportDocumentManagementError
 from app.features.imports.models import (
-    ParseAttemptStatus,
     RawTransactionStatus,
     UploadedDocumentStatus,
 )
@@ -176,7 +176,7 @@ async def test_document_management_rejects_stale_expected_status_before_mutation
             )()
 
     use_case = object.__new__(ImportDocumentManagementUseCase)
-    use_case.imports = ImportsStub()
+    use_case.documents = ImportsStub()
 
     with pytest.raises(
         ImportDocumentManagementError,

@@ -9,6 +9,7 @@ from app.features.imports.application.known_statements.pipeline import (
 from app.features.imports.application.unknown_statements.fallback import (
     UnknownStatementFallbackPipeline,
 )
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.models import (
     ParseAttempt,
@@ -23,10 +24,12 @@ class StatementParseProcessor:
         self,
         *,
         session: AsyncSession,
+        documents: DocumentRepository,
         imports: ImportRepository,
         parser_registry: StatementParserRegistry,
     ) -> None:
         self.session = session
+        self.documents = documents
         self.imports = imports
         self.parser_registry = parser_registry
 
@@ -47,7 +50,7 @@ class StatementParseProcessor:
             document.statement_type = parser.statement_type
         attempt.finished_at = utc_now()
 
-        await self.imports.mark_attempt_success(
+        await self.documents.mark_attempt_success(
             attempt,
             raw_text_by_page_json=extracted.text_by_page,
             raw_tables_json=_raw_tables_from_extracted(extracted),
@@ -56,6 +59,7 @@ class StatementParseProcessor:
         if parser is None:
             await UnknownStatementFallbackPipeline(
                 self.session,
+                self.documents,
                 self.imports,
             ).record_requires_review_or_apply_template(
                 document=document,
@@ -67,6 +71,7 @@ class StatementParseProcessor:
 
         await KnownStatementImportPipeline(
             self.session,
+            self.documents,
             self.imports,
         ).record_parser_result(
             document=document,

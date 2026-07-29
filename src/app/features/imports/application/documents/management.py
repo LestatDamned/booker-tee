@@ -3,19 +3,21 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
-from app.features.imports.application.documents.status import transition_document_status
-from app.features.imports.domain.document_lifecycle import has_linked_operations
+from app.features.imports.documents.lifecycle import (
+    has_linked_operations,
+    transition_document_status,
+)
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.errors import ImportDocumentManagementError
 from app.features.imports.models import UploadedDocument
-from app.features.imports.repository import ImportRepository
 
 
 class ImportDocumentManagementUseCase:
     def __init__(self, session: AsyncSession, settings: Settings) -> None:
         self.session = session
         self.settings = settings
-        self.imports = ImportRepository(session)
+        self.documents = DocumentRepository(session)
 
     async def ignore_document(
         self,
@@ -32,7 +34,7 @@ class ImportDocumentManagementUseCase:
         for raw_transaction in document.raw_transactions:
             raw_transaction.status = RawTransactionStatus.IGNORED
         await transition_document_status(
-            self.imports,
+            self.documents,
             document,
             UploadedDocumentStatus.IGNORED,
         )
@@ -50,7 +52,7 @@ class ImportDocumentManagementUseCase:
         if has_linked_operations(document.raw_transactions):
             raise ImportDocumentManagementError("Нельзя удалить документ со связанными операциями.")
         storage_path = self.settings.upload_storage_dir / document.storage_key
-        await self.imports.delete_document(document)
+        await self.documents.delete_document(document)
         await self.session.commit()
         storage_path.unlink(missing_ok=True)
 
@@ -60,7 +62,7 @@ class ImportDocumentManagementUseCase:
         document_id: UUID,
         expected_status: UploadedDocumentStatus | None,
     ) -> UploadedDocument:
-        document = await self.imports.get_document_for_workspace_for_update(
+        document = await self.documents.get_document_for_workspace_for_update(
             workspace_id, document_id
         )
         if document is None:

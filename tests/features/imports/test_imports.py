@@ -142,7 +142,7 @@ async def test_statement_upload_replays_same_idempotent_payload(tmp_path: Path) 
     use_case = object.__new__(StatementUploadUseCase)
     use_case.settings = SimpleNamespace(statement_upload_max_bytes=1024)
     use_case.accounts = Accounts()
-    use_case.imports = Imports()
+    use_case.documents = Imports()
     use_case.storage = UploadStorage(tmp_path)
 
     result = await use_case.upload_statement(
@@ -184,7 +184,7 @@ async def test_statement_upload_rejects_changed_idempotent_payload(tmp_path: Pat
     use_case = object.__new__(StatementUploadUseCase)
     use_case.settings = SimpleNamespace(statement_upload_max_bytes=1024)
     use_case.accounts = Accounts()
-    use_case.imports = Imports()
+    use_case.documents = Imports()
     use_case.storage = UploadStorage(tmp_path)
 
     with pytest.raises(UploadIdempotencyConflictError):

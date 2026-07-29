@@ -5,17 +5,17 @@ from openpyxl.utils.exceptions import InvalidFileException
 from pdfplumber.utils.exceptions import PdfminerException
 
 from app.db.base import utc_now
-from app.features.imports.application.documents.status import transition_document_status
+from app.features.imports.documents.lifecycle import transition_document_status
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.domain.types import UploadedDocumentStatus
 from app.features.imports.models import ParseAttempt, UploadedDocument
-from app.features.imports.repository import ImportRepository
 
 PARSER_EXCEPTIONS = (OSError, ValueError, TypeError, PdfminerException, InvalidFileException)
 
 
 async def create_running_parse_attempt(
-    imports: ImportRepository,
+    documents: DocumentRepository,
     *,
     workspace_id: UUID,
     document_id: UUID,
@@ -26,11 +26,11 @@ async def create_running_parse_attempt(
         parser_name="auto_statement_parser",
         parser_version=None,
     )
-    return await imports.create_parse_attempt(attempt)
+    return await documents.create_parse_attempt(attempt)
 
 
 async def record_failed_parse_attempt(
-    imports: ImportRepository,
+    documents: DocumentRepository,
     document: UploadedDocument,
     attempt: ParseAttempt,
     exc: OSError | ValueError | TypeError | PdfminerException | InvalidFileException,
@@ -38,12 +38,12 @@ async def record_failed_parse_attempt(
     document_status: UploadedDocumentStatus = UploadedDocumentStatus.FAILED_TO_PARSE,
 ) -> None:
     attempt.finished_at = utc_now()
-    await imports.mark_attempt_failed(
+    await documents.mark_attempt_failed(
         attempt,
         error_code=type(exc).__name__,
         error_message=sanitize_error_message(exc),
     )
-    await transition_document_status(imports, document, document_status)
+    await transition_document_status(documents, document, document_status)
 
 
 def sanitize_error_message(exc: BaseException) -> str:

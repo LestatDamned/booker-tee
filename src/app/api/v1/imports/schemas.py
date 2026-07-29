@@ -11,8 +11,8 @@ from app.features.imports.documents.dto import (
     ImportDocumentNextStepKind,
     ImportDocumentWorkflowStepState,
 )
+from app.features.imports.documents.types import ParseAttemptStatus
 from app.features.imports.models import (
-    ParseAttemptStatus,
     RawTransactionStatus,
     UploadedDocumentStatus,
 )

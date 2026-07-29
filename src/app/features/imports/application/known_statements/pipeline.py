@@ -11,6 +11,7 @@ from app.features.imports.application.pipelines.deduplication import (
 from app.features.imports.application.pipelines.document_validation import (
     store_import_validation_result,
 )
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.domain.validation import validate_statement_totals
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
 from app.features.imports.mapping.raw_transaction_mapper import RawTransactionMapper
@@ -23,8 +24,14 @@ from app.features.transaction_rules.application.rule_application import (
 
 
 class KnownStatementImportPipeline:
-    def __init__(self, session: AsyncSession, imports: ImportRepository) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        documents: DocumentRepository,
+        imports: ImportRepository,
+    ) -> None:
         self.session = session
+        self.documents = documents
         self.imports = imports
 
     async def record_parser_result(
@@ -44,7 +51,7 @@ class KnownStatementImportPipeline:
         )
         if not drafts:
             await mark_attempt_requires_review(
-                self.imports,
+                self.documents,
                 document,
                 attempt,
                 "Parser matched the document but did not find transaction rows.",
@@ -78,7 +85,7 @@ class KnownStatementImportPipeline:
             control_totals=control_totals,
         )
         await store_import_validation_result(
-            self.imports,
+            self.documents,
             document,
             attempt,
             control_totals=control_totals,

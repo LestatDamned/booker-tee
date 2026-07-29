@@ -2,11 +2,13 @@
 
 from dataclasses import dataclass
 
-from app.features.imports.application.documents.parse_attempts import (
+from app.features.imports.documents.attempts import (
     latest_parse_attempt,
     statement_control_totals_from_json,
 )
-from app.features.imports.application.documents.status import transition_document_status
+from app.features.imports.documents.lifecycle import transition_document_status
+from app.features.imports.documents.repository import DocumentRepository
+from app.features.imports.documents.types import ParseAttemptStatus
 from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.domain.types import UploadedDocumentStatus
 from app.features.imports.domain.validation import (
@@ -16,10 +18,8 @@ from app.features.imports.domain.validation import (
 )
 from app.features.imports.models import (
     ParseAttempt,
-    ParseAttemptStatus,
     UploadedDocument,
 )
-from app.features.imports.repository import ImportRepository
 
 
 @dataclass(frozen=True)
@@ -47,44 +47,44 @@ def calculate_document_validation(
 
 
 async def store_import_validation_result(
-    imports: ImportRepository,
+    documents: DocumentRepository,
     document: UploadedDocument,
     attempt: ParseAttempt,
     *,
     control_totals: StatementControlTotals | None,
     report: StatementValidationReport,
 ) -> None:
-    await imports.store_attempt_validation(
+    await documents.store_attempt_validation(
         attempt,
         control_totals=control_totals.as_json() if control_totals else None,
         validation_report=report.as_json(),
     )
     if report.status == StatementValidationStatus.VALID:
-        await imports.mark_attempt_status(attempt, ParseAttemptStatus.SUCCESS)
+        await documents.mark_attempt_status(attempt, ParseAttemptStatus.SUCCESS)
         await transition_document_status(
-            imports,
+            documents,
             document,
             UploadedDocumentStatus.PARSED,
         )
         return
 
-    await imports.mark_attempt_status(attempt, ParseAttemptStatus.REQUIRES_REVIEW)
+    await documents.mark_attempt_status(attempt, ParseAttemptStatus.REQUIRES_REVIEW)
     await transition_document_status(
-        imports,
+        documents,
         document,
         UploadedDocumentStatus.REQUIRES_REVIEW,
     )
 
 
 async def refresh_document_validation(
-    imports: ImportRepository,
+    documents: DocumentRepository,
     document: UploadedDocument,
 ) -> None:
     validation = calculate_document_validation(document)
     if validation is None:
         return
     await store_import_validation_result(
-        imports,
+        documents,
         document,
         validation.attempt,
         control_totals=validation.control_totals,

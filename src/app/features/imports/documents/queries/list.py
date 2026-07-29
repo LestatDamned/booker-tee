@@ -22,8 +22,8 @@ from app.features.imports.documents.dto import (
     ImportDocumentNextStepKind,
     ImportDocumentStatementPeriodDto,
 )
+from app.features.imports.documents.types import ParseAttemptStatus
 from app.features.imports.domain.types import UploadedDocumentStatus
-from app.features.imports.models import ParseAttemptStatus
 
 
 class ImportDocumentListSource(Protocol):

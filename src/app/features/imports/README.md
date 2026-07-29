@@ -503,8 +503,10 @@ import path easy to test.
   duplicate evidence, transfer options, transfer candidate matching and typed
   mutation services for confirmation, lifecycle, transfers, rules and undo.
 - `service.py` - small read-side facade for document list/detail views.
-- `application/documents/` - document lifecycle use cases and helpers: upload,
-  ignore/delete, parse attempts.
+- `documents/` - document DTO, list/detail queries, repository, lifecycle,
+  parse attempts and persisted document-owned types.
+- `application/documents/` - temporary upload and ignore/delete commands until
+  Step 3C.
 - `application/processing.py` - parse success orchestrator: stores extracted
   statement data, selects a known parser or unknown fallback, then runs the
   matching pipeline.
@@ -518,14 +520,14 @@ import path easy to test.
   template matching, table signatures, mapping defaults, typed command
   validation, DTOs, raw table navigation, row mapping, and draft conversion.
 - `domain/control_totals.py` - statement balance and inflow/outflow control totals.
-- `domain/document_lifecycle.py` - pure document status transition matrix,
-  review status resolution, and linked-operation predicate.
+- `documents/lifecycle.py` - document status transition matrix, review status
+  resolution and linked-operation predicate.
 - `domain/deduplication.py` - pure duplicate fingerprint and classification
   policy.
 - `domain/validation.py` - pure statement total validation logic.
 - `mapping/raw_transaction_mapper.py` - `RawTransactionDraft` to ORM model mapping.
 - `mapping/dto.py` - import detail view models and mapper.
-- `application/documents/detail_reading.py` и `/api/v1/imports/documents/{id}`
+- `documents/queries/detail.py` и `/api/v1/imports/documents/{id}`
   владеют безопасной typed projection React document detail; technical storage
   paths и полный raw payload в browser DTO не входят.
 - `errors.py` - import-specific application exceptions.
@@ -678,8 +680,8 @@ implementation details into the cohesive packages underneath
 1. Keep document reads on internal snapshots returned by
    `documents.repository.DocumentRepository`; command routes call explicit use
    cases directly.
-2. Move the remaining document lifecycle files from `application/documents/`
-   into the `documents` capability: upload, management and parse attempts.
+2. Move the remaining document commands from `application/documents/` into the
+   `documents` capability: upload and management.
 3. Keep review lifecycle and user actions in the sibling `import_review`
    feature; imports retains document validation and persistence.
 4. Keep `application/processing.py` as a thin parse-success story:

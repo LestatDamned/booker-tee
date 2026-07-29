@@ -306,7 +306,7 @@ def confirmation_actor(
 ) -> ImportReviewConfirmationActor:
     actor = ImportReviewConfirmationActor(cast(Any, session))
     imports = ImportRepositoryStub(row, duplicate=duplicate)
-    actor._imports = cast(Any, imports)
+    actor._documents = cast(Any, imports)
     actor._review_repository = cast(Any, imports)
     actor._ledger = cast(Any, LedgerRepositoryStub())
     actor._references = cast(
