@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.features.imports.application.documents.management import (
+from app.features.imports.documents.commands.manage import (
     ImportDocumentManagementUseCase,
 )
 from app.features.imports.documents.dto import (
@@ -16,13 +16,13 @@ from app.features.imports.documents.dto import (
     ImportParseAttemptSnapshot,
     ImportRawTransactionRow,
 )
+from app.features.imports.documents.errors import ImportDocumentManagementError
 from app.features.imports.documents.queries.detail import (
     DETAIL_ATTEMPT_LIMIT,
     DETAIL_ROW_LIMIT,
     ImportDocumentDetailReader,
 )
 from app.features.imports.documents.types import ParseAttemptStatus
-from app.features.imports.errors import ImportDocumentManagementError
 from app.features.imports.models import (
     RawTransactionStatus,
     UploadedDocumentStatus,

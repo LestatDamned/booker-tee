@@ -7,10 +7,10 @@ from enum import StrEnum
 from math import ceil
 from uuid import UUID
 
-from app.features.imports.application.documents.validation_report import (
+from app.features.imports.documents.types import ParseAttemptStatus
+from app.features.imports.documents.validation_report import (
     decode_persisted_statement_validation_report,
 )
-from app.features.imports.documents.types import ParseAttemptStatus
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 
 DEFAULT_IMPORT_DOCUMENTS_PER_PAGE = 25

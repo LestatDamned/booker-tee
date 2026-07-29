@@ -3,10 +3,6 @@
 from typing import Protocol
 from uuid import UUID
 
-from app.features.imports.application.documents.validation_report import (
-    PersistedStatementValidationReport,
-    decode_persisted_statement_validation_report,
-)
 from app.features.imports.documents.dto import (
     ImportDocumentActionBlockingReason,
     ImportDocumentActionCapabilityDto,
@@ -23,6 +19,10 @@ from app.features.imports.documents.dto import (
     ImportDocumentWorkflowStepState,
     ImportParseAttemptSnapshot,
     ImportRawTransactionRow,
+)
+from app.features.imports.documents.validation_report import (
+    PersistedStatementValidationReport,
+    decode_persisted_statement_validation_report,
 )
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.domain.validation_reason import (

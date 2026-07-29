@@ -24,8 +24,8 @@ from app.features.chat_integrations.schemas import (
     ChatDownloadedFile,
 )
 from app.features.chat_integrations.use_cases.action_tokens import ChatActionTokenBuilder
-from app.features.imports.application.documents.upload import StatementUploadUseCase
-from app.features.imports.errors import UploadValidationError
+from app.features.imports.documents.commands.upload import StatementUploadUseCase
+from app.features.imports.documents.errors import UploadValidationError
 from app.features.imports.infrastructure.extraction.resolver import SUPPORTED_STATEMENT_EXTENSIONS
 from app.features.imports.models import UploadedDocument
 from app.features.workspaces.service import WorkspaceContext

@@ -393,8 +393,8 @@ review-specific loader, причём второй принадлежит `import
 
 - неиспользуемый parser-local `MoneyDirection`;
 - test-only aliases вроде `ExtractedPdf`;
-- специализированный `UploadStorage.save_pdf`, если все callers используют
-  общий `save_upload`.
+- специализированный `UploadStorage.save_pdf` — удалён на Step 3C после
+  перевода tests на общий `save_upload`.
 
 ## 10. Карта перемещений: Mapping
 
@@ -511,7 +511,7 @@ bus для синхронной mutation не нужен.
 2. объединить template values и codec;
 3. удалить неиспользуемый parser `MoneyDirection`;
 4. удалить test-only extraction aliases после миграции тестов;
-5. удалить `save_pdf` после перехода на `save_upload`;
+5. удалить `save_pdf` после перехода на `save_upload` — выполнено на Step 3C;
 6. объединить раздробленные known/unknown process modules;
 7. объединить analysis modules с одной причиной изменения;
 8. удалить `review_messages.py` после исправления duplicate evidence — выполнено
@@ -545,6 +545,11 @@ code сократился на 30 строк за счёт удаления по
 Явные зависимости `DocumentRepository` добавили 19 строк orchestration, при
 этом широкий `ImportRepository` сократился с 279 до 162 строк и полностью
 освобождён от document lifecycle persistence.
+
+После Step 3C `imports` содержит 92 Python-файла и 10 989 строк. Новый
+`documents/errors.py` добавил один явный ownership boundary, а удаление
+`save_pdf`, PDF-only sanitizer и старого `application/documents` сократило
+production code на 24 строки.
 
 Ориентир после безопасных объединений — примерно 55–65 содержательных
 Python-файлов внутри `imports`. Это не KPI: cohesive файл не дробится и не
@@ -612,9 +617,10 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 - собрать lifecycle и attempts — выполнено в 3B;
 - дополнить document repository write-side persistence — выполнено в 3B;
 - перенести document-owned enums в `documents/types.py` — выполнено в 3B;
-- перенести storage;
-- распределить document types и errors;
-- удалить исходные файлы в том же change set.
+- перенести storage — выполнено в 3C;
+- распределить document types и errors — выполнено в 3B/3C;
+- перенести commands и validation boundary — выполнено в 3C;
+- удалить исходные файлы в том же change set — выполнено.
 
 ### Шаг 4. Statements
 
@@ -680,8 +686,9 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 | 2. Duplicate evidence | completed 2026-07-29 |
 | 3A. Documents read side | completed 2026-07-29 |
 | 3B. Documents lifecycle and persistence | completed 2026-07-29 |
-| 3C. Documents commands and infrastructure | next |
-| 4–11 | pending |
+| 3C. Documents commands and infrastructure | completed 2026-07-29 |
+| 4. Statements | next |
+| 5–11 | pending |
 
 ## 15. Gate для каждого шага
 

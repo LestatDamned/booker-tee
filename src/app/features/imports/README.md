@@ -109,10 +109,17 @@ ignore/delete.
 Целевой пакет:
 
 ```text
-application/documents/
-  upload.py
-  management.py
-  parse_attempts.py
+documents/
+  commands/
+    upload.py
+    manage.py
+  queries/
+    list.py
+    detail.py
+  attempts.py
+  lifecycle.py
+  repository.py
+  storage.py
 ```
 
 ### Known statement import
@@ -502,11 +509,9 @@ import path easy to test.
 - `../import_review/application/` - Import Review read model, classification,
   duplicate evidence, transfer options, transfer candidate matching and typed
   mutation services for confirmation, lifecycle, transfers, rules and undo.
-- `service.py` - small read-side facade for document list/detail views.
-- `documents/` - document DTO, list/detail queries, repository, lifecycle,
-  parse attempts and persisted document-owned types.
-- `application/documents/` - temporary upload and ignore/delete commands until
-  Step 3C.
+- `documents/` - document commands, DTO, list/detail queries, repository,
+  lifecycle, parse attempts, storage, errors and persisted document-owned
+  types.
 - `application/processing.py` - parse success orchestrator: stores extracted
   statement data, selects a known parser or unknown fallback, then runs the
   matching pipeline.
@@ -526,14 +531,13 @@ import path easy to test.
   policy.
 - `domain/validation.py` - pure statement total validation logic.
 - `mapping/raw_transaction_mapper.py` - `RawTransactionDraft` to ORM model mapping.
-- `mapping/dto.py` - import detail view models and mapper.
 - `documents/queries/detail.py` и `/api/v1/imports/documents/{id}`
   владеют безопасной typed projection React document detail; technical storage
   paths и полный raw payload в browser DTO не входят.
-- `errors.py` - import-specific application exceptions.
-- `repository.py` - SQLAlchemy persistence and compatibility read wrappers.
-- `query_repository.py` - read-side document queries for UI/detail workflows.
-- `infrastructure/storage.py` - local upload storage.
+- `errors.py` - temporary shared mapping/review exceptions until their owning
+  capabilities move.
+- `repository.py` - statement and mapping persistence pending later steps.
+- `documents/storage.py` - local upload storage.
 - `infrastructure/extraction/` - file extraction adapters such as PDF and XLSX.
 - `parsing/parser_types.py` - parser contracts and parser-facing value objects.
 - `parsing/registry.py` - parser registry for known statement parsers.
@@ -561,7 +565,7 @@ separate screen family.
 
 Prefer explicit imports from concrete modules over package-level re-export
 barrels. For example, import upload validation from
-`application/documents/upload.py`, the pure deduplication policy from
+`documents/commands/upload.py`, the pure deduplication policy from
 `domain/deduplication.py`, deduplication orchestration from
 `application/pipelines/deduplication.py`, and concrete bank parsers from their
 parser modules.
@@ -680,8 +684,8 @@ implementation details into the cohesive packages underneath
 1. Keep document reads on internal snapshots returned by
    `documents.repository.DocumentRepository`; command routes call explicit use
    cases directly.
-2. Move the remaining document commands from `application/documents/` into the
-   `documents` capability: upload and management.
+2. Keep document commands, storage, lifecycle and persistence inside the
+   completed `documents` capability.
 3. Keep review lifecycle and user actions in the sibling `import_review`
    feature; imports retains document validation and persistence.
 4. Keep `application/processing.py` as a thin parse-success story:
@@ -706,7 +710,7 @@ Completed cleanup:
 1. Keep document read projections in `documents/repository.py`; new command
    behavior belongs to explicit use cases under `documents/commands/`.
 2. Compatibility facades in `application/` have been removed. Keep new imports
-   pointed at concrete story modules such as `application/documents/upload.py`
+   pointed at concrete story modules such as `documents/commands/upload.py`
    or the defining module under `app.features.import_review`.
 3. Keep import tests split by story:
    bank parsers, validation, unknown statement analysis, and unknown mapping

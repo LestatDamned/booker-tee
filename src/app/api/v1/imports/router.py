@@ -32,22 +32,22 @@ from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.accounts.service import AccountService
-from app.features.imports.application.documents.management import (
+from app.features.imports.documents.commands.manage import (
     ImportDocumentManagementUseCase,
 )
-from app.features.imports.application.documents.upload import StatementUploadUseCase
-from app.features.imports.documents.queries.detail import (
-    ImportDocumentDetailReader,
-)
-from app.features.imports.documents.queries.list import ImportDocumentListReader
-from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.errors import (
+from app.features.imports.documents.commands.upload import StatementUploadUseCase
+from app.features.imports.documents.errors import (
     ImportDocumentManagementError,
     UploadAccountNotFoundError,
     UploadIdempotencyConflictError,
     UploadTooLargeError,
     UploadValidationError,
 )
+from app.features.imports.documents.queries.detail import (
+    ImportDocumentDetailReader,
+)
+from app.features.imports.documents.queries.list import ImportDocumentListReader
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.workspaces.permissions import can_manage_imports, permission_flags_for
 
 router = APIRouter(prefix="/imports", tags=["imports"])

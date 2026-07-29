@@ -34,10 +34,13 @@ Safety baseline
   -> completed 2026-07-29
 
 Шаг 3  documents
-  -> in progress
+  -> completed 2026-07-29
   -> 3A read side completed 2026-07-29
   -> 3B lifecycle and persistence completed 2026-07-29
-  -> 3C commands and infrastructure next
+  -> 3C commands and infrastructure completed 2026-07-29
+
+Шаг 4  statements
+  -> next
 ```
 
 Перед массовыми moves не выполняется общая полировка старой структуры.

@@ -13,16 +13,20 @@ from openpyxl import Workbook
 
 from app.features.import_review.domain.queue import REVIEW_QUEUE_STATUSES
 from app.features.import_review.repository import ImportReviewRepository
-from app.features.imports.application.documents.upload import (
+from app.features.imports.documents.commands.upload import (
     StatementUploadUseCase,
     validate_statement_upload,
 )
-from app.features.imports.domain.deduplication import possible_duplicate_fingerprint
-from app.features.imports.errors import (
+from app.features.imports.documents.errors import (
     UploadIdempotencyConflictError,
     UploadTooLargeError,
     UploadValidationError,
 )
+from app.features.imports.documents.storage import (
+    UploadStorage,
+    sanitize_upload_filename,
+)
+from app.features.imports.domain.deduplication import possible_duplicate_fingerprint
 from app.features.imports.infrastructure.extraction.openpyxl_extractor import (
     OpenPyxlStatementExtractor,
 )
@@ -30,20 +34,15 @@ from app.features.imports.infrastructure.extraction.pdfplumber_extractor import 
     PdfPlumberExtractor,
 )
 from app.features.imports.infrastructure.extraction.resolver import StatementExtractorResolver
-from app.features.imports.infrastructure.storage import (
-    UploadStorage,
-    sanitize_filename,
-    sanitize_upload_filename,
-)
 from app.features.imports.models import RawTransaction, RawTransactionStatus
 from app.features.imports.parsing.support.normalization import (
     parse_bank_date,
 )
 
 
-def test_sanitize_filename_removes_paths_and_unsafe_characters() -> None:
-    assert sanitize_filename("../bank statement июнь.pdf") == "bank_statement_.pdf"
-    assert sanitize_filename("statement") == "statement.pdf"
+def test_sanitize_upload_filename_removes_paths_and_unsafe_characters() -> None:
+    assert sanitize_upload_filename("../bank statement июнь.pdf") == "bank_statement_.pdf"
+    assert sanitize_upload_filename("statement") == "statement"
     assert sanitize_upload_filename("../bank statement июнь.xlsx") == "bank_statement_.xlsx"
 
 
@@ -54,7 +53,7 @@ async def test_upload_storage_preserves_pdf_bytes(tmp_path: Path) -> None:
     workspace_id = uuid4()
     document_id = uuid4()
 
-    stored = await UploadStorage(tmp_path).save_pdf(
+    stored = await UploadStorage(tmp_path).save_upload(
         upload,
         workspace_id=workspace_id,
         document_id=document_id,
@@ -63,21 +62,6 @@ async def test_upload_storage_preserves_pdf_bytes(tmp_path: Path) -> None:
     assert stored.file_size_bytes == len(content)
     assert stored.sha256_hash == sha256(content).hexdigest()
     assert stored.path.read_bytes() == content
-    assert stored.storage_key == f"{workspace_id}/{document_id}/statement.pdf"
-
-
-@pytest.mark.asyncio
-async def test_upload_storage_save_pdf_keeps_legacy_pdf_suffix(tmp_path: Path) -> None:
-    upload = UploadFile(file=BytesIO(b"%PDF-1.4"), filename="statement")
-    workspace_id = uuid4()
-    document_id = uuid4()
-
-    stored = await UploadStorage(tmp_path).save_pdf(
-        upload,
-        workspace_id=workspace_id,
-        document_id=document_id,
-    )
-
     assert stored.storage_key == f"{workspace_id}/{document_id}/statement.pdf"
 
 

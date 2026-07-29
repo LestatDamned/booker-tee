@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import UploadFile
 
-from app.features.imports.errors import UploadTooLargeError
+from app.features.imports.documents.errors import UploadTooLargeError
 
 
 @dataclass(frozen=True)
@@ -21,20 +21,6 @@ class StoredUpload:
 class UploadStorage:
     def __init__(self, root_dir: Path) -> None:
         self.root_dir = root_dir
-
-    async def save_pdf(
-        self,
-        upload_file: UploadFile,
-        *,
-        workspace_id: UUID,
-        document_id: UUID,
-    ) -> StoredUpload:
-        return await self._save(
-            upload_file,
-            workspace_id=workspace_id,
-            document_id=document_id,
-            filename_sanitizer=sanitize_filename,
-        )
 
     async def save_upload(
         self,
@@ -111,14 +97,6 @@ class UploadStorage:
             sha256_hash=digest.hexdigest(),
             file_size_bytes=size,
         )
-
-
-def sanitize_filename(filename: str) -> str:
-    name = PurePath(filename).name.strip() or "statement.pdf"
-    name = sub(r"[^A-Za-z0-9._-]+", "_", name)
-    if not name.lower().endswith(".pdf"):
-        return f"{name}.pdf"
-    return name
 
 
 def sanitize_upload_filename(filename: str) -> str:

@@ -8,8 +8,8 @@ from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
-from app.features.imports.application.documents.upload import StatementUploadResult
-from app.features.imports.errors import UploadIdempotencyConflictError
+from app.features.imports.documents.commands.upload import StatementUploadResult
+from app.features.imports.documents.errors import UploadIdempotencyConflictError
 from app.features.imports.models import UploadedDocumentStatus
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
