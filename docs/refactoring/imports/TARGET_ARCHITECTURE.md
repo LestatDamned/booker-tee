@@ -892,9 +892,24 @@ repository abstraction. Существующие API-преобразовани�
 
 ### Шаг 8. Import Review commands/queries
 
+- 8A: перевести review read contracts на Pydantic, закрепить денежный wire
+  format в API schemas и удалить изоморфный response mapper;
 - сгруппировать существующие actors по mutation/read intent;
 - сохранить domain policies отдельными только при самостоятельной
   ответственности.
+
+8A завершён 2026-07-29. Main review, classification/draft evaluation,
+transfer options, duplicate evidence и validation read contracts переведены на
+`ApplicationModel`. Денежные значения остаются `Decimal` внутри application,
+а объявленные в API schemas `MoneyString` и `OptionalMoneyString` отвечают за
+стабильный строковый wire format.
+
+Удалён 365-строчный `api/v1/import_review/mapping.py`. Review, draft evaluation,
+category reference и вложенные reviews в mutation responses создаются прямыми
+`Response.model_validate(...)`. Mutation workflows, transaction ownership и
+domain lifecycle snapshots не менялись. Production Python уменьшился на 381
+строку. Regression gate: Ruff, ty, 606 tests; один отдельный PostgreSQL
+concurrency test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
 
 ### Шаг 9. Удаление старой структуры
 
@@ -1032,13 +1047,14 @@ test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
 | 7B. Mapping templates and persistence boundary | completed 2026-07-29 |
 | 7C. Mapping commands and queries | completed 2026-07-29 |
 | 7D. Mapping analysis consolidation and old-path cleanup | completed 2026-07-29 |
+| 8A. Import Review Pydantic read contracts and API mapper cleanup | completed 2026-07-29 |
 | 10A. Documents Pydantic models and mechanical mapping cleanup | completed 2026-07-29 |
 | 10B. Upload data contracts | completed 2026-07-29 |
 | 10C. Statements Pydantic contracts and JSON cleanup | completed 2026-07-29 |
 | 10D. Mapping persisted contracts | completed 2026-07-29 |
 | 10E. Mapping read contracts and API mapper cleanup | completed 2026-07-29 |
 | 10F. Mapping analysis contracts and stored report boundary | completed 2026-07-29 |
-| 8–9, 10G+, 11 | pending |
+| 8B–9, 10G+, 11 | pending |
 
 ## 15. Gate для каждого шага
 

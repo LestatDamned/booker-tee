@@ -1,4 +1,3 @@
-from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -116,7 +115,7 @@ class ImportReviewReaderStub:
                 None if can_write else ImportReviewReadonlyReasonCode.FINANCIAL_WRITE_FORBIDDEN
             ),
         )
-        return replace(self.review, capabilities=capabilities)
+        return self.review.model_copy(update={"capabilities": capabilities})
 
 
 def test_import_review_returns_typed_queue_and_source_data() -> None:
@@ -205,19 +204,20 @@ def test_import_review_exposes_transfer_account_references() -> None:
         name="Накопительный счёт",
         currency="RUB",
     )
-    item = replace(
-        review.items[0],
-        transfer=ImportReviewTransferOptionsDto(
-            direction=ImportReviewTransferDirection.SOURCE_TO_COUNTERPARTY,
-            ordinary_operation_type=OperationType.EXPENSE,
-            source_account=source,
-            counterparty_account=counterparty,
-            accounts=(),
-            raw_row_candidates=(),
-            existing_operation_candidates=(),
-        ),
+    item = review.items[0].model_copy(
+        update={
+            "transfer": ImportReviewTransferOptionsDto(
+                direction=ImportReviewTransferDirection.SOURCE_TO_COUNTERPARTY,
+                ordinary_operation_type=OperationType.EXPENSE,
+                source_account=source,
+                counterparty_account=counterparty,
+                accounts=(),
+                raw_row_candidates=(),
+                existing_operation_candidates=(),
+            )
+        }
     )
-    review = replace(review, items=[item])
+    review = review.model_copy(update={"items": [item]})
     app, _, _ = import_review_app(review)
 
     with TestClient(app) as client:
@@ -241,30 +241,33 @@ def test_import_review_exposes_server_owned_duplicate_evidence() -> None:
     review = review_model()
     candidate_document_id = uuid4()
     candidate_item_id = uuid4()
-    item = replace(
-        review.items[0],
-        status=RawTransactionStatus.POSSIBLE_DUPLICATE,
-        duplicate_evidence=ImportReviewDuplicateEvidenceDto(
-            reason_code=(ImportReviewDuplicateMatchReasonCode.SAME_ACCOUNT_DATE_AMOUNT_CURRENCY),
-            matching_fields=(
-                ImportReviewDuplicateMatchingField.ACCOUNT,
-                ImportReviewDuplicateMatchingField.OPERATION_DATE,
-                ImportReviewDuplicateMatchingField.AMOUNT,
-                ImportReviewDuplicateMatchingField.CURRENCY,
+    item = review.items[0].model_copy(
+        update={
+            "status": RawTransactionStatus.POSSIBLE_DUPLICATE,
+            "duplicate_evidence": ImportReviewDuplicateEvidenceDto(
+                reason_code=(
+                    ImportReviewDuplicateMatchReasonCode.SAME_ACCOUNT_DATE_AMOUNT_CURRENCY
+                ),
+                matching_fields=(
+                    ImportReviewDuplicateMatchingField.ACCOUNT,
+                    ImportReviewDuplicateMatchingField.OPERATION_DATE,
+                    ImportReviewDuplicateMatchingField.AMOUNT,
+                    ImportReviewDuplicateMatchingField.CURRENCY,
+                ),
+                candidate=ImportReviewDuplicateCandidateDto(
+                    item_id=candidate_item_id,
+                    document_id=candidate_document_id,
+                    document_filename="previous-statement.pdf",
+                    operation_id=None,
+                    operation_date=date(2026, 7, 20),
+                    description="Покупка",
+                    amount=Decimal("-1250.50"),
+                    currency="RUB",
+                ),
             ),
-            candidate=ImportReviewDuplicateCandidateDto(
-                item_id=candidate_item_id,
-                document_id=candidate_document_id,
-                document_filename="previous-statement.pdf",
-                operation_id=None,
-                operation_date=date(2026, 7, 20),
-                description="Покупка",
-                amount=Decimal("-1250.50"),
-                currency="RUB",
-            ),
-        ),
+        }
     )
-    review = replace(review, items=[item])
+    review = review.model_copy(update={"items": [item]})
     app, _, _ = import_review_app(review)
 
     with TestClient(app) as client:
@@ -360,9 +363,9 @@ class MultiReviewReaderStub:
 
 def test_transfer_match_returns_both_affected_document_reviews() -> None:
     primary = review_model()
-    paired = replace(
-        review_model(),
-        document=replace(review_model().document, id=uuid4()),
+    paired = review_model()
+    paired = paired.model_copy(
+        update={"document": paired.document.model_copy(update={"id": uuid4()})}
     )
     item_id = primary.items[0].id
     paired_item_id = paired.items[0].id

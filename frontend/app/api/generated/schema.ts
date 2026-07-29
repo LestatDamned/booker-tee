@@ -1838,8 +1838,7 @@ export interface components {
             operationDate: string;
             /** Description */
             description: string | null;
-            /** Amount */
-            amount: string;
+            amount: components["schemas"]["MoneyString"];
             /** Currency */
             currency: string;
         };
@@ -1874,8 +1873,7 @@ export interface components {
             operationDate: string;
             /** Description */
             description: string | null;
-            /** Amount */
-            amount: string;
+            amount: components["schemas"]["MoneyString"];
             /** Currency */
             currency: string;
             counterpartyAccount: components["schemas"]["ImportReviewTransferAccountApiResponse"] | null;
@@ -1973,12 +1971,10 @@ export interface components {
             postingDate: string | null;
             /** Description */
             description: string | null;
-            /** Amount */
-            amount: string | null;
+            amount: components["schemas"]["OptionalMoneyString"];
             /** Currency */
             currency: string | null;
-            /** Balanceafter */
-            balanceAfter: string | null;
+            balanceAfter: components["schemas"]["OptionalMoneyString"];
         };
         /** ImportReviewPostingApiResponse */
         ImportReviewPostingApiResponse: {
@@ -2082,8 +2078,7 @@ export interface components {
             operationDate: string | null;
             /** Description */
             description: string | null;
-            /** Amount */
-            amount: string;
+            amount: components["schemas"]["MoneyString"];
             /** Currency */
             currency: string;
             account: components["schemas"]["ImportReviewTransferAccountApiResponse"];
@@ -2119,10 +2114,8 @@ export interface components {
             /** Previousrowindex */
             previousRowIndex: number;
             code: components["schemas"]["ImportReviewRowProblemCode"];
-            /** Expectedbalanceafter */
-            expectedBalanceAfter: string;
-            /** Actualbalanceafter */
-            actualBalanceAfter: string;
+            expectedBalanceAfter: components["schemas"]["MoneyString"];
+            actualBalanceAfter: components["schemas"]["MoneyString"];
         };
         /**
          * ImportReviewRowProblemCode
@@ -2234,30 +2227,18 @@ export interface components {
             normalizedCount: number;
             /** Needsreviewcount */
             needsReviewCount: number;
-            /** Calculatedtotalinflow */
-            calculatedTotalInflow: string;
-            /** Calculatedtotaloutflow */
-            calculatedTotalOutflow: string;
-            /** Ignoredtotalinflow */
-            ignoredTotalInflow: string;
-            /** Ignoredtotaloutflow */
-            ignoredTotalOutflow: string;
-            /** Statementtotalinflow */
-            statementTotalInflow: string | null;
-            /** Statementtotaloutflow */
-            statementTotalOutflow: string | null;
-            /** Openingbalance */
-            openingBalance: string | null;
-            /** Closingbalance */
-            closingBalance: string | null;
-            /** Inflowdifference */
-            inflowDifference: string | null;
-            /** Outflowdifference */
-            outflowDifference: string | null;
-            /** Unexplainedinflowdifference */
-            unexplainedInflowDifference: string | null;
-            /** Unexplainedoutflowdifference */
-            unexplainedOutflowDifference: string | null;
+            calculatedTotalInflow: components["schemas"]["MoneyString"];
+            calculatedTotalOutflow: components["schemas"]["MoneyString"];
+            ignoredTotalInflow: components["schemas"]["MoneyString"];
+            ignoredTotalOutflow: components["schemas"]["MoneyString"];
+            statementTotalInflow: components["schemas"]["OptionalMoneyString"];
+            statementTotalOutflow: components["schemas"]["OptionalMoneyString"];
+            openingBalance: components["schemas"]["OptionalMoneyString"];
+            closingBalance: components["schemas"]["OptionalMoneyString"];
+            inflowDifference: components["schemas"]["OptionalMoneyString"];
+            outflowDifference: components["schemas"]["OptionalMoneyString"];
+            unexplainedInflowDifference: components["schemas"]["OptionalMoneyString"];
+            unexplainedOutflowDifference: components["schemas"]["OptionalMoneyString"];
             balanceChain: components["schemas"]["ImportReviewBalanceChainApiResponse"];
             /** Rowproblems */
             rowProblems: components["schemas"]["ImportReviewRowProblemApiResponse"][];
@@ -2892,6 +2873,7 @@ export interface components {
          * @enum {string}
          */
         MoneyDirection: "inflow" | "outflow" | "any";
+        MoneyString: string;
         /**
          * OperationStatus
          * @enum {string}
@@ -2902,6 +2884,7 @@ export interface components {
          * @enum {string}
          */
         OperationType: "income" | "expense" | "transfer" | "adjustment";
+        OptionalMoneyString: string | null;
         /**
          * ParseAttemptStatus
          * @enum {string}

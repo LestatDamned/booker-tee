@@ -11,12 +11,12 @@ from app.api.v1.import_review.dependencies import (
     get_import_review_undo_service,
     require_import_review_write_context,
 )
-from app.api.v1.import_review.mapping import ImportReviewResponseMapper
 from app.api.v1.import_review.schemas.requests import (
     ImportReviewConfirmationApiRequest,
     ImportReviewUndoApiRequest,
 )
 from app.api.v1.import_review.schemas.responses import (
+    ImportReviewApiResponse,
     ImportReviewPostingMutationApiResponse,
 )
 from app.features.import_review.application.confirmation import (
@@ -110,7 +110,7 @@ async def confirm_import_review_item(
         operation_id=result.operation_id,
         updated_item_ids=sorted(result.updated_item_ids, key=str),
         replayed=result.replayed,
-        reviews=[ImportReviewResponseMapper.response(review)],
+        reviews=[ImportReviewApiResponse.model_validate(review)],
     )
 
 
@@ -152,8 +152,8 @@ async def undo_import_review_posting(
         raise _posting_item_not_found() from exc
 
     reviews = [
-        ImportReviewResponseMapper.response(
-            await _read_review(reader, context, affected_document_id)
+        ImportReviewApiResponse.model_validate(
+            await _read_review(reader, context, affected_document_id),
         )
         for affected_document_id in sorted(result.affected_document_ids, key=str)
     ]

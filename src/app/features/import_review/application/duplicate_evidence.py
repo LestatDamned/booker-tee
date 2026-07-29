@@ -1,6 +1,5 @@
 """User-facing evidence for possible duplicate import rows."""
 
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
@@ -13,6 +12,7 @@ from app.features.imports.statements.deduplication import (
     possible_duplicate_fingerprint,
 )
 from app.features.imports.statements.types import RawTransactionStatus
+from app.shared.schemas import ApplicationModel
 
 
 class ImportReviewDuplicateMatchReasonCode(StrEnum):
@@ -26,8 +26,7 @@ class ImportReviewDuplicateMatchingField(StrEnum):
     CURRENCY = "currency"
 
 
-@dataclass(frozen=True)
-class ImportReviewDuplicateCandidateDto:
+class ImportReviewDuplicateCandidateDto(ApplicationModel):
     item_id: UUID
     document_id: UUID
     document_filename: str
@@ -38,8 +37,7 @@ class ImportReviewDuplicateCandidateDto:
     currency: str
 
 
-@dataclass(frozen=True)
-class ImportReviewDuplicateEvidenceDto:
+class ImportReviewDuplicateEvidenceDto(ApplicationModel):
     reason_code: ImportReviewDuplicateMatchReasonCode
     matching_fields: tuple[ImportReviewDuplicateMatchingField, ...]
     candidate: ImportReviewDuplicateCandidateDto

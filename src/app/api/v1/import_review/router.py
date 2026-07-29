@@ -14,7 +14,6 @@ from app.api.v1.import_review.dependencies import (
     get_import_review_transfer_service,
     require_import_review_write_context,
 )
-from app.api.v1.import_review.mapping import ImportReviewResponseMapper
 from app.api.v1.import_review.posting_router import router as posting_router
 from app.api.v1.import_review.schemas.requests import (
     ImportReviewCategoryCreateApiRequest,
@@ -92,7 +91,7 @@ async def get_import_review(
             code="import_review_not_found",
             message="Документ для проверки не найден.",
         )
-    return ImportReviewResponseMapper.response(review)
+    return ImportReviewApiResponse.model_validate(review)
 
 
 @router.post(
@@ -137,7 +136,7 @@ async def apply_rules_to_import_review(
         checked_count=result.checked_count,
         suggested_count=result.suggested_count,
         updated_item_ids=sorted(result.updated_item_ids, key=str),
-        review=ImportReviewResponseMapper.response(review),
+        review=ImportReviewApiResponse.model_validate(review),
     )
 
 
@@ -182,7 +181,7 @@ async def evaluate_import_review_draft(
         ) from exc
     if evaluation is None:
         raise _review_item_not_found()
-    return ImportReviewResponseMapper.draft_evaluation(evaluation)
+    return ImportReviewDraftEvaluationApiResponse.model_validate(evaluation)
 
 
 @router.post(
@@ -226,7 +225,7 @@ async def create_import_review_category(
         ) from exc
     if category is None:
         raise _review_item_not_found()
-    return ImportReviewResponseMapper.category_reference(category)
+    return ImportReviewCategoryReferenceApiResponse.model_validate(category)
 
 
 @router.post(
@@ -297,7 +296,7 @@ async def post_import_review_transfer(
         )
         if review is None:
             raise RuntimeError("Affected import review disappeared after transfer commit.")
-        reviews.append(ImportReviewResponseMapper.response(review))
+        reviews.append(ImportReviewApiResponse.model_validate(review))
     return ImportReviewTransferMutationApiResponse(
         primary_document_id=document_id,
         updated_item_ids=sorted(result.updated_item_ids, key=str),
@@ -367,7 +366,7 @@ async def update_import_review_lifecycle(
         item_id=result.item_id,
         document_id=result.document_id,
         replayed=result.replayed,
-        review=ImportReviewResponseMapper.response(review),
+        review=ImportReviewApiResponse.model_validate(review),
     )
 
 

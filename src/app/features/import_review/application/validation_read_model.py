@@ -1,6 +1,5 @@
 """Review projection of statement validation results."""
 
-from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
@@ -12,6 +11,7 @@ from app.features.imports.statements.validation import (
     resolve_statement_validation_reason,
 )
 from app.features.imports.statements.validation_service import StatementValidationService
+from app.shared.schemas import ApplicationModel
 
 
 class ImportReviewValidationReasonCode(StrEnum):
@@ -27,16 +27,14 @@ class ImportReviewRowProblemCode(StrEnum):
     BALANCE_CHAIN_MISMATCH = "balance_chain_mismatch"
 
 
-@dataclass(frozen=True)
-class ImportReviewBalanceChainDto:
+class ImportReviewBalanceChainDto(ApplicationModel):
     status: StatementValidationStatus
     direction: str | None
     checked_pair_count: int
     mismatch_count: int
 
 
-@dataclass(frozen=True)
-class ImportReviewRowProblemDto:
+class ImportReviewRowProblemDto(ApplicationModel):
     item_id: UUID
     row_index: int
     previous_item_id: UUID
@@ -46,8 +44,7 @@ class ImportReviewRowProblemDto:
     actual_balance_after: Decimal
 
 
-@dataclass(frozen=True)
-class ImportReviewValidationDto:
+class ImportReviewValidationDto(ApplicationModel):
     status: StatementValidationStatus
     reason_code: ImportReviewValidationReasonCode
     currency: str | None

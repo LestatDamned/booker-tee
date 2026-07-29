@@ -1,6 +1,5 @@
 """Authoritative read model for import review."""
 
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
@@ -42,6 +41,7 @@ from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.models import RawTransaction, UploadedDocument
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationStatus, OperationType
+from app.shared.schemas import ApplicationModel
 
 
 class ImportReviewDocumentSource(Protocol):
@@ -74,21 +74,18 @@ class ImportReviewReadonlyReasonCode(StrEnum):
     FINANCIAL_WRITE_FORBIDDEN = "financial_write_forbidden"
 
 
-@dataclass(frozen=True)
-class ImportReviewAccountDto:
+class ImportReviewAccountDto(ApplicationModel):
     id: UUID
     name: str
     currency: str
 
 
-@dataclass(frozen=True)
-class ImportReviewCapabilitiesDto:
+class ImportReviewCapabilitiesDto(ApplicationModel):
     can_write: bool
     readonly_reason_code: ImportReviewReadonlyReasonCode | None
 
 
-@dataclass(frozen=True)
-class ImportReviewQueueDto:
+class ImportReviewQueueDto(ApplicationModel):
     total: int
     completed: int
     remaining: int
@@ -96,8 +93,7 @@ class ImportReviewQueueDto:
     ordered_item_ids: tuple[UUID, ...]
 
 
-@dataclass(frozen=True)
-class ImportReviewRawSourceDto:
+class ImportReviewRawSourceDto(ApplicationModel):
     operation_date: str | None
     posting_date: str | None
     description: str | None
@@ -107,8 +103,7 @@ class ImportReviewRawSourceDto:
     account_hint: str | None
 
 
-@dataclass(frozen=True)
-class ImportReviewNormalizedSourceDto:
+class ImportReviewNormalizedSourceDto(ApplicationModel):
     operation_date: date | None
     posting_date: date | None
     description: str | None
@@ -117,8 +112,7 @@ class ImportReviewNormalizedSourceDto:
     balance_after: Decimal | None
 
 
-@dataclass(frozen=True)
-class ImportReviewPostingDto:
+class ImportReviewPostingDto(ApplicationModel):
     operation_id: UUID | None
     can_undo: bool
 
@@ -129,8 +123,7 @@ EMPTY_IMPORT_REVIEW_POSTING = ImportReviewPostingDto(
 )
 
 
-@dataclass(frozen=True)
-class ImportReviewItemDto:
+class ImportReviewItemDto(ApplicationModel):
     id: UUID
     row_index: int
     status: RawTransactionStatus
@@ -149,16 +142,14 @@ class ImportReviewItemDto:
     duplicate_evidence: ImportReviewDuplicateEvidenceDto | None = None
 
 
-@dataclass(frozen=True)
-class ImportReviewDocumentDto:
+class ImportReviewDocumentDto(ApplicationModel):
     id: UUID
     filename: str
     status: UploadedDocumentStatus
     source_account: ImportReviewAccountDto | None
 
 
-@dataclass(frozen=True)
-class ImportReviewReadModel:
+class ImportReviewReadModel(ApplicationModel):
     document: ImportReviewDocumentDto
     queue: ImportReviewQueueDto
     items: list[ImportReviewItemDto]

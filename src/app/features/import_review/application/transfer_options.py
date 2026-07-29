@@ -1,6 +1,5 @@
 """Transfer options shown while reviewing an imported row."""
 
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
@@ -15,6 +14,7 @@ from app.features.import_review.application.transfer_suggestions import (
 from app.features.import_review.domain.classification import resolve_review_classification
 from app.features.imports.models import RawTransaction, UploadedDocument
 from app.features.ledger.domain.types import OperationType
+from app.shared.schemas import ApplicationModel
 
 
 class ImportReviewTransferDirection(StrEnum):
@@ -22,15 +22,13 @@ class ImportReviewTransferDirection(StrEnum):
     COUNTERPARTY_TO_SOURCE = "counterparty_to_source"
 
 
-@dataclass(frozen=True)
-class ImportReviewTransferAccountDto:
+class ImportReviewTransferAccountDto(ApplicationModel):
     id: UUID
     name: str
     currency: str
 
 
-@dataclass(frozen=True)
-class ImportReviewRawTransferCandidateDto:
+class ImportReviewRawTransferCandidateDto(ApplicationModel):
     item_id: UUID
     document_id: UUID
     row_index: int
@@ -42,8 +40,7 @@ class ImportReviewRawTransferCandidateDto:
     day_distance: int
 
 
-@dataclass(frozen=True)
-class ImportReviewExistingTransferCandidateDto:
+class ImportReviewExistingTransferCandidateDto(ApplicationModel):
     operation_id: UUID
     operation_date: date
     description: str | None
@@ -53,8 +50,7 @@ class ImportReviewExistingTransferCandidateDto:
     day_distance: int
 
 
-@dataclass(frozen=True)
-class ImportReviewTransferOptionsDto:
+class ImportReviewTransferOptionsDto(ApplicationModel):
     direction: ImportReviewTransferDirection | None
     ordinary_operation_type: Literal[OperationType.INCOME, OperationType.EXPENSE] | None
     source_account: ImportReviewTransferAccountDto | None

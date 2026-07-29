@@ -1,6 +1,5 @@
 """References, draft evaluation, and classification for import review."""
 
-from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
@@ -18,6 +17,7 @@ from app.features.imports.models import RawTransaction, UploadedDocument
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationType
 from app.features.properties.models import Property
+from app.shared.schemas import ApplicationModel
 
 
 class ImportReviewClassificationDocumentSource(Protocol):
@@ -59,46 +59,39 @@ class ImportReviewCategoryWriter(Protocol):
     ) -> Category: ...
 
 
-@dataclass(frozen=True)
-class ImportReviewCategoryReferenceDto:
+class ImportReviewCategoryReferenceDto(ApplicationModel):
     id: UUID
     name: str
     kind: CategoryKind
     is_uncategorized: bool
 
 
-@dataclass(frozen=True)
-class ImportReviewPropertyReferenceDto:
+class ImportReviewPropertyReferenceDto(ApplicationModel):
     id: UUID
     name: str
 
 
-@dataclass(frozen=True)
-class ImportReviewReferencesDto:
+class ImportReviewReferencesDto(ApplicationModel):
     categories: tuple[ImportReviewCategoryReferenceDto, ...]
     properties: tuple[ImportReviewPropertyReferenceDto, ...]
 
 
-@dataclass(frozen=True)
-class ImportReviewClassificationDto:
+class ImportReviewClassificationDto(ApplicationModel):
     operation_type: OperationType | None
     source: ReviewClassificationSource
 
 
-@dataclass(frozen=True)
-class ImportReviewSelectionDto:
+class ImportReviewSelectionDto(ApplicationModel):
     category_id: UUID | None
     property_id: UUID | None
 
 
-@dataclass(frozen=True)
-class ImportReviewConfirmabilityDto:
+class ImportReviewConfirmabilityDto(ApplicationModel):
     can_confirm: bool
     blocking_reason_codes: tuple[ReviewBlockingReasonCode, ...]
 
 
-@dataclass(frozen=True)
-class ImportReviewRuleSuggestionDto:
+class ImportReviewRuleSuggestionDto(ApplicationModel):
     is_active: bool
     was_auto_applied: bool
     rule_id: UUID | None
@@ -109,8 +102,7 @@ class ImportReviewRuleSuggestionDto:
     property_id: UUID | None = None
 
 
-@dataclass(frozen=True)
-class ImportReviewDraftEvaluationDto:
+class ImportReviewDraftEvaluationDto(ApplicationModel):
     item_id: UUID
     classification: ImportReviewClassificationDto
     selection: ImportReviewSelectionDto

@@ -1,6 +1,9 @@
 from datetime import date
-from typing import Literal
+from decimal import Decimal
+from typing import Annotated, Literal
 from uuid import UUID
+
+from pydantic import BeforeValidator
 
 from app.api.schemas import ApiModel
 from app.features.categories.models import CategoryKind
@@ -25,6 +28,14 @@ from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.imports.statements.validation import StatementValidationStatus
 from app.features.ledger.domain.types import OperationType
+
+
+def _money_string(value: object) -> object:
+    return format(value, "f") if isinstance(value, Decimal) else value
+
+
+type MoneyString = Annotated[str, BeforeValidator(_money_string)]
+type OptionalMoneyString = Annotated[str | None, BeforeValidator(_money_string)]
 
 
 class ImportReviewAccountApiResponse(ApiModel):
@@ -60,9 +71,9 @@ class ImportReviewNormalizedSourceApiResponse(ApiModel):
     operation_date: date | None
     posting_date: date | None
     description: str | None
-    amount: str | None
+    amount: OptionalMoneyString
     currency: str | None
-    balance_after: str | None
+    balance_after: OptionalMoneyString
 
 
 class ImportReviewClassificationApiResponse(ApiModel):
@@ -108,7 +119,7 @@ class ImportReviewRawTransferCandidateApiResponse(ApiModel):
     row_index: int
     operation_date: date | None
     description: str | None
-    amount: str
+    amount: MoneyString
     currency: str
     account: ImportReviewTransferAccountApiResponse
     day_distance: int
@@ -118,7 +129,7 @@ class ImportReviewExistingTransferCandidateApiResponse(ApiModel):
     operation_id: UUID
     operation_date: date
     description: str | None
-    amount: str
+    amount: MoneyString
     currency: str
     counterparty_account: ImportReviewTransferAccountApiResponse | None
     day_distance: int
@@ -145,7 +156,7 @@ class ImportReviewDuplicateCandidateApiResponse(ApiModel):
     operation_id: UUID | None
     operation_date: date
     description: str | None
-    amount: str
+    amount: MoneyString
     currency: str
 
 
@@ -211,8 +222,8 @@ class ImportReviewRowProblemApiResponse(ApiModel):
     previous_item_id: UUID
     previous_row_index: int
     code: ImportReviewRowProblemCode
-    expected_balance_after: str
-    actual_balance_after: str
+    expected_balance_after: MoneyString
+    actual_balance_after: MoneyString
 
 
 class ImportReviewValidationApiResponse(ApiModel):
@@ -222,18 +233,18 @@ class ImportReviewValidationApiResponse(ApiModel):
     extracted_count: int
     normalized_count: int
     needs_review_count: int
-    calculated_total_inflow: str
-    calculated_total_outflow: str
-    ignored_total_inflow: str
-    ignored_total_outflow: str
-    statement_total_inflow: str | None
-    statement_total_outflow: str | None
-    opening_balance: str | None
-    closing_balance: str | None
-    inflow_difference: str | None
-    outflow_difference: str | None
-    unexplained_inflow_difference: str | None
-    unexplained_outflow_difference: str | None
+    calculated_total_inflow: MoneyString
+    calculated_total_outflow: MoneyString
+    ignored_total_inflow: MoneyString
+    ignored_total_outflow: MoneyString
+    statement_total_inflow: OptionalMoneyString
+    statement_total_outflow: OptionalMoneyString
+    opening_balance: OptionalMoneyString
+    closing_balance: OptionalMoneyString
+    inflow_difference: OptionalMoneyString
+    outflow_difference: OptionalMoneyString
+    unexplained_inflow_difference: OptionalMoneyString
+    unexplained_outflow_difference: OptionalMoneyString
     balance_chain: ImportReviewBalanceChainApiResponse
     row_problems: list[ImportReviewRowProblemApiResponse]
 
