@@ -490,6 +490,7 @@ src/app/features/import_review/
 ├── repository.py
 ├── application/
 │   ├── commands/
+│   │   ├── categories.py
 │   │   ├── confirmation.py
 │   │   ├── lifecycle.py
 │   │   ├── rules.py
@@ -894,7 +895,8 @@ repository abstraction. Существующие API-преобразовани�
 
 - 8A: перевести review read contracts на Pydantic, закрепить денежный wire
   format в API schemas и удалить изоморфный response mapper;
-- сгруппировать существующие actors по mutation/read intent;
+- 8B: физически сгруппировать существующие actors по mutation/read intent,
+  разделив смешанный classification/category creation module;
 - сохранить domain policies отдельными только при самостоятельной
   ответственности.
 
@@ -910,6 +912,24 @@ category reference и вложенные reviews в mutation responses созд�
 domain lifecycle snapshots не менялись. Production Python уменьшился на 381
 строку. Regression gate: Ruff, ty, 606 tests; один отдельный PostgreSQL
 concurrency test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
+
+8B завершён 2026-07-29. Mutation workflows находятся в
+`application/commands/`, read orchestration и projections — в
+`application/queries/`. Старые плоские application paths удалены без
+compatibility facades; API, chat integrations и tests импортируют actors из
+модулей-владельцев.
+
+Смешанный `classification.py` разделён по intent:
+`queries/classification.py` владеет references, draft evaluation и
+classification projections, а `commands/categories.py` — созданием категории
+из review. Domain policies и transaction ownership не менялись.
+
+Это структурный этап, а не этап сокращения: `import_review` теперь содержит 23
+Python-файла и 3 633 строки — на три package/module entrypoint и 21 строку
+больше, чем после 8A. Цена за явную навигацию зафиксирована намеренно; новые
+facades и параллельные реализации не добавлены. Regression gate: Ruff, ty,
+606 tests; один отдельный PostgreSQL concurrency test пропущен без
+`BOOKER_TEE_TEST_DATABASE_URL`.
 
 ### Шаг 9. Удаление старой структуры
 
@@ -1048,13 +1068,14 @@ test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
 | 7C. Mapping commands and queries | completed 2026-07-29 |
 | 7D. Mapping analysis consolidation and old-path cleanup | completed 2026-07-29 |
 | 8A. Import Review Pydantic read contracts and API mapper cleanup | completed 2026-07-29 |
+| 8B. Import Review command/query package split | completed 2026-07-29 |
 | 10A. Documents Pydantic models and mechanical mapping cleanup | completed 2026-07-29 |
 | 10B. Upload data contracts | completed 2026-07-29 |
 | 10C. Statements Pydantic contracts and JSON cleanup | completed 2026-07-29 |
 | 10D. Mapping persisted contracts | completed 2026-07-29 |
 | 10E. Mapping read contracts and API mapper cleanup | completed 2026-07-29 |
 | 10F. Mapping analysis contracts and stored report boundary | completed 2026-07-29 |
-| 8B–9, 10G+, 11 | pending |
+| 9, 10G+, 11 | pending |
 
 ## 15. Gate для каждого шага
 

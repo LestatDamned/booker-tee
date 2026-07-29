@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.import_review.application.lifecycle import (
+from app.features.import_review.application.commands.lifecycle import (
     ImportReviewLifecycleActor,
     ImportReviewLifecycleCommand,
     ImportReviewLifecycleService,

@@ -11,7 +11,7 @@ from app.api.v1.import_review.dependencies import (
 )
 from app.features.categories.models import CategoryKind
 from app.features.categories.service import CategoryError
-from app.features.import_review.application.classification import (
+from app.features.import_review.application.queries.classification import (
     ImportReviewCategoryReferenceDto,
     ImportReviewClassificationDto,
     ImportReviewConfirmabilityDto,

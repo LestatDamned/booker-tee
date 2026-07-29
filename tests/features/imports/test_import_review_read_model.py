@@ -6,15 +6,15 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.import_review.application.classification import ImportReviewReferencesDto
-from app.features.import_review.application.duplicate_evidence import (
+from app.features.import_review.application.queries.classification import ImportReviewReferencesDto
+from app.features.import_review.application.queries.duplicates import (
     ImportReviewDuplicateEvidenceDto,
 )
-from app.features.import_review.application.read_model import (
+from app.features.import_review.application.queries.review import (
     ImportReviewReader,
     ImportReviewReadonlyReasonCode,
 )
-from app.features.import_review.application.transfer_options import (
+from app.features.import_review.application.queries.transfer_options import (
     ImportReviewTransferOptionsDto,
 )
 from app.features.import_review.domain.classification import ReviewClassificationSource
@@ -165,7 +165,7 @@ async def test_import_review_reader_returns_none_for_unknown_document() -> None:
 
 @pytest.mark.asyncio
 async def test_possible_duplicate_evidence_is_built_from_workspace_scoped_candidate() -> None:
-    from app.features.import_review.application.duplicate_evidence import (
+    from app.features.import_review.application.queries.duplicates import (
         ImportReviewDuplicateReader,
     )
 

@@ -7,17 +7,17 @@ from pydantic import BeforeValidator
 
 from app.api.schemas import ApiModel
 from app.features.categories.models import CategoryKind
-from app.features.import_review.application.duplicate_evidence import (
+from app.features.import_review.application.queries.duplicates import (
     ImportReviewDuplicateMatchingField,
     ImportReviewDuplicateMatchReasonCode,
 )
-from app.features.import_review.application.read_model import (
+from app.features.import_review.application.queries.review import (
     ImportReviewReadonlyReasonCode,
 )
-from app.features.import_review.application.transfer_options import (
+from app.features.import_review.application.queries.transfer_options import (
     ImportReviewTransferDirection,
 )
-from app.features.import_review.application.validation_read_model import (
+from app.features.import_review.application.queries.validation import (
     ImportReviewRowProblemCode,
     ImportReviewValidationReasonCode,
 )

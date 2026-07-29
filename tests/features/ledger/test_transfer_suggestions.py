@@ -6,7 +6,9 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.import_review.application.transfer_suggestions import TransferSuggestionUseCase
+from app.features.import_review.application.queries.transfer_suggestions import (
+    TransferSuggestionUseCase,
+)
 
 
 class ImportRepositoryStub:

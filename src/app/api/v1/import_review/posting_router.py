@@ -19,19 +19,19 @@ from app.api.v1.import_review.schemas.responses import (
     ImportReviewApiResponse,
     ImportReviewPostingMutationApiResponse,
 )
-from app.features.import_review.application.confirmation import (
+from app.features.import_review.application.commands.confirmation import (
     ConfirmImportReviewItemCommand,
     ImportReviewConfirmationConflictError,
     ImportReviewConfirmationService,
     ImportReviewConfirmationValidationError,
 )
-from app.features.import_review.application.read_model import (
-    ImportReviewReader,
-    ImportReviewReadModel,
-)
-from app.features.import_review.application.undo import (
+from app.features.import_review.application.commands.undo import (
     ImportReviewUndoService,
     UndoImportReviewPostingCommand,
+)
+from app.features.import_review.application.queries.review import (
+    ImportReviewReader,
+    ImportReviewReadModel,
 )
 from app.features.imports.errors import RawTransactionReviewError
 from app.features.ledger.errors import LedgerPostingError

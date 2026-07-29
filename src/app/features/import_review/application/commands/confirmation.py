@@ -7,10 +7,10 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.import_review.application.classification import (
+from app.features.import_review.application.commands.rules import ImportReviewRuleCreator
+from app.features.import_review.application.queries.classification import (
     build_import_review_draft_evaluation,
 )
-from app.features.import_review.application.rules import ImportReviewRuleCreator
 from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
 from app.features.import_review.domain.posting import (
     prepare_income_expense_posting,

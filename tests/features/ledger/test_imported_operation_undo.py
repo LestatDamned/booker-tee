@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.import_review.application.undo import (
+from app.features.import_review.application.commands.undo import (
     ImportReviewUndoService,
     UndoImportReviewPostingCommand,
 )

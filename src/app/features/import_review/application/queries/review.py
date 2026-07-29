@@ -7,7 +7,7 @@ from typing import Protocol
 from uuid import UUID
 
 from app.features.accounts.models import Account
-from app.features.import_review.application.classification import (
+from app.features.import_review.application.queries.classification import (
     ImportReviewClassificationDto,
     ImportReviewConfirmabilityDto,
     ImportReviewDraftEvaluationDto,
@@ -17,14 +17,14 @@ from app.features.import_review.application.classification import (
     ImportReviewSelectionDto,
     build_import_review_draft_evaluation,
 )
-from app.features.import_review.application.duplicate_evidence import (
+from app.features.import_review.application.queries.duplicates import (
     ImportReviewDuplicateEvidenceDto,
 )
-from app.features.import_review.application.transfer_options import (
+from app.features.import_review.application.queries.transfer_options import (
     EMPTY_TRANSFER_OPTIONS,
     ImportReviewTransferOptionsDto,
 )
-from app.features.import_review.application.validation_read_model import (
+from app.features.import_review.application.queries.validation import (
     ImportReviewValidationDto,
     build_import_review_validation,
 )

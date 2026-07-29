@@ -5,7 +5,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.import_review.application.confirmation import (
+from app.features.import_review.application.commands.confirmation import (
     ImportReviewConfirmationConflictError,
 )
 from app.features.import_review.domain.lifecycle import restored_review_status_after_unlink

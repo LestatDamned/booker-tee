@@ -16,7 +16,7 @@ from app.features.chat_integrations.use_cases.manual.dto import (
 from app.features.chat_integrations.use_cases.review import actions as chat_review_actions
 from app.features.chat_integrations.use_cases.review import builders as chat_review_builders
 from app.features.chat_integrations.use_cases.review import state as chat_review_state
-from app.features.import_review.application.transfers import (
+from app.features.import_review.application.commands.transfers import (
     LinkImportReviewExistingTransferCommand,
 )
 from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction

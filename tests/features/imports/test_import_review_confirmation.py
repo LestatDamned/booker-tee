@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.features.import_review.application.confirmation import (
+from app.features.import_review.application.commands.confirmation import (
     ConfirmImportReviewItemCommand,
     ImportReviewConfirmationActor,
     ImportReviewConfirmationConflictError,

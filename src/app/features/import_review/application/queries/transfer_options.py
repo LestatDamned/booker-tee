@@ -7,7 +7,7 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 from app.features.accounts.models import Account
-from app.features.import_review.application.transfer_suggestions import (
+from app.features.import_review.application.queries.transfer_suggestions import (
     ExistingTransferSuggestion,
     TransferSuggestion,
 )

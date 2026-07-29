@@ -35,7 +35,7 @@ from app.features.chat_integrations.use_cases.review.state import (
     ChatReviewStateClaimer,
     ChatReviewStateReader,
 )
-from app.features.import_review.application.confirmation import (
+from app.features.import_review.application.commands.confirmation import (
     ConfirmImportReviewItemCommand,
     ImportReviewConfirmationActor,
 )

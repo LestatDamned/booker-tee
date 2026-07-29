@@ -7,20 +7,20 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.features.import_review.application.transfer_options import (
-    ImportReviewTransferDirection,
-    ImportReviewTransferReader,
-)
-from app.features.import_review.application.transfer_suggestions import (
-    ExistingTransferSuggestion,
-    TransferSuggestion,
-)
-from app.features.import_review.application.transfers import (
+from app.features.import_review.application.commands.transfers import (
     CreateImportReviewTransferCommand,
     ImportReviewTransferActor,
     ImportReviewTransferResult,
     ImportReviewTransferService,
     MatchImportReviewRawRowCommand,
+)
+from app.features.import_review.application.queries.transfer_options import (
+    ImportReviewTransferDirection,
+    ImportReviewTransferReader,
+)
+from app.features.import_review.application.queries.transfer_suggestions import (
+    ExistingTransferSuggestion,
+    TransferSuggestion,
 )
 from app.features.ledger.domain.types import OperationType
 from app.features.ledger.errors import LedgerPostingError
