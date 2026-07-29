@@ -1,18 +1,19 @@
-from dataclasses import asdict, dataclass
 from enum import StrEnum
 
+from pydantic import Field
+
+from app.features.imports.documents.validation_report import StoredValidationReport
 from app.features.imports.statements.dto import StatementControlTotals
+from app.shared.schemas import ApplicationModel
 
 
-@dataclass(frozen=True)
-class UnknownStatementColumnCandidate:
+class UnknownStatementColumnCandidate(ApplicationModel):
     field: str
     column_index: int
     header: str
 
 
-@dataclass(frozen=True)
-class UnknownStatementColumnProfile:
+class UnknownStatementColumnProfile(ApplicationModel):
     column_index: int
     header: str
     sample_count: int
@@ -24,14 +25,12 @@ class UnknownStatementColumnProfile:
     header_matches: list[str]
 
 
-@dataclass(frozen=True)
-class UnknownStatementMappingSuggestionWarning:
+class UnknownStatementMappingSuggestionWarning(ApplicationModel):
     code: str
     fields: list[str]
 
 
-@dataclass(frozen=True)
-class UnknownStatementMappingSuggestionReason:
+class UnknownStatementMappingSuggestionReason(ApplicationModel):
     field: str
     column_index: int
     header: str
@@ -40,8 +39,7 @@ class UnknownStatementMappingSuggestionReason:
     sample_count: int | None = None
 
 
-@dataclass(frozen=True)
-class UnknownStatementMappingSuggestion:
+class UnknownStatementMappingSuggestion(ApplicationModel):
     operation_date_column: int
     posting_date_column: int | None
     description_column: int
@@ -55,21 +53,18 @@ class UnknownStatementMappingSuggestion:
     warnings: list[UnknownStatementMappingSuggestionWarning]
 
 
-@dataclass(frozen=True)
-class UnknownStatementContinuationMappingField:
+class UnknownStatementContinuationMappingField(ApplicationModel):
     field: str
     column_index: int
 
 
-@dataclass(frozen=True)
-class TextCandidateTable:
+class TextCandidateTable(ApplicationModel):
     page_number: int
     table_index: int
     rows: list[list[str]]
 
 
-@dataclass(frozen=True)
-class UnknownStatementTablePreview:
+class UnknownStatementTablePreview(ApplicationModel):
     page_number: int
     table_index: int
     row_count: int
@@ -77,27 +72,22 @@ class UnknownStatementTablePreview:
     preview_row_count: int
     rows: list[list[str]]
     column_candidates: list[UnknownStatementColumnCandidate]
-    column_profiles: list[UnknownStatementColumnProfile]
+    column_profiles: list[UnknownStatementColumnProfile] = Field(exclude=True)
     mapping_suggestions: list[UnknownStatementMappingSuggestion]
     source_type: str = "pdf_table"
     is_continuation: bool = False
     continued_from_page_number: int | None = None
     continued_from_table_index: int | None = None
-    continuation_mapping_fields: list[UnknownStatementContinuationMappingField] | None = None
-
-    def as_validation_payload(self) -> dict[str, object]:
-        payload = asdict(self)
-        payload.pop("column_profiles")
-        payload["continuation_mapping_fields"] = payload["continuation_mapping_fields"] or []
-        return payload
+    continuation_mapping_fields: list[UnknownStatementContinuationMappingField] = Field(
+        default_factory=list
+    )
 
 
 class UnknownStatementStatus(StrEnum):
     NEEDS_MAPPING = "needs_mapping"
 
 
-@dataclass(frozen=True)
-class UnknownStatementAnalysis:
+class UnknownStatementAnalysis(ApplicationModel):
     status: UnknownStatementStatus
     message: str
     detected_bank_name: str | None
@@ -106,29 +96,16 @@ class UnknownStatementAnalysis:
     page_count: int
     table_count: int
     table_previews: list[UnknownStatementTablePreview]
-    generated_text_tables: list[TextCandidateTable]
-    control_totals: StatementControlTotals | None
+    generated_text_tables: list[TextCandidateTable] = Field(exclude=True)
+    control_totals: StatementControlTotals | None = Field(exclude=True)
 
-    def as_validation_report(self) -> dict[str, object]:
-        return {
-            "status": self.status.value,
-            "message": self.message,
-            "detected_bank_name": self.detected_bank_name,
-            "detected_statement_type": self.detected_statement_type,
-            "text_based": self.text_based,
-            "page_count": self.page_count,
-            "table_count": self.table_count,
-            "table_previews": [preview.as_validation_payload() for preview in self.table_previews],
-            "statement_total_inflow": str(self.control_totals.total_inflow)
-            if self.control_totals and self.control_totals.total_inflow is not None
-            else None,
-            "statement_total_outflow": str(self.control_totals.total_outflow)
-            if self.control_totals and self.control_totals.total_outflow is not None
-            else None,
-            "opening_balance": str(self.control_totals.opening_balance)
-            if self.control_totals and self.control_totals.opening_balance is not None
-            else None,
-            "closing_balance": str(self.control_totals.closing_balance)
-            if self.control_totals and self.control_totals.closing_balance is not None
-            else None,
-        }
+    def stored_report(self) -> StoredValidationReport:
+        payload = self.model_dump(mode="json")
+        totals = self.control_totals
+        payload.update(
+            statement_total_inflow=totals.total_inflow if totals else None,
+            statement_total_outflow=totals.total_outflow if totals else None,
+            opening_balance=totals.opening_balance if totals else None,
+            closing_balance=totals.closing_balance if totals else None,
+        )
+        return StoredValidationReport.model_validate(payload)

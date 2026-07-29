@@ -917,6 +917,8 @@ repository abstraction. Существующие API-преобразовани�
   encoding/decoding внутри repository и удалить ручные mapping spec codecs;
 - 10E: перевести mapping read projections на Pydantic, подготовить публичную
   нумерацию внутри projections и удалить изоморфный API response mapper;
+- 10F: перевести mapping analysis contracts на Pydantic и передавать
+  `StoredValidationReport` до непосредственной JSONB persistence boundary;
 - следующие capabilities переводить на Pydantic по одному законченному срезу,
   одновременно удаляя механические mappings и JSON codecs;
 - пересмотреть оставшиеся маленькие helpers и названия;
@@ -987,6 +989,20 @@ routers вызывают соответствующий `Response.model_validate
 Regression gate: Ruff, ty, 606 tests; один отдельный PostgreSQL concurrency
 test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
 
+10F завершён 2026-07-29. Analysis candidates, profiles, suggestions, table
+previews и итоговый `UnknownStatementAnalysis` переведены на
+`ApplicationModel`. Внутренние `column_profiles`, generated text tables и
+nested control totals исключаются из persisted payload декларативно через
+Pydantic fields.
+
+`UnknownStatementAnalysis.stored_report()` возвращает типизированный
+`StoredValidationReport`. JSON создаётся с `model_dump(mode="json")` только в
+`mark_attempt_requires_review(...)` непосредственно перед вызовом repository.
+Удалены `asdict(...)`, `as_validation_payload()`, `as_validation_report()` и
+`dataclasses.replace(...)`. Production Python уменьшился на 17 строк.
+Regression gate: Ruff, ty, 606 tests; один отдельный PostgreSQL concurrency
+test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
+
 ### Шаг 11. Parser normalization
 
 - сохранить отдельный fixture contract для каждого банка;
@@ -1021,7 +1037,8 @@ test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
 | 10C. Statements Pydantic contracts and JSON cleanup | completed 2026-07-29 |
 | 10D. Mapping persisted contracts | completed 2026-07-29 |
 | 10E. Mapping read contracts and API mapper cleanup | completed 2026-07-29 |
-| 8–9, 10F+, 11 | pending |
+| 10F. Mapping analysis contracts and stored report boundary | completed 2026-07-29 |
+| 8–9, 10G+, 11 | pending |
 
 ## 15. Gate для каждого шага
 

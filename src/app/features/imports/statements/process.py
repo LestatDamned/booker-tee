@@ -128,7 +128,7 @@ class StatementMappingFallbackPipeline:
             )
         document.bank_name = analysis.detected_bank_name
         document.statement_type = analysis.detected_statement_type
-        validation_report = analysis.as_validation_report()
+        validation_report = analysis.stored_report()
         try:
             if await self._auto_apply_template(
                 document,
@@ -137,7 +137,9 @@ class StatementMappingFallbackPipeline:
             ):
                 return
         except UnknownStatementMappingError as exc:
-            validation_report["template_auto_apply_error"] = str(exc)
+            validation_report = validation_report.model_copy(
+                update={"template_auto_apply_error": str(exc)}
+            )
         await mark_attempt_requires_review(
             self.documents,
             document,

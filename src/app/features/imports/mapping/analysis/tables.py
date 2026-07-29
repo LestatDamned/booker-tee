@@ -1,5 +1,3 @@
-from dataclasses import replace
-
 from app.features.imports.mapping.analysis.columns import (
     build_column_profiles,
     build_mapping_suggestions,
@@ -247,12 +245,13 @@ def continuation_preview(
     preview: UnknownStatementTablePreview,
     anchor: UnknownStatementTablePreview,
 ) -> UnknownStatementTablePreview:
-    return replace(
-        preview,
-        is_continuation=True,
-        continued_from_page_number=anchor.page_number,
-        continued_from_table_index=anchor.table_index,
-        continuation_mapping_fields=continuation_mapping_fields_for_anchor(anchor),
+    return preview.model_copy(
+        update={
+            "is_continuation": True,
+            "continued_from_page_number": anchor.page_number,
+            "continued_from_table_index": anchor.table_index,
+            "continuation_mapping_fields": continuation_mapping_fields_for_anchor(anchor),
+        }
     )
 
 

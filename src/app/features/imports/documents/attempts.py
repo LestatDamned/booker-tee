@@ -7,6 +7,7 @@ from app.db.base import utc_now
 from app.features.imports.documents.lifecycle import transition_document_status
 from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
+from app.features.imports.documents.validation_report import StoredValidationReport
 from app.features.imports.models import ParseAttempt, UploadedDocument
 from app.features.imports.statements.dto import StatementControlTotals
 
@@ -50,10 +51,14 @@ async def mark_attempt_requires_review(
     document: UploadedDocument,
     attempt: ParseAttempt,
     message: str,
-    validation_report: dict[str, object] | None = None,
+    validation_report: StoredValidationReport | None = None,
     control_totals: StatementControlTotals | None = None,
 ) -> None:
-    report = dict(validation_report or {})
+    report = (
+        validation_report.model_dump(mode="json", exclude_unset=True)
+        if validation_report is not None
+        else {}
+    )
     report.setdefault("message", message)
     report.setdefault("parser_message", message)
     if control_totals is not None:

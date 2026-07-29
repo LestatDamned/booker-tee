@@ -67,6 +67,7 @@ Safety baseline
   -> 10C statements Pydantic contracts and JSON cleanup completed 2026-07-29
   -> 10D mapping persisted contracts completed 2026-07-29
   -> 10E mapping read contracts and API mapper cleanup completed 2026-07-29
+  -> 10F mapping analysis contracts and stored report boundary completed 2026-07-29
 ```
 
 Перед массовыми moves не выполняется общая полировка старой структуры.

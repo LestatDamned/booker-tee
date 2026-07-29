@@ -13,6 +13,7 @@ from app.features.imports.documents.validation_report import (
 from app.features.imports.mapping.analysis.analyzer import (
     StatementAnalyzer,
 )
+from app.features.imports.mapping.analysis.dto import UnknownStatementAnalysis
 from app.features.imports.mapping.analysis.hints import (
     DEFAULT_HINT_CONFIG_PATH,
     extract_statement_control_totals,
@@ -37,6 +38,10 @@ from app.features.imports.parsers.extractors.dto import (
 )
 from app.features.imports.parsers.support.normalization import parse_bank_date
 from app.features.imports.statements.validation import StatementValidationStatus
+
+
+def stored_report_json(analysis: UnknownStatementAnalysis) -> dict[str, object]:
+    return analysis.stored_report().model_dump(mode="json", exclude_unset=True)
 
 
 def sanitized_unknown_statement_fixture(name: str) -> ExtractedStatement:
@@ -163,7 +168,7 @@ def test_unknown_statement_analysis_finds_mapping_candidates() -> None:
     )
 
     analysis = StatementAnalyzer.analyze(extracted)
-    report = analysis.as_validation_report()
+    report = stored_report_json(analysis)
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
 
@@ -220,7 +225,7 @@ def test_unknown_statement_analysis_finds_header_after_preamble() -> None:
     )
 
     analysis = StatementAnalyzer.analyze(extracted)
-    report = analysis.as_validation_report()
+    report = stored_report_json(analysis)
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
     rows = cast(list[list[str]], preview["rows"])
@@ -255,7 +260,7 @@ def test_unknown_statement_analysis_keeps_all_table_candidates() -> None:
         metadata={},
     )
 
-    report = StatementAnalyzer.analyze(extracted).as_validation_report()
+    report = stored_report_json(StatementAnalyzer.analyze(extracted))
     previews = cast(list[dict[str, object]], report["table_previews"])
 
     assert report["page_count"] == 4
@@ -281,7 +286,7 @@ def test_unknown_statement_analysis_detects_english_table_with_date_not_first() 
         metadata={},
     )
 
-    report = StatementAnalyzer.analyze(extracted).as_validation_report()
+    report = stored_report_json(StatementAnalyzer.analyze(extracted))
     previews = cast(list[dict[str, object]], report["table_previews"])
     column_candidates = cast(list[dict[str, object]], previews[0]["column_candidates"])
 
@@ -325,7 +330,7 @@ def test_unknown_statement_analysis_keeps_column_profiles_internal() -> None:
 
     analysis = StatementAnalyzer.analyze(extracted)
     profiles = analysis.table_previews[0].column_profiles
-    report = analysis.as_validation_report()
+    report = stored_report_json(analysis)
     previews = cast(list[dict[str, object]], report["table_previews"])
 
     assert profiles[0].header == "Description"
@@ -357,7 +362,7 @@ def test_unknown_statement_analysis_includes_mapping_suggestions() -> None:
         metadata={},
     )
 
-    report = StatementAnalyzer.analyze(extracted).as_validation_report()
+    report = stored_report_json(StatementAnalyzer.analyze(extracted))
     previews = cast(list[dict[str, object]], report["table_previews"])
     suggestions = cast(list[dict[str, object]], previews[0]["mapping_suggestions"])
     suggestion = suggestions[0]
@@ -396,7 +401,7 @@ def test_unknown_statement_analysis_detects_balance_after_column() -> None:
         metadata={},
     )
 
-    report = StatementAnalyzer.analyze(extracted).as_validation_report()
+    report = stored_report_json(StatementAnalyzer.analyze(extracted))
     previews = cast(list[dict[str, object]], report["table_previews"])
     column_candidates = cast(list[dict[str, object]], previews[0]["column_candidates"])
     suggestions = cast(list[dict[str, object]], previews[0]["mapping_suggestions"])
@@ -437,7 +442,7 @@ def test_unknown_statement_analysis_detects_posting_date_column() -> None:
         metadata={},
     )
 
-    report = StatementAnalyzer.analyze(extracted).as_validation_report()
+    report = stored_report_json(StatementAnalyzer.analyze(extracted))
     previews = cast(list[dict[str, object]], report["table_previews"])
     column_candidates = cast(list[dict[str, object]], previews[0]["column_candidates"])
     suggestions = cast(list[dict[str, object]], previews[0]["mapping_suggestions"])
@@ -479,7 +484,7 @@ def test_unknown_statement_analysis_uses_structured_mapping_warnings() -> None:
         metadata={},
     )
 
-    report = StatementAnalyzer.analyze(extracted).as_validation_report()
+    report = stored_report_json(StatementAnalyzer.analyze(extracted))
     previews = cast(list[dict[str, object]], report["table_previews"])
     suggestions = cast(list[dict[str, object]], previews[0]["mapping_suggestions"])
     warnings = cast(list[dict[str, object]], suggestions[0]["warnings"])
@@ -512,7 +517,7 @@ def test_unknown_statement_analysis_suggests_mapping_for_table_without_headers()
 
     analysis = StatementAnalyzer.analyze(extracted)
     profiles = analysis.table_previews[0].column_profiles
-    report = analysis.as_validation_report()
+    report = stored_report_json(analysis)
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
     suggestions = cast(list[dict[str, object]], preview["mapping_suggestions"])
@@ -567,7 +572,7 @@ def test_unknown_statement_analysis_builds_text_candidate_table_when_pdf_tables_
     )
 
     analysis = StatementAnalyzer.analyze(extracted)
-    report = analysis.as_validation_report()
+    report = stored_report_json(analysis)
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
     command = StatementMappingDefaultResolver.resolve(
@@ -627,7 +632,7 @@ def test_unknown_statement_persists_all_generated_rows_beyond_preview() -> None:
     )
 
     analysis = StatementAnalyzer.analyze(extracted)
-    report = analysis.as_validation_report()
+    report = stored_report_json(analysis)
     raw_tables = raw_tables_with_text_candidate_tables(
         analysis.generated_text_tables,
         None,
@@ -676,7 +681,7 @@ def test_unknown_statement_analysis_does_not_treat_transaction_text_as_header() 
 
     analysis = StatementAnalyzer.analyze(extracted)
     profiles = analysis.table_previews[0].column_profiles
-    report = analysis.as_validation_report()
+    report = stored_report_json(analysis)
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
     candidates = cast(list[dict[str, object]], preview["column_candidates"])
@@ -721,7 +726,7 @@ def test_unknown_statement_analysis_split_debit_credit_suggestion_has_no_warning
         metadata={},
     )
 
-    report = StatementAnalyzer.analyze(extracted).as_validation_report()
+    report = stored_report_json(StatementAnalyzer.analyze(extracted))
     previews = cast(list[dict[str, object]], report["table_previews"])
     suggestions = cast(list[dict[str, object]], previews[0]["mapping_suggestions"])
     suggestion = suggestions[0]
@@ -750,7 +755,7 @@ def test_unknown_statement_analysis_detects_split_debit_credit_table() -> None:
         metadata={},
     )
 
-    report = StatementAnalyzer.analyze(extracted).as_validation_report()
+    report = stored_report_json(StatementAnalyzer.analyze(extracted))
     previews = cast(list[dict[str, object]], report["table_previews"])
     column_candidates = cast(list[dict[str, object]], previews[0]["column_candidates"])
 
@@ -780,7 +785,7 @@ def test_unknown_statement_analysis_detects_split_debit_credit_table() -> None:
 def test_sanitized_unknown_statement_fixture_covers_posting_date_and_balance() -> None:
     extracted = sanitized_unknown_statement_fixture("generic_english_card_statement.json")
 
-    report = StatementAnalyzer.analyze(extracted).as_validation_report()
+    report = stored_report_json(StatementAnalyzer.analyze(extracted))
     command = StatementMappingDefaultResolver.resolve(
         StoredValidationReport.model_validate(report),
         default_currency="USD",
@@ -814,7 +819,7 @@ def test_sanitized_unknown_statement_fixture_covers_posting_date_and_balance() -
 def test_sanitized_unknown_statement_fixture_covers_split_continuation_tables() -> None:
     extracted = sanitized_unknown_statement_fixture("split_debit_credit_continuation.json")
 
-    report = StatementAnalyzer.analyze(extracted).as_validation_report()
+    report = stored_report_json(StatementAnalyzer.analyze(extracted))
     table_previews = cast(list[dict[str, object]], report["table_previews"])
     continuation_preview = table_previews[1]
     command = StatementMappingDefaultResolver.resolve(
@@ -871,9 +876,7 @@ def test_sanitized_unknown_statement_fixture_covers_split_continuation_tables() 
 def test_stored_unknown_statement_report_decodes_nested_mapping_contract() -> None:
     extracted = sanitized_unknown_statement_fixture("generic_english_card_statement.json")
 
-    stored = StoredValidationReport.model_validate(
-        StatementAnalyzer.analyze(extracted).as_validation_report()
-    )
+    stored = StatementAnalyzer.analyze(extracted).stored_report()
 
     assert stored.needs_mapping is True
     assert stored.statement_status is None
