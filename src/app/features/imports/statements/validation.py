@@ -1,11 +1,13 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
-from typing import Protocol
+from typing import Any, Protocol, cast
 
-from app.features.imports.statements.dto import StatementControlTotals
+from pydantic import SerializerFunctionWrapHandler, computed_field, model_serializer
+
+from app.features.imports.statements.dto import JsonMoney, StatementControlTotals
 from app.features.imports.statements.types import RawTransactionStatus
+from app.shared.schemas import ApplicationModel
 
 MONEY_ZERO = Decimal("0.00")
 MONEY_TOLERANCE = Decimal("0.01")
@@ -25,113 +27,79 @@ class RawTransactionLike(Protocol):
     balance_after: Decimal | None
 
 
-@dataclass(frozen=True)
-class RawTransactionTotals:
+class RawTransactionTotals(ApplicationModel):
     extracted_count: int
-    calculated_total_inflow: Decimal
-    calculated_total_outflow: Decimal
-    ignored_total_inflow: Decimal
-    ignored_total_outflow: Decimal
+    calculated_total_inflow: JsonMoney
+    calculated_total_outflow: JsonMoney
+    ignored_total_inflow: JsonMoney
+    ignored_total_outflow: JsonMoney
     needs_review_count: int
     currency: str | None
 
+    @computed_field
     @property
     def normalized_count(self) -> int:
         return self.extracted_count - self.needs_review_count
 
 
-@dataclass(frozen=True)
-class StatementValidationReport:
+class StatementValidationReport(ApplicationModel):
     status: StatementValidationStatus
     totals: RawTransactionTotals
     control_totals: StatementControlTotals | None
     balance_chain: "BalanceChainValidationReport"
-    inflow_difference: Decimal | None
-    outflow_difference: Decimal | None
-    unexplained_inflow_difference: Decimal | None
-    unexplained_outflow_difference: Decimal | None
+    inflow_difference: JsonMoney | None
+    outflow_difference: JsonMoney | None
+    unexplained_inflow_difference: JsonMoney | None
+    unexplained_outflow_difference: JsonMoney | None
     message: str
 
-    def as_json(self) -> dict[str, object]:
+    @model_serializer(mode="wrap")
+    def serialize_stored_report(
+        self,
+        handler: SerializerFunctionWrapHandler,
+    ) -> dict[str, object]:
+        values = cast(dict[str, Any], handler(self))
+        totals = cast(dict[str, object], values.pop("totals"))
+        control_totals = cast(
+            dict[str, object],
+            values.pop("control_totals") or {},
+        )
         return {
-            "status": self.status.value,
-            "message": self.message,
-            "currency": self.totals.currency
-            or (self.control_totals.currency if self.control_totals else None),
-            "extracted_count": self.totals.extracted_count,
-            "normalized_count": self.totals.normalized_count,
-            "needs_review_count": self.totals.needs_review_count,
-            "calculated_total_inflow": _decimal_as_string(self.totals.calculated_total_inflow),
-            "calculated_total_outflow": _decimal_as_string(self.totals.calculated_total_outflow),
-            "ignored_total_inflow": _decimal_as_string(self.totals.ignored_total_inflow),
-            "ignored_total_outflow": _decimal_as_string(self.totals.ignored_total_outflow),
-            "statement_total_inflow": _decimal_as_string(
-                self.control_totals.total_inflow if self.control_totals else None
-            ),
-            "statement_total_outflow": _decimal_as_string(
-                self.control_totals.total_outflow if self.control_totals else None
-            ),
-            "opening_balance": _decimal_as_string(
-                self.control_totals.opening_balance if self.control_totals else None
-            ),
-            "closing_balance": _decimal_as_string(
-                self.control_totals.closing_balance if self.control_totals else None
-            ),
-            "balance_chain": self.balance_chain.as_json(),
-            "inflow_difference": _decimal_as_string(self.inflow_difference),
-            "outflow_difference": _decimal_as_string(self.outflow_difference),
-            "unexplained_inflow_difference": _decimal_as_string(self.unexplained_inflow_difference),
-            "unexplained_outflow_difference": _decimal_as_string(
-                self.unexplained_outflow_difference
-            ),
+            "status": values.pop("status"),
+            "message": values.pop("message"),
+            "currency": totals.pop("currency") or control_totals.get("currency"),
+            **totals,
+            "statement_total_inflow": control_totals.get("total_inflow"),
+            "statement_total_outflow": control_totals.get("total_outflow"),
+            "opening_balance": control_totals.get("opening_balance"),
+            "closing_balance": control_totals.get("closing_balance"),
+            "balance_chain": values.pop("balance_chain"),
+            **values,
         }
 
 
-@dataclass(frozen=True)
-class BalanceChainMismatch:
+class BalanceChainMismatch(ApplicationModel):
     row_index: int
     previous_row_index: int
-    previous_balance_after: Decimal
-    previous_amount: Decimal
-    amount: Decimal
-    expected_balance_after: Decimal
-    actual_balance_after: Decimal
-
-    def as_json(self) -> dict[str, object]:
-        return {
-            "row_index": self.row_index,
-            "previous_row_index": self.previous_row_index,
-            "previous_balance_after": _decimal_as_string(self.previous_balance_after),
-            "previous_amount": _decimal_as_string(self.previous_amount),
-            "amount": _decimal_as_string(self.amount),
-            "expected_balance_after": _decimal_as_string(self.expected_balance_after),
-            "actual_balance_after": _decimal_as_string(self.actual_balance_after),
-        }
+    previous_balance_after: JsonMoney
+    previous_amount: JsonMoney
+    amount: JsonMoney
+    expected_balance_after: JsonMoney
+    actual_balance_after: JsonMoney
 
 
-@dataclass(frozen=True)
-class BalanceChainValidationReport:
+class BalanceChainValidationReport(ApplicationModel):
     status: StatementValidationStatus
     direction: str | None
     checked_pair_count: int
     mismatch_count: int
     mismatches: list[BalanceChainMismatch]
 
-    def as_json(self) -> dict[str, object]:
-        return {
-            "status": self.status.value,
-            "direction": self.direction,
-            "checked_pair_count": self.checked_pair_count,
-            "mismatch_count": self.mismatch_count,
-            "mismatches": [mismatch.as_json() for mismatch in self.mismatches],
-        }
 
-
-@dataclass(frozen=True)
-class BalanceComparableRow:
+class BalanceComparableRow(ApplicationModel):
     row_index: int
-    amount: Decimal
-    balance_after: Decimal
+    amount: JsonMoney
+    balance_after: JsonMoney
 
 
 def calculate_raw_transaction_totals(
@@ -386,12 +354,6 @@ def _difference(calculated: Decimal, statement: Decimal | None) -> Decimal | Non
 
 def _is_mismatch(difference: Decimal | None) -> bool:
     return difference is not None and abs(difference) > MONEY_TOLERANCE
-
-
-def _decimal_as_string(value: Decimal | None) -> str | None:
-    if value is None:
-        return None
-    return str(value.quantize(MONEY_TOLERANCE))
 
 
 class StatementValidationReasonCode(StrEnum):

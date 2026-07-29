@@ -1,4 +1,3 @@
-from decimal import Decimal
 from uuid import UUID
 
 from openpyxl.utils.exceptions import InvalidFileException
@@ -60,7 +59,7 @@ async def mark_attempt_requires_review(
     if control_totals is not None:
         await documents.store_attempt_validation(
             attempt,
-            control_totals=control_totals.as_json(),
+            control_totals=control_totals.model_dump(mode="json"),
             validation_report=report,
         )
         await documents.mark_attempt_status(attempt, ParseAttemptStatus.REQUIRES_REVIEW)
@@ -89,28 +88,3 @@ def latest_parse_attempt(document: UploadedDocument) -> ParseAttempt | None:
     if not attempts:
         return None
     return max(attempts, key=lambda attempt: attempt.started_at)
-
-
-def statement_control_totals_from_json(
-    payload: dict[str, object] | None,
-) -> StatementControlTotals | None:
-    if payload is None:
-        return None
-    currency = payload.get("currency")
-    if currency is not None and not isinstance(currency, str):
-        return None
-    return StatementControlTotals(
-        currency=currency,
-        opening_balance=_decimal_from_json(payload.get("opening_balance")),
-        closing_balance=_decimal_from_json(payload.get("closing_balance")),
-        total_inflow=_decimal_from_json(payload.get("total_inflow")),
-        total_outflow=_decimal_from_json(payload.get("total_outflow")),
-    )
-
-
-def _decimal_from_json(value: object) -> Decimal | None:
-    if value is None:
-        return None
-    if isinstance(value, str | int):
-        return Decimal(value)
-    return None

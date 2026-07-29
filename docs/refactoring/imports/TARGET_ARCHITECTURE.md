@@ -910,6 +910,8 @@ repository abstraction. Существующие API-преобразовани�
   contract, удалить изоморфный API mapper и positional SQL row mapping;
 - 10B: перевести upload result/storage values на Pydantic и не возвращать ORM
   document из upload use case в API или chat;
+- 10C: перевести statement drafts, totals и validation values на Pydantic,
+  заменить ручные JSON codecs и draft-to-ORM field copying;
 - следующие capabilities переводить на Pydantic по одному законченному срезу,
   одновременно удаляя механические mappings и JSON codecs;
 - пересмотреть оставшиеся маленькие helpers и названия;
@@ -932,6 +934,22 @@ Regression gate: Ruff, ty, 604 tests; один отдельный PostgreSQL con
 `upload_and_extract_statement(...)`; API, chat presenter и shared-feed
 notification работают с явными значениями и больше не импортируют
 `UploadedDocument` ради upload result.
+
+10C завершён 2026-07-29. `RawTransactionDraft`, control totals и statement
+validation values переведены на `ApplicationModel`. Денежные JSON-поля
+используют один typed `JsonMoney` serializer; confidence score не подвергается
+денежному округлению. Consumers используют `model_validate(...)` и
+`model_dump(mode="json")`.
+
+Удалены ручной control-totals decoder, `as_json()` методы вложенных validation
+values и 22-полевое копирование draft в ORM. Один model serializer сохранён у
+`StatementValidationReport`, потому что рабочая вложенная модель намеренно
+преобразуется в существующий плоский JSONB contract. Production Python
+уменьшился на 81 строку. Regression gate: Ruff, ty, 605 tests; один отдельный
+PostgreSQL concurrency test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
+
+`CalculatedDocumentValidation` остаётся `dataclass`: это локальный runtime
+bundle с ORM `ParseAttempt`, а не сериализуемый application contract.
 
 ### Шаг 11. Parser normalization
 
@@ -964,7 +982,8 @@ notification работают с явными значениями и больш
 | 7D. Mapping analysis consolidation and old-path cleanup | completed 2026-07-29 |
 | 10A. Documents Pydantic models and mechanical mapping cleanup | completed 2026-07-29 |
 | 10B. Upload data contracts | completed 2026-07-29 |
-| 8–9, 10C+, 11 | pending |
+| 10C. Statements Pydantic contracts and JSON cleanup | completed 2026-07-29 |
+| 8–9, 10D+, 11 | pending |
 
 ## 15. Gate для каждого шага
 

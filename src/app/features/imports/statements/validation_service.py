@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from app.features.imports.documents.attempts import (
     latest_parse_attempt,
-    statement_control_totals_from_json,
 )
 from app.features.imports.documents.lifecycle import transition_document_status
 from app.features.imports.documents.repository import DocumentRepository
@@ -39,7 +38,11 @@ class StatementValidationService:
         attempt = latest_parse_attempt(document)
         if attempt is None:
             return None
-        control_totals = statement_control_totals_from_json(attempt.control_totals_json)
+        control_totals = (
+            StatementControlTotals.model_validate(attempt.control_totals_json)
+            if attempt.control_totals_json is not None
+            else None
+        )
         return CalculatedDocumentValidation(
             attempt=attempt,
             control_totals=control_totals,
@@ -59,8 +62,8 @@ class StatementValidationService:
     ) -> None:
         await self._documents.store_attempt_validation(
             attempt,
-            control_totals=control_totals.as_json() if control_totals else None,
-            validation_report=report.as_json(),
+            control_totals=(control_totals.model_dump(mode="json") if control_totals else None),
+            validation_report=report.model_dump(mode="json"),
         )
         if report.status == StatementValidationStatus.VALID:
             await self._documents.mark_attempt_status(attempt, ParseAttemptStatus.SUCCESS)

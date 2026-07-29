@@ -18,6 +18,26 @@ class RowStub:
     balance_after: Decimal | None = None
 
 
+def test_statement_control_totals_validate_stored_json_and_serialize_money() -> None:
+    totals = StatementControlTotals.model_validate(
+        {
+            "currency": "RUB",
+            "opening_balance": "100",
+            "closing_balance": "125.5",
+            "mapping_sources": {"opening_balance": {"row_index": 1}},
+        }
+    )
+
+    assert totals.opening_balance == Decimal("100")
+    assert totals.model_dump(mode="json") == {
+        "currency": "RUB",
+        "opening_balance": "100.00",
+        "closing_balance": "125.50",
+        "total_inflow": None,
+        "total_outflow": None,
+    }
+
+
 def test_statement_validation_report_is_valid_when_totals_match() -> None:
     report = validate_statement_totals(
         rows=[
@@ -32,8 +52,8 @@ def test_statement_validation_report_is_valid_when_totals_match() -> None:
     )
 
     assert report.status == StatementValidationStatus.VALID
-    assert report.as_json()["status"] == "valid"
-    assert report.as_json()["calculated_total_inflow"] == "100.00"
+    assert report.model_dump(mode="json")["status"] == "valid"
+    assert report.model_dump(mode="json")["calculated_total_inflow"] == "100.00"
 
 
 def test_statement_validation_report_detects_mismatched_totals() -> None:
@@ -47,7 +67,7 @@ def test_statement_validation_report_detects_mismatched_totals() -> None:
     )
 
     assert report.status == StatementValidationStatus.MISMATCH
-    assert report.as_json()["inflow_difference"] == "-1.00"
+    assert report.model_dump(mode="json")["inflow_difference"] == "-1.00"
 
 
 def test_statement_validation_report_explains_ignored_rows_separately() -> None:
@@ -65,7 +85,7 @@ def test_statement_validation_report_explains_ignored_rows_separately() -> None:
         ),
     )
 
-    payload = report.as_json()
+    payload = report.model_dump(mode="json")
     assert report.status == StatementValidationStatus.MISMATCH
     assert payload["calculated_total_inflow"] == "50.00"
     assert payload["ignored_total_inflow"] == "50.00"
@@ -84,7 +104,7 @@ def test_statement_validation_report_is_unavailable_without_control_totals() -> 
     )
 
     assert report.status == StatementValidationStatus.UNAVAILABLE
-    assert report.as_json()["status"] == "unavailable"
+    assert report.model_dump(mode="json")["status"] == "unavailable"
 
 
 def test_statement_validation_report_checks_ascending_balance_chain() -> None:
@@ -104,7 +124,10 @@ def test_statement_validation_report_checks_ascending_balance_chain() -> None:
         control_totals=None,
     )
 
-    balance_chain = cast(dict[str, object], report.as_json()["balance_chain"])
+    balance_chain = cast(
+        dict[str, object],
+        report.model_dump(mode="json")["balance_chain"],
+    )
     assert report.status == StatementValidationStatus.UNAVAILABLE
     assert balance_chain["status"] == "valid"
     assert balance_chain["direction"] == "ascending"
@@ -128,7 +151,10 @@ def test_statement_validation_report_checks_descending_balance_chain() -> None:
         control_totals=None,
     )
 
-    balance_chain = cast(dict[str, object], report.as_json()["balance_chain"])
+    balance_chain = cast(
+        dict[str, object],
+        report.model_dump(mode="json")["balance_chain"],
+    )
     assert report.status == StatementValidationStatus.UNAVAILABLE
     assert balance_chain["status"] == "valid"
     assert balance_chain["direction"] == "descending"
@@ -151,10 +177,16 @@ def test_statement_validation_report_detects_balance_chain_mismatch() -> None:
         control_totals=None,
     )
 
-    balance_chain = cast(dict[str, object], report.as_json()["balance_chain"])
+    balance_chain = cast(
+        dict[str, object],
+        report.model_dump(mode="json")["balance_chain"],
+    )
     mismatches = cast(list[dict[str, object]], balance_chain["mismatches"])
     assert report.status == StatementValidationStatus.MISMATCH
-    assert report.as_json()["message"] == "Остатки после операций не совпадают с суммами строк."
+    assert (
+        report.model_dump(mode="json")["message"]
+        == "Остатки после операций не совпадают с суммами строк."
+    )
     assert balance_chain["status"] == "mismatch"
     assert balance_chain["mismatch_count"] == 1
     assert mismatches[0]["expected_balance_after"] == "1070.00"
@@ -168,7 +200,7 @@ def test_statement_validation_report_needs_review_for_uncertain_rows() -> None:
     )
 
     assert report.status == StatementValidationStatus.NEEDS_REVIEW
-    assert report.as_json()["needs_review_count"] == 1
+    assert report.model_dump(mode="json")["needs_review_count"] == 1
 
 
 def test_statement_validation_report_needs_review_for_possible_duplicate_rows() -> None:
@@ -178,4 +210,4 @@ def test_statement_validation_report_needs_review_for_possible_duplicate_rows() 
     )
 
     assert report.status == StatementValidationStatus.NEEDS_REVIEW
-    assert report.as_json()["needs_review_count"] == 1
+    assert report.model_dump(mode="json")["needs_review_count"] == 1

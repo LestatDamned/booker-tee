@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.imports.documents.attempts import (
     latest_parse_attempt,
-    statement_control_totals_from_json,
 )
 from app.features.imports.documents.lifecycle import transition_document_status
 from app.features.imports.documents.repository import DocumentRepository
@@ -271,8 +270,10 @@ class MappedStatementRowImporter:
         raw_transactions: list[RawTransaction],
         spec: StatementMappingSpec,
     ) -> None:
-        extracted_control_totals = statement_control_totals_from_json(
-            attempt.control_totals_json
+        extracted_control_totals = (
+            StatementControlTotals.model_validate(attempt.control_totals_json)
+            if attempt.control_totals_json is not None
+            else None
         ) or extract_statement_control_totals(attempt.raw_text_by_page_json)
         resolved = resolve_mapping_control_totals(attempt.raw_tables_json, spec)
         opening = next(
@@ -331,7 +332,7 @@ class MappedStatementRowImporter:
             rows=raw_transactions,
             control_totals=control_totals,
         )
-        control_totals_payload = control_totals.as_json()
+        control_totals_payload = control_totals.model_dump(mode="json")
         control_totals_payload["mapping_sources"] = {
             total.kind.value: _control_total_cell_as_json(total.cell) for total in resolved
         }
@@ -339,7 +340,7 @@ class MappedStatementRowImporter:
             attempt,
             control_totals=control_totals_payload,
             validation_report={
-                **report.as_json(),
+                **report.model_dump(mode="json"),
                 "source": "unknown_statement_mapping",
             },
         )
