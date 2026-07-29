@@ -1,5 +1,4 @@
 from types import SimpleNamespace
-from typing import Any, cast
 from uuid import uuid4
 
 import app.api.v1.imports.router as imports_router_module
@@ -79,7 +78,9 @@ def test_upload_returns_committed_document_target(monkeypatch) -> None:
         async def upload_statement(self, **kwargs):
             calls.append(kwargs)
             return StatementUploadResult(
-                document=cast(Any, document),
+                document_id=document.id,
+                document_status=document.status,
+                filename="statement.pdf",
                 replayed=False,
             )
 

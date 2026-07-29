@@ -908,6 +908,8 @@ repository abstraction. Существующие API-преобразовани�
 - удалить implementation-detail и wrapper tests только после проверки риска;
 - 10A: перевести document DTO/read projections на общий immutable Pydantic
   contract, удалить изоморфный API mapper и positional SQL row mapping;
+- 10B: перевести upload result/storage values на Pydantic и не возвращать ORM
+  document из upload use case в API или chat;
 - следующие capabilities переводить на Pydantic по одному законченному срезу,
   одновременно удаляя механические mappings и JSON codecs;
 - пересмотреть оставшиеся маленькие helpers и названия;
@@ -923,6 +925,13 @@ Change set уменьшил production Python на 236 строк. Формат 
 detail остаётся decimal string и теперь принадлежит serializer API-схемы.
 Regression gate: Ruff, ty, 604 tests; один отдельный PostgreSQL concurrency test
 пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
+
+10B завершён 2026-07-29. `StoredUpload` и `StatementUploadResult` переведены на
+`ApplicationModel`. Upload result содержит только document id, status, filename
+и replay flag. Удалён возвращавший ORM метод
+`upload_and_extract_statement(...)`; API, chat presenter и shared-feed
+notification работают с явными значениями и больше не импортируют
+`UploadedDocument` ради upload result.
 
 ### Шаг 11. Parser normalization
 
@@ -954,7 +963,8 @@ Regression gate: Ruff, ty, 604 tests; один отдельный PostgreSQL con
 | 7C. Mapping commands and queries | completed 2026-07-29 |
 | 7D. Mapping analysis consolidation and old-path cleanup | completed 2026-07-29 |
 | 10A. Documents Pydantic models and mechanical mapping cleanup | completed 2026-07-29 |
-| 8–9, 10B+, 11 | pending |
+| 10B. Upload data contracts | completed 2026-07-29 |
+| 8–9, 10C+, 11 | pending |
 
 ## 15. Gate для каждого шага
 

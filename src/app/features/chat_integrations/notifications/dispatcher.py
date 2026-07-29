@@ -14,7 +14,7 @@ from app.features.chat_integrations.notifications.formatter import (
 from app.features.chat_integrations.providers.base import ChatProvider
 from app.features.chat_integrations.repository import ChatIntegrationRepository
 from app.features.chat_integrations.schemas import ChatConversation, ChatProviderCode
-from app.features.imports.models import UploadedDocument
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.workspaces.service import WorkspaceContext
 
 IMPORT_DOCUMENT_UPLOADED_EVENT = "import.document_uploaded"
@@ -53,7 +53,8 @@ class ChatSharedFeedNotificationService:
         self,
         *,
         context: WorkspaceContext,
-        document: UploadedDocument,
+        document_id: UUID,
+        document_status: UploadedDocumentStatus,
     ) -> ChatNotificationDeliverySummary:
         bindings = await self.chat_integrations.list_active_shared_feed_bindings(
             workspace_id=context.workspace.id
@@ -67,7 +68,8 @@ class ChatSharedFeedNotificationService:
             result = await self._notify_binding(
                 binding=binding,
                 context=context,
-                document=document,
+                document_id=document_id,
+                document_status=document_status,
             )
             attempted_count += result.attempted_count
             sent_count += result.sent_count
@@ -87,10 +89,11 @@ class ChatSharedFeedNotificationService:
         *,
         binding: ChatConversationBinding,
         context: WorkspaceContext,
-        document: UploadedDocument,
+        document_id: UUID,
+        document_status: UploadedDocumentStatus,
     ) -> ChatNotificationDeliverySummary:
         idempotency_key = ChatNotificationIdempotencyKeyBuilder.import_document_uploaded(
-            document_id=document.id,
+            document_id=document_id,
             binding_id=binding.id,
         )
         existing_delivery = await self.chat_integrations.get_event_delivery(
@@ -125,10 +128,10 @@ class ChatSharedFeedNotificationService:
             ChatConversationBindingMapper.to_conversation(binding),
             ImportDocumentUploadedNotification(
                 workspace_name=context.workspace.name,
-                document_status=document.status,
+                document_status=document_status,
                 review_url=ChatReviewUrlBuilder.build_document_review_url(
                     self.settings,
-                    document.id,
+                    document_id,
                 ),
             ),
         )

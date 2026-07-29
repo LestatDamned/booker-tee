@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path, PurePath
 from re import sub
@@ -8,10 +7,10 @@ from uuid import UUID
 from fastapi import UploadFile
 
 from app.features.imports.documents.errors import UploadTooLargeError
+from app.shared.schemas import ApplicationModel
 
 
-@dataclass(frozen=True)
-class StoredUpload:
+class StoredUpload(ApplicationModel):
     storage_key: str
     path: Path
     sha256_hash: str

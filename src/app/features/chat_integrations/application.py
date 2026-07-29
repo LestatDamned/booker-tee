@@ -24,9 +24,11 @@ from app.features.chat_integrations.schemas import (
     ChatDownloadedFile,
 )
 from app.features.chat_integrations.use_cases.action_tokens import ChatActionTokenBuilder
-from app.features.imports.documents.commands.upload import StatementUploadUseCase
+from app.features.imports.documents.commands.upload import (
+    StatementUploadResult,
+    StatementUploadUseCase,
+)
 from app.features.imports.documents.errors import UploadValidationError
-from app.features.imports.models import UploadedDocument
 from app.features.imports.parsers.extractors.resolver import SUPPORTED_STATEMENT_EXTENSIONS
 from app.features.workspaces.service import WorkspaceContext
 
@@ -137,7 +139,7 @@ class ChatDocumentUploadService:
         context: WorkspaceContext,
         action_token: str,
         account_index: int,
-    ) -> UploadedDocument:
+    ) -> StatementUploadResult:
         state = await self.chat_integrations.get_active_conversation_state(
             workspace_id=context.workspace.id,
             user_id=context.user.id,
@@ -157,10 +159,10 @@ class ChatDocumentUploadService:
         upload_file = ChatDownloadedFileUploadAdapter.to_upload_file(downloaded_file)
 
         try:
-            uploaded_document = await StatementUploadUseCase(
+            upload = await StatementUploadUseCase(
                 self.session,
                 self.settings,
-            ).upload_and_extract_statement(
+            ).upload_statement(
                 context=context,
                 upload_file=upload_file,
                 account_id=account_id,
@@ -169,7 +171,7 @@ class ChatDocumentUploadService:
             raise ChatDocumentUploadError(str(exc)) from exc
         await self.chat_integrations.consume_conversation_state(state, consumed_at=utc_now())
         await self.session.commit()
-        return uploaded_document
+        return upload
 
 
 class ChatDocumentUploadPolicy:

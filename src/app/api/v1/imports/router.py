@@ -145,11 +145,11 @@ async def upload_import_document(
     detail = await _read_committed_detail(
         session=session,
         workspace_id=context.workspace.workspace.id,
-        document_id=result.document.id,
+        document_id=result.document_id,
     )
     return ImportDocumentUploadApiResponse(
-        id=result.document.id,
-        status=result.document.status,
+        id=result.document_id,
+        status=result.document_status,
         replayed=result.replayed,
         navigation_target="document_detail",
         next_step=detail.next_step,

@@ -5,8 +5,8 @@ from app.features.chat_integrations.schemas import (
     OutboundChatButton,
     OutboundChatMessage,
 )
+from app.features.imports.documents.commands.upload import StatementUploadResult
 from app.features.imports.documents.types import UploadedDocumentStatus
-from app.features.imports.models import UploadedDocument
 
 
 class TelegramUploadPresenter:
@@ -58,10 +58,10 @@ class TelegramUploadPresenter:
     @staticmethod
     def show_completed(
         conversation: ChatConversation,
-        document: UploadedDocument,
+        upload: StatementUploadResult,
         review_url: str | None = None,
     ) -> OutboundChatMessage:
-        status_label = TelegramUploadStatusPresenter.status_label(document.status)
+        status_label = TelegramUploadStatusPresenter.status_label(upload.document_status)
         buttons = [
             OutboundChatButton(text="🔎 Проверка", callback_data="review:choose"),
             OutboundChatButton(text="📊 Статус", callback_data="status:show"),
@@ -73,7 +73,7 @@ class TelegramUploadPresenter:
             conversation=conversation,
             text=(
                 "✅ Выписка загружена\n\n"
-                f"📄 {document.original_filename}\n"
+                f"📄 {upload.filename}\n"
                 f"Статус: {status_label}\n\n"
                 "Проверь строки перед подтверждением."
             ),

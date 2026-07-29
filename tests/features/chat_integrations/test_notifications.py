@@ -115,7 +115,8 @@ async def test_shared_feed_notification_service_sends_safe_import_notification(
         provider_registry=ChatNotificationProviderRegistry({ChatProviderCode.FAKE: provider}),
     ).notify_import_document_uploaded(
         context=context,
-        document=cast(Any, document),
+        document_id=document.id,
+        document_status=document.status,
     )
 
     assert summary.sent_count == 1

@@ -15,7 +15,7 @@ from app.features.chat_integrations.presentation.upload import TelegramUploadPre
 from app.features.chat_integrations.providers.base import ChatDocumentDownloader, ChatProvider
 from app.features.chat_integrations.schemas import InboundChatEvent, OutboundChatMessage
 from app.features.chat_integrations.use_cases.workspace import BoundChatWorkspace
-from app.features.imports.models import UploadedDocument
+from app.features.imports.documents.commands.upload import StatementUploadResult
 
 
 class ChatUploadEventHandler:
@@ -73,7 +73,7 @@ class ChatUploadEventHandler:
             return TelegramUploadPresenter.show_not_ready(event.conversation)
 
         try:
-            document = await ChatDocumentUploadService(
+            upload = await ChatDocumentUploadService(
                 self.session,
                 self.settings,
                 self.document_downloader,
@@ -88,18 +88,21 @@ class ChatUploadEventHandler:
                 str(exc),
             )
 
-        await self._notify_shared_feed_about_uploaded_document(event, bound_workspace, document)
+        await self._notify_shared_feed_about_uploaded_document(event, bound_workspace, upload)
         return TelegramUploadPresenter.show_completed(
             event.conversation,
-            document,
-            ChatReviewUrlBuilder.build_document_review_url(self.settings, document.id),
+            upload,
+            ChatReviewUrlBuilder.build_document_review_url(
+                self.settings,
+                upload.document_id,
+            ),
         )
 
     async def _notify_shared_feed_about_uploaded_document(
         self,
         event: InboundChatEvent,
         bound_workspace: BoundChatWorkspace,
-        document: UploadedDocument,
+        upload: StatementUploadResult,
     ) -> None:
         if self.chat_provider is None:
             return
@@ -112,5 +115,6 @@ class ChatUploadEventHandler:
             ),
         ).notify_import_document_uploaded(
             context=bound_workspace.context,
-            document=document,
+            document_id=upload.document_id,
+            document_status=upload.document_status,
         )

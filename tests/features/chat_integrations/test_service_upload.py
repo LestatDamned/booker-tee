@@ -22,6 +22,7 @@ from app.features.chat_integrations.schemas import (
 from app.features.chat_integrations.service import ChatEventService
 from app.features.chat_integrations.use_cases import dashboard as chat_dashboard
 from app.features.chat_integrations.use_cases import workspace as chat_workspace
+from app.features.imports.documents.commands.upload import StatementUploadResult
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.workspaces.service import WorkspaceContext
 
@@ -168,10 +169,11 @@ async def test_chat_event_service_completes_document_upload_after_account_choice
         identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
         context=context,
     )
-    uploaded_document = SimpleNamespace(
-        id=uuid4(),
-        original_filename="statement.pdf",
-        status=UploadedDocumentStatus.REQUIRES_REVIEW,
+    upload_result = StatementUploadResult(
+        document_id=uuid4(),
+        document_status=UploadedDocumentStatus.REQUIRES_REVIEW,
+        filename="statement.pdf",
+        replayed=False,
     )
 
     class FakeWorkspaceChatResolver:
@@ -191,7 +193,7 @@ async def test_chat_event_service_completes_document_upload_after_account_choice
                 "action_token": "uploadtoken",
                 "account_index": 0,
             }
-            return uploaded_document
+            return upload_result
 
     monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
     monkeypatch.setattr(
@@ -226,7 +228,7 @@ async def test_chat_event_service_completes_document_upload_after_account_choice
     assert response.buttons[0][1].callback_data == "status:show"
     assert response.buttons[0][2].text == "🌐 Web"
     assert response.buttons[0][2].url == (
-        f"https://booker.example/app/imports/documents/{uploaded_document.id}/review"
+        f"https://booker.example/app/imports/documents/{upload_result.document_id}/review"
     )
 
 
@@ -244,12 +246,13 @@ async def test_chat_event_service_notifies_shared_feed_after_document_upload(
         identity_binding=cast(Any, SimpleNamespace(id=uuid4())),
         context=context,
     )
-    uploaded_document = SimpleNamespace(
-        id=uuid4(),
-        original_filename="statement.pdf",
-        status=UploadedDocumentStatus.REQUIRES_REVIEW,
+    upload_result = StatementUploadResult(
+        document_id=uuid4(),
+        document_status=UploadedDocumentStatus.REQUIRES_REVIEW,
+        filename="statement.pdf",
+        replayed=False,
     )
-    notified_documents: list[object] = []
+    notified_documents: list[tuple[object, object]] = []
 
     class FakeWorkspaceChatResolver:
         def __init__(self, _session: object) -> None:
@@ -263,7 +266,7 @@ async def test_chat_event_service_notifies_shared_feed_after_document_upload(
             pass
 
         async def complete_document_upload(self, **_kwargs):
-            return uploaded_document
+            return upload_result
 
     class FakeChatSharedFeedNotificationService:
         def __init__(self, **_kwargs) -> None:
@@ -271,7 +274,7 @@ async def test_chat_event_service_notifies_shared_feed_after_document_upload(
 
         async def notify_import_document_uploaded(self, **kwargs) -> None:
             assert kwargs["context"] is context
-            notified_documents.append(kwargs["document"])
+            notified_documents.append((kwargs["document_id"], kwargs["document_status"]))
 
     monkeypatch.setattr(chat_service, "WorkspaceChatResolver", FakeWorkspaceChatResolver)
     monkeypatch.setattr(
@@ -305,4 +308,4 @@ async def test_chat_event_service_notifies_shared_feed_after_document_upload(
         provider,
     ).receive_inbound_event(event)
 
-    assert notified_documents == [uploaded_document]
+    assert notified_documents == [(upload_result.document_id, upload_result.document_status)]

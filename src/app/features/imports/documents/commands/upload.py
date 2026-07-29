@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID, uuid4, uuid5
 
@@ -37,11 +36,13 @@ from app.features.imports.parsers.registry import StatementParserRegistry
 from app.features.imports.statements.process import StatementParseCompletionService
 from app.features.imports.statements.repository import StatementRepository
 from app.features.workspaces.service import WorkspaceContext
+from app.shared.schemas import ApplicationModel
 
 
-@dataclass(frozen=True)
-class StatementUploadResult:
-    document: UploadedDocument
+class StatementUploadResult(ApplicationModel):
+    document_id: UUID
+    document_status: UploadedDocumentStatus
+    filename: str
     replayed: bool
 
 
@@ -62,20 +63,6 @@ class StatementUploadUseCase:
             mappings=self.mappings,
             parser_registry=StatementParserRegistry.with_default_parsers(),
         )
-
-    async def upload_and_extract_statement(
-        self,
-        *,
-        context: WorkspaceContext,
-        upload_file: UploadFile,
-        account_id: UUID,
-    ) -> UploadedDocument:
-        result = await self.upload_statement(
-            context=context,
-            upload_file=upload_file,
-            account_id=account_id,
-        )
-        return result.document
 
     async def upload_statement(
         self,
@@ -113,7 +100,7 @@ class StatementUploadUseCase:
                     raise UploadIdempotencyConflictError(
                         "Этот ключ повторной отправки уже использован для другого файла."
                     )
-                return StatementUploadResult(document=existing, replayed=True)
+                return self._upload_result(existing, replayed=True)
 
         stored_upload = await self.storage.save_upload(
             upload_file,
@@ -146,7 +133,7 @@ class StatementUploadUseCase:
                 and existing.original_filename == (upload_file.filename or "statement")
                 and existing.sha256_hash == stored_upload.sha256_hash
             ):
-                return StatementUploadResult(document=existing, replayed=True)
+                return self._upload_result(existing, replayed=True)
             raise UploadIdempotencyConflictError(
                 "Этот ключ повторной отправки уже использован для другого файла."
             ) from error
@@ -171,7 +158,20 @@ class StatementUploadUseCase:
             )
 
         await self.session.commit()
-        return StatementUploadResult(document=document, replayed=False)
+        return self._upload_result(document, replayed=False)
+
+    @staticmethod
+    def _upload_result(
+        document: UploadedDocument,
+        *,
+        replayed: bool,
+    ) -> StatementUploadResult:
+        return StatementUploadResult(
+            document_id=document.id,
+            document_status=document.status,
+            filename=document.original_filename,
+            replayed=replayed,
+        )
 
     async def _create_document(
         self,

@@ -26,6 +26,7 @@ from app.features.imports.documents.storage import (
     UploadStorage,
     sanitize_upload_filename,
 )
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.models import RawTransaction
 from app.features.imports.parsers.extractors.pdf import (
     PdfPlumberStatementExtractor,
@@ -108,8 +109,10 @@ async def test_statement_upload_replays_same_idempotent_payload(tmp_path: Path) 
     account = SimpleNamespace(id=uuid4(), currency="RUB")
     content = b"%PDF-1.4 replay"
     existing = SimpleNamespace(
+        id=uuid4(),
         account_id=account.id,
         original_filename="statement.pdf",
+        status=UploadedDocumentStatus.REQUIRES_REVIEW,
         sha256_hash=sha256(content).hexdigest(),
     )
 
@@ -144,7 +147,9 @@ async def test_statement_upload_replays_same_idempotent_payload(tmp_path: Path) 
     )
 
     assert result.replayed is True
-    assert result.document is existing
+    assert result.document_id == existing.id
+    assert result.document_status is existing.status
+    assert result.filename == existing.original_filename
     assert list(tmp_path.rglob("statement.pdf")) == []  # noqa: ASYNC240
 
 
