@@ -432,6 +432,13 @@ Step 5C завершён 2026-07-29: одноформатные bank packages п
 из defining modules; compatibility re-exports не добавлялись. Число
 Python-файлов уменьшилось с 87 до 82, production Python осталось 10 939 строк.
 
+Step 5D завершён 2026-07-29: последние source-файлы исторического `parsing/`
+удалены. Финальный аудит не обнаружил старых parser imports, compatibility
+facades, parser-local `MoneyDirection` или зависимостей `parsers` от FastAPI,
+SQLAlchemy, ORM и application modules. Feature README синхронизирован с
+capability-first структурой. Число Python-файлов уменьшилось с 82 до 80,
+production Python — с 10 939 до 10 938 строк. Step 5 закрыт.
+
 ## 10. Карта перемещений: Mapping
 
 | Сейчас | Цель |
@@ -674,7 +681,7 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 - 5A: удалить extraction aliases после обновления тестов — выполнено;
 - 5B: перенести и переименовать parser support — выполнено;
 - 5C: переместить bank parsers и сократить однофайловые packages — выполнено;
-- 5D: удалить оставшиеся старые пути и выполнить финальный cleanup;
+- 5D: удалить оставшиеся старые пути и выполнить финальный cleanup — выполнено;
 - не менять bank-specific parsing behavior.
 
 ### Шаг 6. Typed unknown-analysis boundary
@@ -732,8 +739,9 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 | 5A. Protocol, registry and extractors | completed 2026-07-29 |
 | 5B. Parser support | completed 2026-07-29 |
 | 5C. Bank parsers | completed 2026-07-29 |
-| 5D. Old parsing package cleanup | next |
-| 6–11 | pending |
+| 5D. Old parsing package cleanup | completed 2026-07-29 |
+| 6. Typed unknown-analysis boundary | next |
+| 7–11 | pending |
 
 ## 15. Gate для каждого шага
 

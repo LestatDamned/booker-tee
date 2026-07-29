@@ -28,36 +28,34 @@ statement upload
 
 ## Target architecture
 
-Внутри feature используем вертикальный slice, но держим явные границы.
-Архитектурная форма модуля:
+Внутри feature используем capability-first структуру с явными локальными
+границами:
 
 ```text
-Use Case / Facade
--> Pipeline
--> Strategy
--> Parser / Mapping / Domain rules
--> Repository / Infrastructure
+API
+-> documents commands / queries
+-> statements process
+   -> parsers для известного формата
+   -> mapping для неизвестного формата
+-> capability repository / storage
 ```
 
 Это не отдельные фреймворки и не сложная абстракция ради абстракции. Это
 просто способ разложить разные истории импорта:
 
-- `UseCase` описывает пользовательское действие: загрузить документ, применить
-  маппинг или изменить review-статус.
-- `Pipeline` описывает последовательность шагов внутри импорта: сохранить
-  документ, извлечь файл, выбрать путь обработки, создать raw rows, проверить,
-  дедуплицировать, отправить на review.
-- `Strategy` выбирает способ обработки выписки: известный банковский парсер,
-  сохраненный шаблон неизвестной выписки, ручной mapping/fallback.
+- `documents` владеет upload, storage, parse attempts и document lifecycle;
+- `statements` владеет созданием, валидацией и deduplication raw transactions;
+- `parsers` распознаёт известные банковские форматы;
+- `mapping` анализирует и импортирует неизвестные табличные форматы;
 - `Parser` знает только банковскую грамматику конкретной выписки и возвращает drafts.
 - `Repository` сохраняет ORM-модели и не принимает бизнес-решения.
 
 ```text
 src/app/api/v1/imports router
--> use cases / service facade
--> application pipelines / use cases
--> domain rules / mapping / parsing / infrastructure
--> repository.py / query_repository.py / storage.py
+-> documents command/query or mapping use case
+-> statements workflow
+-> parser/mapping policy
+-> capability repository/storage
 -> models.py
 ```
 
@@ -70,10 +68,10 @@ Use case описывает пользовательское действие ц
 обработать review-действие или удалить документ. Use case может координировать
 несколько сервисов.
 
-Processor выполняет внутренний pipeline без знания про HTTP: преобразовать
-результат парсинга в raw transactions, отметить дубли, сохранить validation
-result. В коде такие pipeline-части живут в `application/`, потому что они
-оркестрируют сохранение и статусы, а не являются чистыми доменными правилами.
+Внутренний workflow оформляется через именованный actor и предметное действие,
+например `StatementParseCompletionService.complete_successful_attempt()` или
+`KnownStatementImportPipeline.import_parsed_transactions()`. Название должно
+объяснять результат без универсального `Processor.process()`.
 
 Repository содержит SQLAlchemy-запросы и изменения ORM-моделей. Бизнес-решения
 лучше держать выше, если они не являются простым persistence-действием.
@@ -589,27 +587,25 @@ from app.features.imports.application.some_unknown_statement_facade import (
 )
 ```
 
-Compatibility facade files are allowed only as temporary migration shims for
-old imports. Do not turn facade files into public "everything exports" modules.
-When a facade is no longer needed by existing callers, remove it instead of
-expanding it.
+Внутренние file moves не сохраняют compatibility facade: все consumers
+переводятся на defining module в одном change set.
 
 ## Package guide
 
-Keep the root of `imports/` small. New files should usually go into one of
-these packages:
+Keep the root of `imports/` small. New files belong to the capability that owns
+their reason to change:
 
-- `application/` - document, parser, mapping and upload orchestration.
-- `application/<workflow_package>/` - cohesive helpers for one application workflow when a single file stops reading linearly.
-- `domain/` - pure import concepts and rules such as statement control totals,
-  deduplication and statement total validation.
-- `mapping/` - DTO projection and draft-to-ORM mapping.
-- `infrastructure/` - filesystem/file extraction adapters and other I/O details.
-- `parsing/` - parser contracts, registry, shared support, and bank-specific parsers.
+- `documents/` - commands, queries, lifecycle, storage and document persistence;
+- `statements/` - raw transaction workflow, validation, deduplication and
+  statement persistence;
+- `parsers/` - parser protocol, registry, extractors, shared pure support and
+  known bank implementations;
+- `mapping/` - unknown-format analysis, templates, commands, queries and
+  persistence as it moves from the temporary `application/unknown_*` packages.
 
-Avoid adding more one-off files at the root unless they are stable public module
-entrypoints like `service.py`, `repository.py`, `query_repository.py` or
-`models.py`.
+Root files are reserved for the shared ORM aggregate and truly cross-capability
+errors. Do not recreate `domain/`, `infrastructure/`, `parsing/` or generic
+`service.py`/`query_repository.py` entrypoints.
 
 ## DTOs and mappers
 
@@ -719,10 +715,12 @@ Bank parser cleanup completed in Step 5C:
 - VTB remains a package because card and deposit formats share period parsing.
 - Five empty bank package files were removed without compatibility re-exports.
 
-Pending Step 5D cleanup:
+Step 5D cleanup completed:
 
-- Remove the now-empty historical `parsing/` package and run the final parser
-  boundary audit.
+- The empty historical `parsing/` package is removed.
+- No old parser imports, facades or re-exports remain.
+- `parsers` depends only on extracted DTO, statement DTO/types and pure local
+  support; it does not import FastAPI, SQLAlchemy, ORM or application modules.
 
 ## Remaining cleanup plan
 
