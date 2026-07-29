@@ -22,8 +22,8 @@ from app.features.chat_integrations.use_cases.review.dto import (
     StartedChatReviewItem,
 )
 from app.features.chat_integrations.use_cases.review.state import ChatReviewStateReader
+from app.features.import_review.repository import ImportReviewRepository
 from app.features.imports.models import RawTransaction, UploadedDocument
-from app.features.imports.query_repository import ImportQueryRepository
 from app.features.workspaces.service import WorkspaceContext
 
 CHAT_REVIEW_DOCUMENT_SELECTION_LIMIT = 8
@@ -31,13 +31,13 @@ CHAT_REVIEW_DOCUMENT_SELECTION_LIMIT = 8
 
 class ChatReviewQueueReader:
     def __init__(self, session: AsyncSession) -> None:
-        self.imports = ImportQueryRepository(session)
+        self.review_repository = ImportReviewRepository(session)
 
     async def read_document_choices(
         self,
         context: WorkspaceContext,
     ) -> tuple[ChatReviewDocumentChoice, ...]:
-        documents = await self.imports.list_reviewable_documents_with_counts(
+        documents = await self.review_repository.list_reviewable_documents_with_counts(
             workspace_id=context.workspace.id,
             limit=CHAT_REVIEW_DOCUMENT_SELECTION_LIMIT,
         )
@@ -51,7 +51,9 @@ class ChatReviewQueueReader:
         )
 
     async def read_next_item(self, context: WorkspaceContext) -> ChatReviewQueueItem | None:
-        raw_transaction = await self.imports.get_next_review_raw_transaction(context.workspace.id)
+        raw_transaction = await self.review_repository.get_next_review_raw_transaction(
+            context.workspace.id
+        )
         if raw_transaction is None:
             return None
 
@@ -63,7 +65,7 @@ class ChatReviewQueueReader:
         context: WorkspaceContext,
         document_id: UUID,
     ) -> ChatReviewQueueItem | None:
-        raw_transaction = await self.imports.get_next_review_raw_transaction_for_document(
+        raw_transaction = await self.review_repository.get_next_review_raw_transaction_for_document(
             workspace_id=context.workspace.id,
             document_id=document_id,
         )
@@ -78,7 +80,7 @@ class ChatReviewQueueReader:
         context: WorkspaceContext,
         anchor: ChatReviewContinuationAnchor,
     ) -> ChatReviewQueueItem | None:
-        raw_transaction = await self.imports.get_next_review_raw_transaction_after(
+        raw_transaction = await self.review_repository.get_next_review_raw_transaction_after(
             workspace_id=context.workspace.id,
             document_id=anchor.document_id,
             current_row_index=anchor.row_index,
@@ -98,7 +100,7 @@ class ChatReviewQueueReader:
         document_id: UUID,
         raw_transaction_id: UUID,
     ) -> ChatReviewQueueItem | None:
-        raw_transaction = await self.imports.get_review_raw_transaction(
+        raw_transaction = await self.review_repository.get_review_raw_transaction(
             workspace_id=context.workspace.id,
             document_id=document_id,
             raw_transaction_id=raw_transaction_id,
@@ -116,7 +118,7 @@ class ChatReviewQueueReader:
         current_row_index: int,
         direction: str,
     ) -> ChatReviewQueueItem | None:
-        raw_transaction = await self.imports.get_adjacent_review_raw_transaction(
+        raw_transaction = await self.review_repository.get_adjacent_review_raw_transaction(
             workspace_id=context.workspace.id,
             document_id=document_id,
             current_row_index=current_row_index,
@@ -132,12 +134,12 @@ class ChatReviewQueueReader:
         context: WorkspaceContext,
         raw_transaction: RawTransaction,
     ) -> ChatReviewQueueItem:
-        document_row_count = await self.imports.count_raw_transactions_for_document(
+        document_row_count = await self.review_repository.count_raw_transactions_for_document(
             workspace_id=context.workspace.id,
             document_id=raw_transaction.uploaded_document_id,
         )
         document_reviewable_count = (
-            await self.imports.count_reviewable_raw_transactions_for_document(
+            await self.review_repository.count_reviewable_raw_transactions_for_document(
                 workspace_id=context.workspace.id,
                 document_id=raw_transaction.uploaded_document_id,
             )

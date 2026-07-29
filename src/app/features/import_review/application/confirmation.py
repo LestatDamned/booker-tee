@@ -16,6 +16,7 @@ from app.features.import_review.domain.posting import (
     prepare_income_expense_posting,
     require_raw_transaction_account_id,
 )
+from app.features.import_review.repository import ImportReviewRepository
 from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
@@ -77,6 +78,7 @@ class ImportReviewConfirmationResult:
 class ImportReviewConfirmationActor:
     def __init__(self, session: AsyncSession) -> None:
         self._imports = ImportRepository(session)
+        self._review_repository = ImportReviewRepository(session)
         self._ledger = LedgerRepository(session)
         self._references = LedgerReferenceResolver(session)
         self._posting = LedgerPostingService(session)
@@ -88,7 +90,7 @@ class ImportReviewConfirmationActor:
         context: WorkspaceContext,
         command: ConfirmImportReviewItemCommand,
     ) -> ImportReviewConfirmationResult:
-        row = await self._imports.get_raw_transaction_for_workspace(
+        row = await self._review_repository.get_raw_transaction_for_workspace(
             context.workspace.id,
             command.document_id,
             command.item_id,
@@ -151,7 +153,7 @@ class ImportReviewConfirmationActor:
                 blocking_reason_codes=evaluation.confirmability.blocking_reason_codes,
             )
         if row.dedupe_hash is not None and (
-            await self._imports.has_confirmed_raw_transaction_with_dedupe_hash(
+            await self._review_repository.has_confirmed_raw_transaction_with_dedupe_hash(
                 workspace_id=context.workspace.id,
                 dedupe_hash=row.dedupe_hash,
                 exclude_raw_transaction_id=row.id,
@@ -176,7 +178,7 @@ class ImportReviewConfirmationActor:
             idempotency_key=command.idempotency_key,
             idempotency_fingerprint=self.fingerprint(command),
         )
-        await self._imports.link_raw_transaction_to_operation(
+        await self._review_repository.link_raw_transaction_to_operation(
             row,
             operation_id=operation.id,
         )

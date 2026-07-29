@@ -25,10 +25,13 @@
   -> completed 2026-07-29
 
 Safety baseline
-  -> next
+  -> completed 2026-07-29: Ruff, ty, 601 tests
 
 Шаг 1  review persistence ownership
-  -> after baseline
+  -> completed 2026-07-29
+
+Шаг 2  duplicate evidence
+  -> next
 ```
 
 Перед массовыми moves не выполняется общая полировка старой структуры.

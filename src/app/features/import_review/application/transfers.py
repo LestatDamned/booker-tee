@@ -138,7 +138,7 @@ class ImportReviewTransferActor:
         command: ImportReviewTransferCommand,
     ) -> ImportReviewTransferResult | None:
         if isinstance(command, LinkImportReviewExistingTransferCommand):
-            row = await self._imports.get_raw_transaction_for_workspace(
+            row = await self._review_repository.get_raw_transaction_for_workspace(
                 context.workspace.id,
                 command.document_id,
                 command.item_id,
@@ -240,13 +240,13 @@ class ImportReviewTransferActor:
             idempotency_key=idempotency_key,
             idempotency_fingerprint=idempotency_fingerprint,
         )
-        await self._imports.link_raw_transaction_to_operation(
+        await self._review_repository.link_raw_transaction_to_operation(
             raw_transaction,
             operation_id=operation.id,
         )
         affected_document_ids = {document_id}
         if counterparty.raw_transaction is not None:
-            await self._imports.link_raw_transaction_to_operation(
+            await self._review_repository.link_raw_transaction_to_operation(
                 counterparty.raw_transaction,
                 operation_id=operation.id,
             )
@@ -267,7 +267,7 @@ class ImportReviewTransferActor:
     ) -> tuple[RawTransaction, RawTransaction | None]:
         matched_raw_transaction = None
         if matched_raw_transaction_id is not None:
-            locked_rows = await self._imports.lock_raw_transactions_for_workspace(
+            locked_rows = await self._review_repository.lock_raw_transactions_for_workspace(
                 workspace_id=workspace_id,
                 raw_transaction_ids={raw_transaction_id, matched_raw_transaction_id},
             )
@@ -279,7 +279,7 @@ class ImportReviewTransferActor:
             ):
                 raw_transaction = None
         else:
-            raw_transaction = await self._imports.get_raw_transaction_for_workspace(
+            raw_transaction = await self._review_repository.get_raw_transaction_for_workspace(
                 workspace_id,
                 document_id,
                 raw_transaction_id,
@@ -298,13 +298,15 @@ class ImportReviewTransferActor:
         if matched_raw_transaction_id is None:
             return None
         if matched_raw_transaction is None:
-            matched_raw_transaction = await self._imports.get_raw_transaction_by_id_for_workspace(
-                workspace_id,
-                matched_raw_transaction_id,
+            matched_raw_transaction = (
+                await self._review_repository.get_raw_transaction_by_id_for_workspace(
+                    workspace_id,
+                    matched_raw_transaction_id,
+                )
             )
         if matched_raw_transaction is None:
             raise LedgerPostingError("Matched raw transaction row was not found.")
-        candidates = await self._imports.list_transfer_candidate_raw_transactions(
+        candidates = await self._review_repository.list_transfer_candidate_raw_transactions(
             workspace_id=workspace_id,
             raw_transaction=raw_transaction,
         )
@@ -351,7 +353,7 @@ class ImportReviewTransferActor:
         raw_transaction_id: UUID,
         operation_id: UUID,
     ) -> None:
-        raw_transaction = await self._imports.get_raw_transaction_for_workspace(
+        raw_transaction = await self._review_repository.get_raw_transaction_for_workspace(
             context.workspace.id,
             document_id,
             raw_transaction_id,
@@ -377,7 +379,7 @@ class ImportReviewTransferActor:
         )
         if operation is None:
             raise LedgerPostingError("Manual transfer is not a transfer candidate.")
-        await self._imports.link_raw_transaction_to_operation(
+        await self._review_repository.link_raw_transaction_to_operation(
             raw_transaction,
             operation_id=operation.id,
         )

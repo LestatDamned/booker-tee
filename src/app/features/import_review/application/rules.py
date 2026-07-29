@@ -5,7 +5,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.imports.repository import ImportRepository
+from app.features.import_review.repository import ImportReviewRepository
 from app.features.transaction_rules.application.rule_application import (
     RuleApplicationSummary,
     TransactionRuleApplicationUseCase,
@@ -29,6 +29,7 @@ class ImportReviewRuleApplicationResult:
 
 class ImportReviewRuleCreator:
     def __init__(self, session: AsyncSession) -> None:
+        self._review_repository = ImportReviewRepository(session)
         self._management = TransactionRuleManagementUseCase(session)
         self._application = TransactionRuleApplicationUseCase(session)
 
@@ -42,24 +43,35 @@ class ImportReviewRuleCreator:
         property_id: UUID | None,
         pattern: str | None,
     ) -> RuleApplicationSummary:
-        await self._management.create_rule_from_raw_confirmation(
+        document = await self._review_repository.get_document_for_workspace(
+            context.workspace.id,
+            document_id,
+        )
+        if document is None:
+            raise ImportReviewRuleApplicationNotFoundError("Import review document was not found.")
+        raw_transaction = next(
+            (row for row in document.raw_transactions if row.id == item_id),
+            None,
+        )
+        if raw_transaction is None:
+            raise ImportReviewRuleApplicationNotFoundError("Import review item was not found.")
+        await self._management.create_rule_from_raw_transaction(
             context=context,
-            document_id=document_id,
-            raw_transaction_id=item_id,
+            raw_transaction=raw_transaction,
             category_id=category_id,
             property_id=property_id,
             pattern=pattern,
         )
-        return await self._application.apply_rules_to_document(
+        return await self._application.apply_rules_to_raw_transactions(
             workspace_id=context.workspace.id,
-            document_id=document_id,
+            raw_transactions=document.raw_transactions,
         )
 
 
 class ImportReviewRuleApplicationService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
-        self.imports = ImportRepository(session)
+        self.review_repository = ImportReviewRepository(session)
         self.rules = TransactionRuleApplicationUseCase(session)
 
     async def execute(
@@ -69,7 +81,7 @@ class ImportReviewRuleApplicationService:
         document_id: UUID,
     ) -> ImportReviewRuleApplicationResult:
         try:
-            document = await self.imports.get_document_for_workspace(
+            document = await self.review_repository.get_document_for_workspace(
                 workspace_id,
                 document_id,
             )

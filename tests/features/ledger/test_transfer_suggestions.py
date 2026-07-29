@@ -55,7 +55,7 @@ async def test_transfer_suggestions_skip_linked_rows_and_preserve_day_distance()
     )
     imports = ImportRepositoryStub([candidate])
     use_case = TransferSuggestionUseCase(cast(Any, object()))
-    use_case.imports = cast(Any, imports)
+    use_case.review_repository = cast(Any, imports)
 
     suggestions = await use_case.list_for_document(
         workspace_id=workspace_id,

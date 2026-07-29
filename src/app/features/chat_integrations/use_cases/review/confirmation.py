@@ -39,9 +39,9 @@ from app.features.import_review.application.confirmation import (
     ConfirmImportReviewItemCommand,
     ImportReviewConfirmationActor,
 )
+from app.features.import_review.repository import ImportReviewRepository
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.errors import RawTransactionReviewError
-from app.features.imports.query_repository import ImportQueryRepository
 from app.features.ledger.errors import LedgerPostingError
 from app.features.properties.service import PropertyService
 from app.features.workspaces.service import WorkspaceContext
@@ -406,7 +406,7 @@ class ChatReviewConfirmationService:
         category_name: str,
         action_label: str,
     ) -> StartedChatReviewRuleSuggestion | None:
-        raw_transaction = await ImportQueryRepository(self.session).get_review_raw_transaction(
+        raw_transaction = await ImportReviewRepository(self.session).get_review_raw_transaction(
             workspace_id=context.workspace.id,
             document_id=document_id,
             raw_transaction_id=raw_transaction_id,

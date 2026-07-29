@@ -9,6 +9,7 @@ from app.features.import_review.domain.lifecycle import (
     ImportReviewLifecycleAction,
     resolve_import_review_lifecycle_transition,
 )
+from app.features.import_review.repository import ImportReviewRepository
 from app.features.imports.application.documents.status import ImportedDocumentStatusUpdater
 from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
@@ -36,6 +37,7 @@ class ImportReviewLifecycleResult:
 class ImportReviewLifecycleActor:
     def __init__(self, session: AsyncSession) -> None:
         self._imports = ImportRepository(session)
+        self._review_repository = ImportReviewRepository(session)
 
     async def apply(
         self,
@@ -43,7 +45,7 @@ class ImportReviewLifecycleActor:
         workspace_id: UUID,
         command: ImportReviewLifecycleCommand,
     ) -> ImportReviewLifecycleResult:
-        row = await self._imports.get_raw_transaction_for_workspace(
+        row = await self._review_repository.get_raw_transaction_for_workspace(
             workspace_id,
             command.document_id,
             command.item_id,
@@ -57,7 +59,7 @@ class ImportReviewLifecycleActor:
             expected_status=command.expected_status,
         )
         if not transition.replayed:
-            await self._imports.mark_raw_transaction_status(
+            await self._review_repository.mark_raw_transaction_status(
                 row,
                 transition.target_status,
             )

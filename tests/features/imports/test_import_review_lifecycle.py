@@ -179,7 +179,9 @@ async def test_lifecycle_service_syncs_queue_document_and_reopens_import() -> No
     )
     session = SessionStub()
     actor = ImportReviewLifecycleActor(cast(Any, session))
-    actor._imports = cast(Any, ImportRepositoryStub(row, document))
+    imports = ImportRepositoryStub(row, document)
+    actor._imports = cast(Any, imports)
+    actor._review_repository = cast(Any, imports)
     service = ImportReviewLifecycleService(cast(Any, session), actor)
 
     ignored = await service.execute(

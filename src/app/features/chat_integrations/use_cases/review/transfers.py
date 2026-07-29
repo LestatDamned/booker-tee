@@ -40,8 +40,8 @@ from app.features.chat_integrations.use_cases.review.state import (
 )
 from app.features.import_review.application.transfer_suggestions import TransferSuggestionUseCase
 from app.features.import_review.application.transfers import ImportReviewTransferActor
+from app.features.import_review.repository import ImportReviewRepository
 from app.features.imports.errors import RawTransactionReviewError
-from app.features.imports.query_repository import ImportQueryRepository
 from app.features.ledger.errors import LedgerPostingError
 from app.features.workspaces.service import WorkspaceContext
 
@@ -436,7 +436,7 @@ class ChatReviewTransferService:
         context: WorkspaceContext,
         item: ChatReviewQueueItem,
     ) -> tuple[ChatReviewTransferPairChoice, ...]:
-        raw_transaction = await ImportQueryRepository(self.session).get_review_raw_transaction(
+        raw_transaction = await ImportReviewRepository(self.session).get_review_raw_transaction(
             workspace_id=context.workspace.id,
             document_id=item.document_id,
             raw_transaction_id=item.raw_transaction_id,
@@ -457,7 +457,7 @@ class ChatReviewTransferService:
         context: WorkspaceContext,
         item: ChatReviewQueueItem,
     ) -> tuple[ChatReviewExistingTransferChoice, ...]:
-        raw_transaction = await ImportQueryRepository(self.session).get_review_raw_transaction(
+        raw_transaction = await ImportReviewRepository(self.session).get_review_raw_transaction(
             workspace_id=context.workspace.id,
             document_id=item.document_id,
             raw_transaction_id=item.raw_transaction_id,

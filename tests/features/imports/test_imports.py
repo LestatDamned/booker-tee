@@ -11,6 +11,8 @@ import pytest
 from fastapi import UploadFile
 from openpyxl import Workbook
 
+from app.features.import_review.domain.queue import REVIEW_QUEUE_STATUSES
+from app.features.import_review.repository import ImportReviewRepository
 from app.features.imports.application.documents.upload import (
     StatementUploadUseCase,
     validate_statement_upload,
@@ -43,8 +45,6 @@ from app.features.imports.models import RawTransaction, RawTransactionStatus
 from app.features.imports.parsing.support.normalization import (
     parse_bank_date,
 )
-from app.features.imports.query_repository import REVIEWABLE_RAW_TRANSACTION_STATUSES
-from app.features.imports.repository import ImportRepository
 
 
 def test_sanitize_filename_removes_paths_and_unsafe_characters() -> None:
@@ -264,12 +264,12 @@ def test_statement_extractor_resolver_selects_extractor_by_extension(tmp_path: P
 
 
 def test_reviewable_raw_transaction_statuses_include_normalized_rows() -> None:
-    assert RawTransactionStatus.NORMALIZED in REVIEWABLE_RAW_TRANSACTION_STATUSES
-    assert RawTransactionStatus.SUGGESTED in REVIEWABLE_RAW_TRANSACTION_STATUSES
-    assert RawTransactionStatus.MATCHED in REVIEWABLE_RAW_TRANSACTION_STATUSES
-    assert RawTransactionStatus.CONFIRMED not in REVIEWABLE_RAW_TRANSACTION_STATUSES
-    assert RawTransactionStatus.IGNORED not in REVIEWABLE_RAW_TRANSACTION_STATUSES
-    assert RawTransactionStatus.DUPLICATE not in REVIEWABLE_RAW_TRANSACTION_STATUSES
+    assert RawTransactionStatus.NORMALIZED in REVIEW_QUEUE_STATUSES
+    assert RawTransactionStatus.SUGGESTED in REVIEW_QUEUE_STATUSES
+    assert RawTransactionStatus.MATCHED in REVIEW_QUEUE_STATUSES
+    assert RawTransactionStatus.CONFIRMED not in REVIEW_QUEUE_STATUSES
+    assert RawTransactionStatus.IGNORED not in REVIEW_QUEUE_STATUSES
+    assert RawTransactionStatus.DUPLICATE not in REVIEW_QUEUE_STATUSES
 
 
 @pytest.mark.asyncio
@@ -293,7 +293,7 @@ async def test_duplicate_candidate_query_is_workspace_and_document_scoped() -> N
             return ResultStub()
 
     session = SessionStub()
-    await ImportRepository(cast(Any, session)).list_possible_duplicate_candidates(
+    await ImportReviewRepository(cast(Any, session)).list_possible_duplicate_candidates(
         workspace_id=workspace_id,
         fingerprints={(account_id, date(2026, 7, 20), Decimal("-1250.50"), "RUB")},
         exclude_document_id=document_id,

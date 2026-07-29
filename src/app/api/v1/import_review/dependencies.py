@@ -32,7 +32,7 @@ from app.features.import_review.application.transfer_suggestions import (
 )
 from app.features.import_review.application.transfers import ImportReviewTransferService
 from app.features.import_review.application.undo import ImportReviewUndoService
-from app.features.imports.repository import ImportRepository
+from app.features.import_review.repository import ImportReviewRepository
 from app.features.properties.service import PropertyService
 from app.features.workspaces.permissions import permission_flags_for
 
@@ -40,8 +40,9 @@ from app.features.workspaces.permissions import permission_flags_for
 def get_import_review_reader(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ImportReviewReader:
+    review_repository = ImportReviewRepository(session)
     return ImportReviewReader(
-        ImportRepository(session),
+        review_repository,
         ImportReviewReferenceReader(
             CategoryService(session),
             PropertyService(session),
@@ -50,7 +51,7 @@ def get_import_review_reader(
             AccountService(session),
             TransferSuggestionUseCase(session),
         ),
-        ImportReviewDuplicateReader(ImportRepository(session)),
+        ImportReviewDuplicateReader(review_repository),
     )
 
 
@@ -88,7 +89,7 @@ def get_import_review_draft_evaluator(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ImportReviewDraftEvaluator:
     return ImportReviewDraftEvaluator(
-        ImportRepository(session),
+        ImportReviewRepository(session),
         CategoryService(session),
         PropertyService(session),
     )
@@ -98,7 +99,7 @@ def get_import_review_category_creator(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ImportReviewCategoryCreator:
     return ImportReviewCategoryCreator(
-        ImportRepository(session),
+        ImportReviewRepository(session),
         CategoryService(session),
     )
 

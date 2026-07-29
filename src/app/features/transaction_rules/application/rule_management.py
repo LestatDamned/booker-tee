@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.categories.service import CategoryError, CategoryService
-from app.features.imports.repository import ImportRepository
+from app.features.imports.models import RawTransaction
 from app.features.properties.service import PropertyError, PropertyService
 from app.features.transaction_rules.application.commands import (
     CreateTransactionRuleCommand,
@@ -33,7 +33,6 @@ from app.features.workspaces.service import WorkspaceContext
 class TransactionRuleManagementUseCase:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
-        self.imports = ImportRepository(session)
         self.rules = TransactionRuleRepository(session)
 
     async def create_rule(
@@ -151,23 +150,15 @@ class TransactionRuleManagementUseCase:
         await self.rules.delete(rule)
         await self.session.commit()
 
-    async def create_rule_from_raw_confirmation(
+    async def create_rule_from_raw_transaction(
         self,
         *,
         context: WorkspaceContext,
-        document_id: UUID,
-        raw_transaction_id: UUID,
+        raw_transaction: RawTransaction,
         category_id: UUID,
         property_id: UUID | None,
         pattern: str | None,
     ) -> TransactionRule:
-        raw_transaction = await self.imports.get_raw_transaction_for_workspace(
-            context.workspace.id,
-            document_id,
-            raw_transaction_id,
-        )
-        if raw_transaction is None:
-            raise TransactionRuleError("Raw transaction row was not found.")
         inferred_pattern = pattern or infer_rule_pattern(raw_transaction)
         return await self._create_rule(
             context=context,

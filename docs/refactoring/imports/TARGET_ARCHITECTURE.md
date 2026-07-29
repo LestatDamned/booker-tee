@@ -86,10 +86,9 @@ import_review
 | Priority | Проблема | Решение |
 |---|---|---|
 | P1 | Duplicate evidence хранится в `normalization_error`; `MARK_UNIQUE` может оставить строку заблокированной | Отдельный behavioral шаг после persistence ownership |
-| P2 | Review reads/locks/status/linking остаются в broad imports repositories | Первым архитектурным шагом выделить ownership `ImportReviewRepository` |
 | P2 | Persisted unknown-analysis JSON декодируется вручную | Один frozen Pydantic projection на JSON boundary |
 | P2 | `ParseAttemptStatus` всё ещё определяется в ORM module | Перенести в documents-owned types при перестройке Documents |
-| P2 | Широкие repositories смешивают document, statement, mapping и review queries | Разнести по capability после review persistence boundary |
+| P2 | Imports repositories всё ещё смешивают document, statement и mapping persistence | Разнести по capability на шагах 3, 4 и 7 |
 
 Неисправленные названия, мелкие helpers, механические API mappings и
 организация test tree не являются блокером начала архитектурной миграции.
@@ -510,12 +509,17 @@ bus для синхронной mutation не нужен.
 10. удалить repository forwarding и старые broad repositories;
 11. не оставлять import compatibility facades после внутренних moves.
 
-Снимок на 2026-07-29:
+Baseline до архитектурных moves, 2026-07-29:
 
 ```text
 imports        90 Python-файлов, 11 574 строк
 import_review  20 Python-файлов,  3 117 строк
 ```
+
+После Step 1 ownership перераспределён без изменения количества файлов:
+`imports` — 11 070 строк, `import_review` — 3 651 строк. Общий объём production
+code практически не изменился; целью шага было направление dependencies, а не
+LOC reduction.
 
 Ориентир после безопасных объединений — примерно 55–65 содержательных
 Python-файлов внутри `imports`. Это не KPI: cohesive файл не дробится и не
@@ -643,9 +647,10 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 | Шаг | Статус |
 |---|---|
 | 0. Documentation consolidation | completed 2026-07-29 |
-| Safety baseline | next |
-| 1. Persistence ownership | after baseline |
-| 2–11 | pending |
+| Safety baseline | completed 2026-07-29: Ruff, ty, 601 tests |
+| 1. Persistence ownership | completed 2026-07-29 |
+| 2. Duplicate evidence | next |
+| 3–11 | pending |
 
 ## 15. Gate для каждого шага
 
@@ -729,6 +734,7 @@ Backlog не является причиной откладывать архит
 | 2026-07-28 | `import_review` выделен; API/chat используют общие actors |
 | 2026-07-28 | Ledger больше не управляет import-review mutation |
 | 2026-07-29 | Feature-first target принят как единственный активный план |
+| 2026-07-29 | Review reads, locks, queue, status и links перенесены в `ImportReviewRepository` |
 
 Подробности завершённых implementation plans доступны в Git history и не
 поддерживаются как параллельная активная документация.

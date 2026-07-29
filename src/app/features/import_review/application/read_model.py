@@ -239,9 +239,7 @@ def build_import_review_read_model(
                 else None
             )
             category_id = category.id if category is not None else None
-            category_is_uncategorized = (
-                category.is_uncategorized if category is not None else False
-            )
+            category_is_uncategorized = category.is_uncategorized if category is not None else False
             property_ = (
                 properties_by_id.get(row.suggested_property_id)
                 if row.suggested_property_id is not None

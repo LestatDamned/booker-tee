@@ -89,8 +89,27 @@ class LedgerRepositoryStub:
 
 
 class ImportReviewRepositoryStub:
-    def __init__(self, candidates: list[object] | None = None) -> None:
+    def __init__(
+        self,
+        candidates: list[object] | None = None,
+        raw_repository: object | None = None,
+    ) -> None:
         self.candidates = candidates or []
+        self.raw_repository = raw_repository
+
+    async def get_raw_transaction_for_workspace(self, *args: object) -> object:
+        return await cast(Any, self.raw_repository).get_raw_transaction_for_workspace(*args)
+
+    async def link_raw_transaction_to_operation(
+        self,
+        raw_transaction: object,
+        *,
+        operation_id: UUID,
+    ) -> None:
+        await cast(Any, self.raw_repository).link_raw_transaction_to_operation(
+            raw_transaction,
+            operation_id=operation_id,
+        )
 
     async def list_manual_transfer_candidates_for_raw_transaction(
         self,
@@ -408,9 +427,11 @@ def transfer_actor(
     actor = ImportReviewTransferActor(cast(Any, session))
     actor._imports = cast(Any, imports)
     actor._ledger = cast(Any, ledger)
+    if review_repository is not None:
+        review_repository.raw_repository = imports
     actor._review_repository = cast(
         Any,
-        review_repository or ImportReviewRepositoryStub(),
+        review_repository or imports,
     )
     actor._references = cast(Any, references)
     actor._posting = LedgerPostingService(cast(Any, session))

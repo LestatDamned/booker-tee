@@ -25,9 +25,8 @@ from app.features.imports.models import (
     RawTransaction,
     UploadedDocument,
 )
-from app.features.ledger.models import MoneyEntry, Operation
 
-REVIEWABLE_RAW_TRANSACTION_STATUSES = {
+DOCUMENT_ATTENTION_ROW_STATUSES = {
     RawTransactionStatus.NORMALIZED,
     RawTransactionStatus.SUGGESTED,
     RawTransactionStatus.NEEDS_REVIEW,
@@ -70,16 +69,6 @@ class ImportQueryRepository:
                 selectinload(UploadedDocument.raw_transactions).selectinload(
                     RawTransaction.account
                 ),
-                selectinload(UploadedDocument.raw_transactions)
-                .selectinload(RawTransaction.linked_operation)
-                .selectinload(Operation.category),
-                selectinload(UploadedDocument.raw_transactions)
-                .selectinload(RawTransaction.linked_operation)
-                .selectinload(Operation.property),
-                selectinload(UploadedDocument.raw_transactions)
-                .selectinload(RawTransaction.linked_operation)
-                .selectinload(Operation.money_entries)
-                .selectinload(MoneyEntry.account),
             )
             .where(
                 UploadedDocument.id == document_id,
@@ -118,7 +107,7 @@ class ImportQueryRepository:
                 RawTransaction.uploaded_document_id.label("document_id"),
                 func.count(RawTransaction.id).label("total_row_count"),
                 func.count(RawTransaction.id)
-                .filter(RawTransaction.status.in_(REVIEWABLE_RAW_TRANSACTION_STATUSES))
+                .filter(RawTransaction.status.in_(DOCUMENT_ATTENTION_ROW_STATUSES))
                 .label("reviewable_row_count"),
             )
             .where(RawTransaction.workspace_id == workspace_id)
@@ -323,198 +312,3 @@ class ImportQueryRepository:
             )
         )
         return result.scalar_one()
-
-    async def count_raw_transactions_needing_attention(self, workspace_id: UUID) -> int:
-        result = await self.session.execute(
-            select(func.count())
-            .select_from(RawTransaction)
-            .where(
-                RawTransaction.workspace_id == workspace_id,
-                RawTransaction.status.in_(REVIEWABLE_RAW_TRANSACTION_STATUSES),
-            )
-        )
-        return result.scalar_one()
-
-    async def count_raw_transactions_for_document(
-        self,
-        *,
-        workspace_id: UUID,
-        document_id: UUID,
-    ) -> int:
-        result = await self.session.execute(
-            select(func.count())
-            .select_from(RawTransaction)
-            .where(
-                RawTransaction.workspace_id == workspace_id,
-                RawTransaction.uploaded_document_id == document_id,
-            )
-        )
-        return result.scalar_one()
-
-    async def count_reviewable_raw_transactions_for_document(
-        self,
-        *,
-        workspace_id: UUID,
-        document_id: UUID,
-    ) -> int:
-        result = await self.session.execute(
-            select(func.count())
-            .select_from(RawTransaction)
-            .where(
-                RawTransaction.workspace_id == workspace_id,
-                RawTransaction.uploaded_document_id == document_id,
-                RawTransaction.status.in_(REVIEWABLE_RAW_TRANSACTION_STATUSES),
-            )
-        )
-        return result.scalar_one()
-
-    async def list_reviewable_documents_with_counts(
-        self,
-        *,
-        workspace_id: UUID,
-        limit: int,
-    ) -> list[tuple[UploadedDocument, int]]:
-        reviewable_counts = (
-            select(
-                RawTransaction.uploaded_document_id.label("document_id"),
-                func.count(RawTransaction.id).label("reviewable_count"),
-            )
-            .where(
-                RawTransaction.workspace_id == workspace_id,
-                RawTransaction.status.in_(REVIEWABLE_RAW_TRANSACTION_STATUSES),
-            )
-            .group_by(RawTransaction.uploaded_document_id)
-            .subquery()
-        )
-        result = await self.session.execute(
-            select(UploadedDocument, reviewable_counts.c.reviewable_count)
-            .join(reviewable_counts, reviewable_counts.c.document_id == UploadedDocument.id)
-            .options(selectinload(UploadedDocument.account))
-            .where(UploadedDocument.workspace_id == workspace_id)
-            .order_by(UploadedDocument.created_at.desc())
-            .limit(limit)
-        )
-        return [(document, int(reviewable_count)) for document, reviewable_count in result.all()]
-
-    async def get_next_review_raw_transaction(self, workspace_id: UUID) -> RawTransaction | None:
-        result = await self.session.execute(
-            select(RawTransaction)
-            .join(UploadedDocument)
-            .options(
-                selectinload(RawTransaction.account),
-                selectinload(RawTransaction.uploaded_document),
-                selectinload(RawTransaction.suggested_category),
-            )
-            .where(
-                RawTransaction.workspace_id == workspace_id,
-                RawTransaction.status.in_(REVIEWABLE_RAW_TRANSACTION_STATUSES),
-            )
-            .order_by(UploadedDocument.created_at.desc(), RawTransaction.row_index)
-            .limit(1)
-        )
-        return result.scalar_one_or_none()
-
-    async def get_next_review_raw_transaction_for_document(
-        self,
-        *,
-        workspace_id: UUID,
-        document_id: UUID,
-    ) -> RawTransaction | None:
-        result = await self.session.execute(
-            select(RawTransaction)
-            .options(
-                selectinload(RawTransaction.account),
-                selectinload(RawTransaction.uploaded_document),
-                selectinload(RawTransaction.suggested_category),
-            )
-            .where(
-                RawTransaction.workspace_id == workspace_id,
-                RawTransaction.uploaded_document_id == document_id,
-                RawTransaction.status.in_(REVIEWABLE_RAW_TRANSACTION_STATUSES),
-            )
-            .order_by(RawTransaction.row_index.asc())
-            .limit(1)
-        )
-        return result.scalar_one_or_none()
-
-    async def get_next_review_raw_transaction_after(
-        self,
-        *,
-        workspace_id: UUID,
-        document_id: UUID,
-        current_row_index: int,
-    ) -> RawTransaction | None:
-        result = await self.session.execute(
-            select(RawTransaction)
-            .options(
-                selectinload(RawTransaction.account),
-                selectinload(RawTransaction.uploaded_document),
-                selectinload(RawTransaction.suggested_category),
-            )
-            .where(
-                RawTransaction.workspace_id == workspace_id,
-                RawTransaction.uploaded_document_id == document_id,
-                RawTransaction.status.in_(REVIEWABLE_RAW_TRANSACTION_STATUSES),
-                RawTransaction.row_index > current_row_index,
-            )
-            .order_by(RawTransaction.row_index.asc())
-            .limit(1)
-        )
-        return result.scalar_one_or_none()
-
-    async def get_review_raw_transaction(
-        self,
-        *,
-        workspace_id: UUID,
-        document_id: UUID,
-        raw_transaction_id: UUID,
-    ) -> RawTransaction | None:
-        result = await self.session.execute(
-            select(RawTransaction)
-            .options(
-                selectinload(RawTransaction.account),
-                selectinload(RawTransaction.uploaded_document),
-                selectinload(RawTransaction.suggested_category),
-            )
-            .where(
-                RawTransaction.id == raw_transaction_id,
-                RawTransaction.workspace_id == workspace_id,
-                RawTransaction.uploaded_document_id == document_id,
-            )
-            .limit(1)
-        )
-        return result.scalar_one_or_none()
-
-    async def get_adjacent_review_raw_transaction(
-        self,
-        *,
-        workspace_id: UUID,
-        document_id: UUID,
-        current_row_index: int,
-        direction: str,
-    ) -> RawTransaction | None:
-        query = (
-            select(RawTransaction)
-            .options(
-                selectinload(RawTransaction.account),
-                selectinload(RawTransaction.uploaded_document),
-                selectinload(RawTransaction.suggested_category),
-            )
-            .where(
-                RawTransaction.workspace_id == workspace_id,
-                RawTransaction.uploaded_document_id == document_id,
-                RawTransaction.status.in_(REVIEWABLE_RAW_TRANSACTION_STATUSES),
-            )
-            .limit(1)
-        )
-        if direction == "prev":
-            query = query.where(RawTransaction.row_index < current_row_index).order_by(
-                RawTransaction.row_index.desc(),
-            )
-        else:
-            query = query.where(RawTransaction.row_index > current_row_index).order_by(
-                RawTransaction.row_index.asc(),
-            )
-
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()

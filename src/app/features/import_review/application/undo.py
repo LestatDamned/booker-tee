@@ -9,6 +9,7 @@ from app.features.import_review.application.confirmation import (
     ImportReviewConfirmationConflictError,
 )
 from app.features.import_review.domain.lifecycle import restored_review_status_after_unlink
+from app.features.import_review.repository import ImportReviewRepository
 from app.features.imports.application.pipelines.document_validation import (
     refresh_document_validation,
 )
@@ -43,6 +44,7 @@ class ImportReviewUndoService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._imports = ImportRepository(session)
+        self._review_repository = ImportReviewRepository(session)
         self._ledger = LedgerRepository(session)
         self._correction = ImportedOperationCorrection(session)
 
@@ -53,7 +55,7 @@ class ImportReviewUndoService:
         command: UndoImportReviewPostingCommand,
     ) -> ImportReviewUndoResult:
         try:
-            row = await self._imports.get_raw_transaction_for_workspace(
+            row = await self._review_repository.get_raw_transaction_for_workspace(
                 context.workspace.id,
                 command.document_id,
                 command.item_id,

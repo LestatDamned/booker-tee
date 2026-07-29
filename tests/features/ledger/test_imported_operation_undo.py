@@ -94,6 +94,7 @@ async def test_undo_imported_transfer_restores_all_raw_rows_and_documents(
     imports = ImportRepositoryStub(first_raw, documents)
     service = ImportReviewUndoService(cast(Any, session))
     service._imports = cast(Any, imports)
+    service._review_repository = cast(Any, imports)
     service._ledger = cast(Any, LedgerRepositoryStub(operation))
     refreshed: list[UUID] = []
 
@@ -155,6 +156,7 @@ async def test_unlink_from_manual_transfer_preserves_manual_operation(
     imports = ImportRepositoryStub(raw_transaction, {document_id: document})
     service = ImportReviewUndoService(cast(Any, session))
     service._imports = cast(Any, imports)
+    service._review_repository = cast(Any, imports)
     service._ledger = cast(Any, LedgerRepositoryStub(operation))
 
     async def refresh(_repository: object, _document: object) -> None:
@@ -210,7 +212,9 @@ async def test_undo_replay_restores_cross_document_result() -> None:
     )
     session = SessionStub()
     service = ImportReviewUndoService(cast(Any, session))
-    service._imports = cast(Any, ImportRepositoryStub(raw_transaction, {}))
+    imports = ImportRepositoryStub(raw_transaction, {})
+    service._imports = cast(Any, imports)
+    service._review_repository = cast(Any, imports)
     service._ledger = cast(Any, LedgerRepositoryStub(operation))
 
     result = await service.execute(

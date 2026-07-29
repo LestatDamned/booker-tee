@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.import_review.domain.posting import raw_transaction_effective_account_id
 from app.features.import_review.repository import ImportReviewRepository
 from app.features.imports.models import RawTransaction
-from app.features.imports.repository import ImportRepository
 from app.features.ledger.models import MoneyEntry, Operation
 
 
@@ -28,7 +27,6 @@ class ExistingTransferSuggestion:
 
 class TransferSuggestionUseCase:
     def __init__(self, session: AsyncSession) -> None:
-        self.imports = ImportRepository(session)
         self.review_repository = ImportReviewRepository(session)
 
     async def list_for_document(
@@ -37,9 +35,11 @@ class TransferSuggestionUseCase:
         workspace_id: UUID,
         raw_transactions: list[RawTransaction],
     ) -> dict[UUID, list[TransferSuggestion]]:
-        candidates = await self.imports.list_transfer_candidate_raw_transactions_for_sources(
-            workspace_id=workspace_id,
-            raw_transactions=raw_transactions,
+        candidates = (
+            await self.review_repository.list_transfer_candidate_raw_transactions_for_sources(
+                workspace_id=workspace_id,
+                raw_transactions=raw_transactions,
+            )
         )
         suggestions: dict[UUID, list[TransferSuggestion]] = {}
         for raw_transaction in raw_transactions:

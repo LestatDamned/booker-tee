@@ -22,6 +22,17 @@ TERMINAL_REVIEW_STATUSES = frozenset(
     }
 )
 
+REVIEW_QUEUE_STATUSES = frozenset(
+    {
+        RawTransactionStatus.NORMALIZED,
+        RawTransactionStatus.SUGGESTED,
+        RawTransactionStatus.NEEDS_REVIEW,
+        RawTransactionStatus.MATCHED,
+        RawTransactionStatus.POSSIBLE_DUPLICATE,
+        RawTransactionStatus.FAILED,
+    }
+)
+
 
 @dataclass(frozen=True)
 class ReviewQueueSnapshot:
