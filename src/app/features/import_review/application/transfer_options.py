@@ -12,9 +12,9 @@ from app.features.import_review.domain.classification import resolve_review_clas
 from app.features.import_review.domain.posting import raw_transaction_effective_account_id
 from app.features.import_review.repository import ImportReviewRepository
 from app.features.import_review.schemas.review import (
+    ImportReviewAccountDto,
     ImportReviewExistingTransferCandidateDto,
     ImportReviewRawTransferCandidateDto,
-    ImportReviewTransferAccountDto,
     ImportReviewTransferDirection,
     ImportReviewTransferOptionsDto,
 )
@@ -315,7 +315,7 @@ class ImportReviewTransferReader:
         *,
         workspace_id: UUID,
         source_account_id: UUID | None,
-    ) -> ImportReviewTransferAccountDto | None:
+    ) -> ImportReviewAccountDto | None:
         operation = getattr(row, "linked_operation", None)
         if (
             operation is None
@@ -340,18 +340,14 @@ class ImportReviewTransferReader:
         self,
         account: Account | None,
         workspace_id: UUID,
-    ) -> ImportReviewTransferAccountDto | None:
+    ) -> ImportReviewAccountDto | None:
         if account is None or account.workspace_id != workspace_id:
             return None
         return self._account(account)
 
     @staticmethod
-    def _account(account: Account) -> ImportReviewTransferAccountDto:
-        return ImportReviewTransferAccountDto(
-            id=account.id,
-            name=account.name,
-            currency=account.currency,
-        )
+    def _account(account: Account) -> ImportReviewAccountDto:
+        return ImportReviewAccountDto.model_validate(account)
 
     @staticmethod
     def _direction(amount: Decimal | None) -> ImportReviewTransferDirection | None:

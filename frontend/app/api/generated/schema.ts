@@ -1876,7 +1876,7 @@ export interface components {
             amount: components["schemas"]["MoneyString"];
             /** Currency */
             currency: string;
-            counterpartyAccount: components["schemas"]["ImportReviewTransferAccountApiResponse"] | null;
+            counterpartyAccount: components["schemas"]["ImportReviewAccountApiResponse"] | null;
             /** Daydistance */
             dayDistance: number;
         };
@@ -2081,7 +2081,7 @@ export interface components {
             amount: components["schemas"]["MoneyString"];
             /** Currency */
             currency: string;
-            account: components["schemas"]["ImportReviewTransferAccountApiResponse"];
+            account: components["schemas"]["ImportReviewAccountApiResponse"];
             /** Daydistance */
             dayDistance: number;
         };
@@ -2162,18 +2162,6 @@ export interface components {
             /** Propertyid */
             propertyId: string | null;
         };
-        /** ImportReviewTransferAccountApiResponse */
-        ImportReviewTransferAccountApiResponse: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Name */
-            name: string;
-            /** Currency */
-            currency: string;
-        };
         /**
          * ImportReviewTransferDirection
          * @enum {string}
@@ -2198,10 +2186,10 @@ export interface components {
             direction: components["schemas"]["ImportReviewTransferDirection"] | null;
             /** Ordinaryoperationtype */
             ordinaryOperationType: ("income" | "expense") | null;
-            sourceAccount: components["schemas"]["ImportReviewTransferAccountApiResponse"] | null;
-            counterpartyAccount: components["schemas"]["ImportReviewTransferAccountApiResponse"] | null;
+            sourceAccount: components["schemas"]["ImportReviewAccountApiResponse"] | null;
+            counterpartyAccount: components["schemas"]["ImportReviewAccountApiResponse"] | null;
             /** Accounts */
-            accounts: components["schemas"]["ImportReviewTransferAccountApiResponse"][];
+            accounts: components["schemas"]["ImportReviewAccountApiResponse"][];
             /** Rawrowcandidates */
             rawRowCandidates: components["schemas"]["ImportReviewRawTransferCandidateApiResponse"][];
             /** Existingoperationcandidates */

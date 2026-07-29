@@ -916,6 +916,8 @@ repository abstraction. Существующие API-преобразовани�
   format в API schemas и удалить изоморфный response mapper;
 - 8B: оформить `import_review` как самостоятельную feature с локальными
   `schemas`, `application` и `domain`, убрать механический command/query split;
+- 8C: удалить изоморфные Pydantic constructors и повторяющиеся persistence
+  query fragments, не скрывая вычисляемые review projections;
 - сохранить domain policies отдельными только при самостоятельной
   ответственности.
 
@@ -945,8 +947,19 @@ tests импортируют contracts и actors непосредственно 
 Transaction ownership и поведение не менялись.
 
 Это этап улучшения навигации и ownership, а не искусственного уменьшения LOC.
-После исправления `import_review` содержит 20 Python-файлов и 3 633 строки:
+После исправления `import_review` содержит 20 Python-файлов и 3 638 строк:
 меньше файлов, чем command/query вариант, без параллельных реализаций.
+
+8C завершён 2026-07-29. Изоморфные преобразования queue, account,
+classification, confirmability, property reference и balance-chain заменены
+прямыми `Model.model_validate(...)`. Одинаковые account contracts для обычного
+review и transfer options объединены; соответствующий дублирующий API response
+также удалён. Три raw-row lock query используют один repository query builder.
+
+Вычисляемые `raw`/`normalized` projections, validation totals, duplicate
+evidence и posting capability оставлены явными: их поля не изоморфны source
+models, поэтому Pydantic aliases лишь спрятали бы mapping. `import_review`
+содержит 20 Python-файлов и 3 594 строки.
 
 ### Шаг 9. Удаление старой структуры
 
@@ -1086,6 +1099,7 @@ test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
 | 7D. Mapping analysis consolidation and old-path cleanup | completed 2026-07-29 |
 | 8A. Import Review Pydantic read contracts and API mapper cleanup | completed 2026-07-29 |
 | 8B. Import Review local layered feature | completed 2026-07-29 |
+| 8C. Import Review Pydantic and query simplification | completed 2026-07-29 |
 | 10A. Documents Pydantic models and mechanical mapping cleanup | completed 2026-07-29 |
 | 10B. Upload data contracts | completed 2026-07-29 |
 | 10C. Statements Pydantic contracts and JSON cleanup | completed 2026-07-29 |

@@ -98,15 +98,15 @@ class ImportReviewDuplicateEvidenceDto(ApplicationModel):
     candidate: ImportReviewDuplicateCandidateDto
 
 
-class ImportReviewTransferDirection(StrEnum):
-    SOURCE_TO_COUNTERPARTY = "source_to_counterparty"
-    COUNTERPARTY_TO_SOURCE = "counterparty_to_source"
-
-
-class ImportReviewTransferAccountDto(ApplicationModel):
+class ImportReviewAccountDto(ApplicationModel):
     id: UUID
     name: str
     currency: str
+
+
+class ImportReviewTransferDirection(StrEnum):
+    SOURCE_TO_COUNTERPARTY = "source_to_counterparty"
+    COUNTERPARTY_TO_SOURCE = "counterparty_to_source"
 
 
 class ImportReviewRawTransferCandidateDto(ApplicationModel):
@@ -117,7 +117,7 @@ class ImportReviewRawTransferCandidateDto(ApplicationModel):
     description: str | None
     amount: Decimal
     currency: str
-    account: ImportReviewTransferAccountDto
+    account: ImportReviewAccountDto
     day_distance: int
 
 
@@ -127,16 +127,16 @@ class ImportReviewExistingTransferCandidateDto(ApplicationModel):
     description: str | None
     amount: Decimal
     currency: str
-    counterparty_account: ImportReviewTransferAccountDto | None
+    counterparty_account: ImportReviewAccountDto | None
     day_distance: int
 
 
 class ImportReviewTransferOptionsDto(ApplicationModel):
     direction: ImportReviewTransferDirection | None
     ordinary_operation_type: Literal[OperationType.INCOME, OperationType.EXPENSE] | None
-    source_account: ImportReviewTransferAccountDto | None
-    counterparty_account: ImportReviewTransferAccountDto | None
-    accounts: tuple[ImportReviewTransferAccountDto, ...]
+    source_account: ImportReviewAccountDto | None
+    counterparty_account: ImportReviewAccountDto | None
+    accounts: tuple[ImportReviewAccountDto, ...]
     raw_row_candidates: tuple[ImportReviewRawTransferCandidateDto, ...]
     existing_operation_candidates: tuple[ImportReviewExistingTransferCandidateDto, ...]
 
@@ -207,12 +207,6 @@ class ImportReviewValidationDto(ApplicationModel):
 
 class ImportReviewReadonlyReasonCode(StrEnum):
     FINANCIAL_WRITE_FORBIDDEN = "financial_write_forbidden"
-
-
-class ImportReviewAccountDto(ApplicationModel):
-    id: UUID
-    name: str
-    currency: str
 
 
 class ImportReviewCapabilitiesDto(ApplicationModel):

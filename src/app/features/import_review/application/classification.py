@@ -175,8 +175,7 @@ def build_import_review_references(
     return ImportReviewReferencesDto(
         categories=tuple(category_reference_dto(category) for category in categories),
         properties=tuple(
-            ImportReviewPropertyReferenceDto(id=property_.id, name=property_.name)
-            for property_ in properties
+            ImportReviewPropertyReferenceDto.model_validate(property_) for property_ in properties
         ),
     )
 
@@ -212,18 +211,12 @@ def build_import_review_draft_evaluation(
     )
     return ImportReviewDraftEvaluationDto(
         item_id=row.id,
-        classification=ImportReviewClassificationDto(
-            operation_type=classification.operation_type,
-            source=classification.source,
-        ),
+        classification=ImportReviewClassificationDto.model_validate(classification),
         selection=ImportReviewSelectionDto(
             category_id=category_id,
             property_id=property_id,
         ),
-        confirmability=ImportReviewConfirmabilityDto(
-            can_confirm=confirmability.can_confirm,
-            blocking_reason_codes=confirmability.blocking_reason_codes,
-        ),
+        confirmability=ImportReviewConfirmabilityDto.model_validate(confirmability),
         rule_suggestion=rule_suggestion_dto(row),
     )
 

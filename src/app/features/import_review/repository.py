@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.base import ExecutableOption
@@ -314,18 +314,10 @@ class ImportReviewRepository:
         raw_transaction_id: UUID,
     ) -> RawTransaction | None:
         result = await self.session.execute(
-            select(RawTransaction)
-            .options(
-                selectinload(RawTransaction.uploaded_document).selectinload(
-                    UploadedDocument.account
-                ),
-            )
-            .where(
+            self._locked_raw_transactions_query(workspace_id).where(
                 RawTransaction.id == raw_transaction_id,
-                RawTransaction.workspace_id == workspace_id,
                 RawTransaction.uploaded_document_id == document_id,
             )
-            .with_for_update()
         )
         return result.scalar_one_or_none()
 
@@ -335,17 +327,9 @@ class ImportReviewRepository:
         raw_transaction_id: UUID,
     ) -> RawTransaction | None:
         result = await self.session.execute(
-            select(RawTransaction)
-            .options(
-                selectinload(RawTransaction.uploaded_document).selectinload(
-                    UploadedDocument.account
-                ),
+            self._locked_raw_transactions_query(workspace_id).where(
+                RawTransaction.id == raw_transaction_id
             )
-            .where(
-                RawTransaction.id == raw_transaction_id,
-                RawTransaction.workspace_id == workspace_id,
-            )
-            .with_for_update()
         )
         return result.scalar_one_or_none()
 
@@ -358,20 +342,26 @@ class ImportReviewRepository:
         if not raw_transaction_ids:
             return []
         result = await self.session.execute(
+            self._locked_raw_transactions_query(workspace_id)
+            .where(RawTransaction.id.in_(raw_transaction_ids))
+            .order_by(RawTransaction.id)
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
+    def _locked_raw_transactions_query(
+        workspace_id: UUID,
+    ) -> Select[tuple[RawTransaction]]:
+        return (
             select(RawTransaction)
             .options(
                 selectinload(RawTransaction.uploaded_document).selectinload(
                     UploadedDocument.account
-                ),
+                )
             )
-            .where(
-                RawTransaction.workspace_id == workspace_id,
-                RawTransaction.id.in_(raw_transaction_ids),
-            )
-            .order_by(RawTransaction.id)
+            .where(RawTransaction.workspace_id == workspace_id)
             .with_for_update()
         )
-        return list(result.scalars().all())
 
     async def list_transfer_candidate_raw_transactions(
         self,

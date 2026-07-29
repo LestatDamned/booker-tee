@@ -58,7 +58,6 @@ from app.features.import_review.schemas.review import (
     ImportReviewRowProblemDto,
     ImportReviewRuleSuggestionDto,
     ImportReviewSelectionDto,
-    ImportReviewTransferAccountDto,
     ImportReviewTransferDirection,
     ImportReviewTransferOptionsDto,
     ImportReviewValidationDto,
@@ -182,12 +181,12 @@ def test_import_review_exposes_readonly_capability_for_viewer() -> None:
 def test_import_review_exposes_transfer_account_references() -> None:
     review = review_model()
     assert review.document.source_account is not None
-    source = ImportReviewTransferAccountDto(
+    source = ImportReviewAccountDto(
         id=review.document.source_account.id,
         name=review.document.source_account.name,
         currency=review.document.source_account.currency,
     )
-    counterparty = ImportReviewTransferAccountDto(
+    counterparty = ImportReviewAccountDto(
         id=uuid4(),
         name="Накопительный счёт",
         currency="RUB",

@@ -103,12 +103,6 @@ class ImportReviewPostingApiResponse(ApiModel):
     can_undo: bool
 
 
-class ImportReviewTransferAccountApiResponse(ApiModel):
-    id: UUID
-    name: str
-    currency: str
-
-
 class ImportReviewRawTransferCandidateApiResponse(ApiModel):
     item_id: UUID
     document_id: UUID
@@ -117,7 +111,7 @@ class ImportReviewRawTransferCandidateApiResponse(ApiModel):
     description: str | None
     amount: MoneyString
     currency: str
-    account: ImportReviewTransferAccountApiResponse
+    account: ImportReviewAccountApiResponse
     day_distance: int
 
 
@@ -127,16 +121,16 @@ class ImportReviewExistingTransferCandidateApiResponse(ApiModel):
     description: str | None
     amount: MoneyString
     currency: str
-    counterparty_account: ImportReviewTransferAccountApiResponse | None
+    counterparty_account: ImportReviewAccountApiResponse | None
     day_distance: int
 
 
 class ImportReviewTransferOptionsApiResponse(ApiModel):
     direction: ImportReviewTransferDirection | None
     ordinary_operation_type: Literal[OperationType.INCOME, OperationType.EXPENSE] | None
-    source_account: ImportReviewTransferAccountApiResponse | None
-    counterparty_account: ImportReviewTransferAccountApiResponse | None
-    accounts: list[ImportReviewTransferAccountApiResponse]
+    source_account: ImportReviewAccountApiResponse | None
+    counterparty_account: ImportReviewAccountApiResponse | None
+    accounts: list[ImportReviewAccountApiResponse]
     raw_row_candidates: list[ImportReviewRawTransferCandidateApiResponse]
     existing_operation_candidates: list[ImportReviewExistingTransferCandidateApiResponse]
 

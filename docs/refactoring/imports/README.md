@@ -64,6 +64,7 @@ Safety baseline
 Шаг 8  import review local layered feature
   -> 8A Pydantic read contracts and API mapper cleanup completed 2026-07-29
   -> 8B schemas/application/domain structure completed 2026-07-29
+  -> 8C Pydantic and query simplification completed 2026-07-29
 
 Шаг 10  post-architecture cleanup
   -> 10A documents Pydantic models and mechanical mapping cleanup completed 2026-07-29

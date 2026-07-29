@@ -260,13 +260,7 @@ def build_import_review_read_model(
             status=document.status,
             source_account=document_account,
         ),
-        queue=ImportReviewQueueDto(
-            total=queue.total,
-            completed=queue.completed,
-            remaining=queue.remaining,
-            first_remaining_item_id=queue.first_remaining_item_id,
-            ordered_item_ids=queue.ordered_item_ids,
-        ),
+        queue=ImportReviewQueueDto.model_validate(queue),
         items=items,
         references=references,
         validation=build_import_review_validation(document),
@@ -339,13 +333,7 @@ def _item_dto(
 
 
 def _account_dto(account: Account | None) -> ImportReviewAccountDto | None:
-    if account is None:
-        return None
-    return ImportReviewAccountDto(
-        id=account.id,
-        name=account.name,
-        currency=account.currency,
-    )
+    return ImportReviewAccountDto.model_validate(account) if account is not None else None
 
 
 def _posting_dto(row: RawTransaction) -> ImportReviewPostingDto:
@@ -390,12 +378,7 @@ def build_import_review_validation(
         outflow_difference=report.outflow_difference,
         unexplained_inflow_difference=report.unexplained_inflow_difference,
         unexplained_outflow_difference=report.unexplained_outflow_difference,
-        balance_chain=ImportReviewBalanceChainDto(
-            status=report.balance_chain.status,
-            direction=report.balance_chain.direction,
-            checked_pair_count=report.balance_chain.checked_pair_count,
-            mismatch_count=report.balance_chain.mismatch_count,
-        ),
+        balance_chain=ImportReviewBalanceChainDto.model_validate(report.balance_chain),
         row_problems=_row_problems(document.raw_transactions, report),
     )
 
