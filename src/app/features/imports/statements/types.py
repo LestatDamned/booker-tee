@@ -1,17 +1,6 @@
 from enum import StrEnum
 
 
-class UploadedDocumentStatus(StrEnum):
-    UPLOADED = "uploaded"
-    PENDING_PARSE = "pending_parse"
-    PARSING = "parsing"
-    PARSED = "parsed"
-    REQUIRES_REVIEW = "requires_review"
-    FAILED_TO_PARSE = "failed_to_parse"
-    IMPORTED = "imported"
-    IGNORED = "ignored"
-
-
 class RawTransactionStatus(StrEnum):
     EXTRACTED = "extracted"
     NORMALIZED = "normalized"

@@ -4,9 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
-from app.features.imports.parsing.parser_types import RawTransactionDraft
 from app.features.imports.parsing.support.common import (
     build_raw_transaction_draft,
     cell,
@@ -19,6 +17,7 @@ from app.features.imports.parsing.support.normalization import (
     normalize_description,
     parse_money_amount,
 )
+from app.features.imports.statements.dto import RawTransactionDraft, StatementControlTotals
 
 OZON_BANK_MARKERS = ("озон банк", "ozon bank", "ozon банк")
 OZON_TABLE_HEADERS = ("Дата операции", "Назначение платежа", "Сумма операции")

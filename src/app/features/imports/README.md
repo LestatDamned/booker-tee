@@ -135,12 +135,12 @@ extracted statement data
 -> validation/deduplication/review
 ```
 
-Целевой пакет:
+Application workflow:
 
 ```text
-application/known_statements/
-  pipeline.py
-  strategy.py
+statements/process.py
+  StatementParseCompletionService.complete_successful_attempt()
+  KnownStatementImportPipeline.import_parsed_transactions()
 ```
 
 Банковские парсеры остаются в нижнем слое:
@@ -167,7 +167,7 @@ parsing/parsers/
 
 ```text
 parsing/parsers/* = как прочитать конкретный банковский формат выписки
-application/known_statements/* = что приложение делает с результатом парсера
+statements/process.py = что приложение делает с результатом парсера
 ```
 
 ### Unknown statement fallback
@@ -233,44 +233,36 @@ Review-слой не должен знать, каким способом стр
 
 ```text
 imports/
-  service.py
-  repository.py
-  query_repository.py
   models.py
   errors.py
 
-  application/
-    documents/
-      upload.py
-      management.py
-      parse_attempts.py
-
-    review/
-      status.py
-
-    pipelines/
-      statement_import.py
-      context.py
-      steps.py
-
-    known_statements/
-      pipeline.py
-      strategy.py
-
-import_review/
-  application/
-    classification.py
-    confirmation.py
-    duplicate_evidence.py
+  documents/
+    dto.py
+    types.py
+    errors.py
     lifecycle.py
-    read_model.py
-    rules.py
-    transfer_options.py
-    transfer_suggestions.py
-    transfers.py
-    undo.py
-    validation_read_model.py
+    attempts.py
+    validation_report.py
+    storage.py
+    repository.py
+    commands/
+      upload.py
+      manage.py
+    queries/
+      list.py
+      detail.py
 
+  statements/
+    dto.py
+    types.py
+    process.py
+    raw_transactions.py
+    deduplication.py
+    validation.py
+    validation_service.py
+    repository.py
+
+  application/
     unknown_statements/
       analyzer.py
       analysis_models.py
@@ -297,17 +289,10 @@ import_review/
       row_mapping.py
       drafts.py
 
-  domain/
-    control_totals.py
-    deduplication.py
-    validation.py
-
   mapping/
-    dto.py
-    raw_transaction_mapper.py
+    repository.py
 
   infrastructure/
-    storage.py
     extraction/
       extracted_statement.py
       pdfplumber_extractor.py
@@ -336,6 +321,11 @@ import_review/
         card.py
       alfabank/
         xlsx.py
+
+import_review/
+  application/
+  domain/
+  repository.py
 ```
 
 This target map is a direction, not a required big-bang rewrite. Move files
@@ -512,34 +502,34 @@ import path easy to test.
 - `documents/` - document commands, DTO, list/detail queries, repository,
   lifecycle, parse attempts, storage, errors and persisted document-owned
   types.
-- `application/processing.py` - parse success orchestrator: stores extracted
-  statement data, selects a known parser or unknown fallback, then runs the
-  matching pipeline.
-- `application/pipelines/` - shared import pipeline steps: deduplication
-  orchestration, review-required attempts, and document validation
-  calculation/persistence.
-- `application/known_statements/` - known bank parser pipeline: drafts, raw rows, deduplication, rules, validation.
+- `statements/process.py` - parse completion and known parser import workflows
+  with explicit `Class.action` APIs.
+- `statements/dto.py`, `types.py`, `raw_transactions.py` - shared parser/mapping
+  result, row status and `RawTransactionMapper`.
+- `statements/deduplication.py` - duplicate policy and persistence-aware
+  `RawTransactionDeduplicator`.
+- `statements/validation.py`, `validation_service.py` - pure validation and
+  document/attempt persistence orchestration.
+- `statements/repository.py` - raw row creation, dedupe lookups and
+  superseding.
 - `application/unknown_statements/` - unknown statement fallback and analysis internals: fallback/template pipeline, hints, DTOs, table detection, column profiles, profile helpers, suggestions, suggestion scoring, continuations, and control totals.
 - `application/unknown_statement_mappings/` - unknown statement mapping workflows
   and internals: mapping engine, idempotent import use case, template use case,
   template matching, table signatures, mapping defaults, typed command
   validation, DTOs, raw table navigation, row mapping, and draft conversion.
-- `domain/control_totals.py` - statement balance and inflow/outflow control totals.
 - `documents/lifecycle.py` - document status transition matrix, review status
   resolution and linked-operation predicate.
-- `domain/deduplication.py` - pure duplicate fingerprint and classification
-  policy.
-- `domain/validation.py` - pure statement total validation logic.
-- `mapping/raw_transaction_mapper.py` - `RawTransactionDraft` to ORM model mapping.
 - `documents/queries/detail.py` и `/api/v1/imports/documents/{id}`
   владеют безопасной typed projection React document detail; technical storage
   paths и полный raw payload в browser DTO не входят.
 - `errors.py` - temporary shared mapping/review exceptions until their owning
   capabilities move.
-- `repository.py` - statement and mapping persistence pending later steps.
+- `mapping/repository.py` - mapping templates and execution persistence pending
+  the full mapping move.
 - `documents/storage.py` - local upload storage.
 - `infrastructure/extraction/` - file extraction adapters such as PDF and XLSX.
-- `parsing/parser_types.py` - parser contracts and parser-facing value objects.
+- `parsing/parser_types.py` - parser protocol; shared result values live in
+  `statements/dto.py`.
 - `parsing/registry.py` - parser registry for known statement parsers.
 - `parsing/support/` - shared parser helpers such as normalization and draft building.
 - `parsing/parsers/` - bank and statement-type parser plugins.
@@ -566,9 +556,8 @@ separate screen family.
 Prefer explicit imports from concrete modules over package-level re-export
 barrels. For example, import upload validation from
 `documents/commands/upload.py`, the pure deduplication policy from
-`domain/deduplication.py`, deduplication orchestration from
-`application/pipelines/deduplication.py`, and concrete bank parsers from their
-parser modules.
+`statements/deduplication.py`, and concrete bank parsers from their parser
+modules.
 
 Do not use broad `__all__` barrels as the normal import style inside this
 feature. A reader should be able to understand ownership from the import path.
@@ -688,9 +677,9 @@ implementation details into the cohesive packages underneath
    completed `documents` capability.
 3. Keep review lifecycle and user actions in the sibling `import_review`
    feature; imports retains document validation and persistence.
-4. Keep `application/processing.py` as a thin parse-success story:
-   store extracted statement data, resolve strategy, then run known parser or
-   unknown fallback.
+4. Keep `StatementParseCompletionService.complete_successful_attempt()` as the
+   explicit parse-success workflow: store extracted data, select known parser
+   or unknown fallback, then delegate to the named pipeline action.
 5. Add dedicated Alfa XLSX parser.
 6. Add dedicated Ozon Bank card PDF parser.
 7. Add dedicated T-Bank card parser or a narrowly scoped text-layout parser.

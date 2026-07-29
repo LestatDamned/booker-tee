@@ -38,7 +38,7 @@ from app.features.chat_integrations.use_cases.review import (
 )
 from app.features.chat_integrations.use_cases.review.actions import ChatReviewActionService
 from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
-from app.features.imports.domain.types import RawTransactionStatus
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.workspaces.service import WorkspaceContext
 
 

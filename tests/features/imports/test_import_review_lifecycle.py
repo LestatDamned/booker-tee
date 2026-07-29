@@ -17,8 +17,8 @@ from app.features.import_review.domain.lifecycle import (
     resolve_import_review_lifecycle_transition,
     restored_review_status_after_unlink,
 )
-from app.features.imports.domain.types import RawTransactionStatus
-from app.features.imports.models import UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.statements.types import RawTransactionStatus
 
 
 @pytest.mark.parametrize(

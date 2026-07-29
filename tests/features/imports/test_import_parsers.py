@@ -6,7 +6,6 @@ from app.features.imports.infrastructure.extraction.pdfplumber_extractor import 
     ExtractedPdfPageTables,
     PdfPlumberExtractor,
 )
-from app.features.imports.models import RawTransactionStatus
 from app.features.imports.parsing.parsers.alfabank.xlsx import AlfabankXlsxStatementParser
 from app.features.imports.parsing.parsers.expobank.card import ExpobankCardStatementParser
 from app.features.imports.parsing.parsers.ozon_bank.card import OzonBankCardStatementParser
@@ -20,6 +19,7 @@ from app.features.imports.parsing.support.normalization import (
     parse_bank_date,
     parse_money_amount,
 )
+from app.features.imports.statements.types import RawTransactionStatus
 
 
 def test_expobank_parser_creates_normalized_raw_transactions_from_fixture() -> None:

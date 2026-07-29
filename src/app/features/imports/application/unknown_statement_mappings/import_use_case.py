@@ -5,9 +5,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.imports.application.pipelines.deduplication import (
-    RawTransactionDeduplicator,
-)
 from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
     MappingControlTotalKind,
     resolve_mapping_control_totals,
@@ -43,17 +40,14 @@ from app.features.imports.documents.attempts import (
 )
 from app.features.imports.documents.lifecycle import transition_document_status
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.documents.types import ParseAttemptStatus
-from app.features.imports.domain.control_totals import StatementControlTotals
-from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
-from app.features.imports.domain.validation import validate_statement_totals
+from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
 from app.features.imports.errors import (
     MappingImportIdempotencyConflictError,
     MappingImportNotFoundError,
     MappingImportUnavailableError,
     UnknownStatementMappingError,
 )
-from app.features.imports.mapping.raw_transaction_mapper import RawTransactionMapper
+from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.models import (
     ImportMappingExecution,
     ImportMappingTemplate,
@@ -61,7 +55,14 @@ from app.features.imports.models import (
     RawTransaction,
     UploadedDocument,
 )
-from app.features.imports.repository import ImportRepository
+from app.features.imports.statements.deduplication import (
+    RawTransactionDeduplicator,
+)
+from app.features.imports.statements.dto import StatementControlTotals
+from app.features.imports.statements.raw_transactions import RawTransactionMapper
+from app.features.imports.statements.repository import StatementRepository
+from app.features.imports.statements.types import RawTransactionStatus
+from app.features.imports.statements.validation import validate_statement_totals
 from app.features.transaction_rules.application.rule_application import (
     TransactionRuleApplicationUseCase,
 )
@@ -79,7 +80,8 @@ class UnknownStatementMappingImportUseCase:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.documents = DocumentRepository(session)
-        self.imports = ImportRepository(session)
+        self.mappings = MappingRepository(session)
+        self.statements = StatementRepository(session)
 
     async def import_mapped_rows_idempotently(
         self,
@@ -104,7 +106,7 @@ class UnknownStatementMappingImportUseCase:
         if document is None:
             raise MappingImportNotFoundError("Документ не найден.")
 
-        existing = await self.imports.get_mapping_execution(
+        existing = await self.mappings.get_mapping_execution(
             workspace_id=workspace_id,
             document_id=document_id,
             idempotency_key=idempotency_key,
@@ -125,7 +127,7 @@ class UnknownStatementMappingImportUseCase:
         raw_transactions = await create_raw_transactions_from_mapping(
             session=self.session,
             documents=self.documents,
-            imports=self.imports,
+            statements=self.statements,
             document=document,
             attempt=attempt,
             spec=spec,
@@ -146,7 +148,7 @@ class UnknownStatementMappingImportUseCase:
             if normalized_template_name is not None
             else None
         )
-        await self.imports.create_mapping_execution(
+        await self.mappings.create_mapping_execution(
             ImportMappingExecution(
                 workspace_id=workspace_id,
                 uploaded_document_id=document.id,
@@ -228,14 +230,14 @@ class UnknownStatementMappingImportUseCase:
                 raw_tables=raw_tables,
             ),
         )
-        return await self.imports.create_mapping_template(template)
+        return await self.mappings.create_mapping_template(template)
 
 
 async def create_raw_transactions_from_mapping(
     *,
     session: AsyncSession,
     documents: DocumentRepository,
-    imports: ImportRepository,
+    statements: StatementRepository,
     document: UploadedDocument,
     attempt: ParseAttempt,
     spec: StatementMappingSpec,
@@ -256,8 +258,8 @@ async def create_raw_transactions_from_mapping(
         raise UnknownStatementMappingError("No rows matched the selected mapping.")
 
     if supersede_existing_rows:
-        await imports.mark_reviewable_raw_transactions_superseded(document)
-    raw_transactions = await imports.create_raw_transactions(
+        await statements.mark_reviewable_rows_superseded(document)
+    raw_transactions = await statements.create_raw_transactions(
         RawTransactionMapper.from_drafts(
             UnknownStatementDraftMapper(
                 spec=spec,
@@ -268,7 +270,7 @@ async def create_raw_transactions_from_mapping(
             parse_attempt_id=attempt.id,
         )
     )
-    await RawTransactionDeduplicator(imports).mark_duplicate_candidates(
+    await RawTransactionDeduplicator(statements).mark_duplicate_candidates(
         workspace_id=document.workspace_id,
         raw_transactions=raw_transactions,
         exclude_document_id=exclude_duplicate_document_id,

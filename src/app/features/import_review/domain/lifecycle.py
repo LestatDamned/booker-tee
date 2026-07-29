@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
-from app.features.imports.domain.types import RawTransactionStatus
+from app.features.imports.statements.types import RawTransactionStatus
 
 
 class ImportReviewLifecycleAction(StrEnum):

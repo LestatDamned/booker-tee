@@ -10,12 +10,10 @@ from app.features.import_review.application.confirmation import (
 )
 from app.features.import_review.domain.lifecycle import restored_review_status_after_unlink
 from app.features.import_review.repository import ImportReviewRepository
-from app.features.imports.application.pipelines.document_validation import (
-    refresh_document_validation,
-)
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.domain.types import UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.errors import RawTransactionReviewError
+from app.features.imports.statements.validation_service import StatementValidationService
 from app.features.ledger.application.imported_operations import ImportedOperationCorrection
 from app.features.ledger.domain.types import OperationSource, OperationStatus
 from app.features.ledger.errors import LedgerPostingError
@@ -172,7 +170,7 @@ class ImportReviewUndoService:
             )
             if document is None:
                 continue
-            await refresh_document_validation(self._documents, document)
+            await StatementValidationService(self._documents).refresh_for_document(document)
             await self._documents.mark_document_status(
                 document,
                 UploadedDocumentStatus.REQUIRES_REVIEW,

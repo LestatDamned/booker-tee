@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
 from app.features.accounts.repository import AccountRepository
-from app.features.imports.application.processing import StatementParseProcessor
 from app.features.imports.documents.attempts import (
     PARSER_EXCEPTIONS,
     create_running_parse_attempt,
@@ -23,18 +22,20 @@ from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.documents.storage import UploadStorage
 from app.features.imports.documents.types import (
     UploadedDocumentSource,
+    UploadedDocumentStatus,
     UploadedDocumentType,
 )
-from app.features.imports.domain.types import UploadedDocumentStatus
 from app.features.imports.infrastructure.extraction.resolver import (
     SUPPORTED_STATEMENT_EXTENSIONS,
     StatementExtractorResolver,
 )
+from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.models import (
     UploadedDocument,
 )
 from app.features.imports.parsing.registry import default_statement_parser_registry
-from app.features.imports.repository import ImportRepository
+from app.features.imports.statements.process import StatementParseCompletionService
+from app.features.imports.statements.repository import StatementRepository
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -50,13 +51,15 @@ class StatementUploadUseCase:
         self.settings = settings
         self.accounts = AccountRepository(session)
         self.documents = DocumentRepository(session)
-        self.imports = ImportRepository(session)
+        self.mappings = MappingRepository(session)
+        self.statements = StatementRepository(session)
         self.storage = UploadStorage(settings.upload_storage_dir)
         self.extractor = StatementExtractorResolver()
-        self.parse_processor = StatementParseProcessor(
+        self.parse_completion = StatementParseCompletionService(
             session=session,
             documents=self.documents,
-            imports=self.imports,
+            statements=self.statements,
+            mappings=self.mappings,
             parser_registry=default_statement_parser_registry(),
         )
 
@@ -160,7 +163,7 @@ class StatementUploadUseCase:
         except PARSER_EXCEPTIONS as exc:
             await record_failed_parse_attempt(self.documents, document, attempt, exc)
         else:
-            await self.parse_processor.record_successful_attempt(
+            await self.parse_completion.complete_successful_attempt(
                 document,
                 attempt,
                 extracted,

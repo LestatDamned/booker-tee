@@ -17,13 +17,11 @@ from app.features.import_review.domain.posting import (
     require_raw_transaction_account_id,
 )
 from app.features.import_review.repository import ImportReviewRepository
-from app.features.imports.application.pipelines.document_validation import (
-    refresh_document_validation,
-)
 from app.features.imports.documents.lifecycle import ImportedDocumentStatusUpdater
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.errors import RawTransactionReviewError
+from app.features.imports.statements.types import RawTransactionStatus
+from app.features.imports.statements.validation_service import StatementValidationService
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.application.posting import LedgerPostingService
 from app.features.ledger.domain.types import OperationStatus, OperationType
@@ -193,7 +191,7 @@ class ImportReviewConfirmationActor:
                 pattern=command.rule_pattern,
             )
             updated_item_ids.update(summary.updated_raw_transaction_ids)
-        await refresh_document_validation(self._documents, document)
+        await StatementValidationService(self._documents).refresh_for_document(document)
         await ImportedDocumentStatusUpdater(self._documents).sync_review_status(document)
         return ImportReviewConfirmationResult(
             document_id=command.document_id,

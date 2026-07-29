@@ -21,9 +21,9 @@ from app.features.import_review.application.validation_read_model import (
 from app.features.import_review.domain.classification import ReviewClassificationSource
 from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
 from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
-from app.features.imports.domain.types import RawTransactionStatus
-from app.features.imports.domain.validation import StatementValidationStatus
-from app.features.imports.models import UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.statements.types import RawTransactionStatus
+from app.features.imports.statements.validation import StatementValidationStatus
 from app.features.ledger.domain.types import OperationType
 
 

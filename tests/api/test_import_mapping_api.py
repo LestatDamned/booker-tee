@@ -31,8 +31,8 @@ from app.features.imports.application.unknown_statement_mappings.validation impo
     MappingValidationIssue,
     MappingValidationSeverity,
 )
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.errors import MappingImportIdempotencyConflictError
-from app.features.imports.models import UploadedDocumentStatus
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
     WorkspaceMemberStatus,

@@ -17,12 +17,10 @@ from app.features.import_review.domain.posting import (
     require_raw_transaction_account_id,
 )
 from app.features.import_review.repository import ImportReviewRepository
-from app.features.imports.application.pipelines.document_validation import (
-    refresh_document_validation,
-)
 from app.features.imports.documents.lifecycle import ImportedDocumentStatusUpdater
 from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.models import RawTransaction
+from app.features.imports.statements.validation_service import StatementValidationService
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.application.posting import LedgerPostingService
 from app.features.ledger.errors import LedgerPostingError
@@ -400,7 +398,7 @@ class ImportReviewTransferActor:
                 document_id,
             )
             if document is not None:
-                await refresh_document_validation(self._documents, document)
+                await StatementValidationService(self._documents).refresh_for_document(document)
             await self._document_status.mark_imported_if_complete(
                 workspace_id=workspace_id,
                 document_id=document_id,

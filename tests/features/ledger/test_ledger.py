@@ -15,7 +15,7 @@ from app.features.import_review.domain.posting import (
     prepare_income_expense_posting,
     raw_transaction_effective_account_id,
 )
-from app.features.imports.domain.types import RawTransactionStatus
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.application.imported_operations import (
     ImportedOperationReviewUseCase,
     UpdateImportedOperationReviewFieldsCommand,

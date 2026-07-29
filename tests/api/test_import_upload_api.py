@@ -10,7 +10,7 @@ from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.imports.documents.commands.upload import StatementUploadResult
 from app.features.imports.documents.errors import UploadIdempotencyConflictError
-from app.features.imports.models import UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
     WorkspaceMemberStatus,

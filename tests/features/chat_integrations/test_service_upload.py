@@ -22,7 +22,7 @@ from app.features.chat_integrations.schemas import (
 from app.features.chat_integrations.service import ChatEventService
 from app.features.chat_integrations.use_cases import dashboard as chat_dashboard
 from app.features.chat_integrations.use_cases import workspace as chat_workspace
-from app.features.imports.models import UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.workspaces.service import WorkspaceContext
 
 

@@ -19,7 +19,7 @@ from app.features.imports.application.unknown_statement_mappings.mapping_default
 from app.features.imports.application.unknown_statement_mappings.row_mapping import (
     explicit_amount_direction,
 )
-from app.features.imports.domain.types import UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
 
 MAX_MAPPING_PREVIEW_RAW_CHARS = 1_000
 MAX_MAPPING_PREVIEW_DESCRIPTION_CHARS = 2_000

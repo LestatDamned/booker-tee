@@ -29,8 +29,8 @@ from app.features.import_review.domain.lifecycle import (
     ImportReviewLifecycleAction,
     ImportReviewLifecycleError,
 )
-from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.errors import RawTransactionReviewError
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.workspaces.service import WorkspaceContext
 
 

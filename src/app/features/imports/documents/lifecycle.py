@@ -2,11 +2,9 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
-from app.features.imports.domain.types import (
-    RawTransactionStatus,
-    UploadedDocumentStatus,
-)
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.models import UploadedDocument
+from app.features.imports.statements.types import RawTransactionStatus
 
 if TYPE_CHECKING:
     from app.features.imports.documents.repository import DocumentRepository

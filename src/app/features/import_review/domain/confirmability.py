@@ -8,7 +8,7 @@ from uuid import UUID
 
 from app.features.import_review.domain.classification import ReviewClassification
 from app.features.import_review.domain.queue import is_review_terminal
-from app.features.imports.domain.types import RawTransactionStatus
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationType
 
 

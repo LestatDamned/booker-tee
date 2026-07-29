@@ -3,9 +3,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
-from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
-from app.features.imports.parsing.parser_types import RawTransactionDraft
 from app.features.imports.parsing.parsers.vtb.shared import extract_statement_period
 from app.features.imports.parsing.support.common import (
     build_raw_transaction_draft,
@@ -20,6 +18,7 @@ from app.features.imports.parsing.support.normalization import (
     normalize_description,
     parse_bank_date,
 )
+from app.features.imports.statements.dto import RawTransactionDraft, StatementControlTotals
 
 VTB_CARD_MARKERS = (
     "Номер карты",

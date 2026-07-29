@@ -4,15 +4,13 @@ from uuid import uuid4
 
 import pytest
 
-from app.features.imports.application.pipelines.deduplication import (
-    RawTransactionDeduplicator,
-)
-from app.features.imports.domain.deduplication import (
+from app.features.imports.models import RawTransaction
+from app.features.imports.statements.deduplication import (
     DuplicatePolicy,
+    RawTransactionDeduplicator,
     RawTransactionFingerprint,
 )
-from app.features.imports.domain.types import RawTransactionStatus
-from app.features.imports.models import RawTransaction
+from app.features.imports.statements.types import RawTransactionStatus
 
 
 def test_duplicate_policy_prefers_exact_hash_over_possible_match() -> None:

@@ -16,7 +16,8 @@ from app.features.imports.documents.dto import (
 from app.features.imports.documents.queries.detail import (
     ImportDocumentDetailReader,
 )
-from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
     WorkspaceMemberStatus,

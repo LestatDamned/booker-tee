@@ -55,8 +55,8 @@ from app.features.imports.application.unknown_statement_mappings.validation impo
 from app.features.imports.documents.dto import (
     ImportDocumentSnapshot,
 )
-from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import ImportMappingTemplate
+from app.features.imports.statements.types import RawTransactionStatus
 
 MAX_MAPPING_SOURCE_TABLES = 100
 MAX_MAPPING_SOURCE_SAMPLE_ROWS = 12

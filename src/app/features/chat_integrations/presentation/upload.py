@@ -5,7 +5,8 @@ from app.features.chat_integrations.schemas import (
     OutboundChatButton,
     OutboundChatMessage,
 )
-from app.features.imports.models import UploadedDocument, UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.models import UploadedDocument
 
 
 class TelegramUploadPresenter:

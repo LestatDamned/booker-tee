@@ -11,10 +11,8 @@ from app.features.imports.documents.lifecycle import (
     resolve_document_review_status,
     resolve_document_status_transition,
 )
-from app.features.imports.domain.types import (
-    RawTransactionStatus,
-    UploadedDocumentStatus,
-)
+from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.statements.types import RawTransactionStatus
 
 _ALLOWED_TARGETS: Mapping[
     UploadedDocumentStatus,

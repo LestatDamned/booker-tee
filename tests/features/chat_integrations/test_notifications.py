@@ -21,7 +21,7 @@ from app.features.chat_integrations.schemas import (
     ChatConversationType,
     ChatProviderCode,
 )
-from app.features.imports.models import UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.workspaces.service import WorkspaceContext
 
 

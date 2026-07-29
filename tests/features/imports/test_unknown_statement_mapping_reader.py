@@ -25,8 +25,7 @@ from app.features.imports.documents.dto import (
     ImportDocumentSnapshot,
     ImportParseAttemptSnapshot,
 )
-from app.features.imports.documents.types import ParseAttemptStatus
-from app.features.imports.domain.types import UploadedDocumentStatus
+from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
 
 
 class DocumentSnapshotReaderStub:

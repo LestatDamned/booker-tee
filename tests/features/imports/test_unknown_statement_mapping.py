@@ -29,8 +29,9 @@ from app.features.imports.application.unknown_statement_mappings.template_comman
     mapping_spec_from_template,
     mapping_template_matches_raw_tables,
 )
-from app.features.imports.models import ImportMappingTemplate, RawTransactionStatus
+from app.features.imports.models import ImportMappingTemplate
 from app.features.imports.parsing.support.normalization import parse_bank_date
+from app.features.imports.statements.types import RawTransactionStatus
 
 
 def ozon_like_raw_tables() -> list[dict[str, object]]:

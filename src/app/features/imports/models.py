@@ -27,9 +27,10 @@ from app.db.base import Base, utc_now
 from app.features.imports.documents.types import (
     ParseAttemptStatus,
     UploadedDocumentSource,
+    UploadedDocumentStatus,
     UploadedDocumentType,
 )
-from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationType
 from app.features.workspaces.models import enum_values
 

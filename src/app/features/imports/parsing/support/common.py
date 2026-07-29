@@ -3,9 +3,9 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
-from app.features.imports.parsing.parser_types import RawTransactionDraft
+from app.features.imports.statements.dto import RawTransactionDraft
+from app.features.imports.statements.types import RawTransactionStatus
 
 
 def extracted_text(extracted: ExtractedStatement) -> str:

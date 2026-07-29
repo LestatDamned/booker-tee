@@ -20,13 +20,13 @@ from app.features.imports.documents.dto import (
     ImportParseAttemptSnapshot,
     ImportRawTransactionRow,
 )
-from app.features.imports.documents.types import ParseAttemptStatus
-from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
+from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
 from app.features.imports.models import (
     ParseAttempt,
     RawTransaction,
     UploadedDocument,
 )
+from app.features.imports.statements.types import RawTransactionStatus
 
 DOCUMENT_ATTENTION_ROW_STATUSES = {
     RawTransactionStatus.NORMALIZED,

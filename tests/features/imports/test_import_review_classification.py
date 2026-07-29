@@ -13,7 +13,7 @@ from app.features.import_review.domain.confirmability import (
     ReviewConfirmabilityInput,
     evaluate_review_confirmability,
 )
-from app.features.imports.domain.types import RawTransactionStatus
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationType
 
 

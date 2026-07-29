@@ -5,7 +5,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.models import UploadedDocument, UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.models import UploadedDocument
 from app.features.reports.service import ReportFilters, ReportsOverview, ReportsService
 
 

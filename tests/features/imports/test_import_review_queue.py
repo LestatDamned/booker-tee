@@ -6,7 +6,7 @@ from app.features.import_review.domain.queue import (
     is_reviewable,
     review_queue_snapshot,
 )
-from app.features.imports.domain.types import RawTransactionStatus
+from app.features.imports.statements.types import RawTransactionStatus
 
 
 @dataclass(frozen=True)

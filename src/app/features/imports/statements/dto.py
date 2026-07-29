@@ -1,5 +1,33 @@
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
+from uuid import UUID
+
+from app.features.imports.statements.types import RawTransactionStatus
+
+
+@dataclass(frozen=True)
+class RawTransactionDraft:
+    row_index: int
+    status: RawTransactionStatus
+    raw_payload: dict[str, object]
+    operation_date_raw: str | None
+    posting_date_raw: str | None
+    description_raw: str | None
+    amount_raw: str | None
+    currency_raw: str | None
+    balance_after_raw: str | None
+    account_hint_raw: str | None
+    account_id: UUID | None
+    operation_date: date | None
+    posting_date: date | None
+    description_normalized: str | None
+    amount: Decimal | None
+    currency: str | None
+    balance_after: Decimal | None
+    dedupe_hash: str | None
+    confidence_score: Decimal | None
+    normalization_error: str | None
 
 
 @dataclass(frozen=True)

@@ -119,7 +119,6 @@ storage или другого заменяемого adapter, но не как �
 src/app/features/imports/
 ├── __init__.py
 ├── models.py
-├── types.py
 ├── documents/
 │   ├── dto.py
 │   ├── errors.py
@@ -137,6 +136,7 @@ src/app/features/imports/
 │       └── detail.py
 ├── statements/
 │   ├── dto.py
+│   ├── types.py
 │   ├── process.py
 │   ├── validation.py
 │   ├── validation_service.py
@@ -349,13 +349,15 @@ review-specific loader, причём второй принадлежит `import
 
 | Сейчас | Цель | Причина |
 |---|---|---|
-| processing/known pipeline/unknown fallback/attempt review | `statements/process.py` | Один читаемый orchestration path |
+| processing и known pipeline | `statements/process.py` | Один читаемый orchestration path |
+| `pipelines/attempt_review.py` | `documents/attempts.py` | Review-required transition принадлежит document/attempt lifecycle |
 | `domain/control_totals.py` | `statements/dto.py` | Statement result values |
 | `domain/validation.py`, `domain/validation_reason.py` | `statements/validation.py` | Один validation policy boundary |
 | `pipelines/document_validation.py` | `statements/validation_service.py` | I/O orchestration отдельно от pure policy |
 | domain и application dedupe modules | `statements/deduplication.py` | Один владелец duplicate evidence |
 | `mapping/raw_transaction_mapper.py` | `statements/raw_transactions.py` | Общая сборка persisted raw row |
 | `RawTransactionDraft` из parser types | `statements/dto.py` | Общий результат parser и mapping |
+| `domain/types.py` | `documents/types.py`, `statements/types.py` | Статусы разделены по owning capability |
 
 В `statements/repository.py` переходят:
 
@@ -367,6 +369,17 @@ review-specific loader, причём второй принадлежит `import
 `review_messages.py` удалён на Step 2. Duplicate detection меняет только status,
 структурированное evidence строится review read model, а `normalization_error`
 содержит только ошибки преобразования исходных данных.
+
+Step 4 завершён 2026-07-29. Parse-success workflow теперь читается через
+`StatementParseCompletionService.complete_successful_attempt()`, известный
+формат — через `KnownStatementImportPipeline.import_parsed_transactions()`.
+Actor-oriented `Class.action` API сохранён для mapper, policy, deduplicator,
+validation service и repositories. Общий `ImportRepository` удалён и разделён
+на `StatementRepository` и `MappingRepository`.
+
+После Step 4 пакет `imports` уменьшился с 92 до 87 Python-файлов и с 10 989 до
+10 949 строк production Python: минус 5 файлов и 40 строк без compatibility
+facades.
 
 ## 9. Карта перемещений: Parsers
 
@@ -624,10 +637,12 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 
 ### Шаг 4. Statements
 
-- ввести общий `RawTransactionDraft`;
-- собрать process orchestration;
-- объединить validation и deduplication ownership;
-- выделить statement repository.
+- ввести общий `RawTransactionDraft` — выполнено;
+- собрать process orchestration — выполнено;
+- объединить validation и deduplication ownership — выполнено;
+- выделить statement repository — выполнено;
+- разделить document/statement statuses — выполнено;
+- удалить старые application/domain пути и широкий repository — выполнено.
 
 ### Шаг 5. Parsers и extractors
 
@@ -687,8 +702,9 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 | 3A. Documents read side | completed 2026-07-29 |
 | 3B. Documents lifecycle and persistence | completed 2026-07-29 |
 | 3C. Documents commands and infrastructure | completed 2026-07-29 |
-| 4. Statements | next |
-| 5–11 | pending |
+| 4. Statements | completed 2026-07-29 |
+| 5. Parsers and extractors | next |
+| 6–11 | pending |
 
 ## 15. Gate для каждого шага
 

@@ -15,7 +15,7 @@ from app.features.imports.application.unknown_statement_mappings.read_models imp
     MappingBlockingReasonCode,
     MappingRowErrorCode,
 )
-from app.features.imports.models import UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
 
 CurrencyCode = Annotated[
     str,

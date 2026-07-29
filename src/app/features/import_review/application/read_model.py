@@ -38,8 +38,9 @@ from app.features.import_review.domain.queue import (
     is_reviewable,
     review_queue_snapshot,
 )
-from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.models import RawTransaction, UploadedDocument
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationStatus, OperationType
 
 

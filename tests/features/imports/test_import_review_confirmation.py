@@ -17,8 +17,9 @@ from app.features.import_review.application.confirmation import (
     ImportReviewConfirmationValidationError,
 )
 from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
-from app.features.imports.domain.types import RawTransactionStatus
-from app.features.imports.models import RawTransaction, UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.models import RawTransaction
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationStatus, OperationType
 from app.features.transaction_rules.errors import TransactionRuleError
 

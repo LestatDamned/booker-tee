@@ -20,8 +20,9 @@ from app.features.import_review.application.transfer_options import (
 from app.features.import_review.domain.classification import ReviewClassificationSource
 from app.features.import_review.domain.confirmability import ReviewBlockingReasonCode
 from app.features.import_review.domain.lifecycle import ImportReviewLifecycleAction
-from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.models import UploadedDocument
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationStatus, OperationType
 
 

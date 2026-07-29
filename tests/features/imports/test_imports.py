@@ -26,7 +26,6 @@ from app.features.imports.documents.storage import (
     UploadStorage,
     sanitize_upload_filename,
 )
-from app.features.imports.domain.deduplication import possible_duplicate_fingerprint
 from app.features.imports.infrastructure.extraction.openpyxl_extractor import (
     OpenPyxlStatementExtractor,
 )
@@ -34,10 +33,12 @@ from app.features.imports.infrastructure.extraction.pdfplumber_extractor import 
     PdfPlumberExtractor,
 )
 from app.features.imports.infrastructure.extraction.resolver import StatementExtractorResolver
-from app.features.imports.models import RawTransaction, RawTransactionStatus
+from app.features.imports.models import RawTransaction
 from app.features.imports.parsing.support.normalization import (
     parse_bank_date,
 )
+from app.features.imports.statements.deduplication import possible_duplicate_fingerprint
+from app.features.imports.statements.types import RawTransactionStatus
 
 
 def test_sanitize_upload_filename_removes_paths_and_unsafe_characters() -> None:

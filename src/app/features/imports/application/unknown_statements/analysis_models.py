@@ -1,7 +1,7 @@
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 
-from app.features.imports.domain.control_totals import StatementControlTotals
+from app.features.imports.statements.dto import StatementControlTotals
 
 
 @dataclass(frozen=True)

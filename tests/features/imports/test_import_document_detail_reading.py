@@ -22,11 +22,8 @@ from app.features.imports.documents.queries.detail import (
     DETAIL_ROW_LIMIT,
     ImportDocumentDetailReader,
 )
-from app.features.imports.documents.types import ParseAttemptStatus
-from app.features.imports.models import (
-    RawTransactionStatus,
-    UploadedDocumentStatus,
-)
+from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
+from app.features.imports.statements.types import RawTransactionStatus
 
 
 def test_document_detail_prioritizes_mapping_and_bounds_supporting_evidence() -> None:

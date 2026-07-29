@@ -13,7 +13,7 @@ from app.features.import_review.application.transfers import (
     LinkImportReviewExistingTransferCommand,
     MatchImportReviewRawRowCommand,
 )
-from app.features.imports.models import RawTransactionStatus
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.application.posting import LedgerPostingService
 from app.features.ledger.domain.money import LedgerPostingPlan
 from app.features.ledger.domain.types import OperationType

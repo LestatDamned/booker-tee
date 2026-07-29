@@ -40,6 +40,9 @@ Safety baseline
   -> 3C commands and infrastructure completed 2026-07-29
 
 Шаг 4  statements
+  -> completed 2026-07-29
+
+Шаг 5  parsers and extractors
   -> next
 ```
 

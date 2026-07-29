@@ -11,11 +11,8 @@ from app.features.imports.documents.dto import (
     ImportDocumentNextStepKind,
     ImportDocumentWorkflowStepState,
 )
-from app.features.imports.documents.types import ParseAttemptStatus
-from app.features.imports.models import (
-    RawTransactionStatus,
-    UploadedDocumentStatus,
-)
+from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
+from app.features.imports.statements.types import RawTransactionStatus
 
 
 class ImportDocumentListAccountApiResponse(ApiModel):

@@ -14,8 +14,7 @@ from app.features.imports.documents.dto import (
     ImportDocumentListSummaryDto,
 )
 from app.features.imports.documents.queries.list import ImportDocumentListReader
-from app.features.imports.documents.types import ParseAttemptStatus
-from app.features.imports.domain.types import UploadedDocumentStatus
+from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
     WorkspaceMemberStatus,

@@ -8,9 +8,9 @@ from app.features.import_review.application.validation_read_model import (
     ImportReviewValidationReasonCode,
     build_import_review_validation,
 )
-from app.features.imports.domain.types import RawTransactionStatus
-from app.features.imports.domain.validation import StatementValidationStatus
 from app.features.imports.models import UploadedDocument
+from app.features.imports.statements.types import RawTransactionStatus
+from app.features.imports.statements.validation import StatementValidationStatus
 
 
 def test_validation_reports_unavailable_control_totals() -> None:

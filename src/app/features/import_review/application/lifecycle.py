@@ -10,13 +10,11 @@ from app.features.import_review.domain.lifecycle import (
     resolve_import_review_lifecycle_transition,
 )
 from app.features.import_review.repository import ImportReviewRepository
-from app.features.imports.application.pipelines.document_validation import (
-    refresh_document_validation,
-)
 from app.features.imports.documents.lifecycle import ImportedDocumentStatusUpdater
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.errors import RawTransactionReviewError
+from app.features.imports.statements.types import RawTransactionStatus
+from app.features.imports.statements.validation_service import StatementValidationService
 
 
 @dataclass(frozen=True)
@@ -69,7 +67,7 @@ class ImportReviewLifecycleActor:
         )
         if document is None:
             raise RawTransactionReviewError("Document was not found.")
-        await refresh_document_validation(self._documents, document)
+        await StatementValidationService(self._documents).refresh_for_document(document)
         await ImportedDocumentStatusUpdater(self._documents).sync_review_status(document)
         return ImportReviewLifecycleResult(
             item_id=row.id,

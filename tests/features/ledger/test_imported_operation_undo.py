@@ -9,7 +9,8 @@ from app.features.import_review.application.undo import (
     ImportReviewUndoService,
     UndoImportReviewPostingCommand,
 )
-from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationSource, OperationStatus
 
 
@@ -98,13 +99,14 @@ async def test_undo_imported_transfer_restores_all_raw_rows_and_documents(
     service._ledger = cast(Any, LedgerRepositoryStub(operation))
     refreshed: list[UUID] = []
 
-    async def refresh(_repository: object, document: object) -> None:
+    async def refresh(_service: object, document: object) -> None:
         document_id = cast(Any, document).id
         assert isinstance(document_id, UUID)
         refreshed.append(document_id)
 
     monkeypatch.setattr(
-        "app.features.import_review.application.undo.refresh_document_validation",
+        "app.features.imports.statements.validation_service."
+        "StatementValidationService.refresh_for_document",
         refresh,
     )
 
@@ -159,11 +161,12 @@ async def test_unlink_from_manual_transfer_preserves_manual_operation(
     service._review_repository = cast(Any, imports)
     service._ledger = cast(Any, LedgerRepositoryStub(operation))
 
-    async def refresh(_repository: object, _document: object) -> None:
+    async def refresh(_service: object, _document: object) -> None:
         return None
 
     monkeypatch.setattr(
-        "app.features.import_review.application.undo.refresh_document_validation",
+        "app.features.imports.statements.validation_service."
+        "StatementValidationService.refresh_for_document",
         refresh,
     )
 

@@ -15,7 +15,7 @@ from app.features.import_review.application.classification import (
     rule_suggestion_dto,
 )
 from app.features.import_review.domain.classification import ReviewClassificationSource
-from app.features.imports.domain.types import RawTransactionStatus
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationType
 
 

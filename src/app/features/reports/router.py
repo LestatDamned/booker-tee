@@ -12,7 +12,7 @@ from app.db.session import get_session
 from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.models import UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.properties.service import PropertyService
 from app.features.reports.presentation.presenter import (
     build_report_category_table,

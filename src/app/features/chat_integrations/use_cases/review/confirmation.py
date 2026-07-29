@@ -40,8 +40,8 @@ from app.features.import_review.application.confirmation import (
     ImportReviewConfirmationActor,
 )
 from app.features.import_review.repository import ImportReviewRepository
-from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.errors import RawTransactionReviewError
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.errors import LedgerPostingError
 from app.features.properties.service import PropertyService
 from app.features.workspaces.service import WorkspaceContext

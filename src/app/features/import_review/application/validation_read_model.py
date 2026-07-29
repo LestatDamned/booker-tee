@@ -5,17 +5,13 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
-from app.features.imports.application.pipelines.document_validation import (
-    calculate_document_validation,
-)
-from app.features.imports.domain.validation import (
+from app.features.imports.models import RawTransaction, UploadedDocument
+from app.features.imports.statements.validation import (
     StatementValidationReport,
     StatementValidationStatus,
-)
-from app.features.imports.domain.validation_reason import (
     resolve_statement_validation_reason,
 )
-from app.features.imports.models import RawTransaction, UploadedDocument
+from app.features.imports.statements.validation_service import StatementValidationService
 
 
 class ImportReviewValidationReasonCode(StrEnum):
@@ -77,7 +73,7 @@ class ImportReviewValidationDto:
 def build_import_review_validation(
     document: UploadedDocument,
 ) -> ImportReviewValidationDto | None:
-    calculated = calculate_document_validation(document)
+    calculated = StatementValidationService.calculate_for_document(document)
     if calculated is None:
         return None
     report = calculated.report

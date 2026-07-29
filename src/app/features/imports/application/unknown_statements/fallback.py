@@ -2,9 +2,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.imports.application.pipelines.attempt_review import (
-    mark_attempt_requires_review,
-)
 from app.features.imports.application.unknown_statement_mappings.import_use_case import (
     create_raw_transactions_from_mapping,
 )
@@ -18,11 +15,15 @@ from app.features.imports.application.unknown_statements.analyzer import (
 from app.features.imports.application.unknown_statements.text_tables import (
     raw_tables_with_text_candidate_tables,
 )
+from app.features.imports.documents.attempts import (
+    mark_attempt_requires_review,
+)
 from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.errors import UnknownStatementMappingError
 from app.features.imports.infrastructure.extraction.extracted_statement import ExtractedStatement
+from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.models import ParseAttempt, UploadedDocument
-from app.features.imports.repository import ImportRepository
+from app.features.imports.statements.repository import StatementRepository
 
 
 class UnknownStatementFallbackPipeline:
@@ -30,13 +31,15 @@ class UnknownStatementFallbackPipeline:
         self,
         session: AsyncSession,
         documents: DocumentRepository,
-        imports: ImportRepository,
+        statements: StatementRepository,
+        mappings: MappingRepository,
     ) -> None:
         self.session = session
         self.documents = documents
-        self.imports = imports
+        self.statements = statements
+        self.mappings = mappings
 
-    async def record_requires_review_or_apply_template(
+    async def apply_template_or_prepare_review(
         self,
         *,
         document: UploadedDocument,
@@ -82,7 +85,7 @@ class UnknownStatementFallbackPipeline:
             return False
         if not document.bank_name and not document.statement_type:
             return False
-        templates = await self.imports.list_mapping_templates(
+        templates = await self.mappings.list_mapping_templates(
             workspace_id=document.workspace_id,
             bank_name=document.bank_name,
             statement_type=document.statement_type,
@@ -96,7 +99,7 @@ class UnknownStatementFallbackPipeline:
         await create_raw_transactions_from_mapping(
             session=self.session,
             documents=self.documents,
-            imports=self.imports,
+            statements=self.statements,
             document=document,
             attempt=attempt,
             spec=mapping_spec_from_template(template),

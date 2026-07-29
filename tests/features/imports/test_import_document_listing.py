@@ -17,8 +17,7 @@ from app.features.imports.documents.dto import (
 )
 from app.features.imports.documents.queries.list import ImportDocumentListReader
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.documents.types import ParseAttemptStatus
-from app.features.imports.domain.types import UploadedDocumentStatus
+from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
 
 
 class DocumentListSourceStub:

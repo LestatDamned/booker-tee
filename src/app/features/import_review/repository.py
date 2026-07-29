@@ -11,8 +11,8 @@ from sqlalchemy.sql.base import ExecutableOption
 
 from app.features.import_review.domain.posting import raw_transaction_effective_account_id
 from app.features.import_review.domain.queue import REVIEW_QUEUE_STATUSES
-from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import RawTransaction, UploadedDocument
+from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
 from app.features.ledger.models import MoneyEntry, Operation
 

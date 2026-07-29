@@ -5,7 +5,7 @@ from app.features.chat_integrations.schemas import (
     OutboundChatButton,
     OutboundChatMessage,
 )
-from app.features.imports.models import UploadedDocumentStatus
+from app.features.imports.documents.types import UploadedDocumentStatus
 
 
 @dataclass(frozen=True)

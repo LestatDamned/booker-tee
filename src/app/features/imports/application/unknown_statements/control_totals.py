@@ -5,8 +5,8 @@ from app.features.imports.application.unknown_statements.hints import (
     ControlTotalLabelSet,
     control_total_label_sets_for_text,
 )
-from app.features.imports.domain.control_totals import StatementControlTotals
 from app.features.imports.parsing.support.normalization import parse_money_amount
+from app.features.imports.statements.dto import StatementControlTotals
 
 
 def extract_unknown_statement_control_totals(
