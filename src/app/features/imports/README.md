@@ -143,33 +143,30 @@ statements/process.py
   KnownStatementImportPipeline.import_parsed_transactions()
 ```
 
-До Step 5C банковские реализации остаются по старым путям:
+После Step 5C банковские реализации находятся рядом с parser contract и
+registry:
 
 ```text
-parsing/parsers/
-  sberbank/
-    card.py
+parsers/
+  alfabank.py
+  expobank.py
+  ozon_bank.py
+  sberbank.py
+  tbank.py
   vtb/
     card.py
     deposit.py
-    shared.py
-  expobank/
-    card.py
-  tbank/
-    card.py
-  ozon_bank/
-    card.py
-  alfabank/
-    xlsx.py
+    statement_period.py
 ```
 
 Правило:
 
 ```text
-parsing/parsers/* = как прочитать конкретный банковский формат выписки
 parsers/protocol.py = canonical parser contract
 parsers/registry.py = явный выбор подходящего parser
 parsers/extractors/* = локальное извлечение PDF/XLSX
+parsers/<bank>.py = один банковский формат
+parsers/<bank>/* = несколько форматов одного банка
 statements/process.py = что приложение делает с результатом парсера
 ```
 
@@ -414,9 +411,9 @@ Implementation direction:
 
 Dedicated parser order:
 
-1. `parsing/parsers/alfabank/xlsx.py` - table-like XLSX with statement preamble.
-2. `parsing/parsers/ozon_bank/card.py` - PDF tables with operation rows.
-3. `parsing/parsers/tbank/card.py` - text-layout PDF; likely the most fragile.
+1. `parsers/alfabank.py` - table-like XLSX with statement preamble.
+2. `parsers/ozon_bank.py` - PDF tables with operation rows.
+3. `parsers/tbank.py` - text-layout PDF; likely the most fragile.
 
 The first useful vertical slice for Alfa XLSX is:
 
@@ -432,13 +429,13 @@ The first useful vertical slice for Alfa XLSX is:
 Dedicated parser targets:
 
 ```text
-parsing/parsers/alfabank/xlsx.py
-parsing/parsers/ozon_bank/card.py
-parsing/parsers/tbank/card.py
+parsers/alfabank.py
+parsers/ozon_bank.py
+parsers/tbank.py
 ```
 
 If T-Bank card and deposit statements have materially different layouts, split
-them into separate files such as `tbank/card.py` and `tbank/deposit.py`.
+the current `tbank.py` into `tbank/card.py` and `tbank/deposit.py`.
 
 The unknown importer remains important as a fallback and future generic table
 importer, but it is not the primary path for these three known formats while
@@ -541,7 +538,8 @@ import path easy to test.
 - `parsers/registry.py` - parser registry for known statement parsers.
 - `parsers/support/` - named draft-building, header-recognition and normalization
   helpers shared by known parsers and unknown-statement mapping.
-- `parsing/parsers/` - bank and statement-type parser plugins.
+- `parsers/*.py` - single-format bank parser plugins.
+- `parsers/vtb/` - related VTB card/deposit parsers and statement-period helper.
 
 ## Imports UI geometry
 
@@ -715,10 +713,16 @@ Parser support cleanup completed in Step 5B:
 - Call sites use explicit names such as `extracted_statement_text()`,
   `row_cell()` and `parse_or_record_error()`.
 
-Pending Step 5C cleanup:
+Bank parser cleanup completed in Step 5C:
 
-- Move bank implementations from `parsing/parsers/` into `parsers/`, flattening
-  single-format bank packages.
+- Single-format bank implementations live directly in `parsers/*.py`.
+- VTB remains a package because card and deposit formats share period parsing.
+- Five empty bank package files were removed without compatibility re-exports.
+
+Pending Step 5D cleanup:
+
+- Remove the now-empty historical `parsing/` package and run the final parser
+  boundary audit.
 
 ## Remaining cleanup plan
 

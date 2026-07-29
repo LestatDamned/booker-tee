@@ -1,6 +1,8 @@
 from decimal import Decimal
 from pathlib import Path
 
+from app.features.imports.parsers.alfabank import AlfabankXlsxStatementParser
+from app.features.imports.parsers.expobank import ExpobankCardStatementParser
 from app.features.imports.parsers.extractors.dto import (
     ExtractedStatement,
     ExtractedStatementPageTables,
@@ -8,19 +10,17 @@ from app.features.imports.parsers.extractors.dto import (
 from app.features.imports.parsers.extractors.pdf import (
     PdfPlumberStatementExtractor,
 )
+from app.features.imports.parsers.ozon_bank import OzonBankCardStatementParser
 from app.features.imports.parsers.registry import StatementParserRegistry
+from app.features.imports.parsers.sberbank import SberbankCardStatementParser
 from app.features.imports.parsers.support.normalization import (
     normalize_description,
     parse_bank_date,
     parse_money_amount,
 )
-from app.features.imports.parsing.parsers.alfabank.xlsx import AlfabankXlsxStatementParser
-from app.features.imports.parsing.parsers.expobank.card import ExpobankCardStatementParser
-from app.features.imports.parsing.parsers.ozon_bank.card import OzonBankCardStatementParser
-from app.features.imports.parsing.parsers.sberbank.card import SberbankCardStatementParser
-from app.features.imports.parsing.parsers.tbank.card import TbankCardStatementParser
-from app.features.imports.parsing.parsers.vtb.card import VtbCardStatementParser
-from app.features.imports.parsing.parsers.vtb.deposit import VtbDepositStatementParser
+from app.features.imports.parsers.tbank import TbankCardStatementParser
+from app.features.imports.parsers.vtb.card import VtbCardStatementParser
+from app.features.imports.parsers.vtb.deposit import VtbDepositStatementParser
 from app.features.imports.statements.types import RawTransactionStatus
 
 

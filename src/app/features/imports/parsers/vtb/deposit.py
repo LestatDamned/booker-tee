@@ -17,7 +17,7 @@ from app.features.imports.parsers.support.normalization import (
     parse_bank_date,
     parse_money_amount,
 )
-from app.features.imports.parsing.parsers.vtb.shared import extract_statement_period
+from app.features.imports.parsers.vtb.statement_period import extract_statement_period
 from app.features.imports.statements.dto import RawTransactionDraft, StatementControlTotals
 
 VTB_DEPOSIT_MARKERS = (

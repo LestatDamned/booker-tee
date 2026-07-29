@@ -425,6 +425,13 @@ Step 5B завершён 2026-07-29: общий parser support перенесё�
 Число Python-файлов осталось 87; production Python вырос на две строки из-за
 форматирования более явных вызовов.
 
+Step 5C завершён 2026-07-29: одноформатные bank packages превращены в
+`parsers/alfabank.py`, `expobank.py`, `ozon_bank.py`, `sberbank.py` и
+`tbank.py`. VTB остаётся cohesive package с `card.py`, `deposit.py` и
+переименованным `statement_period.py`. Registry и tests импортируют реализации
+из defining modules; compatibility re-exports не добавлялись. Число
+Python-файлов уменьшилось с 87 до 82, production Python осталось 10 939 строк.
+
 ## 10. Карта перемещений: Mapping
 
 | Сейчас | Цель |
@@ -666,7 +673,7 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 - 5A: обновить canonical actor method names — выполнено;
 - 5A: удалить extraction aliases после обновления тестов — выполнено;
 - 5B: перенести и переименовать parser support — выполнено;
-- 5C: переместить bank parsers и сократить однофайловые packages;
+- 5C: переместить bank parsers и сократить однофайловые packages — выполнено;
 - 5D: удалить оставшиеся старые пути и выполнить финальный cleanup;
 - не менять bank-specific parsing behavior.
 
@@ -724,8 +731,8 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 | 4. Statements | completed 2026-07-29 |
 | 5A. Protocol, registry and extractors | completed 2026-07-29 |
 | 5B. Parser support | completed 2026-07-29 |
-| 5C. Bank parsers | next |
-| 5D | pending |
+| 5C. Bank parsers | completed 2026-07-29 |
+| 5D. Old parsing package cleanup | next |
 | 6–11 | pending |
 
 ## 15. Gate для каждого шага

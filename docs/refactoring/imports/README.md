@@ -45,7 +45,8 @@ Safety baseline
 Шаг 5  parsers and extractors
   -> 5A protocol, registry and extractors completed 2026-07-29
   -> 5B parser support completed 2026-07-29
-  -> 5C bank parsers next
+  -> 5C bank parsers completed 2026-07-29
+  -> 5D old parsing package cleanup next
 ```
 
 Перед массовыми moves не выполняется общая полировка старой структуры.
