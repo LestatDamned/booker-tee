@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
@@ -10,8 +10,14 @@ from app.features.imports.application.documents.snapshot import (
     ImportParseAttemptSnapshot,
     ImportRawTransactionRow,
 )
+from app.features.imports.application.documents.validation_report import (
+    PersistedStatementValidationReport,
+    decode_persisted_statement_validation_report,
+)
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
-from app.features.imports.domain.validation import MONEY_TOLERANCE
+from app.features.imports.domain.validation_reason import (
+    resolve_statement_validation_reason,
+)
 from app.features.imports.models import ParseAttemptStatus
 
 DETAIL_ROW_LIMIT = 5
@@ -294,49 +300,40 @@ def _validation(
 ) -> ImportDocumentDetailValidationDto | None:
     if report is None:
         return None
-    status = _string(report.get("status"))
+    persisted = decode_persisted_statement_validation_report(report)
     return ImportDocumentDetailValidationDto(
-        status=status,
-        reason_code=_validation_reason_code(report, status=status),
-        message=_string(report.get("message")),
-        extracted_count=_integer(report.get("extracted_count")),
-        calculated_total_inflow=_optional_string(report.get("calculated_total_inflow")),
-        calculated_total_outflow=_optional_string(report.get("calculated_total_outflow")),
+        status=persisted.status,
+        reason_code=_validation_reason_code(persisted),
+        message=persisted.message,
+        extracted_count=persisted.extracted_count,
+        calculated_total_inflow=persisted.calculated_total_inflow,
+        calculated_total_outflow=persisted.calculated_total_outflow,
         ignored_row_count=sum(row.status is RawTransactionStatus.IGNORED for row in rows),
-        ignored_total_inflow=_optional_string(report.get("ignored_total_inflow")),
-        ignored_total_outflow=_optional_string(report.get("ignored_total_outflow")),
-        currency=_optional_string(report.get("currency")),
-        table_count=_integer(report.get("table_count")),
-        needs_mapping=status == "needs_mapping",
+        ignored_total_inflow=persisted.ignored_total_inflow,
+        ignored_total_outflow=persisted.ignored_total_outflow,
+        currency=persisted.currency,
+        table_count=persisted.table_count,
+        needs_mapping=persisted.needs_mapping,
     )
 
 
 def _validation_reason_code(
-    report: dict[str, object],
-    *,
-    status: str,
+    report: PersistedStatementValidationReport,
 ) -> ImportDocumentDetailValidationReasonCode:
     reason = ImportDocumentDetailValidationReasonCode
-    if status == "needs_mapping":
+    if report.needs_mapping:
         return reason.NEEDS_MAPPING
-    if status == "failed":
+    if report.status == "failed":
         return reason.VALIDATION_FAILED
-    if status == "needs_review":
-        return reason.ROWS_NEED_REVIEW
-    balance_chain = report.get("balance_chain")
-    if isinstance(balance_chain, dict) and balance_chain.get("status") == "mismatch":
-        return reason.BALANCE_CHAIN_MISMATCH
-    if status == "unavailable":
-        return reason.CONTROL_TOTALS_UNAVAILABLE
-    if status == "mismatch":
-        differences = (
-            _optional_decimal(report.get("unexplained_inflow_difference")),
-            _optional_decimal(report.get("unexplained_outflow_difference")),
+    if report.statement_status is not None:
+        return reason(
+            resolve_statement_validation_reason(
+                status=report.statement_status,
+                balance_chain_status=report.balance_chain_status,
+                unexplained_inflow_difference=report.unexplained_inflow_difference,
+                unexplained_outflow_difference=report.unexplained_outflow_difference,
+            ).value
         )
-        comparable = [difference for difference in differences if difference is not None]
-        if comparable and all(abs(difference) <= MONEY_TOLERANCE for difference in comparable):
-            return reason.IGNORED_ROWS_EXPLAIN_MISMATCH
-        return reason.CONTROL_TOTALS_MISMATCH
     return reason.TOTALS_MATCH
 
 
@@ -363,24 +360,3 @@ def _attempt(attempt: ImportParseAttemptSnapshot) -> ImportDocumentDetailAttempt
         finished_at=attempt.finished_at,
         message=attempt.message,
     )
-
-
-def _string(value: object) -> str:
-    return value if isinstance(value, str) else ""
-
-
-def _optional_string(value: object) -> str | None:
-    return None if value is None or value == "" else str(value)
-
-
-def _integer(value: object) -> int | None:
-    return value if isinstance(value, int) else None
-
-
-def _optional_decimal(value: object) -> Decimal | None:
-    if value is None or value == "":
-        return None
-    try:
-        return Decimal(str(value))
-    except (InvalidOperation, ValueError):
-        return None

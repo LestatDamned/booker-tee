@@ -3,6 +3,9 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
+from app.features.imports.application.documents.validation_report import (
+    decode_persisted_statement_validation_report,
+)
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.models import (
     ParseAttempt,
@@ -50,8 +53,7 @@ class ImportParseAttemptSnapshot:
             return self.error_message
         if self.validation_report is None:
             return ""
-        message = self.validation_report.get("message")
-        return message if isinstance(message, str) else ""
+        return decode_persisted_statement_validation_report(self.validation_report).message
 
 
 @dataclass(frozen=True)

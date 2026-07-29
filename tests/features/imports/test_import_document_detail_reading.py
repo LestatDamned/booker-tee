@@ -105,6 +105,44 @@ def test_document_detail_explains_mismatch_caused_by_ignored_rows() -> None:
     assert detail.validation.ignored_total_inflow == "25.00"
 
 
+def test_document_detail_prioritizes_balance_chain_mismatch_reason() -> None:
+    detail = ImportDocumentDetailReader.from_snapshot(
+        document_snapshot(
+            validation={
+                "status": "mismatch",
+                "message": "Остатки после операций не совпадают с суммами строк.",
+                "balance_chain": {"status": "mismatch"},
+                "unexplained_inflow_difference": "0.00",
+                "unexplained_outflow_difference": "0.00",
+            },
+        ),
+        can_manage=True,
+    )
+
+    assert detail.validation is not None
+    assert (
+        detail.validation.reason_code
+        is ImportDocumentDetailValidationReasonCode.BALANCE_CHAIN_MISMATCH
+    )
+
+
+def test_document_detail_keeps_parse_failure_as_local_reason() -> None:
+    detail = ImportDocumentDetailReader.from_snapshot(
+        document_snapshot(
+            validation={
+                "status": "failed",
+                "message": "Не удалось проверить документ.",
+            },
+        ),
+        can_manage=True,
+    )
+
+    assert detail.validation is not None
+    assert (
+        detail.validation.reason_code is ImportDocumentDetailValidationReasonCode.VALIDATION_FAILED
+    )
+
+
 def test_document_detail_viewer_gets_same_status_truth_without_mutations() -> None:
     detail = ImportDocumentDetailReader.from_snapshot(
         document_snapshot(status=UploadedDocumentStatus.FAILED_TO_PARSE),

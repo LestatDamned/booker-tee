@@ -9,9 +9,11 @@ from app.features.imports.application.pipelines.document_validation import (
     calculate_document_validation,
 )
 from app.features.imports.domain.validation import (
-    MONEY_TOLERANCE,
     StatementValidationReport,
     StatementValidationStatus,
+)
+from app.features.imports.domain.validation_reason import (
+    resolve_statement_validation_reason,
 )
 from app.features.imports.models import RawTransaction, UploadedDocument
 
@@ -82,7 +84,14 @@ def build_import_review_validation(
     control_totals = report.control_totals
     return ImportReviewValidationDto(
         status=report.status,
-        reason_code=_reason_code(report),
+        reason_code=ImportReviewValidationReasonCode(
+            resolve_statement_validation_reason(
+                status=report.status,
+                balance_chain_status=report.balance_chain.status,
+                unexplained_inflow_difference=report.unexplained_inflow_difference,
+                unexplained_outflow_difference=report.unexplained_outflow_difference,
+            ).value
+        ),
         currency=report.totals.currency or (control_totals.currency if control_totals else None),
         extracted_count=report.totals.extracted_count,
         normalized_count=report.totals.normalized_count,
@@ -107,29 +116,6 @@ def build_import_review_validation(
         ),
         row_problems=_row_problems(document.raw_transactions, report),
     )
-
-
-def _reason_code(report: StatementValidationReport) -> ImportReviewValidationReasonCode:
-    if report.status is StatementValidationStatus.NEEDS_REVIEW:
-        return ImportReviewValidationReasonCode.ROWS_NEED_REVIEW
-    if report.balance_chain.status is StatementValidationStatus.MISMATCH:
-        return ImportReviewValidationReasonCode.BALANCE_CHAIN_MISMATCH
-    if report.status is StatementValidationStatus.UNAVAILABLE:
-        return ImportReviewValidationReasonCode.CONTROL_TOTALS_UNAVAILABLE
-    if report.status is StatementValidationStatus.MISMATCH:
-        if _ignored_rows_explain_mismatch(report):
-            return ImportReviewValidationReasonCode.IGNORED_ROWS_EXPLAIN_MISMATCH
-        return ImportReviewValidationReasonCode.CONTROL_TOTALS_MISMATCH
-    return ImportReviewValidationReasonCode.TOTALS_MATCH
-
-
-def _ignored_rows_explain_mismatch(report: StatementValidationReport) -> bool:
-    differences = (
-        report.unexplained_inflow_difference,
-        report.unexplained_outflow_difference,
-    )
-    comparable = [difference for difference in differences if difference is not None]
-    return bool(comparable) and all(abs(difference) <= MONEY_TOLERANCE for difference in comparable)
 
 
 def _row_problems(
