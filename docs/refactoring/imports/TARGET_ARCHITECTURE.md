@@ -715,12 +715,12 @@ zero-based/one-based индексы, warning field names и control-total refere
 ### Шаг 7. Mapping
 
 Mapping рассматривается как одна capability, включающая анализ неизвестной
-таблицы, preview, templates и импорт сопоставленных строк. Текущая реализация
-разделена между:
+таблицы, preview, templates и импорт сопоставленных строк. До начала шага
+реализация была разделена между:
 
-- `application/unknown_statement_mappings/`;
+- `application/unknown_statement_mappings/` (удалён в 7C);
 - `application/unknown_statements/`;
-- почти пустым `mapping/`.
+- почти пустым на тот момент `mapping/`.
 
 До начала шага это 31 Python-файл и 4 370 строк. Цель этапа — один canonical
 root `mapping/`, ориентировочно 22–24 Python-файла и отсутствие старых import
@@ -851,6 +851,24 @@ idempotency key создают одну execution record: первый выпо�
   consumers (`application/unknown_statement_mappings/` удалён в 7C);
 - не оставлять пустые packages, aliases и compatibility imports.
 
+7D завершён 2026-07-29. Analysis собран в canonical
+`mapping/analysis/`: DTO, column evidence и suggestions, table
+detection/continuations, text candidates, hints/control totals и главный actor
+`StatementAnalyzer.analyze(...)`. Конфигурационный JSON перемещён рядом с
+владеющим им `hints.py`.
+
+Fallback orchestration теперь находится в `statements/process.py` и выражена
+через `StatementMappingFallbackPipeline.apply_template_or_prepare_review(...)`.
+Старый `application/` удалён целиком вместе с обоими unknown-statement
+packages. Compatibility aliases, package facades и пустые директории не
+оставлены.
+
+После 7D весь `imports` содержит 72 Python-файла и 10 845 строк production
+Python: на семь файлов и 79 строк меньше, чем после 7C. Сам `mapping/`
+содержит 24 Python-файла — верхняя граница запланированного диапазона 22–24.
+Regression gate после 7D: Ruff, ty, 604 обычных tests и отдельно прошедший
+PostgreSQL concurrency test.
+
 Этап 7 не вводит generic Unit of Work, event bus, plugin architecture или новый
 repository abstraction. Существующие API-преобразования с реальной семантикой
 — zero/one-based индексы, warning field names и control-total references —
@@ -918,7 +936,7 @@ repository abstraction. Существующие API-преобразовани�
 | 7A. Mapping core ownership | completed 2026-07-29 |
 | 7B. Mapping templates and persistence boundary | completed 2026-07-29 |
 | 7C. Mapping commands and queries | completed 2026-07-29 |
-| 7D. Mapping analysis consolidation and old-path cleanup | pending |
+| 7D. Mapping analysis consolidation and old-path cleanup | completed 2026-07-29 |
 | 8–11 | pending |
 
 ## 15. Gate для каждого шага

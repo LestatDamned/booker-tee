@@ -4,9 +4,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.imports.application.unknown_statements.control_totals import (
-    extract_unknown_statement_control_totals,
-)
 from app.features.imports.documents.attempts import (
     latest_parse_attempt,
     statement_control_totals_from_json,
@@ -14,6 +11,9 @@ from app.features.imports.documents.attempts import (
 from app.features.imports.documents.lifecycle import transition_document_status
 from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.documents.types import ParseAttemptStatus, UploadedDocumentStatus
+from app.features.imports.mapping.analysis.hints import (
+    extract_statement_control_totals,
+)
 from app.features.imports.mapping.control_totals import resolve_mapping_control_totals
 from app.features.imports.mapping.drafts import StatementMappingDraftBuilder
 from app.features.imports.mapping.dto import (
@@ -273,7 +273,7 @@ class MappedStatementRowImporter:
     ) -> None:
         extracted_control_totals = statement_control_totals_from_json(
             attempt.control_totals_json
-        ) or extract_unknown_statement_control_totals(attempt.raw_text_by_page_json)
+        ) or extract_statement_control_totals(attempt.raw_text_by_page_json)
         resolved = resolve_mapping_control_totals(attempt.raw_tables_json, spec)
         opening = next(
             (

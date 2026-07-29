@@ -7,21 +7,19 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from app.features.imports.application.unknown_statements.analyzer import (
-    analyze_unknown_statement,
-)
-from app.features.imports.application.unknown_statements.control_totals import (
-    extract_unknown_statement_control_totals,
-)
-from app.features.imports.application.unknown_statements.hints import (
-    DEFAULT_HINT_CONFIG_PATH,
-    load_statement_hint_config,
-)
-from app.features.imports.application.unknown_statements.text_tables import (
-    raw_tables_with_text_candidate_tables,
-)
 from app.features.imports.documents.validation_report import (
     StoredValidationReport,
+)
+from app.features.imports.mapping.analysis.analyzer import (
+    StatementAnalyzer,
+)
+from app.features.imports.mapping.analysis.hints import (
+    DEFAULT_HINT_CONFIG_PATH,
+    extract_statement_control_totals,
+    load_statement_hint_config,
+)
+from app.features.imports.mapping.analysis.text_tables import (
+    raw_tables_with_text_candidate_tables,
 )
 from app.features.imports.mapping.drafts import StatementMappingDraftBuilder
 from app.features.imports.mapping.engine import (
@@ -164,7 +162,7 @@ def test_unknown_statement_analysis_finds_mapping_candidates() -> None:
         metadata={},
     )
 
-    analysis = analyze_unknown_statement(extracted)
+    analysis = StatementAnalyzer.analyze(extracted)
     report = analysis.as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
@@ -221,7 +219,7 @@ def test_unknown_statement_analysis_finds_header_after_preamble() -> None:
         metadata={"source_format": "xlsx"},
     )
 
-    analysis = analyze_unknown_statement(extracted)
+    analysis = StatementAnalyzer.analyze(extracted)
     report = analysis.as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
@@ -257,7 +255,7 @@ def test_unknown_statement_analysis_keeps_all_table_candidates() -> None:
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    report = StatementAnalyzer.analyze(extracted).as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
 
     assert report["page_count"] == 4
@@ -283,7 +281,7 @@ def test_unknown_statement_analysis_detects_english_table_with_date_not_first() 
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    report = StatementAnalyzer.analyze(extracted).as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     column_candidates = cast(list[dict[str, object]], previews[0]["column_candidates"])
 
@@ -325,7 +323,7 @@ def test_unknown_statement_analysis_keeps_column_profiles_internal() -> None:
         metadata={},
     )
 
-    analysis = analyze_unknown_statement(extracted)
+    analysis = StatementAnalyzer.analyze(extracted)
     profiles = analysis.table_previews[0].column_profiles
     report = analysis.as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
@@ -359,7 +357,7 @@ def test_unknown_statement_analysis_includes_mapping_suggestions() -> None:
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    report = StatementAnalyzer.analyze(extracted).as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     suggestions = cast(list[dict[str, object]], previews[0]["mapping_suggestions"])
     suggestion = suggestions[0]
@@ -398,7 +396,7 @@ def test_unknown_statement_analysis_detects_balance_after_column() -> None:
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    report = StatementAnalyzer.analyze(extracted).as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     column_candidates = cast(list[dict[str, object]], previews[0]["column_candidates"])
     suggestions = cast(list[dict[str, object]], previews[0]["mapping_suggestions"])
@@ -439,7 +437,7 @@ def test_unknown_statement_analysis_detects_posting_date_column() -> None:
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    report = StatementAnalyzer.analyze(extracted).as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     column_candidates = cast(list[dict[str, object]], previews[0]["column_candidates"])
     suggestions = cast(list[dict[str, object]], previews[0]["mapping_suggestions"])
@@ -481,7 +479,7 @@ def test_unknown_statement_analysis_uses_structured_mapping_warnings() -> None:
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    report = StatementAnalyzer.analyze(extracted).as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     suggestions = cast(list[dict[str, object]], previews[0]["mapping_suggestions"])
     warnings = cast(list[dict[str, object]], suggestions[0]["warnings"])
@@ -512,7 +510,7 @@ def test_unknown_statement_analysis_suggests_mapping_for_table_without_headers()
         metadata={},
     )
 
-    analysis = analyze_unknown_statement(extracted)
+    analysis = StatementAnalyzer.analyze(extracted)
     profiles = analysis.table_previews[0].column_profiles
     report = analysis.as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
@@ -568,7 +566,7 @@ def test_unknown_statement_analysis_builds_text_candidate_table_when_pdf_tables_
         metadata={},
     )
 
-    analysis = analyze_unknown_statement(extracted)
+    analysis = StatementAnalyzer.analyze(extracted)
     report = analysis.as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     preview = previews[0]
@@ -628,7 +626,7 @@ def test_unknown_statement_persists_all_generated_rows_beyond_preview() -> None:
         metadata={},
     )
 
-    analysis = analyze_unknown_statement(extracted)
+    analysis = StatementAnalyzer.analyze(extracted)
     report = analysis.as_validation_report()
     raw_tables = raw_tables_with_text_candidate_tables(
         analysis.generated_text_tables,
@@ -676,7 +674,7 @@ def test_unknown_statement_analysis_does_not_treat_transaction_text_as_header() 
         metadata={},
     )
 
-    analysis = analyze_unknown_statement(extracted)
+    analysis = StatementAnalyzer.analyze(extracted)
     profiles = analysis.table_previews[0].column_profiles
     report = analysis.as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
@@ -723,7 +721,7 @@ def test_unknown_statement_analysis_split_debit_credit_suggestion_has_no_warning
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    report = StatementAnalyzer.analyze(extracted).as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     suggestions = cast(list[dict[str, object]], previews[0]["mapping_suggestions"])
     suggestion = suggestions[0]
@@ -752,7 +750,7 @@ def test_unknown_statement_analysis_detects_split_debit_credit_table() -> None:
         metadata={},
     )
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    report = StatementAnalyzer.analyze(extracted).as_validation_report()
     previews = cast(list[dict[str, object]], report["table_previews"])
     column_candidates = cast(list[dict[str, object]], previews[0]["column_candidates"])
 
@@ -782,7 +780,7 @@ def test_unknown_statement_analysis_detects_split_debit_credit_table() -> None:
 def test_sanitized_unknown_statement_fixture_covers_posting_date_and_balance() -> None:
     extracted = sanitized_unknown_statement_fixture("generic_english_card_statement.json")
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    report = StatementAnalyzer.analyze(extracted).as_validation_report()
     command = StatementMappingDefaultResolver.resolve(
         StoredValidationReport.model_validate(report),
         default_currency="USD",
@@ -816,7 +814,7 @@ def test_sanitized_unknown_statement_fixture_covers_posting_date_and_balance() -
 def test_sanitized_unknown_statement_fixture_covers_split_continuation_tables() -> None:
     extracted = sanitized_unknown_statement_fixture("split_debit_credit_continuation.json")
 
-    report = analyze_unknown_statement(extracted).as_validation_report()
+    report = StatementAnalyzer.analyze(extracted).as_validation_report()
     table_previews = cast(list[dict[str, object]], report["table_previews"])
     continuation_preview = table_previews[1]
     command = StatementMappingDefaultResolver.resolve(
@@ -874,7 +872,7 @@ def test_stored_unknown_statement_report_decodes_nested_mapping_contract() -> No
     extracted = sanitized_unknown_statement_fixture("generic_english_card_statement.json")
 
     stored = StoredValidationReport.model_validate(
-        analyze_unknown_statement(extracted).as_validation_report()
+        StatementAnalyzer.analyze(extracted).as_validation_report()
     )
 
     assert stored.needs_mapping is True
@@ -914,7 +912,7 @@ def test_stored_validation_report_decodes_known_and_legacy_fields() -> None:
 
 
 def test_unknown_statement_extracts_ozon_control_totals_from_text() -> None:
-    control_totals = extract_unknown_statement_control_totals(
+    control_totals = extract_statement_control_totals(
         [
             "\n".join(
                 [
@@ -938,7 +936,7 @@ def test_unknown_statement_extracts_ozon_control_totals_from_text() -> None:
 
 
 def test_unknown_statement_extracts_generic_english_control_totals_from_text() -> None:
-    control_totals = extract_unknown_statement_control_totals(
+    control_totals = extract_statement_control_totals(
         [
             "\n".join(
                 [
@@ -961,7 +959,7 @@ def test_unknown_statement_extracts_generic_english_control_totals_from_text() -
 
 
 def test_unknown_statement_preserves_zero_control_totals() -> None:
-    control_totals = extract_unknown_statement_control_totals(
+    control_totals = extract_statement_control_totals(
         [
             "\n".join(
                 [
@@ -983,7 +981,7 @@ def test_unknown_statement_preserves_zero_control_totals() -> None:
 
 
 def test_unknown_statement_does_not_guess_missing_currency() -> None:
-    control_totals = extract_unknown_statement_control_totals(
+    control_totals = extract_statement_control_totals(
         ["Opening balance: 1000.00\nClosing balance: 1200.00"]
     )
 
@@ -992,13 +990,13 @@ def test_unknown_statement_does_not_guess_missing_currency() -> None:
 
 
 def test_unknown_statement_ignores_unmatched_bank_control_total_labels() -> None:
-    control_totals = extract_unknown_statement_control_totals(["Расходы: 500.00 ₽"])
+    control_totals = extract_statement_control_totals(["Расходы: 500.00 ₽"])
 
     assert control_totals is None
 
 
 def test_unknown_statement_uses_control_total_labels_for_detected_bank() -> None:
-    control_totals = extract_unknown_statement_control_totals(["Альфа-Банк\nРасходы: 500.00 ₽"])
+    control_totals = extract_statement_control_totals(["Альфа-Банк\nРасходы: 500.00 ₽"])
 
     assert control_totals is not None
     assert control_totals.total_outflow == Decimal("500.00")

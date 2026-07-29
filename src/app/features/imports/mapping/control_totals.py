@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from decimal import Decimal
 
-from app.features.imports.application.unknown_statements.hints import (
+from app.features.imports.mapping.analysis.hints import (
     control_total_label_sets_for_text,
     normalize_hint_text,
 )

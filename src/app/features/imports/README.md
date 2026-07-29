@@ -180,24 +180,6 @@ extracted statement data
 -> RawTransactionDraft[]
 ```
 
-Текущий analysis package остаётся временным до этапа 7D:
-
-```text
-application/unknown_statements/
-  analyzer.py
-  analysis_models.py
-  hints.py
-  value_detectors.py
-  table_detection.py
-  column_profiles.py
-  mapping_suggestions.py
-  table_analysis.py
-  text_tables.py
-  continuations.py
-  control_totals.py
-  fallback.py
-```
-
 Canonical mapping package:
 
 ```text
@@ -226,6 +208,10 @@ mapping/
     text_tables.py
     hints.py
 ```
+
+`StatementAnalyzer.analyze(...)` создаёт typed analysis result. Fallback
+orchestration принадлежит `statements/process.py`, потому что выбирает между
+auto-template import и review-состоянием документа.
 
 ### Import Review boundary
 
@@ -528,9 +514,10 @@ import path easy to test.
   document/attempt persistence orchestration.
 - `statements/repository.py` - raw row creation, dedupe lookups and
   superseding.
-- `application/unknown_statements/` - unknown statement fallback and analysis internals: fallback/template pipeline, hints, DTOs, table detection, column profiles, profile helpers, suggestions, suggestion scoring, continuations, and control totals.
 - `mapping/` - mapping DTOs, engine, templates, validation, persistence,
   idempotent import command and focused overview/preview/source-row queries.
+- `mapping/analysis/` - unknown-format analysis DTOs, column evidence, table
+  detection/continuations, text candidates, hints and control totals.
 - `documents/lifecycle.py` - document status transition matrix, review status
   resolution and linked-operation predicate.
 - `documents/queries/detail.py` и `/api/v1/imports/documents/{id}`
@@ -579,9 +566,7 @@ feature. A reader should be able to understand ownership from the import path.
 Prefer:
 
 ```python
-from app.features.imports.application.unknown_statements.analyzer import (
-    analyze_unknown_statement,
-)
+from app.features.imports.mapping.analysis.analyzer import StatementAnalyzer
 from app.features.imports.mapping.rows import map_table_rows
 ```
 
@@ -674,9 +659,9 @@ facade / use case
 -> validation/storage side effects
 ```
 
-The old broad unknown-statement facade files were removed. Mapping
-implementation details belong to `mapping/`; analysis internals remain under
-`application/unknown_statements/` until Step 7D.
+The old broad unknown-statement application packages were removed. Mapping
+implementation details and analysis internals belong to `mapping/`; fallback
+orchestration belongs to `statements/process.py`.
 
 ## Near-term cleanup plan
 

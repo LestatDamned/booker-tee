@@ -1,14 +1,12 @@
 import re
 from typing import Any, cast
 
-from app.features.imports.application.unknown_statements.analysis_models import (
+from app.features.imports.mapping.analysis.columns import normalize_cell
+from app.features.imports.mapping.analysis.dto import (
     TextCandidateTable,
     UnknownStatementTablePreview,
 )
-from app.features.imports.application.unknown_statements.table_analysis import (
-    build_table_preview,
-)
-from app.features.imports.application.unknown_statements.value_detectors import normalize_cell
+from app.features.imports.mapping.analysis.tables import build_table_preview
 from app.features.imports.parsers.extractors.dto import ExtractedStatement
 from app.features.imports.parsers.support.normalization import (
     DATE_PATTERNS,
@@ -219,7 +217,4 @@ def raw_tables_by_page_number(
 
 
 def nullable_table_rows(rows: list[list[str]]) -> list[list[str | None]]:
-    converted: list[list[str | None]] = []
-    for row in rows:
-        converted.append(list(row))
-    return converted
+    return [list(row) for row in rows]
