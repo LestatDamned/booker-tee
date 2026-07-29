@@ -1,155 +1,36 @@
-from dataclasses import dataclass
-from datetime import date, datetime
-from decimal import Decimal
-from enum import StrEnum
+"""Read one imported document."""
+
 from typing import Protocol
 from uuid import UUID
 
-from app.features.imports.application.documents.snapshot import (
-    ImportDocumentSnapshot,
-    ImportParseAttemptSnapshot,
-    ImportRawTransactionRow,
-)
 from app.features.imports.application.documents.validation_report import (
     PersistedStatementValidationReport,
     decode_persisted_statement_validation_report,
+)
+from app.features.imports.documents.dto import (
+    ImportDocumentActionBlockingReason,
+    ImportDocumentActionCapabilityDto,
+    ImportDocumentDetailAttemptDto,
+    ImportDocumentDetailCapabilitiesDto,
+    ImportDocumentDetailCollectionDto,
+    ImportDocumentDetailNextStep,
+    ImportDocumentDetailRawRowDto,
+    ImportDocumentDetailReadModel,
+    ImportDocumentDetailValidationDto,
+    ImportDocumentDetailValidationReasonCode,
+    ImportDocumentDetailWorkflowDto,
+    ImportDocumentSnapshot,
+    ImportDocumentWorkflowStepState,
+    ImportParseAttemptSnapshot,
+    ImportRawTransactionRow,
 )
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.domain.validation_reason import (
     resolve_statement_validation_reason,
 )
-from app.features.imports.models import ParseAttemptStatus
 
 DETAIL_ROW_LIMIT = 5
 DETAIL_ATTEMPT_LIMIT = 10
-
-
-class ImportDocumentWorkflowStepState(StrEnum):
-    PENDING = "pending"
-    CURRENT = "current"
-    DONE = "done"
-    SKIPPED = "skipped"
-    BLOCKED = "blocked"
-
-
-class ImportDocumentDetailNextStep(StrEnum):
-    MAPPING = "mapping"
-    REVIEW = "review"
-    UPLOAD = "upload"
-    DOCUMENT_LIST = "document_list"
-
-
-class ImportDocumentActionBlockingReason(StrEnum):
-    IMPORT_MANAGEMENT_FORBIDDEN = "import_management_forbidden"
-    LINKED_OPERATIONS_EXIST = "linked_operations_exist"
-    ALREADY_IGNORED = "already_ignored"
-
-
-class ImportDocumentDetailValidationReasonCode(StrEnum):
-    TOTALS_MATCH = "totals_match"
-    ROWS_NEED_REVIEW = "rows_need_review"
-    BALANCE_CHAIN_MISMATCH = "balance_chain_mismatch"
-    CONTROL_TOTALS_UNAVAILABLE = "control_totals_unavailable"
-    CONTROL_TOTALS_MISMATCH = "control_totals_mismatch"
-    IGNORED_ROWS_EXPLAIN_MISMATCH = "ignored_rows_explain_mismatch"
-    NEEDS_MAPPING = "needs_mapping"
-    VALIDATION_FAILED = "validation_failed"
-
-
-@dataclass(frozen=True)
-class ImportDocumentDetailAccountDto:
-    id: UUID
-    name: str
-    currency: str
-
-
-@dataclass(frozen=True)
-class ImportDocumentDetailWorkflowDto:
-    upload: ImportDocumentWorkflowStepState
-    extract: ImportDocumentWorkflowStepState
-    mapping: ImportDocumentWorkflowStepState
-    review: ImportDocumentWorkflowStepState
-    ledger: ImportDocumentWorkflowStepState
-
-
-@dataclass(frozen=True)
-class ImportDocumentDetailValidationDto:
-    status: str
-    reason_code: ImportDocumentDetailValidationReasonCode
-    message: str
-    extracted_count: int | None
-    calculated_total_inflow: str | None
-    calculated_total_outflow: str | None
-    ignored_row_count: int
-    ignored_total_inflow: str | None
-    ignored_total_outflow: str | None
-    currency: str | None
-    table_count: int | None
-    needs_mapping: bool
-
-
-@dataclass(frozen=True)
-class ImportDocumentDetailRawRowDto:
-    row_index: int
-    status: RawTransactionStatus
-    display_date: date | str | None
-    amount: Decimal | None
-    amount_raw: str | None
-    currency: str | None
-    description: str
-    normalization_error: str
-
-
-@dataclass(frozen=True)
-class ImportDocumentDetailAttemptDto:
-    id: UUID
-    status: ParseAttemptStatus
-    parser_name: str
-    parser_version: str | None
-    started_at: datetime
-    finished_at: datetime | None
-    message: str
-
-
-@dataclass(frozen=True)
-class ImportDocumentDetailCollectionDto[T]:
-    items: tuple[T, ...]
-    total: int
-    limit: int
-
-
-@dataclass(frozen=True)
-class ImportDocumentActionCapabilityDto:
-    allowed: bool
-    blocking_reason_codes: tuple[ImportDocumentActionBlockingReason, ...]
-
-
-@dataclass(frozen=True)
-class ImportDocumentDetailCapabilitiesDto:
-    can_manage: bool
-    ignore: ImportDocumentActionCapabilityDto
-    delete: ImportDocumentActionCapabilityDto
-
-
-@dataclass(frozen=True)
-class ImportDocumentDetailReadModel:
-    id: UUID
-    filename: str
-    status: UploadedDocumentStatus
-    bank_name: str | None
-    statement_type: str | None
-    statement_period_start: date | None
-    statement_period_end: date | None
-    file_size_bytes: int | None
-    created_at: datetime | None
-    updated_at: datetime | None
-    account: ImportDocumentDetailAccountDto | None
-    workflow: ImportDocumentDetailWorkflowDto
-    next_step: ImportDocumentDetailNextStep
-    validation: ImportDocumentDetailValidationDto | None
-    raw_rows: ImportDocumentDetailCollectionDto[ImportDocumentDetailRawRowDto]
-    parse_attempts: ImportDocumentDetailCollectionDto[ImportDocumentDetailAttemptDto]
-    capabilities: ImportDocumentDetailCapabilitiesDto
 
 
 class ImportDocumentSnapshotReader(Protocol):
@@ -194,15 +75,7 @@ class ImportDocumentDetailReader:
             file_size_bytes=snapshot.file_size_bytes,
             created_at=snapshot.created_at,
             updated_at=snapshot.updated_at,
-            account=(
-                ImportDocumentDetailAccountDto(
-                    id=snapshot.account.id,
-                    name=snapshot.account.name,
-                    currency=snapshot.account.currency,
-                )
-                if snapshot.account is not None
-                else None
-            ),
+            account=snapshot.account,
             workflow=_workflow(snapshot, validation),
             next_step=_next_step(snapshot, validation, can_manage=can_manage),
             validation=validation,

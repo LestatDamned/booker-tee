@@ -18,11 +18,11 @@ from app.api.v1.imports.schemas import (
     ImportDocumentListSummaryApiResponse,
     ImportDocumentStatementPeriodApiResponse,
 )
-from app.features.imports.application.documents.detail_reading import (
+from app.features.imports.documents.dto import (
     ImportDocumentActionCapabilityDto,
     ImportDocumentDetailReadModel,
+    ImportDocumentListReadModel,
 )
-from app.features.imports.application.documents.listing import ImportDocumentListReadModel
 
 
 class ImportDocumentListResponseMapper:

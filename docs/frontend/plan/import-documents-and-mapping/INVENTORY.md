@@ -78,7 +78,7 @@ Ignore и delete запрещены, если raw rows имеют linked operati
 
 - `StatementUploadUseCase`;
 - `ImportDocumentManagementUseCase`;
-- `ImportQueryRepository.get_document_snapshot(...)` и document detail/read
+- `DocumentRepository.get_document_snapshot(...)` и document detail/read
   projections;
 - `UnknownStatementMappingImportUseCase`;
 - mapping preview/default/analyzer code;

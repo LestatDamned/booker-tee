@@ -11,8 +11,8 @@ from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.models import UploadedDocumentStatus
-from app.features.imports.query_repository import ImportQueryRepository
 from app.features.properties.service import PropertyService
 from app.features.reports.presentation.presenter import (
     build_report_category_table,
@@ -78,9 +78,7 @@ async def reports_index(
         include_inactive=True,
     )
     properties = await PropertyService(session).list_active(context.workspace.id)
-    documents = await ImportQueryRepository(session).list_documents_for_workspace(
-        context.workspace.id
-    )
+    documents = await DocumentRepository(session).list_documents_for_workspace(context.workspace.id)
     return templates.TemplateResponse(
         request,
         "reports/index.html",

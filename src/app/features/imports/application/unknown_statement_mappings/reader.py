@@ -3,9 +3,6 @@ from decimal import Decimal
 from typing import Protocol, cast
 from uuid import UUID
 
-from app.features.imports.application.documents.snapshot import (
-    ImportDocumentSnapshot,
-)
 from app.features.imports.application.unknown_statement_mappings.control_total_cells import (
     MappingControlTotalKind,
     ResolvedMappingControlTotal,
@@ -54,6 +51,9 @@ from app.features.imports.application.unknown_statement_mappings.template_comman
 from app.features.imports.application.unknown_statement_mappings.validation import (
     StatementMappingValidator,
     raise_for_mapping_validation_issues,
+)
+from app.features.imports.documents.dto import (
+    ImportDocumentSnapshot,
 )
 from app.features.imports.domain.types import RawTransactionStatus
 from app.features.imports.models import ImportMappingTemplate

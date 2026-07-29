@@ -4,22 +4,22 @@ from uuid import uuid4
 
 import pytest
 
-from app.features.imports.application.documents.detail_reading import (
-    DETAIL_ATTEMPT_LIMIT,
-    DETAIL_ROW_LIMIT,
-    ImportDocumentActionBlockingReason,
-    ImportDocumentDetailNextStep,
-    ImportDocumentDetailReader,
-    ImportDocumentDetailValidationReasonCode,
-    ImportDocumentWorkflowStepState,
-)
 from app.features.imports.application.documents.management import (
     ImportDocumentManagementUseCase,
 )
-from app.features.imports.application.documents.snapshot import (
+from app.features.imports.documents.dto import (
+    ImportDocumentActionBlockingReason,
+    ImportDocumentDetailNextStep,
+    ImportDocumentDetailValidationReasonCode,
     ImportDocumentSnapshot,
+    ImportDocumentWorkflowStepState,
     ImportParseAttemptSnapshot,
     ImportRawTransactionRow,
+)
+from app.features.imports.documents.queries.detail import (
+    DETAIL_ATTEMPT_LIMIT,
+    DETAIL_ROW_LIMIT,
+    ImportDocumentDetailReader,
 )
 from app.features.imports.errors import ImportDocumentManagementError
 from app.features.imports.models import (

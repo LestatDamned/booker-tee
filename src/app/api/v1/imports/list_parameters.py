@@ -6,12 +6,14 @@ from uuid import UUID
 from fastapi import Query
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from app.features.imports.application.documents.listing import (
+from app.features.imports.documents.dto import (
     DEFAULT_IMPORT_DOCUMENTS_PER_PAGE,
     ImportDocumentListFilters,
     ImportDocumentListPagination,
     ImportDocumentListSort,
     ImportDocumentListState,
+)
+from app.features.imports.documents.queries.list import (
     normalize_import_document_pagination,
 )
 

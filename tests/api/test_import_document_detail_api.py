@@ -9,12 +9,12 @@ from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.v1.imports.dependencies import get_import_document_detail_reader
 from app.core.config import get_settings
 from app.db.session import get_session
-from app.features.imports.application.documents.detail_reading import (
-    ImportDocumentDetailReader,
-)
-from app.features.imports.application.documents.snapshot import (
+from app.features.imports.documents.dto import (
     ImportDocumentSnapshot,
     ImportRawTransactionRow,
+)
+from app.features.imports.documents.queries.detail import (
+    ImportDocumentDetailReader,
 )
 from app.features.imports.models import RawTransactionStatus, UploadedDocumentStatus
 from app.features.users.models import User

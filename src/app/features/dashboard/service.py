@@ -4,8 +4,8 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.models import UploadedDocument, UploadedDocumentStatus
-from app.features.imports.query_repository import ImportQueryRepository
 from app.features.reports.service import ReportFilters, ReportsOverview, ReportsService
 
 
@@ -20,7 +20,7 @@ class DashboardOverview:
 
 class DashboardService:
     def __init__(self, session: AsyncSession) -> None:
-        self.imports = ImportQueryRepository(session)
+        self.documents = DocumentRepository(session)
         self.reports = ReportsService(session)
 
     async def build_overview(
@@ -33,7 +33,7 @@ class DashboardService:
             workspace_id=workspace_id,
             filters=ReportFilters(date_from=month_start, date_to=month_end),
         )
-        documents = await self.imports.list_documents_for_workspace(workspace_id)
+        documents = await self.documents.list_documents_for_workspace(workspace_id)
         return DashboardOverview(
             reports=reports,
             month_start=month_start,

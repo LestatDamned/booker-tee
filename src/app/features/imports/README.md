@@ -676,9 +676,10 @@ implementation details into the cohesive packages underneath
 ## Near-term cleanup plan
 
 1. Keep document reads on internal snapshots returned by
-   `ImportQueryRepository`; command routes call explicit use cases directly.
-2. Move document lifecycle files into `application/documents/`:
-   upload, management, parse attempts.
+   `documents.repository.DocumentRepository`; command routes call explicit use
+   cases directly.
+2. Move the remaining document lifecycle files from `application/documents/`
+   into the `documents` capability: upload, management and parse attempts.
 3. Keep review lifecycle and user actions in the sibling `import_review`
    feature; imports retains document validation and persistence.
 4. Keep `application/processing.py` as a thin parse-success story:
@@ -700,8 +701,8 @@ Completed cleanup:
 
 ## Remaining cleanup plan
 
-1. Keep document read projections in `ImportQueryRepository`; new command
-   behavior belongs to explicit use cases under `application/`.
+1. Keep document read projections in `documents/repository.py`; new command
+   behavior belongs to explicit use cases under `documents/commands/`.
 2. Compatibility facades in `application/` have been removed. Keep new imports
    pointed at concrete story modules such as `application/documents/upload.py`
    or the defining module under `app.features.import_review`.
@@ -715,7 +716,7 @@ Completed cleanup:
 
 ## Document read boundary
 
-`ImportQueryRepository.get_document_snapshot(...)` owns workspace-scoped
-loading and returns `ImportDocumentSnapshot`. Document detail and unknown
-mapping readers depend on narrow Protocols and do not receive ORM documents.
-Command workflows remain explicit application use cases.
+`DocumentRepository.get_document_snapshot(...)` owns workspace-scoped loading
+and returns `ImportDocumentSnapshot`. Document detail and unknown mapping
+readers depend on narrow Protocols and do not receive ORM documents. Command
+workflows remain explicit application use cases.

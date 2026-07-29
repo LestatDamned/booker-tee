@@ -4,20 +4,20 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.imports.application.documents.listing import (
-    ImportDocumentListAccountRow,
+from app.features.imports.documents.dto import (
+    ImportDocumentAccountDto,
     ImportDocumentListFilters,
     ImportDocumentListPagination,
-    ImportDocumentListReader,
     ImportDocumentListReadonlyReasonCode,
     ImportDocumentListRow,
     ImportDocumentListSort,
     ImportDocumentListState,
-    ImportDocumentListSummaryRow,
+    ImportDocumentListSummaryDto,
     ImportDocumentNextStepKind,
 )
+from app.features.imports.documents.queries.list import ImportDocumentListReader
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.models import ParseAttemptStatus, UploadedDocumentStatus
-from app.features.imports.query_repository import ImportQueryRepository
 
 
 class DocumentListSourceStub:
@@ -58,10 +58,10 @@ class DocumentListSourceStub:
     async def list_document_filter_accounts_for_workspace(
         self,
         workspace_id: UUID,
-    ) -> list[ImportDocumentListAccountRow]:
+    ) -> list[ImportDocumentAccountDto]:
         self.workspace_ids.append(workspace_id)
         return [
-            ImportDocumentListAccountRow(
+            ImportDocumentAccountDto(
                 id=uuid4(),
                 name="Основной",
                 currency="RUB",
@@ -72,9 +72,9 @@ class DocumentListSourceStub:
     async def summarize_documents_for_workspace(
         self,
         workspace_id: UUID,
-    ) -> ImportDocumentListSummaryRow:
+    ) -> ImportDocumentListSummaryDto:
         self.workspace_ids.append(workspace_id)
-        return ImportDocumentListSummaryRow(
+        return ImportDocumentListSummaryDto(
             total_document_count=self.total,
             attention_document_count=min(self.total, 1),
         )
@@ -264,7 +264,7 @@ async def test_document_projection_query_is_workspace_scoped_and_deterministic()
 
     session = SessionStub()
 
-    result = await ImportQueryRepository(cast(Any, session)).list_document_rows_for_workspace(
+    result = await DocumentRepository(cast(Any, session)).list_document_rows_for_workspace(
         workspace_id=workspace_id,
         filters=ImportDocumentListFilters(),
         pagination=ImportDocumentListPagination(),
@@ -306,7 +306,7 @@ async def test_document_projection_applies_registry_filters_sort_and_page() -> N
         sort=ImportDocumentListSort.CREATED_AT_ASC,
     )
 
-    await ImportQueryRepository(cast(Any, session)).list_document_rows_for_workspace(
+    await DocumentRepository(cast(Any, session)).list_document_rows_for_workspace(
         workspace_id=workspace_id,
         filters=filters,
         pagination=ImportDocumentListPagination(page=3, per_page=50),

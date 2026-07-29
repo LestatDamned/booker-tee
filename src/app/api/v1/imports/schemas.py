@@ -3,15 +3,13 @@ from typing import Literal
 from uuid import UUID
 
 from app.api.schemas import ApiModel
-from app.features.imports.application.documents.detail_reading import (
+from app.features.imports.documents.dto import (
     ImportDocumentActionBlockingReason,
     ImportDocumentDetailNextStep,
     ImportDocumentDetailValidationReasonCode,
-    ImportDocumentWorkflowStepState,
-)
-from app.features.imports.application.documents.listing import (
     ImportDocumentListReadonlyReasonCode,
     ImportDocumentNextStepKind,
+    ImportDocumentWorkflowStepState,
 )
 from app.features.imports.models import (
     ParseAttemptStatus,

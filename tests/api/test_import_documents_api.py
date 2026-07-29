@@ -6,14 +6,14 @@ from fastapi import FastAPI
 from api_client import ApiTestClient as TestClient
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.v1.imports.dependencies import get_import_document_list_reader
-from app.features.imports.application.documents.listing import (
-    ImportDocumentListAccountRow,
+from app.features.imports.documents.dto import (
+    ImportDocumentAccountDto,
     ImportDocumentListFilters,
     ImportDocumentListPagination,
-    ImportDocumentListReader,
     ImportDocumentListRow,
-    ImportDocumentListSummaryRow,
+    ImportDocumentListSummaryDto,
 )
+from app.features.imports.documents.queries.list import ImportDocumentListReader
 from app.features.imports.models import ParseAttemptStatus, UploadedDocumentStatus
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
@@ -58,13 +58,13 @@ class DocumentListSourceStub:
     async def list_document_filter_accounts_for_workspace(
         self,
         workspace_id: UUID,
-    ) -> list[ImportDocumentListAccountRow]:
+    ) -> list[ImportDocumentAccountDto]:
         self.workspace_ids.append(workspace_id)
         row = self.rows[0] if self.rows else None
         if row is None or row.account_id is None:
             return []
         return [
-            ImportDocumentListAccountRow(
+            ImportDocumentAccountDto(
                 id=row.account_id,
                 name=row.account_name or "Основной",
                 currency=row.account_currency or "RUB",
@@ -75,9 +75,9 @@ class DocumentListSourceStub:
     async def summarize_documents_for_workspace(
         self,
         workspace_id: UUID,
-    ) -> ImportDocumentListSummaryRow:
+    ) -> ImportDocumentListSummaryDto:
         self.workspace_ids.append(workspace_id)
-        return ImportDocumentListSummaryRow(
+        return ImportDocumentListSummaryDto(
             total_document_count=len(self.rows),
             attention_document_count=len(self.rows),
         )

@@ -4,11 +4,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.features.imports.application.documents.snapshot import (
-    ImportAccountRef,
-    ImportDocumentSnapshot,
-    ImportParseAttemptSnapshot,
-)
 from app.features.imports.application.unknown_statement_mappings.dto import (
     StatementMappingSpec,
     UnsignedAmountDirection,
@@ -24,6 +19,11 @@ from app.features.imports.application.unknown_statement_mappings.reader import (
     MAX_MAPPING_PREVIEW_RESPONSE_ROWS,
     MAX_MAPPING_SOURCE_SAMPLE_ROWS,
     UnknownStatementMappingReader,
+)
+from app.features.imports.documents.dto import (
+    ImportDocumentAccountDto,
+    ImportDocumentSnapshot,
+    ImportParseAttemptSnapshot,
 )
 from app.features.imports.models import ParseAttemptStatus, UploadedDocumentStatus
 
@@ -199,7 +199,7 @@ def mapping_document_snapshot() -> ImportDocumentSnapshot:
         original_filename="unknown-statement.xlsx",
         bank_name="Unknown Bank",
         statement_type="account_statement",
-        account=ImportAccountRef(
+        account=ImportDocumentAccountDto(
             id=uuid4(),
             name="Основной счёт",
             currency="RUB",

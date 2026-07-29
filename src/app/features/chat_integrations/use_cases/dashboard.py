@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import utc_now
 from app.features.import_review.repository import ImportReviewRepository
-from app.features.imports.query_repository import ImportQueryRepository
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.reports.service import ReportFilters, ReportsService
 from app.features.workspaces.service import WorkspaceContext
 
@@ -74,7 +74,7 @@ class ChatAccountBalances:
 
 class ChatPrivateStatusReader:
     def __init__(self, session: AsyncSession) -> None:
-        self.imports = ImportQueryRepository(session)
+        self.documents = DocumentRepository(session)
         self.import_review = ImportReviewRepository(session)
 
     async def read_status(self, context: WorkspaceContext) -> ChatPrivateStatus:
@@ -82,7 +82,7 @@ class ChatPrivateStatusReader:
             context.workspace.id
         )
         return ChatPrivateStatus(
-            documents_needing_attention=await self.imports.count_documents_needing_attention(
+            documents_needing_attention=await self.documents.count_documents_needing_attention(
                 context.workspace.id
             ),
             raw_transactions_needing_attention=raw_transactions_count,
@@ -91,7 +91,7 @@ class ChatPrivateStatusReader:
 
 class ChatMonthlySummaryReader:
     def __init__(self, session: AsyncSession) -> None:
-        self.imports = ImportQueryRepository(session)
+        self.documents = DocumentRepository(session)
         self.import_review = ImportReviewRepository(session)
         self.reports = ReportsService(session)
 
@@ -121,7 +121,7 @@ class ChatMonthlySummaryReader:
             income=overview.summary.income,
             expense=overview.summary.expense,
             profit=overview.summary.profit,
-            documents_needing_attention=await self.imports.count_documents_needing_attention(
+            documents_needing_attention=await self.documents.count_documents_needing_attention(
                 context.workspace.id
             ),
             raw_transactions_needing_attention=(

@@ -1,3 +1,5 @@
+"""Persistence reads owned by the imported document capability."""
+
 from typing import Any
 from uuid import UUID
 
@@ -6,18 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.features.accounts.models import Account
-from app.features.imports.application.documents.listing import (
-    ImportDocumentListAccountRow,
+from app.features.imports.documents.dto import (
+    ImportDocumentAccountDto,
     ImportDocumentListFilters,
     ImportDocumentListPagination,
     ImportDocumentListRow,
     ImportDocumentListSort,
     ImportDocumentListState,
-    ImportDocumentListSummaryRow,
-)
-from app.features.imports.application.documents.snapshot import (
+    ImportDocumentListSummaryDto,
     ImportDocumentSnapshot,
-    ImportDocumentSnapshotMapper,
+    ImportParseAttemptSnapshot,
+    ImportRawTransactionRow,
 )
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.models import (
@@ -51,7 +52,7 @@ COMPLETED_DOCUMENT_STATUSES = {
 }
 
 
-class ImportQueryRepository:
+class DocumentRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
@@ -85,7 +86,7 @@ class ImportQueryRepository:
         document = await self.get_document_for_workspace(workspace_id, document_id)
         if document is None:
             return None
-        return ImportDocumentSnapshotMapper.from_uploaded_document(document)
+        return _document_snapshot(document)
 
     async def list_documents_for_workspace(self, workspace_id: UUID) -> list[UploadedDocument]:
         result = await self.session.execute(
@@ -225,7 +226,7 @@ class ImportQueryRepository:
     async def list_document_filter_accounts_for_workspace(
         self,
         workspace_id: UUID,
-    ) -> list[ImportDocumentListAccountRow]:
+    ) -> list[ImportDocumentAccountDto]:
         result = await self.session.execute(
             select(
                 Account.id,
@@ -237,7 +238,7 @@ class ImportQueryRepository:
             .order_by(Account.name.asc(), Account.id.asc())
         )
         return [
-            ImportDocumentListAccountRow(
+            ImportDocumentAccountDto(
                 id=account_id,
                 name=name,
                 currency=currency,
@@ -249,7 +250,7 @@ class ImportQueryRepository:
     async def summarize_documents_for_workspace(
         self,
         workspace_id: UUID,
-    ) -> ImportDocumentListSummaryRow:
+    ) -> ImportDocumentListSummaryDto:
         result = await self.session.execute(
             select(
                 func.count(UploadedDocument.id),
@@ -259,7 +260,7 @@ class ImportQueryRepository:
             ).where(UploadedDocument.workspace_id == workspace_id)
         )
         total_document_count, attention_document_count = result.one()
-        return ImportDocumentListSummaryRow(
+        return ImportDocumentListSummaryDto(
             total_document_count=int(total_document_count),
             attention_document_count=int(attention_document_count),
         )
@@ -312,3 +313,68 @@ class ImportQueryRepository:
             )
         )
         return result.scalar_one()
+
+
+def _document_snapshot(document: UploadedDocument) -> ImportDocumentSnapshot:
+    parse_attempts = sorted(
+        document.parse_attempts,
+        key=lambda attempt: attempt.started_at,
+        reverse=True,
+    )
+    attempts = [_parse_attempt_snapshot(attempt) for attempt in parse_attempts]
+    latest_attempt = attempts[0] if attempts else None
+    return ImportDocumentSnapshot(
+        id=document.id,
+        status=document.status,
+        original_filename=document.original_filename,
+        bank_name=document.bank_name,
+        statement_type=document.statement_type,
+        statement_period_start=document.statement_period_start,
+        statement_period_end=document.statement_period_end,
+        file_size_bytes=document.file_size_bytes,
+        created_at=document.created_at,
+        updated_at=document.updated_at,
+        account=_account_ref(document),
+        validation=latest_attempt.validation_report if latest_attempt else None,
+        raw_transactions=[_raw_transaction_row(row) for row in document.raw_transactions],
+        parse_attempts=attempts,
+    )
+
+
+def _account_ref(document: UploadedDocument) -> ImportDocumentAccountDto | None:
+    if document.account is None:
+        return None
+    return ImportDocumentAccountDto(
+        id=document.account.id,
+        name=document.account.name,
+        currency=document.account.currency,
+        bank_name=document.account.bank_name,
+    )
+
+
+def _raw_transaction_row(row: RawTransaction) -> ImportRawTransactionRow:
+    return ImportRawTransactionRow(
+        row_index=row.row_index,
+        status=row.status,
+        display_date=row.operation_date or row.operation_date_raw,
+        amount=row.amount,
+        amount_raw=row.amount_raw,
+        currency=row.currency,
+        description=row.description_normalized or row.description_raw or "",
+        normalization_error=row.normalization_error or "",
+        linked_operation_id=row.linked_operation_id,
+    )
+
+
+def _parse_attempt_snapshot(attempt: ParseAttempt) -> ImportParseAttemptSnapshot:
+    return ImportParseAttemptSnapshot(
+        id=attempt.id,
+        status=attempt.status,
+        parser_name=attempt.parser_name,
+        parser_version=attempt.parser_version,
+        started_at=attempt.started_at,
+        finished_at=attempt.finished_at,
+        error_message=attempt.error_message_sanitized,
+        validation_report=attempt.validation_report_json,
+        raw_tables=attempt.raw_tables_json,
+    )

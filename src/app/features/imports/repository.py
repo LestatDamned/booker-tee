@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.domain.types import RawTransactionStatus, UploadedDocumentStatus
 from app.features.imports.models import (
     ImportMappingExecution,
@@ -15,7 +16,6 @@ from app.features.imports.models import (
     RawTransaction,
     UploadedDocument,
 )
-from app.features.imports.query_repository import ImportQueryRepository
 
 
 class ImportRepository:
@@ -37,7 +37,7 @@ class ImportRepository:
         workspace_id: UUID,
         document_id: UUID,
     ) -> UploadedDocument | None:
-        return await ImportQueryRepository(self.session).get_document_for_workspace(
+        return await DocumentRepository(self.session).get_document_for_workspace(
             workspace_id,
             document_id,
         )
@@ -60,9 +60,6 @@ class ImportRepository:
             .with_for_update()
         )
         return result.scalar_one_or_none()
-
-    async def list_documents_for_workspace(self, workspace_id: UUID) -> list[UploadedDocument]:
-        return await ImportQueryRepository(self.session).list_documents_for_workspace(workspace_id)
 
     async def create_raw_transactions(
         self,

@@ -323,6 +323,12 @@ Repository группируется по владельцу поведения, 
 | document enums из `models.py` | `documents/types.py` | Persisted values не принадлежат ORM module |
 | upload/document errors из `errors.py` | `documents/errors.py` | Ошибки рядом с owning capability |
 
+Step 3A завершён 2026-07-29: первые три перемещения выполнены без package
+re-export facades. `query_repository.py` удалён целиком; list/detail/snapshot
+reads принадлежат `DocumentRepository`, DTO отделены от query orchestration.
+Существующий `ImportRepository.get_document_for_workspace` временно делегирует
+read новому владельцу для ещё не перенесённых write workflows и удаляется в 3B.
+
 В `documents/repository.py` переходят:
 
 - создание document и parse attempt;
@@ -527,6 +533,10 @@ LOC reduction.
 однополевая `DuplicateDecision` и compatibility helper; migration БД не
 потребовалась.
 
+После Step 3A `imports` содержит 91 Python-файл и 10 994 строки. Два package
+entrypoint добавлены ради явной границы `documents/queries`, но общий production
+code сократился на 30 строк за счёт удаления повторных DTO и list forwarding.
+
 Ориентир после безопасных объединений — примерно 55–65 содержательных
 Python-файлов внутри `imports`. Это не KPI: cohesive файл не дробится и не
 сливается ради числа.
@@ -588,9 +598,10 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 
 ### Шаг 3. Documents
 
-- выделить DTO и list/detail queries;
+- выделить DTO и list/detail queries — выполнено в 3A;
+- удалить `query_repository.py` и перевести read consumers — выполнено в 3A;
 - собрать lifecycle и attempts;
-- выделить document repository;
+- дополнить document repository write-side persistence;
 - перенести storage;
 - распределить document types и errors;
 - удалить исходные файлы в том же change set.
@@ -657,7 +668,9 @@ Python-файлов внутри `imports`. Это не KPI: cohesive файл �
 | Safety baseline | completed 2026-07-29: Ruff, ty, 601 tests |
 | 1. Persistence ownership | completed 2026-07-29 |
 | 2. Duplicate evidence | completed 2026-07-29 |
-| 3. Documents | next |
+| 3A. Documents read side | completed 2026-07-29 |
+| 3B. Documents lifecycle and persistence | next |
+| 3C. Documents commands and infrastructure | pending |
 | 4–11 | pending |
 
 ## 15. Gate для каждого шага
