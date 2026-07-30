@@ -160,7 +160,7 @@ class CategoryService:
         category = await self.categories.get_for_workspace(workspace_id, category_id)
         if category is None:
             raise CategoryError("Category is not available in this workspace.")
-        operations = await self.ledger.list_confirmed_operations_for_report(
+        operations = await self.ledger.list_confirmed_operations(
             workspace_id=workspace_id,
             category_id=category_id,
             date_from=date_from,

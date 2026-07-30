@@ -219,7 +219,7 @@ class LedgerRepository:
         result = await self.session.execute(query)
         return result.scalar_one()
 
-    async def list_confirmed_operations_for_report(
+    async def list_confirmed_operations(
         self,
         *,
         workspace_id: UUID,

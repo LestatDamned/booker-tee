@@ -170,20 +170,34 @@ constructor сохраняет lifecycle, audit и profit invariants. Manual fin
 
 ### 5. Mutation actors
 
-Статус: pending.
+Статус: deferred.
 
-- разделить creation, editing и lifecycle только по реальным transaction и
-  behavior boundaries;
-- сохранить публичный `ManualOperationService.create/update/cancel/...`;
-- не дублировать manual posting между API и chat.
+Этап отложен 2026-07-30. Единственная подтверждённая граница — creation,
+который совместно используется Manual Ledger API и chat workflow. Разделение
+editing и lifecycle потребовало бы дублирования version/load/flush mechanics
+или нового технического collaborator. До появления дополнительной причины
+сохраняются `ManualOperationService.create/update/cancel/...` и
+transaction-neutral `ManualOperationWriter`.
 
 ### 6. Repository ownership
 
-Статус: pending.
+Статус: completed 2026-07-30.
 
-- убрать dependency `repository -> application`;
-- определить ownership report/category/import-review queries;
-- не дробить repository механически на короткие forwarding classes.
+Dependency `repository -> application` устранена на этапе 2B: repository
+принимает persistence-oriented параметры и не знает application DTO.
+
+`LedgerRepository.list_confirmed_operations(...)` — общий ledger read query,
+которым пользуются Reports и Categories. Имя больше не привязывает persistence
+contract к одному consumer. Lookup и row lock для `Operation` в import-review
+также принадлежат Ledger: review оркестрирует workflow, но не владеет
+persistence подтверждённых операций.
+
+`LedgerRepository` намеренно не разделён на command/query/report repositories:
+его методы работают с одним aggregate (`Operation` + `MoneyEntry`), используют
+одну транзакционную границу и пока образуют читаемый cohesive persistence API.
+Короткие forwarding classes и package facades не добавляются. Account-detail
+queries остаются до React replacement gate и рассматриваются вместе с legacy
+cleanup, а не полируются заранее.
 
 ### 7. Legacy cleanup
 

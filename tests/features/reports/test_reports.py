@@ -329,7 +329,7 @@ class FakeReportLedger:
         )
         return Decimal("25.00")
 
-    async def list_confirmed_operations_for_report(self, **_kwargs: object) -> list[Operation]:
+    async def list_confirmed_operations(self, **_kwargs: object) -> list[Operation]:
         return []
 
 

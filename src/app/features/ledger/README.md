@@ -157,8 +157,13 @@ factory. Он централизованно задаёт `confirmed`, audit fie
 делает commit. Каждый workspace-owned query обязан фильтровать `workspace_id`.
 Он не принимает `RawTransaction`: поиск ручных transfer candidates для review
 принадлежит `ImportReviewRepository`.
-Read queries можно вынести в `query_repository.py`, только когда их дальнейший
-рост или отдельная оптимизация сделают текущее разделение действительно проще.
+Общий `list_confirmed_operations(...)` обслуживает Reports и Categories, не
+принадлежа ни одному из этих consumers. Lookup и row lock подтверждённых
+`Operation` для import-review остаются в Ledger. Repository сохраняется единым,
+пока `Operation` и `MoneyEntry` используют один persistence contract и одну
+транзакционную границу. Read queries можно отделить только при появлении
+самостоятельного contract или заметно отличающейся оптимизации; legacy
+account-detail queries до React replacement gate не дробятся и не полируются.
 
 ## Naming
 

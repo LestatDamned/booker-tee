@@ -100,7 +100,7 @@ class ReportsService:
             )
             for account in balance_accounts
         ]
-        operations = await self.ledger.list_confirmed_operations_for_report(
+        operations = await self.ledger.list_confirmed_operations(
             workspace_id=workspace_id,
             date_from=filters.date_from,
             date_to=filters.date_to,
