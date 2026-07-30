@@ -6,35 +6,43 @@ import styles from "./expansion-panel.module.css";
 type ExpansionPanelProps = {
   children: ReactNode;
   id: string;
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
   showHeader?: boolean;
   title: string;
+  titleId?: string;
 };
 
 export function ExpansionPanel({
   children,
   id,
-  isOpen,
+  isOpen = true,
   onClose,
   showHeader = true,
   title,
+  titleId = `${id}-title`,
 }: ExpansionPanelProps) {
   return (
     <section
+      aria-labelledby={showHeader ? titleId : undefined}
       aria-live="polite"
       className={styles.panel}
+      data-workbench-row-expansion
       hidden={!isOpen}
       id={id}
     >
       {showHeader ? (
         <header className={styles.header}>
-          <h3 className={styles.title}>{title}</h3>
-          <IconButton
-            aria-label="Закрыть панель"
-            icon="close"
-            onClick={onClose}
-          />
+          <h3 className={styles.title} id={titleId}>
+            {title}
+          </h3>
+          {onClose ? (
+            <IconButton
+              aria-label="Закрыть панель"
+              icon="close"
+              onClick={onClose}
+            />
+          ) : null}
         </header>
       ) : null}
       <div className={styles.content}>{children}</div>

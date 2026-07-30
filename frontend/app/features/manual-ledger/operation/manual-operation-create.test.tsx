@@ -49,7 +49,12 @@ describe("manual operation creation", () => {
     fireEvent.change(screen.getByLabelText("Дата *"), {
       target: { value: "2026-07-20" },
     });
-    await user.selectOptions(screen.getByLabelText("Категория"), categoryId);
+    await user.click(screen.getByRole("combobox", { name: "Категория" }));
+    await user.type(
+      screen.getByRole("combobox", { name: "Категория" }),
+      "проц",
+    );
+    await user.click(screen.getByRole("option", { name: "Проценты" }));
     await user.selectOptions(screen.getByLabelText("Объект"), propertyId);
     await user.type(screen.getByLabelText("Описание"), "Проценты по вкладу");
     await user.click(screen.getByRole("button", { name: "Создать доход" }));

@@ -753,7 +753,7 @@ def assert_react_imported_operation_correction(page: Page) -> list[str]:
             errors.append(
                 "React imported correction description is taller than the shared controls"
             )
-    if panel.locator(":scope > form[data-imported-operation-correction]").count() != 1:
+    if panel.locator("form[data-imported-operation-correction]").count() != 1:
         errors.append("React imported correction does not expose one focused inline form")
     if panel.get_by_role("link").count() != 0:
         errors.append("React imported correction repeats a non-form source action")
@@ -1020,6 +1020,9 @@ def assert_react_manual_create(page: Page) -> list[str]:
         return [f"React manual income/expense form did not open: {short_error(exc)}"]
 
     form.get_by_role("radio", name="Расход", exact=True).check()
+    category = form.get_by_role("combobox", name="Категория", exact=True)
+    if category.count() != 1 or category.get_attribute("placeholder") != "Найти категорию":
+        errors.append("React manual form category does not use shared search")
     account = form.locator("#manual-operation-account")
     if account.locator("option").count() < 2:
         return ["React manual income/expense form has no account option"]
@@ -1113,6 +1116,10 @@ def assert_react_manual_edit(page: Page, *, check_conflict: bool) -> list[str]:
         panel.get_by_label(re.compile(r"^Сумма")).wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
     except PlaywrightError as exc:
         return [f"React manual lazy edit did not load: {short_error(exc)}"]
+    if panel.get_attribute("data-workbench-row-expansion") is None:
+        errors.append("React manual edit does not use shared row expansion")
+    if row.get_attribute("data-state") != "working":
+        errors.append("React manual edit row does not use shared working state")
 
     amount = panel.get_by_label(re.compile(r"^Сумма"))
     amount.fill("0")
@@ -1228,8 +1235,10 @@ def assert_react_manual_edit_conflict(
 
 
 def assert_react_manual_lifecycle(page: Page) -> list[str]:
-    description = "UI audit: React transfer edited"
-    heading = page.get_by_role("heading", name=description, exact=True)
+    heading = page.get_by_role(
+        "heading",
+        name=re.compile(r"^UI audit: React (transfer edited|concurrent update)$"),
+    ).first
     if heading.count() == 0:
         return ["React manual lifecycle target was not found"]
     row = heading.locator("xpath=ancestor::article[1]")
@@ -1238,17 +1247,17 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
         close_edit.click(timeout=PAGE_TIMEOUT_MS)
 
     def reveal_action(name: str):
-        actions = row.locator("details")
-        if actions.count() == 1 and actions.get_attribute("open") is None:
-            row.get_by_text("Ещё действия", exact=True).click(timeout=PAGE_TIMEOUT_MS)
-        return row.get_by_role("button", name=name, exact=True)
+        trigger = row.get_by_role("button", name="Ещё действия", exact=True)
+        if trigger.count() == 1 and trigger.get_attribute("aria-expanded") != "true":
+            trigger.click(timeout=PAGE_TIMEOUT_MS)
+        return page.get_by_role("button", name=name, exact=True)
 
     cancel = reveal_action("Отменить операцию")
     if cancel.count() == 0:
         return ["React manual cancel action was not exposed by capability"]
     cancel.click(timeout=PAGE_TIMEOUT_MS)
     restore = row.get_by_role("button", name="Восстановить операцию", exact=True)
-    refresh = row.get_by_role("button", name="Обновить строку", exact=True)
+    refresh = page.get_by_role("button", name="Обновить строку", exact=True)
     try:
         restore.or_(refresh).wait_for(
             state="visible",
@@ -1258,7 +1267,7 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
         return [f"React manual cancel did not settle: {short_error(exc)}"]
 
     if refresh.count() == 1 and refresh.is_visible():
-        if row.get_by_text("Операция уже изменилась в другом окне.", exact=True).count() == 0:
+        if page.get_by_text("Операция уже изменилась в другом окне.", exact=True).count() == 0:
             return ["React manual lifecycle 409 did not explain the conflict"]
         refresh.click(timeout=PAGE_TIMEOUT_MS)
         refreshed_heading = page.get_by_role(
@@ -1278,7 +1287,7 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
             state="visible",
             timeout=PAGE_TIMEOUT_MS,
         )
-        row.get_by_text("отменено", exact=True).wait_for(
+        row.get_by_text(re.compile(r"^отменено$", re.IGNORECASE)).wait_for(
             state="visible",
             timeout=PAGE_TIMEOUT_MS,
         )
@@ -1295,7 +1304,7 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
             state="visible",
             timeout=PAGE_TIMEOUT_MS,
         )
-        row.get_by_text("подтверждено", exact=True).wait_for(
+        row.get_by_text(re.compile(r"^подтверждено$", re.IGNORECASE)).wait_for(
             state="visible",
             timeout=PAGE_TIMEOUT_MS,
         )
@@ -1310,17 +1319,20 @@ def assert_react_manual_lifecycle(page: Page) -> list[str]:
         return [f"React manual delete capability was not reconciled: {short_error(exc)}"]
 
     delete.click(timeout=PAGE_TIMEOUT_MS)
-    confirmation = row.get_by_text("Удалить операцию без возможности восстановления?", exact=False)
+    confirmation = page.get_by_text(
+        "Удалить операцию без возможности восстановления?",
+        exact=False,
+    )
     try:
         confirmation.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
     except PlaywrightError as exc:
         return [f"React manual delete confirmation was not rendered: {short_error(exc)}"]
-    row.get_by_role("button", name="Не удалять", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    page.get_by_role("button", name="Не удалять", exact=True).click(timeout=PAGE_TIMEOUT_MS)
     if row.count() != 1:
         return ["React manual delete cancellation removed the row"]
 
     reveal_action("Удалить окончательно").click(timeout=PAGE_TIMEOUT_MS)
-    row.get_by_role("button", name="Да, удалить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    page.get_by_role("button", name="Да, удалить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
     try:
         row.wait_for(state="detached", timeout=PAGE_TIMEOUT_MS)
     except PlaywrightError as exc:
@@ -1951,8 +1963,8 @@ def assert_react_import_review(page: Page) -> list[str]:
             if imports_link.get_attribute("aria-current") != "page":
                 errors.append("React import review imports navigation is not active")
 
+    all_filter = page.get_by_role("button", name=re.compile(r"^Все \d+$"))
     completed_filter = page.get_by_role("button", name=re.compile(r"^Завершённые \d+$"))
-    pending_filter = page.get_by_role("button", name=re.compile(r"^Требуют решения \d+$"))
     completed_filter.click()
     try:
         page.wait_for_function(
@@ -1970,12 +1982,12 @@ def assert_react_import_review(page: Page) -> list[str]:
         page.wait_for_function(
             """
             () => Array.from(document.querySelectorAll('button[aria-pressed="true"]'))
-              .some((button) => button.textContent?.includes("Требуют решения"))
+              .some((button) => button.textContent?.trim().startsWith("Все"))
             """,
             timeout=PAGE_TIMEOUT_MS,
         )
-        if pending_filter.get_attribute("aria-pressed") != "true":
-            errors.append("React import review Back did not restore the pending filter")
+        if all_filter.get_attribute("aria-pressed") != "true":
+            errors.append("React import review Back did not restore the all filter")
         page.go_forward(wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
         page.wait_for_function(
             "() => new URLSearchParams(location.search).get('filter') === 'complete'",
@@ -1990,7 +2002,7 @@ def assert_react_import_review(page: Page) -> list[str]:
         )
         if completed_filter.get_attribute("aria-pressed") != "true":
             errors.append("React import review Forward did not restore the completed filter")
-    pending_filter.click()
+    all_filter.click()
     try:
         page.wait_for_function(
             "() => !new URLSearchParams(location.search).has('filter')",
@@ -1999,7 +2011,7 @@ def assert_react_import_review(page: Page) -> list[str]:
         page.wait_for_function(
             """
             () => Array.from(document.querySelectorAll('button[aria-pressed="true"]'))
-              .some((button) => button.textContent?.includes("Требуют решения"))
+              .some((button) => button.textContent?.trim().startsWith("Все"))
             """,
             timeout=PAGE_TIMEOUT_MS,
         )
@@ -2034,35 +2046,37 @@ def assert_react_import_review(page: Page) -> list[str]:
         return [*errors, "React import review classification panel was not found"]
     classification_panel.click()
     panel = salary_item.locator("section[id^='review-panel-']")
+    if panel.get_attribute("data-workbench-row-expansion") is None:
+        errors.append("React import review does not use shared row expansion")
+    if salary_item.get_attribute("data-state") != "working":
+        errors.append("React import review row does not use shared working state")
     operation_context = panel.get_by_label("Контекст текущей операции")
     viewport = page.viewport_size
     if viewport is not None and viewport["width"] <= 720:
         if operation_context.count() == 0 or not operation_context.is_visible():
             errors.append("React import review mobile editor lost operation context")
 
-    more_actions = salary_item.get_by_text("Ещё действия", exact=True)
+    more_actions = salary_item.get_by_role("button", name="Ещё действия", exact=True)
     if more_actions.count() > 0:
         more_actions.focus()
         more_actions.press("Enter")
-        if not more_actions.locator("xpath=ancestor::details[1]").evaluate(
-            "element => element.open"
-        ):
+        if more_actions.get_attribute("aria-expanded") != "true":
             errors.append("React import review more-actions disclosure is not keyboard operable")
-    source_action = salary_item.get_by_role("button", name="Исходные данные")
+    source_action = page.get_by_role("button", name="Исходные данные")
     if source_action.count() == 0:
         errors.append("React import review technical source action was not found")
-    ignore_action = salary_item.get_by_role("button", name="Игнорировать")
+    ignore_action = page.get_by_role("button", name="Игнорировать")
     if ignore_action.count() == 0:
         errors.append("React import review lifecycle action was not found")
     else:
         ignore_action.click()
-        confirmation = salary_item.get_by_text(
+        confirmation = page.get_by_text(
             "Игнорировать строку? Она не попадёт в официальный ledger.",
             exact=True,
         )
         if confirmation.count() == 0:
             errors.append("React import review danger confirmation was not shown")
-        cancel_action = salary_item.locator("button:focus").filter(has_text="Отмена")
+        cancel_action = page.locator("button:focus").filter(has_text="Отмена")
         if cancel_action.count() == 0:
             errors.append("React import review danger confirmation cannot be cancelled")
         else:
@@ -2076,8 +2090,19 @@ def assert_react_import_review(page: Page) -> list[str]:
     if panel.get_by_label("Объект").count() == 0:
         errors.append("React import review property draft field was not found")
     if category.count() > 0:
-        category.select_option(label="Прочий доход")
-        confirm_action = panel.get_by_role("button", name="Подтвердить и провести")
+        if category.get_attribute("placeholder") != "Найти категорию":
+            errors.append("React import review category does not use shared search")
+        category.click()
+        category.fill("Прочий доход")
+        category_option = page.get_by_role("option", name="Прочий доход", exact=True)
+        if category_option.count() == 0:
+            errors.append("React import review category search returned no option")
+        else:
+            category_option.click()
+        confirm_action = panel.get_by_role(
+            "button",
+            name=re.compile(r"^Провести(?: с правилом)?$"),
+        )
         try:
             confirm_action.wait_for(timeout=PAGE_TIMEOUT_MS)
         except PlaywrightError:
@@ -2086,41 +2111,20 @@ def assert_react_import_review(page: Page) -> list[str]:
             confirm_box = confirm_action.bounding_box()
             if confirm_box is None or confirm_box["height"] < 44:
                 errors.append("React import review confirm touch target is below 44px")
-            rule_summary = panel.get_by_text("Правило для похожих операций", exact=True)
-            rule_details = rule_summary.locator("xpath=ancestor::details[1]")
-            if rule_details.evaluate("element => element.open"):
-                errors.append("React import review rule disclosure is open by default")
-            summary_box = rule_summary.bounding_box()
-            if summary_box is None or summary_box["height"] < 44:
-                errors.append("React import review rule touch target is below 44px")
-            rule_summary.focus()
-            rule_summary.press("Enter")
-            if not rule_summary.evaluate("element => document.activeElement === element"):
-                errors.append("React import review rule disclosure lost keyboard focus")
-            if not rule_details.evaluate("element => element.open"):
-                errors.append("React import review rule disclosure is not keyboard operable")
-            remember_rule = panel.get_by_label("Применять это решение к похожим строкам")
-            if remember_rule.count() == 0:
-                errors.append("React import review remember-rule control was not found")
+            rule_pattern = panel.get_by_role("textbox", name=re.compile("Автоправило"))
+            if rule_pattern.count() == 0:
+                errors.append("React import review auto-rule pattern field was not found")
             else:
-                remember_rule.click()
-                rule_pattern = panel.get_by_label("Фрагмент описания *")
-                if rule_pattern.count() == 0:
-                    errors.append("React import review manual rule pattern field was not found")
-                else:
-                    if rule_pattern.input_value() != "":
-                        errors.append("React import review rule pattern was filled automatically")
-                    rule_pattern.fill("Зарплата")
-                    rule_preview = panel.get_by_label("Итог правила")
-                    if rule_preview.count() == 0 or "Зарплата" not in rule_preview.inner_text():
-                        errors.append("React import review rule preview was not updated")
+                if rule_pattern.input_value() != "":
+                    errors.append("React import review rule pattern was filled automatically")
+                rule_pattern.fill("Зарплата")
+                rule_preview = panel.get_by_label("Итог правила")
+                if rule_preview.count() == 0 or "Зарплата" not in rule_preview.inner_text():
+                    errors.append("React import review rule preview was not updated")
             confirm_action.click()
             try:
-                page.wait_for_function(
-                    """
-                    () => document.activeElement?.matches('article[id^="raw-"]')
-                    """,
-                    timeout=PAGE_TIMEOUT_MS,
+                salary_item.get_by_text(re.compile(r"^проведено$", re.IGNORECASE)).first.wait_for(
+                    timeout=PAGE_TIMEOUT_MS
                 )
                 page.get_by_role("button", name=re.compile(r"^Завершённые \d+$")).click(
                     timeout=PAGE_TIMEOUT_MS
@@ -2128,13 +2132,13 @@ def assert_react_import_review(page: Page) -> list[str]:
                 confirmed_salary_item = page.get_by_role(
                     "heading", name="Зарплата", exact=True
                 ).locator("xpath=ancestor::article[1]")
-                confirmed_salary_item.get_by_text("Ещё действия", exact=True).click(
+                confirmed_salary_item.get_by_role("button", name="Ещё действия", exact=True).click(
                     timeout=PAGE_TIMEOUT_MS
                 )
-                confirmed_salary_item.get_by_role("button", name="Отменить проведение").wait_for(
+                page.get_by_role("button", name="Вернуть на проверку").wait_for(
                     timeout=PAGE_TIMEOUT_MS
                 )
-                confirmed_salary_item.get_by_text("Ещё действия", exact=True).click()
+                confirmed_salary_item.get_by_role("button", name="Ещё действия", exact=True).click()
                 page.get_by_role("button", name=re.compile(r"^Требуют решения \d+$")).click(
                     timeout=PAGE_TIMEOUT_MS
                 )
@@ -2146,9 +2150,7 @@ def assert_react_import_review(page: Page) -> list[str]:
                     timeout=PAGE_TIMEOUT_MS,
                 )
             except PlaywrightError:
-                errors.append(
-                    "React import review did not focus the next row or expose undo after confirm"
-                )
+                errors.append("React import review did not reconcile confirmation or expose undo")
 
     transfer_item = page.get_by_role("heading", name="Перевод между счетами", exact=True).locator(
         "xpath=ancestor::article[1]"
@@ -2179,9 +2181,7 @@ def assert_react_import_review(page: Page) -> list[str]:
             name=re.compile(r"Проверить предложение|Проверить и провести|Изменить"),
         ).first.click()
         rule_panel = rule_item.locator("section[id^='review-panel-']")
-        rule_panel.get_by_text("Правило для похожих операций", exact=True).click()
-        rule_panel.get_by_label("Применять это решение к похожим строкам").click()
-        rule_panel.get_by_label("Фрагмент описания *").fill("OZON")
+        rule_panel.get_by_role("textbox", name=re.compile("Автоправило")).fill("OZON")
         if "OZON" not in rule_panel.get_by_label("Итог правила").inner_text():
             errors.append("React import review final rule preview is not visible")
 

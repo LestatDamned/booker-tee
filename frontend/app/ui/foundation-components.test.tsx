@@ -174,6 +174,9 @@ describe("request and workbench composition", () => {
       </ExpansionPanel>,
     );
 
+    expect(
+      screen.getByRole("region", { name: "Редактирование" }),
+    ).toHaveAttribute("data-workbench-row-expansion");
     fireEvent.click(screen.getByRole("button", { name: "Закрыть панель" }));
     expect(close).toHaveBeenCalledOnce();
   });

@@ -7,6 +7,7 @@ import { AppShell } from "../../shell/app-shell";
 import { ActionStack } from "../../ui/action-stack/action-stack";
 import { Badge } from "../../ui/badge/badge";
 import { Button, ButtonLink } from "../../ui/button/button";
+import { ExpansionPanel } from "../../ui/expansion-panel/expansion-panel";
 import { Field } from "../../ui/field/field";
 import { FormActions } from "../../ui/field/form-layout";
 import { Icon } from "../../ui/icon/icon";
@@ -15,10 +16,7 @@ import { PageHeader } from "../../ui/page-header/page-header";
 import { RequestState } from "../../ui/request-state/request-state";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import { Tag } from "../../ui/tag/tag";
-import {
-  WorkbenchRow,
-  WorkbenchRowExpansion,
-} from "../../ui/workbench-row/workbench-row";
+import { WorkbenchRow } from "../../ui/workbench-row/workbench-row";
 import type { AccountDetailDto } from "./api/account-detail-api";
 import type { AccountSummaryDto } from "./api/accounts-api";
 import {
@@ -377,7 +375,7 @@ function AccountMovementRow({
       description={view.description}
       expansion={
         movement.capabilities.canEditReviewFields && isEditing ? (
-          <WorkbenchRowExpansion
+          <ExpansionPanel
             id={editPanelId}
             title="Исправить операцию"
             titleId={`${editPanelId}-title`}
@@ -392,7 +390,7 @@ function AccountMovementRow({
               properties={properties}
               ref={correctionPanelRef}
             />
-          </WorkbenchRowExpansion>
+          </ExpansionPanel>
         ) : undefined
       }
       financialHierarchy

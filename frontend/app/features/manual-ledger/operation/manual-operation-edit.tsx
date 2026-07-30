@@ -202,7 +202,6 @@ export function ManualOperationEdit({
     <section
       aria-busy={state.status === "loading"}
       className={styles.editPanel}
-      id={`manual-operation-edit-panel-${operationId}`}
     >
       {state.status === "idle" || state.status === "loading" ? (
         <p>Загружаем актуальные данные…</p>

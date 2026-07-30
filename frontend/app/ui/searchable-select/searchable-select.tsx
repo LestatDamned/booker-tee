@@ -34,6 +34,7 @@ type SearchableSelectProps = {
   emptyMessage?: string | undefined;
   id: string;
   inputRef?: RefObject<HTMLInputElement | null> | undefined;
+  name?: string | undefined;
   onChange: (value: string) => void;
   options: SearchableSelectOption[];
   placeholder: string;
@@ -47,6 +48,7 @@ export function SearchableSelect({
   emptyMessage = "Ничего не найдено",
   id,
   inputRef,
+  name,
   onChange,
   options,
   placeholder,
@@ -192,6 +194,7 @@ export function SearchableSelect({
           autoComplete="off"
           disabled={disabled}
           id={id}
+          name={name}
           onChange={(event) => {
             setQuery(event.target.value);
             setActiveIndex(0);

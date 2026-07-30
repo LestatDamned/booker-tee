@@ -81,7 +81,7 @@ Reference options загружаются side-effect-free. Persisted inactive re
 ## Frontend state/UI
 
 - Edit panel раскрывается локально под выбранной строкой через общий
-  `WorkbenchRowExpansion`, без HTMX и бокового drawer.
+  `ExpansionPanel`, без HTMX и бокового drawer.
 - Draft initialized from current committed movement.
 - Manual operation сохраняет link в React Manual Ledger и не получает вторую
   edit form.

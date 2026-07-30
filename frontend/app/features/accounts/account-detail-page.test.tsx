@@ -217,6 +217,7 @@ describe("AccountDetailPage", () => {
       name: "Исправить операцию",
     });
     expect(correction).toBeInTheDocument();
+    expect(correction).toHaveAttribute("data-workbench-row-expansion");
     expect(correction.closest("article")).toHaveAttribute(
       "id",
       `operation-${movement.operationId}`,

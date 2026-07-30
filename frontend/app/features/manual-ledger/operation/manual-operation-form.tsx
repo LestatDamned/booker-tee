@@ -1,6 +1,9 @@
+import { useRef, type RefObject } from "react";
+
 import { Field } from "../../../ui/field/field";
 import { Fieldset } from "../../../ui/field/fieldset";
 import type { FormErrorSummaryItem } from "../../../ui/field/form-error-summary";
+import { SearchableSelect } from "../../../ui/searchable-select/searchable-select";
 import type { ManualLedgerDto } from "../api/manual-ledger-api";
 import styles from "../manual-ledger.module.css";
 import type {
@@ -25,6 +28,7 @@ export function ManualOperationFields({
   onChange,
   options,
 }: ManualOperationFieldsProps) {
+  const categoryRef = useRef<HTMLInputElement>(null);
   const isTransfer = draft.operationType === "transfer";
   const selectedCurrency = options.accounts.find(
     (account) => account.id === draft.accountId,
@@ -168,10 +172,10 @@ export function ManualOperationFields({
         </div>
         {!isTransfer ? (
           <>
-            <ReferenceSelect
+            <CategorySelect
               error={fieldErrors.categoryId}
               id={`${idPrefix}-category`}
-              label="Категория"
+              inputRef={categoryRef}
               name="categoryId"
               onChange={(categoryId) => onChange({ ...draft, categoryId })}
               options={options.categories}
@@ -200,6 +204,49 @@ export function ManualOperationFields({
         </Field>
       </div>
     </div>
+  );
+}
+
+type CategorySelectProps = {
+  error: string[] | undefined;
+  id: string;
+  inputRef: RefObject<HTMLInputElement | null>;
+  name: string;
+  onChange: (value: string) => void;
+  options: { id: string; name: string }[];
+  value: string;
+};
+
+function CategorySelect({
+  error,
+  id,
+  inputRef,
+  name,
+  onChange,
+  options,
+  value,
+}: CategorySelectProps) {
+  const errorId = `${id}-error`;
+  return (
+    <Field {...fieldErrorProps(error, errorId)} htmlFor={id} label="Категория">
+      <SearchableSelect
+        aria-describedby={describedBy(error, errorId)}
+        aria-invalid={Boolean(error)}
+        id={id}
+        inputRef={inputRef}
+        name={name}
+        onChange={onChange}
+        options={[
+          { label: "Без категории", value: "" },
+          ...options.map((option) => ({
+            label: option.name,
+            value: option.id,
+          })),
+        ]}
+        placeholder="Найти категорию"
+        value={value}
+      />
+    </Field>
   );
 }
 

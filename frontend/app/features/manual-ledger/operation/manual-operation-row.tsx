@@ -2,13 +2,11 @@ import { useRef, useState } from "react";
 
 import { ActionStack } from "../../../ui/action-stack/action-stack";
 import { Button } from "../../../ui/button/button";
+import { ExpansionPanel } from "../../../ui/expansion-panel/expansion-panel";
 import { MoneyValue } from "../../../ui/money-value/money-value";
 import { StatusLabel } from "../../../ui/status-label/status-label";
 import { Tag } from "../../../ui/tag/tag";
-import {
-  WorkbenchRow,
-  WorkbenchRowExpansion,
-} from "../../../ui/workbench-row/workbench-row";
+import { WorkbenchRow } from "../../../ui/workbench-row/workbench-row";
 import type { ManualOperationDto } from "../api/manual-ledger-api";
 import type { ManualOperationRowModel } from "./manual-ledger-model";
 import { ManualOperationDelete } from "./manual-operation-delete";
@@ -128,7 +126,8 @@ export function ManualOperationRow({
       id={operation.anchorId}
       expansion={
         operation.canEdit && isEditing ? (
-          <WorkbenchRowExpansion
+          <ExpansionPanel
+            id={editPanelId}
             title="Исправить операцию"
             titleId={`${editPanelId}-title`}
           >
@@ -142,7 +141,7 @@ export function ManualOperationRow({
                 : { onUpdated: onOperationUpdated })}
               operationId={operation.id}
             />
-          </WorkbenchRowExpansion>
+          </ExpansionPanel>
         ) : undefined
       }
       meta={<OperationMeta operation={operation} />}
