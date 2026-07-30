@@ -1,0 +1,93 @@
+import type { AccountDetailDto } from "./api/account-detail-api";
+import { formatMoneyAmount } from "../../shared/money/format-money";
+import type { MoneyTone } from "../../ui/money-value/money-value";
+import type { StatusTone } from "../../ui/status-label/status-label";
+import type { TagTone } from "../../ui/tag/tag";
+
+type Movement = AccountDetailDto["items"][number];
+
+export const accountTypeLabels = {
+  cash: "Наличные",
+  card: "Карта",
+  deposit: "Вклад",
+  checking: "Расчётный",
+  other: "Другой",
+} as const;
+
+export const operationTypes: {
+  label: string;
+  value: Movement["operationType"];
+}[] = [
+  { label: "Доход", value: "income" },
+  { label: "Расход", value: "expense" },
+  { label: "Перевод", value: "transfer" },
+  { label: "Корректировка", value: "adjustment" },
+];
+
+export const operationStatuses: {
+  label: string;
+  value: Movement["status"];
+}[] = [
+  { label: "Черновик", value: "draft" },
+  { label: "Нужна проверка", value: "needs_review" },
+  { label: "Подтверждено", value: "confirmed" },
+  { label: "Отменено", value: "ignored" },
+  { label: "Дубликат", value: "duplicate" },
+];
+
+export const operationSources: {
+  label: string;
+  value: Movement["source"];
+}[] = [
+  { label: "Вручную", value: "manual" },
+  { label: "Импорт", value: "bank_pdf" },
+  { label: "Система", value: "system" },
+];
+
+const statusTone: Record<Movement["status"], StatusTone> = {
+  confirmed: "success",
+  draft: "warning",
+  duplicate: "danger",
+  ignored: "neutral",
+  needs_review: "warning",
+};
+
+const typeTone: Record<Movement["operationType"], TagTone> = {
+  adjustment: "adjustment",
+  expense: "expense",
+  income: "income",
+  transfer: "transfer",
+};
+
+export function movementView(movement: Movement) {
+  return {
+    amount: formatMoneyAmount(movement.amount, null),
+    description: movement.description || "Без описания",
+    statusLabel:
+      operationStatuses.find((item) => item.value === movement.status)?.label ??
+      movement.status,
+    statusTone: statusTone[movement.status],
+    typeLabel:
+      operationTypes.find((item) => item.value === movement.operationType)
+        ?.label ?? movement.operationType,
+    typeTone: typeTone[movement.operationType],
+    moneyTone: movement.operationType as MoneyTone,
+  };
+}
+
+export function accountBalanceTone(balance: string): MoneyTone {
+  const value = Number(balance);
+  if (value > 0) return "balancePositive";
+  if (value < 0) return "expense";
+  return "neutral";
+}
+
+export function accountMovementsLabel(total: number): string {
+  const remainder100 = total % 100;
+  const remainder10 = total % 10;
+  if (remainder10 === 1 && remainder100 !== 11) return `${total} проводка`;
+  if ([2, 3, 4].includes(remainder10) && ![12, 13, 14].includes(remainder100)) {
+    return `${total} проводки`;
+  }
+  return `${total} проводок`;
+}

@@ -1,5 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from typing import Literal
 from uuid import UUID
 
 from pydantic import Field, field_validator
@@ -11,6 +12,7 @@ from app.features.accounts.schemas import (
     AccountBalanceDirection,
     AccountDirectoryReadonlyReason,
 )
+from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
 
 MAX_ACCOUNT_ABSOLUTE_BALANCE = Decimal("999999999999.99")
 
@@ -99,3 +101,62 @@ class CreateAccountApiRequest(ApiRequestModel):
 class AccountLifecycleApiRequest(ApiRequestModel):
     expected_active: bool
     expected_updated_at: datetime
+
+
+class AccountDetailNamedReferenceApiResponse(ApiModel):
+    id: UUID
+    name: str
+
+
+class AccountDetailAccountApiResponse(ApiModel):
+    id: UUID
+    name: str
+    account_type: AccountType
+    currency: str
+    initial_balance: str
+    balance: str
+    is_active: bool
+
+
+class AccountMovementSourceTargetApiResponse(ApiModel):
+    kind: Literal["manual", "import", "system"]
+    uploaded_document_id: UUID | None = None
+    raw_transaction_id: UUID | None = None
+
+
+class AccountMovementApiResponse(ApiModel):
+    operation_id: UUID
+    version: int
+    operation_type: OperationType
+    operation_date: date
+    description: str
+    status: OperationStatus
+    source: OperationSource
+    amount: str
+    currency: str
+    category: AccountDetailNamedReferenceApiResponse | None
+    property: AccountDetailNamedReferenceApiResponse | None
+    transfer_route: str | None
+    source_target: AccountMovementSourceTargetApiResponse
+
+
+class AccountDetailPaginationApiResponse(ApiModel):
+    page: int
+    per_page: int
+    total: int
+    total_pages: int
+    has_previous: bool
+    has_next: bool
+
+
+class AccountDetailFilterOptionsApiResponse(ApiModel):
+    categories: list[AccountDetailNamedReferenceApiResponse]
+    properties: list[AccountDetailNamedReferenceApiResponse]
+    per_page: list[int]
+
+
+class AccountDetailApiResponse(ApiModel):
+    account: AccountDetailAccountApiResponse
+    items: list[AccountMovementApiResponse]
+    pagination: AccountDetailPaginationApiResponse
+    filter_options: AccountDetailFilterOptionsApiResponse

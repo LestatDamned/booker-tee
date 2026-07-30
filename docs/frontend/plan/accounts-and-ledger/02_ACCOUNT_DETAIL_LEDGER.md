@@ -1,6 +1,6 @@
 # Slice 02: Account Detail And Ledger
 
-Статус: planned.
+Статус: completed.
 
 ## Outcome
 
@@ -110,3 +110,38 @@ Browser:
 - source links ведут в существующие React workflows;
 - historical detail GET только redirect;
 - browser flow не имеет overflow, console/page/request errors.
+
+## Completion record
+
+Completed: 2026-07-30.
+
+Implemented:
+
+- workspace-scoped `GET /api/v1/accounts/{account_id}` с tolerant URL filters,
+  authoritative balance, account-relative movements и typed source targets;
+- React route `/app/accounts/:accountId` в общем workbench-паттерне Manual
+  Operations: header balance, search/filter toolbar, movement rows и pagination;
+- manual/import/system source navigation и server-owned transfer route;
+- list, shell и historical detail GET переключены на canonical React route.
+
+Checks run:
+
+- focused backend API, redirect, React component and type checks;
+- realistic Playwright audit на `1440x1000`, `920x900`, `390x844`.
+
+Intentional deviations:
+
+- mutation token и management capabilities остаются в Slice 03, потому что
+  Slice 02 не меняет account settings;
+- source target передаёт typed ids/facts, а browser URL строится React adapter.
+
+Cleanup performed:
+
+- historical `/accounts/{account_id}` стал query-preserving redirect;
+- list и shell больше не ведут на SSR detail.
+
+Measurements/risks:
+
+- browser audit: 3/3 pages passed, horizontal overflow `0`, без console/page/
+  request errors;
+- legacy imported-operation correction partials остаются до Slice 04.

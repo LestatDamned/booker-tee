@@ -335,9 +335,9 @@ def prepare_realistic_scenario(
             page.locator("[data-account-record]:visible").filter(has_text=account_name).first
         )
         account_record.wait_for(timeout=PAGE_TIMEOUT_MS)
-        account_detail_path = account_record.locator('a[href^="/accounts/"]').first.get_attribute(
-            "href"
-        )
+        account_detail_path = account_record.locator(
+            'a[href^="/app/accounts/"]'
+        ).first.get_attribute("href")
         page.goto(build_url(base_url, "/app/accounts"), wait_until="networkidle")
         page.get_by_role("button", name="Новый счёт", exact=True).click(
             timeout=PAGE_TIMEOUT_MS

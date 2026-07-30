@@ -28,7 +28,7 @@ const navigationGroups: ReadonlyArray<NavigationGroup> = [
     items: [
       { href: "/", icon: "home", label: "Обзор", reactRoute: true },
       {
-        href: "/accounts",
+        href: "/app/accounts",
         icon: "accounts",
         label: "Счета",
         reactRoute: true,

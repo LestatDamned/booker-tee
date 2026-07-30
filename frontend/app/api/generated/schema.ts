@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/accounts/{account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Account Detail */
+        get: operations["get_account_detail_api_v1_accounts__account_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/accounts": {
         parameters: {
             query?: never;
@@ -1166,6 +1183,67 @@ export interface components {
          * @enum {string}
          */
         AccountBalanceDirection: "positive" | "negative" | "zero";
+        /** AccountDetailAccountApiResponse */
+        AccountDetailAccountApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            accountType: components["schemas"]["AccountType"];
+            /** Currency */
+            currency: string;
+            /** Initialbalance */
+            initialBalance: string;
+            /** Balance */
+            balance: string;
+            /** Isactive */
+            isActive: boolean;
+        };
+        /** AccountDetailApiResponse */
+        AccountDetailApiResponse: {
+            account: components["schemas"]["AccountDetailAccountApiResponse"];
+            /** Items */
+            items: components["schemas"]["AccountMovementApiResponse"][];
+            pagination: components["schemas"]["AccountDetailPaginationApiResponse"];
+            filterOptions: components["schemas"]["AccountDetailFilterOptionsApiResponse"];
+        };
+        /** AccountDetailFilterOptionsApiResponse */
+        AccountDetailFilterOptionsApiResponse: {
+            /** Categories */
+            categories: components["schemas"]["AccountDetailNamedReferenceApiResponse"][];
+            /** Properties */
+            properties: components["schemas"]["AccountDetailNamedReferenceApiResponse"][];
+            /** Perpage */
+            perPage: number[];
+        };
+        /** AccountDetailNamedReferenceApiResponse */
+        AccountDetailNamedReferenceApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** AccountDetailPaginationApiResponse */
+        AccountDetailPaginationApiResponse: {
+            /** Page */
+            page: number;
+            /** Perpage */
+            perPage: number;
+            /** Total */
+            total: number;
+            /** Totalpages */
+            totalPages: number;
+            /** Hasprevious */
+            hasPrevious: boolean;
+            /** Hasnext */
+            hasNext: boolean;
+        };
         /** AccountDirectoryApiResponse */
         AccountDirectoryApiResponse: {
             /** Items */
@@ -1194,6 +1272,47 @@ export interface components {
              * Format: date-time
              */
             expectedUpdatedAt: string;
+        };
+        /** AccountMovementApiResponse */
+        AccountMovementApiResponse: {
+            /**
+             * Operationid
+             * Format: uuid
+             */
+            operationId: string;
+            /** Version */
+            version: number;
+            operationType: components["schemas"]["OperationType"];
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /** Description */
+            description: string;
+            status: components["schemas"]["OperationStatus"];
+            source: components["schemas"]["OperationSource"];
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+            category: components["schemas"]["AccountDetailNamedReferenceApiResponse"] | null;
+            property: components["schemas"]["AccountDetailNamedReferenceApiResponse"] | null;
+            /** Transferroute */
+            transferRoute: string | null;
+            sourceTarget: components["schemas"]["AccountMovementSourceTargetApiResponse"];
+        };
+        /** AccountMovementSourceTargetApiResponse */
+        AccountMovementSourceTargetApiResponse: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "manual" | "import" | "system";
+            /** Uploadeddocumentid */
+            uploadedDocumentId?: string | null;
+            /** Rawtransactionid */
+            rawTransactionId?: string | null;
         };
         /** AccountSummaryApiResponse */
         AccountSummaryApiResponse: {
@@ -2966,6 +3085,11 @@ export interface components {
         MoneyDirection: "inflow" | "outflow" | "any";
         MoneyString: string;
         /**
+         * OperationSource
+         * @enum {string}
+         */
+        OperationSource: "manual" | "bank_pdf" | "system";
+        /**
          * OperationStatus
          * @enum {string}
          */
@@ -3110,6 +3234,84 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_account_detail_api_v1_accounts__account_id__get: {
+        parameters: {
+            query?: {
+                date_from?: string | null;
+                date_to?: string | null;
+                source?: string | null;
+                type?: string | null;
+                status?: string | null;
+                category_id?: string | null;
+                property_id?: string | null;
+                search?: string | null;
+                page?: string | null;
+                per_page?: string | null;
+            };
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDetailApiResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_accounts_api_v1_accounts_get: {
         parameters: {
             query?: never;
@@ -5050,18 +5252,7 @@ export interface operations {
     };
     account_detail_accounts__account_id__get: {
         parameters: {
-            query?: {
-                date_from?: string | null;
-                date_to?: string | null;
-                source?: string | null;
-                type?: string | null;
-                status?: string | null;
-                category_id?: string | null;
-                property_id?: string | null;
-                search?: string | null;
-                page?: number;
-                per_page?: number;
-            };
+            query?: never;
             header?: never;
             path: {
                 account_id: string;

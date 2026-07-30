@@ -1,10 +1,11 @@
 from decimal import Decimal
 
-from accounts_support import accounts_app
+from accounts_support import account_detail_app, accounts_app
 
 from api_client import ApiTestClient as TestClient
 from app.features.accounts.models import AccountType
 from app.features.accounts.schemas import CreateAccountCommand
+from app.features.ledger.domain.types import OperationStatus, OperationType
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.main import create_app
 
@@ -15,6 +16,64 @@ def test_account_directory_requires_authentication() -> None:
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
+
+
+def test_account_detail_returns_account_relative_transfer_and_source_target() -> None:
+    app, ledger, references, workspace_id, account_id = account_detail_app()
+
+    with TestClient(app) as client:
+        response = client.get(
+            f"/api/v1/accounts/{account_id}?status=confirmed&type=transfer&page=2&per_page=25"
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["account"] == {
+        "id": str(account_id),
+        "name": "Основной",
+        "accountType": "card",
+        "currency": "RUB",
+        "initialBalance": "10000.00",
+        "balance": "8500.00",
+        "isActive": True,
+    }
+    assert payload["items"][0]["amount"] == "-1500.00"
+    assert payload["items"][0]["transferRoute"] == "Основной → Накопительный"
+    assert payload["items"][0]["sourceTarget"] == {
+        "kind": "manual",
+        "uploadedDocumentId": None,
+        "rawTransactionId": None,
+    }
+    assert ledger.calls[0][0:2] == (workspace_id, account_id)
+    assert ledger.calls[0][2].status == OperationStatus.CONFIRMED
+    assert ledger.calls[0][2].operation_type == OperationType.TRANSFER
+    assert ledger.calls[0][3].page == 2
+    assert references.workspace_ids == [workspace_id]
+
+
+def test_account_detail_returns_workspace_scoped_not_found() -> None:
+    app, ledger, references, _, account_id = account_detail_app(found=False)
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/accounts/{account_id}")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "account_not_found"
+    assert len(ledger.calls) == 1
+    assert references.workspace_ids == []
+
+
+def test_account_detail_rejects_inverted_date_range() -> None:
+    app, ledger, _, _, account_id = account_detail_app()
+
+    with TestClient(app) as client:
+        response = client.get(
+            f"/api/v1/accounts/{account_id}?date_from=2026-07-30&date_to=2026-07-01"
+        )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_date_range"
+    assert ledger.calls == []
 
 
 def test_account_directory_returns_decimal_strings_and_server_capabilities() -> None:

@@ -3,12 +3,10 @@ from typing import Annotated
 from urllib.parse import urlencode
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
-from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.accounts.models import AccountType
 from app.features.accounts.presentation.detail.models import AccountDetailPresenterInput
@@ -29,23 +27,17 @@ from app.features.ledger.errors import (
     ImportedOperationNotFoundError,
     OperationVersionConflictError,
 )
-from app.features.ledger.models import OperationSource, OperationStatus, OperationType
+from app.features.ledger.models import OperationSource
 from app.features.ledger.schemas.listing import (
     AccountEntryFilters,
     LedgerPage,
-    normalize_pagination,
 )
 from app.features.properties.service import PropertyService
 from app.features.workspaces.dependencies import (
-    get_current_workspace_context,
     require_financial_write_context,
 )
-from app.features.workspaces.permissions import permission_flags_for
 from app.features.workspaces.service import WorkspaceContext
 from app.shared.query_params import (
-    clean_optional_query_text,
-    parse_optional_query_date,
-    parse_optional_query_enum,
     parse_optional_query_uuid,
 )
 from app.templating import create_templates
@@ -58,81 +50,12 @@ templates = create_templates()
 async def account_detail(
     request: Request,
     account_id: UUID,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
-    date_from: Annotated[str | None, Query()] = None,
-    date_to: Annotated[str | None, Query()] = None,
-    source: Annotated[str | None, Query()] = None,
-    operation_type_filter: Annotated[str | None, Query(alias="type")] = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    category_id: Annotated[str | None, Query()] = None,
-    property_id: Annotated[str | None, Query()] = None,
-    search: Annotated[str | None, Query()] = None,
-    page: Annotated[int, Query(ge=1)] = 1,
-    per_page: Annotated[int, Query(ge=1, le=200)] = 50,
-) -> HTMLResponse:
-    filters = AccountEntryFilters(
-        date_from=parse_optional_query_date(date_from, field_name="date_from"),
-        date_to=parse_optional_query_date(date_to, field_name="date_to"),
-        source=parse_optional_query_enum(source, OperationSource, field_name="source"),
-        operation_type=parse_optional_query_enum(
-            operation_type_filter,
-            OperationType,
-            field_name="type",
-        ),
-        status=parse_optional_query_enum(status_filter, OperationStatus, field_name="status")
-        or OperationStatus.CONFIRMED,
-        category_id=parse_optional_query_uuid(category_id, field_name="category_id"),
-        property_id=parse_optional_query_uuid(property_id, field_name="property_id"),
-        search=clean_optional_query_text(search),
-    )
-    detail = await AccountLedgerReader(session).get_detail(
-        workspace_id=context.workspace.id,
-        account_id=account_id,
-        filters=filters,
-        pagination=normalize_pagination(page, per_page),
-    )
-    if detail is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    categories = await CategoryService(session).list_or_seed_defaults(
-        context.workspace.id,
-        context.workspace.type,
-        include_inactive=True,
-    )
-    properties = await PropertyService(session).list_all(context.workspace.id)
-    account_page = AccountDetailPresenter.build(
-        detail,
-        AccountDetailPresenterInput(
-            can_write=permission_flags_for(context.membership).can_write_financial_data,
-            filters_date_from=filters.date_from,
-            filters_date_to=filters.date_to,
-            filters_source=filters.source,
-            filters_operation_type=filters.operation_type,
-            filters_status=filters.status,
-            filters_category_id=filters.category_id,
-            filters_property_id=filters.property_id,
-            filters_search=filters.search,
-        ),
-    )
-
-    return templates.TemplateResponse(
-        request,
-        "accounts/detail.html",
-        {
-            "account_page": account_page,
-            "app_name": settings.app_name,
-            "account_types": list(AccountType),
-            "categories": categories,
-            "detail": detail,
-            "filters": filters,
-            "operation_sources": list(OperationSource),
-            "operation_statuses": list(OperationStatus),
-            "operation_types": list(OperationType),
-            "page_urls": account_detail_page_urls(account_id, filters, detail.page),
-            "properties": properties,
-            "workspace": context.workspace,
-        },
+) -> RedirectResponse:
+    query = request.url.query
+    target = f"/app/accounts/{account_id}"
+    return RedirectResponse(
+        url=f"{target}?{query}" if query else target,
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
     )
 
 

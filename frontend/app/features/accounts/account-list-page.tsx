@@ -522,7 +522,7 @@ function AccountTable({
               <th scope="row">
                 <a
                   className={styles.accountLink}
-                  href={`/accounts/${account.id}`}
+                  href={`/app/accounts/${account.id}`}
                 >
                   {account.name}
                 </a>
@@ -567,7 +567,7 @@ function AccountMobileList({
               <div>
                 <a
                   className={styles.accountLink}
-                  href={`/accounts/${account.id}`}
+                  href={`/app/accounts/${account.id}`}
                 >
                   {account.name}
                 </a>
@@ -612,7 +612,7 @@ function AccountActions({
       primary={
         <ButtonLink
           data-account-action
-          href={`/accounts/${account.id}`}
+          href={`/app/accounts/${account.id}`}
           tone="secondary"
         >
           Открыть

@@ -9,8 +9,17 @@ from app.api.dependencies import (
     require_api_financial_write_context,
 )
 from app.api.errors import ApiError, api_error_responses
-from app.api.v1.accounts.dependencies import get_account_directory_service
+from app.api.v1.accounts.dependencies import (
+    get_account_directory_service,
+    get_account_ledger_reader,
+)
+from app.api.v1.accounts.detail_mapping import AccountDetailResponseMapper
+from app.api.v1.accounts.detail_parameters import (
+    AccountDetailParameters,
+    parse_account_detail_parameters,
+)
 from app.api.v1.accounts.schemas import (
+    AccountDetailApiResponse,
     AccountDirectoryApiResponse,
     AccountDirectoryCapabilitiesApiResponse,
     AccountLifecycleApiRequest,
@@ -18,6 +27,7 @@ from app.api.v1.accounts.schemas import (
     AccountSummaryCapabilitiesApiResponse,
     CreateAccountApiRequest,
 )
+from app.api.v1.manual_ledger.dependencies import get_manual_ledger_reference_reader
 from app.features.accounts.application.directory import AccountDirectoryService
 from app.features.accounts.schemas import AccountSummaryDto, CreateAccountCommand
 from app.features.accounts.service import (
@@ -25,9 +35,59 @@ from app.features.accounts.service import (
     AccountLifecycleConflictError,
     AccountNotFoundError,
 )
+from app.features.ledger.application.account_ledger import AccountLedgerReader
+from app.features.ledger.application.manual_operations import ManualLedgerReferenceReader
 from app.features.workspaces.permissions import can_write_financial_data
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
+
+
+@router.get(
+    "/{account_id}",
+    response_model=AccountDetailApiResponse,
+    responses=api_error_responses(
+        status.HTTP_400_BAD_REQUEST,
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+    ),
+)
+async def get_account_detail(
+    account_id: UUID,
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    parameters: Annotated[
+        AccountDetailParameters,
+        Depends(parse_account_detail_parameters),
+    ],
+    ledger: Annotated[AccountLedgerReader, Depends(get_account_ledger_reader)],
+    references: Annotated[
+        ManualLedgerReferenceReader,
+        Depends(get_manual_ledger_reference_reader),
+    ],
+) -> AccountDetailApiResponse:
+    if parameters.date_from and parameters.date_to and parameters.date_from > parameters.date_to:
+        raise ApiError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="invalid_date_range",
+            message="Начало периода не может быть позже конца периода.",
+        )
+    workspace_id = context.workspace.workspace.id
+    detail = await ledger.get_detail(
+        workspace_id=workspace_id,
+        account_id=account_id,
+        filters=parameters.filters,
+        pagination=parameters.pagination,
+    )
+    if detail is None:
+        raise ApiError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="account_not_found",
+            message="Счёт не найден.",
+        )
+    return AccountDetailResponseMapper.response(
+        detail,
+        await references.read(workspace_id),
+    )
 
 
 @router.get(

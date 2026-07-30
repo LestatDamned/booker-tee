@@ -1,0 +1,108 @@
+from decimal import Decimal
+
+from app.api.v1.accounts.schemas import (
+    AccountDetailAccountApiResponse,
+    AccountDetailApiResponse,
+    AccountDetailFilterOptionsApiResponse,
+    AccountDetailNamedReferenceApiResponse,
+    AccountDetailPaginationApiResponse,
+    AccountMovementApiResponse,
+    AccountMovementSourceTargetApiResponse,
+)
+from app.features.ledger.application.account_ledger import (
+    AccountLedgerDetailView,
+    AccountLedgerEntryView,
+    OperationRefView,
+)
+from app.features.ledger.application.manual_operations import ManualLedgerReferenceOptionsDto
+from app.features.ledger.domain.types import OperationSource, OperationType
+
+PER_PAGE_OPTIONS = [25, 50, 100, 200]
+
+
+class AccountDetailResponseMapper:
+    @staticmethod
+    def response(
+        detail: AccountLedgerDetailView,
+        references: ManualLedgerReferenceOptionsDto,
+    ) -> AccountDetailApiResponse:
+        return AccountDetailApiResponse(
+            account=AccountDetailAccountApiResponse(
+                id=detail.account.id,
+                name=detail.account.name,
+                account_type=detail.account.type,
+                currency=detail.account.currency,
+                initial_balance=AccountDetailResponseMapper._money(detail.account.initial_balance),
+                balance=AccountDetailResponseMapper._money(detail.balance),
+                is_active=detail.account.is_active,
+            ),
+            items=[AccountDetailResponseMapper._movement(item) for item in detail.entries],
+            pagination=AccountDetailPaginationApiResponse.model_validate(detail.page),
+            filter_options=AccountDetailFilterOptionsApiResponse(
+                categories=[
+                    AccountDetailNamedReferenceApiResponse.model_validate(item)
+                    for item in references.categories
+                ],
+                properties=[
+                    AccountDetailNamedReferenceApiResponse.model_validate(item)
+                    for item in references.properties
+                ],
+                per_page=PER_PAGE_OPTIONS,
+            ),
+        )
+
+    @staticmethod
+    def _movement(entry: AccountLedgerEntryView) -> AccountMovementApiResponse:
+        operation = entry.operation
+        return AccountMovementApiResponse(
+            operation_id=entry.operation_id,
+            version=operation.version,
+            operation_type=operation.type,
+            operation_date=operation.operation_date,
+            description=operation.description or "",
+            status=operation.status,
+            source=operation.source,
+            amount=AccountDetailResponseMapper._money(entry.amount),
+            currency=entry.currency,
+            category=(
+                AccountDetailNamedReferenceApiResponse.model_validate(operation.category)
+                if operation.category
+                else None
+            ),
+            property=(
+                AccountDetailNamedReferenceApiResponse.model_validate(operation.property)
+                if operation.property
+                else None
+            ),
+            transfer_route=AccountDetailResponseMapper._transfer_route(operation),
+            source_target=AccountDetailResponseMapper._source_target(operation),
+        )
+
+    @staticmethod
+    def _source_target(operation: OperationRefView) -> AccountMovementSourceTargetApiResponse:
+        if operation.source == OperationSource.MANUAL:
+            return AccountMovementSourceTargetApiResponse(kind="manual")
+        if operation.source == OperationSource.BANK_PDF:
+            raw = operation.raw_transactions[0] if operation.raw_transactions else None
+            return AccountMovementSourceTargetApiResponse(
+                kind="import",
+                uploaded_document_id=raw.uploaded_document_id if raw else None,
+                raw_transaction_id=raw.id if raw else None,
+            )
+        return AccountMovementSourceTargetApiResponse(kind="system")
+
+    @staticmethod
+    def _transfer_route(operation: OperationRefView) -> str | None:
+        if operation.type != OperationType.TRANSFER:
+            return None
+        negative = next((item for item in operation.money_entries if item.amount < 0), None)
+        positive = next((item for item in operation.money_entries if item.amount > 0), None)
+        if negative is None or positive is None:
+            return None
+        source = negative.account.name if negative.account else "Счёт не найден"
+        destination = positive.account.name if positive.account else "Счёт не найден"
+        return f"{source} → {destination}"
+
+    @staticmethod
+    def _money(value: Decimal) -> str:
+        return format(value.quantize(Decimal("0.01")), "f")

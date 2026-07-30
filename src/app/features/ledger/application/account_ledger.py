@@ -198,7 +198,7 @@ class LedgerViewMapper:
 
 
 class AccountLedgerReader:
-    """Read model used by the legacy account ledger screen."""
+    """Workspace-scoped account ledger read model shared by web adapters."""
 
     def __init__(self, session: AsyncSession) -> None:
         self._accounts = AccountRepository(session)
