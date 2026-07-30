@@ -968,6 +968,17 @@ models, поэтому Pydantic aliases лишь спрятали бы mapping. 
 - обновить тестовые импорты и архитектурную документацию;
 - не оставлять две точки входа к одному use case.
 
+Этап завершён 2026-07-30 итоговым аудитом tracked source и test imports.
+Исторические `application/documents`, `pipelines`, `parsing`, прежние
+mapping paths и корневые broad repositories отсутствуют. Consumers используют
+только defining modules; package `__init__.py` не содержат re-export facades.
+`imports` не зависит от самостоятельной feature `import_review`, а parsers не
+зависят от FastAPI, SQLAlchemy или ORM models.
+
+Отдельные production-изменения на этом шаге не потребовались: старые файлы
+удалялись в тех change sets, где переносились их consumers. Этап 9 фиксирует
+выполнение delete gates и не создаёт вторую cleanup-реализацию.
+
 ### Шаг 10. Post-architecture cleanup
 
 - физически разложить tests по новым capabilities;
@@ -1100,13 +1111,14 @@ test пропущен без `BOOKER_TEE_TEST_DATABASE_URL`.
 | 8A. Import Review Pydantic read contracts and API mapper cleanup | completed 2026-07-29 |
 | 8B. Import Review local layered feature | completed 2026-07-29 |
 | 8C. Import Review Pydantic and query simplification | completed 2026-07-29 |
+| 9. Old structure cleanup | completed 2026-07-30 |
 | 10A. Documents Pydantic models and mechanical mapping cleanup | completed 2026-07-29 |
 | 10B. Upload data contracts | completed 2026-07-29 |
 | 10C. Statements Pydantic contracts and JSON cleanup | completed 2026-07-29 |
 | 10D. Mapping persisted contracts | completed 2026-07-29 |
 | 10E. Mapping read contracts and API mapper cleanup | completed 2026-07-29 |
 | 10F. Mapping analysis contracts and stored report boundary | completed 2026-07-29 |
-| 9, 10G+, 11 | pending |
+| 10G+, 11 | pending |
 
 ## 15. Gate для каждого шага
 

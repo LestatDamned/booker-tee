@@ -39,13 +39,13 @@ class LedgerReferenceResolver:
                 if category is None:
                     raise CategoryUnavailableError()
                 return category
-            return await self.categories.get_uncategorized(workspace_id)
+            return await self.categories.ensure_uncategorized(workspace_id)
         except CategoryError as exc:
             raise LedgerPostingError(str(exc)) from exc
 
     async def get_transfer_category(self, workspace_id: UUID) -> Category:
         try:
-            return await self.categories.get_system(workspace_id, "transfer")
+            return await self.categories.ensure_system(workspace_id, "transfer")
         except CategoryError as exc:
             raise LedgerPostingError(str(exc)) from exc
 

@@ -191,6 +191,15 @@ class CategoryService:
         workspace_id: UUID,
         workspace_type: WorkspaceType | None = None,
     ) -> None:
+        await self.ensure_defaults(workspace_id, workspace_type)
+        await self.session.commit()
+
+    async def ensure_defaults(
+        self,
+        workspace_id: UUID,
+        workspace_type: WorkspaceType | None = None,
+    ) -> None:
+        """Create missing defaults inside the caller-owned transaction."""
         existing = await self.categories.list_for_workspace(workspace_id)
         existing_by_key = {
             category.system_key: category for category in existing if category.system_key
@@ -229,13 +238,21 @@ class CategoryService:
                     sort_order=seed.sort_order,
                 )
             )
-        await self.session.commit()
 
     async def get_uncategorized(self, workspace_id: UUID) -> Category:
         return await self.get_system(workspace_id, "uncategorized")
 
+    async def ensure_uncategorized(self, workspace_id: UUID) -> Category:
+        return await self.ensure_system(workspace_id, "uncategorized")
+
     async def get_system(self, workspace_id: UUID, system_key: str) -> Category:
-        await self.seed_defaults(workspace_id)
+        category = await self.ensure_system(workspace_id, system_key)
+        await self.session.commit()
+        return category
+
+    async def ensure_system(self, workspace_id: UUID, system_key: str) -> Category:
+        """Resolve a system category without committing the caller's transaction."""
+        await self.ensure_defaults(workspace_id)
         category = await self.categories.get_system_category(workspace_id, system_key)
         if category is None:
             raise CategoryError(f"{system_key} system category is not available.")

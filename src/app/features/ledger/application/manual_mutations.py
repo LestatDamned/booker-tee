@@ -58,29 +58,30 @@ class ManualOperationWriter:
         command: CreateManualIncomeExpenseCommand,
     ) -> Operation:
         fingerprint = manual_income_expense_fingerprint(command)
-        try:
-            replay = await self._find_idempotent_replay(
-                workspace_id=context.workspace.id,
-                idempotency_key=command.idempotency_key,
-                fingerprint=fingerprint,
-            )
-            if replay is not None:
-                return replay
-            if command.operation_type not in {OperationType.INCOME, OperationType.EXPENSE}:
-                raise LedgerPostingError("Manual operation must be income or expense.")
-            account = await self.references.get_account(context.workspace.id, command.account_id)
-            signed_amount = manual_income_expense_amount(
-                command.operation_type,
-                command.amount,
-            )
-            category = await self.references.get_category_or_uncategorized(
-                context.workspace.id,
-                command.category_id,
-            )
-            property_ = await self.references.get_property(
-                context.workspace.id,
-                command.property_id,
-            )
+        replay = await self._find_idempotent_replay(
+            workspace_id=context.workspace.id,
+            idempotency_key=command.idempotency_key,
+            fingerprint=fingerprint,
+        )
+        if replay is not None:
+            return replay
+        if command.operation_type not in {OperationType.INCOME, OperationType.EXPENSE}:
+            raise LedgerPostingError("Manual operation must be income or expense.")
+        account = await self.references.get_account(context.workspace.id, command.account_id)
+        signed_amount = manual_income_expense_amount(
+            command.operation_type,
+            command.amount,
+        )
+        category = await self.references.get_category_or_uncategorized(
+            context.workspace.id,
+            command.category_id,
+        )
+        property_ = await self.references.get_property(
+            context.workspace.id,
+            command.property_id,
+        )
+
+        async def create_records() -> Operation:
             operation = await self.ledger.create_operation(
                 build_manual_income_expense_operation(
                     context=context,
@@ -99,6 +100,12 @@ class ManualOperationWriter:
                 )
             )
             return operation
+
+        if command.idempotency_key is None:
+            return await create_records()
+        try:
+            async with self.session.begin_nested():
+                return await create_records()
         except IntegrityError as error:
             return await self._recover_idempotent_race(
                 workspace_id=context.workspace.id,
@@ -114,29 +121,30 @@ class ManualOperationWriter:
         command: CreateManualTransferCommand,
     ) -> Operation:
         fingerprint = manual_transfer_fingerprint(command)
-        try:
-            replay = await self._find_idempotent_replay(
-                workspace_id=context.workspace.id,
-                idempotency_key=command.idempotency_key,
-                fingerprint=fingerprint,
-            )
-            if replay is not None:
-                return replay
-            source_account = await self.references.get_account(
-                context.workspace.id,
-                command.source_account_id,
-            )
-            destination_account = await self.references.get_account(
-                context.workspace.id,
-                command.destination_account_id,
-            )
-            amounts = TransferAmounts.for_manual_transfer(
-                source_account_id=source_account.id,
-                destination_account_id=destination_account.id,
-                amount=command.amount,
-            )
-            ensure_same_currency(source_account, destination_account)
-            transfer_category = await self.references.get_transfer_category(context.workspace.id)
+        replay = await self._find_idempotent_replay(
+            workspace_id=context.workspace.id,
+            idempotency_key=command.idempotency_key,
+            fingerprint=fingerprint,
+        )
+        if replay is not None:
+            return replay
+        source_account = await self.references.get_account(
+            context.workspace.id,
+            command.source_account_id,
+        )
+        destination_account = await self.references.get_account(
+            context.workspace.id,
+            command.destination_account_id,
+        )
+        amounts = TransferAmounts.for_manual_transfer(
+            source_account_id=source_account.id,
+            destination_account_id=destination_account.id,
+            amount=command.amount,
+        )
+        ensure_same_currency(source_account, destination_account)
+        transfer_category = await self.references.get_transfer_category(context.workspace.id)
+
+        async def create_records() -> Operation:
             operation = await self.ledger.create_operation(
                 build_manual_transfer_operation(
                     context=context,
@@ -163,6 +171,12 @@ class ManualOperationWriter:
                 )
             )
             return operation
+
+        if command.idempotency_key is None:
+            return await create_records()
+        try:
+            async with self.session.begin_nested():
+                return await create_records()
         except IntegrityError as error:
             return await self._recover_idempotent_race(
                 workspace_id=context.workspace.id,
@@ -198,7 +212,6 @@ class ManualOperationWriter:
         fingerprint: str,
         integrity_error: IntegrityError,
     ) -> Operation:
-        await self.session.rollback()
         replay = await self._find_idempotent_replay(
             workspace_id=workspace_id,
             idempotency_key=idempotency_key,
