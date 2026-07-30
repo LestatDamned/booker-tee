@@ -7,14 +7,6 @@ from uuid import UUID
 from app.db.base import utc_now
 from app.features.accounts.models import Account
 from app.features.categories.models import Category
-from app.features.ledger.application.manual_contracts import (
-    AccountReferenceReadDto,
-    CreateManualIncomeExpenseCommand,
-    CreateManualTransferCommand,
-    ManualOperationMoneyReadDto,
-    ManualOperationReadDto,
-    NamedReferenceReadDto,
-)
 from app.features.ledger.domain.money import (
     LedgerPostingPlan,
     affects_profit_for_operation_type,
@@ -26,6 +18,14 @@ from app.features.ledger.models import (
     OperationSource,
     OperationStatus,
     OperationType,
+)
+from app.features.ledger.schemas.manual import (
+    AccountReferenceReadDto,
+    CreateManualIncomeExpenseCommand,
+    CreateManualTransferCommand,
+    ManualOperationMoneyReadDto,
+    ManualOperationReadDto,
+    NamedReferenceReadDto,
 )
 from app.features.properties.models import Property
 from app.features.workspaces.service import WorkspaceContext

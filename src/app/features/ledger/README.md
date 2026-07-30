@@ -41,8 +41,8 @@ account legacy screen
 ```
 
 API schemas находятся в `app/api/v1/manual_ledger`. Ledger application layer
-не импортирует FastAPI/Pydantic API models и возвращает собственные dataclass
-contracts.
+не импортирует FastAPI/Pydantic API models и возвращает собственные immutable
+Pydantic contracts.
 
 ## Структура
 
@@ -53,14 +53,15 @@ ledger/
     imported_operations.py     # imported operation review edits and correction
     ledger_reference_resolver.py
     listing.py                 # pagination and query filters
-    manual_contracts.py        # manual commands and read DTOs
     manual_mutations.py        # manual write workflows
     manual_operations.py       # public manual service and reference reader
     posting.py                 # ledger writes from validated financial facts
 
+  schemas/
+    manual.py                  # manual commands and read DTOs
+
   domain/
     money.py                   # signs, amounts, currency and balance rules
-    raw_transactions.py        # posting plan and imported-row policies
     text.py                    # shared ledger text normalization
     types.py                   # operation enums and lifecycle/action policies
 
@@ -111,8 +112,8 @@ Domain functions и value objects не зависят от HTTP или AsyncSess
 чистые вычисления остаются свободными функциями; class/actor нужен для workflow,
 state transition или объекта с собственным инвариантом.
 
-`RawTransactionStatus` принадлежит imports domain и объявлен в
-`imports/domain/types.py`. Проверки review status и нормализованных полей
+`RawTransactionStatus` принадлежит imports и объявлен в
+`imports/statements/types.py`. Проверки review status и нормализованных полей
 принадлежат `import_review/domain/posting.py`. Ledger получает
 `LedgerPostingPlan` и повторно проверяет только финансовые инварианты, не
 импортируя `RawTransaction` в posting service.

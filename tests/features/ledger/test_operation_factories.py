@@ -4,10 +4,6 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
-from app.features.ledger.application.manual_contracts import (
-    CreateManualIncomeExpenseCommand,
-    CreateManualTransferCommand,
-)
 from app.features.ledger.domain.money import (
     LedgerPostingPlan,
     affects_profit_for_operation_type,
@@ -22,6 +18,10 @@ from app.features.ledger.mapping.operations import (
     build_bank_pdf_transfer_operation,
     build_manual_income_expense_operation,
     build_manual_transfer_operation,
+)
+from app.features.ledger.schemas.manual import (
+    CreateManualIncomeExpenseCommand,
+    CreateManualTransferCommand,
 )
 from app.features.workspaces.service import WorkspaceContext
 

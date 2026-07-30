@@ -93,13 +93,23 @@ Imported review-field edit -> ImportedOperationReviewUseCase
 
 ### 2. Pydantic manual contracts
 
-Статус: pending.
+Статус: in progress.
 
-- перенести manual commands, filters, pagination, read DTO и reference options
-  в `schemas/manual.py`;
+- 2A: перенести manual commands и read DTO в `schemas/manual.py`, перевести их
+  на `ApplicationModel` и удалить старый `application/manual_contracts.py`;
+- 2B: перенести filters, pagination и reference options;
+- 2C: удалить изоморфные constructors, сохранив semantic transfer projection и
+  API capabilities;
 - наследовать внутренние contracts от immutable `ApplicationModel`;
 - удалять только изоморфные constructors;
 - сохранить semantic transfer projection и API capabilities.
+
+2A завершён 2026-07-30. Девять manual command/read contracts переведены на
+`ApplicationModel`; production, API, chat и tests импортируют их напрямую из
+`schemas/manual.py`. Старый defining module удалён без re-export facade.
+Dataclass-specific `replace(...)` в API test stub заменён на immutable
+`model_copy(update=...)`. Financial behavior, transaction ownership, semantic
+mapper и wire format не менялись.
 
 ### 3. Account ledger projections
 

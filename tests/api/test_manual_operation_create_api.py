@@ -5,14 +5,14 @@ from uuid import uuid4
 from manual_ledger_support import manual_ledger_app, manual_operation, primary_account_id
 
 from api_client import ApiTestClient as TestClient
-from app.features.ledger.application.manual_contracts import (
-    CreateManualIncomeExpenseCommand,
-    CreateManualTransferCommand,
-)
 from app.features.ledger.domain.types import OperationType
 from app.features.ledger.errors import (
     AccountUnavailableError,
     OperationIdempotencyConflictError,
+)
+from app.features.ledger.schemas.manual import (
+    CreateManualIncomeExpenseCommand,
+    CreateManualTransferCommand,
 )
 from app.features.workspaces.domain.types import WorkspaceRole
 

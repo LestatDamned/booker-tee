@@ -1,4 +1,3 @@
-from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -15,15 +14,6 @@ from app.features.ledger.application.listing import (
     LedgerPagination,
     ManualOperationFilters,
 )
-from app.features.ledger.application.manual_contracts import (
-    AccountReferenceReadDto,
-    CreateManualIncomeExpenseCommand,
-    CreateManualOperationCommand,
-    CreateManualTransferCommand,
-    ManualOperationMoneyReadDto,
-    ManualOperationReadDto,
-    UpdateManualOperationCommand,
-)
 from app.features.ledger.application.manual_operations import (
     ManualLedgerAccountOptionDto,
     ManualLedgerNamedOptionDto,
@@ -38,6 +28,15 @@ from app.features.ledger.errors import (
     LedgerPostingError,
     ManualOperationNotEditableError,
     ManualOperationNotFoundError,
+)
+from app.features.ledger.schemas.manual import (
+    AccountReferenceReadDto,
+    CreateManualIncomeExpenseCommand,
+    CreateManualOperationCommand,
+    CreateManualTransferCommand,
+    ManualOperationMoneyReadDto,
+    ManualOperationReadDto,
+    UpdateManualOperationCommand,
 )
 from app.features.users.models import User
 from app.features.workspaces.domain.types import (
@@ -185,7 +184,7 @@ class ManualOperationServiceStub:
         self.workspace_ids.append(context.workspace.id)
         self.lifecycle_calls.append((action, operation_id, expected_version))
         self.operations = [
-            replace(operation, status=status, version=operation.version + 1)
+            operation.model_copy(update={"status": status, "version": operation.version + 1})
             if operation.id == operation_id
             else operation
             for operation in self.operations

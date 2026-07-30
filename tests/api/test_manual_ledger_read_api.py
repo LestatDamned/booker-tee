@@ -1,5 +1,3 @@
-from dataclasses import replace
-
 from manual_ledger_support import (
     filter_references,
     manual_ledger_app,
@@ -174,9 +172,8 @@ def test_manual_operation_edit_requires_write_permission() -> None:
 
 
 def test_manual_operation_edit_rejects_non_editable_state() -> None:
-    operation = replace(
-        manual_operation(OperationType.INCOME),
-        status=OperationStatus.IGNORED,
+    operation = manual_operation(OperationType.INCOME).model_copy(
+        update={"status": OperationStatus.IGNORED},
     )
     app, service, reference_reader, _ = manual_ledger_app([operation])
 

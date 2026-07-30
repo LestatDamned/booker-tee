@@ -6,12 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
-from app.features.ledger.application.manual_contracts import (
-    CreateManualIncomeExpenseCommand,
-    CreateManualTransferCommand,
-    UpdateManualOperationCommand,
-    UpdateManualTransferCommand,
-)
 from app.features.ledger.domain.money import (
     TransferAmounts,
     affects_profit_for_operation_type,
@@ -42,6 +36,12 @@ from app.features.ledger.mapping.operations import (
 )
 from app.features.ledger.models import MoneyEntry, Operation
 from app.features.ledger.repository import LedgerRepository
+from app.features.ledger.schemas.manual import (
+    CreateManualIncomeExpenseCommand,
+    CreateManualTransferCommand,
+    UpdateManualOperationCommand,
+    UpdateManualTransferCommand,
+)
 from app.features.workspaces.service import WorkspaceContext
 
 

@@ -1,13 +1,12 @@
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
 from app.features.ledger.domain.types import OperationStatus, OperationType
+from app.shared.schemas import ApplicationModel
 
 
-@dataclass(frozen=True)
-class CreateManualIncomeExpenseCommand:
+class CreateManualIncomeExpenseCommand(ApplicationModel):
     operation_type: OperationType
     account_id: UUID
     amount: Decimal
@@ -18,8 +17,7 @@ class CreateManualIncomeExpenseCommand:
     idempotency_key: UUID | None = None
 
 
-@dataclass(frozen=True)
-class CreateManualTransferCommand:
+class CreateManualTransferCommand(ApplicationModel):
     source_account_id: UUID
     destination_account_id: UUID
     amount: Decimal
@@ -31,8 +29,7 @@ class CreateManualTransferCommand:
 CreateManualOperationCommand = CreateManualIncomeExpenseCommand | CreateManualTransferCommand
 
 
-@dataclass(frozen=True)
-class UpdateManualOperationCommandBase:
+class UpdateManualOperationCommandBase(ApplicationModel):
     operation_id: UUID
     amount: Decimal
     operation_date: date
@@ -40,7 +37,6 @@ class UpdateManualOperationCommandBase:
     expected_version: int
 
 
-@dataclass(frozen=True)
 class UpdateManualIncomeExpenseCommand(UpdateManualOperationCommandBase):
     operation_type: OperationType
     account_id: UUID
@@ -48,7 +44,6 @@ class UpdateManualIncomeExpenseCommand(UpdateManualOperationCommandBase):
     property_id: UUID | None
 
 
-@dataclass(frozen=True)
 class UpdateManualTransferCommand(UpdateManualOperationCommandBase):
     source_account_id: UUID
     destination_account_id: UUID
@@ -57,25 +52,21 @@ class UpdateManualTransferCommand(UpdateManualOperationCommandBase):
 UpdateManualOperationCommand = UpdateManualIncomeExpenseCommand | UpdateManualTransferCommand
 
 
-@dataclass(frozen=True)
-class NamedReferenceReadDto:
+class NamedReferenceReadDto(ApplicationModel):
     id: UUID
     name: str
 
 
-@dataclass(frozen=True)
 class AccountReferenceReadDto(NamedReferenceReadDto):
     currency: str
 
 
-@dataclass(frozen=True)
-class ManualOperationMoneyReadDto:
+class ManualOperationMoneyReadDto(ApplicationModel):
     amount: Decimal
     currency: str
 
 
-@dataclass(frozen=True)
-class ManualOperationReadDto:
+class ManualOperationReadDto(ApplicationModel):
     id: UUID
     version: int
     operation_type: OperationType

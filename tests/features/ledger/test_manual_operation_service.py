@@ -7,12 +7,12 @@ from uuid import UUID, uuid4
 import pytest
 
 import app.features.ledger.application.manual_operations as service_module
-from app.features.ledger.application.manual_contracts import (
+from app.features.ledger.application.manual_operations import ManualOperationService
+from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
+from app.features.ledger.schemas.manual import (
     CreateManualIncomeExpenseCommand,
     ManualOperationReadDto,
 )
-from app.features.ledger.application.manual_operations import ManualOperationService
-from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
 from app.features.workspaces.service import WorkspaceContext
 
 

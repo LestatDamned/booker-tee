@@ -20,10 +20,6 @@ from app.features.ledger.application.imported_operations import (
     ImportedOperationReviewUseCase,
     UpdateImportedOperationReviewFieldsCommand,
 )
-from app.features.ledger.application.manual_contracts import (
-    CreateManualIncomeExpenseCommand,
-    UpdateManualIncomeExpenseCommand,
-)
 from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.money import (
     TransferAmounts,
@@ -40,6 +36,10 @@ from app.features.ledger.errors import (
 )
 from app.features.ledger.mapping.operations import manual_income_expense_fingerprint
 from app.features.ledger.models import Operation, OperationSource, OperationStatus, OperationType
+from app.features.ledger.schemas.manual import (
+    CreateManualIncomeExpenseCommand,
+    UpdateManualIncomeExpenseCommand,
+)
 
 
 @dataclass(frozen=True)

@@ -10,12 +10,12 @@ from sqlalchemy.exc import IntegrityError
 
 from app.features.categories.service import CategoryService
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
-from app.features.ledger.application.manual_contracts import (
-    CreateManualIncomeExpenseCommand,
-)
 from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.types import OperationType
 from app.features.ledger.mapping.operations import manual_income_expense_fingerprint
+from app.features.ledger.schemas.manual import (
+    CreateManualIncomeExpenseCommand,
+)
 
 
 @pytest.mark.asyncio

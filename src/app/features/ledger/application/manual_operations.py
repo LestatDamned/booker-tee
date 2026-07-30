@@ -12,12 +12,6 @@ from app.features.ledger.application.listing import (
     ManualOperationFilters,
     normalize_pagination,
 )
-from app.features.ledger.application.manual_contracts import (
-    CreateManualOperationCommand,
-    CreateManualTransferCommand,
-    ManualOperationReadDto,
-    UpdateManualOperationCommand,
-)
 from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.types import OperationSource, manual_operation_actions
 from app.features.ledger.errors import (
@@ -26,6 +20,12 @@ from app.features.ledger.errors import (
 )
 from app.features.ledger.mapping.operations import ManualOperationReadDtoMapper
 from app.features.ledger.repository import LedgerRepository
+from app.features.ledger.schemas.manual import (
+    CreateManualOperationCommand,
+    CreateManualTransferCommand,
+    ManualOperationReadDto,
+    UpdateManualOperationCommand,
+)
 from app.features.workspaces.service import WorkspaceContext
 
 WriteResult = TypeVar("WriteResult")

@@ -1,16 +1,15 @@
-from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
 from manual_ledger_support import manual_ledger_app, manual_operation, primary_account_id
 
 from api_client import ApiTestClient as TestClient
-from app.features.ledger.application.manual_contracts import UpdateManualIncomeExpenseCommand
 from app.features.ledger.domain.types import OperationStatus, OperationType
 from app.features.ledger.errors import (
     ManualOperationLifecycleConflictError,
     OperationVersionConflictError,
 )
+from app.features.ledger.schemas.manual import UpdateManualIncomeExpenseCommand
 from app.features.workspaces.domain.types import WorkspaceRole
 
 
@@ -101,10 +100,11 @@ def test_manual_cancel_dispatches_versioned_transition_and_returns_capabilities(
 
 
 def test_manual_restore_dispatches_versioned_transition() -> None:
-    operation = replace(
-        manual_operation(OperationType.INCOME),
-        status=OperationStatus.IGNORED,
-        version=4,
+    operation = manual_operation(OperationType.INCOME).model_copy(
+        update={
+            "status": OperationStatus.IGNORED,
+            "version": 4,
+        },
     )
     app, service, _, _ = manual_ledger_app([operation])
 
@@ -158,10 +158,11 @@ def test_manual_lifecycle_requires_write_permission() -> None:
 
 
 def test_manual_delete_dispatches_versioned_command_and_returns_no_content() -> None:
-    operation = replace(
-        manual_operation(OperationType.EXPENSE),
-        status=OperationStatus.IGNORED,
-        version=4,
+    operation = manual_operation(OperationType.EXPENSE).model_copy(
+        update={
+            "status": OperationStatus.IGNORED,
+            "version": 4,
+        },
     )
     app, service, _, workspace_id = manual_ledger_app([operation])
 
@@ -198,9 +199,8 @@ def test_manual_delete_maps_invalid_state_to_409() -> None:
 
 
 def test_manual_delete_requires_write_permission() -> None:
-    operation = replace(
-        manual_operation(OperationType.EXPENSE),
-        status=OperationStatus.IGNORED,
+    operation = manual_operation(OperationType.EXPENSE).model_copy(
+        update={"status": OperationStatus.IGNORED},
     )
     app, service, _, _ = manual_ledger_app(
         [operation],

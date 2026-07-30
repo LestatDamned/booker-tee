@@ -3,14 +3,14 @@ from app.features.chat_integrations.use_cases.manual.dto import ChatManualOperat
 from app.features.chat_integrations.use_cases.manual.state_reader import (
     ChatManualOperationStateReader,
 )
-from app.features.ledger.application.manual_contracts import (
-    CreateManualIncomeExpenseCommand,
-    CreateManualTransferCommand,
-)
 from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.types import OperationType
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.models import Operation
+from app.features.ledger.schemas.manual import (
+    CreateManualIncomeExpenseCommand,
+    CreateManualTransferCommand,
+)
 from app.features.workspaces.service import WorkspaceContext
 
 
