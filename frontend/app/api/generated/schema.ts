@@ -40,6 +40,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/accounts/{account_id}/operations/{operation_id}/review-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Imported Operation Review Fields */
+        put: operations["update_imported_operation_review_fields_api_v1_accounts__account_id__operations__operation_id__review_fields_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/accounts/{account_id}/archive": {
         parameters: {
             query?: never;
@@ -463,40 +480,6 @@ export interface paths {
         get: operations["account_detail_accounts__account_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/accounts/{account_id}/operations/{operation_id}/review-fields/edit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Imported Operation Review Fields Panel */
-        get: operations["imported_operation_review_fields_panel_accounts__account_id__operations__operation_id__review_fields_edit_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/accounts/{account_id}/operations/{operation_id}/review-fields": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Update Imported Operation Review Fields */
-        post: operations["update_imported_operation_review_fields_accounts__account_id__operations__operation_id__review_fields_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1282,6 +1265,14 @@ export interface components {
             /** Transferroute */
             transferRoute: string | null;
             sourceTarget: components["schemas"]["AccountMovementSourceTargetApiResponse"];
+            capabilities: components["schemas"]["AccountMovementCapabilitiesApiResponse"];
+        };
+        /** AccountMovementCapabilitiesApiResponse */
+        AccountMovementCapabilitiesApiResponse: {
+            /** Caneditreviewfields */
+            canEditReviewFields: boolean;
+            /** Readonlyreasoncode */
+            readonlyReasonCode: ("financial_write_forbidden" | "imported_operation_only" | "operation_not_confirmed") | null;
         };
         /** AccountMovementSourceTargetApiResponse */
         AccountMovementSourceTargetApiResponse: {
@@ -1471,17 +1462,6 @@ export interface components {
             notes?: string | null;
             /** View */
             view?: string | null;
-        };
-        /** Body_update_imported_operation_review_fields_accounts__account_id__operations__operation_id__review_fields_post */
-        Body_update_imported_operation_review_fields_accounts__account_id__operations__operation_id__review_fields_post: {
-            /** Version */
-            version: number;
-            /** Description */
-            description?: string | null;
-            /** Category Id */
-            category_id?: string | null;
-            /** Property Id */
-            property_id?: string | null;
         };
         /** Body_update_property_properties__property_id__post */
         Body_update_property_properties__property_id__post: {
@@ -3175,6 +3155,17 @@ export interface components {
              */
             expectedUpdatedAt: string;
         };
+        /** UpdateImportedOperationReviewFieldsApiRequest */
+        UpdateImportedOperationReviewFieldsApiRequest: {
+            /** Expectedversion */
+            expectedVersion: number;
+            /** Description */
+            description?: string | null;
+            /** Categoryid */
+            categoryId?: string | null;
+            /** Propertyid */
+            propertyId?: string | null;
+        };
         /**
          * UploadedDocumentStatus
          * @enum {string}
@@ -3437,6 +3428,78 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    update_imported_operation_review_fields_api_v1_accounts__account_id__operations__operation_id__review_fields_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+                operation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateImportedOperationReviewFieldsApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountMovementApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5322,74 +5385,6 @@ export interface operations {
                 };
                 content: {
                     "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    imported_operation_review_fields_panel_accounts__account_id__operations__operation_id__review_fields_edit_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                account_id: string;
-                operation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_imported_operation_review_fields_accounts__account_id__operations__operation_id__review_fields_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                account_id: string;
-                operation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_update_imported_operation_review_fields_accounts__account_id__operations__operation_id__review_fields_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

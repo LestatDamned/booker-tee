@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 
 import { Button } from "../../ui/button/button";
 import { Field } from "../../ui/field/field";
+import { FormActions } from "../../ui/field/form-layout";
 import type { ImportReviewDto } from "./api/import-review-api";
 import {
   postImportReviewTransfer,
@@ -149,7 +150,7 @@ export function TransferPanel({
       item.transfer.existingOperationCandidates.length === 0 ? (
         <p>Подходящих счетов, строк или ручных переводов не найдено.</p>
       ) : null}
-      <div className={`${styles.editorActions} ${styles.panelActions}`}>
+      <FormActions layout="split">
         <Button disabled={pending} onClick={onCancel}>
           Отмена
         </Button>
@@ -161,7 +162,7 @@ export function TransferPanel({
         >
           {pending ? "Проводим…" : "Провести перевод"}
         </Button>
-      </div>
+      </FormActions>
       {error ? (
         <p className={styles.draftError} role="alert">
           {error}

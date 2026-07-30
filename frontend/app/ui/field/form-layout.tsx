@@ -28,6 +28,16 @@ export function FormGridItem({ children, span = "full" }: FormGridItemProps) {
   );
 }
 
-export function FormActions({ children }: { children: ReactNode }) {
-  return <div className={styles.actions}>{children}</div>;
+export function FormActions({
+  children,
+  layout = "start",
+}: {
+  children: ReactNode;
+  layout?: "split" | "start";
+}) {
+  return (
+    <div className={styles.actions} data-layout={layout}>
+      {children}
+    </div>
+  );
 }

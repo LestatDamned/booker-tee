@@ -1,11 +1,16 @@
 from decimal import Decimal
+from uuid import uuid4
 
-from accounts_support import account_detail_app, accounts_app
+from accounts_support import account_correction_app, account_detail_app, accounts_app
 
 from api_client import ApiTestClient as TestClient
 from app.features.accounts.models import AccountType
 from app.features.accounts.schemas import CreateAccountCommand, UpdateAccountCommand
+from app.features.ledger.application.imported_operations import (
+    UpdateImportedOperationReviewFieldsCommand,
+)
 from app.features.ledger.domain.types import OperationStatus, OperationType
+from app.features.ledger.errors import OperationVersionConflictError
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.main import create_app
 
@@ -50,6 +55,10 @@ def test_account_detail_returns_account_relative_transfer_and_source_target() ->
         "uploadedDocumentId": None,
         "rawTransactionId": None,
     }
+    assert payload["items"][0]["capabilities"] == {
+        "canEditReviewFields": False,
+        "readonlyReasonCode": "imported_operation_only",
+    }
     assert ledger.calls[0][0:2] == (workspace_id, account_id)
     assert ledger.calls[0][2].status == OperationStatus.CONFIRMED
     assert ledger.calls[0][2].operation_type == OperationType.TRANSFER
@@ -81,6 +90,10 @@ def test_account_detail_hides_mutations_from_viewer() -> None:
         "canArchive": False,
         "canRestore": False,
     }
+    assert response.json()["items"][0]["capabilities"] == {
+        "canEditReviewFields": False,
+        "readonlyReasonCode": "financial_write_forbidden",
+    }
 
 
 def test_account_detail_rejects_inverted_date_range() -> None:
@@ -94,6 +107,118 @@ def test_account_detail_rejects_inverted_date_range() -> None:
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "invalid_date_range"
     assert ledger.calls == []
+
+
+def test_imported_operation_correction_returns_committed_movement() -> None:
+    (
+        app,
+        ledger,
+        use_case,
+        workspace_id,
+        account_id,
+        operation_id,
+        category_id,
+    ) = account_correction_app()
+    property_id = uuid4()
+
+    with TestClient(app) as client:
+        response = client.put(
+            f"/api/v1/accounts/{account_id}/operations/{operation_id}/review-fields",
+            json={
+                "expectedVersion": 3,
+                "description": "Такси",
+                "categoryId": str(category_id),
+                "propertyId": str(property_id),
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["version"] == 4
+    assert payload["description"] == "Такси"
+    assert payload["category"] == {
+        "id": str(category_id),
+        "name": "Транспорт",
+    }
+    assert payload["property"]["name"] == "Квартира"
+    assert payload["amount"] == "-881.12"
+    assert payload["capabilities"] == {
+        "canEditReviewFields": True,
+        "readonlyReasonCode": None,
+    }
+    assert ledger.imported_calls == [
+        (workspace_id, operation_id, account_id),
+        (workspace_id, operation_id, account_id),
+    ]
+    assert use_case.calls[0][0].workspace.id == workspace_id
+    assert use_case.calls[0][1] == UpdateImportedOperationReviewFieldsCommand(
+        operation_id=operation_id,
+        expected_version=3,
+        category_id=category_id,
+        property_id=property_id,
+        description="Такси",
+    )
+
+
+def test_imported_operation_correction_requires_account_association() -> None:
+    app, _, use_case, _, account_id, operation_id, _ = account_correction_app(found=False)
+
+    with TestClient(app) as client:
+        response = client.put(
+            f"/api/v1/accounts/{account_id}/operations/{operation_id}/review-fields",
+            json={
+                "expectedVersion": 3,
+                "description": "Такси",
+                "categoryId": None,
+                "propertyId": None,
+            },
+        )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "account_operation_not_found"
+    assert use_case.calls == []
+
+
+def test_imported_operation_correction_maps_stale_version_to_conflict() -> None:
+    app, _, use_case, _, account_id, operation_id, _ = account_correction_app(
+        error=OperationVersionConflictError()
+    )
+
+    with TestClient(app) as client:
+        response = client.put(
+            f"/api/v1/accounts/{account_id}/operations/{operation_id}/review-fields",
+            json={
+                "expectedVersion": 2,
+                "description": "Такси",
+                "categoryId": None,
+                "propertyId": None,
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "operation_version_conflict"
+    assert len(use_case.calls) == 1
+
+
+def test_imported_operation_correction_requires_financial_write_permission() -> None:
+    app, ledger, use_case, _, account_id, operation_id, _ = account_correction_app(
+        role=WorkspaceRole.VIEWER
+    )
+
+    with TestClient(app) as client:
+        response = client.put(
+            f"/api/v1/accounts/{account_id}/operations/{operation_id}/review-fields",
+            json={
+                "expectedVersion": 3,
+                "description": "Такси",
+                "categoryId": None,
+                "propertyId": None,
+            },
+        )
+
+    assert response.status_code == 403
+    assert ledger.imported_calls == []
+    assert use_case.calls == []
 
 
 def test_account_directory_returns_decimal_strings_and_server_capabilities() -> None:

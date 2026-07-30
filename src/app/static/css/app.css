@@ -3747,18 +3747,6 @@ html:not(.entity-target-cleared) .rule-card:target {
   padding-left: 16px;
 }
 
-.account-movement__drawer-form {
-  grid-template-columns: 1fr;
-}
-
-.account-movement__drawer-form .operation-form__field--description {
-  grid-column: span 9;
-}
-
-.account-movement__drawer-form .operation-form__field--status {
-  grid-column: span 3;
-}
-
 .entry-description {
   color: var(--text);
   overflow-wrap: anywhere;
@@ -4314,9 +4302,6 @@ html:not(.entity-target-cleared) .rule-card:target {
     justify-content: flex-start;
   }
 
-  .account-movement__drawer-form {
-    grid-template-columns: 1fr;
-  }
 }
 
 .notice {

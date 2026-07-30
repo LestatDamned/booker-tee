@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { formatMoneyAmount } from "../../shared/money/format-money";
 import { AppShell } from "../../shell/app-shell";
+import { ActionStack } from "../../ui/action-stack/action-stack";
 import { Badge } from "../../ui/badge/badge";
 import { Button, ButtonLink } from "../../ui/button/button";
 import { Field } from "../../ui/field/field";
@@ -14,7 +15,10 @@ import { PageHeader } from "../../ui/page-header/page-header";
 import { RequestState } from "../../ui/request-state/request-state";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import { Tag } from "../../ui/tag/tag";
-import { WorkbenchRow } from "../../ui/workbench-row/workbench-row";
+import {
+  WorkbenchRow,
+  WorkbenchRowExpansion,
+} from "../../ui/workbench-row/workbench-row";
 import type { AccountDetailDto } from "./api/account-detail-api";
 import type { AccountSummaryDto } from "./api/accounts-api";
 import {
@@ -27,6 +31,10 @@ import {
   operationTypes,
 } from "./account-detail-model";
 import { AccountSettingsPanel } from "./account-settings-panel";
+import {
+  ImportedOperationCorrectionPanel,
+  type ImportedOperationCorrectionPanelHandle,
+} from "./imported-operation-correction-panel";
 import styles from "./account-detail-page.module.css";
 
 type Props = {
@@ -44,6 +52,18 @@ export function AccountDetailPage({
   const navigate = useNavigate();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editingMovement, setEditingMovement] = useState<
+    AccountDetailDto["items"][number] | null
+  >(null);
+  const [movementOverrides, setMovementOverrides] = useState<
+    Record<
+      string,
+      {
+        sourceVersion: number;
+        value: AccountDetailDto["items"][number];
+      }
+    >
+  >({});
   const [accountOverride, setAccountOverride] = useState<{
     sourceUpdatedAt: string;
     value: AccountDetailDto["account"];
@@ -55,6 +75,12 @@ export function AccountDetailPage({
       : detail.account;
   const params = new URLSearchParams(location.search);
   const appliedCount = activeFilterCount(params);
+  const movements = detail.items.map((movement) => {
+    const override = movementOverrides[movement.operationId];
+    return override?.sourceVersion === movement.version
+      ? override.value
+      : movement;
+  });
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -88,6 +114,21 @@ export function AccountDetailPage({
     });
     setSettingsOpen(false);
     setFeedback(message);
+  }
+
+  function commitMovement(committed: AccountDetailDto["items"][number]) {
+    const source = detail.items.find(
+      (movement) => movement.operationId === committed.operationId,
+    );
+    setMovementOverrides((current) => ({
+      ...current,
+      [committed.operationId]: {
+        sourceVersion: source?.version ?? committed.version,
+        value: committed,
+      },
+    }));
+    setEditingMovement(null);
+    setFeedback("Исправления операции сохранены.");
   }
 
   return (
@@ -194,13 +235,25 @@ export function AccountDetailPage({
           <section
             aria-label="Проводки счёта"
             className={styles.listRegion}
-            data-empty={detail.items.length === 0 ? "true" : undefined}
+            data-empty={movements.length === 0 ? "true" : undefined}
           >
-            {detail.items.length ? (
+            {movements.length ? (
               <ol className={styles.list}>
-                {detail.items.map((movement) => (
+                {movements.map((movement) => (
                   <li key={movement.operationId}>
-                    <AccountMovementRow movement={movement} />
+                    <AccountMovementRow
+                      accountId={account.id}
+                      categories={detail.filterOptions.categories}
+                      csrfToken={session.csrfToken}
+                      isEditing={
+                        editingMovement?.operationId === movement.operationId
+                      }
+                      movement={movement}
+                      onEdit={setEditingMovement}
+                      onEditClosed={() => setEditingMovement(null)}
+                      onMovementCommitted={commitMovement}
+                      properties={detail.filterOptions.properties}
+                    />
                   </li>
                 ))}
               </ol>
@@ -237,27 +290,111 @@ export function AccountDetailPage({
 }
 
 function AccountMovementRow({
+  accountId,
+  categories,
+  csrfToken,
+  isEditing,
   movement,
+  onEdit,
+  onEditClosed,
+  onMovementCommitted,
+  properties,
 }: {
+  accountId: string;
+  categories: AccountDetailDto["filterOptions"]["categories"];
+  csrfToken: string;
+  isEditing: boolean;
   movement: AccountDetailDto["items"][number];
+  onEdit: (movement: AccountDetailDto["items"][number]) => void;
+  onEditClosed: () => void;
+  onMovementCommitted: (movement: AccountDetailDto["items"][number]) => void;
+  properties: AccountDetailDto["filterOptions"]["properties"];
 }) {
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const correctionPanelRef =
+    useRef<ImportedOperationCorrectionPanelHandle>(null);
   const view = movementView(movement);
   const sourceTarget = movementSourceTarget(movement);
   const problem =
     movement.status === "needs_review" || movement.status === "duplicate";
+  const editPanelId = `account-operation-edit-panel-${movement.operationId}`;
+
+  function closeEdit() {
+    onEditClosed();
+    queueMicrotask(() => editButtonRef.current?.focus());
+  }
+
+  function commitMovement(committed: AccountDetailDto["items"][number]) {
+    onMovementCommitted(committed);
+    queueMicrotask(() => editButtonRef.current?.focus());
+  }
+
   return (
     <WorkbenchRow
       aside={
         sourceTarget.url ? (
-          <ButtonLink href={sourceTarget.url} icon="source">
-            {sourceTarget.label}
-          </ButtonLink>
+          <ActionStack
+            primary={
+              movement.capabilities.canEditReviewFields ? (
+                <Button
+                  aria-controls={editPanelId}
+                  aria-expanded={isEditing}
+                  data-imported-operation-edit
+                  icon="edit"
+                  onClick={() =>
+                    isEditing
+                      ? correctionPanelRef.current?.requestClose()
+                      : onEdit(movement)
+                  }
+                  ref={editButtonRef}
+                  tone="secondary"
+                >
+                  {isEditing ? "Закрыть" : "Исправить"}
+                </Button>
+              ) : (
+                <ButtonLink href={sourceTarget.url} icon="source">
+                  {sourceTarget.label}
+                </ButtonLink>
+              )
+            }
+            secondary={
+              movement.capabilities.canEditReviewFields ? (
+                <ButtonLink
+                  href={sourceTarget.url}
+                  icon="source"
+                  tone="secondary"
+                >
+                  {sourceTarget.label}
+                </ButtonLink>
+              ) : undefined
+            }
+          />
         ) : (
           <StatusLabel tone="neutral">Системная операция</StatusLabel>
         )
       }
       date={movement.operationDate}
       description={view.description}
+      expansion={
+        movement.capabilities.canEditReviewFields && isEditing ? (
+          <WorkbenchRowExpansion
+            id={editPanelId}
+            title="Исправить операцию"
+            titleId={`${editPanelId}-title`}
+          >
+            <ImportedOperationCorrectionPanel
+              accountId={accountId}
+              categories={categories}
+              csrfToken={csrfToken}
+              movement={movement}
+              onClose={closeEdit}
+              onCommitted={commitMovement}
+              properties={properties}
+              ref={correctionPanelRef}
+            />
+          </WorkbenchRowExpansion>
+        ) : undefined
+      }
       financialHierarchy
       id={`operation-${movement.operationId}`}
       meta={
@@ -286,6 +423,7 @@ function AccountMovementRow({
           </StatusLabel>
         </>
       }
+      state={isEditing ? "working" : "default"}
       value={
         <MoneyValue
           amount={view.amount}

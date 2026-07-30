@@ -12,6 +12,7 @@ from app.api.errors import ApiError, api_error_responses
 from app.api.v1.accounts.dependencies import (
     get_account_directory_service,
     get_account_ledger_reader,
+    get_imported_operation_review_use_case,
 )
 from app.api.v1.accounts.detail_mapping import AccountDetailResponseMapper
 from app.api.v1.accounts.detail_parameters import (
@@ -23,10 +24,12 @@ from app.api.v1.accounts.schemas import (
     AccountDirectoryApiResponse,
     AccountDirectoryCapabilitiesApiResponse,
     AccountLifecycleApiRequest,
+    AccountMovementApiResponse,
     AccountSummaryApiResponse,
     AccountSummaryCapabilitiesApiResponse,
     CreateAccountApiRequest,
     UpdateAccountApiRequest,
+    UpdateImportedOperationReviewFieldsApiRequest,
 )
 from app.api.v1.manual_ledger.dependencies import get_manual_ledger_reference_reader
 from app.features.accounts.application.directory import AccountDirectoryService
@@ -42,8 +45,21 @@ from app.features.accounts.service import (
     AccountNotFoundError,
     AccountUpdateConflictError,
 )
-from app.features.ledger.application.account_ledger import AccountLedgerReader
+from app.features.ledger.application.account_ledger import (
+    AccountLedgerEntryView,
+    AccountLedgerReader,
+)
+from app.features.ledger.application.imported_operations import (
+    ImportedOperationReviewUseCase,
+    UpdateImportedOperationReviewFieldsCommand,
+)
 from app.features.ledger.application.manual_operations import ManualLedgerReferenceReader
+from app.features.ledger.errors import (
+    ImportedOperationNotEditableError,
+    ImportedOperationNotFoundError,
+    LedgerPostingError,
+    OperationVersionConflictError,
+)
 from app.features.workspaces.permissions import can_write_financial_data
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -233,6 +249,113 @@ async def update_account(
             message=str(error),
         ) from error
     return account_summary_response(account, can_write=True)
+
+
+@router.put(
+    "/{account_id}/operations/{operation_id}/review-fields",
+    response_model=AccountMovementApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def update_imported_operation_review_fields(
+    account_id: UUID,
+    operation_id: UUID,
+    request: UpdateImportedOperationReviewFieldsApiRequest,
+    context: Annotated[
+        ApiRequestContext,
+        Depends(require_api_financial_write_context),
+    ],
+    ledger: Annotated[AccountLedgerReader, Depends(get_account_ledger_reader)],
+    use_case: Annotated[
+        ImportedOperationReviewUseCase,
+        Depends(get_imported_operation_review_use_case),
+    ],
+) -> AccountMovementApiResponse:
+    workspace_id = context.workspace.workspace.id
+    if (
+        await ledger.get_imported_operation(
+            workspace_id=workspace_id,
+            operation_id=operation_id,
+            account_id=account_id,
+        )
+        is None
+    ):
+        raise ApiError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="account_operation_not_found",
+            message="Импортированная операция не найдена на этом счёте.",
+        )
+    try:
+        await use_case.update_review_fields(
+            context=context.workspace,
+            command=UpdateImportedOperationReviewFieldsCommand(
+                operation_id=operation_id,
+                expected_version=request.expected_version,
+                category_id=request.category_id,
+                property_id=request.property_id,
+                description=request.description,
+            ),
+        )
+    except ImportedOperationNotFoundError as error:
+        raise ApiError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="account_operation_not_found",
+            message="Импортированная операция не найдена на этом счёте.",
+        ) from error
+    except OperationVersionConflictError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="operation_version_conflict",
+            message="Операция уже изменилась. Загрузите актуальные данные.",
+        ) from error
+    except ImportedOperationNotEditableError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="operation_not_editable",
+            message="Эту импортированную операцию больше нельзя исправить.",
+        ) from error
+    except (LedgerPostingError, ValueError) as error:
+        raise ApiError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="operation_review_fields_invalid",
+            message="Проверьте категорию, объект и описание операции.",
+        ) from error
+
+    committed = await ledger.get_imported_operation(
+        workspace_id=workspace_id,
+        operation_id=operation_id,
+        account_id=account_id,
+    )
+    if committed is None:
+        raise ApiError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="account_operation_not_found",
+            message="Импортированная операция не найдена на этом счёте.",
+        )
+    money_entry = next(
+        (entry for entry in committed.money_entries if entry.account_id == account_id),
+        None,
+    )
+    if money_entry is None or money_entry.account is None:
+        raise ApiError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="account_operation_not_found",
+            message="Импортированная операция не найдена на этом счёте.",
+        )
+    return AccountDetailResponseMapper.movement_response(
+        AccountLedgerEntryView(
+            operation=committed,
+            operation_id=committed.id,
+            amount=money_entry.amount,
+            currency=money_entry.account.currency,
+        ),
+        can_write=True,
+    )
 
 
 def account_summary_response(

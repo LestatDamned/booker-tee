@@ -132,7 +132,10 @@ export function ManualOperationCreate({
         onChange={setDraft}
         options={options}
       />
-      <FormActions>
+      <FormActions layout="split">
+        <Button disabled={pending} onClick={cancelDraft} tone="ghost">
+          Отмена
+        </Button>
         <Button
           disabled={draft.operationType === ""}
           isLoading={pending}
@@ -141,9 +144,6 @@ export function ManualOperationCreate({
           icon="plus"
         >
           Создать {operationTypeLabel(draft.operationType)}
-        </Button>
-        <Button disabled={pending} onClick={cancelDraft} tone="ghost">
-          Отмена
         </Button>
       </FormActions>
     </form>

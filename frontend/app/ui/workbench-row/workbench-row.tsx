@@ -26,6 +26,27 @@ type WorkbenchRowProps = {
   workflowState?: WorkbenchRowWorkflowState;
 };
 
+type WorkbenchRowExpansionProps = {
+  children: ReactNode;
+  id?: string;
+  title: string;
+  titleId: string;
+};
+
+export function WorkbenchRowExpansion({
+  children,
+  id,
+  title,
+  titleId,
+}: WorkbenchRowExpansionProps) {
+  return (
+    <section aria-labelledby={titleId} className={styles.editExpansion} id={id}>
+      <h3 id={titleId}>{title}</h3>
+      {children}
+    </section>
+  );
+}
+
 export function WorkbenchRow({
   aside,
   date,

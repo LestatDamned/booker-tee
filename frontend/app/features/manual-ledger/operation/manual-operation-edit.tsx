@@ -264,7 +264,14 @@ export function ManualOperationEdit({
             onChange={(draft) => setState({ ...state, draft })}
             options={state.options}
           />
-          <FormActions>
+          <FormActions layout="split">
+            <Button
+              disabled={disabled || state.submission.status === "pending"}
+              onClick={cancelDraft}
+              tone="ghost"
+            >
+              Отмена
+            </Button>
             <Button
               disabled={disabled}
               isLoading={state.submission.status === "pending"}
@@ -273,13 +280,6 @@ export function ManualOperationEdit({
               icon="check"
             >
               Сохранить изменения
-            </Button>
-            <Button
-              disabled={disabled || state.submission.status === "pending"}
-              onClick={cancelDraft}
-              tone="ghost"
-            >
-              Отмена
             </Button>
           </FormActions>
         </form>

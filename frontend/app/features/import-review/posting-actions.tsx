@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
 import { Field } from "../../ui/field/field";
+import { FormActions } from "../../ui/field/form-layout";
 import { Icon } from "../../ui/icon/icon";
 import {
   loadImportReview,
@@ -75,9 +76,9 @@ export function ConfirmPostingAction({
     categoryId === null
   ) {
     return variant === "panel" && onCancel ? (
-      <div className={`${styles.editorActions} ${styles.panelActions}`}>
+      <FormActions layout="split">
         <Button onClick={onCancel}>Отмена</Button>
-      </div>
+      </FormActions>
     ) : null;
   }
   const confirmedOperationType = operationType;
@@ -203,7 +204,7 @@ export function ConfirmPostingAction({
           </p>
         ) : null}
       </div>
-      <div className={`${styles.editorActions} ${styles.panelActions}`}>
+      <FormActions layout="split">
         {onCancel ? <Button onClick={onCancel}>Отмена</Button> : null}
         <Button
           disabled={pending || refreshing}
@@ -214,7 +215,7 @@ export function ConfirmPostingAction({
         >
           {rememberRule ? "Провести с правилом" : "Провести"}
         </Button>
-      </div>
+      </FormActions>
       <PostingError error={error} ref={alertRef} />
       {conflict ? (
         <Button

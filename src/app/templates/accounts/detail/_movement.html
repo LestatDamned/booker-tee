@@ -1,13 +1,6 @@
 <article
   id="{{ movement.id }}"
   class="financial-row account-movement account-movement--{{ movement.tone }}"
-  data-entity-working="true"
-  hx-boost="true"
-  hx-select="#{{ movement.id }}"
-  hx-target="#{{ movement.id }}"
-  hx-swap="outerHTML show:none"
-  hx-push-url="false"
-  x-data="{ drawerOpen: false }"
 >
   <div class="financial-row__main account-movement__main">
     <div class="financial-row__topline account-movement__topline">
@@ -32,6 +25,4 @@
   <aside class="financial-row__side account-movement__result">
     {% include "accounts/detail/_movement_actions.html" %}
   </aside>
-
-  {% include "accounts/detail/_movement_drawer.html" %}
 </article>

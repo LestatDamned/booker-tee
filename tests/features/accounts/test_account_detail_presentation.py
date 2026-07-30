@@ -19,7 +19,7 @@ from app.features.ledger.models import OperationSource, OperationStatus, Operati
 from app.features.ledger.schemas.listing import LedgerPage
 
 
-def test_presenter_builds_imported_expense_movement_with_drawer() -> None:
+def test_presenter_builds_imported_expense_movement_with_source_link() -> None:
     account = account_view("Экспобанк карта")
     category = CategoryView(id=uuid4(), name="Продукты", kind=CategoryKind.EXPENSE)
     raw_link = RawTransactionLinkView(id=uuid4(), uploaded_document_id=uuid4())
@@ -54,22 +54,7 @@ def test_presenter_builds_imported_expense_movement_with_drawer() -> None:
     assert [item.tone for item in movement.meta] == ["classification", None, None]
     assert movement.result.eyebrow == "расход · подтверждено"
     assert movement.result.title == "Продукты"
-    assert movement.primary_action is not None
-    assert movement.primary_action.label == "исправить"
-    assert movement.primary_action.action_type == "drawer_toggle"
-    assert movement.primary_action.placement == "primary"
-    assert movement.edit_panel_id == f"account-movement-edit-panel-{operation.id}"
-    assert movement.edit_form_url == (
-        f"/accounts/{account.id}/operations/{operation.id}/review-fields/edit"
-    )
-    edit_panel = AccountDetailPresenter.build_edit_panel(
-        account_id=account.id,
-        operation=operation,
-    )
-    assert edit_panel.drawer.category_id == category.id
-    assert edit_panel.drawer.form_action == (
-        f"/accounts/{account.id}/operations/{operation.id}/review-fields"
-    )
+    assert movement.primary_action is None
     assert movement.secondary_actions[0].href == (
         f"/app/imports/documents/{raw_link.uploaded_document_id}/review#raw-{raw_link.id}"
     )
@@ -141,8 +126,6 @@ def test_presenter_keeps_manual_operation_as_link_action_for_first_slice() -> No
 
     movement = page.movements[0]
 
-    assert movement.edit_panel_id is None
-    assert movement.edit_form_url is None
     assert movement.primary_action is not None
     assert movement.primary_action.href == (
         f"/app/ledger/manual?operation_id={operation.id}#operation-{operation.id}"
@@ -177,7 +160,7 @@ def test_presenter_promotes_review_status_to_badge() -> None:
     assert [badge.label for badge in movement.badges] == ["нужна проверка", "без категории"]
     assert [badge.tone for badge in movement.badges] == ["needs_review", "warning"]
     assert movement.meta[-1].label == "нужна проверка"
-    assert movement.edit_form_url is None
+    assert movement.primary_action is None
 
 
 def test_presenter_detects_active_filters() -> None:

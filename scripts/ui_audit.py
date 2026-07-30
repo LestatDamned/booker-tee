@@ -630,6 +630,13 @@ def collect_ux_assertions(
 
 def assert_react_account_management(page: Page) -> list[str]:
     errors: list[str] = []
+    try:
+        page.get_by_role("link", name="Все счета", exact=True).wait_for(
+            state="visible",
+            timeout=PAGE_TIMEOUT_MS,
+        )
+    except PlaywrightError as exc:
+        return [f"React account detail did not finish loading: {short_error(exc)}"]
     back_links = page.locator("a").evaluate_all(
         """
         (elements) => elements
@@ -681,6 +688,116 @@ def assert_react_account_management(page: Page) -> list[str]:
         errors.append(f"React account settings panel escapes the viewport: {geometry!r}")
     if float(geometry["documentOverflow"]) > 1:
         errors.append("React account settings panel causes horizontal page overflow")
+    dialog.get_by_role("button", name="Закрыть", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    errors.extend(assert_react_imported_operation_correction(page))
+    return errors
+
+
+def assert_react_imported_operation_correction(page: Page) -> list[str]:
+    errors: list[str] = []
+
+    def expose_imported_correction(route: Route) -> None:
+        response = route.fetch()
+        payload = response.json()
+        items = payload.get("items", [])
+        if not items:
+            route.fulfill(response=response, json=payload)
+            return
+        movement = items[0]
+        movement.update(
+            {
+                "operationType": "expense",
+                "source": "bank_pdf",
+                "transferRoute": None,
+                "sourceTarget": {
+                    "kind": "import",
+                    "uploadedDocumentId": "d0f6ed6c-73db-4df0-a31d-ef46896836ae",
+                    "rawTransactionId": "9e9b80bc-aeed-43f7-8f60-c85fe871410e",
+                },
+                "capabilities": {
+                    "canEditReviewFields": True,
+                    "readonlyReasonCode": None,
+                },
+            }
+        )
+        route.fulfill(response=response, json=payload)
+
+    page.route("**/api/v1/accounts/*", expose_imported_correction)
+    page.reload(wait_until="networkidle", timeout=PAGE_TIMEOUT_MS)
+    trigger = page.get_by_role("button", name="Исправить", exact=True)
+    if trigger.count() != 1:
+        return ["React imported operation correction trigger was not found"]
+    trigger.click(timeout=PAGE_TIMEOUT_MS)
+    panel = page.get_by_role("region", name="Исправить операцию", exact=True)
+    try:
+        panel.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        return [f"React imported operation correction panel did not open: {short_error(exc)}"]
+
+    for label in ("Описание", "Категория", "Объект"):
+        if panel.get_by_label(label, exact=True).count() != 1:
+            errors.append(f"React imported correction field {label!r} was not found")
+    description = panel.get_by_label("Описание", exact=True)
+    if description.count() == 1:
+        if description.evaluate("(element) => element.tagName") != "INPUT":
+            errors.append(
+                "React imported correction description is not a compact single-line field"
+            )
+        description_box = description.bounding_box()
+        category_box = panel.get_by_role("combobox", name="Категория", exact=True).bounding_box()
+        if (
+            description_box
+            and category_box
+            and float(description_box["height"]) > float(category_box["height"]) + 2
+        ):
+            errors.append(
+                "React imported correction description is taller than the shared controls"
+            )
+    if panel.locator(":scope > form[data-imported-operation-correction]").count() != 1:
+        errors.append("React imported correction does not expose one focused inline form")
+    if panel.get_by_role("link").count() != 0:
+        errors.append("React imported correction repeats a non-form source action")
+    category = panel.get_by_role("combobox", name="Категория", exact=True)
+    if category.get_attribute("placeholder") != "Найти категорию":
+        errors.append("React imported correction does not reuse searchable category selection")
+    save = panel.get_by_role("button", name="Сохранить исправления", exact=True)
+    cancel = panel.get_by_role("button", name="Отмена", exact=True)
+    if save.count() != 1:
+        errors.append("React imported correction has no explicit save action")
+    if cancel.count() != 1:
+        errors.append("React imported correction has no explicit cancel action")
+    if save.count() == 1 and cancel.count() == 1:
+        save_box = save.bounding_box()
+        cancel_box = cancel.bounding_box()
+        if save_box and cancel_box:
+            if float(cancel_box["x"]) >= float(save_box["x"]):
+                errors.append("React imported correction does not place cancel left and save right")
+    movement_row = panel.locator("xpath=ancestor::article[1]")
+    if movement_row.count() != 1:
+        errors.append("React imported correction is not expanded inside its movement row")
+    elif movement_row.get_attribute("data-state") != "working":
+        errors.append("React imported correction row does not use the shared working state")
+
+    geometry = panel.evaluate(
+        """
+        (element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            left: rect.left,
+            right: rect.right,
+            viewportWidth: window.innerWidth,
+            documentOverflow: document.documentElement.scrollWidth - window.innerWidth,
+          };
+        }
+        """
+    )
+    if (
+        float(geometry["left"]) < -1
+        or float(geometry["right"]) > float(geometry["viewportWidth"]) + 1
+    ):
+        errors.append(f"React imported correction panel escapes the viewport: {geometry!r}")
+    if float(geometry["documentOverflow"]) > 1:
+        errors.append("React imported correction panel causes horizontal page overflow")
     return errors
 
 

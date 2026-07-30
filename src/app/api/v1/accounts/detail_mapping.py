@@ -8,6 +8,7 @@ from app.api.v1.accounts.schemas import (
     AccountDetailNamedReferenceApiResponse,
     AccountDetailPaginationApiResponse,
     AccountMovementApiResponse,
+    AccountMovementCapabilitiesApiResponse,
     AccountMovementSourceTargetApiResponse,
 )
 from app.features.ledger.application.account_ledger import (
@@ -16,7 +17,7 @@ from app.features.ledger.application.account_ledger import (
     OperationRefView,
 )
 from app.features.ledger.application.manual_operations import ManualLedgerReferenceOptionsDto
-from app.features.ledger.domain.types import OperationSource, OperationType
+from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
 
 PER_PAGE_OPTIONS = [25, 50, 100, 200]
 
@@ -45,7 +46,10 @@ class AccountDetailResponseMapper:
                     can_restore=can_write and not detail.account.is_active,
                 ),
             ),
-            items=[AccountDetailResponseMapper._movement(item) for item in detail.entries],
+            items=[
+                AccountDetailResponseMapper.movement_response(item, can_write=can_write)
+                for item in detail.entries
+            ],
             pagination=AccountDetailPaginationApiResponse.model_validate(detail.page),
             filter_options=AccountDetailFilterOptionsApiResponse(
                 categories=[
@@ -61,7 +65,11 @@ class AccountDetailResponseMapper:
         )
 
     @staticmethod
-    def _movement(entry: AccountLedgerEntryView) -> AccountMovementApiResponse:
+    def movement_response(
+        entry: AccountLedgerEntryView,
+        *,
+        can_write: bool,
+    ) -> AccountMovementApiResponse:
         operation = entry.operation
         return AccountMovementApiResponse(
             operation_id=entry.operation_id,
@@ -85,6 +93,36 @@ class AccountDetailResponseMapper:
             ),
             transfer_route=AccountDetailResponseMapper._transfer_route(operation),
             source_target=AccountDetailResponseMapper._source_target(operation),
+            capabilities=AccountDetailResponseMapper._movement_capabilities(
+                operation,
+                can_write=can_write,
+            ),
+        )
+
+    @staticmethod
+    def _movement_capabilities(
+        operation: OperationRefView,
+        *,
+        can_write: bool,
+    ) -> AccountMovementCapabilitiesApiResponse:
+        if not can_write:
+            return AccountMovementCapabilitiesApiResponse(
+                can_edit_review_fields=False,
+                readonly_reason_code="financial_write_forbidden",
+            )
+        if operation.source != OperationSource.BANK_PDF:
+            return AccountMovementCapabilitiesApiResponse(
+                can_edit_review_fields=False,
+                readonly_reason_code="imported_operation_only",
+            )
+        if operation.status != OperationStatus.CONFIRMED:
+            return AccountMovementCapabilitiesApiResponse(
+                can_edit_review_fields=False,
+                readonly_reason_code="operation_not_confirmed",
+            )
+        return AccountMovementCapabilitiesApiResponse(
+            can_edit_review_fields=True,
+            readonly_reason_code=None,
         )
 
     @staticmethod

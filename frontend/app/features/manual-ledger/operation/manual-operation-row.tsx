@@ -5,13 +5,15 @@ import { Button } from "../../../ui/button/button";
 import { MoneyValue } from "../../../ui/money-value/money-value";
 import { StatusLabel } from "../../../ui/status-label/status-label";
 import { Tag } from "../../../ui/tag/tag";
-import { WorkbenchRow } from "../../../ui/workbench-row/workbench-row";
+import {
+  WorkbenchRow,
+  WorkbenchRowExpansion,
+} from "../../../ui/workbench-row/workbench-row";
 import type { ManualOperationDto } from "../api/manual-ledger-api";
 import type { ManualOperationRowModel } from "./manual-ledger-model";
 import { ManualOperationDelete } from "./manual-operation-delete";
 import { ManualOperationEdit } from "./manual-operation-edit";
 import { ManualOperationLifecycle } from "./manual-operation-lifecycle";
-import styles from "../manual-ledger.module.css";
 
 type ManualOperationRowProps = {
   csrfToken: string;
@@ -126,11 +128,10 @@ export function ManualOperationRow({
       id={operation.anchorId}
       expansion={
         operation.canEdit && isEditing ? (
-          <section
-            aria-labelledby={`${editPanelId}-title`}
-            className={styles.editExpansion}
+          <WorkbenchRowExpansion
+            title="Исправить операцию"
+            titleId={`${editPanelId}-title`}
           >
-            <h3 id={`${editPanelId}-title`}>Исправить операцию</h3>
             <ManualOperationEdit
               csrfToken={csrfToken}
               disabled={mutationPending}
@@ -141,7 +142,7 @@ export function ManualOperationRow({
                 : { onUpdated: onOperationUpdated })}
               operationId={operation.id}
             />
-          </section>
+          </WorkbenchRowExpansion>
         ) : undefined
       }
       meta={<OperationMeta operation={operation} />}

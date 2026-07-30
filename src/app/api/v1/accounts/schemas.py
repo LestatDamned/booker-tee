@@ -137,6 +137,18 @@ class AccountMovementSourceTargetApiResponse(ApiModel):
     raw_transaction_id: UUID | None = None
 
 
+class AccountMovementCapabilitiesApiResponse(ApiModel):
+    can_edit_review_fields: bool
+    readonly_reason_code: (
+        Literal[
+            "financial_write_forbidden",
+            "imported_operation_only",
+            "operation_not_confirmed",
+        ]
+        | None
+    )
+
+
 class AccountMovementApiResponse(ApiModel):
     operation_id: UUID
     version: int
@@ -151,6 +163,14 @@ class AccountMovementApiResponse(ApiModel):
     property: AccountDetailNamedReferenceApiResponse | None
     transfer_route: str | None
     source_target: AccountMovementSourceTargetApiResponse
+    capabilities: AccountMovementCapabilitiesApiResponse
+
+
+class UpdateImportedOperationReviewFieldsApiRequest(ApiRequestModel):
+    expected_version: int = Field(ge=1)
+    description: str | None = Field(default=None, max_length=2000)
+    category_id: UUID | None = None
+    property_id: UUID | None = None
 
 
 class AccountDetailPaginationApiResponse(ApiModel):

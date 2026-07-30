@@ -1,10 +1,13 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionDto } from "../../api/session";
-import type { AccountDetailDto } from "./api/account-detail-api";
+import {
+  updateImportedOperationReviewFields,
+  type AccountDetailDto,
+} from "./api/account-detail-api";
 import { changeAccountLifecycle, updateAccount } from "./api/accounts-api";
 import { AccountDetailPage } from "./account-detail-page";
 
@@ -17,10 +20,20 @@ vi.mock("./api/accounts-api", async (importOriginal) => {
   };
 });
 
+vi.mock("./api/account-detail-api", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./api/account-detail-api")>();
+  return {
+    ...actual,
+    updateImportedOperationReviewFields: vi.fn(),
+  };
+});
+
 describe("AccountDetailPage", () => {
   beforeEach(() => {
     vi.mocked(changeAccountLifecycle).mockReset();
     vi.mocked(updateAccount).mockReset();
+    vi.mocked(updateImportedOperationReviewFields).mockReset();
   });
 
   it("renders the authoritative balance and account-relative movements", () => {
@@ -179,6 +192,146 @@ describe("AccountDetailPage", () => {
     });
   });
 
+  it("edits only review fields of an imported operation and reconciles the row", async () => {
+    const user = userEvent.setup();
+    const movement = importedDetail.items[0]!;
+    vi.mocked(updateImportedOperationReviewFields).mockResolvedValue({
+      status: "success",
+      movement: {
+        ...movement,
+        version: 4,
+        description: "Такси до аэропорта",
+        category: importedDetail.filterOptions.categories[0]!,
+        property: importedDetail.filterOptions.properties[0]!,
+      },
+    });
+    renderPage(importedDetail);
+
+    expect(
+      screen.getByRole("link", { name: "Открыть импорт" }),
+    ).toBeInTheDocument();
+    const editButton = screen.getByRole("button", { name: "Исправить" });
+    await user.click(editButton);
+
+    const correction = screen.getByRole("region", {
+      name: "Исправить операцию",
+    });
+    expect(correction).toBeInTheDocument();
+    expect(correction.closest("article")).toHaveAttribute(
+      "id",
+      `operation-${movement.operationId}`,
+    );
+    expect(correction.closest("article")).toHaveAttribute(
+      "data-state",
+      "working",
+    );
+    expect(screen.getByRole("button", { name: "Закрыть" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(
+      within(correction).queryByText("Сумма, дата и проводки не изменятся"),
+    ).not.toBeInTheDocument();
+    expect(within(correction).queryByRole("link")).not.toBeInTheDocument();
+    expect(
+      within(correction).getByRole("combobox", { name: "Категория" }),
+    ).toHaveAttribute("placeholder", "Найти категорию");
+    expect(within(correction).getByLabelText("Описание")).toHaveProperty(
+      "tagName",
+      "INPUT",
+    );
+    const actions = within(correction)
+      .getAllByRole("button")
+      .filter((button) =>
+        ["Отмена", "Сохранить исправления"].includes(button.textContent ?? ""),
+      );
+    expect(actions.map((button) => button.textContent)).toEqual([
+      "Отмена",
+      "Сохранить исправления",
+    ]);
+
+    await user.clear(screen.getByLabelText("Описание"));
+    await user.type(screen.getByLabelText("Описание"), "Такси до аэропорта");
+    await user.click(screen.getByRole("combobox", { name: "Категория" }));
+    await user.type(
+      screen.getByRole("combobox", { name: "Категория" }),
+      "тран",
+    );
+    await user.click(screen.getByRole("option", { name: "Транспорт" }));
+    await user.selectOptions(
+      screen.getByLabelText("Объект"),
+      importedDetail.filterOptions.properties[0]!.id,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Сохранить исправления" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("Такси до аэропорта")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Транспорт")).toBeInTheDocument();
+    expect(screen.getByText("Объект: Квартира")).toBeInTheDocument();
+    expect(screen.getByLabelText(/−881,12 RUB/)).toBeInTheDocument();
+    expect(updateImportedOperationReviewFields).toHaveBeenCalledWith({
+      accountId: importedDetail.account.id,
+      csrfToken: "csrf-token",
+      operationId: movement.operationId,
+      draft: {
+        categoryId: importedDetail.filterOptions.categories[0]!.id,
+        description: "Такси до аэропорта",
+        expectedVersion: 3,
+        propertyId: importedDetail.filterOptions.properties[0]!.id,
+      },
+    });
+  });
+
+  it("keeps the correction draft when the operation changed elsewhere", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateImportedOperationReviewFields).mockResolvedValue({
+      status: "conflict",
+      code: "operation_version_conflict",
+      message: "Операция уже изменилась. Загрузите актуальные данные.",
+    });
+    renderPage(importedDetail);
+
+    await user.click(screen.getByRole("button", { name: "Исправить" }));
+    await user.clear(screen.getByLabelText("Описание"));
+    await user.type(screen.getByLabelText("Описание"), "Мой черновик");
+    await user.click(
+      screen.getByRole("button", { name: "Сохранить исправления" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Операция уже изменилась. Загрузите актуальные данные.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Описание")).toHaveValue("Мой черновик");
+    expect(
+      screen.getByRole("button", { name: "Загрузить актуальные данные" }),
+    ).toBeInTheDocument();
+  });
+
+  it("protects an inline correction draft when the row is closed", async () => {
+    const user = userEvent.setup();
+    renderPage(importedDetail);
+
+    await user.click(screen.getByRole("button", { name: "Исправить" }));
+    await user.type(screen.getByLabelText("Описание"), " уточнено");
+    await user.click(screen.getByRole("button", { name: "Закрыть" }));
+
+    expect(
+      screen.getByRole("dialog", { name: "Закрыть исправление?" }),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Продолжить редактирование" }),
+    );
+    expect(
+      screen.getByRole("region", { name: "Исправить операцию" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Описание")).toHaveValue("Поездка уточнено");
+  });
+
   it("does not show mutation controls to a viewer", () => {
     renderPage({
       ...detail,
@@ -244,6 +397,10 @@ const detail: AccountDetailDto = {
         uploadedDocumentId: null,
         rawTransactionId: null,
       },
+      capabilities: {
+        canEditReviewFields: false,
+        readonlyReasonCode: "imported_operation_only",
+      },
     },
   ],
   pagination: {
@@ -258,6 +415,50 @@ const detail: AccountDetailDto = {
     categories: [],
     properties: [],
     perPage: [25, 50, 100, 200],
+  },
+};
+
+const importedDetail: AccountDetailDto = {
+  ...detail,
+  items: [
+    {
+      operationId: "bf33efda-0f29-45ef-9253-b2c9e05e9998",
+      version: 3,
+      operationType: "expense",
+      operationDate: "2026-07-29",
+      description: "Поездка",
+      status: "confirmed",
+      source: "bank_pdf",
+      amount: "-881.12",
+      currency: "RUB",
+      category: null,
+      property: null,
+      transferRoute: null,
+      sourceTarget: {
+        kind: "import",
+        uploadedDocumentId: "d0f6ed6c-73db-4df0-a31d-ef46896836ae",
+        rawTransactionId: "9e9b80bc-aeed-43f7-8f60-c85fe871410e",
+      },
+      capabilities: {
+        canEditReviewFields: true,
+        readonlyReasonCode: null,
+      },
+    },
+  ],
+  filterOptions: {
+    ...detail.filterOptions,
+    categories: [
+      {
+        id: "12b1a936-003d-4e93-946d-1e6eeac7b672",
+        name: "Транспорт",
+      },
+    ],
+    properties: [
+      {
+        id: "f408af9d-f2bb-4690-993a-4ba8a25c7c04",
+        name: "Квартира",
+      },
+    ],
   },
 };
 

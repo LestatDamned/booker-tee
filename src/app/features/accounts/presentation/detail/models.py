@@ -49,23 +49,6 @@ class OperationResultVM:
 
 
 @dataclass(frozen=True)
-class AccountMovementDrawerVM:
-    kind: str
-    title: str
-    form_action: str
-    version: int
-    description: str
-    category_id: UUID | None
-    property_id: UUID | None
-    source_url: str | None
-
-
-@dataclass(frozen=True)
-class AccountMovementEditPanelVM:
-    drawer: AccountMovementDrawerVM
-
-
-@dataclass(frozen=True)
 class AccountMovementVM:
     id: str
     operation_id: UUID
@@ -80,8 +63,6 @@ class AccountMovementVM:
     result: OperationResultVM
     primary_action: AccountMovementActionVM | None
     secondary_actions: list[AccountMovementActionVM]
-    edit_panel_id: str | None
-    edit_form_url: str | None
     technical_label: str
 
 

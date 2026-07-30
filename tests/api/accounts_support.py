@@ -9,6 +9,7 @@ from app.api.dependencies import get_api_request_context
 from app.api.v1.accounts.dependencies import (
     get_account_directory_service,
     get_account_ledger_reader,
+    get_imported_operation_review_use_case,
 )
 from app.api.v1.manual_ledger.dependencies import get_manual_ledger_reference_reader
 from app.features.accounts.models import AccountType
@@ -29,6 +30,11 @@ from app.features.ledger.application.account_ledger import (
     CategoryView,
     OperationRefMoneyEntryView,
     OperationRefView,
+    PropertyView,
+    RawTransactionLinkView,
+)
+from app.features.ledger.application.imported_operations import (
+    UpdateImportedOperationReviewFieldsCommand,
 )
 from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
 from app.features.ledger.schemas.listing import AccountEntryFilters, LedgerPage, LedgerPagination
@@ -37,6 +43,7 @@ from app.features.ledger.schemas.manual import (
     ManualLedgerReferenceOptionsDto,
 )
 from app.features.workspaces.domain.types import WorkspaceRole
+from app.features.workspaces.service import WorkspaceContext
 from app.main import create_app
 
 
@@ -111,9 +118,16 @@ class AccountDirectoryServiceStub:
 
 
 class AccountLedgerReaderStub:
-    def __init__(self, detail: AccountLedgerDetailView | None) -> None:
+    def __init__(
+        self,
+        detail: AccountLedgerDetailView | None,
+        *,
+        imported_operations: list[OperationRefView | None] | None = None,
+    ) -> None:
         self.detail = detail
+        self.imported_operations = imported_operations or []
         self.calls: list[tuple[UUID, UUID, AccountEntryFilters, LedgerPagination]] = []
+        self.imported_calls: list[tuple[UUID, UUID, UUID | None]] = []
 
     async def get_detail(
         self,
@@ -125,6 +139,34 @@ class AccountLedgerReaderStub:
     ) -> AccountLedgerDetailView | None:
         self.calls.append((workspace_id, account_id, filters, pagination))
         return self.detail
+
+    async def get_imported_operation(
+        self,
+        *,
+        workspace_id: UUID,
+        operation_id: UUID,
+        account_id: UUID | None = None,
+    ) -> OperationRefView | None:
+        self.imported_calls.append((workspace_id, operation_id, account_id))
+        index = min(len(self.imported_calls) - 1, len(self.imported_operations) - 1)
+        return self.imported_operations[index] if index >= 0 else None
+
+
+class ImportedOperationReviewUseCaseStub:
+    def __init__(self, *, error: Exception | None = None) -> None:
+        self.error = error
+        self.calls: list[tuple[WorkspaceContext, UpdateImportedOperationReviewFieldsCommand]] = []
+
+    async def update_review_fields(
+        self,
+        *,
+        context: WorkspaceContext,
+        command: UpdateImportedOperationReviewFieldsCommand,
+    ) -> object:
+        self.calls.append((context, command))
+        if self.error:
+            raise self.error
+        return object()
 
 
 class AccountReferenceReaderStub:
@@ -174,6 +216,51 @@ def account_detail_app(
     app.dependency_overrides[get_account_ledger_reader] = lambda: ledger
     app.dependency_overrides[get_manual_ledger_reference_reader] = lambda: references
     return app, ledger, references, context.workspace.workspace.id, account_id
+
+
+def account_correction_app(
+    *,
+    role: WorkspaceRole = WorkspaceRole.OWNER,
+    found: bool = True,
+    error: Exception | None = None,
+) -> tuple[
+    FastAPI,
+    AccountLedgerReaderStub,
+    ImportedOperationReviewUseCaseStub,
+    UUID,
+    UUID,
+    UUID,
+    UUID,
+]:
+    context = api_context(role=role)
+    account_id = uuid4()
+    operation_id = uuid4()
+    category_id = uuid4()
+    property_id = uuid4()
+    before, committed = imported_operation_versions(
+        account_id=account_id,
+        operation_id=operation_id,
+        category_id=category_id,
+        property_id=property_id,
+    )
+    ledger = AccountLedgerReaderStub(
+        None,
+        imported_operations=[before, committed] if found else [None],
+    )
+    use_case = ImportedOperationReviewUseCaseStub(error=error)
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: context
+    app.dependency_overrides[get_account_ledger_reader] = lambda: ledger
+    app.dependency_overrides[get_imported_operation_review_use_case] = lambda: use_case
+    return (
+        app,
+        ledger,
+        use_case,
+        context.workspace.workspace.id,
+        account_id,
+        operation_id,
+        category_id,
+    )
 
 
 def account_detail(account_id: UUID) -> AccountLedgerDetailView:
@@ -236,6 +323,59 @@ def account_detail(account_id: UUID) -> AccountLedgerDetailView:
             )
         ],
         page=LedgerPage(page=1, per_page=25, total=1),
+    )
+
+
+def imported_operation_versions(
+    *,
+    account_id: UUID,
+    operation_id: UUID,
+    category_id: UUID,
+    property_id: UUID,
+) -> tuple[OperationRefView, OperationRefView]:
+    account = AccountView(
+        id=account_id,
+        name="Основной",
+        type=AccountType.CARD,
+        currency="RUB",
+        is_active=True,
+        initial_balance=Decimal("10000.00"),
+        updated_at=datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
+    )
+    common = {
+        "id": operation_id,
+        "type": OperationType.EXPENSE,
+        "status": OperationStatus.CONFIRMED,
+        "source": OperationSource.BANK_PDF,
+        "operation_date": date(2026, 7, 29),
+        "money_entries": [
+            OperationRefMoneyEntryView(
+                account_id=account_id,
+                account=account,
+                amount=Decimal("-881.12"),
+            )
+        ],
+        "raw_transactions": [RawTransactionLinkView(id=uuid4(), uploaded_document_id=uuid4())],
+    }
+    return (
+        OperationRefView(
+            **common,
+            version=3,
+            description="Старое описание",
+            category=None,
+            property=None,
+        ),
+        OperationRefView(
+            **common,
+            version=4,
+            description="Такси",
+            category=CategoryView(
+                id=category_id,
+                name="Транспорт",
+                kind=CategoryKind.EXPENSE,
+            ),
+            property=PropertyView(id=property_id, name="Квартира"),
+        ),
     )
 
 
