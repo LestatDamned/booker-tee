@@ -6,13 +6,13 @@ from uuid import UUID
 from fastapi import Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.features.ledger.application.listing import (
+from app.features.ledger.domain.types import OperationStatus, OperationType
+from app.features.ledger.schemas.listing import (
     DEFAULT_PER_PAGE,
     LedgerPagination,
     ManualOperationFilters,
     normalize_pagination,
 )
-from app.features.ledger.domain.types import OperationStatus, OperationType
 
 
 class ManualLedgerListParameters(BaseModel):

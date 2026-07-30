@@ -52,13 +52,13 @@ ledger/
     account_ledger.py          # legacy account read model and reader
     imported_operations.py     # imported operation review edits and correction
     ledger_reference_resolver.py
-    listing.py                 # pagination and query filters
     manual_mutations.py        # manual write workflows
     manual_operations.py       # public manual service and reference reader
     posting.py                 # ledger writes from validated financial facts
 
   schemas/
-    manual.py                  # manual commands and read DTOs
+    listing.py                 # pagination and query filters
+    manual.py                  # manual commands, read DTOs and reference options
 
   domain/
     money.py                   # signs, amounts, currency and balance rules

@@ -6,8 +6,8 @@ from manual_ledger_support import (
 )
 
 from api_client import ApiTestClient as TestClient
-from app.features.ledger.application.listing import LedgerPagination
 from app.features.ledger.domain.types import OperationStatus, OperationType
+from app.features.ledger.schemas.listing import LedgerPagination
 from app.features.workspaces.domain.types import WorkspaceRole
 
 

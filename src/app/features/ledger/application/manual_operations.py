@@ -1,17 +1,9 @@
 from collections.abc import Awaitable, Sequence
-from dataclasses import dataclass
 from typing import Protocol, TypeVar
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.ledger.application.listing import (
-    DEFAULT_PER_PAGE,
-    LedgerPage,
-    LedgerPagination,
-    ManualOperationFilters,
-    normalize_pagination,
-)
 from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.types import OperationSource, manual_operation_actions
 from app.features.ledger.errors import (
@@ -20,9 +12,19 @@ from app.features.ledger.errors import (
 )
 from app.features.ledger.mapping.operations import ManualOperationReadDtoMapper
 from app.features.ledger.repository import LedgerRepository
+from app.features.ledger.schemas.listing import (
+    DEFAULT_PER_PAGE,
+    LedgerPage,
+    LedgerPagination,
+    ManualOperationFilters,
+    normalize_pagination,
+)
 from app.features.ledger.schemas.manual import (
     CreateManualOperationCommand,
     CreateManualTransferCommand,
+    ManualLedgerAccountOptionDto,
+    ManualLedgerNamedOptionDto,
+    ManualLedgerReferenceOptionsDto,
     ManualOperationReadDto,
     UpdateManualOperationCommand,
 )
@@ -53,26 +55,6 @@ class CategoryReferenceSource(Protocol):
 
 class PropertyReferenceSource(Protocol):
     async def list_active(self, workspace_id: UUID) -> Sequence[NamedReferenceRecord]: ...
-
-
-@dataclass(frozen=True)
-class ManualLedgerAccountOptionDto:
-    id: UUID
-    name: str
-    currency: str
-
-
-@dataclass(frozen=True)
-class ManualLedgerNamedOptionDto:
-    id: UUID
-    name: str
-
-
-@dataclass(frozen=True)
-class ManualLedgerReferenceOptionsDto:
-    accounts: list[ManualLedgerAccountOptionDto]
-    categories: list[ManualLedgerNamedOptionDto]
-    properties: list[ManualLedgerNamedOptionDto]
 
 
 class ManualLedgerReferenceReader:

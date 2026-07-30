@@ -79,3 +79,20 @@ class ManualOperationReadDto(ApplicationModel):
     destination_account: AccountReferenceReadDto | None
     category: NamedReferenceReadDto | None
     property: NamedReferenceReadDto | None
+
+
+class ManualLedgerAccountOptionDto(ApplicationModel):
+    id: UUID
+    name: str
+    currency: str
+
+
+class ManualLedgerNamedOptionDto(ApplicationModel):
+    id: UUID
+    name: str
+
+
+class ManualLedgerReferenceOptionsDto(ApplicationModel):
+    accounts: list[ManualLedgerAccountOptionDto]
+    categories: list[ManualLedgerNamedOptionDto]
+    properties: list[ManualLedgerNamedOptionDto]

@@ -3,8 +3,8 @@ from decimal import Decimal
 from uuid import UUID
 
 from app.features.accounts.models import AccountType
-from app.features.ledger.application.listing import LedgerPage
 from app.features.ledger.models import OperationSource, OperationStatus, OperationType
+from app.features.ledger.schemas.listing import LedgerPage
 from app.shared.ui.actions import ActionVM
 
 AccountMovementActionVM = ActionVM

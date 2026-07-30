@@ -15,8 +15,8 @@ from app.features.ledger.application.account_ledger import (
     OperationRefView,
     RawTransactionLinkView,
 )
-from app.features.ledger.application.listing import LedgerPage
 from app.features.ledger.models import OperationSource, OperationStatus, OperationType
+from app.features.ledger.schemas.listing import LedgerPage
 
 
 def test_presenter_builds_imported_expense_movement_with_drawer() -> None:

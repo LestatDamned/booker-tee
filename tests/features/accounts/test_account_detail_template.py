@@ -15,8 +15,8 @@ from app.features.accounts.presentation.detail.models import (
     OperationResultVM,
 )
 from app.features.ledger.application.account_ledger import AccountLedgerEntryView
-from app.features.ledger.application.listing import AccountEntryFilters, LedgerPage
 from app.features.ledger.models import OperationSource, OperationStatus, OperationType
+from app.features.ledger.schemas.listing import AccountEntryFilters, LedgerPage
 from app.templating import create_templates
 
 

@@ -42,6 +42,7 @@ ledger/
 ├── errors.py
 ├── schemas/
 │   ├── manual.py
+│   ├── listing.py
 │   ├── account_ledger.py
 │   └── posting.py
 ├── application/
@@ -110,6 +111,13 @@ Imported review-field edit -> ImportedOperationReviewUseCase
 Dataclass-specific `replace(...)` в API test stub заменён на immutable
 `model_copy(update=...)`. Financial behavior, transaction ownership, semantic
 mapper и wire format не менялись.
+
+2B завершён 2026-07-30. Pagination, page metadata и query filters перенесены в
+`schemas/listing.py`, а reference option DTO — в `schemas/manual.py`; все
+contracts переведены на `ApplicationModel`. Старый `application/listing.py`
+удалён без re-export facade, поэтому repository больше не зависит от application
+ради query data. Нормализация pagination и вычисляемые свойства сохранены без
+изменения поведения.
 
 ### 3. Account ledger projections
 

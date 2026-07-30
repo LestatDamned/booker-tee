@@ -1,16 +1,15 @@
-from dataclasses import dataclass
 from datetime import date
 from math import ceil
 from uuid import UUID
 
 from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
+from app.shared.schemas import ApplicationModel
 
 DEFAULT_PER_PAGE = 50
 MAX_PER_PAGE = 200
 
 
-@dataclass(frozen=True)
-class LedgerPagination:
+class LedgerPagination(ApplicationModel):
     page: int = 1
     per_page: int = DEFAULT_PER_PAGE
 
@@ -19,8 +18,7 @@ class LedgerPagination:
         return (self.page - 1) * self.per_page
 
 
-@dataclass(frozen=True)
-class LedgerPage:
+class LedgerPage(ApplicationModel):
     page: int
     per_page: int
     total: int
@@ -46,8 +44,7 @@ class LedgerPage:
         return min(self.total_pages, self.page + 1)
 
 
-@dataclass(frozen=True)
-class AccountEntryFilters:
+class AccountEntryFilters(ApplicationModel):
     date_from: date | None = None
     date_to: date | None = None
     source: OperationSource | None = None
@@ -58,8 +55,7 @@ class AccountEntryFilters:
     search: str | None = None
 
 
-@dataclass(frozen=True)
-class ManualOperationFilters:
+class ManualOperationFilters(ApplicationModel):
     date_from: date | None = None
     date_to: date | None = None
     operation_type: OperationType | None = None
