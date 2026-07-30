@@ -147,7 +147,7 @@ export function ImportUploadPage({
               <div>
                 <h2>Сначала создайте счёт</h2>
                 <p>Каждая выписка должна быть привязана к активному счёту.</p>
-                <a className={styles.secondaryLink} href="/accounts">
+                <a className={styles.secondaryLink} href="/app/accounts">
                   Перейти к счетам
                 </a>
               </div>

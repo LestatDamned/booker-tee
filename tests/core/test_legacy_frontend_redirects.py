@@ -13,6 +13,7 @@ DOCUMENT_ID = "5e4c43a1-7e08-4afe-a442-5d1d72e08ca8"
             "/ledger/manual?type=expense&page=2",
             "/app/ledger/manual?type=expense&page=2",
         ),
+        ("/accounts?source=dashboard", "/app/accounts?source=dashboard"),
         ("/imports?source=dashboard", "/app/imports?source=dashboard"),
         (
             "/imports/upload?source=dashboard",
@@ -48,6 +49,7 @@ def test_historical_frontend_get_redirects_to_react(
 @pytest.mark.parametrize(
     ("historical_url", "expected_status"),
     [
+        ("/accounts", 405),
         ("/imports/upload", 405),
         (f"/imports/documents/{DOCUMENT_ID}", 405),
         (f"/imports/documents/{DOCUMENT_ID}/mapping", 405),

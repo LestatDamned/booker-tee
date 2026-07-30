@@ -1,6 +1,6 @@
 # Inventory: Accounts And Account Ledger
 
-Статус: observed; implementation не начат.
+Статус: active inventory; list/create replacement completed.
 
 Проверено: 2026-07-30.
 
@@ -9,8 +9,8 @@
 В migration scope:
 
 ```text
-GET  /accounts
-POST /accounts
+GET  /accounts                                      compatibility redirect
+POST /accounts                                     removed
 
 GET  /accounts/{account_id}
 POST /accounts/{account_id}
@@ -50,6 +50,9 @@ HTMX behavior, selectors, template/presenter tests и UI audit scenarios.
 `AccountLedgerReader.get_detail(...)` для каждого. Это N+1 и дополнительно
 загружает первые movement rows, хотя list использует только balance/count.
 Replacement обязан использовать focused summary query.
+
+Slice 01 заменил этот list read focused aggregate projection через
+`GET /api/v1/accounts`; legacy list template и create POST удалены.
 
 ### Account detail
 

@@ -1485,27 +1485,6 @@ html:not(.entity-target-cleared) .entity-card:target {
   width: 100%;
 }
 
-.account-balance {
-  display: grid;
-  gap: 6px;
-  justify-items: end;
-  border: 1px solid var(--border);
-  background: var(--surface-strong);
-  padding: 10px 12px;
-}
-
-.account-balance > span {
-  color: var(--accent);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.74rem;
-  text-transform: uppercase;
-}
-
-.account-balance .money-value {
-  font-size: clamp(1.2rem, 2.2vw, 1.65rem);
-}
-
 .dashboard-hero {
   margin-bottom: 16px;
 }
@@ -3857,10 +3836,6 @@ html:not(.entity-target-cleared) .rule-card:target {
 
   .entity-card-side {
     min-width: 0;
-  }
-
-  .account-balance {
-    justify-items: start;
   }
 
   .form-panel .field,

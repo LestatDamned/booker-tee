@@ -20,6 +20,11 @@ async def historical_manual_ledger(request: Request) -> RedirectResponse:
     return redirect_to_react(request, "/app/ledger/manual")
 
 
+@router.get("/accounts")
+async def historical_accounts(request: Request) -> RedirectResponse:
+    return redirect_to_react(request, "/app/accounts")
+
+
 @router.get("/imports")
 async def historical_imports(request: Request) -> RedirectResponse:
     return redirect_to_react(request, "/app/imports")

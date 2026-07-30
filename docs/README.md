@@ -45,9 +45,8 @@
 
 ## Текущий frontend plan
 
-Stages 0–6 завершены. Stage 7 active: полный Imports workflow реализован в
-React, его финальный full Playwright audit остается validation gate. Следующий
-подготовленный workflow — Accounts и account ledger.
+Stages 0–6 и полный Imports child stage завершены. Stage 7 active: Accounts и
+account ledger в работе, React list/create Slice 01 завершён.
 
 - [`STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md`](frontend/plan/STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md)
 - [`Import documents and mapping`](frontend/plan/import-documents-and-mapping/README.md)

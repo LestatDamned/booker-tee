@@ -12,11 +12,10 @@
 
 Stage 7 мигрирует оставшийся authenticated SSR вертикальными slices:
 
-1. завершить full Playwright validation реализованного Imports workflow;
-2. accounts и account ledger;
-3. reports;
-4. properties, categories и transaction rules;
-5. workspaces, profile и остальные authenticated surfaces.
+1. завершить accounts и account ledger;
+2. reports;
+3. properties, categories и transaction rules;
+4. workspaces, profile и остальные authenticated surfaces.
 
 На каждом cutover:
 

@@ -1,6 +1,6 @@
 # Stage 07 / Wave A: Import Documents And Mapping
 
-Статус: implementation completed; full Playwright audit pending.
+Статус: completed.
 
 Этот child stage мигрирует оставшийся пользовательский поток Imports после
 завершения React Import Review:
@@ -52,7 +52,7 @@ Workflow затрагивает четыре legacy-экрана, multipart uplo
 | 2       | [`02_UPLOAD.md`](02_UPLOAD.md)                           | completed                                       | Загружает PDF/XLSX и получает сохранённый результат обработки             |  3–5 дней |
 | 3       | [`03_DOCUMENT_DETAIL.md`](03_DOCUMENT_DETAIL.md)         | completed                                       | Понимает состояние документа и безопасно управляет им                     |  5–7 дней |
 | 4       | [`04_MAPPING.md`](04_MAPPING.md)                         | completed                                       | Настраивает неизвестную выписку через server preview и импортирует строки | 8–12 дней |
-| 5       | [`05_CUTOVER_AND_CLEANUP.md`](05_CUTOVER_AND_CLEANUP.md) | implementation completed; browser audit pending | Использует только React Imports; legacy presentation удалён               |  3–5 дней |
+| 5       | [`05_CUTOVER_AND_CLEANUP.md`](05_CUTOVER_AND_CLEANUP.md) | completed | Использует только React Imports; legacy presentation удалён               |  3–5 дней |
 
 Перед Slice 01 дополнительно закладывается `1–2` дня на typed API projections,
 contract tests и уточнение idempotency upload. Это выполняется внутри первого

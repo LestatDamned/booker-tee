@@ -23,35 +23,6 @@ def test_base_header_hides_write_actions_for_viewer() -> None:
     assert 'href="/app/ledger/manual"' in html
 
 
-def test_accounts_template_hides_create_form_for_viewer() -> None:
-    html = render_template(
-        "accounts/index.html",
-        account_details=[],
-        account_types=[],
-        current_user=SimpleNamespace(email="viewer@example.com"),
-        current_workspace=SimpleNamespace(name="Family"),
-        workspace=SimpleNamespace(name="Family", default_currency="RUB"),
-        workspace_permissions=permissions(can_write_financial_data=False),
-    )
-
-    assert 'action="/accounts"' not in html
-    assert "Попросите редактора" not in html
-
-
-def test_accounts_template_shows_create_form_for_editor() -> None:
-    html = render_template(
-        "accounts/index.html",
-        account_details=[],
-        account_types=[],
-        current_user=SimpleNamespace(email="editor@example.com"),
-        current_workspace=SimpleNamespace(name="Family"),
-        workspace=SimpleNamespace(name="Family", default_currency="RUB"),
-        workspace_permissions=permissions(can_write_financial_data=True),
-    )
-
-    assert 'action="/accounts"' in html
-
-
 def render_template(template_name: str, **context: object) -> str:
     templates = create_templates()
     cast(Any, templates.env.globals)["url_for"] = lambda _name, **values: values.get("path", "")

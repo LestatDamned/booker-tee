@@ -1,7 +1,6 @@
 # Slice 05: Imports Cutover And Cleanup
 
-Статус: implementation completed. Полный Playwright browser audit остаётся
-отдельной validation-проверкой.
+Статус: completed.
 
 ## Outcome
 
@@ -140,7 +139,8 @@ npm run build
 - `.workflow-step*` удалены после consumer search;
 - obsolete historical document route удалён из generated OpenAPI;
 - backend, frontend contract, type и production build checks пройдены;
-- полный browser audit не запускался в рамках structural cleanup.
+- realistic browser audit прошёл для list, upload, document detail и mapping на
+  desktop, tablet и mobile: `12 pages`, passed.
 
 Команды уточняются по фактическим scripts в `frontend/package.json`; нельзя
 утверждать прохождение команды, которая не запускалась.

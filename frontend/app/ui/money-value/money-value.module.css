@@ -27,6 +27,10 @@
   color: var(--color-money-income);
 }
 
+.balancePositive {
+  color: var(--color-money-income);
+}
+
 .expense {
   color: var(--color-money-expense);
 }

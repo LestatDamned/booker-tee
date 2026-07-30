@@ -54,32 +54,6 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
 templates = create_templates()
 
 
-@router.get("", response_class=HTMLResponse)
-async def account_index(
-    request: Request,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
-) -> HTMLResponse:
-    account_service = AccountService(session)
-    accounts = await account_service.list_accounts(context.workspace.id)
-    ledger = AccountLedgerReader(session)
-    account_details = [
-        await ledger.get_detail(workspace_id=context.workspace.id, account_id=account.id)
-        for account in accounts
-    ]
-    return templates.TemplateResponse(
-        request,
-        "accounts/index.html",
-        {
-            "account_details": [detail for detail in account_details if detail is not None],
-            "account_types": list(AccountType),
-            "app_name": settings.app_name,
-            "workspace": context.workspace,
-        },
-    )
-
-
 @router.get("/{account_id}", response_class=HTMLResponse)
 async def account_detail(
     request: Request,
@@ -162,28 +136,6 @@ async def account_detail(
     )
 
 
-@router.post("")
-async def create_account(
-    session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
-    name: Annotated[str, Form()],
-    account_type: Annotated[AccountType, Form()],
-    currency: Annotated[str, Form()],
-    initial_balance: Annotated[Decimal, Form()] = Decimal("0.00"),
-) -> Response:
-    try:
-        await AccountService(session).create(
-            workspace_id=context.workspace.id,
-            name=name,
-            account_type=account_type,
-            currency=currency,
-            initial_balance=initial_balance,
-        )
-    except (ValueError, AccountError) as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return RedirectResponse(url="/accounts", status_code=status.HTTP_303_SEE_OTHER)
-
-
 @router.post("/{account_id}")
 async def update_account(
     account_id: UUID,
@@ -222,7 +174,7 @@ async def archive_account(
         account_id=account_id,
         is_active=False,
     )
-    return RedirectResponse(url="/accounts", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/app/accounts", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/{account_id}/restore")

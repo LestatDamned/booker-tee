@@ -77,5 +77,6 @@ BOOKER_TEE_APP_PORT=8010 ./scripts/alpha-up.sh --detach
 - Использовать только вымышленные или sanitized документы.
 - Не считать alpha backup production backup.
 - Chat integration выключена по умолчанию.
-- Часть authenticated страниц ещё SSR, Manual Ledger и Import Review — React.
+- Часть authenticated страниц ещё SSR; Manual Ledger, Accounts list/create и
+  полный Imports workflow — React.
 - Upload пока может занимать request синхронно.

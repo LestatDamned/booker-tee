@@ -2,6 +2,11 @@
 
 Статус: planned.
 
+Примечание: list-level archive/restore JSON API, capabilities и stale-state
+guard были доставлены вместе с улучшением Slice 01. Этот slice сохраняет
+settings/update, detail-level presentation, полную characterization policy и
+удаление historical mutation endpoints.
+
 ## Outcome
 
 Пользователь с financial-write permission меняет настройки счета, архивирует и

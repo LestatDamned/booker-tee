@@ -11,8 +11,8 @@ Git и коде.
 ```text
 Stages 0–6 completed
 Stage 7 active
-Imports implementation completed; full Playwright audit pending
-Next prepared workflow: accounts and account ledger
+Imports completed
+Accounts and account ledger active; Slice 01 completed
 ```
 
 ## Completed outcomes
@@ -40,8 +40,9 @@ stack.
 Child stages:
 
 - [`Import documents and mapping`](import-documents-and-mapping/README.md) —
-  implementation completed, final browser validation pending;
-- [`Accounts and account ledger`](accounts-and-ledger/README.md) — next.
+  completed;
+- [`Accounts and account ledger`](accounts-and-ledger/README.md) — active,
+  Slice 02 next.
 
 ## Status rules
 

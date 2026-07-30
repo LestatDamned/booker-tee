@@ -96,7 +96,7 @@ def test_reports_template_empty_state_points_to_accounts_without_accounts() -> N
 
     assert "Сначала создайте счет" in html
     assert "подтвержденные операции для отчетов" in html
-    assert 'href="/accounts"' in html
+    assert 'href="/app/accounts"' in html
     assert "Балансы счетов" not in html
     assert "По категориям" not in html
 

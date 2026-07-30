@@ -1,7 +1,13 @@
 import styles from "./money-value.module.css";
 
 export type MoneyTone =
-  "neutral" | "income" | "expense" | "transfer" | "profit" | "adjustment";
+  | "neutral"
+  | "income"
+  | "expense"
+  | "transfer"
+  | "profit"
+  | "adjustment"
+  | "balancePositive";
 
 type MoneyValueProps = {
   amount: string;

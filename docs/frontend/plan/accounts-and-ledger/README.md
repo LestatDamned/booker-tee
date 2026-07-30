@@ -1,6 +1,6 @@
 # Stage 07 / Wave A: Accounts And Account Ledger
 
-Статус: next; implementation не начат.
+Статус: active; Slice 01 completed.
 
 Этот child stage мигрирует authenticated workflow счетов:
 
@@ -26,7 +26,8 @@ accounts/ledger application и domain rules. План не меняет accounti
 - [`02_ACCOUNT_DETAIL_LEDGER.md`](02_ACCOUNT_DETAIL_LEDGER.md) — карточка счета,
   фильтры, пагинация и проводки.
 - [`03_ACCOUNT_MANAGEMENT.md`](03_ACCOUNT_MANAGEMENT.md) — изменение настроек,
-  archive и restore.
+  detail-level management и завершение lifecycle cleanup; list-level
+  archive/restore уже доставлены в Slice 01.
 - [`04_IMPORTED_OPERATION_CORRECTION.md`](04_IMPORTED_OPERATION_CORRECTION.md) —
   correction разрешенных полей подтвержденной импортированной операции.
 - [`05_CUTOVER_AND_CLEANUP.md`](05_CUTOVER_AND_CLEANUP.md) — canonical links,
@@ -37,10 +38,8 @@ accounts/ledger application и domain rules. План не меняет accounti
 - Stage 07 ставит account detail/ledger следующим core financial workflow после
   Imports.
 - Счета связывают Manual Ledger, Imports, reports и dashboard.
-- React shell пока ведет на SSR `/accounts`, а React routes для счетов
-  отсутствуют.
-- Текущий list выполняет отдельный полный ledger read для каждого счета; новый
-  API получает focused aggregate projection без N+1 и лишних movement rows.
+- Slice 01 уже переключил React shell на `/app/accounts` и заменил list/create.
+- Focused aggregate projection устранил прежний per-account full-ledger N+1.
 - Активный ledger-refactoring сознательно отложил account projections и legacy
   cleanup до React account cutover.
 - После replacement gate можно удалить крупный Jinja/HTMX presenter stack,
@@ -54,17 +53,16 @@ flow и cleanup: `14–22` focused engineering days. Это planning range, не
 
 ## Порядок slices
 
-| Порядок | План                                                                         | Статус  | Пользовательский результат                         |   Оценка |
-| ------- | ---------------------------------------------------------------------------- | ------- | -------------------------------------------------- | -------: |
-| 1       | [`01_ACCOUNT_LIST_AND_CREATE.md`](01_ACCOUNT_LIST_AND_CREATE.md)             | planned | Видит счета и безопасно создает новый              |  3–4 дня |
-| 2       | [`02_ACCOUNT_DETAIL_LEDGER.md`](02_ACCOUNT_DETAIL_LEDGER.md)                 | planned | Видит баланс и находит нужные проводки             | 4–6 дней |
-| 3       | [`03_ACCOUNT_MANAGEMENT.md`](03_ACCOUNT_MANAGEMENT.md)                       | planned | Меняет настройки и управляет active state          |  2–3 дня |
-| 4       | [`04_IMPORTED_OPERATION_CORRECTION.md`](04_IMPORTED_OPERATION_CORRECTION.md) | planned | Исправляет classification импортированной операции |  2–3 дня |
-| 5       | [`05_CUTOVER_AND_CLEANUP.md`](05_CUTOVER_AND_CLEANUP.md)                     | planned | Использует только React Accounts                   | 3–6 дней |
+| Порядок | План                                                                         | Статус    | Пользовательский результат                          |   Оценка |
+| ------- | ---------------------------------------------------------------------------- | --------- | --------------------------------------------------- | -------: |
+| 1       | [`01_ACCOUNT_LIST_AND_CREATE.md`](01_ACCOUNT_LIST_AND_CREATE.md)             | completed | Видит счета и безопасно создает новый               |  3–4 дня |
+| 2       | [`02_ACCOUNT_DETAIL_LEDGER.md`](02_ACCOUNT_DETAIL_LEDGER.md)                 | planned   | Видит баланс и находит нужные проводки              | 4–6 дней |
+| 3       | [`03_ACCOUNT_MANAGEMENT.md`](03_ACCOUNT_MANAGEMENT.md)                       | planned   | Меняет настройки и управляет active state           |  2–3 дня |
+| 4       | [`04_IMPORTED_OPERATION_CORRECTION.md`](04_IMPORTED_OPERATION_CORRECTION.md) | planned   | Исправляет classification импортированной операции |  2–3 дня |
+| 5       | [`05_CUTOVER_AND_CLEANUP.md`](05_CUTOVER_AND_CLEANUP.md)                     | planned   | Использует только React Accounts                    | 3–6 дней |
 
-До начала Slice 01 нужно закрыть оставшийся full Playwright audit предыдущего
-Imports child stage и синхронизировать его completion record. Это validation
-gate, а не отдельный migration workflow.
+Imports child stage прошёл full Playwright audit и завершён. Следующий активный
+срез — Slice 02, account detail и account ledger.
 
 ## Канонические маршруты на время Stage 07
 

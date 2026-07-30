@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -9,6 +10,14 @@ from app.features.accounts.repository import AccountRepository
 
 
 class AccountError(ValueError):
+    pass
+
+
+class AccountNotFoundError(AccountError):
+    pass
+
+
+class AccountLifecycleConflictError(AccountError):
     pass
 
 
@@ -71,13 +80,20 @@ class AccountService:
         workspace_id: UUID,
         account_id: UUID,
         is_active: bool,
+        expected_active: bool | None = None,
+        expected_updated_at: datetime | None = None,
     ) -> Account:
         account = await self.accounts.get_for_workspace(workspace_id, account_id)
         if account is None:
-            raise AccountError("Счет не найден в этом workspace.")
+            raise AccountNotFoundError("Счет не найден в этом workspace.")
+        if expected_active is not None and account.is_active is not expected_active:
+            raise AccountLifecycleConflictError("Состояние счета уже изменилось.")
+        if expected_updated_at is not None and account.updated_at != expected_updated_at:
+            raise AccountLifecycleConflictError("Счет уже изменился в другом окне.")
         account.is_active = is_active
         account.archived_at = None if is_active else utc_now()
         await self.session.commit()
+        await self.session.refresh(account)
         return account
 
 

@@ -27,6 +27,7 @@ authenticated workflow в legacy stack не добавляется.
 Каноничны в React:
 
 - `/app/ledger/manual`;
+- `/app/accounts` — список и создание;
 - `/app/imports`;
 - `/app/imports/upload`;
 - `/app/imports/documents/:documentId`;
@@ -34,8 +35,8 @@ authenticated workflow в legacy stack не добавляется.
 - `/app/imports/documents/:documentId/review`;
 - shared shell/foundation/themes.
 
-Accounts и остальные authenticated pages пока SSR и мигрируют Stage 7.
-Следующий подготовленный workflow:
+Account detail/management и остальные authenticated pages пока SSR и мигрируют
+Stage 7. Текущий workflow:
 [`accounts and account ledger`](../frontend/plan/accounts-and-ledger/README.md).
 Public home, login/signup могут оставаться минимальным SSR после financial
 cutover — это отдельное решение.

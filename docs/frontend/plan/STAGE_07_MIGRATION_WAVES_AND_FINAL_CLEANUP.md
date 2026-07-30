@@ -18,8 +18,9 @@ workflows вертикальными slices и удалить второй по�
 ### Wave A: core financial views
 
 1. [import documents and mapping](import-documents-and-mapping/README.md) —
-   implementation completed, final browser validation pending;
-2. [accounts and account ledger](accounts-and-ledger/README.md) — next;
+   completed;
+2. [accounts and account ledger](accounts-and-ledger/README.md) — active,
+   Slice 01 completed;
 3. reports.
 
 ### Wave B: reference and rule workflows

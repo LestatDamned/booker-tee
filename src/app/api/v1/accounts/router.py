@@ -1,0 +1,227 @@
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, status
+
+from app.api.dependencies import (
+    ApiRequestContext,
+    get_api_request_context,
+    require_api_financial_write_context,
+)
+from app.api.errors import ApiError, api_error_responses
+from app.api.v1.accounts.dependencies import get_account_directory_service
+from app.api.v1.accounts.schemas import (
+    AccountDirectoryApiResponse,
+    AccountDirectoryCapabilitiesApiResponse,
+    AccountLifecycleApiRequest,
+    AccountSummaryApiResponse,
+    AccountSummaryCapabilitiesApiResponse,
+    CreateAccountApiRequest,
+)
+from app.features.accounts.application.directory import AccountDirectoryService
+from app.features.accounts.schemas import AccountSummaryDto, CreateAccountCommand
+from app.features.accounts.service import (
+    AccountError,
+    AccountLifecycleConflictError,
+    AccountNotFoundError,
+)
+from app.features.workspaces.permissions import can_write_financial_data
+
+router = APIRouter(prefix="/accounts", tags=["accounts"])
+
+
+@router.get(
+    "",
+    response_model=AccountDirectoryApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+    ),
+)
+async def list_accounts(
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    directory: Annotated[
+        AccountDirectoryService,
+        Depends(get_account_directory_service),
+    ],
+) -> AccountDirectoryApiResponse:
+    result = await directory.read(
+        workspace_id=context.workspace.workspace.id,
+        can_create=can_write_financial_data(context.workspace.membership),
+    )
+    return AccountDirectoryApiResponse(
+        items=[
+            account_summary_response(
+                item,
+                can_write=can_write_financial_data(context.workspace.membership),
+            )
+            for item in result.items
+        ],
+        account_types=result.account_types,
+        capabilities=AccountDirectoryCapabilitiesApiResponse.model_validate(result.capabilities),
+    )
+
+
+@router.post(
+    "",
+    response_model=AccountSummaryApiResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def create_account(
+    request: CreateAccountApiRequest,
+    context: Annotated[
+        ApiRequestContext,
+        Depends(require_api_financial_write_context),
+    ],
+    directory: Annotated[
+        AccountDirectoryService,
+        Depends(get_account_directory_service),
+    ],
+) -> AccountSummaryApiResponse:
+    try:
+        account = await directory.create(
+            workspace_id=context.workspace.workspace.id,
+            command=CreateAccountCommand(
+                name=request.name,
+                account_type=request.account_type,
+                currency=request.currency,
+                initial_balance=request.decimal_initial_balance,
+            ),
+        )
+    except AccountError as error:
+        raise ApiError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="account_validation_error",
+            message=str(error),
+        ) from error
+    return account_summary_response(account, can_write=True)
+
+
+def account_summary_response(
+    account: AccountSummaryDto,
+    *,
+    can_write: bool,
+) -> AccountSummaryApiResponse:
+    return AccountSummaryApiResponse(
+        id=account.id,
+        name=account.name,
+        account_type=account.account_type,
+        currency=account.currency,
+        initial_balance=str(account.initial_balance),
+        balance=str(account.balance),
+        balance_direction=account.balance_direction,
+        movement_count=account.movement_count,
+        is_active=account.is_active,
+        updated_at=account.updated_at,
+        capabilities=AccountSummaryCapabilitiesApiResponse(
+            can_archive=can_write and account.is_active,
+            can_restore=can_write and not account.is_active,
+        ),
+    )
+
+
+@router.post(
+    "/{account_id}/archive",
+    response_model=AccountSummaryApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+    ),
+)
+async def archive_account(
+    account_id: UUID,
+    request: AccountLifecycleApiRequest,
+    context: Annotated[
+        ApiRequestContext,
+        Depends(require_api_financial_write_context),
+    ],
+    directory: Annotated[
+        AccountDirectoryService,
+        Depends(get_account_directory_service),
+    ],
+) -> AccountSummaryApiResponse:
+    return await _set_account_active(
+        account_id=account_id,
+        request=request,
+        expected_active=True,
+        is_active=False,
+        context=context,
+        directory=directory,
+    )
+
+
+@router.post(
+    "/{account_id}/restore",
+    response_model=AccountSummaryApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+    ),
+)
+async def restore_account(
+    account_id: UUID,
+    request: AccountLifecycleApiRequest,
+    context: Annotated[
+        ApiRequestContext,
+        Depends(require_api_financial_write_context),
+    ],
+    directory: Annotated[
+        AccountDirectoryService,
+        Depends(get_account_directory_service),
+    ],
+) -> AccountSummaryApiResponse:
+    return await _set_account_active(
+        account_id=account_id,
+        request=request,
+        expected_active=False,
+        is_active=True,
+        context=context,
+        directory=directory,
+    )
+
+
+async def _set_account_active(
+    *,
+    account_id: UUID,
+    request: AccountLifecycleApiRequest,
+    expected_active: bool,
+    is_active: bool,
+    context: ApiRequestContext,
+    directory: AccountDirectoryService,
+) -> AccountSummaryApiResponse:
+    if request.expected_active is not expected_active:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="account_state_conflict",
+            message="Состояние счета уже изменилось. Обновите список.",
+        )
+    try:
+        account = await directory.set_active(
+            workspace_id=context.workspace.workspace.id,
+            account_id=account_id,
+            is_active=is_active,
+            expected_active=request.expected_active,
+            expected_updated_at=request.expected_updated_at,
+        )
+    except AccountNotFoundError as error:
+        raise ApiError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="account_not_found",
+            message="Счёт не найден.",
+        ) from error
+    except AccountLifecycleConflictError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="account_state_conflict",
+            message="Счёт уже изменился. Обновите список.",
+        ) from error
+    return account_summary_response(account, can_write=True)

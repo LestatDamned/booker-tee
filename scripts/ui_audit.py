@@ -33,7 +33,7 @@ MAX_CLICK_TARGETS_PER_PAGE = 60
 
 PAGES: tuple[tuple[str, str], ...] = (
     ("/", "dashboard"),
-    ("/accounts", "accounts"),
+    ("/app/accounts", "accounts"),
     ("/ledger/manual", "manual-ledger-redirect"),
     ("/app/imports", "imports"),
     ("/app/imports/upload", "imports-upload"),
@@ -49,7 +49,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/dashboard", "dashboard"),
     ("/app/ledger/manual", "react-manual-ledger"),
     ("/app/foundation", "react-foundation"),
-    ("/accounts", "accounts"),
+    ("/app/accounts", "accounts"),
     ("/ledger/manual", "manual-ledger-redirect"),
     ("/app/imports", "imports"),
     ("/app/imports/upload", "imports-upload"),
@@ -321,25 +321,38 @@ def prepare_realistic_scenario(
 
     page = context.new_page()
     try:
-        page.goto(build_url(base_url, "/accounts"), wait_until="domcontentloaded")
-        page.locator('form#new-account input[name="name"]').fill(account_name)
-        page.locator('form#new-account select[name="account_type"]').select_option("cash")
-        page.locator('form#new-account input[name="currency"]').fill("RUB")
-        page.locator('form#new-account input[name="initial_balance"]').fill("10000.00")
-        page.locator('form#new-account button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        page.get_by_text(account_name, exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
-        account_card = page.locator(".entity-card").filter(has_text=account_name).first
-        account_detail_path = account_card.locator('a[href^="/accounts/"]').first.get_attribute(
+        page.goto(build_url(base_url, "/app/accounts"), wait_until="networkidle")
+        page.get_by_role("button", name="Новый счёт", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        create_form = page.locator("form[data-account-create]")
+        create_form.locator('input[name="name"]').fill(account_name)
+        create_form.locator('select[name="accountType"]').select_option("cash")
+        create_form.locator('input[name="currency"]').fill("RUB")
+        create_form.locator('input[name="initialBalance"]').fill("10000.00")
+        create_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+        account_record = (
+            page.locator("[data-account-record]:visible").filter(has_text=account_name).first
+        )
+        account_record.wait_for(timeout=PAGE_TIMEOUT_MS)
+        account_detail_path = account_record.locator('a[href^="/accounts/"]').first.get_attribute(
             "href"
         )
-        page.goto(build_url(base_url, "/accounts"), wait_until="domcontentloaded")
-        open_details_if_closed(page, "details.account-create-details")
-        page.locator('form#new-account input[name="name"]').fill(destination_account_name)
-        page.locator('form#new-account select[name="account_type"]').select_option("deposit")
-        page.locator('form#new-account input[name="currency"]').fill("RUB")
-        page.locator('form#new-account input[name="initial_balance"]').fill("0.00")
-        page.locator('form#new-account button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        page.get_by_text(destination_account_name, exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
+        page.goto(build_url(base_url, "/app/accounts"), wait_until="networkidle")
+        page.get_by_role("button", name="Новый счёт", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        create_form = page.locator("form[data-account-create]")
+        create_form.locator('input[name="name"]').fill(destination_account_name)
+        create_form.locator('select[name="accountType"]').select_option("deposit")
+        create_form.locator('input[name="currency"]').fill("RUB")
+        create_form.locator('input[name="initialBalance"]').fill("0.00")
+        create_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+        (
+            page.locator("[data-account-record]:visible")
+            .filter(has_text=destination_account_name)
+            .first.wait_for(timeout=PAGE_TIMEOUT_MS)
+        )
 
         page.goto(build_url(base_url, "/app/ledger/manual"), wait_until="networkidle")
         page.get_by_role("button", name="Добавить операцию", exact=True).click(
@@ -523,7 +536,7 @@ def prepare_design_audit_page(page: Page) -> None:
         """
         () => {
           const selectors = [
-            'details.account-create-details',
+            '[data-account-create]',
             'details.account-settings-details',
             'details.filter-details',
             'details.compact-help-details',
@@ -1334,6 +1347,28 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
               return !item.className.includes('money-income');
             });
 
+          const accountRowCollisions = Array.from(
+            document.querySelectorAll('tr[data-account-record]')
+          ).filter(visible).flatMap((row) => {
+            const balance = row.querySelector('[data-account-balance]');
+            const action = row.querySelector('[data-account-action]');
+            if (!balance || !action || !visible(balance) || !visible(action)) {
+              return [];
+            }
+            const balanceRect = balance.getBoundingClientRect();
+            const actionRect = action.getBoundingClientRect();
+            const overlaps = !(
+              balanceRect.right <= actionRect.left + 1
+              || actionRect.right <= balanceRect.left + 1
+              || balanceRect.bottom <= actionRect.top + 1
+              || actionRect.bottom <= balanceRect.top + 1
+            );
+            return overlaps ? [{
+              balance: textFor(balance),
+              action: textFor(action),
+            }] : [];
+          });
+
           return {
             pageControls,
             blockIssues,
@@ -1344,6 +1379,7 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
             webOneControlLabels,
             accordionOverflow,
             entryMoneyIssues,
+            accountRowCollisions,
             viewportWidth: window.innerWidth,
           };
         }
@@ -1451,7 +1487,14 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
         )
         errors.append("designer audit: operation amount color class is wrong: " + examples)
 
-    if path in {"/app/imports", "/accounts", "/categories", "/properties", "/rules"}:
+    account_row_collisions = list(state.get("accountRowCollisions") or [])
+    if account_row_collisions:
+        examples = ", ".join(
+            f"{item.get('balance')} / {item.get('action')}" for item in account_row_collisions[:3]
+        )
+        errors.append("designer audit: account balance overlaps its row action: " + examples)
+
+    if path in {"/app/imports", "/app/accounts", "/categories", "/properties", "/rules"}:
         long_technical_labels = [
             str(item.get("text") or "")
             for item in technical_summaries

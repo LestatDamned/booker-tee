@@ -63,7 +63,7 @@
         <p class="eyebrow">{{ overview.month_start | date_ru }} — {{ overview.month_end | date_ru }}</p>
         <h2>Счета</h2>
       </div>
-      <a class="button button-small" href="/accounts">{{ icon("wallet") }} открыть</a>
+      <a class="button button-small" href="/app/accounts">{{ icon("wallet") }} открыть</a>
     </div>
     {% if overview.reports.account_balances %}
       <div class="entity-list">
@@ -80,7 +80,7 @@
       {{ empty_state(
         "Счетов пока нет",
         "Добавьте счет, чтобы загрузить выписку и видеть баланс.",
-        "/accounts",
+        "/app/accounts",
         "добавить счет",
         "plus"
       ) }}
