@@ -239,22 +239,30 @@ class ManualOperationReadDtoMapper:
             description=operation.description,
             money=ManualOperationReadDtoMapper._money(money_entry),
             account=(
-                ManualOperationReadDtoMapper._account(primary_entry.account)
+                AccountReferenceReadDto.model_validate(primary_entry.account)
                 if primary_entry is not None and operation.type != OperationType.TRANSFER
                 else None
             ),
             source_account=(
-                ManualOperationReadDtoMapper._account(source_entry.account)
+                AccountReferenceReadDto.model_validate(source_entry.account)
                 if source_entry is not None
                 else None
             ),
             destination_account=(
-                ManualOperationReadDtoMapper._account(destination_entry.account)
+                AccountReferenceReadDto.model_validate(destination_entry.account)
                 if destination_entry is not None
                 else None
             ),
-            category=ManualOperationReadDtoMapper._named_reference(operation.category),
-            property=ManualOperationReadDtoMapper._named_reference(operation.property),
+            category=(
+                NamedReferenceReadDto.model_validate(operation.category)
+                if operation.category is not None
+                else None
+            ),
+            property=(
+                NamedReferenceReadDto.model_validate(operation.property)
+                if operation.property is not None
+                else None
+            ),
         )
 
     @staticmethod
@@ -265,21 +273,3 @@ class ManualOperationReadDtoMapper:
             amount=abs(entry.amount),
             currency=entry.currency,
         )
-
-    @staticmethod
-    def _account(account: Account | None) -> AccountReferenceReadDto | None:
-        if account is None:
-            return None
-        return AccountReferenceReadDto(
-            id=account.id,
-            name=account.name,
-            currency=account.currency,
-        )
-
-    @staticmethod
-    def _named_reference(
-        reference: Category | Property | None,
-    ) -> NamedReferenceReadDto | None:
-        if reference is None:
-            return None
-        return NamedReferenceReadDto(id=reference.id, name=reference.name)

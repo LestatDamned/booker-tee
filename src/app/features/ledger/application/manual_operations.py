@@ -74,21 +74,12 @@ class ManualLedgerReferenceReader:
         categories = await self._categories.list_active(workspace_id)
         properties = await self._properties.list_active(workspace_id)
         return ManualLedgerReferenceOptionsDto(
-            accounts=[
-                ManualLedgerAccountOptionDto(
-                    id=account.id,
-                    name=account.name,
-                    currency=account.currency,
-                )
-                for account in accounts
-            ],
+            accounts=[ManualLedgerAccountOptionDto.model_validate(account) for account in accounts],
             categories=[
-                ManualLedgerNamedOptionDto(id=category.id, name=category.name)
-                for category in categories
+                ManualLedgerNamedOptionDto.model_validate(category) for category in categories
             ],
             properties=[
-                ManualLedgerNamedOptionDto(id=property_.id, name=property_.name)
-                for property_ in properties
+                ManualLedgerNamedOptionDto.model_validate(property_) for property_ in properties
             ],
         )
 

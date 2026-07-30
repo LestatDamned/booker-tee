@@ -94,7 +94,7 @@ Imported review-field edit -> ImportedOperationReviewUseCase
 
 ### 2. Pydantic manual contracts
 
-Статус: in progress.
+Статус: completed 2026-07-30.
 
 - 2A: перенести manual commands и read DTO в `schemas/manual.py`, перевести их
   на `ApplicationModel` и удалить старый `application/manual_contracts.py`;
@@ -118,6 +118,13 @@ contracts переведены на `ApplicationModel`. Старый `applicatio
 удалён без re-export facade, поэтому repository больше не зависит от application
 ради query data. Нормализация pagination и вычисляемые свойства сохранены без
 изменения поведения.
+
+2C завершён 2026-07-30. Изоморфные reference и pagination projections заменены
+на явные `TargetModel.model_validate(source)`, а вложенные API references
+валидируются Pydantic вместе с response. Удалены приватные constructors и
+локальный `NamedReference` Protocol, существовавшие только для копирования
+одинаковых полей. Сохранены semantic manual read projection для transfer,
+нормализация суммы и description, request mapping и вычисление API capabilities.
 
 ### 3. Account ledger projections
 

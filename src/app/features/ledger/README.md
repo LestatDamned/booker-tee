@@ -134,6 +134,11 @@ clean_description(...)
 преобразования загруженного operation aggregate в manual read DTO. API mapping
 остаётся в API adapter.
 
+Изоморфные Pydantic projections используют прямой
+`TargetModel.model_validate(source)`. Именованный mapper сохраняется только там,
+где преобразование выражает смысл: выбирает transfer entries, нормализует сумму
+или добавляет API capabilities.
+
 Manual и imported factories используют один внутренний confirmed-operation
 factory. Он централизованно задаёт `confirmed`, audit fields, `confirmed_at` и
 выводит `affects_profit` из `OperationType`. Source-specific factories отвечают
