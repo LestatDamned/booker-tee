@@ -1,6 +1,6 @@
 # Stage 07: Migration Waves And Final Cleanup
 
-Status: next.
+Status: active.
 
 ## Goal
 
@@ -17,8 +17,9 @@ workflows вертикальными slices и удалить второй по�
 
 ### Wave A: core financial views
 
-1. [import documents and mapping](import-documents-and-mapping/README.md);
-2. account detail/ledger;
+1. [import documents and mapping](import-documents-and-mapping/README.md) —
+   implementation completed, final browser validation pending;
+2. [accounts and account ledger](accounts-and-ledger/README.md) — next;
 3. reports.
 
 ### Wave B: reference and rule workflows

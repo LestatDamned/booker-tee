@@ -12,8 +12,8 @@
 
 Stage 7 мигрирует оставшийся authenticated SSR вертикальными slices:
 
-1. account detail/ledger;
-2. import documents and mapping;
+1. завершить full Playwright validation реализованного Imports workflow;
+2. accounts и account ledger;
 3. reports;
 4. properties, categories и transaction rules;
 5. workspaces, profile и остальные authenticated surfaces.
@@ -26,7 +26,7 @@ Stage 7 мигрирует оставшийся authenticated SSR вертика
 - browser flow проходит на desktop, tablet и mobile.
 
 Текущий детальный план:
-[`Import documents and mapping`](../frontend/plan/import-documents-and-mapping/README.md).
+[`Accounts and account ledger`](../frontend/plan/accounts-and-ledger/README.md).
 
 ### 2. Сохранить надёжность imports
 

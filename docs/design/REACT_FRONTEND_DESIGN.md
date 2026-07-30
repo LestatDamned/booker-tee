@@ -27,12 +27,18 @@ authenticated workflow в legacy stack не добавляется.
 Каноничны в React:
 
 - `/app/ledger/manual`;
+- `/app/imports`;
+- `/app/imports/upload`;
+- `/app/imports/documents/:documentId`;
+- `/app/imports/documents/:documentId/mapping`;
 - `/app/imports/documents/:documentId/review`;
 - shared shell/foundation/themes.
 
-Остальные authenticated pages пока SSR и мигрируют Stage 7. Public home,
-login/signup могут оставаться минимальным SSR после financial cutover — это
-отдельное решение.
+Accounts и остальные authenticated pages пока SSR и мигрируют Stage 7.
+Следующий подготовленный workflow:
+[`accounts and account ledger`](../frontend/plan/accounts-and-ledger/README.md).
+Public home, login/signup могут оставаться минимальным SSR после financial
+cutover — это отдельное решение.
 
 ## Runtime and deployment
 
@@ -224,9 +230,24 @@ posting, lifecycle и authoritative reconciliation.
 - mapping import создаёт reviewable rows и идемпотентен;
 - конечный шаг — существующий React Import Review.
 
+### Accounts and account ledger
+
+План:
+[`accounts-and-ledger`](../frontend/plan/accounts-and-ledger/README.md).
+
+Ключевые ограничения:
+
+- list использует focused aggregate projection без per-account ledger N+1;
+- balance остается server-owned и учитывает только confirmed entries;
+- filters/pagination принадлежат URL, account/settings drafts — feature state;
+- detail reads не seed-ят categories и не выполняют commit;
+- account mutations имеют explicit stale-state guard;
+- imported correction переиспользует optimistic operation version и меняет
+  только разрешенные review fields.
+
 ### Remaining workflows
 
-Account ledger, reports, reference data и administration получают собственный
+Reports, reference data и administration получают собственный
 inventory/API/state/delete manifest до production implementation.
 
 ## Vertical migration
