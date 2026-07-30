@@ -13,7 +13,8 @@ export interface paths {
         };
         /** Get Account Detail */
         get: operations["get_account_detail_api_v1_accounts__account_id__get"];
-        put?: never;
+        /** Update Account */
+        put: operations["update_account_api_v1_accounts__account_id__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -461,42 +462,7 @@ export interface paths {
         /** Account Detail */
         get: operations["account_detail_accounts__account_id__get"];
         put?: never;
-        /** Update Account */
-        post: operations["update_account_accounts__account_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/accounts/{account_id}/archive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Archive Account */
-        post: operations["archive_account_accounts__account_id__archive_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/accounts/{account_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Restore Account */
-        post: operations["restore_account_accounts__account_id__restore_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1201,6 +1167,12 @@ export interface components {
             balance: string;
             /** Isactive */
             isActive: boolean;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            capabilities: components["schemas"]["AccountDetailCapabilitiesApiResponse"];
         };
         /** AccountDetailApiResponse */
         AccountDetailApiResponse: {
@@ -1209,6 +1181,15 @@ export interface components {
             items: components["schemas"]["AccountMovementApiResponse"][];
             pagination: components["schemas"]["AccountDetailPaginationApiResponse"];
             filterOptions: components["schemas"]["AccountDetailFilterOptionsApiResponse"];
+        };
+        /** AccountDetailCapabilitiesApiResponse */
+        AccountDetailCapabilitiesApiResponse: {
+            /** Canupdate */
+            canUpdate: boolean;
+            /** Canarchive */
+            canArchive: boolean;
+            /** Canrestore */
+            canRestore: boolean;
         };
         /** AccountDetailFilterOptionsApiResponse */
         AccountDetailFilterOptionsApiResponse: {
@@ -1480,19 +1461,6 @@ export interface components {
              * @default false
              */
             is_active: boolean;
-        };
-        /** Body_update_account_accounts__account_id__post */
-        Body_update_account_accounts__account_id__post: {
-            /** Name */
-            name: string;
-            account_type: components["schemas"]["AccountType"];
-            /** Currency */
-            currency: string;
-            /**
-             * Initial Balance
-             * @default 0.00
-             */
-            initial_balance: number | string;
         };
         /** Body_update_category_categories__category_id__post */
         Body_update_category_categories__category_id__post: {
@@ -3192,6 +3160,21 @@ export interface components {
          * @enum {string}
          */
         UnsignedAmountDirection: "require_sign" | "income" | "expense";
+        /** UpdateAccountApiRequest */
+        UpdateAccountApiRequest: {
+            /** Name */
+            name: string;
+            accountType: components["schemas"]["AccountType"];
+            /** Currency */
+            currency: string;
+            /** Initialbalance */
+            initialBalance: string;
+            /**
+             * Expectedupdatedat
+             * Format: date-time
+             */
+            expectedUpdatedAt: string;
+        };
         /**
          * UploadedDocumentStatus
          * @enum {string}
@@ -3308,6 +3291,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_account_api_v1_accounts__account_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAccountApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountSummaryApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };
@@ -5268,103 +5322,6 @@ export interface operations {
                 };
                 content: {
                     "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_account_accounts__account_id__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                account_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_update_account_accounts__account_id__post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    archive_account_accounts__account_id__archive_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                account_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    restore_account_accounts__account_id__restore_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                account_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

@@ -24,6 +24,10 @@ class CreateAccountCommand(ApplicationModel):
     initial_balance: Decimal
 
 
+class UpdateAccountCommand(CreateAccountCommand):
+    expected_updated_at: datetime
+
+
 class AccountSummaryDto(ApplicationModel):
     id: UUID
     name: str

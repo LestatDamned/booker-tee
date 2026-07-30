@@ -13,6 +13,7 @@ from app.features.accounts.schemas import (
     AccountDirectoryReadonlyReason,
     AccountSummaryDto,
     CreateAccountCommand,
+    UpdateAccountCommand,
 )
 
 
@@ -41,6 +42,18 @@ class AccountMutationSource(Protocol):
         account_id: UUID,
         is_active: bool,
         expected_active: bool | None = None,
+        expected_updated_at: datetime | None = None,
+    ) -> Account: ...
+
+    async def update(
+        self,
+        *,
+        workspace_id: UUID,
+        account_id: UUID,
+        name: str,
+        account_type: AccountType,
+        currency: str,
+        initial_balance: Decimal,
         expected_updated_at: datetime | None = None,
     ) -> Account: ...
 
@@ -114,6 +127,28 @@ class AccountDirectoryService:
             is_active=is_active,
             expected_active=expected_active,
             expected_updated_at=expected_updated_at,
+        )
+        rows = await self._accounts.list_directory_rows(workspace_id)
+        row = next((item for item in rows if item.id == account_id), None)
+        if row is None:
+            raise RuntimeError("Committed account is missing from its workspace directory.")
+        return account_summary_from_row(row)
+
+    async def update(
+        self,
+        *,
+        workspace_id: UUID,
+        account_id: UUID,
+        command: UpdateAccountCommand,
+    ) -> AccountSummaryDto:
+        await self._creator.update(
+            workspace_id=workspace_id,
+            account_id=account_id,
+            name=command.name,
+            account_type=command.account_type,
+            currency=command.currency,
+            initial_balance=command.initial_balance,
+            expected_updated_at=command.expected_updated_at,
         )
         rows = await self._accounts.list_directory_rows(workspace_id)
         row = next((item for item in rows if item.id == account_id), None)

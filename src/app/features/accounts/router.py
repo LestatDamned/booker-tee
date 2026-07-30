@@ -1,4 +1,3 @@
-from decimal import Decimal
 from typing import Annotated
 from urllib.parse import urlencode
 from uuid import UUID
@@ -8,10 +7,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
-from app.features.accounts.models import AccountType
 from app.features.accounts.presentation.detail.models import AccountDetailPresenterInput
 from app.features.accounts.presentation.detail.presenter import AccountDetailPresenter
-from app.features.accounts.service import AccountError, AccountService
 from app.features.categories.service import CategoryService
 from app.features.ledger.application.account_ledger import (
     AccountLedgerEntryView,
@@ -56,64 +53,6 @@ async def account_detail(
     return RedirectResponse(
         url=f"{target}?{query}" if query else target,
         status_code=status.HTTP_307_TEMPORARY_REDIRECT,
-    )
-
-
-@router.post("/{account_id}")
-async def update_account(
-    account_id: UUID,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
-    name: Annotated[str, Form()],
-    account_type: Annotated[AccountType, Form()],
-    currency: Annotated[str, Form()],
-    initial_balance: Annotated[Decimal, Form()] = Decimal("0.00"),
-) -> Response:
-    try:
-        await AccountService(session).update(
-            workspace_id=context.workspace.id,
-            account_id=account_id,
-            name=name,
-            account_type=account_type,
-            currency=currency,
-            initial_balance=initial_balance,
-        )
-    except (ValueError, AccountError) as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return RedirectResponse(
-        url=f"/accounts/{account_id}",
-        status_code=status.HTTP_303_SEE_OTHER,
-    )
-
-
-@router.post("/{account_id}/archive")
-async def archive_account(
-    account_id: UUID,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
-) -> Response:
-    await AccountService(session).set_active(
-        workspace_id=context.workspace.id,
-        account_id=account_id,
-        is_active=False,
-    )
-    return RedirectResponse(url="/app/accounts", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@router.post("/{account_id}/restore")
-async def restore_account(
-    account_id: UUID,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
-) -> Response:
-    await AccountService(session).set_active(
-        workspace_id=context.workspace.id,
-        account_id=account_id,
-        is_active=True,
-    )
-    return RedirectResponse(
-        url=f"/accounts/{account_id}",
-        status_code=status.HTTP_303_SEE_OTHER,
     )
 
 

@@ -21,6 +21,14 @@ class AccountLifecycleConflictError(AccountError):
     pass
 
 
+class AccountUpdateConflictError(AccountError):
+    pass
+
+
+class AccountCurrencyConflictError(AccountError):
+    pass
+
+
 class AccountService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -63,15 +71,26 @@ class AccountService:
         account_type: AccountType,
         currency: str,
         initial_balance: Decimal,
+        expected_updated_at: datetime | None = None,
     ) -> Account:
         account = await self.accounts.get_for_workspace(workspace_id, account_id)
         if account is None:
-            raise AccountError("Счет не найден в этом workspace.")
+            raise AccountNotFoundError("Счет не найден в этом workspace.")
+        if expected_updated_at is not None and account.updated_at != expected_updated_at:
+            raise AccountUpdateConflictError("Счёт уже изменился в другом окне.")
+        normalized_currency = normalize_currency(currency)
+        if normalized_currency != account.currency and await self.accounts.has_financial_history(
+            workspace_id, account_id
+        ):
+            raise AccountCurrencyConflictError(
+                "Нельзя изменить валюту счёта с финансовой историей."
+            )
         account.name = clean_required_text(name, "Название счета обязательно.")
         account.type = account_type
-        account.currency = normalize_currency(currency)
+        account.currency = normalized_currency
         account.initial_balance = initial_balance.quantize(Decimal("0.01"))
         await self.session.commit()
+        await self.session.refresh(account)
         return account
 
     async def set_active(

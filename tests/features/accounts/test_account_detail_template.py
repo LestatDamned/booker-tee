@@ -201,12 +201,9 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "account-detail-tools" in html
     assert "account-detail-tool__summary" in html
     assert "account-detail-tool__toggle" in html
-    assert "account-tool-form account-settings-form" in html
     assert "filter-form account-filter-form" in html
     assert "filter-details__state" in html
     assert "inline-hint inline-hint-info" in html
-    assert "account-tool-form__group" in html
-    assert "account-tool-form__fields" in html
     assert "filter-form__group" in html
     assert "filter-form__fields" in html
     assert "filter-form__fields--primary" in html
@@ -214,10 +211,9 @@ def test_account_detail_template_uses_compact_entry_cards() -> None:
     assert "filter-form__fields--display" in html
     assert "filter-form__fields--filters" not in html
     assert "filter-form__footer" in html
-    assert "account-tool-form__danger-action" in html
     assert "filter-form__field--search" in html
     assert "account-detail-title" in html
-    assert "account-settings-details" in html
+    assert "account-settings-form" not in html
     assert "фильтры проводок" in html
     assert "Основное" not in html
     assert "Быстрый фильтр" not in html

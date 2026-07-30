@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import uuid4
 
@@ -200,6 +200,7 @@ def account_view(name: str) -> AccountView:
         currency="RUB",
         is_active=True,
         initial_balance=Decimal("0.00"),
+        updated_at=datetime(2026, 7, 30, tzinfo=UTC),
     )
 
 

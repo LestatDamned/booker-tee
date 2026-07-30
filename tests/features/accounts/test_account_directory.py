@@ -64,6 +64,23 @@ class AccountCreationSourceStub:
         self.account.is_active = is_active
         return self.account
 
+    async def update(
+        self,
+        *,
+        workspace_id: UUID,
+        account_id: UUID,
+        name: str,
+        account_type: AccountType,
+        currency: str,
+        initial_balance: Decimal,
+        expected_updated_at: datetime | None = None,
+    ) -> Account:
+        self.account.name = name
+        self.account.type = account_type
+        self.account.currency = currency
+        self.account.initial_balance = initial_balance
+        return self.account
+
 
 @pytest.mark.asyncio
 async def test_account_directory_builds_authoritative_summaries_from_one_read() -> None:

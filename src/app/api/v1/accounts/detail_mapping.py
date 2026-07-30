@@ -3,6 +3,7 @@ from decimal import Decimal
 from app.api.v1.accounts.schemas import (
     AccountDetailAccountApiResponse,
     AccountDetailApiResponse,
+    AccountDetailCapabilitiesApiResponse,
     AccountDetailFilterOptionsApiResponse,
     AccountDetailNamedReferenceApiResponse,
     AccountDetailPaginationApiResponse,
@@ -25,6 +26,8 @@ class AccountDetailResponseMapper:
     def response(
         detail: AccountLedgerDetailView,
         references: ManualLedgerReferenceOptionsDto,
+        *,
+        can_write: bool,
     ) -> AccountDetailApiResponse:
         return AccountDetailApiResponse(
             account=AccountDetailAccountApiResponse(
@@ -35,6 +38,12 @@ class AccountDetailResponseMapper:
                 initial_balance=AccountDetailResponseMapper._money(detail.account.initial_balance),
                 balance=AccountDetailResponseMapper._money(detail.balance),
                 is_active=detail.account.is_active,
+                updated_at=detail.account.updated_at,
+                capabilities=AccountDetailCapabilitiesApiResponse(
+                    can_update=can_write,
+                    can_archive=can_write and detail.account.is_active,
+                    can_restore=can_write and not detail.account.is_active,
+                ),
             ),
             items=[AccountDetailResponseMapper._movement(item) for item in detail.entries],
             pagination=AccountDetailPaginationApiResponse.model_validate(detail.page),

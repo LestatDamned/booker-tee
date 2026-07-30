@@ -4,7 +4,7 @@ from accounts_support import account_detail_app, accounts_app
 
 from api_client import ApiTestClient as TestClient
 from app.features.accounts.models import AccountType
-from app.features.accounts.schemas import CreateAccountCommand
+from app.features.accounts.schemas import CreateAccountCommand, UpdateAccountCommand
 from app.features.ledger.domain.types import OperationStatus, OperationType
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.main import create_app
@@ -36,6 +36,12 @@ def test_account_detail_returns_account_relative_transfer_and_source_target() ->
         "initialBalance": "10000.00",
         "balance": "8500.00",
         "isActive": True,
+        "updatedAt": "2026-07-30T12:00:00Z",
+        "capabilities": {
+            "canUpdate": True,
+            "canArchive": True,
+            "canRestore": False,
+        },
     }
     assert payload["items"][0]["amount"] == "-1500.00"
     assert payload["items"][0]["transferRoute"] == "Основной → Накопительный"
@@ -61,6 +67,20 @@ def test_account_detail_returns_workspace_scoped_not_found() -> None:
     assert response.json()["error"]["code"] == "account_not_found"
     assert len(ledger.calls) == 1
     assert references.workspace_ids == []
+
+
+def test_account_detail_hides_mutations_from_viewer() -> None:
+    app, _, _, _, account_id = account_detail_app(role=WorkspaceRole.VIEWER)
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/accounts/{account_id}")
+
+    assert response.status_code == 200
+    assert response.json()["account"]["capabilities"] == {
+        "canUpdate": False,
+        "canArchive": False,
+        "canRestore": False,
+    }
 
 
 def test_account_detail_rejects_inverted_date_range() -> None:
@@ -196,6 +216,59 @@ def test_account_create_requires_financial_write_permission() -> None:
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "financial_write_forbidden"
     assert service.create_calls == []
+
+
+def test_account_update_uses_workspace_and_stale_write_token() -> None:
+    app, service, workspace_id = accounts_app()
+    account = service.directory.items[0]
+
+    with TestClient(app) as client:
+        response = client.put(
+            f"/api/v1/accounts/{account.id}",
+            json={
+                "name": "Расчётный",
+                "accountType": "checking",
+                "currency": "RUB",
+                "initialBalance": "12000.50",
+                "expectedUpdatedAt": "2026-07-30T12:00:00Z",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Расчётный"
+    assert service.update_calls == [
+        (
+            workspace_id,
+            account.id,
+            UpdateAccountCommand(
+                name="Расчётный",
+                account_type=AccountType.CHECKING,
+                currency="RUB",
+                initial_balance=Decimal("12000.50"),
+                expected_updated_at=account.updated_at,
+            ),
+        )
+    ]
+
+
+def test_account_update_requires_financial_write_permission() -> None:
+    app, service, _ = accounts_app(role=WorkspaceRole.VIEWER)
+    account = service.directory.items[0]
+
+    with TestClient(app) as client:
+        response = client.put(
+            f"/api/v1/accounts/{account.id}",
+            json={
+                "name": account.name,
+                "accountType": account.account_type,
+                "currency": account.currency,
+                "initialBalance": str(account.initial_balance),
+                "expectedUpdatedAt": "2026-07-30T12:00:00Z",
+            },
+        )
+
+    assert response.status_code == 403
+    assert service.update_calls == []
 
 
 def test_account_archive_uses_explicit_stale_state_guards() -> None:

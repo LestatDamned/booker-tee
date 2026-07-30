@@ -7,6 +7,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.accounts.models import Account, AccountType
+from app.features.imports.models import RawTransaction, UploadedDocument
 from app.features.ledger.models import MoneyEntry, Operation, OperationStatus
 
 
@@ -98,6 +99,28 @@ class AccountRepository:
             )
         )
         return result.scalar_one_or_none()
+
+    async def has_financial_history(self, workspace_id: UUID, account_id: UUID) -> bool:
+        related_ids = (
+            select(MoneyEntry.id.label("id"))
+            .where(
+                MoneyEntry.workspace_id == workspace_id,
+                MoneyEntry.account_id == account_id,
+            )
+            .union_all(
+                select(UploadedDocument.id.label("id")).where(
+                    UploadedDocument.workspace_id == workspace_id,
+                    UploadedDocument.account_id == account_id,
+                ),
+                select(RawTransaction.id.label("id")).where(
+                    RawTransaction.workspace_id == workspace_id,
+                    RawTransaction.account_id == account_id,
+                ),
+            )
+            .subquery()
+        )
+        result = await self.session.execute(select(related_ids.c.id).limit(1))
+        return result.scalar_one_or_none() is not None
 
     async def create(self, account: Account) -> Account:
         self.session.add(account)

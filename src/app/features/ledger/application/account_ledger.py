@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -30,6 +30,7 @@ class AccountView:
     currency: str
     is_active: bool
     initial_balance: Decimal
+    updated_at: datetime
 
 
 @dataclass(frozen=True)
@@ -168,6 +169,7 @@ class LedgerViewMapper:
             currency=account.currency,
             is_active=account.is_active,
             initial_balance=account.initial_balance,
+            updated_at=account.updated_at,
         )
 
     @staticmethod

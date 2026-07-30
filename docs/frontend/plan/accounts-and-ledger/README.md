@@ -1,6 +1,6 @@
 # Stage 07 / Wave A: Accounts And Account Ledger
 
-Статус: active; Slices 01–02 completed.
+Статус: active; Slices 01–03 completed.
 
 Этот child stage мигрирует authenticated workflow счетов:
 
@@ -57,12 +57,12 @@ flow и cleanup: `14–22` focused engineering days. Это planning range, не
 | ------- | ---------------------------------------------------------------------------- | --------- | --------------------------------------------------- | -------: |
 | 1       | [`01_ACCOUNT_LIST_AND_CREATE.md`](01_ACCOUNT_LIST_AND_CREATE.md)             | completed | Видит счета и безопасно создает новый               |  3–4 дня |
 | 2       | [`02_ACCOUNT_DETAIL_LEDGER.md`](02_ACCOUNT_DETAIL_LEDGER.md)                 | completed | Видит баланс и находит нужные проводки              | 4–6 дней |
-| 3       | [`03_ACCOUNT_MANAGEMENT.md`](03_ACCOUNT_MANAGEMENT.md)                       | planned   | Меняет настройки и управляет active state           |  2–3 дня |
+| 3       | [`03_ACCOUNT_MANAGEMENT.md`](03_ACCOUNT_MANAGEMENT.md)                       | completed | Меняет настройки и управляет active state           |  2–3 дня |
 | 4       | [`04_IMPORTED_OPERATION_CORRECTION.md`](04_IMPORTED_OPERATION_CORRECTION.md) | planned   | Исправляет classification импортированной операции |  2–3 дня |
 | 5       | [`05_CUTOVER_AND_CLEANUP.md`](05_CUTOVER_AND_CLEANUP.md)                     | planned   | Использует только React Accounts                    | 3–6 дней |
 
 Imports child stage прошёл full Playwright audit и завершён. Следующий срез —
-Slice 03, account management.
+Slice 04, correction разрешённых полей imported operation.
 
 ## Канонические маршруты на время Stage 07
 

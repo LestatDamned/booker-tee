@@ -19,6 +19,7 @@ from app.features.accounts.schemas import (
     AccountDirectoryReadonlyReason,
     AccountSummaryDto,
     CreateAccountCommand,
+    UpdateAccountCommand,
 )
 from app.features.categories.models import CategoryKind
 from app.features.ledger.application.account_ledger import (
@@ -45,6 +46,7 @@ class AccountDirectoryServiceStub:
         self.read_calls: list[tuple[UUID, bool]] = []
         self.create_calls: list[tuple[UUID, CreateAccountCommand]] = []
         self.lifecycle_calls: list[tuple[UUID, UUID, bool, bool, datetime]] = []
+        self.update_calls: list[tuple[UUID, UUID, UpdateAccountCommand]] = []
 
     async def read(
         self,
@@ -85,6 +87,24 @@ class AccountDirectoryServiceStub:
         return self.directory.items[0].model_copy(
             update={
                 "is_active": is_active,
+                "updated_at": datetime(2026, 7, 30, 12, 5, tzinfo=UTC),
+            }
+        )
+
+    async def update(
+        self,
+        *,
+        workspace_id: UUID,
+        account_id: UUID,
+        command: UpdateAccountCommand,
+    ) -> AccountSummaryDto:
+        self.update_calls.append((workspace_id, account_id, command))
+        return self.directory.items[0].model_copy(
+            update={
+                "name": command.name,
+                "account_type": command.account_type,
+                "currency": command.currency,
+                "initial_balance": command.initial_balance,
                 "updated_at": datetime(2026, 7, 30, 12, 5, tzinfo=UTC),
             }
         )
@@ -143,8 +163,9 @@ def accounts_app(
 def account_detail_app(
     *,
     found: bool = True,
+    role: WorkspaceRole = WorkspaceRole.OWNER,
 ) -> tuple[FastAPI, AccountLedgerReaderStub, AccountReferenceReaderStub, UUID, UUID]:
-    context = api_context(role=WorkspaceRole.OWNER)
+    context = api_context(role=role)
     account_id = uuid4()
     ledger = AccountLedgerReaderStub(account_detail(account_id) if found else None)
     references = AccountReferenceReaderStub()
@@ -163,6 +184,7 @@ def account_detail(account_id: UUID) -> AccountLedgerDetailView:
         currency="RUB",
         is_active=True,
         initial_balance=Decimal("10000.00"),
+        updated_at=datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
     )
     other_account = AccountView(
         id=uuid4(),
@@ -171,6 +193,7 @@ def account_detail(account_id: UUID) -> AccountLedgerDetailView:
         currency="RUB",
         is_active=True,
         initial_balance=Decimal("0.00"),
+        updated_at=datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
     )
     operation_id = uuid4()
     operation = OperationRefView(

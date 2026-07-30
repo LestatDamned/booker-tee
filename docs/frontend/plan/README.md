@@ -12,7 +12,7 @@ Git и коде.
 Stages 0–6 completed
 Stage 7 active
 Imports completed
-Accounts and account ledger active; Slices 01–02 completed
+Accounts and account ledger active; Slices 01–03 completed
 ```
 
 ## Completed outcomes
@@ -42,7 +42,7 @@ Child stages:
 - [`Import documents and mapping`](import-documents-and-mapping/README.md) —
   completed;
 - [`Accounts and account ledger`](accounts-and-ledger/README.md) — active,
-  Slice 03 next.
+  Slice 04 next.
 
 ## Status rules
 

@@ -1,19 +1,38 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionDto } from "../../api/session";
 import type { AccountDetailDto } from "./api/account-detail-api";
+import { changeAccountLifecycle, updateAccount } from "./api/accounts-api";
 import { AccountDetailPage } from "./account-detail-page";
 
+vi.mock("./api/accounts-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api/accounts-api")>();
+  return {
+    ...actual,
+    changeAccountLifecycle: vi.fn(),
+    updateAccount: vi.fn(),
+  };
+});
+
 describe("AccountDetailPage", () => {
+  beforeEach(() => {
+    vi.mocked(changeAccountLifecycle).mockReset();
+    vi.mocked(updateAccount).mockReset();
+  });
+
   it("renders the authoritative balance and account-relative movements", () => {
     renderPage(detail);
 
     expect(
       screen.getByRole("heading", { name: "Основной" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Все счета" })).toHaveAttribute(
+      "href",
+      "/accounts",
+    );
     expect(screen.getByLabelText(/8.*500,00 RUB/)).toBeInTheDocument();
     expect(screen.getByLabelText(/−1.*500,00 RUB/)).toBeInTheDocument();
     expect(screen.getByText("Основной → Накопительный")).toBeInTheDocument();
@@ -48,6 +67,135 @@ describe("AccountDetailPage", () => {
       screen.getByRole("link", { name: "Сбросить все" }),
     ).toBeInTheDocument();
   });
+
+  it("opens settings from the account header and saves a stale-safe draft", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateAccount).mockResolvedValue({
+      status: "success",
+      account: {
+        id: detail.account.id,
+        name: "Расчётный",
+        accountType: "checking",
+        currency: "RUB",
+        initialBalance: "12000.00",
+        balance: "10500.00",
+        balanceDirection: "positive",
+        movementCount: 1,
+        isActive: true,
+        updatedAt: "2026-07-30T12:05:00Z",
+        capabilities: { canArchive: true, canRestore: false },
+      },
+    });
+    renderPage(detail);
+
+    await user.click(screen.getByRole("button", { name: "Настройки счёта" }));
+    expect(
+      screen.getByRole("dialog", { name: "Настройки счёта" }),
+    ).toBeInTheDocument();
+    await user.clear(screen.getByLabelText(/Название/));
+    await user.type(screen.getByLabelText(/Название/), "Расчётный");
+    await user.selectOptions(screen.getByLabelText(/Тип/), "checking");
+    await user.clear(screen.getByLabelText(/Начальный баланс/));
+    await user.type(screen.getByLabelText(/Начальный баланс/), "12000.00");
+    await user.click(
+      screen.getByRole("button", { name: "Сохранить изменения" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Расчётный" }),
+      ).toBeInTheDocument(),
+    );
+    expect(updateAccount).toHaveBeenCalledWith({
+      accountId: detail.account.id,
+      csrfToken: "csrf-token",
+      draft: {
+        accountType: "checking",
+        currency: "RUB",
+        expectedUpdatedAt: "2026-07-30T12:00:00Z",
+        initialBalance: "12000.00",
+        name: "Расчётный",
+      },
+    });
+    expect(screen.getByText("Настройки счёта сохранены.")).toBeInTheDocument();
+  });
+
+  it("protects a dirty settings draft from accidental close", async () => {
+    const user = userEvent.setup();
+    renderPage(detail);
+
+    await user.click(screen.getByRole("button", { name: "Настройки счёта" }));
+    await user.type(screen.getByLabelText(/Название/), " 2");
+    await user.click(screen.getByRole("button", { name: "Закрыть" }));
+
+    expect(
+      screen.getByRole("dialog", { name: "Закрыть настройки?" }),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Продолжить редактирование" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Настройки счёта" }),
+    ).toBeInTheDocument();
+  });
+
+  it("archives from settings only after explaining what stays", async () => {
+    const user = userEvent.setup();
+    vi.mocked(changeAccountLifecycle).mockResolvedValue({
+      status: "success",
+      account: {
+        id: detail.account.id,
+        name: detail.account.name,
+        accountType: detail.account.accountType,
+        currency: detail.account.currency,
+        initialBalance: detail.account.initialBalance,
+        balance: detail.account.balance,
+        balanceDirection: "positive",
+        movementCount: 1,
+        isActive: false,
+        updatedAt: "2026-07-30T12:05:00Z",
+        capabilities: { canArchive: false, canRestore: true },
+      },
+    });
+    renderPage(detail);
+
+    await user.click(screen.getByRole("button", { name: "Настройки счёта" }));
+    await user.click(screen.getByRole("button", { name: "Перенести в архив" }));
+
+    expect(
+      screen.getByText(/История и баланс счёта .* сохранятся/),
+    ).toBeInTheDocument();
+    const archiveButtons = screen.getAllByRole("button", {
+      name: "Перенести в архив",
+    });
+    await user.click(archiveButtons.at(-1)!);
+    await waitFor(() =>
+      expect(screen.getByText(/в архиве/)).toBeInTheDocument(),
+    );
+    expect(changeAccountLifecycle).toHaveBeenCalledWith({
+      account: detail.account,
+      action: "archive",
+      csrfToken: "csrf-token",
+    });
+  });
+
+  it("does not show mutation controls to a viewer", () => {
+    renderPage({
+      ...detail,
+      account: {
+        ...detail.account,
+        capabilities: {
+          canUpdate: false,
+          canArchive: false,
+          canRestore: false,
+        },
+      },
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "Настройки счёта" }),
+    ).not.toBeInTheDocument();
+  });
 });
 
 function renderPage(
@@ -70,6 +218,12 @@ const detail: AccountDetailDto = {
     initialBalance: "10000.00",
     balance: "8500.00",
     isActive: true,
+    updatedAt: "2026-07-30T12:00:00Z",
+    capabilities: {
+      canUpdate: true,
+      canArchive: true,
+      canRestore: false,
+    },
   },
   items: [
     {

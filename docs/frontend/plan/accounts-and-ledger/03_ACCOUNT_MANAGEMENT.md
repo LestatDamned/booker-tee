@@ -1,6 +1,6 @@
 # Slice 03: Account Management
 
-Статус: planned.
+Статус: completed.
 
 Примечание: list-level archive/restore JSON API, capabilities и stale-state
 guard были доставлены вместе с улучшением Slice 01. Этот slice сохраняет
@@ -102,3 +102,46 @@ POST /accounts/{account_id}/restore
 - archive/restore не удаляют financial history;
 - viewer не получает write capability;
 - settings browser flow проходит desktop/tablet/mobile.
+
+## Completion record
+
+Completed: 2026-07-30.
+
+Implemented:
+
+- header-level settings action и спокойная ссылка возврата над workbench header;
+- right-side `WorkbenchPanel` с группами основных сведений, финансовых
+  параметров и управления счётом;
+- `PUT /api/v1/accounts/{account_id}` с Decimal validation, workspace
+  permission и `expectedUpdatedAt`;
+- detail capabilities, committed reconciliation, archive confirmation,
+  restore, dirty-close protection и stale recovery;
+- запрет смены currency после появления `MoneyEntry`, import document или raw
+  transaction; initial balance продолжает участвовать в authoritative balance
+  projection.
+
+Checks run:
+
+- focused backend tests: `33 passed`;
+- frontend suite: `220 passed`;
+- Ruff, ty, ESLint, CSS token check, OpenAPI contract, TypeScript: passed;
+- production React build: passed;
+- realistic Playwright account-management audit: `1440x1000`, `920x900`,
+  `390x844`, `3/3 passed`.
+
+Intentional deviations:
+
+- route revalidation после success заменена reconciliation committed server
+  snapshot; stale conflict предлагает явную загрузку актуальных данных.
+
+Cleanup performed:
+
+- удалены historical account update/archive/restore POST endpoints;
+- удалён settings-only Jinja block и его replacement-only assertions;
+- Playwright audit получил account settings panel assertions.
+
+Measurements/risks:
+
+- horizontal overflow: `0px` на трёх viewport;
+- currency change блокируется для любой уже связанной финансовой/import
+  history, чтобы account не стал mixed-currency ledger.

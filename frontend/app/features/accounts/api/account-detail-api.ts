@@ -17,6 +17,12 @@ export const accountDetailSchema: z.ZodType<AccountDetailDto> = z.object({
     initialBalance: z.string(),
     balance: z.string(),
     isActive: z.boolean(),
+    updatedAt: z.iso.datetime({ offset: true }),
+    capabilities: z.object({
+      canUpdate: z.boolean(),
+      canArchive: z.boolean(),
+      canRestore: z.boolean(),
+    }),
   }),
   items: z.array(
     z.object({

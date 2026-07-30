@@ -4,7 +4,6 @@
 {% block title %}{{ account_page.account.name }} · {{ app_name }}{% endblock %}
 
 {% block content %}
-  {% set can_write = workspace_permissions is not defined or not workspace_permissions or workspace_permissions.can_write_financial_data %}
   <section class="panel stack account-detail-page">
     <header class="account-detail-hero">
       <div class="account-detail-hero__main">
@@ -29,62 +28,6 @@
     </header>
 
     <div class="account-detail-tools">
-      {% if can_write %}
-        <details class="action-details action-accordion account-detail-tool account-settings-details">
-          <summary class="account-detail-tool__summary">
-            {{ icon("settings") }}
-            <span>настройки счета</span>
-            <span class="details-toggle-label account-detail-tool__toggle" aria-hidden="true">
-              <span class="details-toggle-open">Открыть</span>
-              <span class="details-toggle-close">Закрыть</span>
-            </span>
-          </summary>
-          <form class="form-panel form-panel-embedded account-tool-form account-settings-form" method="post" action="/accounts/{{ detail.account.id }}">
-            {{ csrf_input() }}
-            {{ inline_hint("Настройки меняют сам счет: название, тип, валюту и начальный баланс. Если нужно только посмотреть проводки, этот блок можно оставить закрытым.", "info") }}
-            <div class="account-tool-form__group">
-              <div class="account-tool-form__fields">
-                <label class="field account-tool-form__field">
-                  <span>название</span>
-                  <input name="name" value="{{ detail.account.name }}" placeholder="Название счета" required>
-                </label>
-                <label class="field account-tool-form__field">
-                  <span>тип</span>
-                  <select name="account_type" required>
-                    {% for account_type in account_types %}
-                      <option value="{{ account_type.value }}" {% if detail.account.type == account_type %}selected{% endif %}>
-                        {{ account_type | ru }}
-                      </option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <label class="field account-tool-form__field">
-                  <span>валюта</span>
-                  <input name="currency" value="{{ detail.account.currency }}" placeholder="Валюта" maxlength="3" required>
-                </label>
-                <label class="field account-tool-form__field">
-                  <span>начальный баланс</span>
-                  <input class="amount" name="initial_balance" inputmode="decimal" value="{{ detail.account.initial_balance }}" placeholder="Начальный баланс">
-                </label>
-              </div>
-            </div>
-            <div class="account-tool-form__footer">
-              <button class="button primary-action" type="submit">{{ icon("save") }} сохранить</button>
-              {% if detail.account.is_active %}
-                <button class="button button-danger account-tool-form__danger-action" type="submit" form="archive-account-form">{{ icon("archive") }} в архив</button>
-              {% else %}
-                <button class="button account-tool-form__secondary-action" type="submit" form="restore-account-form">{{ icon("rotate-ccw") }} восстановить</button>
-              {% endif %}
-            </div>
-          </form>
-          {% if detail.account.is_active %}
-            <form id="archive-account-form" class="detached-form" method="post" action="/accounts/{{ detail.account.id }}/archive">{{ csrf_input() }}</form>
-          {% else %}
-            <form id="restore-account-form" class="detached-form" method="post" action="/accounts/{{ detail.account.id }}/restore">{{ csrf_input() }}</form>
-          {% endif %}
-        </details>
-      {% endif %}
-
       <details class="action-details action-accordion account-detail-tool filter-details" {% if account_page.filters_active %}open{% endif %}>
         <summary class="account-detail-tool__summary">
           {{ icon("filter") }}

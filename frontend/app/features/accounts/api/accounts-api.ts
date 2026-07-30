@@ -66,12 +66,26 @@ export type CreateAccountResult =
   | ({ status: "error" } & ApiErrorDetails);
 
 export type AccountLifecycleAction = "archive" | "restore";
+export type AccountMutationSnapshot = Pick<
+  AccountSummaryDto,
+  "id" | "isActive" | "updatedAt"
+>;
+export type UpdateAccountDraft = CreateAccountDraft & {
+  expectedUpdatedAt: string;
+};
 
 export type AccountLifecycleResult =
   | { status: "success"; account: AccountSummaryDto }
   | { status: "unauthenticated" }
   | { status: "forbidden"; message: string }
   | { status: "conflict"; message: string }
+  | ({ status: "error" } & ApiErrorDetails);
+
+export type UpdateAccountResult =
+  | { status: "success"; account: AccountSummaryDto }
+  | { status: "unauthenticated" }
+  | { status: "forbidden"; message: string }
+  | { status: "conflict"; code: string; message: string }
   | ({ status: "error" } & ApiErrorDetails);
 
 export async function loadAccounts(
@@ -160,7 +174,7 @@ export async function changeAccountLifecycle({
   action,
   csrfToken,
 }: {
-  account: AccountSummaryDto;
+  account: AccountMutationSnapshot;
   action: AccountLifecycleAction;
   csrfToken: string;
 }): Promise<AccountLifecycleResult> {
@@ -206,6 +220,66 @@ export async function changeAccountLifecycle({
       code: apiError?.code ?? "account_lifecycle_failed",
       fieldErrors: apiError?.fieldErrors ?? {},
       message: apiError?.message ?? "Не удалось изменить состояние счёта.",
+    };
+  }
+  const parsed = accountSummarySchema.safeParse(response.body);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      code: "invalid_account_response",
+      fieldErrors: {},
+      message: "API вернул счёт неожиданного формата.",
+    };
+  }
+  return { status: "success", account: parsed.data };
+}
+
+export async function updateAccount({
+  accountId,
+  csrfToken,
+  draft,
+}: {
+  accountId: string;
+  csrfToken: string;
+  draft: UpdateAccountDraft;
+}): Promise<UpdateAccountResult> {
+  const response = await requestJson(`/api/v1/accounts/${accountId}`, {
+    body: JSON.stringify(draft),
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    },
+    method: "PUT",
+  });
+  if (response.status === "network_error") {
+    return {
+      status: "error",
+      code: "network_error",
+      fieldErrors: {},
+      message: "Backend недоступен. Проверьте соединение и повторите.",
+    };
+  }
+  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  const apiError = parseApiError(response.body);
+  if (response.httpStatus === 403) {
+    return {
+      status: "forbidden",
+      message: apiError?.message ?? "Изменение счёта недоступно.",
+    };
+  }
+  if (response.httpStatus === 409) {
+    return {
+      status: "conflict",
+      code: apiError?.code ?? "account_update_conflict",
+      message: apiError?.message ?? "Счёт уже изменился.",
+    };
+  }
+  if (!response.ok) {
+    return {
+      status: "error",
+      code: apiError?.code ?? "account_update_failed",
+      fieldErrors: apiError?.fieldErrors ?? {},
+      message: apiError?.message ?? "Не удалось сохранить изменения.",
     };
   }
   const parsed = accountSummarySchema.safeParse(response.body);

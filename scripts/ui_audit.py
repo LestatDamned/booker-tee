@@ -322,9 +322,7 @@ def prepare_realistic_scenario(
     page = context.new_page()
     try:
         page.goto(build_url(base_url, "/app/accounts"), wait_until="networkidle")
-        page.get_by_role("button", name="Новый счёт", exact=True).click(
-            timeout=PAGE_TIMEOUT_MS
-        )
+        page.get_by_role("button", name="Новый счёт", exact=True).click(timeout=PAGE_TIMEOUT_MS)
         create_form = page.locator("form[data-account-create]")
         create_form.locator('input[name="name"]').fill(account_name)
         create_form.locator('select[name="accountType"]').select_option("cash")
@@ -339,9 +337,7 @@ def prepare_realistic_scenario(
             'a[href^="/app/accounts/"]'
         ).first.get_attribute("href")
         page.goto(build_url(base_url, "/app/accounts"), wait_until="networkidle")
-        page.get_by_role("button", name="Новый счёт", exact=True).click(
-            timeout=PAGE_TIMEOUT_MS
-        )
+        page.get_by_role("button", name="Новый счёт", exact=True).click(timeout=PAGE_TIMEOUT_MS)
         create_form = page.locator("form[data-account-create]")
         create_form.locator('input[name="name"]').fill(destination_account_name)
         create_form.locator('select[name="accountType"]').select_option("deposit")
@@ -594,6 +590,9 @@ def collect_ux_assertions(
             )
         )
 
+    if scenario == "realistic" and path == scenario_state.get("account_detail_path"):
+        errors.extend(assert_react_account_management(page))
+
     if (
         scenario == "realistic"
         and path == "/workspaces"
@@ -626,6 +625,62 @@ def collect_ux_assertions(
             )
         )
 
+    return errors
+
+
+def assert_react_account_management(page: Page) -> list[str]:
+    errors: list[str] = []
+    back_links = page.locator("a").evaluate_all(
+        """
+        (elements) => elements
+          .filter((element) => (element.innerText || '').trim() === 'Все счета')
+          .map((element) => element.getAttribute('href'))
+        """
+    )
+    if "/app/accounts" not in back_links:
+        errors.append(
+            f"React account detail has no calm back link to the account directory: {back_links!r}"
+        )
+
+    trigger = page.get_by_role("button", name="Настройки счёта", exact=True)
+    if trigger.count() != 1:
+        return [*errors, "React account settings trigger was not found in the header"]
+    trigger.click(timeout=PAGE_TIMEOUT_MS)
+    dialog = page.get_by_role("dialog", name="Настройки счёта", exact=True)
+    try:
+        dialog.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        return [*errors, f"React account settings panel did not open: {short_error(exc)}"]
+
+    for label in ("Название", "Тип", "Валюта", "Начальный баланс"):
+        if dialog.get_by_label(label, exact=False).count() != 1:
+            errors.append(f"React account settings field {label!r} was not found")
+    if dialog.get_by_role("button", name="Сохранить изменения", exact=True).count() != 1:
+        errors.append("React account settings has no explicit save action")
+    if dialog.get_by_role("button", name="Перенести в архив", exact=True).count() != 1:
+        errors.append("React account settings has no archive action for an active account")
+
+    geometry = dialog.evaluate(
+        """
+        (element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            left: rect.left,
+            right: rect.right,
+            width: rect.width,
+            viewportWidth: window.innerWidth,
+            documentOverflow: document.documentElement.scrollWidth - window.innerWidth,
+          };
+        }
+        """
+    )
+    if (
+        float(geometry["left"]) < -1
+        or float(geometry["right"]) > float(geometry["viewportWidth"]) + 1
+    ):
+        errors.append(f"React account settings panel escapes the viewport: {geometry!r}")
+    if float(geometry["documentOverflow"]) > 1:
+        errors.append("React account settings panel causes horizontal page overflow")
     return errors
 
 

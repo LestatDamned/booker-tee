@@ -98,6 +98,11 @@ class CreateAccountApiRequest(ApiRequestModel):
         return Decimal(self.initial_balance)
 
 
+class UpdateAccountApiRequest(CreateAccountApiRequest):
+    initial_balance: str
+    expected_updated_at: datetime
+
+
 class AccountLifecycleApiRequest(ApiRequestModel):
     expected_active: bool
     expected_updated_at: datetime
@@ -116,6 +121,14 @@ class AccountDetailAccountApiResponse(ApiModel):
     initial_balance: str
     balance: str
     is_active: bool
+    updated_at: datetime
+    capabilities: "AccountDetailCapabilitiesApiResponse"
+
+
+class AccountDetailCapabilitiesApiResponse(ApiModel):
+    can_update: bool
+    can_archive: bool
+    can_restore: bool
 
 
 class AccountMovementSourceTargetApiResponse(ApiModel):

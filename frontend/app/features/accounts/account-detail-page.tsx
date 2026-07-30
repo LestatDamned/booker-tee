@@ -16,6 +16,7 @@ import { StatusLabel } from "../../ui/status-label/status-label";
 import { Tag } from "../../ui/tag/tag";
 import { WorkbenchRow } from "../../ui/workbench-row/workbench-row";
 import type { AccountDetailDto } from "./api/account-detail-api";
+import type { AccountSummaryDto } from "./api/accounts-api";
 import {
   accountBalanceTone,
   accountMovementsLabel,
@@ -25,6 +26,7 @@ import {
   operationStatuses,
   operationTypes,
 } from "./account-detail-model";
+import { AccountSettingsPanel } from "./account-settings-panel";
 import styles from "./account-detail-page.module.css";
 
 type Props = {
@@ -41,6 +43,16 @@ export function AccountDetailPage({
   const location = useLocation();
   const navigate = useNavigate();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [accountOverride, setAccountOverride] = useState<{
+    sourceUpdatedAt: string;
+    value: AccountDetailDto["account"];
+  } | null>(null);
+  const [feedback, setFeedback] = useState("");
+  const account =
+    accountOverride?.sourceUpdatedAt === detail.account.updatedAt
+      ? accountOverride.value
+      : detail.account;
   const params = new URLSearchParams(location.search);
   const appliedCount = activeFilterCount(params);
 
@@ -55,31 +67,73 @@ export function AccountDetailPage({
     void navigate(queryUrl(location.pathname, search));
   }
 
+  function commitAccount(committed: AccountSummaryDto, message: string) {
+    setAccountOverride({
+      sourceUpdatedAt: detail.account.updatedAt,
+      value: {
+        ...account,
+        name: committed.name,
+        accountType: committed.accountType,
+        currency: committed.currency,
+        initialBalance: committed.initialBalance,
+        balance: committed.balance,
+        isActive: committed.isActive,
+        updatedAt: committed.updatedAt,
+        capabilities: {
+          canUpdate: true,
+          canArchive: committed.capabilities.canArchive,
+          canRestore: committed.capabilities.canRestore,
+        },
+      },
+    });
+    setSettingsOpen(false);
+    setFeedback(message);
+  }
+
   return (
     <AppShell session={session}>
       <main className={styles.page}>
         <section aria-busy={navigationPending} className={styles.workbench}>
           <div className={styles.workbenchHeader}>
+            <Link className={styles.backLink} to="/accounts">
+              <Icon name="back" />
+              Все счета
+            </Link>
             <PageHeader
               actions={
-                <div className={styles.balanceBlock}>
-                  <span>Текущий баланс</span>
-                  <MoneyValue
-                    amount={formatMoneyAmount(detail.account.balance, null)}
-                    currency={detail.account.currency}
-                    size="prominent"
-                    tone={accountBalanceTone(detail.account.balance)}
-                  />
-                  <small>
-                    Начальный{" "}
-                    {formatMoneyAmount(detail.account.initialBalance, null)}{" "}
-                    {detail.account.currency}
-                  </small>
+                <div className={styles.headerActions}>
+                  <div className={styles.balanceBlock}>
+                    <span>Текущий баланс</span>
+                    <MoneyValue
+                      amount={formatMoneyAmount(account.balance, null)}
+                      currency={account.currency}
+                      size="prominent"
+                      tone={accountBalanceTone(account.balance)}
+                    />
+                    <small>
+                      Начальный{" "}
+                      {formatMoneyAmount(account.initialBalance, null)}{" "}
+                      {account.currency}
+                    </small>
+                  </div>
+                  {account.capabilities.canUpdate ? (
+                    <Button
+                      data-account-settings-trigger
+                      icon="edit"
+                      onClick={() => {
+                        setFeedback("");
+                        setSettingsOpen(true);
+                      }}
+                      tone="secondary"
+                    >
+                      Настройки счёта
+                    </Button>
+                  ) : null}
                 </div>
               }
-              description={`Движения денег по счёту · ${accountTypeLabels[detail.account.accountType]} · ${detail.account.isActive ? "активный" : "в архиве"}.`}
+              description={`Движения денег по счёту · ${accountTypeLabels[account.accountType]} · ${account.isActive ? "активный" : "в архиве"}.`}
               eyebrow={accountMovementsLabel(detail.pagination.total)}
-              title={detail.account.name}
+              title={account.name}
             />
           </div>
 
@@ -115,9 +169,6 @@ export function AccountDetailPage({
                 {filtersOpen ? "Скрыть фильтры" : "Показать фильтры"}
                 {appliedCount ? <Badge>{appliedCount}</Badge> : null}
               </Button>
-              <ButtonLink href="/app/accounts" icon="back">
-                Все счета
-              </ButtonLink>
             </div>
             {appliedCount ? (
               <div className={styles.activeFilterSummary}>
@@ -137,7 +188,7 @@ export function AccountDetailPage({
           ) : null}
 
           <span aria-live="polite" className={styles.navigationStatus}>
-            {navigationPending ? "Обновляем проводки…" : ""}
+            {navigationPending ? "Обновляем проводки…" : feedback}
           </span>
 
           <section
@@ -173,6 +224,14 @@ export function AccountDetailPage({
           <AccountDetailFooter detail={detail} />
         </section>
       </main>
+      {settingsOpen ? (
+        <AccountSettingsPanel
+          account={account}
+          csrfToken={session.csrfToken}
+          onClose={() => setSettingsOpen(false)}
+          onCommitted={commitAccount}
+        />
+      ) : null}
     </AppShell>
   );
 }

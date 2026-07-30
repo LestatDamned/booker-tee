@@ -26,14 +26,21 @@ from app.api.v1.accounts.schemas import (
     AccountSummaryApiResponse,
     AccountSummaryCapabilitiesApiResponse,
     CreateAccountApiRequest,
+    UpdateAccountApiRequest,
 )
 from app.api.v1.manual_ledger.dependencies import get_manual_ledger_reference_reader
 from app.features.accounts.application.directory import AccountDirectoryService
-from app.features.accounts.schemas import AccountSummaryDto, CreateAccountCommand
+from app.features.accounts.schemas import (
+    AccountSummaryDto,
+    CreateAccountCommand,
+    UpdateAccountCommand,
+)
 from app.features.accounts.service import (
+    AccountCurrencyConflictError,
     AccountError,
     AccountLifecycleConflictError,
     AccountNotFoundError,
+    AccountUpdateConflictError,
 )
 from app.features.ledger.application.account_ledger import AccountLedgerReader
 from app.features.ledger.application.manual_operations import ManualLedgerReferenceReader
@@ -87,6 +94,7 @@ async def get_account_detail(
     return AccountDetailResponseMapper.response(
         detail,
         await references.read(workspace_id),
+        can_write=can_write_financial_data(context.workspace.membership),
     )
 
 
@@ -153,6 +161,71 @@ async def create_account(
                 initial_balance=request.decimal_initial_balance,
             ),
         )
+    except AccountError as error:
+        raise ApiError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="account_validation_error",
+            message=str(error),
+        ) from error
+    return account_summary_response(account, can_write=True)
+
+
+@router.put(
+    "/{account_id}",
+    response_model=AccountSummaryApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def update_account(
+    account_id: UUID,
+    request: UpdateAccountApiRequest,
+    context: Annotated[
+        ApiRequestContext,
+        Depends(require_api_financial_write_context),
+    ],
+    directory: Annotated[
+        AccountDirectoryService,
+        Depends(get_account_directory_service),
+    ],
+) -> AccountSummaryApiResponse:
+    try:
+        account = await directory.update(
+            workspace_id=context.workspace.workspace.id,
+            account_id=account_id,
+            command=UpdateAccountCommand(
+                name=request.name,
+                account_type=request.account_type,
+                currency=request.currency,
+                initial_balance=request.decimal_initial_balance,
+                expected_updated_at=request.expected_updated_at,
+            ),
+        )
+    except AccountNotFoundError as error:
+        raise ApiError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="account_not_found",
+            message="Счёт не найден.",
+        ) from error
+    except AccountUpdateConflictError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="account_update_conflict",
+            message="Счёт уже изменился. Загрузите актуальные данные.",
+        ) from error
+    except AccountCurrencyConflictError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="account_currency_conflict",
+            message=(
+                "Нельзя изменить валюту счёта с финансовой историей. "
+                "Создайте новый счёт в нужной валюте."
+            ),
+        ) from error
     except AccountError as error:
         raise ApiError(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

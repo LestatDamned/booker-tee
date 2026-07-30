@@ -25,9 +25,10 @@ import {
   type AccountType,
   type CreateAccountDraft,
 } from "./api/accounts-api";
+import { validateAccountDraft, type AccountFieldErrors } from "./account-form";
 import styles from "./account-list-page.module.css";
 
-type FieldErrors = Partial<Record<keyof CreateAccountDraft, string>>;
+type FieldErrors = AccountFieldErrors;
 
 const accountTypeLabels: Record<AccountType, string> = {
   cash: "Наличные",
@@ -86,7 +87,7 @@ export function AccountListPage({
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const nextErrors = validateDraft(draft);
+    const nextErrors = validateAccountDraft(draft);
     setFieldErrors(nextErrors);
     setSubmitError(null);
     setSuccessMessage(null);
@@ -699,23 +700,6 @@ function emptyDraft(
     currency: session.workspace.defaultCurrency,
     initialBalance: "0.00",
   };
-}
-
-export function validateDraft(draft: CreateAccountDraft): FieldErrors {
-  const errors: FieldErrors = {};
-  if (!draft.name.trim()) {
-    errors.name = "Введите название счёта.";
-  }
-  if (!draft.accountType) {
-    errors.accountType = "Выберите тип счёта.";
-  }
-  if (!/^[A-Za-z]{3}$/.test(draft.currency.trim())) {
-    errors.currency = "Введите трёхбуквенный код валюты.";
-  }
-  if (!/^[+-]?\d+(?:[.,]\d{1,2})?$/.test(draft.initialBalance.trim())) {
-    errors.initialBalance = "Введите сумму с точностью до двух знаков.";
-  }
-  return errors;
 }
 
 function accountFieldErrors(
