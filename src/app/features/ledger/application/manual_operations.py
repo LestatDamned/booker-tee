@@ -10,7 +10,7 @@ from app.features.ledger.errors import (
     ManualOperationNotEditableError,
     ManualOperationNotFoundError,
 )
-from app.features.ledger.mapping.operations import ManualOperationReadDtoMapper
+from app.features.ledger.mapping.manual_read import ManualOperationReadMapper
 from app.features.ledger.repository import LedgerRepository
 from app.features.ledger.schemas.listing import (
     DEFAULT_PER_PAGE,
@@ -109,7 +109,7 @@ class ManualOperationService:
             pagination=normalized_pagination,
         )
         return (
-            [ManualOperationReadDtoMapper.from_model(operation) for operation in operations],
+            [ManualOperationReadMapper.from_operation(operation) for operation in operations],
             LedgerPage(
                 page=normalized_pagination.page,
                 per_page=normalized_pagination.per_page,
@@ -126,7 +126,7 @@ class ManualOperationService:
         operation = await self._ledger.get_operation_for_workspace(workspace_id, operation_id)
         if operation is None or operation.source != OperationSource.MANUAL:
             return None
-        return ManualOperationReadDtoMapper.from_model(operation)
+        return ManualOperationReadMapper.from_operation(operation)
 
     async def get_for_edit(
         self,

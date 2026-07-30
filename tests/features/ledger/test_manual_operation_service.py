@@ -48,8 +48,8 @@ async def test_create_returns_reloaded_read_dto(
     monkeypatch.setattr(service_module, "LedgerRepository", FakeRepository)
     monkeypatch.setattr(service_module, "ManualOperationWriter", FakeUseCase)
     monkeypatch.setattr(
-        service_module.ManualOperationReadDtoMapper,
-        "from_model",
+        service_module.ManualOperationReadMapper,
+        "from_operation",
         staticmethod(lambda _operation: expected),
     )
     session = SimpleNamespace(commits=0, rollbacks=0)

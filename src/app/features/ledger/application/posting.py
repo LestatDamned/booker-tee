@@ -15,11 +15,7 @@ from app.features.ledger.domain.money import (
     ensure_income_expense_posting,
     ensure_same_currency,
 )
-from app.features.ledger.mapping.operations import (
-    build_bank_pdf_operation,
-    build_bank_pdf_transfer_operation,
-    build_money_entry,
-)
+from app.features.ledger.mapping.records import LedgerRecordFactory
 from app.features.ledger.models import Operation
 from app.features.ledger.repository import LedgerRepository
 from app.features.properties.models import Property
@@ -45,7 +41,7 @@ class LedgerPostingService:
     ) -> Operation:
         ensure_income_expense_posting(plan, account)
         operation = await self.ledger.create_operation(
-            build_bank_pdf_operation(
+            LedgerRecordFactory.build_imported_income_expense_operation(
                 context=context,
                 document_id=document_id,
                 raw_transaction_id=raw_transaction_id,
@@ -57,7 +53,7 @@ class LedgerPostingService:
             )
         )
         await self.ledger.create_money_entry(
-            build_money_entry(
+            LedgerRecordFactory.build_money_entry(
                 context=context,
                 operation=operation,
                 account=account,
@@ -91,7 +87,7 @@ class LedgerPostingService:
         ensure_same_currency(source_account, counterparty_account)
         ensure_balanced_transfer(source_amount, counterparty_amount)
         operation = await self.ledger.create_operation(
-            build_bank_pdf_transfer_operation(
+            LedgerRecordFactory.build_imported_transfer_operation(
                 context=context,
                 description=description,
                 operation_date=operation_date,
@@ -103,7 +99,7 @@ class LedgerPostingService:
             )
         )
         await self.ledger.create_money_entry(
-            build_money_entry(
+            LedgerRecordFactory.build_money_entry(
                 context=context,
                 operation=operation,
                 account=source_account,
@@ -113,7 +109,7 @@ class LedgerPostingService:
             )
         )
         await self.ledger.create_money_entry(
-            build_money_entry(
+            LedgerRecordFactory.build_money_entry(
                 context=context,
                 operation=operation,
                 account=counterparty_account,

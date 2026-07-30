@@ -11,8 +11,8 @@ from sqlalchemy.exc import IntegrityError
 from app.features.categories.service import CategoryService
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.application.manual_mutations import ManualOperationWriter
+from app.features.ledger.domain.manual_idempotency import ManualOperationFingerprint
 from app.features.ledger.domain.types import OperationType
-from app.features.ledger.mapping.operations import manual_income_expense_fingerprint
 from app.features.ledger.schemas.manual import (
     CreateManualIncomeExpenseCommand,
 )
@@ -97,7 +97,7 @@ async def test_idempotency_race_rolls_back_only_savepoint() -> None:
     )
     replay = SimpleNamespace(
         id=uuid4(),
-        idempotency_fingerprint=manual_income_expense_fingerprint(command),
+        idempotency_fingerprint=ManualOperationFingerprint.calculate_income_expense(command),
     )
     savepoint = NestedTransactionStub()
     session = SimpleNamespace(

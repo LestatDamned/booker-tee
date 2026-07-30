@@ -61,12 +61,14 @@ ledger/
     manual.py                  # manual commands, read DTOs and reference options
 
   domain/
+    manual_idempotency.py      # stable identity of manual write intentions
     money.py                   # signs, amounts, currency and balance rules
     text.py                    # shared ledger text normalization
     types.py                   # operation enums and lifecycle/action policies
 
   mapping/
-    operations.py              # ORM factories, fingerprints and read mapping
+    manual_read.py             # semantic manual operation read projection
+    records.py                 # ledger ORM record factory
 
   errors.py
   models.py
@@ -112,6 +114,10 @@ Domain functions и value objects не зависят от HTTP или AsyncSess
 чистые вычисления остаются свободными функциями; class/actor нужен для workflow,
 state transition или объекта с собственным инвариантом.
 
+`ManualOperationFingerprint.calculate_*` определяет стабильную идентичность
+manual write intention для idempotency retry и conflict detection. Эта чистая
+domain policy не знает об ORM или transaction boundary.
+
 `RawTransactionStatus` принадлежит imports и объявлен в
 `imports/statements/types.py`. Проверки review status и нормализованных полей
 принадлежат `import_review/domain/posting.py`. Ledger получает
@@ -130,8 +136,9 @@ clean_description(...)
 
 ### Mapping
 
-`mapping/operations.py` — единственная точка создания ledger ORM objects и
-преобразования загруженного operation aggregate в manual read DTO. API mapping
+`mapping/manual_read.py` преобразует загруженный operation aggregate в manual
+read DTO. `LedgerRecordFactory` в `mapping/records.py` строит неперсистированные
+ledger ORM records из уже проверенных application/domain inputs. API mapping
 остаётся в API adapter.
 
 Изоморфные Pydantic projections используют прямой

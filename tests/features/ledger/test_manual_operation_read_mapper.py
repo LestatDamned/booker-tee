@@ -3,7 +3,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 from app.features.accounts.models import Account, AccountType
-from app.features.ledger.mapping.operations import ManualOperationReadDtoMapper
+from app.features.ledger.mapping.manual_read import ManualOperationReadMapper
 from app.features.ledger.models import (
     MoneyEntry,
     Operation,
@@ -46,7 +46,7 @@ def test_transfer_read_model_uses_one_operation_amount_and_explicit_accounts() -
         ),
     ]
 
-    result = ManualOperationReadDtoMapper.from_model(operation)
+    result = ManualOperationReadMapper.from_operation(operation)
 
     assert result.operation_type is OperationType.TRANSFER
     assert result.money is not None

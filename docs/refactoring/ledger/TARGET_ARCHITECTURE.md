@@ -56,7 +56,7 @@ ledger/
 │   └── references.py
 ├── domain/
 │   ├── types.py
-│   ├── operations.py
+│   ├── manual_idempotency.py
 │   └── money.py
 └── mapping/
     ├── records.py
@@ -128,22 +128,45 @@ contracts переведены на `ApplicationModel`. Старый `applicatio
 
 ### 3. Account ledger projections
 
-Статус: pending.
+Статус: deferred until React account cutover.
 
-- перевести account ledger read models на Pydantic;
-- заменить механические Account/Category/Property mappings на
-  `Model.model_validate(...)`;
-- сохранить вычисление balance, direction и account-scoped operation view;
-- не расширять legacy SSR boundary.
+Этап сознательно пропущен 2026-07-30: все его runtime consumers принадлежат
+legacy SSR account screen и должны быть удалены после React replacement gate.
+До cutover здесь выполняются только исправления корректности и необходимые
+изменения контракта; отдельная Pydantic-полировка временных projections не
+проводится.
 
 ### 4. Mapping cohesion
 
-Статус: pending.
+Статус: completed 2026-07-30.
 
-- отделить idempotency fingerprint, ORM record construction и manual read
-  projection;
+- 4A: вынести semantic manual read projection в `mapping/manual_read.py`;
+- 4B: вынести manual idempotency fingerprint из mapping;
+- 4C: собрать ORM record construction в `mapping/records.py` и удалить
+  `mapping/operations.py`;
 - использовать ясные actor APIs;
 - не создавать package facades или generic mapper framework.
+
+4A завершён 2026-07-30. `ManualOperationReadMapper.from_operation(...)`
+изолирует semantic read projection: выбор transfer source/destination entries,
+нормализацию суммы и вложенные references. Production и tests импортируют actor
+напрямую из `mapping/manual_read.py`; старое имя
+`ManualOperationReadDtoMapper.from_model(...)` удалено без compatibility facade.
+
+4B завершён 2026-07-30. Чистая политика manual idempotency перенесена в
+`domain/manual_idempotency.py` и доступна через actor API
+`ManualOperationFingerprint.calculate_income_expense(...)` /
+`calculate_transfer(...)`. Application writer, ORM factories и tests используют
+domain policy напрямую; старые fingerprint functions удалены из mapping без
+compatibility facade.
+
+4C завершён 2026-07-30. ORM record construction перенесён в
+`mapping/records.py` под actor API `LedgerRecordFactory.build_*`. Source-specific
+methods явно различают manual и imported operations, общий confirmed-operation
+constructor сохраняет lifecycle, audit и profit invariants. Manual fingerprint
+вычисляется writer один раз и передаётся в factory как готовое значение. Старый
+`mapping/operations.py` удалён без compatibility facade; package re-exports не
+добавлялись.
 
 ### 5. Mutation actors
 

@@ -21,6 +21,7 @@ from app.features.ledger.application.imported_operations import (
     UpdateImportedOperationReviewFieldsCommand,
 )
 from app.features.ledger.application.manual_mutations import ManualOperationWriter
+from app.features.ledger.domain.manual_idempotency import ManualOperationFingerprint
 from app.features.ledger.domain.money import (
     TransferAmounts,
     affects_profit_for_operation_type,
@@ -34,7 +35,6 @@ from app.features.ledger.errors import (
     OperationIdempotencyConflictError,
     OperationVersionConflictError,
 )
-from app.features.ledger.mapping.operations import manual_income_expense_fingerprint
 from app.features.ledger.models import Operation, OperationSource, OperationStatus, OperationType
 from app.features.ledger.schemas.manual import (
     CreateManualIncomeExpenseCommand,
@@ -177,7 +177,7 @@ async def test_manual_create_replays_matching_idempotency_key(
     )
     existing = SimpleNamespace(
         id=uuid4(),
-        idempotency_fingerprint=manual_income_expense_fingerprint(command),
+        idempotency_fingerprint=ManualOperationFingerprint.calculate_income_expense(command),
     )
 
     class FakeRepository:

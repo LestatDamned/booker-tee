@@ -13,12 +13,7 @@ from app.features.ledger.domain.types import (
     OperationStatus,
     OperationType,
 )
-from app.features.ledger.mapping.operations import (
-    build_bank_pdf_operation,
-    build_bank_pdf_transfer_operation,
-    build_manual_income_expense_operation,
-    build_manual_transfer_operation,
-)
+from app.features.ledger.mapping.records import LedgerRecordFactory
 from app.features.ledger.schemas.manual import (
     CreateManualIncomeExpenseCommand,
     CreateManualTransferCommand,
@@ -41,7 +36,7 @@ def test_operation_factories_share_confirmed_core_invariants() -> None:
     raw_transaction = raw_transaction_stub()
 
     operations = [
-        build_manual_income_expense_operation(
+        LedgerRecordFactory.build_manual_income_expense_operation(
             context=context,
             command=CreateManualIncomeExpenseCommand(
                 operation_type=OperationType.EXPENSE,
@@ -54,8 +49,9 @@ def test_operation_factories_share_confirmed_core_invariants() -> None:
             ),
             category=cast(Any, category),
             property_=cast(Any, property_),
+            idempotency_fingerprint=None,
         ),
-        build_manual_transfer_operation(
+        LedgerRecordFactory.build_manual_transfer_operation(
             context=context,
             command=CreateManualTransferCommand(
                 source_account_id=uuid4(),
@@ -65,8 +61,9 @@ def test_operation_factories_share_confirmed_core_invariants() -> None:
                 description="Перевод",
             ),
             transfer_category=cast(Any, category),
+            idempotency_fingerprint=None,
         ),
-        build_bank_pdf_operation(
+        LedgerRecordFactory.build_imported_income_expense_operation(
             context=context,
             document_id=uuid4(),
             raw_transaction_id=raw_transaction.id,
@@ -82,7 +79,7 @@ def test_operation_factories_share_confirmed_core_invariants() -> None:
             category=cast(Any, category),
             property_=cast(Any, property_),
         ),
-        build_bank_pdf_transfer_operation(
+        LedgerRecordFactory.build_imported_transfer_operation(
             context=context,
             description=raw_transaction.description_normalized,
             operation_date=raw_transaction.operation_date,

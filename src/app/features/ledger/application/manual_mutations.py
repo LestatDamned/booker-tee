@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
+from app.features.ledger.domain.manual_idempotency import ManualOperationFingerprint
 from app.features.ledger.domain.money import (
     TransferAmounts,
     affects_profit_for_operation_type,
@@ -27,13 +28,7 @@ from app.features.ledger.errors import (
     OperationIdempotencyConflictError,
     OperationVersionConflictError,
 )
-from app.features.ledger.mapping.operations import (
-    build_manual_income_expense_operation,
-    build_manual_transfer_operation,
-    build_money_entry,
-    manual_income_expense_fingerprint,
-    manual_transfer_fingerprint,
-)
+from app.features.ledger.mapping.records import LedgerRecordFactory
 from app.features.ledger.models import MoneyEntry, Operation
 from app.features.ledger.repository import LedgerRepository
 from app.features.ledger.schemas.manual import (
@@ -57,7 +52,7 @@ class ManualOperationWriter:
         context: WorkspaceContext,
         command: CreateManualIncomeExpenseCommand,
     ) -> Operation:
-        fingerprint = manual_income_expense_fingerprint(command)
+        fingerprint = ManualOperationFingerprint.calculate_income_expense(command)
         replay = await self._find_idempotent_replay(
             workspace_id=context.workspace.id,
             idempotency_key=command.idempotency_key,
@@ -83,15 +78,18 @@ class ManualOperationWriter:
 
         async def create_records() -> Operation:
             operation = await self.ledger.create_operation(
-                build_manual_income_expense_operation(
+                LedgerRecordFactory.build_manual_income_expense_operation(
                     context=context,
                     command=command,
                     category=category,
                     property_=property_,
+                    idempotency_fingerprint=(
+                        fingerprint if command.idempotency_key is not None else None
+                    ),
                 )
             )
             await self.ledger.create_money_entry(
-                build_money_entry(
+                LedgerRecordFactory.build_money_entry(
                     context=context,
                     operation=operation,
                     account=account,
@@ -120,7 +118,7 @@ class ManualOperationWriter:
         context: WorkspaceContext,
         command: CreateManualTransferCommand,
     ) -> Operation:
-        fingerprint = manual_transfer_fingerprint(command)
+        fingerprint = ManualOperationFingerprint.calculate_transfer(command)
         replay = await self._find_idempotent_replay(
             workspace_id=context.workspace.id,
             idempotency_key=command.idempotency_key,
@@ -146,14 +144,17 @@ class ManualOperationWriter:
 
         async def create_records() -> Operation:
             operation = await self.ledger.create_operation(
-                build_manual_transfer_operation(
+                LedgerRecordFactory.build_manual_transfer_operation(
                     context=context,
                     command=command,
                     transfer_category=transfer_category,
+                    idempotency_fingerprint=(
+                        fingerprint if command.idempotency_key is not None else None
+                    ),
                 )
             )
             await self.ledger.create_money_entry(
-                build_money_entry(
+                LedgerRecordFactory.build_money_entry(
                     context=context,
                     operation=operation,
                     account=source_account,
@@ -162,7 +163,7 @@ class ManualOperationWriter:
                 )
             )
             await self.ledger.create_money_entry(
-                build_money_entry(
+                LedgerRecordFactory.build_money_entry(
                     context=context,
                     operation=operation,
                     account=destination_account,
@@ -342,14 +343,14 @@ class ManualOperationWriter:
         await self._replace_money_entries(
             operation,
             [
-                build_money_entry(
+                LedgerRecordFactory.build_money_entry(
                     context=context,
                     operation=operation,
                     account=source_account,
                     amount=transfer_amounts.source_amount,
                     entry_order=1,
                 ),
-                build_money_entry(
+                LedgerRecordFactory.build_money_entry(
                     context=context,
                     operation=operation,
                     account=destination_account,
@@ -383,7 +384,7 @@ class ManualOperationWriter:
         await self._replace_money_entries(
             operation,
             [
-                build_money_entry(
+                LedgerRecordFactory.build_money_entry(
                     context=context,
                     operation=operation,
                     account=account,
