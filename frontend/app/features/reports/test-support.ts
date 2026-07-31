@@ -3,7 +3,9 @@ import type { ReportOverviewDto } from "./api/reports-api";
 
 export const accountId = "4958dd80-af47-4131-8f16-16c0ca04f63c";
 export const categoryId = "b8917470-c242-47aa-bfd4-e3b72a1bb657";
+export const secondCategoryId = "7f771b41-c1d2-4fba-ad7e-6584bbc1d619";
 export const propertyId = "28964070-ac60-4a7b-b637-574614bfd492";
+export const secondPropertyId = "ad664fd9-b51c-4e2f-9bc0-c3484f2caa27";
 export const documentId = "5e4c43a1-7e08-4afe-a442-5d1d72e08ca8";
 
 export const reportOverview: ReportOverviewDto = {
@@ -60,8 +62,36 @@ export const reportOverview: ReportOverviewDto = {
       profit: "-45000.00",
       isActive: true,
     },
+    {
+      categoryId: secondCategoryId,
+      name: "Продукты",
+      currency: "RUB",
+      income: "10000.00",
+      expense: "5000.00",
+      profit: "5000.00",
+      isActive: false,
+    },
   ],
-  propertyRows: [],
+  propertyRows: [
+    {
+      propertyId,
+      name: "Квартира",
+      currency: "RUB",
+      income: "120000.00",
+      expense: "30000.00",
+      profit: "90000.00",
+      isActive: true,
+    },
+    {
+      propertyId: secondPropertyId,
+      name: "Квартира",
+      currency: "RUB",
+      income: "0.00",
+      expense: "10000.00",
+      profit: "-10000.00",
+      isActive: false,
+    },
+  ],
   balanceAsOf: "2026-07-31",
   nextReviewDocumentId: documentId,
 };

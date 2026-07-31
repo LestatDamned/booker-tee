@@ -23,6 +23,7 @@ import {
   reportMonthSearch,
 } from "./report-filter-query";
 import { ReportFilters } from "./report-filters";
+import { ReportBreakdowns } from "./report-breakdowns";
 import styles from "./reports-page.module.css";
 
 export function ReportsPage({
@@ -183,12 +184,7 @@ export function ReportsPage({
           </section>
         ) : null}
 
-        {hasReportData ? (
-          <InlineNotice title="Следующие разрезы" tone="neutral">
-            Детализация по категориям и объектам будет подключена во втором
-            slice.
-          </InlineNotice>
-        ) : null}
+        {hasReportData ? <ReportBreakdowns overview={overview} /> : null}
       </PageFrame>
     </AppShell>
   );

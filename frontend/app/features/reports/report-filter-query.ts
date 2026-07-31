@@ -9,6 +9,14 @@ export type ReportFilterDraft = {
   propertyId: string;
 };
 
+export type ReportCategorySortField = "name" | "income" | "expense" | "profit";
+export type ReportSortDirection = "asc" | "desc";
+
+export type ReportCategorySort = {
+  field: ReportCategorySortField;
+  direction: ReportSortDirection;
+};
+
 export function reportFilterDraft(
   overview: ReportOverviewDto,
 ): ReportFilterDraft {
@@ -97,6 +105,44 @@ export function reportAppliedFilters(overview: ReportOverviewDto): string[] {
   return labels;
 }
 
+export function reportCategorySort(searchValue: string): ReportCategorySort {
+  const search = new URLSearchParams(searchValue);
+  const requestedField = search.get("category_sort");
+  if (!isCategorySortField(requestedField)) {
+    return { field: "name", direction: "asc" };
+  }
+  const field = requestedField;
+  const requestedDirection = search.get("category_sort_dir");
+  return {
+    field,
+    direction:
+      requestedDirection === "asc" || requestedDirection === "desc"
+        ? requestedDirection
+        : field === "name"
+          ? "asc"
+          : "desc",
+  };
+}
+
+export function reportCategorySortSearch(
+  currentSearch: string,
+  nextField: ReportCategorySortField,
+): string {
+  const current = reportCategorySort(currentSearch);
+  const nextDirection: ReportSortDirection =
+    current.field === nextField
+      ? current.direction === "asc"
+        ? "desc"
+        : "asc"
+      : nextField === "name"
+        ? "asc"
+        : "desc";
+  const search = new URLSearchParams(currentSearch);
+  search.set("category_sort", nextField);
+  search.set("category_sort_dir", nextDirection);
+  return `?${search.toString()}`;
+}
+
 function addMonths(monthStart: string, offset: number): string {
   const [year = 0, month = 1] = monthStart.split("-").map(Number);
   const value = new Date(Date.UTC(year, month - 1 + offset, 1));
@@ -116,4 +162,15 @@ function todayIso(): string {
 function setOrDelete(search: URLSearchParams, key: string, value: string) {
   if (value) search.set(key, value);
   else search.delete(key);
+}
+
+function isCategorySortField(
+  value: string | null,
+): value is ReportCategorySortField {
+  return (
+    value === "name" ||
+    value === "income" ||
+    value === "expense" ||
+    value === "profit"
+  );
 }

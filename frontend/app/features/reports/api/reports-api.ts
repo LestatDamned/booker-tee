@@ -12,11 +12,13 @@ const namedOptionSchema = z.object({
   isActive: z.boolean(),
 });
 
+const decimalStringSchema = z.string().regex(/^[+-]?\d+(?:\.\d+)?$/);
+
 const moneySummarySchema = z.object({
   currency: z.string().length(3),
-  income: z.string(),
-  expense: z.string(),
-  profit: z.string(),
+  income: decimalStringSchema,
+  expense: decimalStringSchema,
+  profit: decimalStringSchema,
 });
 
 export const reportOverviewSchema: z.ZodType<ReportOverviewDto> = z.object({
@@ -43,7 +45,7 @@ export const reportOverviewSchema: z.ZodType<ReportOverviewDto> = z.object({
       accountId: z.uuid(),
       name: z.string(),
       currency: z.string().length(3),
-      balance: z.string(),
+      balance: decimalStringSchema,
       isActive: z.boolean(),
     }),
   ),

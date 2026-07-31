@@ -44,6 +44,27 @@ describe("loadReportOverview", () => {
       message: "API вернул отчёт неожиданного формата.",
     });
   });
+
+  it("rejects non-decimal money strings", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          jsonResponse({
+            ...reportOverview,
+            propertyRows: [
+              { ...reportOverview.propertyRows[0]!, profit: "not-money" },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    await expect(loadReportOverview("")).resolves.toEqual({
+      status: "error",
+      message: "API вернул отчёт неожиданного формата.",
+    });
+  });
 });
 
 function jsonResponse(payload: unknown): Response {

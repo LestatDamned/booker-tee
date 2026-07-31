@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.properties.models import PropertyStatus
 from app.features.reports.application.overview import (
     ReportingFilterError,
     ReportingFilters,
@@ -209,3 +210,92 @@ class SummarySessionCapture:
     async def execute(self, query: Any) -> SummaryResult:
         self.queries.append(query)
         return SummaryResult()
+
+
+@pytest.mark.asyncio
+async def test_property_aggregate_keeps_duplicate_names_as_distinct_uuid_rows() -> None:
+    first_id = uuid4()
+    second_id = uuid4()
+    session = AggregateSessionCapture(
+        [
+            (
+                first_id,
+                "Квартира",
+                PropertyStatus.ACTIVE,
+                Decimal("100.00"),
+                Decimal("20.00"),
+            ),
+            (
+                second_id,
+                "Квартира",
+                PropertyStatus.ARCHIVED,
+                Decimal("0.00"),
+                Decimal("30.00"),
+            ),
+        ]
+    )
+
+    rows = await ReportsRepository(cast(AsyncSession, session)).list_property_aggregates(
+        workspace_id=uuid4(),
+        filters=ReportingFilters(currency="RUB"),
+    )
+
+    assert [row.property_id for row in rows] == [first_id, second_id]
+    assert [row.name for row in rows] == ["Квартира", "Квартира"]
+    assert rows[0].profit == Decimal("80.00")
+    assert rows[1].profit == Decimal("-30.00")
+    assert rows[1].is_active is False
+    sql = str(session.queries[0])
+    assert "GROUP BY properties.id" in sql
+    assert "ORDER BY properties.name, properties.id" in sql
+    assert "operations.affects_profit IS true" in sql
+
+
+@pytest.mark.asyncio
+async def test_category_aggregate_preserves_uncategorized_and_archived_identity() -> None:
+    archived_id = uuid4()
+    session = AggregateSessionCapture(
+        [
+            (None, "Без категории", True, Decimal("0.00"), Decimal("15.00")),
+            (
+                archived_id,
+                "Старый раздел",
+                False,
+                Decimal("40.00"),
+                Decimal("0.00"),
+            ),
+        ]
+    )
+
+    rows = await ReportsRepository(cast(AsyncSession, session)).list_category_aggregates(
+        workspace_id=uuid4(),
+        filters=ReportingFilters(currency="RUB"),
+    )
+
+    assert rows[0].category_id is None
+    assert rows[0].name == "Без категории"
+    assert rows[0].profit == Decimal("-15.00")
+    assert rows[1].category_id == archived_id
+    assert rows[1].is_active is False
+    sql = str(session.queries[0])
+    assert "categories.system_key" in sql
+    assert "ORDER BY" in sql
+    assert "categories.id" in sql
+
+
+class AggregateResult:
+    def __init__(self, rows: list[tuple[Any, ...]]) -> None:
+        self.rows = rows
+
+    def all(self) -> list[tuple[Any, ...]]:
+        return self.rows
+
+
+class AggregateSessionCapture:
+    def __init__(self, rows: list[tuple[Any, ...]]) -> None:
+        self.rows = rows
+        self.queries: list[Any] = []
+
+    async def execute(self, query: Any) -> AggregateResult:
+        self.queries.append(query)
+        return AggregateResult(self.rows)

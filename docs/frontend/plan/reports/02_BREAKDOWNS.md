@@ -1,6 +1,6 @@
 # Slice 02: Category And Property Breakdowns
 
-Статус: planned.
+Статус: completed 2026-07-31.
 
 ## Outcome
 
@@ -69,3 +69,41 @@ Frontend:
 - HTMX partial больше не является необходимым replacement contract;
 - sorting доступна, deep-linkable и не требует server-rendered HTML;
 - desktop/tablet/mobile представляют одинаковые financial facts.
+
+## Completion record
+
+Completed: 2026-07-31
+
+Implemented:
+
+- category и property breakdowns на существующем overview endpoint;
+- distinct UUID identity для одинаковых category/property names и отдельная
+  system identity для `Без категории`;
+- URL-сортировка categories по name/income/expense/profit без преобразования
+  decimal strings в `float`;
+- desktop `aria-sort` headers и mobile sorting controls;
+- category detail links с сохранением совместимого периода;
+- отдельные empty states для categories и properties.
+
+Checks run:
+
+- Ruff, ty и 28 focused Reports backend/API tests;
+- полный frontend pipeline: format, lint, styles, API drift, typecheck, 264
+  tests и production build;
+- authenticated realistic browser audit на `1440×1000`, `920×900` и
+  `390×844` без horizontal overflow, console/page/network и UX assertion
+  errors.
+
+Intentional deviations:
+
+- новый endpoint не добавлялся: Slice 01 overview уже возвращает bounded
+  aggregate rows;
+- property rows остаются read-only, потому что canonical React detail route
+  ещё отсутствует.
+
+Cleanup performed: placeholder Slice 02 удалён; legacy Reports сохраняется до
+Slice 04 replacement gate.
+
+Measurements/risks: Reports route chunk — `19.71 kB`, gzip `6.02 kB`; CSS —
+`4.09 kB`, gzip `1.00 kB`. Следующий рост response/UI относится только к
+bounded uncategorized page Slice 03.

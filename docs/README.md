@@ -47,7 +47,8 @@
 ## Текущий frontend plan
 
 Stages 0–6, Imports и Accounts/account ledger завершены. Stage 7 active:
-Reports Slice 01 завершён; следующий шаг — Slice 02 breakdowns.
+Reports Slices 01–02 завершены; следующий шаг — Slice 03 uncategorized
+operations.
 
 - [`STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md`](frontend/plan/STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md)
 - [`Reports migration`](frontend/plan/reports/README.md)

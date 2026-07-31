@@ -591,6 +591,9 @@ def collect_ux_assertions(
             )
         )
 
+    if path == "/app/reports":
+        errors.extend(assert_react_reports(page))
+
     if scenario == "realistic" and path == scenario_state.get("account_detail_path"):
         errors.extend(assert_react_account_management(page))
 
@@ -626,6 +629,32 @@ def collect_ux_assertions(
             )
         )
 
+    return errors
+
+
+def assert_react_reports(page: Page) -> list[str]:
+    errors: list[str] = []
+    try:
+        page.get_by_role("heading", name="Отчёты", exact=True).wait_for(
+            state="visible", timeout=PAGE_TIMEOUT_MS * 2
+        )
+    except PlaywrightError as exc:
+        return [f"React Reports did not finish loading: {short_error(exc)}"]
+
+    for heading in ("По категориям", "По объектам"):
+        if page.get_by_role("heading", name=heading, exact=True).count() != 1:
+            errors.append(f"React Reports heading {heading!r} was not found")
+
+    category_table = page.locator("table").filter(
+        has=page.locator("caption", has_text="Доходы, расходы и прибыль по категориям")
+    )
+    if category_table.count() != 1:
+        errors.append("React Reports category table was not found")
+    elif category_table.locator('th[aria-sort="ascending"]').count() != 1:
+        errors.append("React Reports category default sort is not exposed through aria-sort")
+
+    if page.locator("html").evaluate("element => element.scrollWidth > element.clientWidth"):
+        errors.append("React Reports causes horizontal page overflow")
     return errors
 
 
