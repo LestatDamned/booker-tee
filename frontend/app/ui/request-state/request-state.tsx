@@ -3,7 +3,6 @@ import styles from "./request-state.module.css";
 
 type RequestStateProps =
   | { status: "loading"; message?: string }
-  | { status: "empty"; message: string; title: string }
   | { status: "error"; message: string; onRetry?: () => void; title: string };
 
 export function RequestState(props: RequestStateProps) {
@@ -16,15 +15,11 @@ export function RequestState(props: RequestStateProps) {
     );
   }
 
-  const isError = props.status === "error";
   return (
-    <section
-      className={`${styles.state} ${isError ? styles.error : styles.empty}`}
-      role={isError ? "alert" : "status"}
-    >
+    <section className={`${styles.state} ${styles.error}`} role="alert">
       <strong>{props.title}</strong>
       <span>{props.message}</span>
-      {isError && props.onRetry ? (
+      {props.onRetry ? (
         <div>
           <Button icon="retry" onClick={props.onRetry}>
             Повторить

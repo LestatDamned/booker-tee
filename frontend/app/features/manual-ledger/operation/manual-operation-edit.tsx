@@ -267,7 +267,7 @@ export function ManualOperationEdit({
             <Button
               disabled={disabled || state.submission.status === "pending"}
               onClick={cancelDraft}
-              tone="ghost"
+              tone="secondary"
             >
               Отмена
             </Button>

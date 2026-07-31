@@ -91,3 +91,56 @@ export function accountMovementsLabel(total: number): string {
   }
   return `${total} проводок`;
 }
+
+export function accountMovementAppliedFilters(
+  currentSearch: string,
+  options: AccountDetailDto["filterOptions"],
+): string[] {
+  const search = new URLSearchParams(currentSearch);
+  const filters: string[] = [];
+  addFilter(
+    filters,
+    "Статус",
+    search.get("status") === "confirmed"
+      ? ""
+      : optionLabel(search.get("status"), operationStatuses),
+  );
+  addFilter(filters, "От", search.get("date_from") ?? "");
+  addFilter(filters, "До", search.get("date_to") ?? "");
+  addFilter(
+    filters,
+    "Источник",
+    optionLabel(search.get("source"), operationSources),
+  );
+  addFilter(filters, "Тип", optionLabel(search.get("type"), operationTypes));
+  addFilter(
+    filters,
+    "Категория",
+    optionLabel(search.get("category_id"), options.categories),
+  );
+  addFilter(
+    filters,
+    "Объект",
+    optionLabel(search.get("property_id"), options.properties),
+  );
+  addFilter(filters, "Поиск", search.get("search")?.trim() ?? "");
+  return filters;
+}
+
+function addFilter(filters: string[], label: string, value: string) {
+  if (value) filters.push(`${label}: ${value}`);
+}
+
+function optionLabel(
+  value: string | null,
+  options: readonly (
+    { id: string; name: string } | { label: string; value: string }
+  )[],
+): string {
+  if (!value) return "";
+  const option = options.find((candidate) =>
+    "id" in candidate ? candidate.id === value : candidate.value === value,
+  );
+  if (!option) return "";
+  return "name" in option ? option.name : option.label;
+}

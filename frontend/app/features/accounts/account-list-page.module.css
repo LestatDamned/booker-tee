@@ -17,26 +17,8 @@
   gap: var(--space-4);
 }
 
-.readonlyNotice {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  border: 1px solid var(--color-border-default);
-  border-left: 0.25rem solid var(--color-information);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-secondary-pane);
+.accountReadonlyNotice {
   margin: var(--space-4);
-  padding: var(--space-4);
-}
-
-.readonlyNotice strong {
-  display: block;
-}
-
-.readonlyNotice p,
-.emptyState p {
-  margin: var(--space-1) 0 0;
-  color: var(--color-text-secondary);
 }
 
 .liveMessage {
@@ -48,131 +30,11 @@
   white-space: nowrap;
 }
 
-.emptyState {
-  display: grid;
-  min-height: 18rem;
-  place-items: center;
-  align-content: center;
-  gap: var(--space-4);
-  background: var(--color-bg-canvas);
-  padding: var(--space-7);
-  text-align: center;
-}
-
-.emptyState h2 {
-  margin: 0;
-}
-
 .listToolActions {
   display: grid;
   grid-template-columns: minmax(16rem, 1fr) auto auto;
   align-items: center;
   gap: var(--space-2);
-}
-
-.tabs {
-  display: inline-flex;
-  min-height: var(--control-height);
-  align-items: center;
-  gap: var(--space-1);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-canvas);
-  padding: var(--space-1);
-}
-
-.tabs a {
-  display: inline-flex;
-  min-height: calc(var(--control-height) - var(--space-2));
-  align-items: center;
-  gap: var(--space-2);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  font-weight: 700;
-  padding: var(--space-2) var(--space-3);
-  text-decoration: none;
-}
-
-.tabs a:hover {
-  background: var(--color-bg-interactive);
-  color: var(--color-text-primary);
-}
-
-.tabs a[aria-current="page"] {
-  background: var(--color-bg-elevated);
-  box-shadow: inset 0 0 0 1px var(--color-border-strong);
-  color: var(--color-text-primary);
-}
-
-.tabs span {
-  color: var(--color-text-muted);
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-xs);
-  font-variant-numeric: tabular-nums;
-}
-
-.filteredEmpty {
-  display: grid;
-  min-height: 14rem;
-  place-items: center;
-  align-content: center;
-  gap: var(--space-2);
-  padding: var(--space-6);
-  text-align: center;
-}
-
-.filteredEmpty h2,
-.filteredEmpty p {
-  margin: 0;
-}
-
-.filteredEmpty p {
-  color: var(--color-text-secondary);
-}
-
-.resetLink {
-  color: var(--color-link);
-  font-weight: 700;
-}
-
-.tableRegion {
-  min-width: 0;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.table th,
-.table td {
-  border-bottom: 1px solid var(--color-border-default);
-  padding: var(--space-3) var(--space-4);
-  text-align: left;
-  vertical-align: middle;
-}
-
-.table thead th {
-  background: var(--color-bg-secondary-pane);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.025em;
-  text-transform: uppercase;
-}
-
-.table tbody tr {
-  transition: background-color var(--duration-fast) ease;
-}
-
-.table tbody tr:hover {
-  background: var(--color-bg-interactive);
-}
-
-.table tbody tr:last-child th,
-.table tbody tr:last-child td {
-  border-bottom: 0;
 }
 
 .table th:nth-child(1) {
@@ -236,22 +98,10 @@
   display: inline-flex;
 }
 
-.mobileList {
-  display: none;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 .mobileRecord {
   display: grid;
   gap: var(--space-3);
-  border-bottom: 1px solid var(--color-border-default);
   padding: var(--space-4);
-}
-
-.mobileList li:last-child .mobileRecord {
-  border-bottom: 0;
 }
 
 .mobileHeading,
@@ -298,24 +148,11 @@
   }
 }
 
-@media (max-width: 64rem) {
-  .tableRegion {
-    display: none;
-  }
-
-  .mobileList {
-    display: block;
-  }
-}
-
 @media (max-width: 42rem) {
-  .tabs {
+  .accountTabs {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .tabs a {
-    justify-content: center;
+    width: 100%;
   }
 
   .listToolActions {
@@ -323,7 +160,7 @@
   }
 
   .listToolActions > button,
-  .tabs {
+  .accountTabs {
     width: 100%;
   }
 }
@@ -335,11 +172,5 @@
 
   .mobileBalanceValue {
     justify-self: start;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .table tbody tr {
-    transition: none;
   }
 }

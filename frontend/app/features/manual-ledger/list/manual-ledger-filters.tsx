@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
-import { Button } from "../../../ui/button/button";
+import { Button, RouterButtonLink } from "../../../ui/button/button";
 import { Field } from "../../../ui/field/field";
 import { FormActions } from "../../../ui/field/form-layout";
 import type { ManualLedgerDto } from "../api/manual-ledger-api";
@@ -140,7 +140,10 @@ export function ManualLedgerFilters({
         </div>
       </details>
 
-      <FormActions>
+      <FormActions layout="split">
+        <RouterButtonLink onClick={onClose} to={location.pathname}>
+          Сбросить
+        </RouterButtonLink>
         <Button
           icon="filterApply"
           isLoading={navigationPending}
@@ -149,13 +152,6 @@ export function ManualLedgerFilters({
         >
           Применить
         </Button>
-        <Link
-          className={styles.resetLink}
-          onClick={onClose}
-          to={location.pathname}
-        >
-          Сбросить
-        </Link>
       </FormActions>
     </form>
   );

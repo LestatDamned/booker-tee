@@ -6,7 +6,7 @@ import type {
   ManualOperationDto,
 } from "../features/manual-ledger/api/manual-ledger-api";
 import { ManualLedgerPage } from "../features/manual-ledger/list/manual-ledger-page";
-import styles from "../styles/shell.module.css";
+import { RouteStatePage } from "../ui/route-state-page/route-state-page";
 import { loadManualLedgerRoute } from "./manual-ledger-loader";
 
 export { loadManualLedgerRoute } from "./manual-ledger-loader";
@@ -87,29 +87,22 @@ function RouteState({
 }) {
   const unauthenticated = result.status === "unauthenticated";
   return (
-    <main
-      className={styles.centeredState}
-      role={unauthenticated ? undefined : "alert"}
-    >
-      <p className={styles.eyebrow}>
-        {unauthenticated ? "Сессия не найдена" : "Ошибка загрузки"}
-      </p>
-      <h1>
-        {unauthenticated
+    <RouteStatePage
+      actionHref={
+        unauthenticated
+          ? "/login?next=/app/ledger/manual"
+          : window.location.href
+      }
+      actionLabel={unauthenticated ? "Войти" : "Повторить"}
+      eyebrow={unauthenticated ? "Сессия не найдена" : "Ошибка загрузки"}
+      kind={unauthenticated ? "unauthenticated" : "error"}
+      title={
+        unauthenticated
           ? "Войдите в Booker Tee"
-          : "Не удалось загрузить операции"}
-      </h1>
-      {!unauthenticated ? <p>{result.message}</p> : null}
-      <a
-        className={styles.buttonLink}
-        href={
-          unauthenticated
-            ? "/login?next=/app/ledger/manual"
-            : window.location.href
-        }
-      >
-        {unauthenticated ? "Войти" : "Повторить"}
-      </a>
-    </main>
+          : "Не удалось загрузить операции"
+      }
+    >
+      {!unauthenticated ? result.message : null}
+    </RouteStatePage>
   );
 }

@@ -1,11 +1,30 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { FoundationGallery } from "./foundation-gallery";
 
 describe("FoundationGallery", () => {
   it("keeps theme interactions independent and restores disclosure focus", async () => {
-    render(<FoundationGallery />);
+    render(
+      <MemoryRouter>
+        <FoundationGallery />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("navigation", {
+        name: "Примеры состояний маршрутов",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Загрузка" })).toHaveAttribute(
+      "href",
+      "/app/foundation?route-state=loading",
+    );
+    expect(screen.getByRole("link", { name: "Ошибка" })).toHaveAttribute(
+      "href",
+      "/app/foundation?route-state=error",
+    );
 
     const editButtons = screen.getAllByRole("button", {
       name: "Редактировать",

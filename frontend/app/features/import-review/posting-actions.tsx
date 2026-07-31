@@ -77,7 +77,9 @@ export function ConfirmPostingAction({
   ) {
     return variant === "panel" && onCancel ? (
       <FormActions layout="split">
-        <Button onClick={onCancel}>Отмена</Button>
+        <Button onClick={onCancel} tone="secondary">
+          Отмена
+        </Button>
       </FormActions>
     ) : null;
   }
@@ -205,7 +207,11 @@ export function ConfirmPostingAction({
         ) : null}
       </div>
       <FormActions layout="split">
-        {onCancel ? <Button onClick={onCancel}>Отмена</Button> : null}
+        {onCancel ? (
+          <Button onClick={onCancel} tone="secondary">
+            Отмена
+          </Button>
+        ) : null}
         <Button
           disabled={pending || refreshing}
           isLoading={pending}

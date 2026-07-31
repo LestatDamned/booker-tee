@@ -1,6 +1,6 @@
 import type { ImportDocumentDetailLoadResult } from "../features/import-document-detail/api/import-document-detail-api";
 import { ImportDocumentDetailPage } from "../features/import-document-detail/import-document-detail-page";
-import styles from "../styles/shell.module.css";
+import { RouteStatePage } from "../ui/route-state-page/route-state-page";
 import type { Route } from "./+types/import-document-detail";
 import { loadImportDocumentDetailRoute } from "./import-document-detail-loader";
 
@@ -57,17 +57,23 @@ function RouteState({
 }) {
   const copy = routeStateCopy(result);
   return (
-    <main
-      className={styles.centeredState}
-      role={result.status === "unauthenticated" ? undefined : "alert"}
+    <RouteStatePage
+      actionHref={copy.href}
+      actionLabel={copy.action}
+      eyebrow="Документ импорта"
+      kind={
+        result.status === "unauthenticated"
+          ? "unauthenticated"
+          : result.status === "forbidden"
+            ? "forbidden"
+            : result.status === "not_found"
+              ? "notFound"
+              : "error"
+      }
+      title={copy.title}
     >
-      <p className={styles.eyebrow}>Документ импорта</p>
-      <h1>{copy.title}</h1>
-      <p>{copy.message}</p>
-      <a className={styles.buttonLink} href={copy.href}>
-        {copy.action}
-      </a>
-    </main>
+      {copy.message}
+    </RouteStatePage>
   );
 }
 

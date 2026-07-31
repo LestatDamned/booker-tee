@@ -1,0 +1,70 @@
+.collection,
+.tableRegion {
+  min-width: 0;
+}
+
+.tableRegion table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.tableRegion th,
+.tableRegion td {
+  border-bottom: 1px solid var(--color-border-default);
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.tableRegion thead th {
+  background: var(--color-bg-secondary-pane);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.tableRegion tbody tr {
+  transition: background-color var(--duration-fast) ease;
+}
+
+.tableRegion tbody tr:hover {
+  background: var(--color-bg-interactive);
+}
+
+.tableRegion tbody tr:last-child th,
+.tableRegion tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.mobileRegion {
+  display: none;
+}
+
+.mobileRegion > ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mobileRegion > ol > li + li {
+  border-top: 1px solid var(--color-border-default);
+}
+
+@media (max-width: 64rem) {
+  .tableRegion {
+    display: none;
+  }
+
+  .mobileRegion {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tableRegion tbody tr {
+    transition: none;
+  }
+}

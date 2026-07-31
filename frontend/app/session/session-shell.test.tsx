@@ -104,8 +104,9 @@ describe("SessionShell", () => {
       />,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Backend недоступен.");
-    expect(
-      screen.getByRole("button", { name: "Повторить" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Повторить" })).toHaveAttribute(
+      "href",
+      "/app",
+    );
   });
 });

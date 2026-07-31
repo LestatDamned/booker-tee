@@ -259,11 +259,17 @@ export const ImportedOperationCorrectionPanel = forwardRef<
         </fieldset>
 
         <FormActions layout="split">
-          <Button disabled={pending} onClick={requestClose} type="button">
+          <Button
+            disabled={pending}
+            onClick={requestClose}
+            tone="secondary"
+            type="button"
+          >
             Отмена
           </Button>
           <Button
             disabled={!dirty || pending}
+            icon="check"
             isLoading={pending}
             tone="primary"
             type="submit"

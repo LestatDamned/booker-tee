@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
@@ -13,6 +14,7 @@ describe("ImportDocumentListPage", () => {
   it("renders an actionable, accessible document list", () => {
     renderPage(populatedDocuments);
 
+    expect(screen.getAllByRole("main")).toHaveLength(1);
     expect(
       screen.getByRole("heading", { name: "Импорты" }),
     ).toBeInTheDocument();
@@ -36,6 +38,72 @@ describe("ImportDocumentListPage", () => {
     expect(
       within(table).getByRole("link", { name: "Открыть" }),
     ).toHaveAttribute("href", `/app/imports/documents/${failedDocumentId}`);
+  });
+
+  it("composes shared workbench regions and discloses filters", async () => {
+    const user = userEvent.setup();
+    renderPage(populatedDocuments);
+
+    const registry = screen.getByRole("region", {
+      name: "Реестр выписок",
+    });
+    expect(registry).toHaveAttribute("aria-busy", "false");
+    expect(
+      within(registry).getByRole("region", { name: "Инструменты списка" }),
+    ).toBeInTheDocument();
+    expect(
+      within(registry).getByRole("region", { name: "Документы импорта" }),
+    ).toBeInTheDocument();
+    expect(
+      within(registry).getByRole("navigation", {
+        name: "Состояние документов",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(registry).getByRole("link", { name: "Все 3" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      within(registry).getByRole("link", {
+        name: "Требуют действия 2",
+      }),
+    ).toHaveAttribute("data-selected", "false");
+    expect(
+      within(registry).getByRole("link", { name: "Завершены" }),
+    ).not.toHaveAttribute("aria-current");
+
+    const filterButton = within(registry).getByRole("button", {
+      name: "Фильтры",
+    });
+    expect(filterButton).toHaveAttribute("aria-expanded", "false");
+    await user.click(filterButton);
+
+    expect(filterButton).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText("Счёт")).toBeVisible();
+    expect(screen.getByLabelText("Период выписки от")).toBeVisible();
+    const reset = screen.getByRole("link", { name: "Сбросить все" });
+    const apply = screen.getByRole("button", { name: "Применить" });
+    expect(reset).toHaveAttribute("data-tone", "secondary");
+    expect(apply).toHaveAttribute("data-tone", "primary");
+    expect(reset.parentElement).toHaveAttribute("data-layout", "split");
+  });
+
+  it("keeps advanced filters visible after the panel closes", () => {
+    const account = populatedDocuments.filterOptions.accounts[0]!;
+    renderPage(
+      populatedDocuments,
+      `/imports?account_id=${account.id}&period_from=2026-07-01&period_to=2026-07-31&sort=created_at_asc`,
+    );
+
+    const filters = screen.getByRole("list", {
+      name: "Применённые фильтры",
+    });
+    expect(filters).toHaveTextContent(`Счёт: ${account.name}`);
+    expect(filters).toHaveTextContent("Период: 2026-07-01–2026-07-31");
+    expect(filters).toHaveTextContent("Сортировка: сначала старые");
+    expect(screen.getByRole("link", { name: "Сбросить все" })).toHaveAttribute(
+      "href",
+      "/imports",
+    );
   });
 
   it("renders an upload empty state for an import manager", () => {
@@ -65,6 +133,9 @@ describe("ImportDocumentListPage", () => {
     });
 
     expect(screen.getByText("Режим только для чтения")).toBeInTheDocument();
+    expect(
+      screen.getByText("Режим только для чтения").closest("[data-tone]"),
+    ).toHaveAttribute("data-tone", "information");
     expect(screen.getAllByText("unknown.xlsx")).toHaveLength(2);
     expect(
       screen.queryByRole("link", { name: "Загрузить выписку" }),
@@ -84,6 +155,10 @@ describe("ImportDocumentListPage", () => {
     expect(
       screen.getByText("По этим фильтрам документов нет"),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Завершены" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     expect(
       screen.getByRole("link", { name: "Сбросить фильтры" }),
     ).toHaveAttribute("href", "/imports");

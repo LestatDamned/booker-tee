@@ -203,13 +203,15 @@ Shared candidates уже доказаны кодом:
 - Badge/Tag/StatusLabel;
 - MoneyValue;
 - Field/Fieldset/FormError;
-- PageFrame/PageHeader;
+- PageFrame/PageHeader/RouteStatePage/RouteLoadingPage;
 - RequestState;
 - ConfirmationDialog;
 - ExpansionPanel;
 - WorkbenchSurface/WorkbenchHeader;
 - WorkbenchToolbar/WorkbenchSearch;
 - WorkbenchFilterRegion/WorkbenchStatus/WorkbenchContent;
+- AppliedFilterSummary;
+- ResponsiveRecordCollection;
 - WorkbenchRow/WorkbenchPanel;
 - ActionStack;
 - SearchableSelect.

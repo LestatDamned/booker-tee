@@ -3,10 +3,16 @@ import { useSearchParams } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
-import { Badge } from "../../ui/badge/badge";
-import { Button } from "../../ui/button/button";
+import { Button, RouterButtonLink } from "../../ui/button/button";
 import { Icon } from "../../ui/icon/icon";
-import { RequestState } from "../../ui/request-state/request-state";
+import { InlineNotice } from "../../ui/inline-notice/inline-notice";
+import { PageFrame } from "../../ui/page-frame/page-frame";
+import {
+  SelectionTabButton,
+  SelectionTabs,
+} from "../../ui/selection-tabs/selection-tabs";
+import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
+import { WorkbenchEmptyState } from "../../ui/workbench-empty-state/workbench-empty-state";
 import type { ImportReviewDto } from "./api/import-review-api";
 import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
 import { ReviewItem } from "./review-item";
@@ -152,8 +158,8 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
 
   return (
     <AppShell session={session}>
-      <section className={styles.page}>
-        <section className={styles.reviewSummary}>
+      <PageFrame className={styles.page} spacing="none">
+        <WorkbenchSurface aria-label="Сводка проверки импорта">
           <header className={styles.summaryHeader}>
             <div className={styles.summaryIdentity}>
               <p className={styles.sectionEyebrow}>
@@ -166,11 +172,6 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
                 {currentReview.document.sourceAccount?.name ??
                   "Счёт не определён"}
               </p>
-              {readonly ? (
-                <p className={styles.readonlyNotice}>
-                  Доступно только для чтения.
-                </p>
-              ) : null}
             </div>
             <RuleActions
               csrfToken={session.csrfToken}
@@ -179,13 +180,25 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
               readonly={readonly}
             />
           </header>
+          {readonly ? (
+            <InlineNotice
+              className={styles.reviewReadonlyNotice}
+              title="Доступно только для чтения"
+              tone="information"
+            >
+              Изменение и подтверждение операций недоступны для вашей роли.
+            </InlineNotice>
+          ) : null}
           <div className={styles.summaryBody}>
             <ReconciliationStatus validation={currentReview.validation} />
             <StatementReconciliation validation={currentReview.validation} />
           </div>
-        </section>
+        </WorkbenchSurface>
 
-        <section aria-label="Строки импорта" className={styles.itemsRegion}>
+        <WorkbenchSurface
+          aria-label="Строки импорта"
+          className={styles.itemsRegion}
+        >
           <ReviewNavigator
             anchorItemId={navigationAnchorId}
             filter={filter}
@@ -202,11 +215,20 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
             </div>
           ) : null}
           {currentReview.items.length === 0 ? (
-            <RequestState
-              message="Вернитесь к документу и проверьте результат распознавания."
-              status="empty"
+            <WorkbenchEmptyState
+              action={
+                <RouterButtonLink
+                  icon="back"
+                  to={`/app/imports/documents/${currentReview.document.id}`}
+                >
+                  Вернуться к документу
+                </RouterButtonLink>
+              }
+              icon="imports"
               title="Операций для проверки пока нет"
-            />
+            >
+              Вернитесь к документу и проверьте результат распознавания.
+            </WorkbenchEmptyState>
           ) : (
             <ol className={styles.items}>
               {visibleItems.map((item) => (
@@ -236,12 +258,19 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
                 </li>
               ))}
               {visibleItems.length === 0 ? (
-                <li className={styles.filterEmpty}>
-                  <RequestState
-                    message={filterEmptyCopy[filter].message}
-                    status="empty"
+                <li>
+                  <WorkbenchEmptyState
+                    action={
+                      <Button icon="filter" onClick={() => changeFilter("all")}>
+                        Показать все строки
+                      </Button>
+                    }
+                    icon="search"
+                    kind="filtered"
                     title={filterEmptyCopy[filter].title}
-                  />
+                  >
+                    {filterEmptyCopy[filter].message}
+                  </WorkbenchEmptyState>
                 </li>
               ) : null}
             </ol>
@@ -256,8 +285,8 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
               </Button>
             </div>
           ) : null}
-        </section>
-      </section>
+        </WorkbenchSurface>
+      </PageFrame>
     </AppShell>
   );
 }
@@ -416,22 +445,18 @@ function ReviewFilters({
       },
     ];
   return (
-    <div
-      aria-label="Фильтр строк выписки"
-      className={styles.reviewFilters}
-      role="group"
-    >
+    <SelectionTabs aria-label="Фильтр строк выписки" role="group">
       {filters.map((candidate) => (
-        <button
-          aria-pressed={candidate.value === filter}
+        <SelectionTabButton
+          count={candidate.count}
           key={candidate.value}
           onClick={() => onChange(candidate.value)}
-          type="button"
+          selected={candidate.value === filter}
         >
-          {candidate.label} <Badge>{candidate.count}</Badge>
-        </button>
+          {candidate.label}
+        </SelectionTabButton>
       ))}
-    </div>
+    </SelectionTabs>
   );
 }
 

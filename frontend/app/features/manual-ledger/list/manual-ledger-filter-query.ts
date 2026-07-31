@@ -127,6 +127,7 @@ export function manualLedgerAppliedFilters(
     "Объект",
     optionLabel(draft.propertyId, options.properties),
   );
+  addAppliedFilter(filters, "Поиск", draft.search.trim());
   return filters;
 }
 

@@ -133,7 +133,7 @@ export function ManualOperationCreate({
         options={options}
       />
       <FormActions layout="split">
-        <Button disabled={pending} onClick={cancelDraft} tone="ghost">
+        <Button disabled={pending} onClick={cancelDraft} tone="secondary">
           Отмена
         </Button>
         <Button

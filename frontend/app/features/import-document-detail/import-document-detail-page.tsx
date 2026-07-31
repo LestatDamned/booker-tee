@@ -3,13 +3,18 @@ import { useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
+import { BackLink } from "../../ui/back-link/back-link";
 import { Button, ButtonLink } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
+import { DocumentWorkbenchHeader } from "../../ui/document-workbench-header/document-workbench-header";
+import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
+import { PageFrame } from "../../ui/page-frame/page-frame";
 import {
   StatusLabel,
   type StatusTone,
 } from "../../ui/status-label/status-label";
+import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import {
   mutateImportDocument,
   type ImportDocumentDetailDto,
@@ -92,52 +97,46 @@ export function ImportDocumentDetailPage({ initialDocument, session }: Props) {
 
   return (
     <AppShell session={session}>
-      <main className={styles.page}>
-        <a className={styles.backLink} href="/app/imports">
-          ← Все импорты
-        </a>
+      <PageFrame className={styles.page} spacing="none">
+        <BackLink to="/imports">Все импорты</BackLink>
 
-        <section className={styles.workbench}>
-          <header className={styles.workbenchHeader}>
-            <div className={styles.identity}>
-              <p className={styles.eyebrow}>Импорт банковской выписки</p>
-              <h1>{document.account?.name ?? "Счёт не определён"}</h1>
-              <p className={styles.documentContext}>
-                {documentIdentity(document) ||
-                  "Реквизиты выписки не определены"}
-              </p>
-              <p className={styles.filename} title={document.filename}>
-                {document.filename}
-              </p>
-            </div>
-            <div className={styles.headerStatus}>
-              <span>Состояние документа</span>
+        <WorkbenchSurface
+          aria-label="Документ импорта"
+          className={styles.workbench}
+        >
+          <DocumentWorkbenchHeader
+            context={
+              documentIdentity(document) || "Реквизиты выписки не определены"
+            }
+            eyebrow="Импорт банковской выписки"
+            filename={document.filename}
+            status={
               <StatusLabel tone={status.tone} variant="soft">
                 {status.label}
               </StatusLabel>
-            </div>
-          </header>
+            }
+            title={document.account?.name ?? "Счёт не определён"}
+          />
 
           {feedback ? (
-            <div
-              className={
-                feedback.tone === "error"
-                  ? styles.errorFeedback
-                  : styles.successFeedback
+            <InlineNotice
+              action={
+                feedback.tone === "error" ? (
+                  <Button
+                    icon="retry"
+                    onClick={() => window.location.reload()}
+                    type="button"
+                  >
+                    Обновить страницу
+                  </Button>
+                ) : undefined
               }
+              className={styles.documentFeedback}
               role={feedback.tone === "error" ? "alert" : "status"}
+              tone={feedback.tone === "error" ? "danger" : "success"}
             >
               {feedback.message}
-              {feedback.tone === "error" ? (
-                <Button
-                  icon="retry"
-                  onClick={() => window.location.reload()}
-                  type="button"
-                >
-                  Обновить страницу
-                </Button>
-              ) : null}
-            </div>
+            </InlineNotice>
           ) : null}
 
           <section className={styles.decisionRegion} aria-label="Следующий шаг">
@@ -208,7 +207,7 @@ export function ImportDocumentDetailPage({ initialDocument, session }: Props) {
               />
             </aside>
           </div>
-        </section>
+        </WorkbenchSurface>
 
         {confirmation ? (
           <ConfirmationDialog
@@ -226,7 +225,7 @@ export function ImportDocumentDetailPage({ initialDocument, session }: Props) {
             }
           />
         ) : null}
-      </main>
+      </PageFrame>
     </AppShell>
   );
 }

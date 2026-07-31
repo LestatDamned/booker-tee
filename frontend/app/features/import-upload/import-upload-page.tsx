@@ -3,13 +3,18 @@ import { useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
+import { BackLink } from "../../ui/back-link/back-link";
 import { Button } from "../../ui/button/button";
 import { Field } from "../../ui/field/field";
 import {
   FormErrorSummary,
   type FormErrorSummaryItem,
 } from "../../ui/field/form-error-summary";
+import { FormActions } from "../../ui/field/form-layout";
 import { Icon } from "../../ui/icon/icon";
+import { PageFrame } from "../../ui/page-frame/page-frame";
+import { WorkbenchHeader } from "../../ui/workbench-surface/workbench-header";
+import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import type { ImportUploadReferenceDto } from "./api/import-upload-api";
 import { uploadImportDocument } from "./api/import-upload-api";
 import styles from "./import-upload-page.module.css";
@@ -106,29 +111,33 @@ export function ImportUploadPage({
 
   return (
     <AppShell session={session}>
-      <main className={styles.page}>
-        <a className={styles.backLink} href="/app/imports">
-          ← Все импорты
-        </a>
+      <PageFrame className={styles.page} spacing="none">
+        <BackLink to="/imports">Все импорты</BackLink>
 
-        <section className={styles.workbench}>
-          <header className={styles.header}>
-            <div>
-              <p className={styles.eyebrow}>Импорт банковской выписки</p>
-              <h1>Загрузить выписку</h1>
-              <p>
-                Привяжите файл к счёту — так строки сразу получат правильную
-                валюту и контекст проверки.
-              </p>
-            </div>
-            <div
-              className={styles.headerFacts}
-              aria-label="Ограничения загрузки"
-            >
-              <span>PDF · XLSX</span>
-              <span>до {formatFileSize(reference.maxFileSizeBytes)}</span>
-            </div>
-          </header>
+        <WorkbenchSurface
+          aria-busy={pending}
+          aria-labelledby="import-upload-title"
+          className={styles.workbench}
+        >
+          <WorkbenchHeader>
+            <header className={styles.header}>
+              <div>
+                <p className={styles.eyebrow}>Импорт банковской выписки</p>
+                <h1 id="import-upload-title">Загрузить выписку</h1>
+                <p>
+                  Привяжите файл к счёту — так строки сразу получат правильную
+                  валюту и контекст проверки.
+                </p>
+              </div>
+              <div
+                className={styles.headerFacts}
+                aria-label="Ограничения загрузки"
+              >
+                <span>PDF · XLSX</span>
+                <span>до {formatFileSize(reference.maxFileSizeBytes)}</span>
+              </div>
+            </header>
+          </WorkbenchHeader>
 
           {!reference.canUpload ? (
             <section className={styles.statePanel}>
@@ -248,7 +257,7 @@ export function ImportUploadPage({
                   </label>
                 </Field>
 
-                <div className={styles.actions}>
+                <FormActions>
                   <Button
                     disabled={pending}
                     icon="imports"
@@ -258,12 +267,12 @@ export function ImportUploadPage({
                   >
                     {pending ? "Сохраняем и распознаём…" : "Загрузить выписку"}
                   </Button>
-                  <p aria-live="polite">
+                  <p aria-live="polite" className={styles.actionHint}>
                     {pending
                       ? "Не закрывайте страницу. Даже при ошибке распознавания исходный файл будет сохранён."
                       : "После загрузки откроется карточка документа с результатом распознавания."}
                   </p>
-                </div>
+                </FormActions>
               </form>
 
               <aside
@@ -297,8 +306,8 @@ export function ImportUploadPage({
               </aside>
             </div>
           )}
-        </section>
-      </main>
+        </WorkbenchSurface>
+      </PageFrame>
     </AppShell>
   );
 }

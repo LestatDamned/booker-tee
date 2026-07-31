@@ -1,6 +1,6 @@
 import type { ImportMappingLoadResult } from "../features/import-mapping/api/import-mapping-api";
 import { ImportMappingPage } from "../features/import-mapping/import-mapping-page";
-import styles from "../styles/shell.module.css";
+import { RouteStatePage } from "../ui/route-state-page/route-state-page";
 import type { Route } from "./+types/import-mapping";
 import { loadImportMappingRoute } from "./import-mapping-loader";
 
@@ -54,17 +54,23 @@ function RouteState({
 }) {
   const copy = routeStateCopy(result);
   return (
-    <main
-      className={styles.centeredState}
-      role={result.status === "unauthenticated" ? undefined : "alert"}
+    <RouteStatePage
+      actionHref={copy.href}
+      actionLabel={copy.action}
+      eyebrow="Настройка импорта"
+      kind={
+        result.status === "unauthenticated"
+          ? "unauthenticated"
+          : result.status === "forbidden"
+            ? "forbidden"
+            : result.status === "not_found"
+              ? "notFound"
+              : "error"
+      }
+      title={copy.title}
     >
-      <p className={styles.eyebrow}>Настройка импорта</p>
-      <h1>{copy.title}</h1>
-      <p>{copy.message}</p>
-      <a className={styles.buttonLink} href={copy.href}>
-        {copy.action}
-      </a>
-    </main>
+      {copy.message}
+    </RouteStatePage>
   );
 }
 

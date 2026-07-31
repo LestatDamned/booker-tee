@@ -9,7 +9,8 @@ import {
 
 import type { Route } from "./+types/root";
 import stylesheet from "./styles/app.css?url";
-import styles from "./styles/shell.module.css";
+import { RouteLoadingPage } from "./ui/route-state-page/route-loading-page";
+import { RouteStatePage } from "./ui/route-state-page/route-state-page";
 
 export const links: Route.LinksFunction = () => [
   { rel: "stylesheet", href: stylesheet },
@@ -38,12 +39,7 @@ export default function App() {
 }
 
 export function HydrateFallback() {
-  return (
-    <main className={styles.centeredState} aria-busy="true">
-      <p className={styles.eyebrow}>Booker Tee</p>
-      <h1>Загружаем workspace…</h1>
-    </main>
-  );
+  return <RouteLoadingPage eyebrow="Booker Tee" title="Загружаем workspace…" />;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -52,13 +48,14 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     : "Не удалось открыть приложение.";
 
   return (
-    <main className={styles.centeredState} role="alert">
-      <p className={styles.eyebrow}>Booker Tee</p>
-      <h1>Что-то пошло не так</h1>
-      <p>{message}</p>
-      <a className={styles.buttonLink} href="/app">
-        Попробовать снова
-      </a>
-    </main>
+    <RouteStatePage
+      actionHref="/app"
+      actionLabel="Попробовать снова"
+      eyebrow="Booker Tee"
+      kind="error"
+      title="Что-то пошло не так"
+    >
+      {message}
+    </RouteStatePage>
   );
 }

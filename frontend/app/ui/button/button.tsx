@@ -3,6 +3,7 @@ import type {
   ComponentPropsWithoutRef,
   ReactNode,
 } from "react";
+import { Link } from "react-router";
 
 import { Icon, type IconName } from "../icon/icon";
 import styles from "./button.module.css";
@@ -28,6 +29,20 @@ type ButtonLinkProps = Omit<
   tone?: ButtonTone;
 };
 
+type RouterButtonLinkProps = Omit<
+  ComponentPropsWithoutRef<typeof Link>,
+  "children" | "className"
+> & {
+  children: ReactNode;
+  className?: string | undefined;
+  icon?: IconName;
+  tone?: ButtonTone;
+};
+
+function buttonClassNames(tone: ButtonTone, className?: string) {
+  return [styles.button, styles[tone], className].filter(Boolean).join(" ");
+}
+
 export function Button({
   children,
   className,
@@ -38,15 +53,11 @@ export function Button({
   type = "button",
   ...buttonProps
 }: ButtonProps) {
-  const classes = [styles.button, styles[tone], className]
-    .filter(Boolean)
-    .join(" ");
-
   return (
     <button
       {...buttonProps}
       aria-busy={isLoading || undefined}
-      className={classes}
+      className={buttonClassNames(tone, className)}
       data-tone={tone}
       disabled={disabled || isLoading}
       type={type}
@@ -68,14 +79,33 @@ export function ButtonLink({
   tone = "secondary",
   ...linkProps
 }: ButtonLinkProps) {
-  const classes = [styles.button, styles[tone], className]
-    .filter(Boolean)
-    .join(" ");
-
   return (
-    <a {...linkProps} className={classes} data-tone={tone}>
+    <a
+      {...linkProps}
+      className={buttonClassNames(tone, className)}
+      data-tone={tone}
+    >
       {icon ? <Icon name={icon} size={18} /> : null}
       <span>{children}</span>
     </a>
+  );
+}
+
+export function RouterButtonLink({
+  children,
+  className,
+  icon,
+  tone = "secondary",
+  ...linkProps
+}: RouterButtonLinkProps) {
+  return (
+    <Link
+      {...linkProps}
+      className={buttonClassNames(tone, className)}
+      data-tone={tone}
+    >
+      {icon ? <Icon name={icon} size={18} /> : null}
+      <span>{children}</span>
+    </Link>
   );
 }

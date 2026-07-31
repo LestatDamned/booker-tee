@@ -22,6 +22,15 @@ describe("manual operation editing", () => {
     expect(await screen.findByLabelText("Описание")).toHaveValue(
       "Аренда за июль",
     );
+    expect(screen.getByRole("button", { name: "Отмена" })).toHaveAttribute(
+      "data-tone",
+      "secondary",
+    );
+    expect(
+      screen
+        .getByRole("button", { name: "Сохранить изменения" })
+        .querySelector("svg"),
+    ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

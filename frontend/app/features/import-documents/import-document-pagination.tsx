@@ -1,13 +1,11 @@
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
-import { Icon } from "../../ui/icon/icon";
+import { WorkbenchPagination } from "../../ui/workbench-pagination/workbench-pagination";
 import type { ImportDocumentListDto } from "./api/import-documents-api";
 import {
   importDocumentPageUrl,
-  importDocumentPaginationItems,
   importDocumentPaginationRangeLabel,
 } from "./import-document-filter-query";
-import styles from "./import-document-list-page.module.css";
 
 export function ImportDocumentPagination({
   disabled,
@@ -21,8 +19,7 @@ export function ImportDocumentPagination({
   const { pagination } = documents;
   const smallestPageSize = documents.filterOptions.perPage[0];
 
-  function changePageSize(nextValue: string) {
-    const pageSize = Number(nextValue);
+  function changePageSize(pageSize: number) {
     if (!documents.filterOptions.perPage.includes(pageSize)) {
       return;
     }
@@ -35,89 +32,34 @@ export function ImportDocumentPagination({
     });
   }
 
+  const showPageSize =
+    smallestPageSize !== undefined &&
+    documents.summary.totalDocumentCount > smallestPageSize;
+
   return (
-    <footer className={styles.paginationFooter}>
-      <span aria-live="polite" className={styles.paginationSummary}>
-        {importDocumentPaginationRangeLabel(
-          pagination.page,
-          pagination.perPage,
-          pagination.total,
-        )}
-      </span>
-      {smallestPageSize !== undefined &&
-      documents.summary.totalDocumentCount > smallestPageSize ? (
-        <label className={styles.pageSize} htmlFor="import-page-size">
-          На странице
-          <select
-            disabled={disabled}
-            id="import-page-size"
-            onChange={(event) => changePageSize(event.currentTarget.value)}
-            value={String(pagination.perPage)}
-          >
-            {documents.filterOptions.perPage.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-      {pagination.totalPages > 1 ? (
-        <nav aria-label="Страницы документов" className={styles.pagination}>
-          <ul>
-            <li className={styles.previousPage}>
-              {pagination.hasPrevious ? (
-                <Link
-                  to={importDocumentPageUrl(
-                    location.search,
-                    pagination.page - 1,
-                  )}
-                >
-                  <Icon name="back" size={16} />
-                  Назад
-                </Link>
-              ) : null}
-            </li>
-            {importDocumentPaginationItems(
-              pagination.page,
-              pagination.totalPages,
-            ).map((item) =>
-              typeof item === "number" ? (
-                <li key={item}>
-                  {item === pagination.page ? (
-                    <span aria-current="page" className={styles.currentPage}>
-                      <span className="visually-hidden">Страница </span>
-                      {item}
-                    </span>
-                  ) : (
-                    <Link to={importDocumentPageUrl(location.search, item)}>
-                      <span className="visually-hidden">Страница </span>
-                      {item}
-                    </Link>
-                  )}
-                </li>
-              ) : (
-                <li aria-hidden="true" key={item}>
-                  …
-                </li>
-              ),
-            )}
-            <li className={styles.nextPage}>
-              {pagination.hasNext ? (
-                <Link
-                  to={importDocumentPageUrl(
-                    location.search,
-                    pagination.page + 1,
-                  )}
-                >
-                  Дальше
-                  <Icon name="forward" size={16} />
-                </Link>
-              ) : null}
-            </li>
-          </ul>
-        </nav>
-      ) : null}
-    </footer>
+    <WorkbenchPagination
+      ariaLabel="Страницы документов"
+      currentPage={pagination.page}
+      getPageHref={(page) => importDocumentPageUrl(location.search, page)}
+      hasNext={pagination.hasNext}
+      hasPrevious={pagination.hasPrevious}
+      {...(showPageSize
+        ? {
+            pageSize: {
+              disabled,
+              id: "import-page-size",
+              onChange: changePageSize,
+              options: documents.filterOptions.perPage,
+              value: pagination.perPage,
+            },
+          }
+        : {})}
+      summary={importDocumentPaginationRangeLabel(
+        pagination.page,
+        pagination.perPage,
+        pagination.total,
+      )}
+      totalPages={pagination.totalPages}
+    />
   );
 }

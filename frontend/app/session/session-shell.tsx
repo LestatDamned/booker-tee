@@ -1,44 +1,41 @@
 import type { SessionLoadResult } from "../api/session";
 import { AppShell } from "../shell/app-shell";
 import styles from "../styles/shell.module.css";
+import { RouteLoadingPage } from "../ui/route-state-page/route-loading-page";
+import { RouteStatePage } from "../ui/route-state-page/route-state-page";
 
 export function SessionShell({ result }: { result: SessionLoadResult }) {
   if (result.status === "loading") {
     return (
-      <main className={styles.centeredState} aria-busy="true">
-        <p className={styles.eyebrow}>Booker Tee</p>
-        <h1>Загружаем workspace…</h1>
-      </main>
+      <RouteLoadingPage eyebrow="Booker Tee" title="Загружаем workspace…" />
     );
   }
 
   if (result.status === "unauthenticated") {
     return (
-      <main className={styles.centeredState}>
-        <p className={styles.eyebrow}>Сессия не найдена</p>
-        <h1>Войдите в Booker Tee</h1>
-        <p>После входа вы вернётесь в новый frontend.</p>
-        <a className={styles.buttonLink} href="/login?next=/app">
-          Войти
-        </a>
-      </main>
+      <RouteStatePage
+        actionHref="/login?next=/app"
+        actionLabel="Войти"
+        eyebrow="Сессия не найдена"
+        kind="unauthenticated"
+        title="Войдите в Booker Tee"
+      >
+        После входа вы вернётесь в новый frontend.
+      </RouteStatePage>
     );
   }
 
   if (result.status === "error") {
     return (
-      <main className={styles.centeredState} role="alert">
-        <p className={styles.eyebrow}>Ошибка соединения</p>
-        <h1>Не удалось загрузить workspace</h1>
-        <p>{result.message}</p>
-        <button
-          className={styles.buttonLink}
-          type="button"
-          onClick={() => window.location.reload()}
-        >
-          Повторить
-        </button>
-      </main>
+      <RouteStatePage
+        actionHref="/app"
+        actionLabel="Повторить"
+        eyebrow="Ошибка соединения"
+        kind="error"
+        title="Не удалось загрузить workspace"
+      >
+        {result.message}
+      </RouteStatePage>
     );
   }
 

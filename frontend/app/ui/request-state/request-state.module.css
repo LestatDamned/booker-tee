@@ -19,8 +19,7 @@
   animation: request-state-spin 800ms linear infinite;
 }
 
-.error,
-.empty {
+.error {
   border-left: 3px solid var(--color-border-strong);
   padding-left: var(--space-3);
 }

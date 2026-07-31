@@ -1,21 +1,36 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import { ActionStack } from "./action-stack/action-stack";
+import { AppliedFilterSummary } from "./applied-filter-summary/applied-filter-summary";
+import { BackLink } from "./back-link/back-link";
 import { Badge } from "./badge/badge";
-import { Button } from "./button/button";
+import { Button, RouterButtonLink } from "./button/button";
 import { IconButton } from "./button/icon-button";
+import { DocumentWorkbenchHeader } from "./document-workbench-header/document-workbench-header";
 import { ExpansionPanel } from "./expansion-panel/expansion-panel";
 import { Field } from "./field/field";
 import { Fieldset } from "./field/fieldset";
 import { FormErrorSummary } from "./field/form-error-summary";
 import { FormActions } from "./field/form-layout";
+import { InlineNotice } from "./inline-notice/inline-notice";
 import { MoneyValue } from "./money-value/money-value";
 import { PageFrame } from "./page-frame/page-frame";
 import { RequestState } from "./request-state/request-state";
+import { ResponsiveRecordCollection } from "./responsive-record-collection/responsive-record-collection";
+import { RouteLoadingPage } from "./route-state-page/route-loading-page";
+import { RouteStatePage } from "./route-state-page/route-state-page";
+import {
+  SelectionTabButton,
+  SelectionTabLink,
+  SelectionTabs,
+} from "./selection-tabs/selection-tabs";
 import { StatusLabel } from "./status-label/status-label";
 import { Tag } from "./tag/tag";
 import { WorkbenchRow } from "./workbench-row/workbench-row";
+import { WorkbenchEmptyState } from "./workbench-empty-state/workbench-empty-state";
+import { WorkbenchPagination } from "./workbench-pagination/workbench-pagination";
 import { WorkbenchContent } from "./workbench-content/workbench-content";
 import { WorkbenchFilterRegion } from "./workbench-content/workbench-filter-region";
 import { WorkbenchStatus } from "./workbench-content/workbench-status";
@@ -25,6 +40,224 @@ import { WorkbenchSearch } from "./workbench-toolbar/workbench-search";
 import { WorkbenchToolbar } from "./workbench-toolbar/workbench-toolbar";
 
 describe("foundation controls", () => {
+  it("keeps semantic desktop and mobile record representations together", () => {
+    render(
+      <ResponsiveRecordCollection
+        mobileList={
+          <ol aria-label="Счета">
+            <li>Основной счёт</li>
+          </ol>
+        }
+        table={
+          <table>
+            <caption>Счета</caption>
+            <tbody>
+              <tr>
+                <td>Основной счёт</td>
+              </tr>
+            </tbody>
+          </table>
+        }
+      />,
+    );
+
+    expect(screen.getByRole("table", { name: "Счета" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Счета" })).toBeInTheDocument();
+  });
+
+  it("presents applied filters and one bordered reset action", () => {
+    render(
+      <MemoryRouter>
+        <AppliedFilterSummary
+          filters={["Тип: расход", "Счёт: Основной"]}
+          resetTo="/operations"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("list", { name: "Применённые фильтры" }),
+    ).toHaveTextContent("Тип: расход");
+    const reset = screen.getByRole("link", { name: "Сбросить все" });
+    expect(reset).toHaveAttribute("href", "/operations");
+    expect(reset).toHaveAttribute("data-tone", "secondary");
+  });
+
+  it("announces a full-page route loading state without an action", () => {
+    render(
+      <RouteLoadingPage eyebrow="Booker Tee" title="Загружаем workspace…" />,
+    );
+
+    const page = screen.getByRole("main");
+    expect(page).toHaveAttribute("aria-busy", "true");
+    expect(page).toHaveAccessibleName("Загружаем workspace…");
+    expect(page.querySelector("a, button")).not.toBeInTheDocument();
+  });
+
+  it("distinguishes route failures from static access states", () => {
+    const { rerender } = render(
+      <RouteStatePage
+        actionHref="/app/imports"
+        actionLabel="К импортам"
+        eyebrow="Документ импорта"
+        kind="notFound"
+        title="Документ не найден"
+      >
+        Документ удалён или относится к другому workspace.
+      </RouteStatePage>,
+    );
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("main")).toHaveAttribute("data-kind", "notFound");
+    expect(screen.getByRole("link", { name: "К импортам" })).toHaveAttribute(
+      "data-tone",
+      "primary",
+    );
+
+    rerender(
+      <RouteStatePage
+        actionHref="/app/imports"
+        actionLabel="Повторить"
+        eyebrow="Ошибка загрузки"
+        kind="error"
+        title="Не удалось загрузить документы"
+      >
+        Backend недоступен.
+      </RouteStatePage>,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Backend недоступен.");
+    expect(
+      screen.getByRole("link", { name: "Повторить" }).querySelector("svg"),
+    ).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("pairs inline notice tones with icons, semantics and recovery actions", () => {
+    render(
+      <InlineNotice
+        action={<Button icon="retry">Повторить</Button>}
+        role="alert"
+        title="Не удалось сохранить"
+        tone="danger"
+      >
+        Проверьте соединение и повторите попытку.
+      </InlineNotice>,
+    );
+
+    const notice = screen.getByRole("alert");
+    expect(notice).toHaveAttribute("data-tone", "danger");
+    expect(notice.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(
+      screen.getByRole("button", { name: "Повторить" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders a consistent labeled back route with a decorative icon", () => {
+    render(
+      <MemoryRouter>
+        <BackLink to="/imports">Все импорты</BackLink>
+      </MemoryRouter>,
+    );
+
+    const link = screen.getByRole("link", { name: "Все импорты" });
+    expect(link).toHaveAttribute("href", "/imports");
+    expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("keeps client-side route actions visually consistent with buttons", () => {
+    render(
+      <MemoryRouter>
+        <RouterButtonLink to="/imports">Сбросить</RouterButtonLink>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "Сбросить" })).toHaveAttribute(
+      "data-tone",
+      "secondary",
+    );
+  });
+
+  it("shares selected visuals while preserving link and button semantics", () => {
+    render(
+      <MemoryRouter>
+        <SelectionTabs as="nav" aria-label="Состояние счетов">
+          <SelectionTabLink count={2} selected to="/accounts">
+            Активные
+          </SelectionTabLink>
+          <SelectionTabLink
+            count={1}
+            selected={false}
+            to="/accounts?view=archived"
+          >
+            Архив
+          </SelectionTabLink>
+        </SelectionTabs>
+        <SelectionTabs aria-label="Фильтр строк" role="group">
+          <SelectionTabButton count={3} selected>
+            Требуют решения
+          </SelectionTabButton>
+        </SelectionTabs>
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("navigation", { name: "Состояние счетов" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Активные 2" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(
+      screen.getByRole("button", { name: "Требуют решения 3" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("shares pagination semantics, links and page-size behavior", () => {
+    const onPageSizeChange = vi.fn();
+
+    const { container } = render(
+      <MemoryRouter>
+        <WorkbenchPagination
+          ariaLabel="Страницы операций"
+          currentPage={2}
+          getPageHref={(page) => `?page=${page}`}
+          hasNext
+          hasPrevious
+          pageSize={{
+            id: "test-page-size",
+            onChange: onPageSizeChange,
+            options: [25, 50],
+            value: 25,
+          }}
+          summary="26–50 из 187"
+          totalPages={8}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("navigation", { name: "Страницы операций" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Страница 2")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "Страница 3" })).toHaveAttribute(
+      "href",
+      "/?page=3",
+    );
+    expect(screen.getByRole("link", { name: "Страница 8" })).toBeVisible();
+    expect(screen.queryByLabelText("Страница 4")).not.toBeInTheDocument();
+    expect(container.querySelectorAll("li[aria-hidden='true']")).toHaveLength(
+      1,
+    );
+
+    fireEvent.change(screen.getByLabelText("На странице"), {
+      target: { value: "50" },
+    });
+    expect(onPageSizeChange).toHaveBeenCalledWith(50);
+  });
+
   it("makes a loading button unavailable and announces its state", () => {
     render(<Button isLoading>Сохранить</Button>);
 
@@ -116,7 +349,7 @@ describe("foundation controls", () => {
   it("exposes a shared split sticky footer for panel forms", () => {
     render(
       <FormActions layout="split" sticky>
-        <Button tone="ghost">Отмена</Button>
+        <Button tone="secondary">Отмена</Button>
         <Button tone="primary">Сохранить</Button>
       </FormActions>,
     );
@@ -187,6 +420,42 @@ describe("request and workbench composition", () => {
     );
   });
 
+  it("renders a document identity header from presentation-only content", () => {
+    render(
+      <DocumentWorkbenchHeader
+        context="Альфа-Банк · RUB"
+        eyebrow="Настройка импорта"
+        filename="statement.xlsx"
+        status={<StatusLabel tone="warning">Требует действия</StatusLabel>}
+        title="Основной счёт"
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Основной счёт" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Альфа-Банк · RUB")).toBeVisible();
+    expect(screen.getByText("statement.xlsx")).toHaveAttribute(
+      "title",
+      "statement.xlsx",
+    );
+    expect(screen.getByText("Состояние документа")).toBeVisible();
+    expect(screen.getByText("Требует действия")).toBeVisible();
+  });
+
+  it("supports a frame without adding outer spacing", () => {
+    render(
+      <PageFrame aria-label="Импорт" spacing="none">
+        Содержимое
+      </PageFrame>,
+    );
+
+    expect(screen.getByRole("region", { name: "Импорт" })).toHaveAttribute(
+      "data-spacing",
+      "none",
+    );
+  });
+
   it("keeps workbench search labelled and disables both controls together", () => {
     render(
       <WorkbenchToolbar>
@@ -232,6 +501,27 @@ describe("request and workbench composition", () => {
     expect(
       screen.getByRole("region", { name: "Список операций" }),
     ).toHaveAttribute("data-empty", "true");
+  });
+
+  it("presents an empty result with a helpful action and semantic icon", () => {
+    render(
+      <WorkbenchEmptyState
+        action={<Button icon="filter">Сбросить фильтры</Button>}
+        icon="search"
+        kind="filtered"
+        title="По этим фильтрам операций нет"
+      >
+        Измените условия поиска.
+      </WorkbenchEmptyState>,
+    );
+
+    const state = screen.getByRole("status");
+    expect(state).toHaveAttribute("data-kind", "filtered");
+    expect(state).toHaveTextContent("Измените условия поиска.");
+    expect(state.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(
+      screen.getByRole("button", { name: "Сбросить фильтры" }),
+    ).toBeInTheDocument();
   });
 
   it("announces an error and exposes retry", () => {

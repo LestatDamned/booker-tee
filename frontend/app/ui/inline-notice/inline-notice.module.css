@@ -1,0 +1,80 @@
+.notice {
+  --notice-tone: var(--color-neutral);
+
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-left: 0.25rem solid var(--notice-tone);
+  border-radius: var(--radius-md);
+  background: color-mix(
+    in srgb,
+    var(--notice-tone) 8%,
+    var(--color-bg-secondary-pane)
+  );
+  padding: var(--space-4);
+}
+
+.icon {
+  margin-block-start: 0.1rem;
+  color: var(--notice-tone);
+}
+
+.content {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.title {
+  color: var(--color-text-primary);
+  line-height: 1.35;
+}
+
+.message {
+  max-width: 75ch;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.message > :where(p, ul, ol) {
+  margin: 0;
+}
+
+.action {
+  align-self: center;
+}
+
+.notice[data-tone="information"] {
+  --notice-tone: var(--color-information);
+}
+
+.notice[data-tone="warning"] {
+  --notice-tone: var(--color-status-warning);
+}
+
+.notice[data-tone="success"] {
+  --notice-tone: var(--color-status-success);
+}
+
+.notice[data-tone="danger"] {
+  --notice-tone: var(--color-status-danger);
+}
+
+@media (max-width: 42rem) {
+  .notice {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .action {
+    grid-column: 2;
+    justify-self: stretch;
+  }
+
+  .action > * {
+    width: 100%;
+  }
+}

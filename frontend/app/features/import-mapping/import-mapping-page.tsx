@@ -3,7 +3,9 @@ import { useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
+import { BackLink } from "../../ui/back-link/back-link";
 import { Button } from "../../ui/button/button";
+import { DocumentWorkbenchHeader } from "../../ui/document-workbench-header/document-workbench-header";
 import {
   FormErrorSummary,
   type FormErrorSummaryItem,
@@ -13,6 +15,7 @@ import {
   StatusLabel,
   type StatusTone,
 } from "../../ui/status-label/status-label";
+import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import type {
   ImportMappingCommand,
   ImportMappingDto,
@@ -260,35 +263,27 @@ export function ImportMappingPage({
 
   return (
     <AppShell session={session}>
-      <main className={styles.page}>
-        <a
-          className={styles.backLink}
-          href={`/app/imports/documents/${mapping.documentId}`}
-        >
-          ← К документу
-        </a>
+      <section className={styles.page}>
+        <BackLink to={`/imports/documents/${mapping.documentId}`}>
+          К документу
+        </BackLink>
 
-        <section className={styles.workbench}>
-          <header className={styles.workbenchHeader}>
-            <div className={styles.identity}>
-              <p className={styles.eyebrow}>Настройка импорта</p>
-              <h1>{mapping.account?.name ?? "Счёт не определён"}</h1>
-              <p className={styles.documentContext}>
-                {[mapping.bankName, mapping.defaultCurrency]
-                  .filter(Boolean)
-                  .join(" · ") || "Реквизиты выписки не определены"}
-              </p>
-              <p className={styles.filename} title={mapping.filename}>
-                {mapping.filename}
-              </p>
-            </div>
-            <div className={styles.headerStatus}>
-              <span>Состояние документа</span>
+        <WorkbenchSurface aria-label="Настройка импорта">
+          <DocumentWorkbenchHeader
+            context={
+              [mapping.bankName, mapping.defaultCurrency]
+                .filter(Boolean)
+                .join(" · ") || "Реквизиты выписки не определены"
+            }
+            eyebrow="Настройка импорта"
+            filename={mapping.filename}
+            status={
               <StatusLabel tone={status.tone} variant="soft">
                 {status.label}
               </StatusLabel>
-            </div>
-          </header>
+            }
+            title={mapping.account?.name ?? "Счёт не определён"}
+          />
 
           <div className={styles.phoneNotice}>
             <Icon name="information" size={20} />
@@ -445,8 +440,8 @@ export function ImportMappingPage({
               </footer>
             </>
           )}
-        </section>
-      </main>
+        </WorkbenchSurface>
+      </section>
     </AppShell>
   );
 }

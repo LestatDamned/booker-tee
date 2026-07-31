@@ -25,13 +25,21 @@ describe("ManualLedgerFilters", () => {
 
     expect(screen.getByLabelText("Тип")).toHaveValue("expense");
     expect(screen.getByTestId("location-search")).toHaveTextContent("page=2");
+    const reset = screen.getByRole("link", { name: "Сбросить" });
+    const apply = screen.getByRole("button", { name: "Применить" });
+    expect(reset).toHaveAttribute("data-tone", "secondary");
+    expect(apply).toHaveAttribute("data-tone", "primary");
+    expect(reset.parentElement).toHaveAttribute("data-layout", "split");
+    expect(reset.compareDocumentPosition(apply)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
 
     await user.selectOptions(screen.getByLabelText("Статус"), "confirmed");
     expect(screen.getByTestId("location-search")).toHaveTextContent(
       "type=expense&search=кофе&page=2&per_page=25",
     );
 
-    await user.click(screen.getByRole("button", { name: "Применить" }));
+    await user.click(apply);
     expect(screen.getByTestId("location-search")).toHaveTextContent(
       "type=expense&status=confirmed&search=%D0%BA%D0%BE%D1%84%D0%B5&page=1&per_page=25",
     );

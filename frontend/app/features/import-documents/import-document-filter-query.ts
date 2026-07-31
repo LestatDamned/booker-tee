@@ -71,14 +71,27 @@ export function importDocumentFiltersAreActive(currentSearch: string): boolean {
   );
 }
 
-export function importDocumentAdvancedFilterCount(
+export function importDocumentAppliedFilters(
   currentSearch: string,
-): number {
-  const search = new URLSearchParams(currentSearch);
-  return (
-    Number(Boolean(search.get("account_id"))) +
-    Number(Boolean(search.get("period_from") || search.get("period_to")))
+  options: ImportDocumentListDto["filterOptions"],
+): string[] {
+  const draft = importDocumentFilterDraft(currentSearch, options);
+  const filters: string[] = [];
+  const account = options.accounts.find(
+    (option) => option.id === draft.accountId,
   );
+  if (account) filters.push(`Счёт: ${account.name}`);
+  if (draft.periodFrom && draft.periodTo) {
+    filters.push(`Период: ${draft.periodFrom}–${draft.periodTo}`);
+  } else if (draft.periodFrom) {
+    filters.push(`Период от: ${draft.periodFrom}`);
+  } else if (draft.periodTo) {
+    filters.push(`Период до: ${draft.periodTo}`);
+  }
+  if (draft.sort === "created_at_asc") {
+    filters.push("Сортировка: сначала старые");
+  }
+  return filters;
 }
 
 export function importDocumentPaginationRangeLabel(
@@ -92,26 +105,6 @@ export function importDocumentPaginationRangeLabel(
   const first = (page - 1) * perPage + 1;
   const last = Math.min(page * perPage, total);
   return `${first}–${last} из ${total}`;
-}
-
-export function importDocumentPaginationItems(
-  currentPage: number,
-  totalPages: number,
-): (number | string)[] {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-  const pages = [
-    ...new Set([1, currentPage - 1, currentPage, currentPage + 1, totalPages]),
-  ]
-    .filter((page) => page >= 1 && page <= totalPages)
-    .sort((left, right) => left - right);
-  return pages.flatMap((page, index) => {
-    const previous = pages[index - 1];
-    return previous !== undefined && page - previous > 1
-      ? [`ellipsis-${previous}`, page]
-      : [page];
-  });
 }
 
 function validIsoDate(value: string | null): string {

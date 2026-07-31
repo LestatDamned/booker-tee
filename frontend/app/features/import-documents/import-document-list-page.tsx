@@ -1,22 +1,35 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router";
+import { useLocation } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
+import { AppliedFilterSummary } from "../../ui/applied-filter-summary/applied-filter-summary";
 import { Badge } from "../../ui/badge/badge";
-import { Button, ButtonLink } from "../../ui/button/button";
+import { Button, ButtonLink, RouterButtonLink } from "../../ui/button/button";
+import { InlineNotice } from "../../ui/inline-notice/inline-notice";
+import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
-import { RequestState } from "../../ui/request-state/request-state";
+import { ResponsiveRecordCollection } from "../../ui/responsive-record-collection/responsive-record-collection";
+import { WorkbenchEmptyState } from "../../ui/workbench-empty-state/workbench-empty-state";
+import {
+  SelectionTabLink,
+  SelectionTabs,
+} from "../../ui/selection-tabs/selection-tabs";
 import {
   StatusLabel,
   type StatusTone,
 } from "../../ui/status-label/status-label";
+import { WorkbenchContent } from "../../ui/workbench-content/workbench-content";
+import { WorkbenchFilterRegion } from "../../ui/workbench-content/workbench-filter-region";
+import { WorkbenchStatus } from "../../ui/workbench-content/workbench-status";
+import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
+import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
 import type {
   ImportDocumentListDto,
   ImportDocumentListItemDto,
 } from "./api/import-documents-api";
 import {
-  importDocumentAdvancedFilterCount,
+  importDocumentAppliedFilters,
   importDocumentFiltersAreActive,
   importDocumentStateUrl,
 } from "./import-document-filter-query";
@@ -64,8 +77,9 @@ export function ImportDocumentListPage({
   const location = useLocation();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const filtersActive = importDocumentFiltersAreActive(location.search);
-  const advancedFilterCount = importDocumentAdvancedFilterCount(
+  const appliedFilters = importDocumentAppliedFilters(
     location.search,
+    documents.filterOptions,
   );
   const requestedState = new URLSearchParams(location.search).get("state");
   const activeState =
@@ -75,7 +89,7 @@ export function ImportDocumentListPage({
 
   return (
     <AppShell session={session}>
-      <section className={styles.page}>
+      <PageFrame className={styles.page} spacing="none">
         <PageHeader
           actions={
             documents.capabilities.canUpload ? (
@@ -90,107 +104,134 @@ export function ImportDocumentListPage({
         />
 
         {!documents.capabilities.canUpload ? (
-          <aside className={styles.readonlyNotice}>
-            <strong>Режим только для чтения</strong>
-            <span>
-              Документы доступны для просмотра, но загрузка и настройка импорта
-              недоступны для вашей роли.
-            </span>
-          </aside>
+          <InlineNotice title="Режим только для чтения" tone="information">
+            Документы доступны для просмотра, но загрузка и настройка импорта
+            недоступны для вашей роли.
+          </InlineNotice>
         ) : null}
 
         {documents.summary.totalDocumentCount === 0 ? (
-          <RequestState
-            message="Загрузите первую выписку, чтобы подготовить операции к проверке."
-            status="empty"
+          <WorkbenchEmptyState
+            action={
+              documents.capabilities.canUpload ? (
+                <ButtonLink
+                  href="/app/imports/upload"
+                  icon="imports"
+                  tone="primary"
+                >
+                  Загрузить первую выписку
+                </ButtonLink>
+              ) : undefined
+            }
+            icon="imports"
             title="Документов пока нет"
-          />
+          >
+            Загрузите первую выписку, чтобы подготовить операции к проверке.
+          </WorkbenchEmptyState>
         ) : (
-          <section
+          <WorkbenchSurface
             aria-busy={navigationPending}
             aria-label="Реестр выписок"
             className={styles.registry}
           >
-            <div className={styles.toolbar}>
-              <nav aria-label="Состояние документов" className={styles.states}>
-                {stateFilters.map((filter) => {
-                  const active =
-                    activeState === filter.value ||
-                    (filter.value === null && activeState === null);
-                  return (
-                    <Link
-                      aria-current={active ? "page" : undefined}
-                      className={active ? styles.stateActive : undefined}
-                      key={filter.label}
-                      to={importDocumentStateUrl(location.search, filter.value)}
-                    >
-                      {filter.label}
-                      {filter.value === null ? (
-                        <span>{documents.summary.totalDocumentCount}</span>
-                      ) : null}
-                      {filter.value === "attention" ? (
-                        <span>{documents.summary.attentionDocumentCount}</span>
-                      ) : null}
-                    </Link>
-                  );
-                })}
-              </nav>
-              <Button
-                aria-controls="import-filter-region"
-                aria-expanded={filtersOpen}
-                disabled={navigationPending}
-                icon="filter"
-                onClick={() => setFiltersOpen((current) => !current)}
-              >
-                Фильтры
-                {advancedFilterCount > 0 ? (
-                  <Badge>{advancedFilterCount}</Badge>
-                ) : null}
-              </Button>
-            </div>
+            <WorkbenchToolbar className={styles.registryToolbar}>
+              <div className={styles.toolbarRow}>
+                <SelectionTabs as="nav" aria-label="Состояние документов">
+                  {stateFilters.map((filter) => {
+                    const active =
+                      activeState === filter.value ||
+                      (filter.value === null && activeState === null);
+                    const count =
+                      filter.value === null
+                        ? documents.summary.totalDocumentCount
+                        : filter.value === "attention"
+                          ? documents.summary.attentionDocumentCount
+                          : undefined;
+                    return (
+                      <SelectionTabLink
+                        {...(count === undefined ? {} : { count })}
+                        key={filter.label}
+                        selected={active}
+                        to={importDocumentStateUrl(
+                          location.search,
+                          filter.value,
+                        )}
+                      >
+                        {filter.label}
+                      </SelectionTabLink>
+                    );
+                  })}
+                </SelectionTabs>
+                <Button
+                  aria-controls="import-filter-region"
+                  aria-expanded={filtersOpen}
+                  disabled={navigationPending}
+                  icon="filter"
+                  onClick={() => setFiltersOpen((current) => !current)}
+                >
+                  Фильтры
+                  {appliedFilters.length > 0 ? (
+                    <Badge>{appliedFilters.length}</Badge>
+                  ) : null}
+                </Button>
+              </div>
+              <AppliedFilterSummary
+                filters={filtersOpen ? [] : appliedFilters}
+                resetTo={location.pathname}
+              />
+            </WorkbenchToolbar>
 
             {filtersOpen ? (
-              <div className={styles.filterRegion} id="import-filter-region">
+              <WorkbenchFilterRegion id="import-filter-region">
                 <ImportDocumentFilters
                   key={location.search}
                   navigationPending={navigationPending}
                   onClose={() => setFiltersOpen(false)}
                   options={documents.filterOptions}
                 />
-              </div>
+              </WorkbenchFilterRegion>
             ) : null}
 
-            <span aria-live="polite" className={styles.navigationStatus}>
+            <WorkbenchStatus>
               {navigationPending ? "Обновляем документы…" : ""}
-            </span>
+            </WorkbenchStatus>
 
-            {documents.items.length === 0 ? (
-              <div className={styles.filteredEmpty}>
-                <RequestState
-                  message="Измените условия или вернитесь ко всем документам."
-                  status="empty"
+            <WorkbenchContent
+              aria-label="Документы импорта"
+              isEmpty={documents.items.length === 0}
+            >
+              {documents.items.length === 0 ? (
+                <WorkbenchEmptyState
+                  action={
+                    filtersActive ? (
+                      <RouterButtonLink icon="filter" to={location.pathname}>
+                        Сбросить фильтры
+                      </RouterButtonLink>
+                    ) : undefined
+                  }
+                  icon="search"
+                  kind="filtered"
                   title="По этим фильтрам документов нет"
+                >
+                  Измените условия или вернитесь ко всем документам.
+                </WorkbenchEmptyState>
+              ) : (
+                <ResponsiveRecordCollection
+                  mobileList={
+                    <DocumentMobileList documents={documents.items} />
+                  }
+                  table={<DocumentTable documents={documents.items} />}
                 />
-                {filtersActive ? (
-                  <Link className={styles.resetLink} to={location.pathname}>
-                    Сбросить фильтры
-                  </Link>
-                ) : null}
-              </div>
-            ) : (
-              <>
-                <DocumentTable documents={documents.items} />
-                <DocumentMobileList documents={documents.items} />
-              </>
-            )}
+              )}
+            </WorkbenchContent>
 
             <ImportDocumentPagination
               disabled={navigationPending}
               documents={documents}
             />
-          </section>
+          </WorkbenchSurface>
         )}
-      </section>
+      </PageFrame>
     </AppShell>
   );
 }
@@ -201,30 +242,28 @@ function DocumentTable({
   documents: ImportDocumentListItemDto[];
 }) {
   return (
-    <div className={styles.tableRegion}>
-      <table className={styles.table}>
-        <caption className="visually-hidden">
-          Выписки, загруженные в текущий workspace
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">Выписка</th>
-            <th scope="col">Период</th>
-            <th scope="col">Загружена</th>
-            <th scope="col">Статус</th>
-            <th scope="col">Строки</th>
-            <th scope="col">
-              <span className="visually-hidden">Действие</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {documents.map((document) => (
-            <DocumentTableRow document={document} key={document.id} />
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <table className={styles.table}>
+      <caption className="visually-hidden">
+        Выписки, загруженные в текущий workspace
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Выписка</th>
+          <th scope="col">Период</th>
+          <th scope="col">Загружена</th>
+          <th scope="col">Статус</th>
+          <th scope="col">Строки</th>
+          <th scope="col">
+            <span className="visually-hidden">Действие</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {documents.map((document) => (
+          <DocumentTableRow document={document} key={document.id} />
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -278,7 +317,7 @@ function DocumentMobileList({
   documents: ImportDocumentListItemDto[];
 }) {
   return (
-    <ol aria-label="Документы импорта" className={styles.mobileList}>
+    <ol aria-label="Документы импорта">
       {documents.map((document) => {
         const status = statusPresentation[document.status];
         const action = documentAction(document);

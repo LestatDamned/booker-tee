@@ -20,6 +20,29 @@
   gap: var(--space-6);
 }
 
+.routeStateLinks {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-5);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  padding: var(--space-5);
+}
+
+.routeStateLinks h2,
+.routeStateDescription {
+  margin: 0;
+}
+
+.routeStateDescription {
+  max-width: 42rem;
+  margin-top: var(--space-2);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
 .theme {
   display: grid;
   min-width: 0;
@@ -59,6 +82,15 @@
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
   padding: var(--space-4);
+}
+
+.flushSection {
+  overflow: hidden;
+  padding: 0;
+}
+
+.flushSectionTitle {
+  padding: var(--space-4) var(--space-4) 0;
 }
 
 .controls,
@@ -137,9 +169,26 @@
   gap: var(--space-5);
 }
 
+.emptyStateGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
 .panelCopy {
   margin: 0;
   color: var(--color-text-secondary);
+}
+
+.recordExample {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.recordExample > span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
 }
 
 .panelActions {
@@ -158,8 +207,10 @@
   }
 
   .themeHeader,
+  .routeStateLinks,
   .controls,
-  .panelActions {
+  .panelActions,
+  .emptyStateGrid {
     display: grid;
     align-items: stretch;
   }

@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../../api/session";
 import { AppShell } from "../../../shell/app-shell";
+import { AppliedFilterSummary } from "../../../ui/applied-filter-summary/applied-filter-summary";
 import { Badge } from "../../../ui/badge/badge";
-import { Button } from "../../../ui/button/button";
-import { Icon } from "../../../ui/icon/icon";
+import { Button, RouterButtonLink } from "../../../ui/button/button";
 import { PageFrame } from "../../../ui/page-frame/page-frame";
 import { PageHeader } from "../../../ui/page-header/page-header";
-import { RequestState } from "../../../ui/request-state/request-state";
+import { WorkbenchEmptyState } from "../../../ui/workbench-empty-state/workbench-empty-state";
 import { WorkbenchPanel } from "../../../ui/workbench-panel/workbench-panel";
+import { WorkbenchPagination } from "../../../ui/workbench-pagination/workbench-pagination";
 import { WorkbenchContent } from "../../../ui/workbench-content/workbench-content";
 import { WorkbenchFilterRegion } from "../../../ui/workbench-content/workbench-filter-region";
 import { WorkbenchStatus } from "../../../ui/workbench-content/workbench-status";
@@ -31,9 +32,7 @@ import {
   manualLedgerFiltersAreActive,
 } from "./manual-ledger-filter-query";
 import { ManualLedgerFilters } from "./manual-ledger-filters";
-import { ManualLedgerPageSize } from "./manual-ledger-page-size";
 import {
-  manualLedgerPaginationItems,
   manualLedgerPaginationRangeLabel,
   manualLedgerPageUrl,
 } from "./manual-ledger-pagination";
@@ -198,21 +197,10 @@ export function ManualLedgerPage({
                 </Button>
               ) : null}
             </div>
-            {appliedFilters.length > 0 ? (
-              <div className={styles.activeFilterSummary}>
-                <ul
-                  aria-label="Применённые фильтры"
-                  className={styles.appliedFilters}
-                >
-                  {appliedFilters.map((filter) => (
-                    <li key={filter}>{filter}</li>
-                  ))}
-                </ul>
-                <Link className={styles.resetLink} to={location.pathname}>
-                  Сбросить все
-                </Link>
-              </div>
-            ) : null}
+            <AppliedFilterSummary
+              filters={filtersOpen ? [] : appliedFilters}
+              resetTo={location.pathname}
+            />
           </WorkbenchToolbar>
 
           {filtersOpen ? (
@@ -236,19 +224,34 @@ export function ManualLedgerPage({
             isEmpty={rows.length === 0}
           >
             {rows.length === 0 ? (
-              <RequestState
-                message={
-                  filtersActive
-                    ? "Измените условия поиска или сбросьте фильтры."
-                    : "Созданные вручную операции появятся здесь."
+              <WorkbenchEmptyState
+                action={
+                  filtersActive ? (
+                    <RouterButtonLink icon="filter" to={location.pathname}>
+                      Сбросить фильтры
+                    </RouterButtonLink>
+                  ) : ledger.capabilities.canCreate ? (
+                    <Button
+                      icon="plus"
+                      onClick={() => setCreateOpen(true)}
+                      tone="primary"
+                    >
+                      Добавить первую операцию
+                    </Button>
+                  ) : undefined
                 }
-                status="empty"
+                icon={filtersActive ? "search" : "operations"}
+                kind={filtersActive ? "filtered" : "primary"}
                 title={
                   filtersActive
                     ? "По этим фильтрам операций нет"
                     : "Операций пока нет"
                 }
-              />
+              >
+                {filtersActive
+                  ? "Измените условия поиска или сбросьте фильтры."
+                  : "Созданные вручную операции появятся здесь."}
+              </WorkbenchEmptyState>
             ) : (
               <ol className={styles.list}>
                 {rows.map((operation) => (
@@ -272,81 +275,41 @@ export function ManualLedgerPage({
             )}
           </WorkbenchContent>
 
-          <footer className={styles.workbenchFooter}>
-            <span aria-live="polite" className={styles.paginationSummary}>
-              {manualLedgerPaginationRangeLabel(
-                ledger.pagination.page,
-                ledger.pagination.perPage,
-                visibleTotal,
-              )}
-            </span>
-            {showPageSize ? (
-              <ManualLedgerPageSize
-                disabled={editingOperationId !== null || navigationPending}
-                options={ledger.filterOptions.perPage}
-                value={ledger.pagination.perPage}
-              />
-            ) : null}
-            {ledger.pagination.totalPages > 1 ? (
-              <nav aria-label="Страницы операций" className={styles.pagination}>
-                <ul>
-                  <li className={styles.previousPage}>
-                    {ledger.pagination.hasPrevious ? (
-                      <Link
-                        to={manualLedgerPageUrl(
-                          location.search,
-                          ledger.pagination.page - 1,
-                        )}
-                      >
-                        <Icon name="back" size={16} />
-                        Назад
-                      </Link>
-                    ) : null}
-                  </li>
-                  {manualLedgerPaginationItems(
-                    ledger.pagination.page,
-                    ledger.pagination.totalPages,
-                  ).map((item) =>
-                    typeof item === "number" ? (
-                      <li key={item}>
-                        {item === ledger.pagination.page ? (
-                          <span
-                            aria-current="page"
-                            className={styles.currentPage}
-                          >
-                            <span className="visually-hidden">Страница </span>
-                            {item}
-                          </span>
-                        ) : (
-                          <Link to={manualLedgerPageUrl(location.search, item)}>
-                            <span className="visually-hidden">Страница </span>
-                            {item}
-                          </Link>
-                        )}
-                      </li>
-                    ) : (
-                      <li aria-hidden="true" key={item}>
-                        …
-                      </li>
-                    ),
-                  )}
-                  <li className={styles.nextPage}>
-                    {ledger.pagination.hasNext ? (
-                      <Link
-                        to={manualLedgerPageUrl(
-                          location.search,
-                          ledger.pagination.page + 1,
-                        )}
-                      >
-                        Дальше
-                        <Icon name="forward" size={16} />
-                      </Link>
-                    ) : null}
-                  </li>
-                </ul>
-              </nav>
-            ) : null}
-          </footer>
+          <WorkbenchPagination
+            ariaLabel="Страницы операций"
+            currentPage={ledger.pagination.page}
+            getPageHref={(page) => manualLedgerPageUrl(location.search, page)}
+            hasNext={ledger.pagination.hasNext}
+            hasPrevious={ledger.pagination.hasPrevious}
+            {...(showPageSize
+              ? {
+                  pageSize: {
+                    disabled: editingOperationId !== null || navigationPending,
+                    id: "manual-ledger-page-size",
+                    onChange: (pageSize: number) => {
+                      if (!ledger.filterOptions.perPage.includes(pageSize)) {
+                        return;
+                      }
+                      const search = new URLSearchParams(location.search);
+                      search.set("page", "1");
+                      search.set("per_page", String(pageSize));
+                      void navigate({
+                        pathname: location.pathname,
+                        search: `?${search.toString()}`,
+                      });
+                    },
+                    options: ledger.filterOptions.perPage,
+                    value: ledger.pagination.perPage,
+                  },
+                }
+              : {})}
+            summary={manualLedgerPaginationRangeLabel(
+              ledger.pagination.page,
+              ledger.pagination.perPage,
+              visibleTotal,
+            )}
+            totalPages={ledger.pagination.totalPages}
+          />
         </WorkbenchSurface>
       </PageFrame>
 

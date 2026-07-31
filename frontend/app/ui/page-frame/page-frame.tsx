@@ -4,7 +4,7 @@ import styles from "./page-frame.module.css";
 
 type PageFrameProps = ComponentPropsWithoutRef<"section"> & {
   mobileTop?: "compact" | "standard";
-  spacing?: "block" | "top";
+  spacing?: "block" | "none" | "top";
 };
 
 export function PageFrame({

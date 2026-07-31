@@ -1,11 +1,8 @@
 .page {
   display: grid;
-  width: min(100%, var(--page-max-width));
   gap: var(--space-4);
-  margin-inline: auto;
 }
 
-.backLink,
 .secondaryLink {
   width: fit-content;
   color: var(--color-link);
@@ -14,9 +11,6 @@
 
 .workbench {
   overflow: hidden;
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-surface);
 }
 
 .header {
@@ -24,7 +18,6 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-5);
-  padding: var(--space-5);
 }
 
 .eyebrow {
@@ -40,7 +33,7 @@
 .header h1,
 .statePanel h2,
 .guide p,
-.actions p {
+.actionHint {
   margin: 0;
 }
 
@@ -83,18 +76,6 @@
   padding: var(--space-5);
 }
 
-.form select {
-  width: 100%;
-  min-height: var(--control-height);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-canvas);
-  color: var(--color-text-primary);
-  font: inherit;
-  padding-inline: var(--control-padding-inline);
-}
-
-.form select:focus-visible,
 .fileControl:focus-within {
   outline: var(--focus-ring-width) solid var(--color-focus-ring);
   outline-offset: 2px;
@@ -154,15 +135,7 @@
   padding-inline: var(--space-4);
 }
 
-.actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  border-top: 1px solid var(--color-border-default);
-  padding-top: var(--space-4);
-}
-
-.actions p {
+.actionHint {
   max-width: 36rem;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
@@ -238,12 +211,10 @@
 }
 
 @media (max-width: 44rem) {
-  .header,
-  .actions {
+  .header {
     display: grid;
   }
 
-  .header,
   .form,
   .guide,
   .statePanel {
@@ -261,10 +232,6 @@
   .chooseLabel {
     grid-column: 1 / -1;
     text-align: center;
-  }
-
-  .actions button {
-    width: 100%;
   }
 
   .guide ol {

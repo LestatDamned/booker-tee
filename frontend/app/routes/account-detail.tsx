@@ -2,7 +2,7 @@ import { useNavigation } from "react-router";
 
 import type { AccountDetailLoadResult } from "../features/accounts/api/account-detail-api";
 import { AccountDetailPage } from "../features/accounts/account-detail-page";
-import styles from "../styles/shell.module.css";
+import { RouteStatePage } from "../ui/route-state-page/route-state-page";
 import type { Route } from "./+types/account-detail";
 import { loadAccountDetailRoute } from "./account-detail-loader";
 
@@ -69,31 +69,31 @@ function RouteState({
   const unauthenticated = result.status === "unauthenticated";
   const notFound = result.status === "not_found";
   return (
-    <main
-      className={styles.centeredState}
-      role={unauthenticated ? undefined : "alert"}
-    >
-      <p className={styles.eyebrow}>
-        {unauthenticated
+    <RouteStatePage
+      actionHref={
+        unauthenticated ? "/login?next=/app/accounts" : "/app/accounts"
+      }
+      actionIcon={unauthenticated ? "forward" : "back"}
+      actionLabel={unauthenticated ? "Войти" : "К списку счетов"}
+      eyebrow={
+        unauthenticated
           ? "Сессия не найдена"
           : notFound
             ? "Счёт не найден"
-            : "Ошибка загрузки"}
-      </p>
-      <h1>
-        {unauthenticated
+            : "Ошибка загрузки"
+      }
+      kind={
+        unauthenticated ? "unauthenticated" : notFound ? "notFound" : "error"
+      }
+      title={
+        unauthenticated
           ? "Войдите в Booker Tee"
           : notFound
             ? "Такого счёта нет в workspace"
-            : "Не удалось загрузить проводки"}
-      </h1>
-      {result.status === "error" ? <p>{result.message}</p> : null}
-      <a
-        className={styles.buttonLink}
-        href={unauthenticated ? "/login?next=/app/accounts" : "/app/accounts"}
-      >
-        {unauthenticated ? "Войти" : "К списку счетов"}
-      </a>
-    </main>
+            : "Не удалось загрузить проводки"
+      }
+    >
+      {result.status === "error" ? result.message : null}
+    </RouteStatePage>
   );
 }

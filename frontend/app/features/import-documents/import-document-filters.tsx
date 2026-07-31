@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
-import { Button } from "../../ui/button/button";
+import { Button, RouterButtonLink } from "../../ui/button/button";
 import { Field } from "../../ui/field/field";
+import { FormActions } from "../../ui/field/form-layout";
 import type { ImportDocumentListDto } from "./api/import-documents-api";
 import {
   importDocumentFilterDraft,
@@ -94,7 +95,10 @@ export function ImportDocumentFilters({
           </select>
         </Field>
       </div>
-      <div className={styles.filterActions}>
+      <FormActions layout="split">
+        <RouterButtonLink onClick={onClose} to={location.pathname}>
+          Сбросить все
+        </RouterButtonLink>
         <Button
           icon="filterApply"
           isLoading={navigationPending}
@@ -103,14 +107,7 @@ export function ImportDocumentFilters({
         >
           Применить
         </Button>
-        <Link
-          className={styles.resetLink}
-          onClick={onClose}
-          to={location.pathname}
-        >
-          Сбросить все
-        </Link>
-      </div>
+      </FormActions>
     </form>
   );
 }

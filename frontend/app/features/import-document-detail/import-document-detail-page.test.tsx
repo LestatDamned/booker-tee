@@ -20,9 +20,17 @@ describe("ImportDocumentDetailPage", () => {
   it("leads with identity, next decision and validation evidence", () => {
     renderPage(documentFixture);
 
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+    expect(
+      screen.getByRole("region", { name: "Документ импорта" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Основной счёт" }),
     ).toBeInTheDocument();
+    expect(screen.getByText(documentFixture.filename)).toHaveAttribute(
+      "title",
+      documentFixture.filename,
+    );
     expect(
       screen.getByRole("heading", {
         name: "Строки готовы к вашей проверке",

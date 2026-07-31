@@ -1,5 +1,5 @@
 import { ImportUploadPage } from "../features/import-upload/import-upload-page";
-import styles from "../styles/shell.module.css";
+import { RouteStatePage } from "../ui/route-state-page/route-state-page";
 import type { Route } from "./+types/import-upload";
 import { loadImportUploadRoute } from "./import-upload-loader";
 
@@ -59,18 +59,26 @@ function RouteState({
   const href =
     kind === "unauthenticated"
       ? "/login?next=/app/imports/upload"
-      : "/app/imports/upload";
+      : kind === "forbidden"
+        ? "/app/imports"
+        : "/app/imports/upload";
   return (
-    <main
-      className={styles.centeredState}
-      role={kind === "error" ? "alert" : undefined}
+    <RouteStatePage
+      actionHref={href}
+      actionLabel={
+        kind === "unauthenticated"
+          ? "Войти"
+          : kind === "forbidden"
+            ? "К импортам"
+            : "Повторить"
+      }
+      eyebrow="Импорт выписки"
+      kind={kind}
+      title={title}
     >
-      <p className={styles.eyebrow}>Импорт выписки</p>
-      <h1>{title}</h1>
-      {message ? <p>{message}</p> : null}
-      <a className={styles.buttonLink} href={href}>
-        {kind === "unauthenticated" ? "Войти" : "Повторить"}
-      </a>
-    </main>
+      {kind === "forbidden"
+        ? "Ваша роль не позволяет загружать документы в этот workspace."
+        : message}
+    </RouteStatePage>
   );
 }

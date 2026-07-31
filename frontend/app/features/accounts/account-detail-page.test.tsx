@@ -55,6 +55,37 @@ describe("AccountDetailPage", () => {
     ).toHaveAttribute("href", expect.stringContaining("/app/ledger/manual"));
   });
 
+  it("uses shared pagination while preserving account filters in links", () => {
+    renderPage(
+      {
+        ...detail,
+        pagination: {
+          page: 2,
+          perPage: 25,
+          total: 187,
+          totalPages: 8,
+          hasPrevious: true,
+          hasNext: true,
+        },
+      },
+      "/app/accounts/id?status=confirmed&page=2&per_page=25",
+    );
+
+    expect(
+      screen.getByRole("navigation", { name: "Страницы проводок" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Страница 2")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "Страница 3" })).toHaveAttribute(
+      "href",
+      "/app/accounts/id?status=confirmed&page=3&per_page=25",
+    );
+    expect(screen.getByText("26–50 из 187")).toBeVisible();
+    expect(screen.getByLabelText("На странице")).toHaveValue("25");
+  });
+
   it("opens filters and keeps explicit labels", async () => {
     const user = userEvent.setup();
     renderPage(detail);
@@ -64,9 +95,11 @@ describe("AccountDetailPage", () => {
     expect(screen.getByLabelText("Статус")).toHaveValue("confirmed");
     expect(screen.getByLabelText("Дата от")).toBeInTheDocument();
     expect(screen.getByLabelText("Источник")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Применить" }),
-    ).toBeInTheDocument();
+    const reset = screen.getByRole("link", { name: "Сбросить" });
+    const apply = screen.getByRole("button", { name: "Применить" });
+    expect(reset).toHaveAttribute("data-tone", "secondary");
+    expect(apply).toHaveAttribute("data-tone", "primary");
+    expect(reset.parentElement).toHaveAttribute("data-layout", "split");
   });
 
   it("shows a useful filtered empty state without hiding the balance", () => {
@@ -79,6 +112,12 @@ describe("AccountDetailPage", () => {
     expect(
       screen.getByRole("link", { name: "Сбросить все" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("list", { name: "Применённые фильтры" }),
+    ).toHaveTextContent("Поиск: такси");
+    expect(
+      screen.getByRole("link", { name: "Сбросить фильтры" }),
+    ).toHaveAttribute("href", "/app/accounts/id");
   });
 
   it("opens settings from the account header and saves a stale-safe draft", async () => {
@@ -109,6 +148,8 @@ describe("AccountDetailPage", () => {
     const save = screen.getByRole("button", { name: "Сохранить изменения" });
     expect(cancel.parentElement).toHaveAttribute("data-layout", "split");
     expect(cancel.parentElement).toHaveAttribute("data-sticky", "true");
+    expect(cancel).toHaveAttribute("data-tone", "secondary");
+    expect(save.querySelector("svg")).toBeInTheDocument();
     expect(cancel.compareDocumentPosition(save)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
@@ -257,6 +298,8 @@ describe("AccountDetailPage", () => {
       "Отмена",
       "Сохранить исправления",
     ]);
+    expect(actions[0]).toHaveAttribute("data-tone", "secondary");
+    expect(actions[1]?.querySelector("svg")).toBeInTheDocument();
 
     await user.clear(screen.getByLabelText("Описание"));
     await user.type(screen.getByLabelText("Описание"), "Такси до аэропорта");

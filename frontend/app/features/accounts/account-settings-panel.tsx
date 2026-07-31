@@ -316,13 +316,14 @@ export function AccountSettingsPanel({
             <Button
               disabled={pending}
               onClick={requestClose}
-              tone="ghost"
+              tone="secondary"
               type="button"
             >
               Отмена
             </Button>
             <Button
               disabled={!dirty || pending}
+              icon="check"
               isLoading={pending}
               tone="primary"
               type="submit"

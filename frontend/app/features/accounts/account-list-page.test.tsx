@@ -57,8 +57,26 @@ describe("AccountListPage", () => {
       screen.getByText("Счета доступны только для просмотра"),
     ).toBeInTheDocument();
     expect(
+      screen
+        .getByText("Счета доступны только для просмотра")
+        .closest("[data-tone]"),
+    ).toHaveAttribute("data-tone", "information");
+    expect(
       screen.queryByRole("button", { name: "Создать счёт" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("guides an editor from an empty directory into account creation", async () => {
+    const user = userEvent.setup();
+    renderPage({ ...directory, items: [] });
+
+    expect(screen.getByRole("status")).toHaveAttribute("data-kind", "primary");
+    await user.click(
+      screen.getByRole("button", { name: "Добавить первый счёт" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Новый счёт" }),
+    ).toBeInTheDocument();
   });
 
   it("focuses and explains invalid create fields", async () => {
@@ -91,6 +109,8 @@ describe("AccountListPage", () => {
     const submit = screen.getByRole("button", { name: "Создать счёт" });
 
     expect(cancel.parentElement).toHaveAttribute("data-layout", "split");
+    expect(cancel).toHaveAttribute("data-tone", "secondary");
+    expect(submit.querySelector("svg")).toBeInTheDocument();
     expect(cancel.compareDocumentPosition(submit)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );

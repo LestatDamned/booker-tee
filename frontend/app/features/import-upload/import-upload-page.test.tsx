@@ -31,7 +31,16 @@ describe("ImportUploadPage", () => {
     const user = userEvent.setup();
     renderPage(reference);
 
-    await user.click(screen.getByRole("button", { name: "Загрузить выписку" }));
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+    const workbench = screen.getByRole("region", {
+      name: "Загрузить выписку",
+    });
+    expect(workbench).toHaveAttribute("aria-busy", "false");
+    const submitButton = screen.getByRole("button", {
+      name: "Загрузить выписку",
+    });
+    expect(submitButton.parentElement).toHaveAttribute("data-layout", "start");
+    await user.click(submitButton);
 
     expect(screen.getByText("Выберите счёт выписки.")).toBeInTheDocument();
     expect(screen.getByText("Выберите файл выписки.")).toBeInTheDocument();

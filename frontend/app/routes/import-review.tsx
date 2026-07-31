@@ -1,6 +1,6 @@
 import type { ImportReviewLoadResult } from "../features/import-review/api/import-review-api";
 import { ImportReviewPage } from "../features/import-review/import-review-page";
-import styles from "../styles/shell.module.css";
+import { RouteStatePage } from "../ui/route-state-page/route-state-page";
 import type { Route } from "./+types/import-review";
 import { loadImportReviewRoute } from "./import-review-loader";
 
@@ -56,17 +56,23 @@ function RouteState({
 }) {
   const state = routeStateContent(result);
   return (
-    <main
-      className={styles.centeredState}
-      role={result.status === "unauthenticated" ? undefined : "alert"}
+    <RouteStatePage
+      actionHref={state.href}
+      actionLabel={state.action}
+      eyebrow="Проверка импорта"
+      kind={
+        result.status === "unauthenticated"
+          ? "unauthenticated"
+          : result.status === "forbidden"
+            ? "forbidden"
+            : result.status === "not-found"
+              ? "notFound"
+              : "error"
+      }
+      title={state.title}
     >
-      <p className={styles.eyebrow}>Проверка импорта</p>
-      <h1>{state.title}</h1>
-      <p>{state.message}</p>
-      <a className={styles.buttonLink} href={state.href}>
-        {state.action}
-      </a>
-    </main>
+      {state.message}
+    </RouteStatePage>
   );
 }
 

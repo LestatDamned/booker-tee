@@ -1,11 +1,11 @@
 import { useRef, useState, type FormEvent, type RefObject } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { formatMoneyAmount } from "../../shared/money/format-money";
 import { AppShell } from "../../shell/app-shell";
 import { ActionStack } from "../../ui/action-stack/action-stack";
-import { Button, ButtonLink } from "../../ui/button/button";
+import { Button, ButtonLink, RouterButtonLink } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
 import { Field } from "../../ui/field/field";
 import {
@@ -13,11 +13,17 @@ import {
   type FormErrorSummaryItem,
 } from "../../ui/field/form-error-summary";
 import { FormActions } from "../../ui/field/form-layout";
-import { Icon } from "../../ui/icon/icon";
+import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
 import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
+import { ResponsiveRecordCollection } from "../../ui/responsive-record-collection/responsive-record-collection";
+import {
+  SelectionTabLink,
+  SelectionTabs,
+} from "../../ui/selection-tabs/selection-tabs";
 import { WorkbenchPanel } from "../../ui/workbench-panel/workbench-panel";
+import { WorkbenchEmptyState } from "../../ui/workbench-empty-state/workbench-empty-state";
 import { WorkbenchHeader } from "../../ui/workbench-surface/workbench-header";
 import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import { WorkbenchSearch } from "../../ui/workbench-toolbar/workbench-search";
@@ -231,20 +237,26 @@ export function AccountListPage({
                 placeholder="Поиск по названию, типу или валюте"
               />
 
-              <nav aria-label="Состояние счетов" className={styles.tabs}>
-                <Link
-                  aria-current={query.view === "active" ? "page" : undefined}
+              <SelectionTabs
+                as="nav"
+                aria-label="Состояние счетов"
+                className={styles.accountTabs}
+              >
+                <SelectionTabLink
+                  count={activeCount}
+                  selected={query.view === "active"}
                   to={accountListUrl("active", query.search)}
                 >
-                  Активные <span>{activeCount}</span>
-                </Link>
-                <Link
-                  aria-current={query.view === "archived" ? "page" : undefined}
+                  Активные
+                </SelectionTabLink>
+                <SelectionTabLink
+                  count={archivedCount}
+                  selected={query.view === "archived"}
                   to={accountListUrl("archived", query.search)}
                 >
-                  Архив <span>{archivedCount}</span>
-                </Link>
-              </nav>
+                  Архив
+                </SelectionTabLink>
+              </SelectionTabs>
 
               {directory.capabilities.canCreate ? (
                 <Button
@@ -260,15 +272,13 @@ export function AccountListPage({
           </WorkbenchToolbar>
 
           {!directory.capabilities.canCreate ? (
-            <section className={styles.readonlyNotice}>
-              <Icon name="information" size={22} />
-              <div>
-                <strong>Счета доступны только для просмотра</strong>
-                <p>
-                  Создавать счета может владелец, администратор или редактор.
-                </p>
-              </div>
-            </section>
+            <InlineNotice
+              className={styles.accountReadonlyNotice}
+              title="Счета доступны только для просмотра"
+              tone="information"
+            >
+              Создавать счета может владелец, администратор или редактор.
+            </InlineNotice>
           ) : null}
 
           <p className={styles.liveMessage} aria-live="polite">
@@ -276,64 +286,69 @@ export function AccountListPage({
           </p>
 
           {accounts.length === 0 ? (
-            <section className={styles.emptyState}>
-              <Icon name="accounts" size={30} />
-              <div>
-                <h2>Пока нет счетов</h2>
-                <p>
-                  Добавьте место, где хранятся деньги: карту, вклад, наличные
-                  или расчётный счёт.
-                </p>
-              </div>
-              {directory.capabilities.canCreate ? (
-                <Button
-                  icon="plus"
-                  onClick={() => setCreateOpen(true)}
-                  tone="primary"
-                >
-                  Добавить первый счёт
-                </Button>
-              ) : null}
-            </section>
+            <WorkbenchEmptyState
+              action={
+                directory.capabilities.canCreate ? (
+                  <Button
+                    icon="plus"
+                    onClick={() => setCreateOpen(true)}
+                    tone="primary"
+                  >
+                    Добавить первый счёт
+                  </Button>
+                ) : undefined
+              }
+              icon="accounts"
+              title="Пока нет счетов"
+            >
+              Добавьте место, где хранятся деньги: карту, вклад, наличные или
+              расчётный счёт.
+            </WorkbenchEmptyState>
           ) : visibleAccounts.length > 0 ? (
-            <>
-              <AccountTable
-                accounts={visibleAccounts}
-                lifecyclePendingId={lifecyclePendingId}
-                onArchive={setArchiveCandidate}
-                onRestore={(account) => void runLifecycle(account, "restore")}
-              />
-              <AccountMobileList
-                accounts={visibleAccounts}
-                lifecyclePendingId={lifecyclePendingId}
-                onArchive={setArchiveCandidate}
-                onRestore={(account) => void runLifecycle(account, "restore")}
-              />
-            </>
+            <ResponsiveRecordCollection
+              mobileList={
+                <AccountMobileList
+                  accounts={visibleAccounts}
+                  lifecyclePendingId={lifecyclePendingId}
+                  onArchive={setArchiveCandidate}
+                  onRestore={(account) => void runLifecycle(account, "restore")}
+                />
+              }
+              table={
+                <AccountTable
+                  accounts={visibleAccounts}
+                  lifecyclePendingId={lifecyclePendingId}
+                  onArchive={setArchiveCandidate}
+                  onRestore={(account) => void runLifecycle(account, "restore")}
+                />
+              }
+            />
           ) : (
-            <section className={styles.filteredEmpty}>
-              <Icon name="search" size={28} />
-              <h2>
-                {query.search
+            <WorkbenchEmptyState
+              action={
+                query.search ? (
+                  <RouterButtonLink
+                    icon="search"
+                    to={accountListUrl(query.view, "")}
+                  >
+                    Очистить поиск
+                  </RouterButtonLink>
+                ) : undefined
+              }
+              icon="search"
+              kind="filtered"
+              title={
+                query.search
                   ? "По этому запросу счетов нет"
                   : query.view === "archived"
                     ? "Архив пока пуст"
-                    : "Активных счетов нет"}
-              </h2>
-              <p>
-                {query.search
-                  ? "Измените запрос или очистите поиск."
-                  : "Счета появятся здесь после изменения их состояния."}
-              </p>
-              {query.search ? (
-                <Link
-                  className={styles.resetLink}
-                  to={accountListUrl(query.view, "")}
-                >
-                  Очистить поиск
-                </Link>
-              ) : null}
-            </section>
+                    : "Активных счетов нет"
+              }
+            >
+              {query.search
+                ? "Измените запрос или очистите поиск."
+                : "Счета появятся здесь после изменения их состояния."}
+            </WorkbenchEmptyState>
           )}
         </WorkbenchSurface>
       </PageFrame>
@@ -477,7 +492,7 @@ export function AccountListPage({
               <Button
                 disabled={pending}
                 onClick={requestCreateClose}
-                tone="ghost"
+                tone="secondary"
                 type="button"
               >
                 Отмена
@@ -535,52 +550,50 @@ function AccountTable({
   onRestore,
 }: AccountListProps) {
   return (
-    <div className={styles.tableRegion}>
-      <table className={styles.table}>
-        <caption className="visually-hidden">Счета текущего workspace</caption>
-        <thead>
-          <tr>
-            <th scope="col">Счёт</th>
-            <th scope="col">Проводки</th>
-            <th scope="col">Баланс</th>
-            <th scope="col">
-              <span className="visually-hidden">Действие</span>
+    <table className={styles.table}>
+      <caption className="visually-hidden">Счета текущего workspace</caption>
+      <thead>
+        <tr>
+          <th scope="col">Счёт</th>
+          <th scope="col">Проводки</th>
+          <th scope="col">Баланс</th>
+          <th scope="col">
+            <span className="visually-hidden">Действие</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {accounts.map((account) => (
+          <tr data-account-record key={account.id}>
+            <th scope="row">
+              <a
+                className={styles.accountLink}
+                href={`/app/accounts/${account.id}`}
+              >
+                {account.name}
+              </a>
+              <span className={styles.accountMeta}>
+                {accountTypeLabels[account.accountType]} · {account.currency}
+              </span>
             </th>
+            <td>{movementCountLabel(account.movementCount)}</td>
+            <td className={styles.balanceCell}>
+              <span className={styles.balanceValue} data-account-balance>
+                <AccountBalance account={account} />
+              </span>
+            </td>
+            <td className={styles.actionCell}>
+              <AccountActions
+                account={account}
+                pending={lifecyclePendingId === account.id}
+                onArchive={onArchive}
+                onRestore={onRestore}
+              />
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {accounts.map((account) => (
-            <tr data-account-record key={account.id}>
-              <th scope="row">
-                <a
-                  className={styles.accountLink}
-                  href={`/app/accounts/${account.id}`}
-                >
-                  {account.name}
-                </a>
-                <span className={styles.accountMeta}>
-                  {accountTypeLabels[account.accountType]} · {account.currency}
-                </span>
-              </th>
-              <td>{movementCountLabel(account.movementCount)}</td>
-              <td className={styles.balanceCell}>
-                <span className={styles.balanceValue} data-account-balance>
-                  <AccountBalance account={account} />
-                </span>
-              </td>
-              <td className={styles.actionCell}>
-                <AccountActions
-                  account={account}
-                  pending={lifecyclePendingId === account.id}
-                  onArchive={onArchive}
-                  onRestore={onRestore}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -591,7 +604,7 @@ function AccountMobileList({
   onRestore,
 }: AccountListProps) {
   return (
-    <ol aria-label="Счета текущего workspace" className={styles.mobileList}>
+    <ol aria-label="Счета текущего workspace">
       {accounts.map((account) => (
         <li key={account.id}>
           <article className={styles.mobileRecord} data-account-record>

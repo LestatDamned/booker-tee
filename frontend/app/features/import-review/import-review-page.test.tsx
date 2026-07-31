@@ -18,6 +18,13 @@ describe("import review page", () => {
   it("renders queue progress and unresolved-row navigation", () => {
     renderPage(importReviewPayload());
 
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+    expect(
+      screen.getByRole("region", { name: "Сводка проверки импорта" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Строки импорта" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "1 из 2 разобрано" }),
     ).toBeInTheDocument();
@@ -144,6 +151,13 @@ describe("import review page", () => {
 
       expect(filterButton).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByText(emptyTitle)).toBeInTheDocument();
+      await user.click(
+        screen.getByRole("button", { name: "Показать все строки" }),
+      );
+      expect(screen.getByRole("button", { name: /Все \d+/ })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
     },
   );
 
@@ -718,6 +732,9 @@ describe("import review page", () => {
     expect(
       screen.getByText("Операций для проверки пока нет"),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Вернуться к документу" }),
+    ).toHaveAttribute("href", `/app/imports/documents/${review.document.id}`);
   });
 
   it("renders a completed queue without a next-row link", () => {
@@ -749,6 +766,9 @@ describe("import review page", () => {
     renderPage(review);
 
     expect(screen.getByText(/только для чтения/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Доступно только для чтения").closest("[data-tone]"),
+    ).toHaveAttribute("data-tone", "information");
     expect(
       screen.queryByRole("button", { name: "Отменить проведение" }),
     ).not.toBeInTheDocument();

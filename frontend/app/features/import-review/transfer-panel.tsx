@@ -151,7 +151,7 @@ export function TransferPanel({
         <p>Подходящих счетов, строк или ручных переводов не найдено.</p>
       ) : null}
       <FormActions layout="split">
-        <Button disabled={pending} onClick={onCancel}>
+        <Button disabled={pending} onClick={onCancel} tone="secondary">
           Отмена
         </Button>
         <Button

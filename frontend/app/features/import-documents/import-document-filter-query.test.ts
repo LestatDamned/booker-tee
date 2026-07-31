@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  importDocumentAdvancedFilterCount,
+  importDocumentAppliedFilters,
   importDocumentFilterDraft,
   importDocumentFilterSearch,
   importDocumentFiltersAreActive,
   importDocumentPageUrl,
-  importDocumentPaginationItems,
   importDocumentPaginationRangeLabel,
   importDocumentStateUrl,
 } from "./import-document-filter-query";
@@ -68,26 +67,19 @@ describe("import document filter query", () => {
     ).toBe("?state=completed&account_id=account-1&page=3");
   });
 
-  it("counts filter categories and recognizes active quick filters", () => {
-    const search =
-      "?state=attention&account_id=account-1&period_from=2026-07-01&period_to=2026-07-31";
+  it("presents advanced filters and recognizes active quick filters", () => {
+    const search = `?state=attention&account_id=${filterOptions.accounts[0]!.id}&period_from=2026-07-01&period_to=2026-07-31&sort=created_at_asc`;
 
     expect(importDocumentFiltersAreActive(search)).toBe(true);
-    expect(importDocumentAdvancedFilterCount(search)).toBe(2);
+    expect(importDocumentAppliedFilters(search, filterOptions)).toEqual([
+      "Счёт: Основной",
+      "Период: 2026-07-01–2026-07-31",
+      "Сортировка: сначала старые",
+    ]);
     expect(importDocumentFiltersAreActive("?sort=created_at_asc")).toBe(false);
   });
 
-  it("builds compact pagination and human-readable ranges", () => {
-    expect(importDocumentPaginationItems(1, 1)).toEqual([1]);
-    expect(importDocumentPaginationItems(5, 10)).toEqual([
-      1,
-      "ellipsis-1",
-      4,
-      5,
-      6,
-      "ellipsis-6",
-      10,
-    ]);
+  it("builds human-readable pagination ranges", () => {
     expect(importDocumentPaginationRangeLabel(3, 25, 63)).toBe("51–63 из 63");
     expect(importDocumentPaginationRangeLabel(1, 25, 0)).toBe("0 документов");
   });

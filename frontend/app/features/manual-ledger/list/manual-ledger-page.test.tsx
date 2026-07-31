@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionDto } from "../../../api/session";
@@ -74,6 +74,39 @@ describe("ManualLedgerPage", () => {
     expect(screen.queryByText("Не влияет на прибыль")).not.toBeInTheDocument();
   });
 
+  it("offers a recovery action when filters leave no visible operations", () => {
+    const page = ledger();
+    page.items = [];
+    page.pagination = {
+      page: 1,
+      perPage: 50,
+      total: 0,
+      totalPages: 1,
+      hasPrevious: false,
+      hasNext: false,
+    };
+    page.targetOperationId = null;
+
+    render(
+      <MemoryRouter
+        initialEntries={["/app/ledger/manual?type=expense&search=аренда"]}
+      >
+        <ManualLedgerPage ledger={page} session={session} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("status")).toHaveAttribute("data-kind", "filtered");
+    expect(
+      screen.getByRole("list", { name: "Применённые фильтры" }),
+    ).toHaveTextContent("Тип: расход");
+    expect(
+      screen.getByRole("list", { name: "Применённые фильтры" }),
+    ).toHaveTextContent("Поиск: аренда");
+    expect(
+      screen.getByRole("link", { name: "Сбросить фильтры" }),
+    ).toHaveAttribute("href", "/app/ledger/manual");
+  });
+
   it("preserves applied filters when building pagination URLs", () => {
     const page = ledger();
     page.pagination = {
@@ -95,6 +128,34 @@ describe("ManualLedgerPage", () => {
     expect(screen.getByRole("link", { name: "Дальше" })).toHaveAttribute(
       "href",
       "/app/ledger/manual?type=expense&page=2&per_page=25",
+    );
+  });
+
+  it("preserves filters and resets pagination when density changes", async () => {
+    const user = userEvent.setup();
+    const page = ledger();
+    page.pagination = {
+      page: 3,
+      perPage: 50,
+      total: 120,
+      totalPages: 3,
+      hasPrevious: true,
+      hasNext: false,
+    };
+
+    render(
+      <MemoryRouter
+        initialEntries={["/app/ledger/manual?type=expense&page=3&per_page=50"]}
+      >
+        <ManualLedgerPage ledger={page} session={session} />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await user.selectOptions(screen.getByLabelText("На странице"), "100");
+
+    expect(screen.getByTestId("location-search")).toHaveTextContent(
+      "type=expense&page=1&per_page=100",
     );
   });
 
@@ -299,4 +360,9 @@ function jsonResponse(body: unknown, status: number): Response {
     headers: { "Content-Type": "application/json" },
     status,
   });
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="location-search">{location.search}</output>;
 }

@@ -17,23 +17,3 @@ export function manualLedgerPaginationRangeLabel(
   const last = Math.min(page * perPage, total);
   return `${first}–${last} из ${total}`;
 }
-
-export function manualLedgerPaginationItems(
-  currentPage: number,
-  totalPages: number,
-): (number | string)[] {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1);
-  }
-  const pages = [
-    ...new Set([1, currentPage - 1, currentPage, currentPage + 1, totalPages]),
-  ]
-    .filter((page) => page >= 1 && page <= totalPages)
-    .sort((left, right) => left - right);
-  return pages.flatMap((page, index) => {
-    const previous = pages[index - 1];
-    return previous !== undefined && page - previous > 1
-      ? [`ellipsis-${previous}`, page]
-      : [page];
-  });
-}

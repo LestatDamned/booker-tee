@@ -1,23 +1,25 @@
 import { useRef, useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { formatMoneyAmount } from "../../shared/money/format-money";
 import { AppShell } from "../../shell/app-shell";
 import { ActionStack } from "../../ui/action-stack/action-stack";
+import { AppliedFilterSummary } from "../../ui/applied-filter-summary/applied-filter-summary";
+import { BackLink } from "../../ui/back-link/back-link";
 import { Badge } from "../../ui/badge/badge";
-import { Button, ButtonLink } from "../../ui/button/button";
+import { Button, ButtonLink, RouterButtonLink } from "../../ui/button/button";
 import { ExpansionPanel } from "../../ui/expansion-panel/expansion-panel";
 import { Field } from "../../ui/field/field";
 import { FormActions } from "../../ui/field/form-layout";
-import { Icon } from "../../ui/icon/icon";
 import { MoneyValue } from "../../ui/money-value/money-value";
 import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
-import { RequestState } from "../../ui/request-state/request-state";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import { Tag } from "../../ui/tag/tag";
 import { WorkbenchRow } from "../../ui/workbench-row/workbench-row";
+import { WorkbenchEmptyState } from "../../ui/workbench-empty-state/workbench-empty-state";
+import { WorkbenchPagination } from "../../ui/workbench-pagination/workbench-pagination";
 import { WorkbenchContent } from "../../ui/workbench-content/workbench-content";
 import { WorkbenchFilterRegion } from "../../ui/workbench-content/workbench-filter-region";
 import { WorkbenchStatus } from "../../ui/workbench-content/workbench-status";
@@ -29,6 +31,7 @@ import type { AccountDetailDto } from "./api/account-detail-api";
 import type { AccountSummaryDto } from "./api/accounts-api";
 import {
   accountBalanceTone,
+  accountMovementAppliedFilters,
   accountMovementsLabel,
   accountTypeLabels,
   movementView,
@@ -80,7 +83,11 @@ export function AccountDetailPage({
       ? accountOverride.value
       : detail.account;
   const params = new URLSearchParams(location.search);
-  const appliedCount = activeFilterCount(params);
+  const appliedFilters = accountMovementAppliedFilters(
+    location.search,
+    detail.filterOptions,
+  );
+  const filtersActive = appliedFilters.length > 0;
   const movements = detail.items.map((movement) => {
     const override = movementOverrides[movement.operationId];
     return override?.sourceVersion === movement.version
@@ -145,10 +152,9 @@ export function AccountDetailPage({
           className={styles.workbench}
         >
           <WorkbenchHeader>
-            <Link className={styles.backLink} to="/accounts">
-              <Icon name="back" />
+            <BackLink className={styles.backLink} to="/accounts">
               Все счета
-            </Link>
+            </BackLink>
             <PageHeader
               actions={
                 <div className={styles.headerActions}>
@@ -206,17 +212,15 @@ export function AccountDetailPage({
                 onClick={() => setFiltersOpen((value) => !value)}
               >
                 {filtersOpen ? "Скрыть фильтры" : "Показать фильтры"}
-                {appliedCount ? <Badge>{appliedCount}</Badge> : null}
+                {appliedFilters.length ? (
+                  <Badge>{appliedFilters.length}</Badge>
+                ) : null}
               </Button>
             </div>
-            {appliedCount ? (
-              <div className={styles.activeFilterSummary}>
-                <span>Применено фильтров: {appliedCount}</span>
-                <Link className={styles.resetLink} to={location.pathname}>
-                  Сбросить все
-                </Link>
-              </div>
-            ) : null}
+            <AppliedFilterSummary
+              filters={filtersOpen ? [] : appliedFilters}
+              resetTo={location.pathname}
+            />
           </WorkbenchToolbar>
 
           {filtersOpen ? (
@@ -255,23 +259,33 @@ export function AccountDetailPage({
                 ))}
               </ol>
             ) : (
-              <RequestState
-                message={
-                  appliedCount
-                    ? "Измените условия поиска или сбросьте фильтры."
-                    : "Подтверждённые движения по этому счёту появятся здесь."
+              <WorkbenchEmptyState
+                action={
+                  filtersActive ? (
+                    <RouterButtonLink icon="filter" to={location.pathname}>
+                      Сбросить фильтры
+                    </RouterButtonLink>
+                  ) : undefined
                 }
-                status="empty"
+                icon={filtersActive ? "search" : "operations"}
+                kind={filtersActive ? "filtered" : "primary"}
                 title={
-                  appliedCount
+                  filtersActive
                     ? "По этим фильтрам проводок нет"
                     : "Проводок пока нет"
                 }
-              />
+              >
+                {filtersActive
+                  ? "Измените условия поиска или сбросьте фильтры."
+                  : "Подтверждённые движения по этому счёту появятся здесь."}
+              </WorkbenchEmptyState>
             )}
           </WorkbenchContent>
 
-          <AccountDetailFooter detail={detail} />
+          <AccountDetailFooter
+            detail={detail}
+            disabled={navigationPending || editingMovement !== null}
+          />
         </WorkbenchSurface>
       </PageFrame>
       {settingsOpen ? (
@@ -566,17 +580,13 @@ function AccountMovementFilters({
             value={draft.property_id ?? ""}
           />
         </div>
-        <FormActions>
+        <FormActions layout="split">
+          <RouterButtonLink onClick={onClose} to={location.pathname}>
+            Сбросить
+          </RouterButtonLink>
           <Button icon="filterApply" tone="primary" type="submit">
             Применить
           </Button>
-          <Link
-            className={styles.resetLink}
-            onClick={onClose}
-            to={location.pathname}
-          >
-            Сбросить
-          </Link>
         </FormActions>
       </form>
     </WorkbenchFilterRegion>
@@ -614,7 +624,13 @@ function FilterField({
   );
 }
 
-function AccountDetailFooter({ detail }: { detail: AccountDetailDto }) {
+function AccountDetailFooter({
+  detail,
+  disabled,
+}: {
+  detail: AccountDetailDto;
+  disabled: boolean;
+}) {
   const location = useLocation();
   const navigate = useNavigate();
   const start =
@@ -625,72 +641,42 @@ function AccountDetailFooter({ detail }: { detail: AccountDetailDto }) {
     detail.pagination.page * detail.pagination.perPage,
     detail.pagination.total,
   );
-  return (
-    <footer className={styles.workbenchFooter}>
-      <span>
-        Показано {start}–{end} из {detail.pagination.total}
-      </span>
-      <label className={styles.pageSize}>
-        <span>На странице</span>
-        <select
-          aria-label="Проводок на странице"
-          onChange={(event) => {
-            const search = new URLSearchParams(location.search);
-            search.set("per_page", event.currentTarget.value);
-            search.delete("page");
-            void navigate(queryUrl(location.pathname, search));
-          }}
-          value={detail.pagination.perPage}
-        >
-          {detail.filterOptions.perPage.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </label>
-      <nav aria-label="Страницы проводок" className={styles.pagination}>
-        {detail.pagination.hasPrevious ? (
-          <Link
-            to={pageUrl(
-              location.pathname,
-              location.search,
-              detail.pagination.page - 1,
-            )}
-          >
-            <Icon name="back" size={16} /> Назад
-          </Link>
-        ) : (
-          <span />
-        )}
-        <strong>
-          Страница {detail.pagination.page} из {detail.pagination.totalPages}
-        </strong>
-        {detail.pagination.hasNext ? (
-          <Link
-            to={pageUrl(
-              location.pathname,
-              location.search,
-              detail.pagination.page + 1,
-            )}
-          >
-            Дальше <Icon name="forward" size={16} />
-          </Link>
-        ) : (
-          <span />
-        )}
-      </nav>
-    </footer>
+  const showPageSize = detail.filterOptions.perPage.some(
+    (option) => detail.pagination.total > option,
   );
-}
 
-function activeFilterCount(search: URLSearchParams): number {
-  return [...search.entries()].filter(
-    ([key, value]) =>
-      value &&
-      !["page", "per_page"].includes(key) &&
-      !(key === "status" && value === "confirmed"),
-  ).length;
+  return (
+    <WorkbenchPagination
+      ariaLabel="Страницы проводок"
+      currentPage={detail.pagination.page}
+      getPageHref={(page) => pageUrl(location.pathname, location.search, page)}
+      hasNext={detail.pagination.hasNext}
+      hasPrevious={detail.pagination.hasPrevious}
+      {...(showPageSize
+        ? {
+            pageSize: {
+              disabled,
+              id: "account-detail-page-size",
+              onChange: (pageSize: number) => {
+                if (!detail.filterOptions.perPage.includes(pageSize)) return;
+                const search = new URLSearchParams(location.search);
+                search.set("per_page", String(pageSize));
+                search.delete("page");
+                void navigate(queryUrl(location.pathname, search));
+              },
+              options: detail.filterOptions.perPage,
+              value: detail.pagination.perPage,
+            },
+          }
+        : {})}
+      summary={
+        detail.pagination.total === 0
+          ? "0 проводок"
+          : `${start}–${end} из ${detail.pagination.total}`
+      }
+      totalPages={detail.pagination.totalPages}
+    />
+  );
 }
 
 function setOrDelete(search: URLSearchParams, key: string, value: string) {

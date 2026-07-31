@@ -43,6 +43,10 @@ describe("ImportMappingPage", () => {
   it("shows account context, roles above source columns and the raw table", () => {
     renderPage();
 
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+    expect(
+      screen.getByRole("region", { name: "Настройка импорта" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Основной счёт" }),
     ).toBeInTheDocument();

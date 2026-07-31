@@ -27,6 +27,10 @@ describe("manual operation creation", () => {
     expect(
       screen.getByRole("button", { name: "Создать операцию" }),
     ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Отмена" })).toHaveAttribute(
+      "data-tone",
+      "secondary",
+    );
 
     await user.click(screen.getByRole("radio", { name: "Расход" }));
     expect(

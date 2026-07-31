@@ -1,91 +1,27 @@
 .page {
   display: grid;
-  width: min(100%, var(--page-max-width));
   gap: var(--space-5);
-  margin-inline: auto;
 }
 
-.readonlyNotice {
-  display: grid;
-  gap: var(--space-1);
-  border: 1px solid var(--color-border-default);
-  border-left: 0.25rem solid var(--color-information);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-secondary-pane);
-  padding: var(--space-4);
-}
-
-.readonlyNotice span,
 .bankName,
 .filename,
-.mobileFacts,
-.paginationSummary {
+.mobileFacts {
   color: var(--color-text-secondary);
 }
 
 .registry {
-  position: relative;
-  display: grid;
-  min-width: 0;
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-surface);
   overflow: hidden;
 }
 
-.toolbar {
+.registryToolbar {
+  border-top: 0;
+}
+
+.toolbarRow {
   display: flex;
-  min-height: 3.5rem;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  border-bottom: 1px solid var(--color-border-default);
-  padding: var(--space-2) var(--space-3);
-}
-
-.states {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-
-.states a {
-  display: inline-flex;
-  min-height: var(--control-height);
-  align-items: center;
-  gap: var(--space-2);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  font-weight: 700;
-  padding: var(--space-2) var(--space-3);
-  text-decoration: none;
-}
-
-.states a:hover {
-  background: var(--color-bg-interactive);
-  color: var(--color-text-primary);
-}
-
-.states a span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-variant-numeric: tabular-nums;
-}
-
-.states .stateActive {
-  background: var(--color-bg-interactive);
-  color: var(--color-text-primary);
-}
-
-.states .stateActive span {
-  color: var(--color-interactive-active);
-}
-
-.filterRegion {
-  border-bottom: 1px solid var(--color-border-default);
-  background: var(--color-bg-secondary-pane);
-  padding: var(--space-4);
 }
 
 .filterForm {
@@ -99,72 +35,15 @@
   gap: var(--space-4);
 }
 
-.filterActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.resetLink,
 .rowAction,
 .accountLink {
   color: var(--color-link);
   font-weight: 700;
 }
 
-.resetLink:hover,
 .rowAction:hover,
 .accountLink:hover {
   color: var(--color-interactive-active);
-}
-
-.navigationStatus {
-  position: absolute;
-  overflow: hidden;
-  width: 1px;
-  height: 1px;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.tableRegion {
-  min-width: 0;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.table th,
-.table td {
-  border-bottom: 1px solid var(--color-border-default);
-  padding: var(--space-3) var(--space-4);
-  text-align: left;
-  vertical-align: middle;
-}
-
-.table thead th {
-  background: var(--color-bg-secondary-pane);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.025em;
-  text-transform: uppercase;
-}
-
-.table tbody tr {
-  transition: background-color var(--duration-fast) ease;
-}
-
-.table tbody tr:hover {
-  background: var(--color-bg-interactive);
-}
-
-.table tbody tr:last-child th,
-.table tbody tr:last-child td {
-  border-bottom: 0;
 }
 
 .table th:nth-child(1) {
@@ -241,110 +120,18 @@
   text-decoration: none;
 }
 
-.mobileList {
-  display: none;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.paginationFooter {
-  display: grid;
-  min-height: 3.5rem;
-  grid-template-columns: 1fr auto auto;
-  align-items: center;
-  gap: var(--space-4);
-  border-top: 1px solid var(--color-border-default);
-  background: var(--color-bg-secondary-pane);
-  padding: var(--space-2) var(--space-4);
-}
-
-.paginationSummary,
-.pageSize {
-  font-size: var(--font-size-sm);
-}
-
-.pageSize {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-text-secondary);
-}
-
-.pageSize select {
-  min-height: 2.25rem;
-}
-
-.pagination ul {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.pagination a,
-.currentPage {
-  display: inline-flex;
-  min-width: var(--control-height);
-  min-height: var(--control-height);
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  font-weight: 700;
-  padding: var(--space-2);
-  text-decoration: none;
-}
-
-.pagination a:hover {
-  background: var(--color-bg-interactive);
-  color: var(--color-text-primary);
-}
-
-.currentPage {
-  background: var(--color-bg-interactive);
-  color: var(--color-text-primary);
-}
-
-.previousPage a,
-.nextPage a {
-  min-width: auto;
-}
-
-.filteredEmpty {
-  display: grid;
-  justify-items: start;
-  gap: var(--space-3);
-  padding: var(--space-5);
-}
-
 @media (max-width: 64rem) {
-  .toolbar {
+  .toolbarRow {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .toolbar > button {
+  .toolbarRow > button {
     align-self: flex-start;
   }
 
   .filterGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .tableRegion {
-    display: none;
-  }
-
-  .mobileList {
-    display: block;
-  }
-
-  .mobileList > li + li {
-    border-top: 1px solid var(--color-border-default);
   }
 
   .mobileRecord {
@@ -385,14 +172,6 @@
   .mobileRecord .rowAction {
     justify-self: start;
   }
-
-  .paginationFooter {
-    grid-template-columns: 1fr auto;
-  }
-
-  .pagination {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (max-width: 44rem) {
@@ -400,16 +179,7 @@
     gap: var(--space-4);
   }
 
-  .states {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .states a {
-    justify-content: space-between;
-  }
-
-  .toolbar > button {
+  .toolbarRow > button {
     width: 100%;
   }
 
@@ -417,48 +187,13 @@
     grid-template-columns: 1fr;
   }
 
-  .filterActions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
   .mobileHeading {
     align-items: stretch;
     flex-direction: column;
   }
-
-  .paginationFooter {
-    grid-template-columns: 1fr;
-  }
-
-  .pageSize {
-    display: none;
-  }
-
-  .pagination {
-    grid-column: auto;
-  }
-
-  .pagination ul {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .pagination li:not(.previousPage, .nextPage) {
-    display: none;
-  }
-
-  .previousPage a {
-    justify-content: flex-start;
-  }
-
-  .nextPage a {
-    justify-content: flex-end;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .table tbody tr,
   .mobileRecord {
     transition: none;
   }

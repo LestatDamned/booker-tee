@@ -1,17 +1,22 @@
 import { useRef, useState } from "react";
 
 import { ActionStack } from "../ui/action-stack/action-stack";
+import { AppliedFilterSummary } from "../ui/applied-filter-summary/applied-filter-summary";
 import { Badge } from "../ui/badge/badge";
-import { Button } from "../ui/button/button";
+import { Button, ButtonLink } from "../ui/button/button";
 import { IconButton } from "../ui/button/icon-button";
 import { ExpansionPanel } from "../ui/expansion-panel/expansion-panel";
 import { Field } from "../ui/field/field";
+import { InlineNotice } from "../ui/inline-notice/inline-notice";
 import { MoneyValue } from "../ui/money-value/money-value";
 import { PageHeader } from "../ui/page-header/page-header";
 import { RequestState } from "../ui/request-state/request-state";
+import { ResponsiveRecordCollection } from "../ui/responsive-record-collection/responsive-record-collection";
 import { StatusLabel } from "../ui/status-label/status-label";
 import { Tag } from "../ui/tag/tag";
 import { WorkbenchRow } from "../ui/workbench-row/workbench-row";
+import { WorkbenchEmptyState } from "../ui/workbench-empty-state/workbench-empty-state";
+import { WorkbenchPagination } from "../ui/workbench-pagination/workbench-pagination";
 import styles from "./foundation-gallery.module.css";
 
 type ThemeName = "catppuccin-mocha" | "catppuccin-latte" | "test";
@@ -35,6 +40,37 @@ export function FoundationGallery() {
         eyebrow="Stage 02"
         title="React UI foundation"
       />
+
+      <section className={styles.routeStateLinks}>
+        <div>
+          <p className={styles.themeLabel}>Full-page states</p>
+          <h2>Состояния маршрутов</h2>
+          <p className={styles.routeStateDescription}>
+            Откройте состояние отдельно, чтобы проверить полноэкранную
+            геометрию, семантический цвет и путь восстановления.
+          </p>
+        </div>
+        <nav
+          aria-label="Примеры состояний маршрутов"
+          className={styles.controls}
+        >
+          <ButtonLink href="/app/foundation?route-state=loading">
+            Загрузка
+          </ButtonLink>
+          <ButtonLink href="/app/foundation?route-state=unauthenticated">
+            Нет сессии
+          </ButtonLink>
+          <ButtonLink href="/app/foundation?route-state=forbidden">
+            Нет доступа
+          </ButtonLink>
+          <ButtonLink href="/app/foundation?route-state=notFound">
+            Не найдено
+          </ButtonLink>
+          <ButtonLink href="/app/foundation?route-state=error">
+            Ошибка
+          </ButtonLink>
+        </nav>
+      </section>
 
       <div className={styles.themeGrid}>
         {themes.map((theme) => (
@@ -165,6 +201,113 @@ function ThemePreview({ label, theme }: ThemePreviewProps) {
             Требуют решения <Badge label="3 строки требуют решения">3</Badge>
           </span>
         </div>
+      </section>
+
+      <section className={styles.section}>
+        <h3>Inline notices</h3>
+        <InlineNotice title="Доступно только для чтения" tone="information">
+          Изменения недоступны для вашей роли.
+        </InlineNotice>
+        <InlineNotice
+          action={<Button icon="retry">Повторить</Button>}
+          role="alert"
+          title="Не удалось сохранить"
+          tone="danger"
+        >
+          Проверьте соединение и повторите попытку.
+        </InlineNotice>
+      </section>
+
+      <section className={styles.section}>
+        <h3>Applied filters</h3>
+        <AppliedFilterSummary
+          filters={["Тип: расход", "Счёт: Основной", "Период: июль 2026"]}
+          resetTo="/app/foundation"
+        />
+      </section>
+
+      <section className={styles.section}>
+        <h3>Workbench empty states</h3>
+        <div className={styles.emptyStateGrid}>
+          <WorkbenchEmptyState
+            action={
+              <Button icon="plus" tone="primary">
+                Добавить первый счёт
+              </Button>
+            }
+            icon="accounts"
+            title="Пока нет счетов"
+          >
+            Добавьте карту, вклад, наличные или расчётный счёт.
+          </WorkbenchEmptyState>
+          <WorkbenchEmptyState
+            action={<Button icon="filter">Сбросить фильтры</Button>}
+            icon="search"
+            kind="filtered"
+            title="По этим фильтрам ничего нет"
+          >
+            Измените условия поиска или сбросьте фильтры.
+          </WorkbenchEmptyState>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.flushSection}`}>
+        <h3 className={styles.flushSectionTitle}>Workbench pagination</h3>
+        <WorkbenchPagination
+          ariaLabel={`Пример страниц, ${label}`}
+          currentPage={2}
+          getPageHref={(page) => `?foundation_page=${page}`}
+          hasNext
+          hasPrevious
+          pageSize={{
+            id: `${theme}-page-size`,
+            onChange: () => undefined,
+            options: [25, 50, 100],
+            value: 25,
+          }}
+          summary="26–50 из 187"
+          totalPages={8}
+        />
+      </section>
+
+      <section className={`${styles.section} ${styles.flushSection}`}>
+        <h3 className={styles.flushSectionTitle}>Responsive records</h3>
+        <ResponsiveRecordCollection
+          mobileList={
+            <ol>
+              <li>
+                <article className={styles.recordExample}>
+                  <strong>Основной счёт</strong>
+                  <span>Карта · RUB</span>
+                  <MoneyValue amount="125 000,00" currency="RUB" />
+                </article>
+              </li>
+            </ol>
+          }
+          table={
+            <table>
+              <caption className="visually-hidden">
+                Пример финансового реестра
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Счёт</th>
+                  <th scope="col">Тип</th>
+                  <th scope="col">Баланс</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Основной счёт</th>
+                  <td>Карта</td>
+                  <td>
+                    <MoneyValue amount="125 000,00" currency="RUB" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          }
+        />
       </section>
 
       <section className={styles.section}>
