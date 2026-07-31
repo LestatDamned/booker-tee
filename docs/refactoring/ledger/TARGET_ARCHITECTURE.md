@@ -128,13 +128,12 @@ contracts переведены на `ApplicationModel`. Старый `applicatio
 
 ### 3. Account ledger projections
 
-Статус: deferred until React account cutover.
+Статус: completed by React account cutover 2026-07-31.
 
-Этап сознательно пропущен 2026-07-30: все его runtime consumers принадлежат
-legacy SSR account screen и должны быть удалены после React replacement gate.
-До cutover здесь выполняются только исправления корректности и необходимые
-изменения контракта; отдельная Pydantic-полировка временных projections не
-проводится.
+Legacy Jinja presenter/ViewModels удалены после replacement gate. Действующий
+account ledger application projection сохранён как backend-owned contract для
+versioned Accounts API; отдельная полировка удалённых временных projections не
+проводилась.
 
 ### 4. Mapping cohesion
 

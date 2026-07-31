@@ -19,9 +19,8 @@ workflows вертикальными slices и удалить второй по�
 
 1. [import documents and mapping](import-documents-and-mapping/README.md) —
    completed;
-2. [accounts and account ledger](accounts-and-ledger/README.md) — active,
-   Slice 01 completed;
-3. reports.
+2. accounts and account ledger — completed 2026-07-31;
+3. reports — next.
 
 ### Wave B: reference and rule workflows
 

@@ -12,7 +12,8 @@ Git и коде.
 Stages 0–6 completed
 Stage 7 active
 Imports completed
-Accounts and account ledger active; Slices 01–04 completed
+Accounts and account ledger completed
+Reports next
 ```
 
 ## Completed outcomes
@@ -29,6 +30,7 @@ Accounts and account ledger active; Slices 01–04 completed
 
 - `frontend/app/features/manual-ledger/README.md`;
 - `frontend/app/features/import-review/README.md`;
+- `frontend/app/features/accounts/README.md`;
 - server application/domain tests.
 
 ## Current stage
@@ -41,8 +43,38 @@ Child stages:
 
 - [`Import documents and mapping`](import-documents-and-mapping/README.md) —
   completed;
-- [`Accounts and account ledger`](accounts-and-ledger/README.md) — active,
-  Slice 05 next.
+- Accounts and account ledger — completed 2026-07-31;
+- Reports — next; focused child stage создаётся перед implementation.
+
+### Accounts completion record
+
+Completed: 2026-07-31
+
+Implemented:
+
+- React account directory, detail ledger, settings, lifecycle и imported
+  operation correction;
+- versioned Accounts API с workspace/capability/concurrency contracts;
+- query-preserving historical GET redirects.
+
+Cleanup performed:
+
+- удалены legacy Accounts router, Jinja presenter/ViewModels/templates и их
+  replacement-only tests;
+- удалён account-specific legacy CSS;
+- canonical dashboard/report links переключены в React;
+- HTML account operation удалена из generated OpenAPI types.
+
+Checks run:
+
+- relevant backend Accounts/redirect/users tests;
+- frontend format/lint/styles/API/type/tests/build;
+- Accounts browser audit на desktop/tablet/mobile.
+
+Intentional deviations: none.
+
+Measurements/risks: financial/domain actors сохранены без переписывания;
+временный `/app` prefix остаётся до общего Stage 7 routing cutover.
 
 ## Status rules
 

@@ -68,7 +68,7 @@
     {% if overview.reports.account_balances %}
       <div class="entity-list">
         {% for row in overview.reports.account_balances %}
-          <a class="entity-row" href="/accounts/{{ row.account.id }}">
+          <a class="entity-row" href="/app/accounts/{{ row.account.id }}">
             <span class="truncate-label" title="{{ row.account.name }}">{{ row.account.name }}</span>
             <strong class="amount {% if row.balance > 0 %}amount-income{% elif row.balance < 0 %}amount-expense{% endif %}">
               {{ row.balance }} {{ row.account.currency }}

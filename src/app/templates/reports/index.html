@@ -165,7 +165,7 @@
         <tbody>
           {% for row in overview.account_balances %}
             <tr>
-              <td><a href="/accounts/{{ row.account.id }}">{{ row.account.name }}</a></td>
+              <td><a href="/app/accounts/{{ row.account.id }}">{{ row.account.name }}</a></td>
               <td class="amount {% if row.balance > 0 %}amount-income{% elif row.balance < 0 %}amount-expense{% endif %}">{{ row.balance }} {{ row.account.currency }}</td>
             </tr>
           {% endfor %}

@@ -75,16 +75,6 @@ def test_parse_uuid_cookie_ignores_missing_or_invalid_values() -> None:
     assert parse_uuid_cookie(request, "missing") is None
 
 
-def test_financial_pages_redirect_to_login_without_session(client) -> None:
-    response = client.get(
-        "/accounts/11111111-1111-1111-1111-111111111111",
-        follow_redirects=False,
-    )
-
-    assert response.status_code == 303
-    assert response.headers["location"] == "/login"
-
-
 def test_dashboard_redirects_to_login_without_session(client) -> None:
     response = client.get("/dashboard", follow_redirects=False)
 

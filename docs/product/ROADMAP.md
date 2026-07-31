@@ -12,10 +12,9 @@
 
 Stage 7 мигрирует оставшийся authenticated SSR вертикальными slices:
 
-1. завершить accounts и account ledger;
-2. reports;
-3. properties, categories и transaction rules;
-4. workspaces, profile и остальные authenticated surfaces.
+1. reports;
+2. properties, categories и transaction rules;
+3. workspaces, profile и остальные authenticated surfaces.
 
 На каждом cutover:
 
@@ -24,8 +23,8 @@ Stage 7 мигрирует оставшийся authenticated SSR вертика
 - legacy mutation routes/templates/presenters удаляются;
 - browser flow проходит на desktop, tablet и mobile.
 
-Текущий детальный план:
-[`Accounts and account ledger`](../frontend/plan/accounts-and-ledger/README.md).
+Текущая позиция и следующий workflow зафиксированы во
+[`frontend plan`](../frontend/plan/README.md).
 
 ### 2. Сохранить надёжность imports
 

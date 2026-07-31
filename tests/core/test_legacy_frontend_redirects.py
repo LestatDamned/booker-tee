@@ -4,6 +4,7 @@ from api_client import ApiTestClient as TestClient
 from app.main import create_app
 
 DOCUMENT_ID = "5e4c43a1-7e08-4afe-a442-5d1d72e08ca8"
+ACCOUNT_ID = "11111111-1111-1111-1111-111111111111"
 
 
 @pytest.mark.parametrize(
@@ -14,6 +15,11 @@ DOCUMENT_ID = "5e4c43a1-7e08-4afe-a442-5d1d72e08ca8"
             "/app/ledger/manual?type=expense&page=2",
         ),
         ("/accounts?source=dashboard", "/app/accounts?source=dashboard"),
+        (
+            f"/accounts/{ACCOUNT_ID}?status=confirmed&search=такси&page=2",
+            f"/app/accounts/{ACCOUNT_ID}"
+            "?status=confirmed&search=%D1%82%D0%B0%D0%BA%D1%81%D0%B8&page=2",
+        ),
         ("/imports?source=dashboard", "/app/imports?source=dashboard"),
         (
             "/imports/upload?source=dashboard",
@@ -50,6 +56,7 @@ def test_historical_frontend_get_redirects_to_react(
     ("historical_url", "expected_status"),
     [
         ("/accounts", 405),
+        (f"/accounts/{ACCOUNT_ID}", 405),
         ("/imports/upload", 405),
         (f"/imports/documents/{DOCUMENT_ID}", 405),
         (f"/imports/documents/{DOCUMENT_ID}/mapping", 405),

@@ -249,94 +249,6 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-.account-detail-title {
-  max-width: 900px;
-  font-size: 2.35rem;
-  line-height: 1.08;
-}
-
-.account-detail-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
-  gap: 16px;
-  align-items: start;
-}
-
-.account-detail-hero__main {
-  min-width: 0;
-  display: grid;
-  gap: 12px;
-}
-
-.account-detail-hero__context {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  color: var(--accent);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-}
-
-.account-detail-hero__context span {
-  display: inline-flex;
-  min-height: 24px;
-  align-items: center;
-  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
-  padding: 0 8px;
-}
-
-.account-detail-hero__actions {
-  min-width: 0;
-  display: grid;
-  gap: 8px;
-  align-content: start;
-}
-
-.account-detail-hero__actions .button {
-  width: 100%;
-}
-
-.account-detail-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.account-detail-metric {
-  min-width: 0;
-  border: 1px solid color-mix(in srgb, var(--border) 66%, transparent);
-  border-left: 2px solid color-mix(in srgb, var(--accent) 72%, var(--border));
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--surface-strong) 42%, transparent);
-  padding: 11px 12px;
-}
-
-.account-detail-metric span {
-  display: block;
-  margin-bottom: 7px;
-  color: var(--muted);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-}
-
-.account-detail-metric strong {
-  color: var(--text);
-  font-size: 1.05rem;
-  overflow-wrap: anywhere;
-}
-
-.account-detail-tools {
-  display: grid;
-  gap: 10px;
-}
-
 p {
   max-width: 680px;
   color: var(--muted);
@@ -3692,61 +3604,6 @@ html:not(.entity-target-cleared) .rule-card:target {
 }
 
 
-.account-movement-list {
-  display: grid;
-  gap: 10px;
-}
-
-.account-movement {
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
-}
-
-.account-movement--income {
-  border-left-color: var(--green);
-}
-
-.account-movement--expense {
-  border-left-color: var(--danger);
-}
-
-.account-movement--transfer {
-  border-left-color: var(--accent);
-}
-
-.account-movement--adjustment {
-  border-left-color: var(--warning);
-}
-
-.account-movement__amount {
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  white-space: nowrap;
-}
-
-.account-movement__topline {
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
-  gap: 8px 12px;
-}
-
-.account-movement__badges {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-
-.account-movement__meta {
-  gap: 6px;
-}
-
-.account-movement__result {
-  gap: 10px;
-  padding-left: 16px;
-}
-
 .entry-description {
   color: var(--text);
   overflow-wrap: anywhere;
@@ -3788,13 +3645,8 @@ html:not(.entity-target-cleared) .rule-card:target {
 
 @media (max-width: 920px) {
   .header-grid,
-  .dashboard-grid,
-  .account-detail-hero {
+  .dashboard-grid {
     grid-template-columns: 1fr;
-  }
-
-  .account-detail-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   h1,
@@ -3882,12 +3734,6 @@ html:not(.entity-target-cleared) .rule-card:target {
 
   .financial-row__topline {
     grid-template-columns: 1fr;
-  }
-
-  .account-tool-form__fields,
-  .account-tool-form__fields--classification,
-  .account-tool-form__fields--display {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .filter-form__fields,
@@ -3983,18 +3829,6 @@ html:not(.entity-target-cleared) .rule-card:target {
   .report-period-nav__shortcut {
     grid-column: 1 / -1;
     width: 100%;
-  }
-
-  .account-detail-title {
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    font-size: 1.8rem;
-  }
-
-  .account-detail-metrics {
-    grid-template-columns: 1fr;
   }
 
   .panel {
@@ -4116,13 +3950,6 @@ html:not(.entity-target-cleared) .rule-card:target {
     grid-template-columns: 1fr;
   }
 
-  .account-tool-form__fields,
-  .account-tool-form__fields--classification,
-  .account-tool-form__fields--display,
-  .account-tool-form__footer {
-    grid-template-columns: 1fr;
-  }
-
   .filter-form__fields,
   .filter-form__fields--primary,
   .filter-form__fields--classification,
@@ -4192,7 +4019,6 @@ html:not(.entity-target-cleared) .rule-card:target {
     grid-column: auto;
   }
 
-  .account-tool-form__field--search,
   .filter-form__field--search {
     grid-column: auto;
   }
@@ -4282,24 +4108,6 @@ html:not(.entity-target-cleared) .rule-card:target {
 
   .rule-advanced-grid {
     grid-template-columns: 1fr;
-  }
-
-  .account-movement__badges {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .account-movement__badges .badge {
-    width: 100%;
-    justify-content: center;
-    overflow-wrap: anywhere;
-    white-space: normal;
-  }
-
-  .account-movement__amount {
-    grid-column: 1 / -1;
-    justify-self: start;
-    justify-content: flex-start;
   }
 
 }

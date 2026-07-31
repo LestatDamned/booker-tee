@@ -25,6 +25,14 @@ async def historical_accounts(request: Request) -> RedirectResponse:
     return redirect_to_react(request, "/app/accounts")
 
 
+@router.get("/accounts/{account_id}")
+async def historical_account_detail(
+    request: Request,
+    account_id: UUID,
+) -> RedirectResponse:
+    return redirect_to_react(request, f"/app/accounts/{account_id}")
+
+
 @router.get("/imports")
 async def historical_imports(request: Request) -> RedirectResponse:
     return redirect_to_react(request, "/app/imports")
