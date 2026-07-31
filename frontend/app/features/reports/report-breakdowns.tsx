@@ -24,7 +24,7 @@ const categoryColumns: ReadonlyArray<{
   { field: "name", label: "Категория" },
   { field: "income", label: "Доходы" },
   { field: "expense", label: "Расходы" },
-  { field: "profit", label: "Прибыль" },
+  { field: "profit", label: "Итог" },
 ];
 
 export function ReportBreakdowns({

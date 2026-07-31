@@ -1,6 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
-import { within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { reportOverview, session } from "../features/reports/test-support";
@@ -122,21 +127,138 @@ describe("reports route", () => {
     expect(screen.getByText("Нет данных по категориям")).toBeVisible();
     expect(screen.getByText("Нет данных по объектам")).toBeVisible();
   });
+
+  it("renders a bounded uncategorized page with safe correction capabilities", () => {
+    renderReports();
+
+    const table = screen.getByRole("table", { name: "Операции без категории" });
+    expect(within(table).getAllByRole("row")).toHaveLength(3);
+    expect(
+      within(table).getByRole("link", { name: "Открыть операцию" }),
+    ).toHaveAttribute(
+      "href",
+      `/app/ledger/manual?operation_id=${reportOverview.uncategorized.items[0]!.operationId}#operation-${reportOverview.uncategorized.items[0]!.operationId}`,
+    );
+    expect(
+      within(table).getByText("Только чтение: недостаточно прав."),
+    ).toBeVisible();
+
+    const pagination = screen.getByRole("navigation", {
+      name: "Страницы операций без категории",
+    });
+    expect(
+      within(pagination).getByRole("link", { name: "Дальше" }),
+    ).toHaveAttribute("href", expect.stringContaining("uncategorized_page=2"));
+    expect(screen.getByText("1–10 из 12")).toBeVisible();
+  });
+
+  it("shows a local empty state when all matching operations are categorized", () => {
+    renderReports({
+      overview: {
+        ...reportOverview,
+        uncategorized: {
+          ...reportOverview.uncategorized,
+          items: [],
+          total: 0,
+          totalPages: 1,
+          hasNext: false,
+        },
+      },
+    });
+
+    expect(screen.getByText("Все операции распределены")).toBeVisible();
+  });
+
+  it("uses the existing account workflow for a correctable imported operation", () => {
+    const imported = reportOverview.uncategorized.items[1]!;
+    renderReports({
+      overview: {
+        ...reportOverview,
+        uncategorized: {
+          ...reportOverview.uncategorized,
+          items: [
+            {
+              ...imported,
+              capabilities: { canCorrect: true, readonlyReasonCode: null },
+            },
+          ],
+          total: 1,
+          totalPages: 1,
+          hasNext: false,
+        },
+      },
+    });
+
+    expect(
+      screen.getAllByRole("link", { name: "Открыть счёт" })[0],
+    ).toHaveAttribute("href", `/app/accounts/${imported.accountId}`);
+  });
+
+  it("renders both directions on a middle uncategorized page", () => {
+    renderReports({
+      initialEntry: "/reports?currency=RUB&uncategorized_page=2",
+      overview: {
+        ...reportOverview,
+        uncategorized: {
+          ...reportOverview.uncategorized,
+          page: 2,
+          total: 25,
+          totalPages: 3,
+          hasPrevious: true,
+          hasNext: true,
+        },
+      },
+    });
+
+    const pagination = screen.getByRole("navigation", {
+      name: "Страницы операций без категории",
+    });
+    expect(
+      within(pagination).getByRole("link", { name: "Назад" }),
+    ).toBeVisible();
+    expect(
+      within(pagination).getByRole("link", { name: "Дальше" }),
+    ).toBeVisible();
+    expect(within(pagination).getByLabelText("Страница 2")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("normalizes an empty deep-linked page to the last existing page", async () => {
+    renderReports({
+      initialEntry: "/reports?currency=RUB&uncategorized_page=999",
+      overview: {
+        ...reportOverview,
+        uncategorized: {
+          ...reportOverview.uncategorized,
+          page: 2,
+          hasPrevious: true,
+          hasNext: false,
+        },
+      },
+      withLocation: true,
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "uncategorized_page=2",
+      ),
+    );
+  });
 });
 
 function renderReports({
+  initialEntry = "/reports?date_from=2026-07-01&date_to=2026-07-31&currency=RUB",
   overview = reportOverview,
   withLocation = false,
 }: {
+  initialEntry?: string;
   overview?: typeof reportOverview;
   withLocation?: boolean;
 } = {}) {
   return render(
-    <MemoryRouter
-      initialEntries={[
-        "/reports?date_from=2026-07-01&date_to=2026-07-31&currency=RUB",
-      ]}
-    >
+    <MemoryRouter initialEntries={[initialEntry]}>
       <ReportsRouteView
         loaderData={{
           session: { status: "authenticated", session },

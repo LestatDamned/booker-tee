@@ -1,6 +1,6 @@
 # Slice 03: Uncategorized Operations
 
-Статус: planned.
+Статус: completed 2026-07-31.
 
 ## Outcome
 
@@ -67,3 +67,43 @@ Frontend:
 - existing safe correction workflow переиспользуется, financial mutation не
   дублируется внутри Reports;
 - desktop/tablet/mobile replacement покрыт browser tests.
+
+## Completion record
+
+Completed: 2026-07-31
+
+Implemented:
+
+- server-side page внутри существующего `GET /api/v1/reports`: default 10,
+  hard maximum 25;
+- отдельные count и projection queries с workspace/date/currency/account/
+  property predicates, confirmed/profit-only policy и deterministic ordering;
+- нормализация deep-linked empty page к последней существующей странице;
+- responsive desktop table/mobile records на `ResponsiveRecordCollection`;
+- URL pagination на `WorkbenchPagination` с сохранением совместимых filters;
+- server capability/reason policy и переходы в существующие Manual Ledger или
+  Account Ledger correction workflows;
+- отдельный readonly reason вместо ложного disabled action.
+
+Checks run:
+
+- Ruff, ty и 38 focused Reports backend/API tests;
+- полный frontend pipeline: format, lint, styles, API drift, typecheck, 270
+  tests и production build;
+- authenticated realistic browser audit на `1440×1000`, `920×900` и
+  `390×844` без horizontal overflow, console/page/network и UX assertion
+  errors.
+
+Intentional deviations:
+
+- page size поддерживается API как bounded parameter, но UI фиксирует его на
+  компактном default 10 и не добавляет лишний control;
+- imported operation ведёт в существующий Account Ledger, потому что отдельный
+  correction route не существует.
+
+Cleanup performed: placeholder Slice 03 удалён; финансовые mutations и формы
+не дублировались в Reports. Legacy presentation остаётся до Slice 04.
+
+Measurements/risks: список всегда выполняет два SQL queries (`count` и
+bounded page), независимо от числа найденных rows. Reports route chunk —
+`24.86 kB`, gzip `7.30 kB`; CSS — `5.14 kB`, gzip `1.18 kB`.

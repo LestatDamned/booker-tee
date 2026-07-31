@@ -24,6 +24,7 @@ import {
 } from "./report-filter-query";
 import { ReportFilters } from "./report-filters";
 import { ReportBreakdowns } from "./report-breakdowns";
+import { ReportUncategorized } from "./report-uncategorized";
 import styles from "./reports-page.module.css";
 
 export function ReportsPage({
@@ -144,7 +145,7 @@ export function ReportsPage({
           <Metric
             amount={overview.summary.profit}
             currency={overview.summary.currency}
-            label="Прибыль"
+            label="Итог"
             tone="profit"
           />
         </section>
@@ -185,6 +186,7 @@ export function ReportsPage({
         ) : null}
 
         {hasReportData ? <ReportBreakdowns overview={overview} /> : null}
+        {hasReportData ? <ReportUncategorized overview={overview} /> : null}
       </PageFrame>
     </AppShell>
   );

@@ -1,6 +1,6 @@
 # Stage 07 / Wave A: Reports
 
-Статус: active; Slices 01–02 completed, Slice 03 next.
+Статус: active; Slices 01–03 completed, Slice 04 next.
 
 Этот child stage переносит authenticated Reports из Jinja/HTMX в React и
 одновременно исправляет обнаруженные дефекты финансовой корректности и чтения
@@ -51,8 +51,8 @@ focused engineering days. Это диапазон планирования, не
 | ------- | ------------------------------------------------------------------------ | --------- | ------------------------------------------------------------- | -------- |
 | 1       | [`01_REPORTING_CORE_AND_OVERVIEW.md`](01_REPORTING_CORE_AND_OVERVIEW.md) | completed | Видит корректные KPI одной валюты, фильтры и балансы на дату  | 4–6 дней |
 | 2       | [`02_BREAKDOWNS.md`](02_BREAKDOWNS.md)                                   | completed | Анализирует категории и объекты без слияния сущностей         | 2–3 дня  |
-| 3       | [`03_UNCATEGORIZED_OPERATIONS.md`](03_UNCATEGORIZED_OPERATIONS.md)       | next      | Находит и просматривает bounded список операций без категории | 2–3 дня  |
-| 4       | [`04_CUTOVER_AND_CLEANUP.md`](04_CUTOVER_AND_CLEANUP.md)                 | planned   | Использует только React Reports; legacy presentation удалён   | 2–4 дня  |
+| 3       | [`03_UNCATEGORIZED_OPERATIONS.md`](03_UNCATEGORIZED_OPERATIONS.md)       | completed | Находит и просматривает bounded список операций без категории | 2–3 дня  |
+| 4       | [`04_CUTOVER_AND_CLEANUP.md`](04_CUTOVER_AND_CLEANUP.md)                 | next      | Использует только React Reports; legacy presentation удалён   | 2–4 дня  |
 
 ## Канонические маршруты на время общей миграции
 

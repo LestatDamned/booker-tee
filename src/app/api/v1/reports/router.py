@@ -17,12 +17,20 @@ from app.api.v1.reports.schemas import (
     ReportNamedOptionApiResponse,
     ReportOverviewApiResponse,
     ReportPropertyAggregateApiResponse,
+    ReportUncategorizedCapabilitiesApiResponse,
+    ReportUncategorizedOperationApiResponse,
+    ReportUncategorizedPageApiResponse,
 )
+from app.features.ledger.domain.types import OperationSource
 from app.features.reports.application.overview import (
     ReportingFilterError,
     ReportingOverviewReader,
 )
-from app.features.reports.repository import ReportMoneySummaryRow
+from app.features.reports.repository import (
+    ReportMoneySummaryRow,
+    ReportUncategorizedOperationRow,
+)
+from app.features.workspaces.permissions import can_write_financial_data
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -50,6 +58,7 @@ async def get_report_overview(
             workspace_id=workspace.id,
             default_currency=workspace.default_currency,
             filters=parameters.filters,
+            pagination=parameters.pagination,
         )
     except ReportingFilterError as error:
         raise ApiError(
@@ -112,6 +121,21 @@ async def get_report_overview(
         ],
         balance_as_of=overview.balance_as_of,
         next_review_document_id=overview.next_review_document_id,
+        uncategorized=ReportUncategorizedPageApiResponse(
+            items=[
+                uncategorized_operation(
+                    item,
+                    can_write=can_write_financial_data(context.workspace.membership),
+                )
+                for item in overview.uncategorized.items
+            ],
+            page=overview.uncategorized.page,
+            page_size=overview.uncategorized.page_size,
+            total=overview.uncategorized.total,
+            total_pages=overview.uncategorized.total_pages,
+            has_previous=overview.uncategorized.has_previous,
+            has_next=overview.uncategorized.has_next,
+        ),
     )
 
 
@@ -126,3 +150,36 @@ def money_summary(item: ReportMoneySummaryRow) -> ReportMoneySummaryApiResponse:
 
 def decimal_string(value: Decimal) -> str:
     return f"{value:.2f}"
+
+
+def uncategorized_operation(
+    item: ReportUncategorizedOperationRow,
+    *,
+    can_write: bool,
+) -> ReportUncategorizedOperationApiResponse:
+    can_correct = can_write and (
+        item.source == OperationSource.MANUAL
+        or (item.source == OperationSource.BANK_PDF and item.account_id is not None)
+    )
+    reason: str | None = None
+    if not can_write:
+        reason = "financial_write_forbidden"
+    elif item.source == OperationSource.SYSTEM:
+        reason = "system_operation"
+    elif item.source == OperationSource.BANK_PDF and item.account_id is None:
+        reason = "correction_account_unavailable"
+    return ReportUncategorizedOperationApiResponse(
+        operation_id=item.operation_id,
+        version=item.version,
+        operation_date=item.operation_date,
+        operation_type=item.operation_type,
+        description=item.description,
+        source=item.source,
+        signed_amount=decimal_string(item.signed_amount),
+        currency=item.currency,
+        account_id=item.account_id,
+        capabilities=ReportUncategorizedCapabilitiesApiResponse(
+            can_correct=can_correct,
+            readonly_reason_code=reason,
+        ),
+    )

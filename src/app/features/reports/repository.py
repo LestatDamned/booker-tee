@@ -1,16 +1,22 @@
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
+from math import ceil
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Select, and_, case, func, or_, select
+from sqlalchemy import Select, String, and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.accounts.models import Account
 from app.features.categories.models import Category
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.models import UploadedDocument
-from app.features.ledger.domain.types import OperationStatus
+from app.features.ledger.domain.types import (
+    OperationSource,
+    OperationStatus,
+    OperationType,
+)
 from app.features.ledger.models import MoneyEntry, Operation
 from app.features.properties.models import Property, PropertyStatus
 
@@ -18,6 +24,8 @@ if TYPE_CHECKING:
     from app.features.reports.application.overview import ReportingFilters
 
 ZERO = Decimal("0.00")
+DEFAULT_UNCATEGORIZED_PAGE_SIZE = 10
+MAX_UNCATEGORIZED_PAGE_SIZE = 25
 
 
 @dataclass(frozen=True)
@@ -79,6 +87,39 @@ class ReportPropertyAggregateRow:
     expense: Decimal
     profit: Decimal
     is_active: bool
+
+
+@dataclass(frozen=True)
+class ReportUncategorizedOperationRow:
+    operation_id: UUID
+    version: int
+    operation_date: date
+    operation_type: OperationType
+    description: str
+    source: OperationSource
+    signed_amount: Decimal
+    currency: str
+    account_id: UUID | None
+
+
+@dataclass(frozen=True)
+class ReportUncategorizedPage:
+    items: list[ReportUncategorizedOperationRow]
+    page: int
+    page_size: int
+    total: int
+
+    @property
+    def total_pages(self) -> int:
+        return max(1, ceil(self.total / self.page_size))
+
+    @property
+    def has_previous(self) -> bool:
+        return self.page > 1
+
+    @property
+    def has_next(self) -> bool:
+        return self.page < self.total_pages
 
 
 class ReportsRepository:
@@ -269,6 +310,103 @@ class ReportsRepository:
             )
             for property_id, name, property_status, row_income, row_expense in result.all()
         ]
+
+    async def read_uncategorized_page(
+        self,
+        *,
+        workspace_id: UUID,
+        filters: "ReportingFilters",
+        page: int,
+        page_size: int,
+    ) -> ReportUncategorizedPage:
+        uncategorized = or_(
+            Operation.category_id.is_(None),
+            Category.system_key == "uncategorized",
+        )
+        count_query = (
+            select(func.count(func.distinct(Operation.id)))
+            .select_from(MoneyEntry)
+            .join(Operation)
+            .outerjoin(
+                Category,
+                and_(
+                    Category.id == Operation.category_id,
+                    Category.workspace_id == workspace_id,
+                ),
+            )
+        )
+        count_query = self._apply_profit_filters(
+            count_query,
+            workspace_id=workspace_id,
+            filters=filters,
+        ).where(uncategorized)
+        total = (await self.session.execute(count_query)).scalar_one()
+        total_pages = max(1, ceil(total / page_size))
+        normalized_page = min(page, total_pages)
+
+        amount = func.coalesce(func.sum(MoneyEntry.amount), ZERO)
+        account_id = func.min(MoneyEntry.account_id.cast(String))
+        page_query = (
+            select(
+                Operation.id,
+                Operation.version,
+                Operation.operation_date,
+                Operation.type,
+                Operation.description,
+                Operation.source,
+                amount,
+                account_id,
+            )
+            .select_from(MoneyEntry)
+            .join(Operation)
+            .outerjoin(
+                Category,
+                and_(
+                    Category.id == Operation.category_id,
+                    Category.workspace_id == workspace_id,
+                ),
+            )
+        )
+        page_query = self._apply_profit_filters(
+            page_query,
+            workspace_id=workspace_id,
+            filters=filters,
+        ).where(uncategorized)
+        page_query = (
+            page_query.group_by(Operation.id)
+            .order_by(Operation.operation_date.desc(), Operation.id.desc())
+            .offset((normalized_page - 1) * page_size)
+            .limit(page_size)
+        )
+        result = await self.session.execute(page_query)
+        return ReportUncategorizedPage(
+            items=[
+                ReportUncategorizedOperationRow(
+                    operation_id=operation_id,
+                    version=version,
+                    operation_date=operation_date,
+                    operation_type=operation_type,
+                    description=description or "Без описания",
+                    source=source,
+                    signed_amount=_money(signed_amount),
+                    currency=filters.currency or "",
+                    account_id=UUID(account_id_value) if account_id_value else None,
+                )
+                for (
+                    operation_id,
+                    version,
+                    operation_date,
+                    operation_type,
+                    description,
+                    source,
+                    signed_amount,
+                    account_id_value,
+                ) in result.all()
+            ],
+            page=normalized_page,
+            page_size=page_size,
+            total=total,
+        )
 
     async def find_next_review_document_id(self, workspace_id: UUID) -> UUID | None:
         result = await self.session.execute(

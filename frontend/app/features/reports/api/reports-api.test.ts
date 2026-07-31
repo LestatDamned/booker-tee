@@ -13,12 +13,12 @@ describe("loadReportOverview", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await loadReportOverview(
-      "?date_from=2026-07-01&currency=RUB&category_sort=expense",
+      "?date_from=2026-07-01&currency=RUB&category_sort=expense&uncategorized_page=2",
     );
 
     expect(result.status).toBe("success");
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/reports?date_from=2026-07-01&currency=RUB",
+      "/api/v1/reports?date_from=2026-07-01&currency=RUB&uncategorized_page=2",
       expect.any(Object),
     );
     if (result.status === "success") {

@@ -6,11 +6,13 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.ledger.domain.types import OperationSource, OperationType
 from app.features.properties.models import PropertyStatus
 from app.features.reports.application.overview import (
     ReportingFilterError,
     ReportingFilters,
     ReportingOverviewReader,
+    ReportingPagination,
 )
 from app.features.reports.repository import (
     ReportAccountBalanceRow,
@@ -21,6 +23,7 @@ from app.features.reports.repository import (
     ReportMoneySummaryRow,
     ReportPropertyAggregateRow,
     ReportsRepository,
+    ReportUncategorizedPage,
 )
 
 
@@ -89,6 +92,17 @@ class ReportingRepositoryStub:
         self.calls.append(("review", workspace_id, None))
         return self.document_id
 
+    async def read_uncategorized_page(
+        self,
+        *,
+        workspace_id: UUID,
+        filters: ReportingFilters,
+        page: int,
+        page_size: int,
+    ) -> ReportUncategorizedPage:
+        self.calls.append(("uncategorized", workspace_id, filters))
+        return ReportUncategorizedPage(items=[], page=page, page_size=page_size, total=0)
+
 
 @pytest.mark.asyncio
 async def test_reporting_reader_applies_default_currency_and_constant_read_shape() -> None:
@@ -100,6 +114,7 @@ async def test_reporting_reader_applies_default_currency_and_constant_read_shape
         workspace_id=workspace_id,
         default_currency="rub",
         filters=ReportingFilters(date_to=date(2026, 7, 31)),
+        pagination=ReportingPagination(page=2, page_size=10),
     )
 
     assert overview.filters.currency == "RUB"
@@ -117,9 +132,11 @@ async def test_reporting_reader_applies_default_currency_and_constant_read_shape
         "category_rows",
         "property_rows",
         "review",
+        "uncategorized",
     ]
     applied_filters = [call[2] for call in repository.calls[3:7]]
     assert all(filters == overview.filters for filters in applied_filters)
+    assert overview.uncategorized.page == 2
 
 
 @pytest.mark.asyncio
@@ -298,4 +315,89 @@ class AggregateSessionCapture:
 
     async def execute(self, query: Any) -> AggregateResult:
         self.queries.append(query)
+        return AggregateResult(self.rows)
+
+
+@pytest.mark.asyncio
+async def test_uncategorized_page_is_bounded_stable_and_normalizes_last_page() -> None:
+    first_id = UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
+    second_id = UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+    account_id = uuid4()
+    session = UncategorizedSessionCapture(
+        total=31,
+        rows=[
+            (
+                first_id,
+                2,
+                date(2026, 7, 31),
+                OperationType.EXPENSE,
+                "Кофе",
+                OperationSource.MANUAL,
+                Decimal("-250.00"),
+                str(account_id),
+            ),
+            (
+                second_id,
+                1,
+                date(2026, 7, 31),
+                OperationType.INCOME,
+                None,
+                OperationSource.BANK_PDF,
+                Decimal("1000.00"),
+                str(account_id),
+            ),
+        ],
+    )
+    workspace_id = uuid4()
+    property_id = uuid4()
+
+    page = await ReportsRepository(cast(AsyncSession, session)).read_uncategorized_page(
+        workspace_id=workspace_id,
+        filters=ReportingFilters(currency="RUB", property_id=property_id),
+        page=99,
+        page_size=10,
+    )
+
+    assert page.page == 4
+    assert page.total_pages == 4
+    assert page.has_previous is True
+    assert page.has_next is False
+    assert [item.operation_id for item in page.items] == [first_id, second_id]
+    assert page.items[1].description == "Без описания"
+    assert page.items[0].account_id == account_id
+    assert len(session.queries) == 2
+    count_sql = str(session.queries[0])
+    page_sql = str(session.queries[1])
+    assert "count(distinct(operations.id))" in count_sql
+    assert "categories.system_key" in count_sql
+    assert "operations.status" in count_sql
+    assert "operations.affects_profit IS true" in count_sql
+    assert "operations.property_id" in count_sql
+    assert "ORDER BY operations.operation_date DESC, operations.id DESC" in page_sql
+    compiled = session.queries[1].compile()
+    assert workspace_id in compiled.params.values()
+    assert property_id in compiled.params.values()
+    assert "RUB" in compiled.params.values()
+    assert 10 in compiled.params.values()
+    assert 30 in compiled.params.values()
+
+
+class ScalarResult:
+    def __init__(self, value: int) -> None:
+        self.value = value
+
+    def scalar_one(self) -> int:
+        return self.value
+
+
+class UncategorizedSessionCapture:
+    def __init__(self, *, total: int, rows: list[tuple[Any, ...]]) -> None:
+        self.total = total
+        self.rows = rows
+        self.queries: list[Any] = []
+
+    async def execute(self, query: Any) -> ScalarResult | AggregateResult:
+        self.queries.append(query)
+        if len(self.queries) == 1:
+            return ScalarResult(self.total)
         return AggregateResult(self.rows)

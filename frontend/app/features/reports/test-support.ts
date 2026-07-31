@@ -94,6 +94,43 @@ export const reportOverview: ReportOverviewDto = {
   ],
   balanceAsOf: "2026-07-31",
   nextReviewDocumentId: documentId,
+  uncategorized: {
+    items: [
+      {
+        operationId: "63e54cd7-e755-41f0-a076-4251b4c48673",
+        version: 2,
+        operationDate: "2026-07-20",
+        operationType: "expense",
+        description: "Кофе",
+        source: "manual",
+        signedAmount: "-250.00",
+        currency: "RUB",
+        accountId,
+        capabilities: { canCorrect: true, readonlyReasonCode: null },
+      },
+      {
+        operationId: "da20ccaa-0512-4655-9a9d-95a3954818c4",
+        version: 1,
+        operationDate: "2026-07-19",
+        operationType: "income",
+        description: "Возврат",
+        source: "bank_pdf",
+        signedAmount: "1000.00",
+        currency: "RUB",
+        accountId,
+        capabilities: {
+          canCorrect: false,
+          readonlyReasonCode: "financial_write_forbidden",
+        },
+      },
+    ],
+    page: 1,
+    pageSize: 10,
+    total: 12,
+    totalPages: 2,
+    hasPrevious: false,
+    hasNext: true,
+  },
 };
 
 export const session: SessionDto = {

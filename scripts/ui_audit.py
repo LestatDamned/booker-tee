@@ -641,7 +641,7 @@ def assert_react_reports(page: Page) -> list[str]:
     except PlaywrightError as exc:
         return [f"React Reports did not finish loading: {short_error(exc)}"]
 
-    for heading in ("По категориям", "По объектам"):
+    for heading in ("По категориям", "По объектам", "Операции без категории"):
         if page.get_by_role("heading", name=heading, exact=True).count() != 1:
             errors.append(f"React Reports heading {heading!r} was not found")
 
@@ -652,6 +652,14 @@ def assert_react_reports(page: Page) -> list[str]:
         errors.append("React Reports category table was not found")
     elif category_table.locator('th[aria-sort="ascending"]').count() != 1:
         errors.append("React Reports category default sort is not exposed through aria-sort")
+
+    uncategorized_table = page.locator("table").filter(
+        has=page.locator("caption", has_text="Операции без категории")
+    )
+    if uncategorized_table.count() != 1:
+        errors.append("React Reports bounded uncategorized table was not found")
+    if page.get_by_role("link", name="Открыть операцию", exact=True).count() != 1:
+        errors.append("React Reports manual correction target was not found")
 
     if page.locator("html").evaluate("element => element.scrollWidth > element.clientWidth"):
         errors.append("React Reports causes horizontal page overflow")

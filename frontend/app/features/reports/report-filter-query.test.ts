@@ -7,6 +7,8 @@ import {
   reportCategorySortSearch,
   reportFilterSearch,
   reportMonthSearch,
+  reportUncategorizedPage,
+  reportUncategorizedPageSearch,
 } from "./report-filter-query";
 
 describe("report filter query", () => {
@@ -96,6 +98,31 @@ describe("report filter query", () => {
       ).toEqual({ field, direction });
     },
   );
+
+  it("builds bounded list pages and resets them after financial filters", () => {
+    const pageSearch = reportUncategorizedPageSearch(
+      "?currency=RUB&category_sort=expense",
+      3,
+    );
+    expect(reportUncategorizedPage(pageSearch)).toBe(3);
+    expect(reportUncategorizedPageSearch(pageSearch, 1)).not.toContain(
+      "uncategorized_page",
+    );
+
+    const filtered = reportFilterSearch(
+      {
+        dateFrom: "2026-07-01",
+        dateTo: "2026-07-31",
+        currency: "RUB",
+        accountId: "",
+        categoryId: "",
+        propertyId: "",
+      },
+      "?uncategorized_page=8&uncategorized_page_size=10",
+    );
+    expect(filtered).not.toContain("uncategorized_page=8");
+    expect(filtered).toContain("uncategorized_page_size=10");
+  });
 });
 
 const accountId = "4958dd80-af47-4131-8f16-16c0ca04f63c";

@@ -81,6 +81,17 @@
   padding: var(--space-5);
 }
 
+.uncategorizedSection {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+  overflow: clip;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  padding: var(--space-5);
+}
+
 .breakdownHeading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.7fr);
@@ -143,6 +154,29 @@
   text-align: right !important;
 }
 
+.actionColumn {
+  width: 14rem;
+  text-align: right !important;
+}
+
+.operationMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.readonlyReason {
+  display: inline-block;
+  max-width: 14rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
 .sortControl {
   width: 100%;
   justify-content: flex-start;
@@ -187,6 +221,35 @@
   min-width: 0;
   color: var(--color-text-primary);
   overflow-wrap: anywhere;
+}
+
+.operationCardHeading {
+  display: flex;
+  min-width: 0;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.operationCardHeading > div {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.operationCardHeading time {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.operationCardHeading strong {
+  overflow-wrap: anywhere;
+}
+
+.operationAction {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .moneyFacts {
@@ -260,12 +323,26 @@
 
   .metric,
   .balanceSection,
-  .breakdownSection {
+  .breakdownSection,
+  .uncategorizedSection {
     padding: var(--space-4);
   }
 
   .balanceCards li {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .operationCardHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .operationAction {
+    justify-content: stretch;
+  }
+
+  .operationAction > a {
+    width: 100%;
   }
 }

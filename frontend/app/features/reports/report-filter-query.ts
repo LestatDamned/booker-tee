@@ -143,6 +143,25 @@ export function reportCategorySortSearch(
   return `?${search.toString()}`;
 }
 
+export function reportUncategorizedPage(searchValue: string): number {
+  const value = Number.parseInt(
+    new URLSearchParams(searchValue).get("uncategorized_page") ?? "1",
+    10,
+  );
+  return Number.isSafeInteger(value) && value > 0 ? value : 1;
+}
+
+export function reportUncategorizedPageSearch(
+  currentSearch: string,
+  page: number,
+): string {
+  const search = new URLSearchParams(currentSearch);
+  if (page <= 1) search.delete("uncategorized_page");
+  else search.set("uncategorized_page", String(page));
+  const value = search.toString();
+  return value ? `?${value}` : "";
+}
+
 function addMonths(monthStart: string, offset: number): string {
   const [year = 0, month = 1] = monthStart.split("-").map(Number);
   const value = new Date(Date.UTC(year, month - 1 + offset, 1));

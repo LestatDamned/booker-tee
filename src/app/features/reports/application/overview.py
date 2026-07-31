@@ -11,6 +11,7 @@ from app.features.reports.repository import (
     ReportFilterPropertyRow,
     ReportMoneySummaryRow,
     ReportPropertyAggregateRow,
+    ReportUncategorizedPage,
 )
 
 
@@ -22,6 +23,12 @@ class ReportingFilters:
     account_id: UUID | None = None
     category_id: UUID | None = None
     property_id: UUID | None = None
+
+
+@dataclass(frozen=True)
+class ReportingPagination:
+    page: int = 1
+    page_size: int = 10
 
 
 @dataclass(frozen=True)
@@ -42,6 +49,7 @@ class ReportingOverview:
     properties: list[ReportPropertyAggregateRow]
     balance_as_of: date | None
     next_review_document_id: UUID | None
+    uncategorized: ReportUncategorizedPage
 
 
 class ReportingFilterError(ValueError):
@@ -75,6 +83,15 @@ class ReportingOverviewRepository(Protocol):
 
     async def find_next_review_document_id(self, workspace_id: UUID) -> UUID | None: ...
 
+    async def read_uncategorized_page(
+        self,
+        *,
+        workspace_id: UUID,
+        filters: ReportingFilters,
+        page: int,
+        page_size: int,
+    ) -> ReportUncategorizedPage: ...
+
 
 class ReportingOverviewReader:
     def __init__(self, repository: ReportingOverviewRepository) -> None:
@@ -86,6 +103,7 @@ class ReportingOverviewReader:
         workspace_id: UUID,
         default_currency: str,
         filters: ReportingFilters,
+        pagination: ReportingPagination = ReportingPagination(),
     ) -> ReportingOverview:
         if filters.date_from and filters.date_to and filters.date_from > filters.date_to:
             raise ReportingFilterError(
@@ -139,6 +157,12 @@ class ReportingOverviewReader:
             balance_as_of=applied.date_to,
             next_review_document_id=(
                 await self.repository.find_next_review_document_id(workspace_id)
+            ),
+            uncategorized=await self.repository.read_uncategorized_page(
+                workspace_id=workspace_id,
+                filters=applied,
+                page=pagination.page,
+                page_size=pagination.page_size,
             ),
         )
 

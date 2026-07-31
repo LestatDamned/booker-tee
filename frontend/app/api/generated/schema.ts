@@ -3171,6 +3171,7 @@ export interface components {
             balanceAsOf: string | null;
             /** Nextreviewdocumentid */
             nextReviewDocumentId: string | null;
+            uncategorized: components["schemas"]["ReportUncategorizedPageApiResponse"];
         };
         /** ReportPropertyAggregateApiResponse */
         ReportPropertyAggregateApiResponse: {
@@ -3191,6 +3192,56 @@ export interface components {
             name: string;
             /** Isactive */
             isActive: boolean;
+        };
+        /** ReportUncategorizedCapabilitiesApiResponse */
+        ReportUncategorizedCapabilitiesApiResponse: {
+            /** Cancorrect */
+            canCorrect: boolean;
+            /** Readonlyreasoncode */
+            readonlyReasonCode: ("financial_write_forbidden" | "system_operation" | "correction_account_unavailable") | null;
+        };
+        /** ReportUncategorizedOperationApiResponse */
+        ReportUncategorizedOperationApiResponse: {
+            /**
+             * Operationid
+             * Format: uuid
+             */
+            operationId: string;
+            /** Version */
+            version: number;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            operationType: components["schemas"]["OperationType"];
+            /** Description */
+            description: string;
+            source: components["schemas"]["OperationSource"];
+            /** Signedamount */
+            signedAmount: string;
+            /** Currency */
+            currency: string;
+            /** Accountid */
+            accountId: string | null;
+            capabilities: components["schemas"]["ReportUncategorizedCapabilitiesApiResponse"];
+        };
+        /** ReportUncategorizedPageApiResponse */
+        ReportUncategorizedPageApiResponse: {
+            /** Items */
+            items: components["schemas"]["ReportUncategorizedOperationApiResponse"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+            /** Totalpages */
+            totalPages: number;
+            /** Hasprevious */
+            hasPrevious: boolean;
+            /** Hasnext */
+            hasNext: boolean;
         };
         /**
          * ReviewBlockingReasonCode
@@ -5472,6 +5523,8 @@ export interface operations {
                 account_id?: string | null;
                 category_id?: string | null;
                 property_id?: string | null;
+                uncategorized_page?: string | null;
+                uncategorized_page_size?: string | null;
             };
             header?: never;
             path?: never;

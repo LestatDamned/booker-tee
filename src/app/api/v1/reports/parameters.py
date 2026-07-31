@@ -6,12 +6,17 @@ from uuid import UUID
 from fastapi import Query, status
 
 from app.api.errors import ApiError
-from app.features.reports.application.overview import ReportingFilters
+from app.features.reports.application.overview import ReportingFilters, ReportingPagination
+from app.features.reports.repository import (
+    DEFAULT_UNCATEGORIZED_PAGE_SIZE,
+    MAX_UNCATEGORIZED_PAGE_SIZE,
+)
 
 
 @dataclass(frozen=True)
 class ReportParameters:
     filters: ReportingFilters
+    pagination: ReportingPagination
 
 
 def parse_report_parameters(
@@ -21,6 +26,8 @@ def parse_report_parameters(
     account_id: Annotated[str | None, Query()] = None,
     category_id: Annotated[str | None, Query()] = None,
     property_id: Annotated[str | None, Query()] = None,
+    uncategorized_page: Annotated[str | None, Query()] = None,
+    uncategorized_page_size: Annotated[str | None, Query()] = None,
 ) -> ReportParameters:
     normalized_currency = currency.strip().upper() if currency else None
     if normalized_currency is not None and len(normalized_currency) != 3:
@@ -33,7 +40,16 @@ def parse_report_parameters(
             account_id=parse_uuid(account_id, "account_id"),
             category_id=parse_uuid(category_id, "category_id"),
             property_id=parse_uuid(property_id, "property_id"),
-        )
+        ),
+        pagination=ReportingPagination(
+            page=parse_positive_int(uncategorized_page, "uncategorized_page", default=1),
+            page_size=parse_positive_int(
+                uncategorized_page_size,
+                "uncategorized_page_size",
+                default=DEFAULT_UNCATEGORIZED_PAGE_SIZE,
+                maximum=MAX_UNCATEGORIZED_PAGE_SIZE,
+            ),
+        ),
     )
 
 
@@ -53,6 +69,29 @@ def parse_uuid(value: str | None, field: str) -> UUID | None:
         return UUID(value)
     except ValueError as error:
         raise invalid_filter(field, "валидным UUID") from error
+
+
+def parse_positive_int(
+    value: str | None,
+    field: str,
+    *,
+    default: int,
+    maximum: int | None = None,
+) -> int:
+    if value is None or value == "":
+        return default
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise invalid_filter(field, "положительным целым числом") from error
+    if parsed < 1 or (maximum is not None and parsed > maximum):
+        expected = (
+            f"целым числом от 1 до {maximum}"
+            if maximum is not None
+            else "положительным целым числом"
+        )
+        raise invalid_filter(field, expected)
+    return parsed
 
 
 def invalid_filter(field: str, expected: str) -> ApiError:

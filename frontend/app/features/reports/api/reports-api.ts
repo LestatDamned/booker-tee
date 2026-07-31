@@ -65,6 +65,37 @@ export const reportOverviewSchema: z.ZodType<ReportOverviewDto> = z.object({
   ),
   balanceAsOf: z.iso.date().nullable(),
   nextReviewDocumentId: z.uuid().nullable(),
+  uncategorized: z.object({
+    items: z.array(
+      z.object({
+        operationId: z.uuid(),
+        version: z.number().int().positive(),
+        operationDate: z.iso.date(),
+        operationType: z.enum(["income", "expense", "transfer", "adjustment"]),
+        description: z.string(),
+        source: z.enum(["manual", "bank_pdf", "system"]),
+        signedAmount: decimalStringSchema,
+        currency: z.string().length(3),
+        accountId: z.uuid().nullable(),
+        capabilities: z.object({
+          canCorrect: z.boolean(),
+          readonlyReasonCode: z
+            .enum([
+              "financial_write_forbidden",
+              "system_operation",
+              "correction_account_unavailable",
+            ])
+            .nullable(),
+        }),
+      }),
+    ),
+    page: z.number().int().positive(),
+    pageSize: z.number().int().positive().max(25),
+    total: z.number().int().nonnegative(),
+    totalPages: z.number().int().positive(),
+    hasPrevious: z.boolean(),
+    hasNext: z.boolean(),
+  }),
 });
 
 export type ReportOverviewLoadResult =
@@ -79,6 +110,8 @@ const reportApiParameters = [
   "account_id",
   "category_id",
   "property_id",
+  "uncategorized_page",
+  "uncategorized_page_size",
 ] as const;
 
 export async function loadReportOverview(
