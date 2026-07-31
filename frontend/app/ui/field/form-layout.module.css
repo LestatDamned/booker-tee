@@ -35,6 +35,16 @@
   justify-content: space-between;
 }
 
+.actions[data-sticky="true"] {
+  position: sticky;
+  z-index: 1;
+  bottom: calc(-1 * var(--space-4));
+  margin-inline: calc(-1 * var(--space-4));
+  border-bottom: 1px solid var(--color-border-default);
+  background: var(--color-bg-elevated);
+  padding: var(--space-3) var(--space-4);
+}
+
 @media (max-width: 57.5rem) {
   .grid[data-columns="three"] {
     grid-template-columns: repeat(2, minmax(0, 1fr));

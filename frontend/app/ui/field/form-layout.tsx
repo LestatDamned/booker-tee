@@ -31,12 +31,18 @@ export function FormGridItem({ children, span = "full" }: FormGridItemProps) {
 export function FormActions({
   children,
   layout = "start",
+  sticky = false,
 }: {
   children: ReactNode;
   layout?: "split" | "start";
+  sticky?: boolean;
 }) {
   return (
-    <div className={styles.actions} data-layout={layout}>
+    <div
+      className={styles.actions}
+      data-layout={layout}
+      data-sticky={sticky || undefined}
+    >
       {children}
     </div>
   );

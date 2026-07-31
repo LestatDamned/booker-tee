@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
 
-import { Button } from "../../../ui/button/button";
+import { WorkbenchSearch } from "../../../ui/workbench-toolbar/workbench-search";
 import styles from "../manual-ledger.module.css";
 
 type ManualLedgerSearchProps = {
@@ -36,27 +36,18 @@ export function ManualLedgerSearch({
   }
 
   return (
-    <form
-      aria-label="Поиск операций"
-      className={styles.searchForm}
+    <WorkbenchSearch
+      ariaLabel="Поиск операций"
+      className={styles.searchPlacement}
+      disabled={disabled}
+      inputId="manual-ledger-search"
+      inputLabel="Поиск по описанию"
+      inputProps={{
+        onChange: (event) => setDraft(event.currentTarget.value),
+        value: draft,
+      }}
       onSubmit={submitSearch}
-      role="search"
-    >
-      <label className="visually-hidden" htmlFor="manual-ledger-search">
-        Поиск по описанию
-      </label>
-      <input
-        disabled={disabled}
-        id="manual-ledger-search"
-        name="search"
-        onChange={(event) => setDraft(event.currentTarget.value)}
-        placeholder="Поиск по описанию"
-        type="search"
-        value={draft}
-      />
-      <Button disabled={disabled} icon="search" type="submit">
-        Найти
-      </Button>
-    </form>
+      placeholder="Поиск по описанию"
+    />
   );
 }

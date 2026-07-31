@@ -1,20 +1,5 @@
-.page {
-  width: 100%;
-  max-width: var(--page-max-width);
-  margin-top: var(--space-7);
-  margin-inline: auto;
-}
-
 .workbench {
   overflow: clip;
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-surface);
-  box-shadow: var(--shadow-surface);
-}
-
-.workbenchHeader {
-  padding: var(--space-5);
 }
 
 .list {
@@ -177,47 +162,11 @@
   font-size: var(--font-size-sm);
 }
 
-.listTools {
-  display: grid;
-  gap: var(--space-3);
-  border-block: 1px solid var(--color-border-default);
-  background: var(--color-bg-elevated);
-  padding: var(--space-3) var(--space-4);
-}
-
 .listToolActions {
   display: grid;
   grid-template-columns: minmax(16rem, 1fr) auto auto;
   align-items: center;
   gap: var(--space-2);
-}
-
-.searchForm {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  min-width: 0;
-}
-
-.searchForm input {
-  min-width: 0;
-  min-height: var(--control-height);
-  border: 1px solid var(--color-border-control);
-  border-right: 0;
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-  background: var(--color-bg-canvas);
-  color: var(--color-text-primary);
-  padding: var(--space-2) var(--space-3);
-}
-
-.searchForm input:focus-visible {
-  position: relative;
-  z-index: 1;
-  outline: var(--focus-ring-width) solid var(--color-focus-ring);
-  outline-offset: 0;
-}
-
-.searchForm button {
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 .activeFilterSummary {
@@ -272,38 +221,11 @@
   gap: var(--space-3);
 }
 
-.filterRegion {
-  border-bottom: 1px solid var(--color-border-default);
-  background: var(--color-bg-elevated);
-  padding: var(--space-4);
-}
-
 .resetLink {
   min-height: var(--control-height);
   align-content: center;
   color: var(--color-link);
   padding-inline: var(--space-3);
-}
-
-.listRegion {
-  background: var(--color-bg-canvas);
-  padding: var(--space-4);
-}
-
-.listRegion:not([data-empty="true"]) {
-  background: var(--color-bg-surface);
-  padding: 0;
-}
-
-.navigationStatus {
-  display: block;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.navigationStatus:not(:empty) {
-  border-bottom: 1px solid var(--color-border-default);
-  padding: var(--space-2) var(--space-4);
 }
 
 .workbenchFooter {
@@ -385,7 +307,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .searchForm {
+  .searchPlacement {
     grid-column: 1 / -1;
   }
 
@@ -424,12 +346,6 @@
 
   .operationFieldPair {
     grid-template-columns: 1fr;
-  }
-
-  .workbenchHeader,
-  .filterRegion,
-  .listRegion {
-    padding-inline: var(--space-3);
   }
 
   .workbenchFooter {

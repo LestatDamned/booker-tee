@@ -105,6 +105,13 @@ describe("AccountDetailPage", () => {
     expect(
       screen.getByRole("dialog", { name: "Настройки счёта" }),
     ).toBeInTheDocument();
+    const cancel = screen.getByRole("button", { name: "Отмена" });
+    const save = screen.getByRole("button", { name: "Сохранить изменения" });
+    expect(cancel.parentElement).toHaveAttribute("data-layout", "split");
+    expect(cancel.parentElement).toHaveAttribute("data-sticky", "true");
+    expect(cancel.compareDocumentPosition(save)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
     await user.clear(screen.getByLabelText(/Название/));
     await user.type(screen.getByLabelText(/Название/), "Расчётный");
     await user.selectOptions(screen.getByLabelText(/Тип/), "checking");

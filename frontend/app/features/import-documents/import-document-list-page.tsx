@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router";
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
 import { Badge } from "../../ui/badge/badge";
-import { Button } from "../../ui/button/button";
+import { Button, ButtonLink } from "../../ui/button/button";
 import { PageHeader } from "../../ui/page-header/page-header";
 import { RequestState } from "../../ui/request-state/request-state";
 import {
@@ -79,9 +79,9 @@ export function ImportDocumentListPage({
         <PageHeader
           actions={
             documents.capabilities.canUpload ? (
-              <a className={styles.primaryLink} href="/app/imports/upload">
+              <ButtonLink href="/app/imports/upload" tone="primary">
                 Загрузить выписку
-              </a>
+              </ButtonLink>
             ) : undefined
           }
           description="Выписки по счетам и их путь до проверенных операций."

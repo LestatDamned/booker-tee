@@ -81,6 +81,44 @@ describe("AccountListPage", () => {
     expect(createAccount).not.toHaveBeenCalled();
   });
 
+  it("places cancel opposite submit and protects a dirty create draft", async () => {
+    const user = userEvent.setup();
+    renderPage(directory);
+
+    await user.click(screen.getByRole("button", { name: "Новый счёт" }));
+    const createDialog = screen.getByRole("dialog", { name: "Новый счёт" });
+    const cancel = screen.getByRole("button", { name: "Отмена" });
+    const submit = screen.getByRole("button", { name: "Создать счёт" });
+
+    expect(cancel.parentElement).toHaveAttribute("data-layout", "split");
+    expect(cancel.compareDocumentPosition(submit)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+
+    await user.type(screen.getByLabelText(/Название/), "Черновик");
+    await user.click(cancel);
+    expect(
+      screen.getByRole("dialog", { name: "Закрыть создание счёта?" }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Продолжить создание" }),
+    );
+    expect(createDialog).toBeInTheDocument();
+    expect(screen.getByLabelText(/Название/)).toHaveValue("Черновик");
+
+    await user.click(screen.getByRole("button", { name: "Отмена" }));
+    await user.click(
+      screen.getByRole("button", { name: "Закрыть без сохранения" }),
+    );
+    expect(
+      screen.queryByRole("dialog", { name: "Новый счёт" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Новый счёт" }));
+    expect(screen.getByLabelText(/Название/)).toHaveValue("");
+  });
+
   it("adds only the committed account and resets the draft", async () => {
     const user = userEvent.setup();
     vi.mocked(createAccount).mockResolvedValue({

@@ -1,0 +1,33 @@
+.filterRegion {
+  border-bottom: 1px solid var(--color-border-default);
+  background: var(--color-bg-elevated);
+  padding: var(--space-4);
+}
+
+.status {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.status:not(:empty) {
+  border-bottom: 1px solid var(--color-border-default);
+  padding: var(--space-2) var(--space-4);
+}
+
+.content {
+  background: var(--color-bg-canvas);
+  padding: var(--space-4);
+}
+
+.content:not([data-empty="true"]) {
+  background: var(--color-bg-surface);
+  padding: 0;
+}
+
+@media (max-width: 35rem) {
+  .filterRegion,
+  .content {
+    padding-inline: var(--space-3);
+  }
+}

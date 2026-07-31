@@ -6,9 +6,16 @@ import { AppShell } from "../../../shell/app-shell";
 import { Badge } from "../../../ui/badge/badge";
 import { Button } from "../../../ui/button/button";
 import { Icon } from "../../../ui/icon/icon";
+import { PageFrame } from "../../../ui/page-frame/page-frame";
 import { PageHeader } from "../../../ui/page-header/page-header";
 import { RequestState } from "../../../ui/request-state/request-state";
 import { WorkbenchPanel } from "../../../ui/workbench-panel/workbench-panel";
+import { WorkbenchContent } from "../../../ui/workbench-content/workbench-content";
+import { WorkbenchFilterRegion } from "../../../ui/workbench-content/workbench-filter-region";
+import { WorkbenchStatus } from "../../../ui/workbench-content/workbench-status";
+import { WorkbenchHeader } from "../../../ui/workbench-surface/workbench-header";
+import { WorkbenchSurface } from "../../../ui/workbench-surface/workbench-surface";
+import { WorkbenchToolbar } from "../../../ui/workbench-toolbar/workbench-toolbar";
 import type {
   ManualLedgerDto,
   ManualOperationDto,
@@ -145,9 +152,12 @@ export function ManualLedgerPage({
   }
   return (
     <AppShell session={session}>
-      <section className={styles.page}>
-        <section aria-busy={navigationPending} className={styles.workbench}>
-          <div className={styles.workbenchHeader}>
+      <PageFrame>
+        <WorkbenchSurface
+          aria-busy={navigationPending}
+          className={styles.workbench}
+        >
+          <WorkbenchHeader>
             <PageHeader
               description={
                 ledger.capabilities.readonlyReason ??
@@ -156,9 +166,9 @@ export function ManualLedgerPage({
               eyebrow={manualOperationsTotalLabel(visibleTotal)}
               title="Ручные операции"
             />
-          </div>
+          </WorkbenchHeader>
 
-          <section aria-label="Инструменты списка" className={styles.listTools}>
+          <WorkbenchToolbar>
             <div className={styles.listToolActions}>
               <ManualLedgerSearch
                 key={new URLSearchParams(location.search).get("search") ?? ""}
@@ -203,13 +213,10 @@ export function ManualLedgerPage({
                 </Link>
               </div>
             ) : null}
-          </section>
+          </WorkbenchToolbar>
 
           {filtersOpen ? (
-            <div
-              className={styles.filterRegion}
-              id="manual-ledger-filter-region"
-            >
+            <WorkbenchFilterRegion id="manual-ledger-filter-region">
               <ManualLedgerFilters
                 key={location.search}
                 navigationPending={navigationPending}
@@ -217,17 +224,16 @@ export function ManualLedgerPage({
                 options={ledger.filterOptions}
                 perPage={ledger.pagination.perPage}
               />
-            </div>
+            </WorkbenchFilterRegion>
           ) : null}
 
-          <span aria-live="polite" className={styles.navigationStatus}>
+          <WorkbenchStatus>
             {navigationPending ? "Обновляем операции…" : ""}
-          </span>
+          </WorkbenchStatus>
 
-          <section
+          <WorkbenchContent
             aria-label="Список операций"
-            className={styles.listRegion}
-            data-empty={rows.length === 0 ? "true" : undefined}
+            isEmpty={rows.length === 0}
           >
             {rows.length === 0 ? (
               <RequestState
@@ -264,7 +270,7 @@ export function ManualLedgerPage({
                 ))}
               </ol>
             )}
-          </section>
+          </WorkbenchContent>
 
           <footer className={styles.workbenchFooter}>
             <span aria-live="polite" className={styles.paginationSummary}>
@@ -341,8 +347,8 @@ export function ManualLedgerPage({
               </nav>
             ) : null}
           </footer>
-        </section>
-      </section>
+        </WorkbenchSurface>
+      </PageFrame>
 
       {createOpen ? (
         <WorkbenchPanel

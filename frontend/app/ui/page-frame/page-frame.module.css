@@ -1,0 +1,19 @@
+.frame {
+  width: 100%;
+  max-width: var(--page-max-width);
+  margin-inline: auto;
+}
+
+.frame[data-spacing="top"] {
+  margin-top: var(--space-7);
+}
+
+.frame[data-spacing="block"] {
+  margin-block: var(--space-7);
+}
+
+@media (max-width: 35rem) {
+  .frame[data-mobile-top="compact"] {
+    margin-top: var(--space-4);
+  }
+}

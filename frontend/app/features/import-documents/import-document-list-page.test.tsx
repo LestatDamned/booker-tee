@@ -50,6 +50,9 @@ describe("ImportDocumentListPage", () => {
     expect(
       screen.getByRole("link", { name: "Загрузить выписку" }),
     ).toHaveAttribute("href", "/app/imports/upload");
+    expect(
+      screen.getByRole("link", { name: "Загрузить выписку" }),
+    ).toHaveAttribute("data-tone", "primary");
   });
 
   it("keeps viewer data visible and hides upload mutations", () => {

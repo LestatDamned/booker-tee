@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
-import { Button } from "../../ui/button/button";
+import { Button, ButtonLink } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
 import {
@@ -129,9 +129,13 @@ export function ImportDocumentDetailPage({ initialDocument, session }: Props) {
             >
               {feedback.message}
               {feedback.tone === "error" ? (
-                <button onClick={() => window.location.reload()} type="button">
+                <Button
+                  icon="retry"
+                  onClick={() => window.location.reload()}
+                  type="button"
+                >
                   Обновить страницу
-                </button>
+                </Button>
               ) : null}
             </div>
           ) : null}
@@ -144,9 +148,13 @@ export function ImportDocumentDetailPage({ initialDocument, session }: Props) {
                 <h2>{nextStep.title}</h2>
                 <p>{nextStep.description}</p>
               </div>
-              <a className={styles.primaryAction} href={nextStep.href}>
+              <ButtonLink
+                className={styles.primaryAction ?? ""}
+                href={nextStep.href}
+                tone="primary"
+              >
                 {nextStep.action}
-              </a>
+              </ButtonLink>
             </div>
 
             <nav aria-label="Этапы импорта" className={styles.workflow}>

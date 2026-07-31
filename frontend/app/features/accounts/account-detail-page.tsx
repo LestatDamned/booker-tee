@@ -12,11 +12,19 @@ import { Field } from "../../ui/field/field";
 import { FormActions } from "../../ui/field/form-layout";
 import { Icon } from "../../ui/icon/icon";
 import { MoneyValue } from "../../ui/money-value/money-value";
+import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
 import { RequestState } from "../../ui/request-state/request-state";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import { Tag } from "../../ui/tag/tag";
 import { WorkbenchRow } from "../../ui/workbench-row/workbench-row";
+import { WorkbenchContent } from "../../ui/workbench-content/workbench-content";
+import { WorkbenchFilterRegion } from "../../ui/workbench-content/workbench-filter-region";
+import { WorkbenchStatus } from "../../ui/workbench-content/workbench-status";
+import { WorkbenchHeader } from "../../ui/workbench-surface/workbench-header";
+import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
+import { WorkbenchSearch } from "../../ui/workbench-toolbar/workbench-search";
+import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
 import type { AccountDetailDto } from "./api/account-detail-api";
 import type { AccountSummaryDto } from "./api/accounts-api";
 import {
@@ -131,9 +139,12 @@ export function AccountDetailPage({
 
   return (
     <AppShell session={session}>
-      <main className={styles.page}>
-        <section aria-busy={navigationPending} className={styles.workbench}>
-          <div className={styles.workbenchHeader}>
+      <PageFrame mobileTop="compact" spacing="block">
+        <WorkbenchSurface
+          aria-busy={navigationPending}
+          className={styles.workbench}
+        >
+          <WorkbenchHeader>
             <Link className={styles.backLink} to="/accounts">
               <Icon name="back" />
               Все счета
@@ -174,31 +185,20 @@ export function AccountDetailPage({
               eyebrow={accountMovementsLabel(detail.pagination.total)}
               title={account.name}
             />
-          </div>
+          </WorkbenchHeader>
 
-          <section aria-label="Инструменты списка" className={styles.listTools}>
+          <WorkbenchToolbar>
             <div className={styles.listToolActions}>
-              <form
-                aria-label="Поиск проводок"
-                className={styles.searchForm}
+              <WorkbenchSearch
+                ariaLabel="Поиск проводок"
+                className={styles.searchPlacement}
+                inputId="movement-search"
+                inputLabel="Поиск по описанию"
+                inputProps={{ defaultValue: params.get("search") ?? "" }}
+                key={params.get("search") ?? ""}
                 onSubmit={submitSearch}
-                role="search"
-              >
-                <label className="visually-hidden" htmlFor="movement-search">
-                  Поиск по описанию
-                </label>
-                <input
-                  defaultValue={params.get("search") ?? ""}
-                  id="movement-search"
-                  key={params.get("search") ?? ""}
-                  name="search"
-                  placeholder="Поиск по описанию"
-                  type="search"
-                />
-                <Button icon="search" type="submit">
-                  Найти
-                </Button>
-              </form>
+                placeholder="Поиск по описанию"
+              />
               <Button
                 aria-controls="account-detail-filter-region"
                 aria-expanded={filtersOpen}
@@ -217,7 +217,7 @@ export function AccountDetailPage({
                 </Link>
               </div>
             ) : null}
-          </section>
+          </WorkbenchToolbar>
 
           {filtersOpen ? (
             <AccountMovementFilters
@@ -226,14 +226,13 @@ export function AccountDetailPage({
             />
           ) : null}
 
-          <span aria-live="polite" className={styles.navigationStatus}>
+          <WorkbenchStatus>
             {navigationPending ? "Обновляем проводки…" : feedback}
-          </span>
+          </WorkbenchStatus>
 
-          <section
+          <WorkbenchContent
             aria-label="Проводки счёта"
-            className={styles.listRegion}
-            data-empty={movements.length === 0 ? "true" : undefined}
+            isEmpty={movements.length === 0}
           >
             {movements.length ? (
               <ol className={styles.list}>
@@ -270,11 +269,11 @@ export function AccountDetailPage({
                 }
               />
             )}
-          </section>
+          </WorkbenchContent>
 
           <AccountDetailFooter detail={detail} />
-        </section>
-      </main>
+        </WorkbenchSurface>
+      </PageFrame>
       {settingsOpen ? (
         <AccountSettingsPanel
           account={account}
@@ -502,7 +501,7 @@ function AccountMovementFilters({
   }
 
   return (
-    <div className={styles.filterRegion} id="account-detail-filter-region">
+    <WorkbenchFilterRegion id="account-detail-filter-region">
       <form className={styles.filterForm} onSubmit={apply}>
         <div className={styles.filterGrid}>
           <FilterField
@@ -580,7 +579,7 @@ function AccountMovementFilters({
           </Link>
         </FormActions>
       </form>
-    </div>
+    </WorkbenchFilterRegion>
   );
 }
 

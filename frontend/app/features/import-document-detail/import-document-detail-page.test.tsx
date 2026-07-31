@@ -34,6 +34,9 @@ describe("ImportDocumentDetailPage", () => {
       "href",
       `/app/imports/documents/${documentFixture.id}/review`,
     );
+    expect(
+      screen.getByRole("link", { name: "Перейти к проверке" }),
+    ).toHaveAttribute("data-tone", "primary");
     expect(screen.getByText("Сверка сошлась")).toBeInTheDocument();
     expect(screen.getByText("1 200,00 ₽")).toBeInTheDocument();
     expect(screen.getByText("Покупка продуктов")).toBeInTheDocument();

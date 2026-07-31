@@ -13,6 +13,7 @@ import {
   FormErrorSummary,
   type FormErrorSummaryItem,
 } from "../../ui/field/form-error-summary";
+import { FormActions } from "../../ui/field/form-layout";
 import { WorkbenchPanel } from "../../ui/workbench-panel/workbench-panel";
 import {
   changeAccountLifecycle,
@@ -311,8 +312,13 @@ export function AccountSettingsPanel({
             </Field>
           </fieldset>
 
-          <div className={styles.actions}>
-            <Button disabled={pending} onClick={requestClose} type="button">
+          <FormActions layout="split" sticky>
+            <Button
+              disabled={pending}
+              onClick={requestClose}
+              tone="ghost"
+              type="button"
+            >
               Отмена
             </Button>
             <Button
@@ -323,7 +329,7 @@ export function AccountSettingsPanel({
             >
               Сохранить изменения
             </Button>
-          </div>
+          </FormActions>
 
           <section
             aria-labelledby="account-management-title"

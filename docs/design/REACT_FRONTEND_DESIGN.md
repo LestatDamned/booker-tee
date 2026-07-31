@@ -184,8 +184,11 @@ library.
 - buttons, icon, status primitives;
 - fields/form layout/error summary;
 - money value;
-- page header/request state;
+- page frame/header/request state;
 - expansion and confirmation;
+- workbench surface/header;
+- workbench toolbar/search;
+- workbench filter/status/content regions;
 - workbench row/panel;
 - searchable select и action stack.
 

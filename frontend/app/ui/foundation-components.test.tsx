@@ -9,11 +9,20 @@ import { ExpansionPanel } from "./expansion-panel/expansion-panel";
 import { Field } from "./field/field";
 import { Fieldset } from "./field/fieldset";
 import { FormErrorSummary } from "./field/form-error-summary";
+import { FormActions } from "./field/form-layout";
 import { MoneyValue } from "./money-value/money-value";
+import { PageFrame } from "./page-frame/page-frame";
 import { RequestState } from "./request-state/request-state";
 import { StatusLabel } from "./status-label/status-label";
 import { Tag } from "./tag/tag";
 import { WorkbenchRow } from "./workbench-row/workbench-row";
+import { WorkbenchContent } from "./workbench-content/workbench-content";
+import { WorkbenchFilterRegion } from "./workbench-content/workbench-filter-region";
+import { WorkbenchStatus } from "./workbench-content/workbench-status";
+import { WorkbenchHeader } from "./workbench-surface/workbench-header";
+import { WorkbenchSurface } from "./workbench-surface/workbench-surface";
+import { WorkbenchSearch } from "./workbench-toolbar/workbench-search";
+import { WorkbenchToolbar } from "./workbench-toolbar/workbench-toolbar";
 
 describe("foundation controls", () => {
   it("makes a loading button unavailable and announces its state", () => {
@@ -103,6 +112,21 @@ describe("foundation controls", () => {
       screen.getByRole("link", { name: "Тип операции: Выберите тип." }),
     ).toHaveAttribute("href", "#operation-expense");
   });
+
+  it("exposes a shared split sticky footer for panel forms", () => {
+    render(
+      <FormActions layout="split" sticky>
+        <Button tone="ghost">Отмена</Button>
+        <Button tone="primary">Сохранить</Button>
+      </FormActions>,
+    );
+
+    const actions = screen.getByRole("button", {
+      name: "Отмена",
+    }).parentElement;
+    expect(actions).toHaveAttribute("data-layout", "split");
+    expect(actions).toHaveAttribute("data-sticky", "true");
+  });
 });
 
 describe("financial presentation primitives", () => {
@@ -145,6 +169,71 @@ describe("financial presentation primitives", () => {
 });
 
 describe("request and workbench composition", () => {
+  it("composes the shared page and workbench geometry without another main landmark", () => {
+    render(
+      <PageFrame aria-label="Счета">
+        <WorkbenchSurface aria-busy="true">
+          <WorkbenchHeader>Заголовок</WorkbenchHeader>
+        </WorkbenchSurface>
+      </PageFrame>,
+    );
+
+    const frame = screen.getByRole("region", { name: "Счета" });
+    expect(frame).toHaveAttribute("data-spacing", "top");
+    expect(frame.querySelector("main")).not.toBeInTheDocument();
+    expect(screen.getByText("Заголовок").parentElement).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+  });
+
+  it("keeps workbench search labelled and disables both controls together", () => {
+    render(
+      <WorkbenchToolbar>
+        <WorkbenchSearch
+          ariaLabel="Поиск операций"
+          disabled
+          inputId="operation-search"
+          inputLabel="Поиск по описанию"
+          onSubmit={() => undefined}
+          placeholder="Поиск по описанию"
+        />
+      </WorkbenchToolbar>,
+    );
+
+    expect(
+      screen.getByRole("region", { name: "Инструменты списка" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("search", { name: "Поиск операций" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText("Поиск по описанию")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Найти" })).toBeDisabled();
+  });
+
+  it("composes filters, live status, and an explicit empty content region", () => {
+    render(
+      <>
+        <WorkbenchFilterRegion data-testid="filter-region">
+          Фильтры
+        </WorkbenchFilterRegion>
+        <WorkbenchStatus>Обновляем операции…</WorkbenchStatus>
+        <WorkbenchContent aria-label="Список операций" isEmpty>
+          Операций пока нет
+        </WorkbenchContent>
+      </>,
+    );
+
+    expect(screen.getByTestId("filter-region")).toHaveTextContent("Фильтры");
+    expect(screen.getByText("Обновляем операции…")).toHaveAttribute(
+      "aria-live",
+      "polite",
+    );
+    expect(
+      screen.getByRole("region", { name: "Список операций" }),
+    ).toHaveAttribute("data-empty", "true");
+  });
+
   it("announces an error and exposes retry", () => {
     const retry = vi.fn();
     render(

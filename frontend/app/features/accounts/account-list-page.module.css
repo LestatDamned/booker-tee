@@ -1,25 +1,9 @@
-.page {
-  width: 100%;
-  max-width: var(--page-max-width);
-  margin-top: var(--space-7);
-  margin-inline: auto;
-}
-
 .accountLink:hover {
   color: var(--color-interactive-active);
 }
 
 .workbench {
   overflow: clip;
-  min-width: 0;
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-surface);
-  box-shadow: var(--shadow-surface);
-}
-
-.workbenchHeader {
-  padding: var(--space-5);
 }
 
 .createForm {
@@ -31,11 +15,6 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-4);
-}
-
-.formActions {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .readonlyNotice {
@@ -84,14 +63,6 @@
   margin: 0;
 }
 
-.listTools {
-  display: grid;
-  gap: var(--space-3);
-  border-block: 1px solid var(--color-border-default);
-  background: var(--color-bg-elevated);
-  padding: var(--space-3) var(--space-4);
-}
-
 .listToolActions {
   display: grid;
   grid-template-columns: minmax(16rem, 1fr) auto auto;
@@ -138,34 +109,6 @@
   font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
-}
-
-.searchForm {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.searchForm input {
-  min-width: 0;
-  min-height: var(--control-height);
-  border: 1px solid var(--color-border-control);
-  border-right: 0;
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-  background: var(--color-bg-canvas);
-  color: var(--color-text-primary);
-  padding: var(--space-2) var(--space-3);
-}
-
-.searchForm input:focus-visible {
-  position: relative;
-  z-index: 1;
-  outline: var(--focus-ring-width) solid var(--color-focus-ring);
-  outline-offset: 0;
-}
-
-.searchForm button {
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 .filteredEmpty {
@@ -350,7 +293,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .searchForm {
+  .searchPlacement {
     grid-column: 1 / -1;
   }
 }
@@ -366,10 +309,6 @@
 }
 
 @media (max-width: 42rem) {
-  .formActions > button {
-    width: 100%;
-  }
-
   .tabs {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -386,10 +325,6 @@
   .listToolActions > button,
   .tabs {
     width: 100%;
-  }
-
-  .workbenchHeader {
-    padding-inline: var(--space-3);
   }
 }
 

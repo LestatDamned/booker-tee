@@ -12,10 +12,16 @@ import {
   FormErrorSummary,
   type FormErrorSummaryItem,
 } from "../../ui/field/form-error-summary";
+import { FormActions } from "../../ui/field/form-layout";
 import { Icon } from "../../ui/icon/icon";
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
+import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
 import { WorkbenchPanel } from "../../ui/workbench-panel/workbench-panel";
+import { WorkbenchHeader } from "../../ui/workbench-surface/workbench-header";
+import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
+import { WorkbenchSearch } from "../../ui/workbench-toolbar/workbench-search";
+import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
 import {
   changeAccountLifecycle,
   createAccount,
@@ -60,6 +66,7 @@ export function AccountListPage({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [confirmCreateClose, setConfirmCreateClose] = useState(false);
   const [lifecyclePendingId, setLifecyclePendingId] = useState<string | null>(
     null,
   );
@@ -149,6 +156,22 @@ export function AccountListPage({
     void navigate(accountListUrl(query.view, normalized));
   }
 
+  function requestCreateClose() {
+    if (accountDraftIsDirty(draft, emptyDraft(session, directory))) {
+      setConfirmCreateClose(true);
+      return;
+    }
+    discardCreateDraft();
+  }
+
+  function discardCreateDraft() {
+    setDraft(emptyDraft(session, directory));
+    setFieldErrors({});
+    setSubmitError(null);
+    setConfirmCreateClose(false);
+    setCreateOpen(false);
+  }
+
   async function runLifecycle(
     account: AccountSummaryDto,
     action: AccountLifecycleAction,
@@ -185,39 +208,28 @@ export function AccountListPage({
 
   return (
     <AppShell session={session}>
-      <main className={styles.page}>
-        <section className={styles.workbench}>
-          <div className={styles.workbenchHeader}>
+      <PageFrame>
+        <WorkbenchSurface className={styles.workbench}>
+          <WorkbenchHeader>
             <PageHeader
               description="Где хранятся деньги и как меняется остаток по подтверждённым операциям."
               eyebrow={accountCountLabel(visibleAccounts.length)}
               title="Счета"
             />
-          </div>
+          </WorkbenchHeader>
 
-          <section aria-label="Инструменты списка" className={styles.listTools}>
+          <WorkbenchToolbar>
             <div className={styles.listToolActions}>
-              <form
-                aria-label="Поиск счетов"
-                className={styles.searchForm}
+              <WorkbenchSearch
+                ariaLabel="Поиск счетов"
+                className={styles.searchPlacement}
+                inputId="account-search"
+                inputLabel="Поиск по названию, типу или валюте"
+                inputProps={{ defaultValue: query.search }}
+                key={query.search}
                 onSubmit={submitSearch}
-                role="search"
-              >
-                <label className="visually-hidden" htmlFor="account-search">
-                  Поиск по названию, типу или валюте
-                </label>
-                <input
-                  defaultValue={query.search}
-                  id="account-search"
-                  key={query.search}
-                  name="search"
-                  placeholder="Поиск по названию, типу или валюте"
-                  type="search"
-                />
-                <Button icon="search" type="submit">
-                  Найти
-                </Button>
-              </form>
+                placeholder="Поиск по названию, типу или валюте"
+              />
 
               <nav aria-label="Состояние счетов" className={styles.tabs}>
                 <Link
@@ -245,7 +257,7 @@ export function AccountListPage({
                 </Button>
               ) : null}
             </div>
-          </section>
+          </WorkbenchToolbar>
 
           {!directory.capabilities.canCreate ? (
             <section className={styles.readonlyNotice}>
@@ -323,14 +335,14 @@ export function AccountListPage({
               ) : null}
             </section>
           )}
-        </section>
-      </main>
+        </WorkbenchSurface>
+      </PageFrame>
 
       {createOpen ? (
         <WorkbenchPanel
           description="Название, тип, валюта и остаток до первой операции."
           disabled={pending}
-          onClose={() => setCreateOpen(false)}
+          onClose={requestCreateClose}
           title="Новый счёт"
         >
           <form
@@ -461,7 +473,15 @@ export function AccountListPage({
                 />
               </Field>
             </div>
-            <div className={styles.formActions}>
+            <FormActions layout="split">
+              <Button
+                disabled={pending}
+                onClick={requestCreateClose}
+                tone="ghost"
+                type="button"
+              >
+                Отмена
+              </Button>
               <Button
                 disabled={pending}
                 icon="plus"
@@ -471,9 +491,20 @@ export function AccountListPage({
               >
                 {pending ? "Создаём…" : "Создать счёт"}
               </Button>
-            </div>
+            </FormActions>
           </form>
         </WorkbenchPanel>
+      ) : null}
+
+      {confirmCreateClose ? (
+        <ConfirmationDialog
+          cancelLabel="Продолжить создание"
+          confirmLabel="Закрыть без сохранения"
+          description="Несохранённые данные нового счёта будут потеряны."
+          onCancel={() => setConfirmCreateClose(false)}
+          onConfirm={discardCreateDraft}
+          title="Закрыть создание счёта?"
+        />
       ) : null}
 
       {archiveCandidate ? (
@@ -700,6 +731,18 @@ function emptyDraft(
     currency: session.workspace.defaultCurrency,
     initialBalance: "0.00",
   };
+}
+
+function accountDraftIsDirty(
+  draft: CreateAccountDraft,
+  initialDraft: CreateAccountDraft,
+): boolean {
+  return (
+    draft.name !== initialDraft.name ||
+    draft.accountType !== initialDraft.accountType ||
+    draft.currency !== initialDraft.currency ||
+    draft.initialBalance !== initialDraft.initialBalance
+  );
 }
 
 function accountFieldErrors(
