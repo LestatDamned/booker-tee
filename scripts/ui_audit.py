@@ -49,6 +49,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/dashboard", "dashboard"),
     ("/app/ledger/manual", "react-manual-ledger"),
     ("/app/foundation", "react-foundation"),
+    ("/app/reports", "react-reports"),
     ("/app/accounts", "accounts"),
     ("/ledger/manual", "manual-ledger-redirect"),
     ("/app/imports", "imports"),

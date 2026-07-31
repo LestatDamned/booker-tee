@@ -286,6 +286,7 @@ async def test_report_account_balances_use_selected_account_and_date_to() -> Non
             date_from=date(2026, 5, 1),
             date_to=date(2026, 5, 31),
             account_id=selected_account_id,
+            currency="USD",
         ),
     )
 
@@ -299,6 +300,7 @@ async def test_report_account_balances_use_selected_account_and_date_to() -> Non
             "date_to": date(2026, 5, 31),
         }
     ]
+    assert ledger.operation_calls[0]["currency"] == "USD"
 
 
 class FakeReportAccounts:
@@ -312,6 +314,7 @@ class FakeReportAccounts:
 class FakeReportLedger:
     def __init__(self) -> None:
         self.balance_calls: list[dict[str, object]] = []
+        self.operation_calls: list[dict[str, object]] = []
 
     async def get_confirmed_account_entries_total(
         self,
@@ -329,7 +332,8 @@ class FakeReportLedger:
         )
         return Decimal("25.00")
 
-    async def list_confirmed_operations(self, **_kwargs: object) -> list[Operation]:
+    async def list_confirmed_operations(self, **kwargs: object) -> list[Operation]:
+        self.operation_calls.append(kwargs)
         return []
 
 

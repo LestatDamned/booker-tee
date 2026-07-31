@@ -229,6 +229,7 @@ class LedgerRepository:
         account_id: UUID | None = None,
         category_id: UUID | None = None,
         property_id: UUID | None = None,
+        currency: str | None = None,
     ) -> list[Operation]:
         query = (
             select(Operation)
@@ -244,8 +245,12 @@ class LedgerRepository:
             )
             .order_by(Operation.operation_date.desc(), Operation.created_at.desc())
         )
+        if account_id is not None or currency is not None:
+            query = query.join(MoneyEntry)
         if account_id is not None:
-            query = query.join(MoneyEntry).where(MoneyEntry.account_id == account_id)
+            query = query.where(MoneyEntry.account_id == account_id)
+        if currency is not None:
+            query = query.where(MoneyEntry.currency == currency)
         if category_id is not None:
             query = query.where(Operation.category_id == category_id)
         if property_id is not None:

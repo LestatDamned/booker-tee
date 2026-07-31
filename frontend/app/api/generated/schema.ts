@@ -452,6 +452,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Report Overview */
+        get: operations["get_report_overview_api_v1_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/session": {
         parameters: {
             query?: never;
@@ -3041,6 +3058,140 @@ export interface components {
          * @enum {string}
          */
         RawTransactionStatus: "extracted" | "normalized" | "suggested" | "needs_review" | "matched" | "ignored" | "duplicate" | "possible_duplicate" | "failed" | "confirmed";
+        /** ReportAccountBalanceApiResponse */
+        ReportAccountBalanceApiResponse: {
+            /**
+             * Accountid
+             * Format: uuid
+             */
+            accountId: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+            /** Balance */
+            balance: string;
+            /** Isactive */
+            isActive: boolean;
+        };
+        /** ReportAccountOptionApiResponse */
+        ReportAccountOptionApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+            /** Isactive */
+            isActive: boolean;
+        };
+        /** ReportAppliedFiltersApiResponse */
+        ReportAppliedFiltersApiResponse: {
+            /** Datefrom */
+            dateFrom: string | null;
+            /** Dateto */
+            dateTo: string | null;
+            /** Currency */
+            currency: string;
+            /** Accountid */
+            accountId: string | null;
+            /** Categoryid */
+            categoryId: string | null;
+            /** Propertyid */
+            propertyId: string | null;
+        };
+        /** ReportCategoryAggregateApiResponse */
+        ReportCategoryAggregateApiResponse: {
+            /** Currency */
+            currency: string;
+            /** Income */
+            income: string;
+            /** Expense */
+            expense: string;
+            /** Profit */
+            profit: string;
+            /** Categoryid */
+            categoryId: string | null;
+            /** Name */
+            name: string;
+            /** Isactive */
+            isActive: boolean;
+        };
+        /** ReportFilterOptionsApiResponse */
+        ReportFilterOptionsApiResponse: {
+            /** Accounts */
+            accounts: components["schemas"]["ReportAccountOptionApiResponse"][];
+            /** Categories */
+            categories: components["schemas"]["ReportNamedOptionApiResponse"][];
+            /** Properties */
+            properties: components["schemas"]["ReportNamedOptionApiResponse"][];
+            /** Currencies */
+            currencies: string[];
+        };
+        /** ReportMoneySummaryApiResponse */
+        ReportMoneySummaryApiResponse: {
+            /** Currency */
+            currency: string;
+            /** Income */
+            income: string;
+            /** Expense */
+            expense: string;
+            /** Profit */
+            profit: string;
+        };
+        /** ReportNamedOptionApiResponse */
+        ReportNamedOptionApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Isactive */
+            isActive: boolean;
+        };
+        /** ReportOverviewApiResponse */
+        ReportOverviewApiResponse: {
+            /** Workspacename */
+            workspaceName: string;
+            appliedFilters: components["schemas"]["ReportAppliedFiltersApiResponse"];
+            filterOptions: components["schemas"]["ReportFilterOptionsApiResponse"];
+            summary: components["schemas"]["ReportMoneySummaryApiResponse"];
+            /** Accountbalances */
+            accountBalances: components["schemas"]["ReportAccountBalanceApiResponse"][];
+            /** Categoryrows */
+            categoryRows: components["schemas"]["ReportCategoryAggregateApiResponse"][];
+            /** Propertyrows */
+            propertyRows: components["schemas"]["ReportPropertyAggregateApiResponse"][];
+            /** Balanceasof */
+            balanceAsOf: string | null;
+            /** Nextreviewdocumentid */
+            nextReviewDocumentId: string | null;
+        };
+        /** ReportPropertyAggregateApiResponse */
+        ReportPropertyAggregateApiResponse: {
+            /** Currency */
+            currency: string;
+            /** Income */
+            income: string;
+            /** Expense */
+            expense: string;
+            /** Profit */
+            profit: string;
+            /**
+             * Propertyid
+             * Format: uuid
+             */
+            propertyId: string;
+            /** Name */
+            name: string;
+            /** Isactive */
+            isActive: boolean;
+        };
         /**
          * ReviewBlockingReasonCode
          * @enum {string}
@@ -5308,6 +5459,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_report_overview_api_v1_reports_get: {
+        parameters: {
+            query?: {
+                date_from?: string | null;
+                date_to?: string | null;
+                currency?: string | null;
+                account_id?: string | null;
+                category_id?: string | null;
+                property_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOverviewApiResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

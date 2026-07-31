@@ -13,7 +13,7 @@ Stages 0–6 completed
 Stage 7 active
 Imports completed
 Accounts and account ledger completed
-Reports next
+Reports Slice 01 completed; Slice 02 next
 ```
 
 ## Completed outcomes
@@ -44,7 +44,7 @@ Child stages:
 - [`Import documents and mapping`](import-documents-and-mapping/README.md) —
   completed;
 - Accounts and account ledger — completed 2026-07-31;
-- Reports — next; focused child stage создаётся перед implementation.
+- [`Reports`](reports/README.md) — active, Slice 01 completed; Slice 02 next.
 
 ### Accounts completion record
 

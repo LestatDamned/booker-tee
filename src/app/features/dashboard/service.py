@@ -25,14 +25,21 @@ class DashboardService:
         self.reports = ReportsService(session)
 
     async def build_overview(
-        self, workspace_id: UUID, today: date | None = None
+        self,
+        workspace_id: UUID,
+        today: date | None = None,
+        default_currency: str = "RUB",
     ) -> DashboardOverview:
         current_day = today or date.today()
         month_start = current_day.replace(day=1)
         month_end = current_day
         reports = await self.reports.build_overview(
             workspace_id=workspace_id,
-            filters=ReportFilters(date_from=month_start, date_to=month_end),
+            filters=ReportFilters(
+                date_from=month_start,
+                date_to=month_end,
+                currency=default_currency,
+            ),
         )
         documents = await self.documents.list_documents_for_workspace(workspace_id)
         return DashboardOverview(

@@ -1,0 +1,169 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.controls {
+  overflow: clip;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.periodNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.filterForm {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.metric {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  padding: var(--space-5);
+}
+
+.metric > span:first-child,
+.sectionEyebrow {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.balanceSection {
+  display: grid;
+  gap: var(--space-4);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  padding: var(--space-5);
+}
+
+.sectionHeading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.7fr);
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.sectionHeading h2,
+.sectionEyebrow {
+  margin: 0;
+}
+
+.sectionHeading h2 {
+  margin-top: var(--space-1);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--color-border-default);
+  padding: var(--space-3);
+  text-align: left;
+}
+
+.table th {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.balanceAmount {
+  text-align: right !important;
+}
+
+.balanceCards {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.balanceCards li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+@media (max-width: 64rem) {
+  .filterGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sectionHeading {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 48rem) {
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .toolbar > button {
+    width: 100%;
+  }
+
+  .periodNav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kpis {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 30rem) {
+  .filterGrid,
+  .periodNav {
+    grid-template-columns: 1fr;
+  }
+
+  .metric,
+  .balanceSection {
+    padding: var(--space-4);
+  }
+
+  .balanceCards li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

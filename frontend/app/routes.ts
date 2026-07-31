@@ -11,4 +11,5 @@ export default [
   route("imports/documents/:documentId/mapping", "routes/import-mapping.tsx"),
   route("imports/documents/:documentId/review", "routes/import-review.tsx"),
   route("ledger/manual", "routes/manual-ledger.tsx"),
+  route("reports", "routes/reports.tsx"),
 ] satisfies RouteConfig;

@@ -23,7 +23,10 @@ async def dashboard_index(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
-    overview = await DashboardService(session).build_overview(context.workspace.id)
+    overview = await DashboardService(session).build_overview(
+        context.workspace.id,
+        default_currency=context.workspace.default_currency,
+    )
     return templates.TemplateResponse(
         request,
         "dashboard/index.html",
@@ -41,7 +44,10 @@ async def dashboard_summary(
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> HTMLResponse:
-    overview = await DashboardService(session).build_overview(context.workspace.id)
+    overview = await DashboardService(session).build_overview(
+        context.workspace.id,
+        default_currency=context.workspace.default_currency,
+    )
     return templates.TemplateResponse(
         request,
         "dashboard/summary.html",

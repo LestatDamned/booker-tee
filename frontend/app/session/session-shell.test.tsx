@@ -75,7 +75,7 @@ describe("SessionShell", () => {
     });
     expect(
       within(desktopNavigation).getByRole("link", { name: "Счета" }),
-    ).toHaveAttribute("href", "/app/accounts");
+    ).toHaveAttribute("href", "/accounts");
     expect(
       within(desktopNavigation).getByRole("link", { name: "Отчёты" }),
     ).toHaveAttribute("href", "/reports");

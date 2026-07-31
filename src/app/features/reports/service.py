@@ -20,6 +20,7 @@ class ReportFilters:
     account_id: UUID | None = None
     category_id: UUID | None = None
     property_id: UUID | None = None
+    currency: str | None = None
 
 
 @dataclass(frozen=True)
@@ -107,6 +108,7 @@ class ReportsService:
             account_id=filters.account_id,
             category_id=filters.category_id,
             property_id=filters.property_id,
+            currency=filters.currency,
         )
         profit_operations = [operation for operation in operations if operation.affects_profit]
         return ReportsOverview(

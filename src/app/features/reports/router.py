@@ -47,6 +47,7 @@ async def reports_index(
         account_id=parse_optional_query_uuid(account_id, field_name="account_id"),
         category_id=parse_optional_query_uuid(category_id, field_name="category_id"),
         property_id=parse_optional_query_uuid(property_id, field_name="property_id"),
+        currency=context.workspace.default_currency,
     )
     overview = await ReportsService(session).build_overview(
         workspace_id=context.workspace.id,

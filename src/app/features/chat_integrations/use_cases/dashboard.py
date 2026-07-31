@@ -112,7 +112,11 @@ class ChatMonthlySummaryReader:
         date_to = ChatMonthRange.next_month_start(date_from) - timedelta(days=1)
         overview = await self.reports.build_overview(
             workspace_id=context.workspace.id,
-            filters=ReportFilters(date_from=date_from, date_to=date_to),
+            filters=ReportFilters(
+                date_from=date_from,
+                date_to=date_to,
+                currency=getattr(context.workspace, "default_currency", "RUB"),
+            ),
         )
         return ChatMonthlySummary(
             date_from=date_from,
@@ -141,7 +145,11 @@ class ChatMonthlySummaryReader:
         date_to = ChatMonthRange.next_month_start(date_from) - timedelta(days=1)
         overview = await self.reports.build_overview(
             workspace_id=context.workspace.id,
-            filters=ReportFilters(date_from=date_from, date_to=date_to),
+            filters=ReportFilters(
+                date_from=date_from,
+                date_to=date_to,
+                currency=getattr(context.workspace, "default_currency", "RUB"),
+            ),
         )
         return ChatCategorySummary(
             date_from=date_from,
