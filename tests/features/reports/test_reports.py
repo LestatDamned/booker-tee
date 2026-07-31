@@ -4,23 +4,10 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
-import pytest
-from fastapi import HTTPException
-
 from app.features.categories.models import Category, CategoryKind
 from app.features.ledger.models import MoneyEntry, Operation, OperationStatus, OperationType
 from app.features.properties.models import Property
-from app.features.reports.presentation.presenter import (
-    build_report_category_table,
-    build_report_period_nav,
-    report_month_url,
-)
-from app.features.reports.router import (
-    parse_optional_query_date,
-    parse_optional_query_uuid,
-)
 from app.features.reports.service import (
-    CategorySummaryRow,
     ReportFilters,
     ReportsService,
     list_uncategorized_operations,
@@ -128,139 +115,6 @@ def test_uncategorized_report_includes_missing_or_uncategorized_system_category(
     rows = list_uncategorized_operations(operations)
 
     assert [row.total for row in rows] == [Decimal("20.00"), Decimal("-10.00")]
-
-
-def test_report_query_parsers_treat_empty_filter_values_as_none() -> None:
-    assert parse_optional_query_uuid("", field_name="category_id") is None
-    assert parse_optional_query_uuid(None, field_name="property_id") is None
-    assert parse_optional_query_date("", field_name="date_from") is None
-    assert parse_optional_query_date(None, field_name="date_to") is None
-
-
-def test_report_query_parsers_accept_valid_filter_values() -> None:
-    raw_uuid = uuid4()
-
-    assert parse_optional_query_uuid(str(raw_uuid), field_name="category_id") == raw_uuid
-    assert parse_optional_query_date("2026-06-13", field_name="date_from") == date(2026, 6, 13)
-
-
-def test_report_query_parsers_raise_clear_bad_request_for_invalid_values() -> None:
-    with pytest.raises(HTTPException) as uuid_exc:
-        parse_optional_query_uuid("not-a-uuid", field_name="category_id")
-    with pytest.raises(HTTPException) as date_exc:
-        parse_optional_query_date("13.06.2026", field_name="date_from")
-
-    assert uuid_exc.value.status_code == 400
-    assert date_exc.value.status_code == 400
-
-
-def test_report_period_nav_uses_selected_month_and_preserves_filters() -> None:
-    account_id = uuid4()
-    category_id = uuid4()
-    property_id = uuid4()
-    filters = ReportFilters(
-        date_from=date(2026, 5, 10),
-        date_to=date(2026, 5, 20),
-        account_id=account_id,
-        category_id=category_id,
-        property_id=property_id,
-    )
-
-    period = build_report_period_nav(filters, today=date(2026, 7, 10))
-
-    assert period.month_start == date(2026, 5, 1)
-    assert period.month_end == date(2026, 5, 31)
-    assert period.month_label == "май 2026"
-    assert period.period_label == "10.05.2026 — 20.05.2026"
-    assert period.is_month_period is False
-    assert period.has_period_filter is True
-    assert period.has_exact_filters is True
-    assert period.is_all_time_period is False
-    assert period.is_current_month_period is False
-    assert period.mode_label == "точный период"
-    assert period.exact_filters_label == "10.05.2026 — 20.05.2026"
-    assert period.previous_month_url == (
-        f"/reports?date_from=2026-04-01&date_to=2026-04-30"
-        f"&account_id={account_id}&category_id={category_id}&property_id={property_id}"
-    )
-    assert period.next_month_url == (
-        f"/reports?date_from=2026-06-01&date_to=2026-06-30"
-        f"&account_id={account_id}&category_id={category_id}&property_id={property_id}"
-    )
-    assert period.current_month_url == (
-        f"/reports?date_from=2026-07-01&date_to=2026-07-31"
-        f"&account_id={account_id}&category_id={category_id}&property_id={property_id}"
-    )
-    assert period.all_time_url == (
-        f"/reports?account_id={account_id}&category_id={category_id}&property_id={property_id}"
-    )
-
-
-def test_report_month_url_marks_exact_month_period() -> None:
-    filters = ReportFilters(
-        date_from=date(2026, 2, 1),
-        date_to=date(2026, 2, 28),
-    )
-
-    period = build_report_period_nav(filters, today=date(2026, 7, 10))
-
-    assert period.is_month_period is True
-    assert period.has_exact_filters is False
-    assert period.mode_label == "месяц"
-    assert report_month_url(ReportFilters(), date(2026, 2, 1)) == (
-        "/reports?date_from=2026-02-01&date_to=2026-02-28"
-    )
-
-
-def test_report_period_nav_marks_all_time_mode() -> None:
-    period = build_report_period_nav(ReportFilters(), today=date(2026, 7, 10))
-
-    assert period.period_label == "все время"
-    assert period.is_all_time_period is True
-    assert period.has_exact_filters is False
-    assert period.mode_label == "все время"
-    assert period.exact_filters_label == "не применены"
-
-
-def test_report_category_table_sorts_and_links_with_period() -> None:
-    groceries_id = uuid4()
-    rent_id = uuid4()
-    filters = ReportFilters(
-        date_from=date(2026, 6, 1),
-        date_to=date(2026, 6, 30),
-    )
-    rows = [
-        CategorySummaryRow(
-            category_id=rent_id,
-            category_name="Аренда",
-            income=Decimal("0.00"),
-            expense=Decimal("1000.00"),
-            profit=Decimal("-1000.00"),
-        ),
-        CategorySummaryRow(
-            category_id=groceries_id,
-            category_name="Продукты",
-            income=Decimal("0.00"),
-            expense=Decimal("5000.00"),
-            profit=Decimal("-5000.00"),
-        ),
-    ]
-
-    table = build_report_category_table(rows, filters, sort="expense")
-
-    assert [row.category_name for row in table.rows] == ["Продукты", "Аренда"]
-    assert table.rows[0].detail_url == (
-        f"/categories/{groceries_id}?date_from=2026-06-01&date_to=2026-06-30"
-    )
-    assert table.sort == "expense"
-    assert table.sort_direction == "desc"
-    expense_column = next(column for column in table.columns if column.value == "expense")
-    assert expense_column.is_active is True
-    assert expense_column.direction == "desc"
-    assert expense_column.url == (
-        "/reports?date_from=2026-06-01&date_to=2026-06-30"
-        "&category_sort=expense&category_sort_dir=asc"
-    )
 
 
 async def test_report_account_balances_use_selected_account_and_date_to() -> None:

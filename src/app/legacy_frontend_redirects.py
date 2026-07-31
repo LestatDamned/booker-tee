@@ -71,3 +71,8 @@ async def historical_import_review(
         request,
         f"/app/imports/documents/{document_id}/review",
     )
+
+
+@router.get("/reports")
+async def historical_reports(request: Request) -> RedirectResponse:
+    return redirect_to_react(request, "/app/reports")

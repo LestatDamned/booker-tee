@@ -38,7 +38,6 @@ PAGES: tuple[tuple[str, str], ...] = (
     ("/app/imports", "imports"),
     ("/app/imports/upload", "imports-upload"),
     ("/rules", "rules"),
-    ("/reports", "reports"),
     ("/categories", "categories"),
     ("/properties", "properties"),
     ("/users", "users"),
@@ -55,7 +54,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/app/imports", "imports"),
     ("/app/imports/upload", "imports-upload"),
     ("/rules", "rules"),
-    ("/reports", "reports"),
+    ("/reports?currency=RUB", "reports-redirect"),
     ("/categories", "categories"),
     ("/properties", "properties"),
     ("/users", "users"),
@@ -593,6 +592,9 @@ def collect_ux_assertions(
 
     if path == "/app/reports":
         errors.extend(assert_react_reports(page))
+
+    if path.startswith("/reports") and "/app/reports" not in page.url:
+        errors.append("historical Reports URL did not redirect to React")
 
     if scenario == "realistic" and path == scenario_state.get("account_detail_path"):
         errors.extend(assert_react_account_management(page))

@@ -46,8 +46,9 @@
 
 ## Текущий frontend plan
 
-Stages 0–6, Imports и Accounts/account ledger завершены. Stage 7 active:
-Reports Slices 01–03 завершены; следующий шаг — Slice 04 cutover and cleanup.
+Stages 0–6 и Stage 7 Wave A (Imports, Accounts/account ledger, Reports)
+завершены. Следующий migration workflow выбирается из Wave B: Properties,
+Categories или Transaction Rules.
 
 - [`STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md`](frontend/plan/STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md)
 - [`Reports migration`](frontend/plan/reports/README.md)

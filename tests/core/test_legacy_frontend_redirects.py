@@ -37,6 +37,10 @@ ACCOUNT_ID = "11111111-1111-1111-1111-111111111111"
             "/imports/documents/document-id/review?source=chat",
             "/app/imports/documents/document-id/review?source=chat",
         ),
+        (
+            "/reports?date_from=2026-07-01&currency=RUB&category_sort=expense",
+            "/app/reports?date_from=2026-07-01&currency=RUB&category_sort=expense",
+        ),
     ],
 )
 def test_historical_frontend_get_redirects_to_react(
@@ -62,6 +66,7 @@ def test_historical_frontend_get_redirects_to_react(
         (f"/imports/documents/{DOCUMENT_ID}/mapping", 405),
         (f"/imports/documents/{DOCUMENT_ID}/mapping/import", 404),
         (f"/imports/documents/{DOCUMENT_ID}/review", 405),
+        ("/reports", 405),
     ],
 )
 def test_historical_frontend_mutations_are_not_redirected(

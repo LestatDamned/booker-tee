@@ -1,6 +1,6 @@
 # Slice 04: Reports Cutover And Cleanup
 
-Статус: planned.
+Статус: completed 2026-07-31.
 
 ## Outcome
 
@@ -158,3 +158,44 @@ npm run build
 - child plan получает completion record с фактически выполненными checks,
   deviations, cleanup и measurements, после чего детальные completed планы
   сворачиваются по policy активной документации.
+
+## Completion record
+
+Canonical navigation переключена на `/app/reports` в React AppShell, legacy
+base navigation, Dashboard, authenticated home, onboarding checklist,
+Categories и Properties. Historical `GET /reports` стал query-preserving `307`
+redirect и исключён из OpenAPI presentation contract.
+
+Удалены:
+
+- legacy Reports router и его inclusion из `src/app/main.py`;
+- Jinja presenter/ViewModels, Reports templates и HTMX category partial;
+- SSR-only presenter/template/query tests;
+- Reports-only `report-filter-*` и `report-period-*` responsive CSS;
+- legacy Reports page из общего browser audit и HTML operation из generated
+  OpenAPI types.
+
+Сохранены по consumer search:
+
+- `ReportsService`, `ReportsOverview` и `ReportFilters` для Dashboard и Chat;
+- `summarize_income_expense`/`IncomeExpenseSummary` для Categories;
+- `.report-table` для SSR Categories detail;
+- React/API/repository contracts и historical redirect test.
+
+Measurements:
+
+- representative API fixture: `1573 B` raw, `736 B` gzip;
+- synthetic large bounded fixture (100 categories, 50 balances, 25 visible
+  uncategorized rows): `50988 B` raw, `1088 B` gzip;
+- production read shape: `10` constant SQL queries, включая count + bounded
+  page; число запросов не зависит от числа accounts/operations/documents;
+- API и rendered DOM maximum uncategorized page size: `25`; default UI page
+  size — `10` строк;
+- Reports route chunk: `24.86 kB`, gzip `7.30 kB`; CSS: `5.14 kB`, gzip
+  `1.18 kB` до финального cutover build.
+
+Проверены backend Reports/API/redirect и Dashboard/Chat/Categories consumers,
+React Reports/AppShell, OpenAPI freshness, production build и browser layouts
+на `1440×1000`, `920×900`, `390×844`. Intentional deviation: shared legacy
+reporting service и `.report-table` не удалены из-за именованных runtime
+consumers, перечисленных выше.

@@ -28,7 +28,7 @@
           {% elif workspace_permissions and workspace_permissions.can_write_financial_data %}
             <a class="site-header__action site-header__action--primary" href="/app/ledger/manual">{{ icon("plus") }} операция</a>
           {% else %}
-            <a class="site-header__action site-header__action--primary" href="/reports">{{ icon("list-check") }} отчеты</a>
+            <a class="site-header__action site-header__action--primary" href="/app/reports">{{ icon("list-check") }} отчеты</a>
           {% endif %}
         {% else %}
           <a class="site-header__action site-header__action--primary" href="/login">{{ icon("user") }} войти</a>
@@ -45,7 +45,7 @@
           <a class="nav-link" href="/app/accounts">{{ icon("wallet") }} счета</a>
           <a class="nav-link" href="/app/ledger/manual">{{ icon("plus") }} операции</a>
           <a class="nav-link" href="/app/imports">{{ icon("import") }} импорт</a>
-          <a class="nav-link" href="/reports">{{ icon("list-check") }} отчеты</a>
+          <a class="nav-link" href="/app/reports">{{ icon("list-check") }} отчеты</a>
           <a class="nav-link" href="/categories">{{ icon("tag") }} категории</a>
           <a class="nav-link" href="/properties">{{ icon("building") }} объекты</a>
           <a class="nav-link" href="/rules">{{ icon("settings") }} правила</a>

@@ -13,7 +13,7 @@ Stages 0–6 completed
 Stage 7 active
 Imports completed
 Accounts and account ledger completed
-Reports Slices 01–03 completed; Slice 04 next
+Reports completed; canonical UI is React
 ```
 
 ## Completed outcomes
@@ -44,7 +44,30 @@ Child stages:
 - [`Import documents and mapping`](import-documents-and-mapping/README.md) —
   completed;
 - Accounts and account ledger — completed 2026-07-31;
-- [`Reports`](reports/README.md) — active, Slices 01–03 completed; Slice 04 next.
+- [`Reports`](reports/README.md) — completed 2026-07-31.
+
+### Reports completion record
+
+Completed: 2026-07-31
+
+Implemented:
+
+- currency-safe Reports API and React overview, breakdowns and bounded
+  uncategorized operations;
+- URL filters, sorting, pagination, responsive records and server-owned
+  correction capabilities;
+- query-preserving historical GET redirect.
+
+Cleanup performed:
+
+- removed legacy Reports router, Jinja presenter/ViewModels/templates, HTMX
+  partial and replacement-only tests;
+- switched canonical cross-feature links to React;
+- removed Reports-only legacy CSS and HTML OpenAPI operation.
+
+Named shared consumers remain: Dashboard/Chat use the legacy-named reporting
+read service, Categories uses its pure summary policy, and Categories detail
+uses `.report-table`.
 
 ### Accounts completion record
 
