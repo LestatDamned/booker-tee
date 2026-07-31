@@ -114,52 +114,9 @@
   gap: var(--space-4);
 }
 
-.editFeedback p {
-  margin: 0;
-}
-
-.editFeedback p {
-  margin-top: var(--space-1);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.editFeedback {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.lifecycleAction,
-.lifecycleFeedback {
+.lifecycleAction {
   display: grid;
   gap: var(--space-2);
-}
-
-.deleteConfirmation {
-  display: grid;
-  gap: var(--space-2);
-  border: 1px solid var(--color-status-danger);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-status-danger) 8%, transparent);
-  padding: var(--space-2);
-}
-
-.deleteConfirmation p {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.deleteActions {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.lifecycleFeedback {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
 }
 
 .listToolActions {
@@ -213,11 +170,6 @@
 }
 
 @media (max-width: 35rem) {
-  .editFeedback {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
   .listToolActions,
   .filterGrid,
   .operationFieldFlow[data-layout="expanded"] {

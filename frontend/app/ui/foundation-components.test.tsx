@@ -524,20 +524,14 @@ describe("request and workbench composition", () => {
     ).toBeInTheDocument();
   });
 
-  it("announces an error and exposes retry", () => {
-    const retry = vi.fn();
-    render(
-      <RequestState
-        message="Backend недоступен"
-        onRetry={retry}
-        status="error"
-        title="Ошибка загрузки"
-      />,
-    );
+  it("announces a local loading state without exposing an action", () => {
+    render(<RequestState message="Обновляем данные…" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Повторить" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("Backend недоступен");
-    expect(retry).toHaveBeenCalledOnce();
+    const state = screen.getByRole("status");
+    expect(state).toHaveAttribute("aria-busy", "true");
+    expect(state).toHaveTextContent("Обновляем данные…");
+    expect(state.querySelector("[aria-hidden='true']")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("closes an expansion through its accessible icon action", () => {

@@ -1,4 +1,10 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "../button/button";
@@ -14,6 +20,7 @@ type ConfirmationDialogProps = {
   onCancel: () => void;
   onConfirm: () => void;
   pending?: boolean;
+  returnFocusRef?: RefObject<HTMLElement | null>;
   title: string;
 };
 
@@ -26,6 +33,7 @@ export function ConfirmationDialog({
   onCancel,
   onConfirm,
   pending = false,
+  returnFocusRef,
   title,
 }: ConfirmationDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -34,7 +42,8 @@ export function ConfirmationDialog({
   const descriptionId = useId();
 
   useEffect(() => {
-    const trigger = document.activeElement as HTMLElement | null;
+    const trigger =
+      returnFocusRef?.current ?? (document.activeElement as HTMLElement | null);
     const dialog = dialogRef.current;
     if (dialog && typeof dialog.showModal === "function") {
       dialog.showModal();
@@ -51,7 +60,7 @@ export function ConfirmationDialog({
       }
       queueMicrotask(() => trigger?.focus());
     };
-  }, []);
+  }, [returnFocusRef]);
 
   return createPortal(
     <dialog

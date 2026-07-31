@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../../ui/button/button";
 import { Icon } from "../../ui/icon/icon";
+import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import type { ImportReviewDto } from "./api/import-review-api";
 import { applyRulesToImportReview } from "./api/import-review-mutations";
 import styles from "./import-review-page.module.css";
@@ -10,6 +11,7 @@ type RuleActionsProps = {
   csrfToken: string;
   documentId: string;
   onReviewReconciled: (review: ImportReviewDto) => void;
+  onSuccess: (message: string) => void;
   readonly: boolean;
 };
 
@@ -17,12 +19,13 @@ export function RuleActions({
   csrfToken,
   documentId,
   onReviewReconciled,
+  onSuccess,
   readonly,
 }: RuleActionsProps) {
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const alertRef = useRef<HTMLParagraphElement>(null);
+  const [canRetry, setCanRetry] = useState(false);
+  const alertRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (error) alertRef.current?.focus();
@@ -30,13 +33,13 @@ export function RuleActions({
 
   async function applyRules() {
     setPending(true);
-    setMessage(null);
     setError(null);
+    setCanRetry(false);
     const result = await applyRulesToImportReview(documentId, csrfToken);
     setPending(false);
     if (result.status === "success") {
       onReviewReconciled(result.data.review);
-      setMessage(ruleApplicationMessage(result.data));
+      onSuccess(ruleApplicationMessage(result.data));
       return;
     }
     if (result.status === "unauthenticated") {
@@ -47,6 +50,7 @@ export function RuleActions({
     }
     if (result.status === "forbidden") {
       setError("Недостаточно прав для применения правил.");
+      setCanRetry(false);
       return;
     }
     if (
@@ -55,9 +59,11 @@ export function RuleActions({
       result.status === "error"
     ) {
       setError(result.message);
+      setCanRetry(true);
       return;
     }
     setError("Не удалось применить правила.");
+    setCanRetry(true);
   }
 
   return (
@@ -83,20 +89,29 @@ export function RuleActions({
           Применить правила
         </Button>
       ) : null}
-      {message ? (
-        <p aria-live="polite" className={styles.ruleApplicationStatus}>
-          {message}
-        </p>
-      ) : null}
       {error ? (
-        <p
-          className={styles.draftError}
+        <InlineNotice
+          action={
+            canRetry ? (
+              <Button
+                disabled={pending}
+                icon="retry"
+                onClick={() => void applyRules()}
+                tone="secondary"
+              >
+                Повторить
+              </Button>
+            ) : undefined
+          }
+          className={styles.ruleApplicationFeedback}
           ref={alertRef}
           role="alert"
           tabIndex={-1}
+          title="Не удалось применить правила"
+          tone="danger"
         >
           {error}
-        </p>
+        </InlineNotice>
       ) : null}
     </div>
   );

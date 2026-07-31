@@ -1,13 +1,10 @@
 .state {
   display: grid;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: var(--space-2);
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
-}
-
-.state:has(.spinner) {
-  grid-template-columns: auto 1fr;
 }
 
 .spinner {
@@ -17,16 +14,6 @@
   border-top-color: var(--color-information);
   border-radius: var(--radius-pill);
   animation: request-state-spin 800ms linear infinite;
-}
-
-.error {
-  border-left: 3px solid var(--color-border-strong);
-  padding-left: var(--space-3);
-}
-
-.error {
-  border-color: var(--color-status-danger);
-  color: var(--color-status-danger);
 }
 
 @keyframes request-state-spin {

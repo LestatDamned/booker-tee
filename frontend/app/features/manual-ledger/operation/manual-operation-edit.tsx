@@ -8,9 +8,10 @@ import {
 import { useLocation, useNavigate } from "react-router";
 
 import { Button } from "../../../ui/button/button";
-import { FormError } from "../../../ui/field/form-error";
 import { FormErrorSummary } from "../../../ui/field/form-error-summary";
 import { FormActions } from "../../../ui/field/form-layout";
+import { InlineNotice } from "../../../ui/inline-notice/inline-notice";
+import { RequestState } from "../../../ui/request-state/request-state";
 import {
   loadManualOperationEdit,
   type ManualLedgerDto,
@@ -204,19 +205,25 @@ export function ManualOperationEdit({
       className={styles.editPanel}
     >
       {state.status === "idle" || state.status === "loading" ? (
-        <p>Загружаем актуальные данные…</p>
+        <RequestState message="Загружаем актуальные данные…" />
       ) : null}
       {state.status === "load_error" ? (
-        <div className={styles.editFeedback}>
-          <FormError announce>{state.message}</FormError>
-          <Button
-            icon="retry"
-            onClick={() => void loadSnapshot()}
-            tone="secondary"
-          >
-            Повторить загрузку
-          </Button>
-        </div>
+        <InlineNotice
+          action={
+            <Button
+              icon="retry"
+              onClick={() => void loadSnapshot()}
+              tone="secondary"
+            >
+              Повторить загрузку
+            </Button>
+          }
+          role="alert"
+          title="Не удалось загрузить операцию"
+          tone="danger"
+        >
+          {state.message}
+        </InlineNotice>
       ) : null}
       {state.status === "ready" ? (
         <form
@@ -235,21 +242,38 @@ export function ManualOperationEdit({
               title="Не удалось сохранить изменения"
             />
           ) : null}
-          {state.submission.status === "conflict" ||
-          state.submission.status === "error" ? (
-            <FormError announce>{state.submission.message}</FormError>
-          ) : null}
           {state.submission.status === "conflict" ? (
-            <div className={styles.editFeedback}>
-              <p>Ваш draft сохранён. Загрузка актуальной версии заменит его.</p>
-              <Button
-                icon="retry"
-                onClick={() => void loadSnapshot()}
-                tone="secondary"
-              >
-                Загрузить актуальную версию
-              </Button>
-            </div>
+            <InlineNotice
+              action={
+                <Button
+                  icon="retry"
+                  onClick={() => void loadSnapshot()}
+                  tone="secondary"
+                >
+                  Загрузить актуальную версию
+                </Button>
+              }
+              role="alert"
+              title="Операция уже была изменена"
+              tone="danger"
+            >
+              {state.submission.message} Ваш draft сохранён на странице.
+              Загрузка актуальной версии заменит его.
+            </InlineNotice>
+          ) : null}
+          {state.submission.status === "error" ? (
+            <InlineNotice
+              action={
+                <Button icon="retry" tone="secondary" type="submit">
+                  Повторить сохранение
+                </Button>
+              }
+              role="alert"
+              title="Не удалось сохранить изменения"
+              tone="danger"
+            >
+              {state.submission.message} Введённые значения остались в форме.
+            </InlineNotice>
           ) : null}
           <ManualOperationFields
             draft={state.draft}

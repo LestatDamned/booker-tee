@@ -41,6 +41,7 @@ type ReviewItemProps = {
   item: ReviewItemDto;
   onCategoryCreated: (category: ImportReviewCategoryReferenceDto) => void;
   onReviewReconciled: (review: ImportReviewDto) => void;
+  onSuccess: (message: string) => void;
   problems: RowProblem[];
   properties: ImportReviewDto["references"]["properties"];
   readonly: boolean;
@@ -54,6 +55,7 @@ export function ReviewItem({
   item,
   onCategoryCreated,
   onReviewReconciled,
+  onSuccess,
   problems,
   properties,
   readonly,
@@ -119,6 +121,7 @@ export function ReviewItem({
               item={item}
               onMenuDismiss={() => setActionsOpen(false)}
               onReviewReconciled={onReviewReconciled}
+              onSuccess={onSuccess}
               readonly={readonly}
             />
             <UndoPostingAction
@@ -127,6 +130,7 @@ export function ReviewItem({
               item={item}
               onMenuDismiss={() => setActionsOpen(false)}
               onReviewReconciled={onReviewReconciled}
+              onSuccess={onSuccess}
               readonly={readonly}
             />
           </>
@@ -144,6 +148,7 @@ export function ReviewItem({
               item={item}
               onMenuDismiss={() => setActionsOpen(false)}
               onReviewReconciled={onReviewReconciled}
+              onSuccess={onSuccess}
               readonly={readonly}
             />
           ) : null}
@@ -166,6 +171,7 @@ export function ReviewItem({
             documentId={documentId}
             item={item}
             onReviewReconciled={onReviewReconciled}
+            onSuccess={onSuccess}
             readonly={readonly}
           />
         ) : canQuickConfirmSuggestion ? (
@@ -182,6 +188,7 @@ export function ReviewItem({
             }}
             item={item}
             onReviewReconciled={onReviewReconciled}
+            onSuccess={onSuccess}
             variant="quick"
           />
         ) : hasReviewPanel ? (
@@ -205,6 +212,7 @@ export function ReviewItem({
             documentId={documentId}
             item={item}
             onReviewReconciled={onReviewReconciled}
+            onSuccess={onSuccess}
             readonly={readonly}
           />
         ) : !readonly &&
@@ -262,6 +270,7 @@ export function ReviewItem({
                 onCancel={closePanel}
                 onCategoryCreated={onCategoryCreated}
                 onReviewReconciled={onReviewReconciled}
+                onSuccess={onSuccess}
                 properties={properties}
                 readonly={readonly}
               />

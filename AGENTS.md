@@ -144,6 +144,8 @@ Task-specific documents:
   [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md).
 - UI/UX/React/API/CSS/actions:
   [`docs/design/DESIGN.md`](docs/design/DESIGN.md).
+- Reusable React UI, component selection and CSS ownership:
+  [`docs/design/UI_FOUNDATION.md`](docs/design/UI_FOUNDATION.md).
 - Active React frontend architecture and migration strategy:
   [`docs/design/REACT_FRONTEND_DESIGN.md`](docs/design/REACT_FRONTEND_DESIGN.md).
 - React implementation sequence; read the index and current stage only:
@@ -406,9 +408,12 @@ React feature -> versioned API -> Service / Use Case -> Repository
 ```
 
 Follow [`docs/design/REACT_FRONTEND_DESIGN.md`](docs/design/REACT_FRONTEND_DESIGN.md)
-and [`docs/design/DESIGN.md`](docs/design/DESIGN.md). For migrated workflows,
-the React feature code, API schemas, application policies, and tests are the
-behavior reference; do not restore deleted SSR migration specifications.
+and [`docs/design/DESIGN.md`](docs/design/DESIGN.md). Before creating a React
+page or shared component, use
+[`docs/design/UI_FOUNDATION.md`](docs/design/UI_FOUNDATION.md) to select an
+existing component and CSS composition. For migrated workflows, the React
+feature code, API schemas, application policies, and tests are the behavior
+reference; do not restore deleted SSR migration specifications.
 
 ---
 

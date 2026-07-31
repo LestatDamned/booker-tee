@@ -23,12 +23,14 @@ describe("ImportDocumentListPage", () => {
     expect(within(table).getByText("Основной")).toBeInTheDocument();
     expect(within(table).getByText("Альфа-Банк")).toBeInTheDocument();
     expect(within(table).getByText("Июль 2026")).toBeInTheDocument();
-    expect(
-      within(table).getByRole("link", { name: "Настроить" }),
-    ).toHaveAttribute(
+    const mappingAction = within(table).getByRole("link", {
+      name: "Настроить",
+    });
+    expect(mappingAction).toHaveAttribute(
       "href",
       `/app/imports/documents/${mappingDocumentId}/mapping`,
     );
+    expect(mappingAction).toHaveAttribute("data-tone", "secondary");
     expect(
       within(table).getByRole("link", { name: "Проверить" }),
     ).toHaveAttribute(
@@ -38,6 +40,13 @@ describe("ImportDocumentListPage", () => {
     expect(
       within(table).getByRole("link", { name: "Открыть" }),
     ).toHaveAttribute("href", `/app/imports/documents/${failedDocumentId}`);
+
+    const mobileList = screen.getByRole("list", {
+      name: "Документы импорта",
+    });
+    expect(
+      within(mobileList).getByRole("link", { name: "Настроить" }),
+    ).toHaveAttribute("data-tone", "secondary");
   });
 
   it("composes shared workbench regions and discloses filters", async () => {

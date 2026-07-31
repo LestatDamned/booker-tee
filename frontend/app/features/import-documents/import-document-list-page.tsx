@@ -277,10 +277,7 @@ function DocumentTableRow({
   return (
     <tr>
       <th scope="row">
-        <a
-          className={styles.accountLink}
-          href={`/app/imports/documents/${document.id}`}
-        >
+        <a data-record-identity href={`/app/imports/documents/${document.id}`}>
           {document.account?.name ?? "Счёт не определён"}
         </a>
         <span className={styles.bankName}>{documentBankName(document)}</span>
@@ -303,9 +300,7 @@ function DocumentTableRow({
         <DocumentRowCount document={document} />
       </td>
       <td className={styles.actionCell}>
-        <a className={styles.rowAction} href={action.href}>
-          {action.label}
-        </a>
+        <ButtonLink href={action.href}>{action.label}</ButtonLink>
       </td>
     </tr>
   );
@@ -323,11 +318,11 @@ function DocumentMobileList({
         const action = documentAction(document);
         return (
           <li key={document.id}>
-            <article className={styles.mobileRecord}>
+            <article className={styles.mobileRecord} data-responsive-record>
               <div className={styles.mobileHeading}>
                 <div>
                   <a
-                    className={styles.accountLink}
+                    data-record-identity
                     href={`/app/imports/documents/${document.id}`}
                   >
                     {document.account?.name ?? "Счёт не определён"}
@@ -348,9 +343,9 @@ function DocumentMobileList({
               <span className={styles.filename} title={document.filename}>
                 {document.filename}
               </span>
-              <a className={styles.rowAction} href={action.href}>
-                {action.label}
-              </a>
+              <div className={styles.mobileAction}>
+                <ButtonLink href={action.href}>{action.label}</ButtonLink>
+              </div>
             </article>
           </li>
         );

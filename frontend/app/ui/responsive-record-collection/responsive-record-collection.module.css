@@ -53,6 +53,23 @@
   border-top: 1px solid var(--color-border-default);
 }
 
+.collection [data-record-identity] {
+  color: var(--color-text-primary);
+  font-weight: 750;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.collection [data-record-identity]:hover {
+  color: var(--color-interactive-active);
+}
+
+.mobileRegion [data-responsive-record] {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
 @media (max-width: 64rem) {
   .tableRegion {
     display: none;

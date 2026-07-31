@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Button } from "../../ui/button/button";
 import { Field } from "../../ui/field/field";
 import { FormActions } from "../../ui/field/form-layout";
+import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import type { ImportReviewDto } from "./api/import-review-api";
 import {
   postImportReviewTransfer,
@@ -16,6 +17,7 @@ type TransferPanelProps = {
   item: ImportReviewDto["items"][number];
   onCancel: () => void;
   onReviewReconciled: (review: ImportReviewDto) => void;
+  onSuccess: (message: string) => void;
   onSelectionChange: (selection: string) => void;
   selection: string;
 };
@@ -26,16 +28,19 @@ export function TransferPanel({
   item,
   onCancel,
   onReviewReconciled,
+  onSuccess,
   onSelectionChange,
   selection,
 }: TransferPanelProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [canRetry, setCanRetry] = useState(false);
   const idempotencyKey = useRef(crypto.randomUUID());
 
   function changeSelection(value: string) {
     onSelectionChange(value);
     setError(null);
+    setCanRetry(false);
     idempotencyKey.current = crypto.randomUUID();
   }
 
@@ -43,10 +48,12 @@ export function TransferPanel({
     const request = transferRequest(selection);
     if (!request) {
       setError("Выберите счёт или подходящий перевод.");
+      setCanRetry(false);
       return;
     }
     setPending(true);
     setError(null);
+    setCanRetry(false);
     const result = await postImportReviewTransfer(
       documentId,
       item.id,
@@ -61,25 +68,31 @@ export function TransferPanel({
       );
       if (!current) {
         setError("Backend не вернул обновлённое состояние документа.");
+        setCanRetry(true);
         return;
       }
       onReviewReconciled(current);
+      onSuccess("Перевод проведён.");
       return;
     }
     if (result.status === "conflict") {
       setError(`${result.message} Обновите выбор и попробуйте снова.`);
+      setCanRetry(false);
       return;
     }
     if (result.status === "validation_error") {
       setError(result.message);
+      setCanRetry(false);
       return;
     }
     if (result.status === "unauthenticated") {
       setError("Сессия завершилась. Войдите снова.");
+      setCanRetry(false);
       return;
     }
     if (result.status === "forbidden") {
       setError("Недостаточно прав для проведения перевода.");
+      setCanRetry(false);
       return;
     }
     setError(
@@ -87,6 +100,7 @@ export function TransferPanel({
         ? result.message
         : "Операцию не удалось выполнить.",
     );
+    setCanRetry(true);
   }
 
   return (
@@ -164,9 +178,25 @@ export function TransferPanel({
         </Button>
       </FormActions>
       {error ? (
-        <p className={styles.draftError} role="alert">
+        <InlineNotice
+          action={
+            selection && canRetry ? (
+              <Button
+                disabled={pending}
+                icon="retry"
+                onClick={() => void submit()}
+                tone="secondary"
+              >
+                Повторить перевод
+              </Button>
+            ) : undefined
+          }
+          role="alert"
+          title="Не удалось провести перевод"
+          tone="danger"
+        >
           {error}
-        </p>
+        </InlineNotice>
       ) : null}
     </section>
   );

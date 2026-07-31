@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +12,26 @@ const destinationAccountId = "2b78e790-f82f-46e7-814a-d22f9d7455c2";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("manual operation editing", () => {
+  it("announces the local loading state while the edit snapshot is pending", async () => {
+    let resolveRequest: ((response: Response) => void) | undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveRequest = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => pendingResponse),
+    );
+    renderEdit({});
+
+    const loading = screen.getByRole("status");
+    expect(loading).toHaveAttribute("aria-busy", "true");
+    expect(loading).toHaveTextContent("Загружаем актуальные данные…");
+
+    resolveRequest?.(jsonResponse(editSnapshot(), 200));
+    expect(await screen.findByLabelText("Описание")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("loads a fresh edit snapshot when the panel mounts", async () => {
     const fetchMock = vi
       .fn()
@@ -102,10 +122,12 @@ describe("manual operation editing", () => {
       screen.getByRole("button", { name: "Сохранить изменения" }),
     );
 
-    expect(await screen.findByText("Backend недоступен.")).toBeVisible();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Не удалось сохранить изменения");
+    expect(alert).toHaveTextContent("Backend недоступен.");
     expect(description).toHaveValue("Retry");
     await user.click(
-      screen.getByRole("button", { name: "Сохранить изменения" }),
+      within(alert).getByRole("button", { name: "Повторить сохранение" }),
     );
     expect(requestBody(fetchMock.mock.calls[2])).toEqual(
       expect.objectContaining({ description: "Retry", version: 3 }),
@@ -144,12 +166,14 @@ describe("manual operation editing", () => {
       screen.getByRole("button", { name: "Сохранить изменения" }),
     );
 
-    expect(
-      await screen.findByText("Операция уже изменилась в другом окне."),
-    ).toBeVisible();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Операция уже была изменена");
+    expect(alert).toHaveTextContent("Операция уже изменилась в другом окне.");
     expect(description).toHaveValue("Мой конфликтующий draft");
     await user.click(
-      screen.getByRole("button", { name: "Загрузить актуальную версию" }),
+      within(alert).getByRole("button", {
+        name: "Загрузить актуальную версию",
+      }),
     );
 
     expect(await screen.findByLabelText("Описание")).toHaveValue(

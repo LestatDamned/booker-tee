@@ -17,6 +17,7 @@ import { WorkbenchStatus } from "../../../ui/workbench-content/workbench-status"
 import { WorkbenchHeader } from "../../../ui/workbench-surface/workbench-header";
 import { WorkbenchSurface } from "../../../ui/workbench-surface/workbench-surface";
 import { WorkbenchToolbar } from "../../../ui/workbench-toolbar/workbench-toolbar";
+import { ToastViewport, useToastQueue } from "../../../ui/toast/toast";
 import type {
   ManualLedgerDto,
   ManualOperationDto,
@@ -76,6 +77,7 @@ export function ManualLedgerPage({
   );
   const [createOpen, setCreateOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const { dismissToast, showToast, toast } = useToastQueue();
 
   const filtersActive = manualLedgerFiltersAreActive(location.search);
   const [panelPending, setPanelPending] = useState(false);
@@ -267,6 +269,7 @@ export function ManualLedgerPage({
                       {...(onRefresh === undefined ? {} : { onRefresh })}
                       onOperationUpdated={operationUpdated}
                       onWorkStarted={() => setWorkingOperationId(operation.id)}
+                      onSuccess={(message) => showToast({ message })}
                       operation={operation}
                     />
                   </li>
@@ -313,6 +316,8 @@ export function ManualLedgerPage({
         </WorkbenchSurface>
       </PageFrame>
 
+      <ToastViewport onDismiss={dismissToast} toast={toast} />
+
       {createOpen ? (
         <WorkbenchPanel
           description="Доход, расход или перевод вручную."
@@ -323,6 +328,7 @@ export function ManualLedgerPage({
           <ManualOperationCreate
             csrfToken={session.csrfToken}
             onClose={closeCreate}
+            onCreated={() => showToast({ message: "Ручная операция создана." })}
             onPendingChange={setPanelPending}
             options={ledger.filterOptions}
           />

@@ -13,6 +13,7 @@ import {
 } from "../../ui/selection-tabs/selection-tabs";
 import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import { WorkbenchEmptyState } from "../../ui/workbench-empty-state/workbench-empty-state";
+import { ToastViewport, useToastQueue } from "../../ui/toast/toast";
 import type { ImportReviewDto } from "./api/import-review-api";
 import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
 import { ReviewItem } from "./review-item";
@@ -51,6 +52,7 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
   const [navigationAnchorId, setNavigationAnchorId] = useState<string | null>(
     null,
   );
+  const { dismissToast, showToast, toast } = useToastQueue();
   const visibleItemKey = visibleItems.map((item) => item.id).join("|");
 
   useEffect(() => {
@@ -177,6 +179,7 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
               csrfToken={session.csrfToken}
               documentId={currentReview.document.id}
               onReviewReconciled={reconcileReview}
+              onSuccess={(message) => showToast({ message })}
               readonly={readonly}
             />
           </header>
@@ -246,6 +249,7 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
                     item={item}
                     onCategoryCreated={addCategory}
                     onReviewReconciled={reconcileReview}
+                    onSuccess={(message) => showToast({ message })}
                     problems={
                       currentReview.validation?.rowProblems.filter(
                         (problem) => problem.itemId === item.id,
@@ -287,6 +291,7 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
           ) : null}
         </WorkbenchSurface>
       </PageFrame>
+      <ToastViewport onDismiss={dismissToast} toast={toast} />
     </AppShell>
   );
 }

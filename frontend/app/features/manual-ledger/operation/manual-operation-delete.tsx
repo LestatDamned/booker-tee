@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "../../../ui/button/button";
-import { FormError } from "../../../ui/field/form-error";
+import { ConfirmationDialog } from "../../../ui/confirmation-dialog/confirmation-dialog";
+import { InlineNotice } from "../../../ui/inline-notice/inline-notice";
 import { deleteManualOperation } from "../api/manual-ledger-mutations";
-import styles from "../manual-ledger.module.css";
 
 type ManualOperationDeleteProps = {
   csrfToken: string;
@@ -29,6 +29,7 @@ export function ManualOperationDelete({
   version,
 }: ManualOperationDeleteProps) {
   const [state, setState] = useState<DeleteState>({ status: "idle" });
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
 
   async function confirmDelete() {
     if (disabled || state.status === "pending") {
@@ -54,64 +55,63 @@ export function ManualOperationDelete({
     onRefresh?.();
   }
 
-  if (state.status === "idle") {
-    return (
+  const failed = state.status === "conflict" || state.status === "error";
+  const dialogOpen =
+    state.status === "confirming" || state.status === "pending";
+
+  return (
+    <>
       <Button
-        disabled={disabled}
-        onClick={() => setState({ status: "confirming" })}
-        tone="danger"
+        disabled={disabled || state.status !== "idle"}
         icon="delete"
+        onClick={() => setState({ status: "confirming" })}
+        ref={deleteButtonRef}
+        tone="danger"
       >
         Удалить окончательно
       </Button>
-    );
-  }
-
-  if (state.status === "conflict" || state.status === "error") {
-    return (
-      <div className={styles.deleteConfirmation}>
-        <FormError announce>{state.message}</FormError>
-        {state.status === "conflict" && onRefresh ? (
-          <Button icon="retry" onClick={refresh} tone="ghost">
-            Обновить строку
-          </Button>
-        ) : (
-          <Button
-            icon="retry"
-            onClick={() => setState({ status: "idle" })}
-            tone="ghost"
-          >
-            Повторить
-          </Button>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.deleteConfirmation}>
-      <p>
-        Удалить операцию без возможности восстановления? Финансовая запись
-        исчезнет.
-      </p>
-      <div className={styles.deleteActions}>
-        <Button
-          disabled={disabled}
-          isLoading={state.status === "pending"}
-          onClick={() => void confirmDelete()}
+      {failed ? (
+        <InlineNotice
+          action={
+            state.status === "conflict" && onRefresh ? (
+              <Button icon="retry" onClick={refresh} tone="secondary">
+                Обновить строку
+              </Button>
+            ) : (
+              <Button
+                icon="retry"
+                onClick={() => setState({ status: "confirming" })}
+                tone="secondary"
+              >
+                Повторить удаление
+              </Button>
+            )
+          }
+          layout="stacked"
+          role="alert"
+          title={
+            state.status === "conflict"
+              ? "Операция уже была изменена"
+              : "Не удалось удалить операцию"
+          }
           tone="danger"
-          icon="delete"
         >
-          Да, удалить
-        </Button>
-        <Button
-          disabled={disabled || state.status === "pending"}
-          onClick={() => setState({ status: "idle" })}
-          tone="ghost"
-        >
-          Не удалять
-        </Button>
-      </div>
-    </div>
+          {state.message}
+        </InlineNotice>
+      ) : null}
+      {dialogOpen ? (
+        <ConfirmationDialog
+          cancelLabel="Не удалять"
+          confirmLabel="Удалить навсегда"
+          description="Финансовая запись исчезнет без возможности восстановления."
+          disabled={disabled}
+          onCancel={() => setState({ status: "idle" })}
+          onConfirm={() => void confirmDelete()}
+          pending={state.status === "pending"}
+          returnFocusRef={deleteButtonRef}
+          title="Удалить операцию?"
+        />
+      ) : null}
+    </>
   );
 }

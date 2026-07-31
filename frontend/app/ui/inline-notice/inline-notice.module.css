@@ -48,6 +48,19 @@
   align-self: center;
 }
 
+.notice[data-layout="stacked"] {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.notice[data-layout="stacked"] .action {
+  grid-column: 2;
+  justify-self: stretch;
+}
+
+.notice[data-layout="stacked"] .action > * {
+  width: 100%;
+}
+
 .notice[data-tone="information"] {
   --notice-tone: var(--color-information);
 }

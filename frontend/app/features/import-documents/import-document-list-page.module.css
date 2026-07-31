@@ -35,17 +35,6 @@
   gap: var(--space-4);
 }
 
-.rowAction,
-.accountLink {
-  color: var(--color-link);
-  font-weight: 700;
-}
-
-.rowAction:hover,
-.accountLink:hover {
-  color: var(--color-interactive-active);
-}
-
 .table th:nth-child(1) {
   width: 28%;
 }
@@ -70,16 +59,9 @@
   width: 14%;
 }
 
-.accountLink,
 .bankName,
 .filename {
   display: block;
-}
-
-.accountLink {
-  color: var(--color-text-primary);
-  overflow-wrap: anywhere;
-  text-decoration: none;
 }
 
 .bankName {
@@ -112,14 +94,6 @@
   text-align: right;
 }
 
-.rowAction {
-  display: inline-flex;
-  min-height: var(--control-height);
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-}
-
 @media (max-width: 64rem) {
   .toolbarRow {
     align-items: stretch;
@@ -135,14 +109,7 @@
   }
 
   .mobileRecord {
-    display: grid;
-    gap: var(--space-3);
-    padding: var(--space-4);
-    transition: background-color var(--duration-fast) ease;
-  }
-
-  .mobileRecord:hover {
-    background: var(--color-bg-interactive);
+    min-width: 0;
   }
 
   .mobileHeading {
@@ -169,8 +136,9 @@
     width: min(100%, 35rem);
   }
 
-  .mobileRecord .rowAction {
-    justify-self: start;
+  .mobileAction {
+    display: flex;
+    justify-content: flex-start;
   }
 }
 
@@ -190,11 +158,5 @@
   .mobileHeading {
     align-items: stretch;
     flex-direction: column;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mobileRecord {
-    transition: none;
   }
 }

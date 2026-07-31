@@ -82,6 +82,10 @@
   text-align: right;
 }
 
+.ruleApplicationFeedback {
+  flex-basis: 100%;
+}
+
 .queue {
   position: sticky;
   z-index: calc(var(--z-header) - 1);
@@ -441,19 +445,8 @@
   font-size: var(--font-size-sm);
 }
 
-.draftStatus,
-.draftError {
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
-}
-
-.draftError,
 .fieldError {
   color: var(--color-status-danger);
-}
-
-.draftError {
-  background: color-mix(in srgb, var(--color-status-danger) 10%, transparent);
 }
 
 @media (max-width: 70rem) {

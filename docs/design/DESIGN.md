@@ -4,8 +4,9 @@
 
 Архитектура React/API находится в
 [`REACT_FRONTEND_DESIGN.md`](REACT_FRONTEND_DESIGN.md), формы — в
-[`FORM_DESIGN.md`](FORM_DESIGN.md). Этот файл отвечает за пользовательское и
-визуальное поведение.
+[`FORM_DESIGN.md`](FORM_DESIGN.md), а выбор готовых компонентов и границы CSS —
+в [`UI_FOUNDATION.md`](UI_FOUNDATION.md). Этот файл отвечает за пользовательское
+и визуальное поведение.
 
 ## Направление
 
@@ -40,6 +41,10 @@ with restrained rebellious creativity
   reference/admin sections.
 - Активный пункт различим без цвета.
 - Workspace context видим.
+- Keyboard user может пропустить повторяющуюся навигацию и перейти к main
+  content через focus-visible skip link.
+- При недостаточной высоте desktop sidebar прокручивается только список
+  навигации; workspace context и профиль остаются доступными.
 - Mobile navigation остаётся keyboard- и touch-доступной.
 - Canonical ссылки ведут в React только после replacement gate.
 
@@ -103,9 +108,27 @@ entity/row; после mutation UI получает authoritative snapshot.
 - `StatusLabel` — важный lifecycle state.
 - `Badge` — compact status/count.
 - `Tag` — secondary attribute/filter.
-- Success/error feedback размещается рядом с изменённой сущностью.
+- Успех явной mutation подтверждается единым viewport `Toast`: он не меняет
+  layout строки, не перехватывает focus, объявляется через `role=status` и
+  автоматически закрывается. Надпись `Сохранено` внутрь entity/row не
+  добавляется.
+- Toast используется после создания, сохранения, переноса состояния и удаления;
+  фактические данные строки при этом обновляются authoritative snapshot.
+- В плотных review workflow Toast подтверждает только завершение этапа или
+  переход строки между очередями. Промежуточный выбор classification, category
+  или property подтверждается обновлённым содержимым формы без отдельного Toast.
+- Ошибка конкретного control показывается через `FormError`, ошибки нескольких
+  полей — через `FormErrorSummary`, а сбой действия или локального request —
+  через `InlineNotice` с понятным следующим шагом.
+- Recoverable `InlineNotice` объединяет сообщение и действие `Повторить` или
+  `Обновить`; кнопка восстановления не отделяется от описываемого сбоя.
+- `RouteLoadingPage` используется для загрузки всего route, `RequestState` —
+  для локальной загрузки данных внутри уже открытого интерфейса, а pending
+  mutation показывается spinner внутри вызвавшей её кнопки.
 - Created/updated entity может кратко подсвечиваться, но animation уважает
   `prefers-reduced-motion`.
+- Создание новой entity открывается в правом `WorkbenchPanel`; редактирование
+  существующей row раскрывается через `ExpansionPanel` непосредственно под ней.
 - Blocking state содержит причину и следующий шаг.
 
 ## Actions
@@ -122,6 +145,10 @@ danger        — destructive или финансово значимое дей�
 - Не показывать ряд одинаково громких кнопок.
 - Icon-only action имеет accessible name и достаточную hit area.
 - Danger требует явного confirmation, если результат трудно восстановить.
+- Необратимые удаления используют общий `ConfirmationDialog`: отмена находится
+  слева, опасное подтверждение справа, начальный focus — на отмене. Inline
+  confirmation остаётся для контекстного решения внутри рабочей строки, если
+  действие не является отдельным необратимым удалением.
 - Disabled state объясняет причину; скрытие используется только при отсутствии
   права даже знать о возможности.
 
@@ -197,27 +224,17 @@ Geometry не должна неожиданно меняться между те
 
 ## Shared vs feature UI
 
-Shared candidates уже доказаны кодом:
-
-- Button/IconButton;
-- Badge/Tag/StatusLabel;
-- MoneyValue;
-- Field/Fieldset/FormError;
-- PageFrame/PageHeader/RouteStatePage/RouteLoadingPage;
-- RequestState;
-- ConfirmationDialog;
-- ExpansionPanel;
-- WorkbenchSurface/WorkbenchHeader;
-- WorkbenchToolbar/WorkbenchSearch;
-- WorkbenchFilterRegion/WorkbenchStatus/WorkbenchContent;
-- AppliedFilterSummary;
-- ResponsiveRecordCollection;
-- WorkbenchRow/WorkbenchPanel;
-- ActionStack;
-- SearchableSelect.
+Актуальный каталог, правила выбора и композиционные рецепты находятся в
+[`UI_FOUNDATION.md`](UI_FOUNDATION.md). Фактический TypeScript API определяется
+кодом в `frontend/app/ui`, а визуальный каталог доступен на `/app/foundation`.
 
 Feature владеет финансовым смыслом композиции. Shared component не импортирует
 feature API и не знает, как подтвердить import row.
+
+`ResponsiveRecordCollection` владеет базовой геометрией desktop table,
+переключением на mobile list, оболочкой мобильной записи и оформлением основной
+identity-ссылки. Feature сохраняет собственные колонки, факты, значения,
+статусы и композицию действий.
 
 ## UI verification
 

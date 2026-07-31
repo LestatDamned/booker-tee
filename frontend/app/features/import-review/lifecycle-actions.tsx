@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Button, type ButtonTone } from "../../ui/button/button";
+import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import {
   loadImportReview,
   type ImportReviewDto,
@@ -20,6 +21,7 @@ type LifecycleActionsProps = {
   item: ImportReviewDto["items"][number];
   onMenuDismiss?: () => void;
   onReviewReconciled: (review: ImportReviewDto) => void;
+  onSuccess: (message: string) => void;
   readonly: boolean;
 };
 
@@ -30,6 +32,7 @@ export function LifecycleActions({
   item,
   onMenuDismiss,
   onReviewReconciled,
+  onSuccess,
   readonly,
 }: LifecycleActionsProps) {
   const [pending, setPending] = useState<LifecycleAction | "refresh" | null>(
@@ -44,7 +47,7 @@ export function LifecycleActions({
     { kind: "refresh" } | { kind: "retry"; action: LifecycleAction } | null
   >(null);
   const cancelConfirmationRef = useRef<HTMLButtonElement>(null);
-  const alertRef = useRef<HTMLParagraphElement>(null);
+  const alertRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (confirmation) cancelConfirmationRef.current?.focus();
@@ -73,6 +76,8 @@ export function LifecycleActions({
     if (result.status === "success") {
       onMenuDismiss?.();
       onReviewReconciled(result.data.review);
+      const successMessage = lifecycleSuccessMessage(action, item.status);
+      if (successMessage) onSuccess(successMessage);
       return;
     }
     if (result.status === "conflict") {
@@ -172,32 +177,36 @@ export function LifecycleActions({
         </div>
       ) : null}
       {error ? (
-        <p
-          className={styles.draftError}
+        <InlineNotice
+          action={
+            recovery?.kind === "retry" ? (
+              <Button
+                isLoading={pending === recovery.action}
+                onClick={() => void run(recovery.action)}
+                tone="secondary"
+                icon="retry"
+              >
+                Повторить действие
+              </Button>
+            ) : recovery?.kind === "refresh" || conflict ? (
+              <Button
+                isLoading={pending === "refresh"}
+                onClick={() => void refresh()}
+                tone="secondary"
+                icon="retry"
+              >
+                Обновить строку
+              </Button>
+            ) : undefined
+          }
           ref={alertRef}
           role="alert"
           tabIndex={-1}
+          title="Не удалось выполнить действие"
+          tone="danger"
         >
           {error}
-        </p>
-      ) : null}
-      {recovery?.kind === "retry" ? (
-        <Button
-          isLoading={pending === recovery.action}
-          onClick={() => void run(recovery.action)}
-          tone="primary"
-        >
-          Повторить действие
-        </Button>
-      ) : null}
-      {recovery?.kind === "refresh" || conflict ? (
-        <Button
-          isLoading={pending === "refresh"}
-          onClick={() => void refresh()}
-          tone="primary"
-        >
-          Обновить строку
-        </Button>
+        </InlineNotice>
       ) : null}
     </section>
   );
@@ -229,4 +238,19 @@ function confirmationCopy(action: LifecycleAction): string {
   return action === "mark_duplicate"
     ? "Пометить строку дублем? Она не попадёт в официальный ledger."
     : "Игнорировать строку? Она не попадёт в официальный ledger.";
+}
+
+function lifecycleSuccessMessage(
+  action: LifecycleAction,
+  previousStatus: ImportReviewDto["items"][number]["status"],
+): string | null {
+  if (action === "mark_duplicate") return "Строка отмечена дублем.";
+  if (action === "ignore") return "Строка исключена из обработки.";
+  if (
+    action === "needs_review" &&
+    (previousStatus === "ignored" || previousStatus === "duplicate")
+  ) {
+    return "Строка возвращена на проверку.";
+  }
+  return null;
 }

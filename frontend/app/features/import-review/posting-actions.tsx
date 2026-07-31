@@ -5,6 +5,7 @@ import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-di
 import { Field } from "../../ui/field/field";
 import { FormActions } from "../../ui/field/form-layout";
 import { Icon } from "../../ui/icon/icon";
+import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import {
   loadImportReview,
   type ImportReviewDto,
@@ -25,6 +26,7 @@ type PostingActionProps = {
   onCancel?: () => void;
   onMenuDismiss?: () => void;
   onReviewReconciled: (review: ImportReviewDto) => void;
+  onSuccess: (message: string) => void;
   propertyName?: string;
   readonly?: boolean;
 };
@@ -39,6 +41,7 @@ export function ConfirmPostingAction({
   onCancel,
   onMenuDismiss,
   onReviewReconciled,
+  onSuccess,
   propertyName = "Без объекта",
   variant = "panel",
 }: PostingActionProps & {
@@ -52,7 +55,8 @@ export function ConfirmPostingAction({
   const [refreshing, setRefreshing] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const alertRef = useRef<HTMLParagraphElement>(null);
+  const [canRetry, setCanRetry] = useState(false);
+  const alertRef = useRef<HTMLDivElement>(null);
   const rulePatternRef = useRef<HTMLInputElement>(null);
   const idempotencyKey = useRef(crypto.randomUUID());
   const cleanedRulePattern = rulePattern.trim();
@@ -91,6 +95,7 @@ export function ConfirmPostingAction({
     setError(null);
     setRulePatternError(null);
     setConflict(false);
+    setCanRetry(false);
     const result = await confirmImportReviewItem(
       documentId,
       item.id,
@@ -114,6 +119,7 @@ export function ConfirmPostingAction({
       if (review) {
         onReviewReconciled(review);
       }
+      onSuccess("Операция проведена.");
       return;
     }
     if (result.status === "conflict") setConflict(true);
@@ -126,11 +132,15 @@ export function ConfirmPostingAction({
       return;
     }
     setError(postingError(result));
+    setCanRetry(
+      result.status !== "unauthenticated" && result.status !== "forbidden",
+    );
   }
 
   async function refresh() {
     setRefreshing(true);
     setError(null);
+    setCanRetry(false);
     const result = await loadImportReview(documentId);
     setRefreshing(false);
     if (result.status === "success") {
@@ -143,6 +153,7 @@ export function ConfirmPostingAction({
         ? result.message
         : "Не удалось обновить import review.",
     );
+    setCanRetry(true);
   }
 
   if (variant === "quick") {
@@ -222,17 +233,31 @@ export function ConfirmPostingAction({
           {rememberRule ? "Провести с правилом" : "Провести"}
         </Button>
       </FormActions>
-      <PostingError error={error} ref={alertRef} />
-      {conflict ? (
-        <Button
-          isLoading={refreshing}
-          onClick={() => void refresh()}
-          tone="secondary"
-          icon="retry"
-        >
-          Обновить строку
-        </Button>
-      ) : null}
+      <PostingError
+        action={
+          conflict ? (
+            <Button
+              isLoading={refreshing}
+              onClick={() => void refresh()}
+              tone="secondary"
+              icon="retry"
+            >
+              Обновить строку
+            </Button>
+          ) : canRetry ? (
+            <Button
+              disabled={pending || refreshing}
+              icon="retry"
+              onClick={() => void confirm()}
+              tone="secondary"
+            >
+              Повторить
+            </Button>
+          ) : undefined
+        }
+        error={error}
+        ref={alertRef}
+      />
     </section>
   );
 }
@@ -243,12 +268,13 @@ export function UndoPostingAction({
   item,
   onMenuDismiss,
   onReviewReconciled,
+  onSuccess,
   readonly = false,
 }: PostingActionProps) {
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const alertRef = useRef<HTMLParagraphElement>(null);
+  const alertRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (error) alertRef.current?.focus();
@@ -278,6 +304,7 @@ export function UndoPostingAction({
       if (review) {
         onReviewReconciled(review);
       }
+      onSuccess("Проведение отменено. Строка возвращена на проверку.");
       return;
     }
     setError(postingError(result));
@@ -315,17 +342,26 @@ export function UndoPostingAction({
 }
 
 function PostingError({
+  action,
   error,
   ref,
 }: {
+  action?: React.ReactNode;
   error: string | null;
-  ref: React.Ref<HTMLParagraphElement>;
+  ref: React.Ref<HTMLDivElement>;
 }) {
   if (!error) return null;
   return (
-    <p className={styles.draftError} ref={ref} role="alert" tabIndex={-1}>
+    <InlineNotice
+      action={action}
+      ref={ref}
+      role="alert"
+      tabIndex={-1}
+      title="Не удалось изменить операцию"
+      tone="danger"
+    >
       {error}
-    </p>
+    </InlineNotice>
   );
 }
 

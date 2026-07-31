@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -29,14 +29,29 @@ describe("manual operation deletion", () => {
       screen.getByRole("button", { name: "Удалить окончательно" }),
     );
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(screen.getByText(/без возможности восстановления/)).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Не удалять" }));
+    const dialog = screen.getByRole("dialog", { name: "Удалить операцию?" });
+    expect(dialog).toHaveTextContent("без возможности восстановления");
+    const cancel = within(dialog).getByRole("button", { name: "Не удалять" });
+    const confirm = within(dialog).getByRole("button", {
+      name: "Удалить навсегда",
+    });
+    expect(cancel).toHaveAttribute("data-tone", "secondary");
+    expect(cancel).toHaveFocus();
+    expect(cancel.compareDocumentPosition(confirm)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    await user.click(cancel);
     expect(fetchMock).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Удалить окончательно" }),
+      ).toHaveFocus(),
+    );
 
     await user.click(
       screen.getByRole("button", { name: "Удалить окончательно" }),
     );
-    await user.click(screen.getByRole("button", { name: "Да, удалить" }));
+    await user.click(screen.getByRole("button", { name: "Удалить навсегда" }));
 
     await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(operationId));
     expect(fetchMock).toHaveBeenCalledWith(
@@ -78,11 +93,14 @@ describe("manual operation deletion", () => {
     await user.click(
       screen.getByRole("button", { name: "Удалить окончательно" }),
     );
-    await user.click(screen.getByRole("button", { name: "Да, удалить" }));
-    expect(
-      await screen.findByText("Операция уже изменилась в другом окне."),
-    ).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Обновить строку" }));
+    await user.click(screen.getByRole("button", { name: "Удалить навсегда" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Операция уже была изменена");
+    const refresh = within(alert).getByRole("button", {
+      name: "Обновить строку",
+    });
+    expect(refresh).toHaveAttribute("data-tone", "secondary");
+    await user.click(refresh);
 
     expect(onRefresh).toHaveBeenCalledOnce();
     expect(

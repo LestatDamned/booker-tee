@@ -49,6 +49,12 @@ describe("SessionShell", () => {
       </MemoryRouter>,
     );
 
+    expect(
+      screen.getByRole("link", { name: "Перейти к содержимому" }),
+    ).toHaveAttribute("href", "#app-main-content");
+    expect(screen.getByRole("main")).toHaveAttribute("id", "app-main-content");
+    expect(screen.getByRole("main")).toHaveAttribute("tabindex", "-1");
+
     const sidebar = screen.getByRole("complementary");
     expect(
       within(sidebar).getByRole("link", {

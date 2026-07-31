@@ -27,6 +27,7 @@ import { WorkbenchHeader } from "../../ui/workbench-surface/workbench-header";
 import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import { WorkbenchSearch } from "../../ui/workbench-toolbar/workbench-search";
 import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
+import { ToastViewport, useToastQueue } from "../../ui/toast/toast";
 import type { AccountDetailDto } from "./api/account-detail-api";
 import type { AccountSummaryDto } from "./api/accounts-api";
 import {
@@ -77,7 +78,7 @@ export function AccountDetailPage({
     sourceUpdatedAt: string;
     value: AccountDetailDto["account"];
   } | null>(null);
-  const [feedback, setFeedback] = useState("");
+  const { dismissToast, showToast, toast } = useToastQueue();
   const account =
     accountOverride?.sourceUpdatedAt === detail.account.updatedAt
       ? accountOverride.value
@@ -126,7 +127,7 @@ export function AccountDetailPage({
       },
     });
     setSettingsOpen(false);
-    setFeedback(message);
+    showToast({ message });
   }
 
   function commitMovement(committed: AccountDetailDto["items"][number]) {
@@ -141,7 +142,7 @@ export function AccountDetailPage({
       },
     }));
     setEditingMovement(null);
-    setFeedback("Исправления операции сохранены.");
+    showToast({ message: "Исправления операции сохранены." });
   }
 
   return (
@@ -176,10 +177,7 @@ export function AccountDetailPage({
                     <Button
                       data-account-settings-trigger
                       icon="edit"
-                      onClick={() => {
-                        setFeedback("");
-                        setSettingsOpen(true);
-                      }}
+                      onClick={() => setSettingsOpen(true)}
                       tone="secondary"
                     >
                       Настройки счёта
@@ -231,7 +229,7 @@ export function AccountDetailPage({
           ) : null}
 
           <WorkbenchStatus>
-            {navigationPending ? "Обновляем проводки…" : feedback}
+            {navigationPending ? "Обновляем проводки…" : ""}
           </WorkbenchStatus>
 
           <WorkbenchContent
@@ -288,6 +286,7 @@ export function AccountDetailPage({
           />
         </WorkbenchSurface>
       </PageFrame>
+      <ToastViewport onDismiss={dismissToast} toast={toast} />
       {settingsOpen ? (
         <AccountSettingsPanel
           account={account}

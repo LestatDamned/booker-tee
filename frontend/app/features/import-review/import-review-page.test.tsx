@@ -816,6 +816,11 @@ describe("import review page", () => {
     expect(
       await screen.findByText("Проверено строк: 1. Предложений применено: 1."),
     ).toBeInTheDocument();
+    expect(
+      screen
+        .getByText("Проверено строк: 1. Предложений применено: 1.")
+        .closest("[data-toast-viewport]"),
+    ).not.toBeNull();
     expect(screen.getByText("Предложено правилом")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/apply-rules"),
@@ -1312,6 +1317,7 @@ describe("import review page", () => {
     expect(
       await screen.findByRole("heading", { name: "Все строки обработаны" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Перевод проведён.")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining(`/items/${remainingItemId}/transfer`),
       expect.objectContaining({
@@ -1367,6 +1373,7 @@ describe("import review page", () => {
     expect(
       await screen.findByRole("heading", { name: "Все строки обработаны" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Строка отмечена дублем.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Завершённые 2" }));
     expect(screen.getByText("Дубль")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
@@ -1422,11 +1429,13 @@ describe("import review page", () => {
       screen.getByRole("button", { name: "Это новая операция" }),
     );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Не удалось выполнить действие");
+    expect(alert).toHaveTextContent(
       "Проверьте соединение и повторите действие",
     );
     expect(
-      screen.getByRole("button", { name: "Повторить действие" }),
+      within(alert).getByRole("button", { name: "Повторить действие" }),
     ).toBeInTheDocument();
   });
 
@@ -1455,11 +1464,11 @@ describe("import review page", () => {
       screen.getByRole("button", { name: "Это новая операция" }),
     );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Обновите строку и проверьте данные",
-    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Не удалось выполнить действие");
+    expect(alert).toHaveTextContent("Обновите строку и проверьте данные");
     expect(
-      screen.getByRole("button", { name: "Обновить строку" }),
+      within(alert).getByRole("button", { name: "Обновить строку" }),
     ).toBeInTheDocument();
   });
 
@@ -1582,6 +1591,7 @@ describe("import review page", () => {
     expect(
       await screen.findByRole("heading", { name: "Все строки обработаны" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Операция проведена.")).toBeInTheDocument();
     expect(document.getElementById(`raw-${remainingItemId}`)).toHaveAttribute(
       "data-state",
       "default",
@@ -1655,6 +1665,9 @@ describe("import review page", () => {
 
     expect(
       await screen.findByRole("heading", { name: "0 из 2 разобрано" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Проведение отменено. Строка возвращена на проверку."),
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining(`/items/${completedItemId}/undo-posting`),

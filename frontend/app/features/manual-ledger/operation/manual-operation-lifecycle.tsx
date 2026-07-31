@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { Button } from "../../../ui/button/button";
-import { FormError } from "../../../ui/field/form-error";
+import { InlineNotice } from "../../../ui/inline-notice/inline-notice";
 import type { ManualOperationDto } from "../api/manual-ledger-api";
 import {
   changeManualOperationLifecycle,
@@ -87,14 +87,33 @@ export function ManualOperationLifecycle({
         {actionLabels[action]}
       </Button>
       {state.status === "conflict" || state.status === "error" ? (
-        <div className={styles.lifecycleFeedback}>
-          <FormError announce>{state.message}</FormError>
-          {state.status === "conflict" && onRefresh ? (
-            <Button icon="retry" onClick={refresh} tone="ghost">
-              Обновить строку
-            </Button>
-          ) : null}
-        </div>
+        <InlineNotice
+          action={
+            state.status === "conflict" && onRefresh ? (
+              <Button icon="retry" onClick={refresh} tone="secondary">
+                Обновить строку
+              </Button>
+            ) : state.status === "error" ? (
+              <Button
+                icon="retry"
+                onClick={() => void changeStatus()}
+                tone="secondary"
+              >
+                Повторить
+              </Button>
+            ) : undefined
+          }
+          layout="stacked"
+          role="alert"
+          title={
+            state.status === "conflict"
+              ? "Операция уже была изменена"
+              : "Не удалось выполнить действие"
+          }
+          tone="danger"
+        >
+          {state.message}
+        </InlineNotice>
       ) : null}
     </div>
   );

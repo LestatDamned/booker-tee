@@ -22,6 +22,7 @@ import styles from "../manual-ledger.module.css";
 type ManualOperationCreateProps = {
   csrfToken: string;
   onClose: () => void;
+  onCreated?: () => void;
   onPendingChange?: (pending: boolean) => void;
   options: ManualLedgerDto["filterOptions"];
 };
@@ -38,6 +39,7 @@ type SubmitState =
 export function ManualOperationCreate({
   csrfToken,
   onClose,
+  onCreated,
   onPendingChange,
   options,
 }: ManualOperationCreateProps) {
@@ -74,6 +76,7 @@ export function ManualOperationCreate({
     );
     onPendingChange?.(false);
     if (result.status === "success") {
+      onCreated?.();
       onClose();
       setDraft(emptyManualOperationDraft());
       setIdempotencyKey(newIdempotencyKey());

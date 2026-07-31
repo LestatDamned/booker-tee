@@ -79,6 +79,10 @@ export function AppShell({ children, session }: AppShellProps) {
 
   return (
     <div className={styles.appShell}>
+      <a className={styles.skipLink} href="#app-main-content">
+        Перейти к содержимому
+      </a>
+
       <aside className={styles.sidebar}>
         <NavLink className={styles.brand ?? ""} end to="/">
           Booker Tee
@@ -125,7 +129,9 @@ export function AppShell({ children, session }: AppShellProps) {
         </details>
       </header>
 
-      <main className={styles.workspace}>{children}</main>
+      <main className={styles.workspace} id="app-main-content" tabIndex={-1}>
+        {children}
+      </main>
     </div>
   );
 }

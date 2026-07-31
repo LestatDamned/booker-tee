@@ -2,6 +2,8 @@ import { type FormEvent, type RefObject, useRef, useState } from "react";
 
 import { Button } from "../../ui/button/button";
 import { Field } from "../../ui/field/field";
+import { FormError } from "../../ui/field/form-error";
+import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { SearchableSelect } from "../../ui/searchable-select/searchable-select";
 import type { ImportReviewDto } from "./api/import-review-api";
 import {
@@ -17,6 +19,7 @@ import { ConfirmPostingAction } from "./posting-actions";
 import { TransferPanel } from "./transfer-panel";
 
 type ReviewMode = "ordinary" | "transfer";
+type ClassificationRecovery = "category" | "evaluation" | null;
 
 type ClassificationPanelProps = {
   categories: ImportReviewDto["references"]["categories"];
@@ -26,6 +29,7 @@ type ClassificationPanelProps = {
   onCancel: () => void;
   onCategoryCreated: (category: ImportReviewCategoryReferenceDto) => void;
   onReviewReconciled: (review: ImportReviewDto) => void;
+  onSuccess: (message: string) => void;
   properties: ImportReviewDto["references"]["properties"];
   readonly: boolean;
 };
@@ -38,6 +42,7 @@ export function ClassificationPanel({
   onCancel,
   onCategoryCreated,
   onReviewReconciled,
+  onSuccess,
   properties,
   readonly,
 }: ClassificationPanelProps) {
@@ -56,6 +61,7 @@ export function ClassificationPanel({
   const [dirty, setDirty] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recovery, setRecovery] = useState<ClassificationRecovery>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
   const [editorResetVersion, setEditorResetVersion] = useState(0);
@@ -77,6 +83,7 @@ export function ClassificationPanel({
     setDraft(next);
     setDirty(true);
     setError(null);
+    setRecovery(null);
     setFieldErrors({});
     void runEvaluation(next);
   }
@@ -85,6 +92,7 @@ export function ClassificationPanel({
     const requestId = ++evaluationRequestId.current;
     setPending(true);
     setError(null);
+    setRecovery(null);
     setFieldErrors({});
     const result = await evaluateImportReviewDraft(
       documentId,
@@ -107,14 +115,20 @@ export function ClassificationPanel({
       );
     } else {
       setError(draftMutationError(result));
+      setRecovery("evaluation");
     }
   }
 
   async function handleCreateCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    await createCategory();
+  }
+
+  async function createCategory() {
     const requestId = ++categoryRequestId.current;
     setPending(true);
     setError(null);
+    setRecovery(null);
     setFieldErrors({});
     const result = await createImportReviewCategory(
       documentId,
@@ -137,12 +151,14 @@ export function ClassificationPanel({
       categoryNameRef.current?.focus();
     } else {
       setError(categoryMutationError(result));
+      setRecovery("category");
     }
   }
 
   function changeMode(nextMode: ReviewMode) {
     setMode(nextMode);
     setError(null);
+    setRecovery(null);
     setFieldErrors({});
     if (nextMode === "ordinary") {
       void runEvaluation(draft);
@@ -159,6 +175,7 @@ export function ClassificationPanel({
     setDirty(false);
     setPending(false);
     setError(null);
+    setRecovery(null);
     setFieldErrors({});
     setCategoryEditorOpen(false);
     setCategoryName("");
@@ -188,6 +205,7 @@ export function ClassificationPanel({
               item={item}
               onCancel={cancelChanges}
               onReviewReconciled={onReviewReconciled}
+              onSuccess={onSuccess}
               onSelectionChange={setTransferSelection}
               selection={transferSelection}
             />
@@ -224,20 +242,42 @@ export function ClassificationPanel({
         </>
       )}
       {error ? (
-        <div className={styles.errorRecovery}>
-          <p className={styles.draftError} role="alert">
+        Object.keys(fieldErrors).length > 0 ? (
+          <FormError announce>{error}</FormError>
+        ) : (
+          <InlineNotice
+            action={
+              recovery === "evaluation" ? (
+                <Button
+                  disabled={pending}
+                  icon="retry"
+                  onClick={() => void runEvaluation(draft)}
+                  tone="secondary"
+                >
+                  Повторить проверку
+                </Button>
+              ) : recovery === "category" ? (
+                <Button
+                  disabled={pending}
+                  icon="retry"
+                  onClick={() => void createCategory()}
+                  tone="secondary"
+                >
+                  Повторить создание
+                </Button>
+              ) : undefined
+            }
+            role="alert"
+            title={
+              recovery === "category"
+                ? "Не удалось создать категорию"
+                : "Не удалось проверить выбор"
+            }
+            tone="danger"
+          >
             {error}
-          </p>
-          {Object.keys(fieldErrors).length === 0 && mode === "ordinary" ? (
-            <Button
-              disabled={pending}
-              onClick={() => void runEvaluation(draft)}
-              tone="secondary"
-            >
-              Повторить проверку
-            </Button>
-          ) : null}
-        </div>
+          </InlineNotice>
+        )
       ) : null}
       {mode === "ordinary" ? (
         <section
@@ -260,6 +300,7 @@ export function ClassificationPanel({
               key={editorResetVersion}
               onCancel={cancelChanges}
               onReviewReconciled={onReviewReconciled}
+              onSuccess={onSuccess}
               propertyName={
                 properties.find(
                   (property) => property.id === evaluation.selection.propertyId,

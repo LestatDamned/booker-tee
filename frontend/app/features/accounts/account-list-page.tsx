@@ -28,6 +28,7 @@ import { WorkbenchHeader } from "../../ui/workbench-surface/workbench-header";
 import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import { WorkbenchSearch } from "../../ui/workbench-toolbar/workbench-search";
 import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
+import { ToastViewport, useToastQueue } from "../../ui/toast/toast";
 import {
   changeAccountLifecycle,
   createAccount,
@@ -69,16 +70,20 @@ export function AccountListPage({
   );
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [confirmCreateClose, setConfirmCreateClose] = useState(false);
   const [lifecyclePendingId, setLifecyclePendingId] = useState<string | null>(
     null,
   );
+  const [lifecycleFailure, setLifecycleFailure] = useState<{
+    account: AccountSummaryDto;
+    action: AccountLifecycleAction;
+    message: string;
+  } | null>(null);
   const [archiveCandidate, setArchiveCandidate] =
     useState<AccountSummaryDto | null>(null);
-  const [lifecycleMessage, setLifecycleMessage] = useState<string | null>(null);
+  const { dismissToast, showToast, toast } = useToastQueue();
   const query = accountListQuery(location.search);
   const activeCount = accounts.filter((account) => account.isActive).length;
   const archivedCount = accounts.length - activeCount;
@@ -95,7 +100,6 @@ export function AccountListPage({
     setDraft((current) => ({ ...current, [field]: value }));
     setFieldErrors((current) => ({ ...current, [field]: undefined }));
     setSubmitError(null);
-    setSuccessMessage(null);
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -103,7 +107,6 @@ export function AccountListPage({
     const nextErrors = validateAccountDraft(draft);
     setFieldErrors(nextErrors);
     setSubmitError(null);
-    setSuccessMessage(null);
     const invalidField = firstInvalidField(nextErrors);
     if (invalidField) {
       fieldRefs({
@@ -125,7 +128,7 @@ export function AccountListPage({
       setAccounts((current) => insertCommittedAccount(current, result.account));
       setDraft(emptyDraft(session, directory));
       setFieldErrors({});
-      setSuccessMessage(`Счёт «${result.account.name}» создан.`);
+      showToast({ message: `Счёт «${result.account.name}» создан.` });
       setCreateOpen(false);
       void navigate({ pathname: location.pathname, search: "", hash: "" });
       return;
@@ -183,7 +186,7 @@ export function AccountListPage({
     action: AccountLifecycleAction,
   ) {
     setLifecyclePendingId(account.id);
-    setLifecycleMessage(null);
+    setLifecycleFailure(null);
     const result = await changeAccountLifecycle({
       account,
       action,
@@ -197,11 +200,12 @@ export function AccountListPage({
         ),
       );
       setArchiveCandidate(null);
-      setLifecycleMessage(
-        action === "archive"
-          ? `Счёт «${result.account.name}» перенесён в архив.`
-          : `Счёт «${result.account.name}» восстановлен.`,
-      );
+      showToast({
+        message:
+          action === "archive"
+            ? `Счёт «${result.account.name}» перенесён в архив.`
+            : `Счёт «${result.account.name}» восстановлен.`,
+      });
       return;
     }
     if (result.status === "unauthenticated") {
@@ -209,7 +213,7 @@ export function AccountListPage({
       return;
     }
     setArchiveCandidate(null);
-    setLifecycleMessage(result.message);
+    setLifecycleFailure({ account, action, message: result.message });
   }
 
   return (
@@ -281,9 +285,30 @@ export function AccountListPage({
             </InlineNotice>
           ) : null}
 
-          <p className={styles.liveMessage} aria-live="polite">
-            {successMessage ?? lifecycleMessage}
-          </p>
+          {lifecycleFailure ? (
+            <InlineNotice
+              action={
+                <Button
+                  icon="retry"
+                  onClick={() =>
+                    void runLifecycle(
+                      lifecycleFailure.account,
+                      lifecycleFailure.action,
+                    )
+                  }
+                  tone="secondary"
+                >
+                  Повторить
+                </Button>
+              }
+              className={styles.accountReadonlyNotice}
+              role="alert"
+              title="Не удалось изменить состояние счёта"
+              tone="danger"
+            >
+              {lifecycleFailure.message}
+            </InlineNotice>
+          ) : null}
 
           {accounts.length === 0 ? (
             <WorkbenchEmptyState
@@ -352,6 +377,8 @@ export function AccountListPage({
           )}
         </WorkbenchSurface>
       </PageFrame>
+
+      <ToastViewport onDismiss={dismissToast} toast={toast} />
 
       {createOpen ? (
         <WorkbenchPanel
@@ -566,10 +593,7 @@ function AccountTable({
         {accounts.map((account) => (
           <tr data-account-record key={account.id}>
             <th scope="row">
-              <a
-                className={styles.accountLink}
-                href={`/app/accounts/${account.id}`}
-              >
+              <a data-record-identity href={`/app/accounts/${account.id}`}>
                 {account.name}
               </a>
               <span className={styles.accountMeta}>
@@ -607,13 +631,10 @@ function AccountMobileList({
     <ol aria-label="Счета текущего workspace">
       {accounts.map((account) => (
         <li key={account.id}>
-          <article className={styles.mobileRecord} data-account-record>
+          <article data-account-record data-responsive-record>
             <div className={styles.mobileHeading}>
               <div>
-                <a
-                  className={styles.accountLink}
-                  href={`/app/accounts/${account.id}`}
-                >
+                <a data-record-identity href={`/app/accounts/${account.id}`}>
                   {account.name}
                 </a>
                 <span className={styles.accountMeta}>

@@ -169,13 +169,7 @@ function ThemePreview({ label, theme }: ThemePreviewProps) {
             id={`${theme}-description`}
           />
         </Field>
-        <RequestState message="Обновляем данные…" status="loading" />
-        <RequestState
-          message="Проверьте соединение и повторите запрос."
-          onRetry={() => undefined}
-          status="error"
-          title="Не удалось загрузить операции"
-        />
+        <RequestState message="Обновляем данные…" />
       </section>
 
       <section className={styles.section}>

@@ -23,6 +23,7 @@ type ManualOperationRowProps = {
   onEditClosed: () => void;
   onRefresh?: () => void;
   onOperationUpdated?: (operation: ManualOperationDto) => void;
+  onSuccess?: (message: string) => void;
   onWorkStarted: () => void;
   operation: ManualOperationRowModel;
 };
@@ -37,6 +38,7 @@ export function ManualOperationRow({
   onEditClosed,
   onRefresh,
   onOperationUpdated,
+  onSuccess,
   onWorkStarted,
   operation,
 }: ManualOperationRowProps) {
@@ -67,9 +69,10 @@ export function ManualOperationRow({
                       disabled={mutationPending}
                       onPendingChange={setMutationPending}
                       {...(onRefresh === undefined ? {} : { onRefresh })}
-                      {...(onOperationUpdated === undefined
-                        ? {}
-                        : { onUpdated: onOperationUpdated })}
+                      onUpdated={(updated) => {
+                        onOperationUpdated?.(updated);
+                        onSuccess?.("Операция отменена.");
+                      }}
                       operationId={operation.id}
                       version={operation.version}
                     />
@@ -78,7 +81,10 @@ export function ManualOperationRow({
                     <ManualOperationDelete
                       csrfToken={csrfToken}
                       disabled={mutationPending}
-                      {...(onDeleted === undefined ? {} : { onDeleted })}
+                      onDeleted={(operationId) => {
+                        onDeleted?.(operationId);
+                        onSuccess?.("Операция удалена.");
+                      }}
                       onPendingChange={setMutationPending}
                       {...(onRefresh === undefined ? {} : { onRefresh })}
                       operationId={operation.id}
@@ -110,9 +116,10 @@ export function ManualOperationRow({
                   disabled={mutationPending}
                   onPendingChange={setMutationPending}
                   {...(onRefresh === undefined ? {} : { onRefresh })}
-                  {...(onOperationUpdated === undefined
-                    ? {}
-                    : { onUpdated: onOperationUpdated })}
+                  onUpdated={(updated) => {
+                    onOperationUpdated?.(updated);
+                    onSuccess?.("Операция восстановлена.");
+                  }}
                   operationId={operation.id}
                   version={operation.version}
                 />
@@ -136,9 +143,10 @@ export function ManualOperationRow({
               disabled={mutationPending}
               onClose={closeEdit}
               onPendingChange={setMutationPending}
-              {...(onOperationUpdated === undefined
-                ? {}
-                : { onUpdated: onOperationUpdated })}
+              onUpdated={(updated) => {
+                onOperationUpdated?.(updated);
+                onSuccess?.("Изменения операции сохранены.");
+              }}
               operationId={operation.id}
             />
           </ExpansionPanel>

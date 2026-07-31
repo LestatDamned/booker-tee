@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -73,10 +73,13 @@ describe("manual operation lifecycle", () => {
     await user.click(
       screen.getByRole("button", { name: "Восстановить операцию" }),
     );
-    expect(
-      await screen.findByText("Операция уже изменилась в другом окне."),
-    ).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Обновить строку" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Операция уже была изменена");
+    const refresh = within(alert).getByRole("button", {
+      name: "Обновить строку",
+    });
+    expect(refresh).toHaveAttribute("data-tone", "secondary");
+    await user.click(refresh);
 
     expect(onRefresh).toHaveBeenCalledOnce();
     expect(
@@ -105,9 +108,11 @@ describe("manual operation lifecycle", () => {
 
     const action = screen.getByRole("button", { name: "Отменить операцию" });
     await user.click(action);
-    expect(await screen.findByText("Backend недоступен.")).toBeVisible();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Не удалось выполнить действие");
+    expect(alert).toHaveTextContent("Backend недоступен.");
 
-    await user.click(action);
+    await user.click(within(alert).getByRole("button", { name: "Повторить" }));
     await waitFor(() =>
       expect(onUpdated).toHaveBeenCalledWith(updatedOperation),
     );

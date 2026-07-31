@@ -34,4 +34,5 @@
   --duration-normal: 220ms;
   --focus-ring-width: 3px;
   --z-header: 20;
+  --z-toast: 1000;
 }
