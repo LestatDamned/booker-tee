@@ -12,9 +12,14 @@ from app.features.properties.schemas import (
     PropertyDirectoryCapabilitiesDto,
     PropertyDirectoryDto,
     PropertyDirectoryReadonlyReason,
+    PropertyLifecycleCommand,
+    PropertyLifecycleImpactDto,
+    PropertyLifecycleResultDto,
     PropertySummaryCapabilitiesDto,
     PropertySummaryDto,
+    UpdatePropertyCommand,
 )
+from app.features.properties.service import PropertyError
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.main import create_app
 
@@ -24,6 +29,10 @@ class PropertyDirectoryServiceStub:
         self.directory = directory
         self.read_calls: list[tuple[UUID, bool]] = []
         self.create_calls: list[tuple[UUID, CreatePropertyCommand]] = []
+        self.update_calls: list[tuple[UUID, UUID, UpdatePropertyCommand]] = []
+        self.update_error: PropertyError | None = None
+        self.lifecycle_calls: list[tuple[UUID, UUID, PropertyStatus, PropertyLifecycleCommand]] = []
+        self.lifecycle_error: PropertyError | None = None
 
     async def read(
         self,
@@ -41,6 +50,50 @@ class PropertyDirectoryServiceStub:
         command: CreatePropertyCommand,
     ) -> PropertySummaryDto:
         self.create_calls.append((workspace_id, command))
+        return self.directory.items[0]
+
+    async def set_status(
+        self,
+        *,
+        workspace_id: UUID,
+        property_id: UUID,
+        status: PropertyStatus,
+        command: PropertyLifecycleCommand,
+    ) -> PropertyLifecycleResultDto:
+        self.lifecycle_calls.append((workspace_id, property_id, status, command))
+        if self.lifecycle_error is not None:
+            raise self.lifecycle_error
+        source = next(item for item in self.directory.items if item.id == property_id)
+        property_ = source.model_copy(
+            update={
+                "status": status,
+                "archived_at": source.updated_at if status == PropertyStatus.ARCHIVED else None,
+                "capabilities": PropertySummaryCapabilitiesDto(
+                    can_update=True,
+                    can_archive=status == PropertyStatus.ACTIVE,
+                    can_restore=status == PropertyStatus.ARCHIVED,
+                ),
+            }
+        )
+        return PropertyLifecycleResultDto(
+            property=property_,
+            impact=PropertyLifecycleImpactDto(
+                history_preserved=True,
+                active_rules_unchanged=True,
+                available_for_new_references=status == PropertyStatus.ACTIVE,
+            ),
+        )
+
+    async def update(
+        self,
+        *,
+        workspace_id: UUID,
+        property_id: UUID,
+        command: UpdatePropertyCommand,
+    ) -> PropertySummaryDto:
+        self.update_calls.append((workspace_id, property_id, command))
+        if self.update_error is not None:
+            raise self.update_error
         return self.directory.items[0]
 
 

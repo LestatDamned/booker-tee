@@ -1,6 +1,6 @@
 # Slice 04 — Archive and restore
 
-Статус: planned; blocked by README decision D2 и зависит от D1/D3.
+Статус: completed 2026-08-01; решения D1–D3 зафиксированы.
 
 ## User outcome
 
@@ -57,3 +57,36 @@ client не выводит action только из status.
 - lifecycle API/UI и cross-feature regression suite проходят;
 - SSR lifecycle остаётся доступен до Slice 05.
 
+## Completion record
+
+Implemented:
+
+- `POST /api/v1/properties/{property_id}/archive|restore` с financial-write,
+  CSRF, workspace identity, expected status и `expectedUpdatedAt`;
+- stable `404 property_not_found` и `409 property_lifecycle_conflict`, включая
+  wrong-direction и stale/double action;
+- authoritative lifecycle response с committed Property summary/capabilities и
+  explicit impact facts: история сохраняется, active rules не меняются,
+  доступность для новых references определяется сервером;
+- archive confirmation на shared `ConfirmationDialog` честно объясняет
+  сохранение операций/отчётов, исчезновение из active pickers и неизменность
+  действующих rules; restore остаётся прямым reversible action;
+- lifecycle размещён в subordinate `ActionStack` menu, pending ограничен одной
+  записью, failure использует `InlineNotice`, conflict — authoritative reload и
+  retry, success заменяет row и сообщает Toast;
+- collection state отделён от edit/lifecycle controllers, поэтому committed
+  create/edit/archive/restore используют одну замену server snapshot;
+- realistic browser scenario проходит create → edit → archive → restore.
+
+Checks:
+
+- Properties service/application/API/OpenAPI lifecycle tests;
+- active Property repository query для Manual Ledger, Import Review, Chat и
+  rule forms; archived history/report aggregate и transfer regression tests;
+- React API/page tests для confirmation copy/focus, server capabilities,
+  archive/restore row movement и conflict reload/retry;
+- Ruff, ty, frontend format/lint/styles/API/type/build;
+- end-to-end browser audit Mocha и Latte на 1440/920/390.
+
+Known follow-up: SSR lifecycle остаётся рабочим до replacement gate. Canonical
+routing, compatibility redirect и legacy deletion выполняются в Slice 05.

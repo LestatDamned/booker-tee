@@ -41,3 +41,23 @@ class CreatePropertyCommand(ApplicationModel):
     name: str
     short_name: str | None
     address: str | None
+
+
+class UpdatePropertyCommand(CreatePropertyCommand):
+    expected_updated_at: datetime
+
+
+class PropertyLifecycleCommand(ApplicationModel):
+    expected_status: PropertyStatus
+    expected_updated_at: datetime
+
+
+class PropertyLifecycleImpactDto(ApplicationModel):
+    history_preserved: bool
+    active_rules_unchanged: bool
+    available_for_new_references: bool
+
+
+class PropertyLifecycleResultDto(ApplicationModel):
+    property: PropertySummaryDto
+    impact: PropertyLifecycleImpactDto

@@ -1,6 +1,6 @@
 # Slice 03 — Edit Property
 
-Статус: planned; использует README decision D3.
+Статус: completed 2026-08-01; использует README decision D3.
 
 ## User outcome
 
@@ -51,3 +51,31 @@ Jinja presenter и React draft не участвуют в domain workflow.
 - no feature CSS imports из Accounts/Manual Ledger;
 - SSR edit остаётся до Slice 05.
 
+## Completion record
+
+Implemented:
+
+- workspace-scoped `PUT /api/v1/properties/{property_id}` с financial-write и
+  CSRF boundary, общей create/edit normalization и committed summary response;
+- optimistic concurrency через обязательный `expectedUpdatedAt`, stable
+  `404 property_not_found` и `409 property_update_conflict` без раскрытия
+  foreign workspace entity;
+- application mutation Protocol и service workflow, который проверяет stale
+  snapshot до mutation, commit-ит и refresh-ит authoritative timestamp;
+- inline editor для desktop table и mobile records на shared
+  `ExpansionPanel`, с одним logical open editor, `aria-controls`, focus return,
+  dirty switch/close confirmation и редактированием archived metadata;
+- client/server validation, draft preservation, explicit conflict reload,
+  authoritative row replacement и Toast;
+- realistic browser fixture теперь проходит create и edit через React API.
+
+Checks:
+
+- backend Properties application/service/API/OpenAPI tests;
+- Properties API/page tests для write permission, workspace identity, stale
+  conflict, focus, dirty switch, conflict recovery и committed token;
+- Ruff, ty, frontend format/lint/styles/API/type/build;
+- end-to-end browser audit Mocha и Latte на 1440/920/390.
+
+Known follow-up: archive/restore и row action competition остаются в Slice 04;
+SSR edit сохраняется до replacement gate Slice 05.

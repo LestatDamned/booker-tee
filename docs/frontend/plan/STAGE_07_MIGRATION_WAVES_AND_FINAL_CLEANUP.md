@@ -24,7 +24,7 @@ workflows вертикальными slices и удалить второй по�
 
 ### Wave B: reference and rule workflows
 
-1. [properties](properties/README.md) — active; Slices 01–02 completed;
+1. [properties](properties/README.md) — active; Slices 01–04 completed;
 2. categories;
 3. transaction rules.
 

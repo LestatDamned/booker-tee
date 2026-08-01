@@ -64,3 +64,23 @@ class CreatePropertyApiRequest(ApiRequestModel):
         if isinstance(value, str):
             return " ".join(value.split()) or None
         return value
+
+
+class UpdatePropertyApiRequest(CreatePropertyApiRequest):
+    expected_updated_at: datetime
+
+
+class PropertyLifecycleApiRequest(ApiRequestModel):
+    expected_status: PropertyStatus
+    expected_updated_at: datetime
+
+
+class PropertyLifecycleImpactApiResponse(ApiModel):
+    history_preserved: bool
+    active_rules_unchanged: bool
+    available_for_new_references: bool
+
+
+class PropertyLifecycleApiResponse(ApiModel):
+    property: PropertySummaryApiResponse
+    impact: PropertyLifecycleImpactApiResponse

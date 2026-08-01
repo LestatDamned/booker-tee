@@ -19,3 +19,23 @@ export function validatePropertyDraft(
   }
   return errors;
 }
+
+export function propertyFieldErrors(
+  fieldErrors: Record<string, string[]>,
+): PropertyFieldErrors {
+  const errors: PropertyFieldErrors = {};
+  for (const field of ["name", "shortName", "address"] as const) {
+    const message = fieldErrors[field]?.[0];
+    if (message) errors[field] = message;
+  }
+  return errors;
+}
+
+export function firstInvalidPropertyField(
+  errors: PropertyFieldErrors,
+): keyof CreatePropertyDraft | null {
+  for (const field of ["name", "shortName", "address"] as const) {
+    if (errors[field]) return field;
+  }
+  return null;
+}

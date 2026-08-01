@@ -3,8 +3,8 @@ import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
-import { ActionStack } from "../../ui/action-stack/action-stack";
 import { Button, RouterButtonLink } from "../../ui/button/button";
+import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
@@ -13,7 +13,6 @@ import {
   SelectionTabLink,
   SelectionTabs,
 } from "../../ui/selection-tabs/selection-tabs";
-import { StatusLabel } from "../../ui/status-label/status-label";
 import { ToastViewport, useToastQueue } from "../../ui/toast/toast";
 import { WorkbenchEmptyState } from "../../ui/workbench-empty-state/workbench-empty-state";
 import { WorkbenchHeader } from "../../ui/workbench-surface/workbench-header";
@@ -23,11 +22,13 @@ import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
 import type {
   CreatePropertyDraft,
   PropertyDirectoryDto,
-  PropertySummaryDto,
 } from "./api/properties-api";
 import { createProperty } from "./api/properties-api";
 import { PropertyCreatePanel } from "./property-create-panel";
+import { PropertyEditPanel } from "./property-edit-panel";
 import {
+  firstInvalidPropertyField,
+  propertyFieldErrors,
   type PropertyFieldErrors,
   validatePropertyDraft,
 } from "./property-form";
@@ -36,7 +37,11 @@ import {
   propertyListUrl,
   propertyMatchesSearch,
 } from "./property-list-query";
+import { PropertyMobileList, PropertyTable } from "./property-records";
 import styles from "./properties-page.module.css";
+import { usePropertyCollection } from "./use-property-collection";
+import { usePropertyEditor } from "./use-property-editor";
+import { usePropertyLifecycle } from "./use-property-lifecycle";
 
 export function PropertiesPage({
   directory,
@@ -52,7 +57,6 @@ export function PropertiesPage({
   const addressRef = useRef<HTMLTextAreaElement>(null);
   const createTriggerRef = useRef<HTMLButtonElement>(null);
   const pendingRef = useRef(false);
-  const [properties, setProperties] = useState(directory.items);
   const [draft, setDraft] = useState<CreatePropertyDraft>(emptyPropertyDraft);
   const [fieldErrors, setFieldErrors] = useState<PropertyFieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -60,6 +64,21 @@ export function PropertiesPage({
   const [createOpen, setCreateOpen] = useState(false);
   const [confirmCreateClose, setConfirmCreateClose] = useState(false);
   const { dismissToast, showToast, toast } = useToastQueue();
+  const collection = usePropertyCollection(directory.items);
+  const editor = usePropertyEditor({
+    csrfToken: session.csrfToken,
+    onCommitted: collection.replaceCommitted,
+    onReloaded: collection.replaceAll,
+    showToast,
+  });
+  const lifecycle = usePropertyLifecycle({
+    csrfToken: session.csrfToken,
+    onCommitted: collection.replaceCommitted,
+    onReloaded: collection.replaceAll,
+    showToast,
+  });
+  const { editState } = editor;
+  const { properties } = collection;
   const query = propertyListQuery(location.search);
   const activeCount = properties.filter(
     (property) => property.status === "active",
@@ -94,7 +113,7 @@ export function PropertiesPage({
     const nextErrors = validatePropertyDraft(draft);
     setFieldErrors(nextErrors);
     setSubmitError(null);
-    const invalidField = firstInvalidField(nextErrors);
+    const invalidField = firstInvalidPropertyField(nextErrors);
     if (invalidField) {
       focusPropertyField(invalidField, {
         addressRef,
@@ -113,9 +132,7 @@ export function PropertiesPage({
     pendingRef.current = false;
     setPending(false);
     if (result.status === "success") {
-      setProperties((current) =>
-        insertCommittedProperty(current, result.property),
-      );
+      collection.commitCreated(result.property);
       setDraft(emptyPropertyDraft);
       setFieldErrors({});
       showToast({ message: `Объект «${result.property.name}» создан.` });
@@ -135,7 +152,7 @@ export function PropertiesPage({
     const serverErrors = propertyFieldErrors(result.fieldErrors);
     setFieldErrors(serverErrors);
     setSubmitError(result.message);
-    const serverInvalidField = firstInvalidField(serverErrors);
+    const serverInvalidField = firstInvalidPropertyField(serverErrors);
     if (serverInvalidField) {
       focusPropertyField(serverInvalidField, {
         addressRef,
@@ -159,6 +176,25 @@ export function PropertiesPage({
     setSubmitError(null);
     setConfirmCreateClose(false);
     setCreateOpen(false);
+  }
+
+  function renderEditor(propertyId: string, panelId: string) {
+    if (!editState || editState.snapshot.id !== propertyId) return null;
+    return (
+      <PropertyEditPanel
+        conflict={editState.conflict}
+        draft={editState.draft}
+        fieldErrors={editState.fieldErrors}
+        onChange={editor.changeDraft}
+        onClose={editor.requestClose}
+        onReload={() => void editor.reloadSnapshot()}
+        onSubmit={editor.submit}
+        panelId={panelId}
+        pending={editState.pending}
+        propertyId={propertyId}
+        submitError={editState.submitError}
+      />
+    );
   }
 
   return (
@@ -235,6 +271,34 @@ export function PropertiesPage({
             </InlineNotice>
           ) : null}
 
+          {lifecycle.failure ? (
+            <InlineNotice
+              action={
+                <Button
+                  disabled={lifecycle.pendingId !== null}
+                  icon="retry"
+                  isLoading={lifecycle.pendingId !== null}
+                  onClick={() =>
+                    lifecycle.failure?.conflict
+                      ? void lifecycle.refreshAndRetry()
+                      : lifecycle.retry()
+                  }
+                  tone="secondary"
+                >
+                  {lifecycle.failure.conflict
+                    ? "Обновить и повторить"
+                    : "Повторить"}
+                </Button>
+              }
+              className={styles.readonlyNotice}
+              role="alert"
+              title="Не удалось изменить состояние объекта"
+              tone="danger"
+            >
+              {lifecycle.failure.message}
+            </InlineNotice>
+          ) : null}
+
           {properties.length === 0 ? (
             <WorkbenchEmptyState
               action={
@@ -256,8 +320,32 @@ export function PropertiesPage({
             </WorkbenchEmptyState>
           ) : visibleProperties.length > 0 ? (
             <ResponsiveRecordCollection
-              mobileList={<PropertyMobileList properties={visibleProperties} />}
-              table={<PropertyTable properties={visibleProperties} />}
+              mobileList={
+                <PropertyMobileList
+                  editingId={editState?.snapshot.id ?? null}
+                  lifecyclePendingId={lifecycle.pendingId}
+                  onArchive={lifecycle.requestArchive}
+                  onEdit={editor.requestEdit}
+                  onRestore={lifecycle.restore}
+                  properties={visibleProperties}
+                  renderEditor={(property, panelId) =>
+                    renderEditor(property.id, panelId)
+                  }
+                />
+              }
+              table={
+                <PropertyTable
+                  editingId={editState?.snapshot.id ?? null}
+                  lifecyclePendingId={lifecycle.pendingId}
+                  onArchive={lifecycle.requestArchive}
+                  onEdit={editor.requestEdit}
+                  onRestore={lifecycle.restore}
+                  properties={visibleProperties}
+                  renderEditor={(property, panelId) =>
+                    renderEditor(property.id, panelId)
+                  }
+                />
+              }
             />
           ) : (
             <WorkbenchEmptyState
@@ -308,105 +396,33 @@ export function PropertiesPage({
           submitError={submitError}
         />
       ) : null}
+
+      {editor.confirmation ? (
+        <ConfirmationDialog
+          cancelLabel="Продолжить редактирование"
+          confirmLabel="Отменить изменения"
+          description="Несохранённые изменения объекта будут потеряны."
+          onCancel={editor.cancelDiscard}
+          onConfirm={editor.confirmDiscard}
+          title={
+            editor.confirmation === "switch"
+              ? "Перейти к другому объекту?"
+              : "Закрыть редактирование?"
+          }
+        />
+      ) : null}
+
+      {lifecycle.archiveCandidate ? (
+        <ConfirmationDialog
+          confirmLabel="Перенести в архив"
+          description={`История, связанные операции и отчёты объекта «${lifecycle.archiveCandidate.name}» сохранятся. Объект исчезнет из выбора для новых операций, но действующие правила останутся включены и могут продолжить предлагать его.`}
+          onCancel={lifecycle.cancelArchive}
+          onConfirm={lifecycle.confirmArchive}
+          pending={lifecycle.pendingId === lifecycle.archiveCandidate.id}
+          title="Перенести объект в архив?"
+        />
+      ) : null}
     </AppShell>
-  );
-}
-
-function PropertyTable({ properties }: { properties: PropertySummaryDto[] }) {
-  return (
-    <table className={styles.table}>
-      <caption className="visually-hidden">Объекты текущего workspace</caption>
-      <thead>
-        <tr>
-          <th scope="col">Объект</th>
-          <th scope="col">Адрес</th>
-          <th scope="col">Состояние</th>
-          <th scope="col">
-            <span className="visually-hidden">Действие</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {properties.map((property) => (
-          <tr data-property-record key={property.id}>
-            <th scope="row">
-              <strong data-record-identity>{property.name}</strong>
-              {property.shortName ? (
-                <span className={styles.shortName}>{property.shortName}</span>
-              ) : null}
-            </th>
-            <td className={styles.addressCell}>
-              {property.address ?? <span aria-label="Адрес не указан">—</span>}
-            </td>
-            <td>
-              <PropertyStatus property={property} />
-            </td>
-            <td className={styles.actionCell}>
-              <PropertyActions property={property} />
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function PropertyMobileList({
-  properties,
-}: {
-  properties: PropertySummaryDto[];
-}) {
-  return (
-    <ol aria-label="Объекты текущего workspace">
-      {properties.map((property) => (
-        <li key={property.id}>
-          <article data-property-record data-responsive-record>
-            <div className={styles.mobileHeading}>
-              <div>
-                <strong data-record-identity>{property.name}</strong>
-                {property.shortName ? (
-                  <span className={styles.shortName}>
-                    Коротко: {property.shortName}
-                  </span>
-                ) : null}
-              </div>
-              <PropertyStatus property={property} />
-            </div>
-            <p className={styles.mobileAddress}>
-              {property.address ?? "Адрес не указан"}
-            </p>
-            <div className={styles.mobileFooter}>
-              <PropertyActions property={property} />
-            </div>
-          </article>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function PropertyStatus({ property }: { property: PropertySummaryDto }) {
-  return property.status === "active" ? (
-    <StatusLabel tone="success">Активен</StatusLabel>
-  ) : (
-    <StatusLabel tone="neutral">Архив</StatusLabel>
-  );
-}
-
-function PropertyActions({ property }: { property: PropertySummaryDto }) {
-  return (
-    <ActionStack
-      orientation="row"
-      primary={
-        <RouterButtonLink
-          aria-label={`Открыть отчёт по объекту «${property.name}»`}
-          icon="reports"
-          to={`/reports?property_id=${property.id}`}
-        >
-          Отчёт
-        </RouterButtonLink>
-      }
-    />
   );
 }
 
@@ -438,26 +454,6 @@ function propertyDraftIsDirty(draft: CreatePropertyDraft): boolean {
   return Boolean(draft.name || draft.shortName || draft.address);
 }
 
-function propertyFieldErrors(
-  fieldErrors: Record<string, string[]>,
-): PropertyFieldErrors {
-  const errors: PropertyFieldErrors = {};
-  for (const field of ["name", "shortName", "address"] as const) {
-    const message = fieldErrors[field]?.[0];
-    if (message) errors[field] = message;
-  }
-  return errors;
-}
-
-function firstInvalidField(
-  errors: PropertyFieldErrors,
-): keyof CreatePropertyDraft | null {
-  for (const field of ["name", "shortName", "address"] as const) {
-    if (errors[field]) return field;
-  }
-  return null;
-}
-
 function propertyFieldRefs({
   addressRef,
   nameRef,
@@ -475,20 +471,4 @@ function focusPropertyField(
   refs: Parameters<typeof propertyFieldRefs>[0],
 ) {
   window.setTimeout(() => propertyFieldRefs(refs)[field].current?.focus(), 0);
-}
-
-function insertCommittedProperty(
-  properties: PropertySummaryDto[],
-  property: PropertySummaryDto,
-): PropertySummaryDto[] {
-  const withoutCommitted = properties.filter((item) => item.id !== property.id);
-  const firstArchived = withoutCommitted.findIndex(
-    (item) => item.status === "archived",
-  );
-  if (firstArchived === -1) return [...withoutCommitted, property];
-  return [
-    ...withoutCommitted.slice(0, firstArchived),
-    property,
-    ...withoutCommitted.slice(firstArchived),
-  ];
 }

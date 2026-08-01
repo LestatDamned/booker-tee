@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createProperty, loadProperties } from "./properties-api";
+import {
+  changePropertyLifecycle,
+  createProperty,
+  loadProperties,
+  updateProperty,
+} from "./properties-api";
 
 describe("Properties API", () => {
   afterEach(() => {
@@ -128,6 +133,148 @@ describe("Properties API", () => {
       code: "validation_error",
       message: "Проверьте переданные данные.",
       fieldErrors: { name: ["Название объекта обязательно."] },
+    });
+  });
+
+  it("updates a property with CSRF and the expected timestamp", async () => {
+    const committed = {
+      ...directoryPayload.items[0],
+      name: "Квартира после ремонта",
+      updatedAt: "2026-08-01T09:00:00Z",
+    };
+    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(committed)));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      updateProperty({
+        csrfToken: "csrf-token",
+        propertyId: committed.id,
+        draft: {
+          name: committed.name,
+          shortName: "Дом",
+          address: "Мира, 1",
+          expectedUpdatedAt: "2026-08-01T08:30:00Z",
+        },
+      }),
+    ).resolves.toEqual({ status: "success", property: committed });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/properties/${committed.id}`,
+      expect.objectContaining({
+        method: "PUT",
+        body: expect.stringContaining(
+          '"expectedUpdatedAt":"2026-08-01T08:30:00Z"',
+        ),
+        headers: expect.objectContaining({ "X-CSRF-Token": "csrf-token" }),
+      }),
+    );
+  });
+
+  it("returns a recoverable update conflict", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          jsonResponse(
+            {
+              error: {
+                code: "property_update_conflict",
+                message: "Объект уже изменился. Загрузите актуальные данные.",
+              },
+            },
+            409,
+          ),
+        ),
+      ),
+    );
+
+    const property = directoryPayload.items[0];
+    await expect(
+      updateProperty({
+        csrfToken: "csrf-token",
+        propertyId: property.id,
+        draft: {
+          name: property.name,
+          shortName: property.shortName,
+          address: property.address,
+          expectedUpdatedAt: property.updatedAt,
+        },
+      }),
+    ).resolves.toEqual({
+      status: "conflict",
+      message: "Объект уже изменился. Загрузите актуальные данные.",
+    });
+  });
+
+  it("archives with the optimistic snapshot and validates impact facts", async () => {
+    const property = directoryPayload.items[0];
+    const committed = {
+      ...property,
+      status: "archived",
+      archivedAt: "2026-08-01T09:00:00Z",
+      updatedAt: "2026-08-01T09:00:00Z",
+      capabilities: {
+        canUpdate: true,
+        canArchive: false,
+        canRestore: true,
+      },
+    };
+    const impact = {
+      historyPreserved: true,
+      activeRulesUnchanged: true,
+      availableForNewReferences: false,
+    };
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(jsonResponse({ property: committed, impact })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      changePropertyLifecycle({
+        action: "archive",
+        csrfToken: "csrf-token",
+        property,
+      }),
+    ).resolves.toEqual({ status: "success", property: committed, impact });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/properties/${property.id}/archive`,
+      expect.objectContaining({
+        body: JSON.stringify({
+          expectedStatus: "active",
+          expectedUpdatedAt: property.updatedAt,
+        }),
+        headers: expect.objectContaining({ "X-CSRF-Token": "csrf-token" }),
+        method: "POST",
+      }),
+    );
+  });
+
+  it("returns a recoverable lifecycle conflict", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          jsonResponse(
+            {
+              error: {
+                code: "property_lifecycle_conflict",
+                message: "Объект уже изменился. Обновите список.",
+              },
+            },
+            409,
+          ),
+        ),
+      ),
+    );
+
+    await expect(
+      changePropertyLifecycle({
+        action: "archive",
+        csrfToken: "csrf-token",
+        property: directoryPayload.items[0],
+      }),
+    ).resolves.toEqual({
+      status: "conflict",
+      message: "Объект уже изменился. Обновите список.",
     });
   });
 });

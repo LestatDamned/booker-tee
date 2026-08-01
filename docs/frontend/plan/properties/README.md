@@ -1,6 +1,6 @@
 # Properties React migration
 
-Статус: `active`; analysis и решения D1–D4 согласованы, Slices 01–02 завершены.
+Статус: `active`; analysis и решения D1–D4 согласованы, Slices 01–04 завершены.
 
 Этот child stage описывает первую задачу Wave B: замену authenticated SSR
 страницы `/properties` на React workflow `/app/properties` и versioned JSON API.
@@ -110,8 +110,8 @@ last-write-wins, но React/API conventions уже закрепили явный
   -> 05 replacement gate + cutover + cleanup
 ```
 
-Текущее положение: Slices 01–02 completed; Slice 03 next. SSR `/properties`
-остаётся canonical до Slice 05.
+Текущее положение: Slices 01–04 completed; Slice 05 cutover/cleanup next. SSR
+`/properties` остаётся canonical до прохождения replacement gate.
 
 Каждый slice проходит `application/API -> typed state -> UI -> tests`. До Slice
 05 `/properties` остаётся canonical SSR route; наличие `/app/properties` само по

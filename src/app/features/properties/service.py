@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +9,18 @@ from app.features.properties.repository import PropertyRepository
 
 
 class PropertyError(ValueError):
+    pass
+
+
+class PropertyNotFoundError(PropertyError):
+    pass
+
+
+class PropertyUpdateConflictError(PropertyError):
+    pass
+
+
+class PropertyLifecycleConflictError(PropertyError):
     pass
 
 
@@ -62,14 +75,18 @@ class PropertyService:
         name: str,
         short_name: str | None,
         address: str | None,
+        expected_updated_at: datetime | None = None,
     ) -> Property:
         property_ = await self.properties.get_for_workspace(workspace_id, property_id)
         if property_ is None:
-            raise PropertyError("Объект не найден в этом workspace.")
+            raise PropertyNotFoundError("Объект не найден в этом workspace.")
+        if expected_updated_at is not None and property_.updated_at != expected_updated_at:
+            raise PropertyUpdateConflictError("Объект уже изменился в другом окне.")
         property_.name = clean_required_text(name, "Название объекта обязательно.")
         property_.short_name = clean_optional_text(short_name)
         property_.address = clean_optional_text(address)
         await self.session.commit()
+        await self.session.refresh(property_)
         return property_
 
     async def set_status(
@@ -78,13 +95,20 @@ class PropertyService:
         workspace_id: UUID,
         property_id: UUID,
         status: PropertyStatus,
+        expected_status: PropertyStatus | None = None,
+        expected_updated_at: datetime | None = None,
     ) -> Property:
         property_ = await self.properties.get_for_workspace(workspace_id, property_id)
         if property_ is None:
-            raise PropertyError("Объект не найден в этом workspace.")
+            raise PropertyNotFoundError("Объект не найден в этом workspace.")
+        if expected_status is not None and property_.status != expected_status:
+            raise PropertyLifecycleConflictError("Состояние объекта уже изменилось.")
+        if expected_updated_at is not None and property_.updated_at != expected_updated_at:
+            raise PropertyLifecycleConflictError("Объект уже изменился в другом окне.")
         property_.status = status
         property_.archived_at = utc_now() if status == PropertyStatus.ARCHIVED else None
         await self.session.commit()
+        await self.session.refresh(property_)
         return property_
 
 

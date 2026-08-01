@@ -3,9 +3,19 @@
 }
 
 .createForm,
+.editForm,
 .formGrid {
   display: grid;
   gap: var(--space-4);
+}
+
+.expansionRow td {
+  background: var(--color-bg-secondary-pane);
+  padding-block: var(--space-4) !important;
+}
+
+.expansionRow:hover {
+  background: transparent !important;
 }
 
 .readonlyNotice {

@@ -392,6 +392,47 @@ def prepare_realistic_scenario(
             .filter(has_text=property_name)
             .first.wait_for(timeout=PAGE_TIMEOUT_MS)
         )
+        property_record = (
+            page.locator("[data-property-record]:visible").filter(has_text=property_name).first
+        )
+        property_record.get_by_role("button", name="Изменить", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        edit_form = page.locator("form[data-property-edit]:visible")
+        property_name = f"{property_name} edited"
+        edit_form.locator('input[name="name"]').fill(property_name)
+        edit_form.get_by_role("button", name="Сохранить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+        (
+            page.locator("[data-property-record]:visible")
+            .filter(has_text=property_name)
+            .first.wait_for(timeout=PAGE_TIMEOUT_MS)
+        )
+        property_record = (
+            page.locator("[data-property-record]:visible").filter(has_text=property_name).first
+        )
+        property_record.get_by_role("button", name="Ещё действия", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        page.get_by_role("button", name="В архив", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+        archive_dialog = page.get_by_role("dialog", name="Перенести объект в архив?", exact=True)
+        archive_dialog.get_by_role("button", name="Перенести в архив", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        page.get_by_role("link", name=re.compile(r"^Архив \d+$")).click(timeout=PAGE_TIMEOUT_MS)
+        archived_record = (
+            page.locator("[data-property-record]:visible").filter(has_text=property_name).first
+        )
+        archived_record.wait_for(timeout=PAGE_TIMEOUT_MS)
+        archived_record.get_by_role("button", name="Ещё действия", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        page.get_by_role("button", name="Восстановить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+        page.get_by_role("link", name=re.compile(r"^Активные \d+$")).click(timeout=PAGE_TIMEOUT_MS)
+        (
+            page.locator("[data-property-record]:visible")
+            .filter(has_text=property_name)
+            .first.wait_for(timeout=PAGE_TIMEOUT_MS)
+        )
 
         page.goto(build_url(base_url, "/rules"), wait_until="domcontentloaded")
         page.locator("details.rule-create-details > summary").click(timeout=PAGE_TIMEOUT_MS)

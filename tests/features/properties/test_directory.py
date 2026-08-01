@@ -5,7 +5,11 @@ import pytest
 
 from app.features.properties.application.directory import PropertyDirectoryService
 from app.features.properties.models import Property, PropertyStatus
-from app.features.properties.schemas import CreatePropertyCommand
+from app.features.properties.schemas import (
+    CreatePropertyCommand,
+    PropertyLifecycleCommand,
+    UpdatePropertyCommand,
+)
 
 
 class PropertyDirectorySourceStub:
@@ -22,6 +26,8 @@ class PropertyMutationSourceStub:
     def __init__(self, property_: Property) -> None:
         self.property = property_
         self.create_calls: list[tuple[UUID, str, str | None, str | None]] = []
+        self.update_calls: list[tuple[UUID, UUID, str, str | None, str | None, datetime]] = []
+        self.lifecycle_calls: list[tuple[UUID, UUID, PropertyStatus, PropertyStatus, datetime]] = []
 
     async def create(
         self,
@@ -32,6 +38,43 @@ class PropertyMutationSourceStub:
         address: str | None,
     ) -> Property:
         self.create_calls.append((workspace_id, name, short_name, address))
+        return self.property
+
+    async def set_status(
+        self,
+        *,
+        workspace_id: UUID,
+        property_id: UUID,
+        status: PropertyStatus,
+        expected_status: PropertyStatus,
+        expected_updated_at: datetime,
+    ) -> Property:
+        self.lifecycle_calls.append(
+            (workspace_id, property_id, status, expected_status, expected_updated_at)
+        )
+        self.property.status = status
+        return self.property
+
+    async def update(
+        self,
+        *,
+        workspace_id: UUID,
+        property_id: UUID,
+        name: str,
+        short_name: str | None,
+        address: str | None,
+        expected_updated_at: datetime,
+    ) -> Property:
+        self.update_calls.append(
+            (
+                workspace_id,
+                property_id,
+                name,
+                short_name,
+                address,
+                expected_updated_at,
+            )
+        )
         return self.property
 
 
@@ -146,3 +189,79 @@ async def test_property_directory_create_dispatches_workspace_scoped_command() -
     assert created.status == PropertyStatus.ACTIVE
     assert created.capabilities.can_update
     assert created.capabilities.can_archive
+
+
+@pytest.mark.asyncio
+async def test_property_directory_update_dispatches_identity_and_optimistic_token() -> None:
+    workspace_id = uuid4()
+    updated_at = datetime(2026, 8, 1, 8, 30, tzinfo=UTC)
+    property_ = Property(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        name="Квартира",
+        status=PropertyStatus.ACTIVE,
+        updated_at=updated_at,
+    )
+    service, _, mutations = directory_service([property_])
+
+    committed = await service.update(
+        workspace_id=workspace_id,
+        property_id=property_.id,
+        command=UpdatePropertyCommand(
+            name="Квартира после ремонта",
+            short_name="Дом",
+            address="ул. Мира, 1",
+            expected_updated_at=updated_at,
+        ),
+    )
+
+    assert mutations.update_calls == [
+        (
+            workspace_id,
+            property_.id,
+            "Квартира после ремонта",
+            "Дом",
+            "ул. Мира, 1",
+            updated_at,
+        )
+    ]
+    assert committed.id == property_.id
+
+
+@pytest.mark.asyncio
+async def test_property_lifecycle_dispatches_token_and_returns_policy_impact() -> None:
+    workspace_id = uuid4()
+    updated_at = datetime(2026, 8, 1, 8, 30, tzinfo=UTC)
+    property_ = Property(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        name="Квартира",
+        status=PropertyStatus.ACTIVE,
+        updated_at=updated_at,
+    )
+    service, _, mutations = directory_service([property_])
+
+    committed = await service.set_status(
+        workspace_id=workspace_id,
+        property_id=property_.id,
+        status=PropertyStatus.ARCHIVED,
+        command=PropertyLifecycleCommand(
+            expected_status=PropertyStatus.ACTIVE,
+            expected_updated_at=updated_at,
+        ),
+    )
+
+    assert mutations.lifecycle_calls == [
+        (
+            workspace_id,
+            property_.id,
+            PropertyStatus.ARCHIVED,
+            PropertyStatus.ACTIVE,
+            updated_at,
+        )
+    ]
+    assert committed.property.status == PropertyStatus.ARCHIVED
+    assert committed.property.capabilities.can_restore
+    assert committed.impact.history_preserved
+    assert committed.impact.active_rules_unchanged
+    assert not committed.impact.available_for_new_references
