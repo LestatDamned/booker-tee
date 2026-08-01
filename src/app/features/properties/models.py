@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 
 class PropertyStatus(StrEnum):
     ACTIVE = "active"
-    INACTIVE = "inactive"
     ARCHIVED = "archived"
 
 

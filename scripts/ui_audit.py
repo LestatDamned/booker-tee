@@ -41,6 +41,7 @@ PAGES: tuple[tuple[str, str], ...] = (
     ("/rules", "rules"),
     ("/categories", "categories"),
     ("/properties", "properties"),
+    ("/app/properties", "react-properties"),
     ("/users", "users"),
     ("/workspaces", "workspaces"),
 )
@@ -58,6 +59,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/reports?currency=RUB", "reports-redirect"),
     ("/categories", "categories"),
     ("/properties", "properties"),
+    ("/app/properties", "react-properties"),
     ("/users", "users"),
     ("/workspaces", "workspaces"),
 )
@@ -1921,7 +1923,14 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
         )
         errors.append("designer audit: account balance overlaps its row action: " + examples)
 
-    if path in {"/app/imports", "/app/accounts", "/categories", "/properties", "/rules"}:
+    if path in {
+        "/app/imports",
+        "/app/accounts",
+        "/app/properties",
+        "/categories",
+        "/properties",
+        "/rules",
+    }:
         long_technical_labels = [
             str(item.get("text") or "")
             for item in technical_summaries

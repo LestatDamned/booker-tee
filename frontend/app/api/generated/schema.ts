@@ -452,6 +452,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/properties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Properties */
+        get: operations["list_properties_api_v1_properties_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports": {
         parameters: {
             query?: never;
@@ -3036,6 +3053,60 @@ export interface components {
          * @enum {string}
          */
         ParseAttemptStatus: "running" | "success" | "requires_review" | "failed";
+        /** PropertyDirectoryApiResponse */
+        PropertyDirectoryApiResponse: {
+            /** Items */
+            items: components["schemas"]["PropertySummaryApiResponse"][];
+            capabilities: components["schemas"]["PropertyDirectoryCapabilitiesApiResponse"];
+        };
+        /** PropertyDirectoryCapabilitiesApiResponse */
+        PropertyDirectoryCapabilitiesApiResponse: {
+            /** Cancreate */
+            canCreate: boolean;
+            readonlyReasonCode: components["schemas"]["PropertyDirectoryReadonlyReason"] | null;
+        };
+        /**
+         * PropertyDirectoryReadonlyReason
+         * @enum {string}
+         */
+        PropertyDirectoryReadonlyReason: "financial_write_forbidden";
+        /**
+         * PropertyStatus
+         * @enum {string}
+         */
+        PropertyStatus: "active" | "archived";
+        /** PropertySummaryApiResponse */
+        PropertySummaryApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Shortname */
+            shortName: string | null;
+            /** Address */
+            address: string | null;
+            status: components["schemas"]["PropertyStatus"];
+            /** Archivedat */
+            archivedAt: string | null;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            capabilities: components["schemas"]["PropertySummaryCapabilitiesApiResponse"];
+        };
+        /** PropertySummaryCapabilitiesApiResponse */
+        PropertySummaryCapabilitiesApiResponse: {
+            /** Canupdate */
+            canUpdate: boolean;
+            /** Canarchive */
+            canArchive: boolean;
+            /** Canrestore */
+            canRestore: boolean;
+        };
         /**
          * RawTransactionStatus
          * @enum {string}
@@ -5504,6 +5575,44 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_properties_api_v1_properties_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PropertyDirectoryApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
