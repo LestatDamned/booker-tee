@@ -3052,8 +3052,12 @@ export interface components {
             name: string;
             /** Currency */
             currency: string;
-            /** Balance */
-            balance: string;
+            /** Openingbalance */
+            openingBalance: string;
+            /** Closingbalance */
+            closingBalance: string;
+            /** Balancechange */
+            balanceChange: string;
             /** Isactive */
             isActive: boolean;
         };
@@ -3085,6 +3089,17 @@ export interface components {
             categoryId: string | null;
             /** Propertyid */
             propertyId: string | null;
+        };
+        /** ReportBalanceSummaryApiResponse */
+        ReportBalanceSummaryApiResponse: {
+            /** Currency */
+            currency: string;
+            /** Openingbalance */
+            openingBalance: string;
+            /** Closingbalance */
+            closingBalance: string;
+            /** Balancechange */
+            balanceChange: string;
         };
         /** ReportCategoryAggregateApiResponse */
         ReportCategoryAggregateApiResponse: {
@@ -3144,6 +3159,7 @@ export interface components {
             appliedFilters: components["schemas"]["ReportAppliedFiltersApiResponse"];
             filterOptions: components["schemas"]["ReportFilterOptionsApiResponse"];
             summary: components["schemas"]["ReportMoneySummaryApiResponse"];
+            balanceSummary: components["schemas"]["ReportBalanceSummaryApiResponse"];
             /** Accountbalances */
             accountBalances: components["schemas"]["ReportAccountBalanceApiResponse"][];
             /** Categoryrows */
@@ -5670,6 +5686,9 @@ export interface operations {
             query?: {
                 date_from?: string | null;
                 date_to?: string | null;
+                currency?: string | null;
+                type?: string | null;
+                return_to?: string | null;
             };
             header?: never;
             path: {

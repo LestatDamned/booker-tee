@@ -55,6 +55,43 @@ describe("AccountDetailPage", () => {
     ).toHaveAttribute("href", expect.stringContaining("/app/ledger/manual"));
   });
 
+  it("returns to the exact report context and keeps it while resetting filters", async () => {
+    const user = userEvent.setup();
+    const returnTo =
+      "/app/reports?date_from=2026-07-01&date_to=2026-07-31&currency=RUB";
+    renderPage(
+      detail,
+      `/app/accounts/id?date_from=2026-07-01&status=confirmed&return_to=${encodeURIComponent(returnTo)}`,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Вернуться в отчёт" }),
+    ).toHaveAttribute("href", returnTo);
+
+    await user.click(screen.getByRole("button", { name: /^Показать фильтры/ }));
+    const reset = new URL(
+      screen.getByRole("link", { name: "Сбросить" }).getAttribute("href")!,
+      "http://localhost",
+    );
+    expect(reset.pathname).toBe("/app/accounts/id");
+    expect(reset.searchParams.get("return_to")).toBe(returnTo);
+  });
+
+  it("does not trust an external return target", () => {
+    renderPage(
+      detail,
+      "/app/accounts/id?return_to=https%3A%2F%2Fevil.example%2Freports",
+    );
+
+    expect(screen.getByRole("link", { name: "Все счета" })).toHaveAttribute(
+      "href",
+      "/accounts",
+    );
+    expect(
+      screen.queryByRole("link", { name: "Вернуться в отчёт" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("uses shared pagination while preserving account filters in links", () => {
     renderPage(
       {

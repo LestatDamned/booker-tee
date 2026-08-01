@@ -84,6 +84,11 @@ export function AccountDetailPage({
       ? accountOverride.value
       : detail.account;
   const params = new URLSearchParams(location.search);
+  const reportsReturnPath = safeReportsReturnPath(params.get("return_to"));
+  const resetTarget = accountDetailResetTarget(
+    location.pathname,
+    reportsReturnPath,
+  );
   const appliedFilters = accountMovementAppliedFilters(
     location.search,
     detail.filterOptions,
@@ -153,8 +158,11 @@ export function AccountDetailPage({
           className={styles.workbench}
         >
           <WorkbenchHeader>
-            <BackLink className={styles.backLink} to="/accounts">
-              Все счета
+            <BackLink
+              className={styles.backLink}
+              to={reportsReturnPath ?? "/accounts"}
+            >
+              {reportsReturnPath ? "Вернуться в отчёт" : "Все счета"}
             </BackLink>
             <PageHeader
               actions={
@@ -217,7 +225,7 @@ export function AccountDetailPage({
             </div>
             <AppliedFilterSummary
               filters={filtersOpen ? [] : appliedFilters}
-              resetTo={location.pathname}
+              resetTo={resetTarget}
             />
           </WorkbenchToolbar>
 
@@ -260,7 +268,7 @@ export function AccountDetailPage({
               <WorkbenchEmptyState
                 action={
                   filtersActive ? (
-                    <RouterButtonLink icon="filter" to={location.pathname}>
+                    <RouterButtonLink icon="filter" to={resetTarget}>
                       Сбросить фильтры
                     </RouterButtonLink>
                   ) : undefined
@@ -509,6 +517,13 @@ function AccountMovementFilters({
       "per_page",
       new URLSearchParams(location.search).get("per_page") ?? "",
     );
+    setOrDelete(
+      search,
+      "return_to",
+      safeReportsReturnPath(
+        new URLSearchParams(location.search).get("return_to"),
+      ) ?? "",
+    );
     onClose();
     void navigate(queryUrl(location.pathname, search));
   }
@@ -580,7 +595,15 @@ function AccountMovementFilters({
           />
         </div>
         <FormActions layout="split">
-          <RouterButtonLink onClick={onClose} to={location.pathname}>
+          <RouterButtonLink
+            onClick={onClose}
+            to={accountDetailResetTarget(
+              location.pathname,
+              safeReportsReturnPath(
+                new URLSearchParams(location.search).get("return_to"),
+              ),
+            )}
+          >
             Сбросить
           </RouterButtonLink>
           <Button icon="filterApply" tone="primary" type="submit">
@@ -692,4 +715,25 @@ function pageUrl(pathname: string, current: string, page: number): string {
   const search = new URLSearchParams(current);
   search.set("page", String(page));
   return queryUrl(pathname, search);
+}
+
+function safeReportsReturnPath(value: string | null): string | null {
+  if (!value || !value.startsWith("/")) return null;
+  const parsed = new URL(value, "http://booker-tee.local");
+  if (
+    parsed.origin !== "http://booker-tee.local" ||
+    parsed.pathname !== "/app/reports"
+  ) {
+    return null;
+  }
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+}
+
+function accountDetailResetTarget(
+  pathname: string,
+  reportsReturnPath: string | null,
+): string {
+  if (!reportsReturnPath) return pathname;
+  const search = new URLSearchParams({ return_to: reportsReturnPath });
+  return `${pathname}?${search.toString()}`;
 }

@@ -13,6 +13,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+.compact {
+  gap: var(--space-1);
+}
+
+.compact .amount {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
 .prominent .amount {
   font-size: var(--font-size-xl);
 }

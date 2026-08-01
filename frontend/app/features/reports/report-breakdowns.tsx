@@ -1,31 +1,23 @@
-import type { ReactNode } from "react";
-import { useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 
 import { formatMoneyAmount } from "../../shared/money/format-money";
-import { ButtonLink, RouterButtonLink } from "../../ui/button/button";
-import { MoneyValue } from "../../ui/money-value/money-value";
+import { ButtonLink } from "../../ui/button/button";
+import { Icon, type IconName } from "../../ui/icon/icon";
+import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
 import { ResponsiveRecordCollection } from "../../ui/responsive-record-collection/responsive-record-collection";
-import { WorkbenchEmptyState } from "../../ui/workbench-empty-state/workbench-empty-state";
 import type { ReportOverviewDto } from "./api/reports-api";
 import {
   reportCategorySort,
+  reportCategorySortDirection,
   reportCategorySortSearch,
-  type ReportCategorySortField,
+  type ReportCategorySort,
+  type ReportCategorySortDirection,
 } from "./report-filter-query";
+import { reportUncategorizedCorrectionHref } from "./report-uncategorized";
 import styles from "./reports-page.module.css";
 
 type CategoryRow = ReportOverviewDto["categoryRows"][number];
-type PropertyRow = ReportOverviewDto["propertyRows"][number];
-
-const categoryColumns: ReadonlyArray<{
-  field: ReportCategorySortField;
-  label: string;
-}> = [
-  { field: "name", label: "Категория" },
-  { field: "income", label: "Доходы" },
-  { field: "expense", label: "Расходы" },
-  { field: "profit", label: "Итог" },
-];
+type FlowKind = "income" | "expense";
 
 export function ReportBreakdowns({
   overview,
@@ -34,356 +26,358 @@ export function ReportBreakdowns({
 }) {
   const location = useLocation();
   const sort = reportCategorySort(location.search);
-  const categories = sortCategoryRows(overview.categoryRows, sort);
+  const sortDirection = reportCategorySortDirection(location.search);
+  const rows = sortCategoryRows(overview.categoryRows, sort, sortDirection);
+  const uncategorizedHref = reportUncategorizedCorrectionHref(overview);
 
   return (
-    <div className={styles.breakdowns}>
-      <BreakdownSection
-        description={`Результат подтверждённых операций в ${overview.summary.currency}.`}
-        eyebrow="Структура результата"
-        title="По категориям"
-      >
-        {categories.length > 0 ? (
-          <>
-            <CategoryMobileSort
-              currentPath={location.pathname}
-              currentSearch={location.search}
-              sort={sort}
-            />
-            <ResponsiveRecordCollection
-              mobileList={
-                <CategoryCards
-                  currentSearch={location.search}
-                  rows={categories}
-                />
-              }
-              table={
-                <CategoryTable
-                  currentPath={location.pathname}
-                  currentSearch={location.search}
-                  rows={categories}
-                  sort={sort}
-                />
-              }
-            />
-          </>
-        ) : (
-          <WorkbenchEmptyState
-            icon="categories"
-            title="Нет данных по категориям"
-          >
-            В выбранном периоде нет подтверждённых доходов или расходов с
-            подходящими условиями.
-          </WorkbenchEmptyState>
-        )}
-      </BreakdownSection>
-
-      <BreakdownSection
-        description={`Доходы и расходы, связанные с объектами, в ${overview.summary.currency}.`}
-        eyebrow="Связи операций"
-        title="По объектам"
-      >
-        {overview.propertyRows.length > 0 ? (
-          <ResponsiveRecordCollection
-            mobileList={<PropertyCards rows={overview.propertyRows} />}
-            table={<PropertyTable rows={overview.propertyRows} />}
-          />
-        ) : (
-          <WorkbenchEmptyState icon="properties" title="Нет данных по объектам">
-            Подтверждённые операции за этот период не связаны с объектами.
-          </WorkbenchEmptyState>
-        )}
-      </BreakdownSection>
-    </div>
-  );
-}
-
-function CategoryMobileSort({
-  currentPath,
-  currentSearch,
-  sort,
-}: {
-  currentPath: string;
-  currentSearch: string;
-  sort: ReturnType<typeof reportCategorySort>;
-}) {
-  return (
-    <nav
-      aria-label="Сортировка категорий"
-      className={styles.mobileSortControls}
+    <section
+      aria-labelledby="report-breakdowns-title"
+      className={styles.analysisSection}
     >
-      {categoryColumns.map((column) => (
-        <RouterButtonLink
-          aria-current={sort.field === column.field ? "page" : undefined}
-          aria-label={`Сортировать категории: ${column.label}. ${sortLabel(sort, column.field)}`}
-          key={column.field}
-          to={{
-            pathname: currentPath,
-            search: reportCategorySortSearch(currentSearch, column.field),
-          }}
-          tone={sort.field === column.field ? "primary" : "secondary"}
-        >
-          {column.label}
-          {sort.field === column.field
-            ? sort.direction === "asc"
-              ? " ↑"
-              : " ↓"
-            : ""}
-        </RouterButtonLink>
-      ))}
-    </nav>
-  );
-}
-
-function BreakdownSection({
-  children,
-  description,
-  eyebrow,
-  title,
-}: {
-  children: ReactNode;
-  description: string;
-  eyebrow: string;
-  title: string;
-}) {
-  return (
-    <section className={styles.breakdownSection}>
-      <header className={styles.breakdownHeading}>
-        <div>
-          <p className={styles.sectionEyebrow}>{eyebrow}</p>
-          <h2>{title}</h2>
-        </div>
-        <p>{description}</p>
+      <header className={styles.analysisHeader}>
+        <h2 id="report-breakdowns-title">Деньги по категориям</h2>
       </header>
-      {children}
+
+      {rows.length > 0 ? (
+        <ResponsiveRecordCollection
+          mobileList={
+            <CategoryFlowList
+              currentSearch={location.search}
+              overview={overview}
+              rows={rows}
+              uncategorizedHref={uncategorizedHref}
+            />
+          }
+          table={
+            <CategoryFlowTable
+              currentSearch={location.search}
+              overview={overview}
+              rows={rows}
+              sort={sort}
+              sortDirection={sortDirection}
+              uncategorizedHref={uncategorizedHref}
+            />
+          }
+        />
+      ) : (
+        <p className={styles.matrixEmpty}>
+          За выбранный период нет доходов или расходов по категориям.
+        </p>
+      )}
     </section>
   );
 }
 
-function CategoryTable({
-  currentPath,
+function CategoryFlowTable({
   currentSearch,
+  overview,
   rows,
   sort,
+  sortDirection,
+  uncategorizedHref,
 }: {
-  currentPath: string;
   currentSearch: string;
+  overview: ReportOverviewDto;
   rows: CategoryRow[];
-  sort: ReturnType<typeof reportCategorySort>;
+  sort: ReportCategorySort;
+  sortDirection: ReportCategorySortDirection;
+  uncategorizedHref: string | null;
 }) {
   return (
-    <table className={styles.table}>
+    <table className={styles.flowMatrix}>
       <caption className="visually-hidden">
-        Доходы, расходы и прибыль по категориям
+        Поступления, расходы и итог по категориям
       </caption>
       <thead>
         <tr>
-          {categoryColumns.map((column) => (
-            <th
-              aria-sort={
-                sort.field === column.field
-                  ? sort.direction === "asc"
-                    ? "ascending"
-                    : "descending"
-                  : "none"
-              }
-              className={
-                column.field === "name" ? undefined : styles.moneyColumn
-              }
-              key={column.field}
-              scope="col"
-            >
-              <RouterButtonLink
-                aria-label={`${column.label}. ${sortLabel(sort, column.field)}`}
-                className={styles.sortControl}
-                to={{
-                  pathname: currentPath,
-                  search: reportCategorySortSearch(currentSearch, column.field),
-                }}
-                tone="ghost"
-              >
-                {column.label}
-                {sort.field === column.field
-                  ? sort.direction === "asc"
-                    ? " ↑"
-                    : " ↓"
-                  : ""}
-              </RouterButtonLink>
+          <CategorySortHeader
+            currentSearch={currentSearch}
+            label="Категория"
+            sort="name"
+            selectedSort={sort}
+            sortDirection={sortDirection}
+          />
+          <CategorySortHeader
+            currentSearch={currentSearch}
+            label="Поступления"
+            sort="income"
+            selectedSort={sort}
+            sortDirection={sortDirection}
+          />
+          <CategorySortHeader
+            currentSearch={currentSearch}
+            label="Расходы"
+            sort="expense"
+            selectedSort={sort}
+            sortDirection={sortDirection}
+          />
+          <CategorySortHeader
+            currentSearch={currentSearch}
+            label="Итог"
+            sort="result"
+            selectedSort={sort}
+            sortDirection={sortDirection}
+          />
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.categoryId ?? "system:uncategorized"}>
+            <th scope="row">
+              {categoryIdentityView(row, currentSearch, uncategorizedHref)}
             </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={categoryIdentity(row)}>
-            <td>{categoryIdentityView(row, currentSearch)}</td>
-            <MoneyCells row={row} />
+            <td>
+              <FlowValue
+                amount={row.income}
+                currency={row.currency}
+                kind="income"
+              />
+            </td>
+            <td>
+              <FlowValue
+                amount={row.expense}
+                currency={row.currency}
+                kind="expense"
+              />
+            </td>
+            <td className={styles.resultCell}>
+              <ResultValue amount={row.profit} currency={row.currency} />
+            </td>
           </tr>
         ))}
       </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row">Итого</th>
+          <td>
+            <FlowValue
+              amount={overview.summary.income}
+              currency={overview.summary.currency}
+              kind="income"
+            />
+          </td>
+          <td>
+            <FlowValue
+              amount={overview.summary.expense}
+              currency={overview.summary.currency}
+              kind="expense"
+            />
+          </td>
+          <td className={styles.resultCell}>
+            <ResultValue
+              amount={overview.summary.profit}
+              currency={overview.summary.currency}
+            />
+          </td>
+        </tr>
+      </tfoot>
     </table>
   );
 }
 
-function CategoryCards({
+function CategorySortHeader({
   currentSearch,
-  rows,
+  label,
+  selectedSort,
+  sort,
+  sortDirection,
 }: {
   currentSearch: string;
-  rows: CategoryRow[];
+  label: string;
+  selectedSort: ReportCategorySort;
+  sort: Exclude<ReportCategorySort, "turnover">;
+  sortDirection: ReportCategorySortDirection;
 }) {
+  const selected = selectedSort === sort;
+  const nextDirection = selected
+    ? sortDirection === "desc"
+      ? "по возрастанию"
+      : "по убыванию"
+    : sort === "name"
+      ? "по возрастанию"
+      : "по убыванию";
+  const indicator: IconName = selected
+    ? sortDirection === "asc"
+      ? "sortAscending"
+      : "sortDescending"
+    : "sort";
   return (
-    <ol className={styles.breakdownCards}>
-      {rows.map((row) => (
-        <li data-responsive-record key={categoryIdentity(row)}>
-          <div className={styles.recordHeading}>
-            {categoryIdentityView(row, currentSearch)}
-          </div>
-          <MoneyFacts row={row} />
-        </li>
-      ))}
-    </ol>
+    <th
+      aria-sort={
+        selected
+          ? sortDirection === "asc"
+            ? "ascending"
+            : "descending"
+          : undefined
+      }
+      scope="col"
+    >
+      <Link
+        aria-current={selected ? "page" : undefined}
+        aria-label={`${label}: сортировать ${nextDirection}`}
+        className={styles.matrixSortLink}
+        to={{
+          search: reportCategorySortSearch(currentSearch, sort),
+        }}
+      >
+        <span>{label}</span>
+        <Icon
+          className={styles.matrixSortIndicator}
+          name={indicator}
+          size="0.875rem"
+          weight="bold"
+        />
+      </Link>
+    </th>
   );
 }
 
-function PropertyTable({ rows }: { rows: PropertyRow[] }) {
-  return (
-    <table className={styles.table}>
-      <caption className="visually-hidden">
-        Доходы, расходы и прибыль по объектам
-      </caption>
-      <thead>
-        <tr>
-          <th scope="col">Объект</th>
-          <th className={styles.moneyColumn} scope="col">
-            Доходы
-          </th>
-          <th className={styles.moneyColumn} scope="col">
-            Расходы
-          </th>
-          <th className={styles.moneyColumn} scope="col">
-            Прибыль
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.propertyId}>
-            <td>
-              <strong>{row.name}</strong>
-              {row.isActive ? null : <span> · архив</span>}
-            </td>
-            <MoneyCells row={row} />
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function PropertyCards({ rows }: { rows: PropertyRow[] }) {
-  return (
-    <ol className={styles.breakdownCards}>
-      {rows.map((row) => (
-        <li data-responsive-record key={row.propertyId}>
-          <div className={styles.recordHeading}>
-            <strong>{row.name}</strong>
-            {row.isActive ? null : <span> · архив</span>}
-          </div>
-          <MoneyFacts row={row} />
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function MoneyCells({ row }: { row: CategoryRow | PropertyRow }) {
+function CategoryFlowList({
+  currentSearch,
+  overview,
+  rows,
+  uncategorizedHref,
+}: {
+  currentSearch: string;
+  overview: ReportOverviewDto;
+  rows: CategoryRow[];
+  uncategorizedHref: string | null;
+}) {
   return (
     <>
-      <td className={styles.moneyColumn}>
-        <ReportMoney
-          amount={row.income}
-          currency={row.currency}
+      <ol aria-label="Движение денег по категориям">
+        {rows.map((row) => (
+          <li
+            data-responsive-record
+            key={row.categoryId ?? "system:uncategorized"}
+          >
+            <div className={styles.matrixMobileHeader}>
+              {categoryIdentityView(row, currentSearch, uncategorizedHref)}
+              <div className={styles.matrixMobileResult}>
+                <span>Итог</span>
+                <ResultValue amount={row.profit} currency={row.currency} />
+              </div>
+            </div>
+            <div className={styles.matrixMobileFlows}>
+              <MobileFlowValue
+                amount={row.income}
+                currency={row.currency}
+                kind="income"
+              />
+              <MobileFlowValue
+                amount={row.expense}
+                currency={row.currency}
+                kind="expense"
+              />
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div
+        aria-label="Итого по категориям"
+        className={styles.matrixMobileTotals}
+      >
+        <strong>Итого</strong>
+        <FlowValue
+          amount={overview.summary.income}
+          currency={overview.summary.currency}
           kind="income"
         />
-      </td>
-      <td className={styles.moneyColumn}>
-        <ReportMoney
-          amount={row.expense}
-          currency={row.currency}
+        <FlowValue
+          amount={overview.summary.expense}
+          currency={overview.summary.currency}
           kind="expense"
         />
-      </td>
-      <td className={styles.moneyColumn}>
-        <ReportMoney
-          amount={row.profit}
-          currency={row.currency}
-          kind="profit"
+        <ResultValue
+          amount={overview.summary.profit}
+          currency={overview.summary.currency}
         />
-      </td>
+      </div>
     </>
   );
 }
 
-function MoneyFacts({ row }: { row: CategoryRow | PropertyRow }) {
-  return (
-    <dl className={styles.moneyFacts}>
-      <div>
-        <dt>Доходы</dt>
-        <dd>
-          <ReportMoney
-            amount={row.income}
-            currency={row.currency}
-            kind="income"
-          />
-        </dd>
-      </div>
-      <div>
-        <dt>Расходы</dt>
-        <dd>
-          <ReportMoney
-            amount={row.expense}
-            currency={row.currency}
-            kind="expense"
-          />
-        </dd>
-      </div>
-      <div>
-        <dt>Прибыль</dt>
-        <dd>
-          <ReportMoney
-            amount={row.profit}
-            currency={row.currency}
-            kind="profit"
-          />
-        </dd>
-      </div>
-    </dl>
-  );
-}
-
-function ReportMoney({
+function MobileFlowValue({
   amount,
   currency,
   kind,
 }: {
   amount: string;
   currency: string;
-  kind: "income" | "expense" | "profit";
+  kind: FlowKind;
 }) {
   return (
+    <div className={styles.matrixMobileFlow} data-tone={kind}>
+      <span>{kind === "income" ? "Поступления" : "Расходы"}</span>
+      <FlowValue amount={amount} currency={currency} kind={kind} />
+    </div>
+  );
+}
+
+function FlowValue({
+  amount,
+  currency,
+  kind,
+}: {
+  amount: string;
+  currency: string;
+  kind: FlowKind;
+}) {
+  const sign = decimalSign(amount);
+  return (
     <MoneyValue
-      amount={formatMoneyAmount(amount, kind === "profit" ? null : kind)}
+      amount={formatMoneyAmount(amount, sign === 0 ? null : kind)}
       currency={currency}
-      tone={kind}
+      currencyVisibility="accessible"
+      size="compact"
+      tone={sign === 0 ? "neutral" : kind}
     />
   );
 }
 
-function categoryIdentityView(row: CategoryRow, currentSearch: string) {
-  if (row.categoryId === null) return <strong>Без категории</strong>;
+function ResultValue({
+  amount,
+  currency,
+}: {
+  amount: string;
+  currency: string;
+}) {
+  const sign = decimalSign(amount);
+  return (
+    <MoneyValue
+      amount={formatMoneyAmount(amount, sign > 0 ? "income" : null)}
+      currency={currency}
+      currencyVisibility="accessible"
+      size="compact"
+      tone={resultTone(sign)}
+    />
+  );
+}
+
+function categoryIdentityView(
+  row: CategoryRow,
+  currentSearch: string,
+  uncategorizedHref: string | null,
+) {
+  if (row.categoryId === null) {
+    return uncategorizedHref ? (
+      <ButtonLink
+        className={styles.matrixCategoryLink!}
+        data-record-identity
+        href={uncategorizedHref}
+        tone="ghost"
+      >
+        Без категории
+      </ButtonLink>
+    ) : (
+      <strong>Без категории</strong>
+    );
+  }
   return (
     <ButtonLink
+      aria-label={`Открыть все операции категории «${categoryDisplayName(row)}»`}
+      className={styles.matrixCategoryLink!}
       data-record-identity
       href={categoryDetailHref(row, currentSearch)}
       tone="ghost"
@@ -394,64 +388,105 @@ function categoryIdentityView(row: CategoryRow, currentSearch: string) {
   );
 }
 
+function categoryDisplayName(row: CategoryRow): string {
+  return row.isActive ? row.name : `${row.name} · архив`;
+}
+
 function categoryDetailHref(row: CategoryRow, currentSearch: string): string {
   const query = new URLSearchParams();
   const current = new URLSearchParams(currentSearch);
-  for (const key of ["date_from", "date_to"] as const) {
+  for (const key of ["date_from", "date_to", "currency"] as const) {
     const value = current.get(key);
     if (value) query.set(key, value);
   }
+  query.set("return_to", `/app/reports${currentSearch}`);
   return `/categories/${row.categoryId}${query.size ? `?${query.toString()}` : ""}`;
+}
+
+type DecimalMagnitude = { coefficient: bigint; scale: number };
+
+function parseMagnitude(value: string): DecimalMagnitude {
+  const normalized = value.replace(/^[-+]/, "");
+  const [integer = "0", fraction = ""] = normalized.split(".");
+  return {
+    coefficient: BigInt(`${integer}${fraction}` || "0"),
+    scale: fraction.length,
+  };
+}
+
+function decimalSign(value: string): -1 | 0 | 1 {
+  if (/^-/.test(value) && !/^-[0.]+$/.test(value)) return -1;
+  return /^[+]?0+(?:\.0+)?$/.test(value) ? 0 : 1;
+}
+
+function resultTone(sign: -1 | 0 | 1): MoneyTone {
+  if (sign > 0) return "profit";
+  if (sign < 0) return "expense";
+  return "neutral";
+}
+
+function compareMagnitude(left: string, right: string): number {
+  return compareDecimalMagnitude(parseMagnitude(left), parseMagnitude(right));
+}
+
+function compareDecimalMagnitude(
+  left: DecimalMagnitude,
+  right: DecimalMagnitude,
+): number {
+  const leftAligned = left.coefficient * 10n ** BigInt(right.scale);
+  const rightAligned = right.coefficient * 10n ** BigInt(left.scale);
+  return leftAligned < rightAligned ? -1 : leftAligned > rightAligned ? 1 : 0;
+}
+
+function addMagnitude(left: string, right: string): DecimalMagnitude {
+  const leftValue = parseMagnitude(left);
+  const rightValue = parseMagnitude(right);
+  const scale = Math.max(leftValue.scale, rightValue.scale);
+  return {
+    coefficient:
+      leftValue.coefficient * 10n ** BigInt(scale - leftValue.scale) +
+      rightValue.coefficient * 10n ** BigInt(scale - rightValue.scale),
+    scale,
+  };
+}
+
+function compareGrossFlow(left: CategoryRow, right: CategoryRow) {
+  return compareDecimalMagnitude(
+    addMagnitude(left.income, left.expense),
+    addMagnitude(right.income, right.expense),
+  );
 }
 
 function sortCategoryRows(
   rows: CategoryRow[],
-  sort: ReturnType<typeof reportCategorySort>,
+  sort: ReportCategorySort,
+  direction: ReportCategorySortDirection,
 ): CategoryRow[] {
-  const direction = sort.direction === "asc" ? 1 : -1;
   return [...rows].sort((left, right) => {
-    const primary =
-      sort.field === "name"
-        ? compareNames(left.name, right.name)
-        : compareDecimalStrings(left[sort.field], right[sort.field]);
-    if (primary !== 0) return primary * direction;
-    const byName = compareNames(left.name, right.name);
-    if (byName !== 0) return byName;
-    return categoryIdentity(left).localeCompare(categoryIdentity(right));
+    let comparison: number;
+    if (sort === "name") {
+      comparison = categoryDisplayName(left).localeCompare(
+        categoryDisplayName(right),
+        "ru",
+      );
+    } else if (sort === "turnover") {
+      comparison = compareGrossFlow(left, right);
+    } else if (sort === "result") {
+      comparison = compareSignedDecimal(left.profit, right.profit);
+    } else {
+      comparison = compareMagnitude(left[sort], right[sort]);
+    }
+    return (
+      (direction === "asc" ? comparison : -comparison) ||
+      categoryDisplayName(left).localeCompare(categoryDisplayName(right), "ru")
+    );
   });
 }
 
-function compareNames(left: string, right: string): number {
-  return left.localeCompare(right, "ru", { sensitivity: "base" });
-}
-
-function compareDecimalStrings(left: string, right: string): number {
-  const [leftInteger, leftFraction = ""] = left.replace(/^\+/, "").split(".");
-  const [rightInteger, rightFraction = ""] = right
-    .replace(/^\+/, "")
-    .split(".");
-  const scale = Math.max(leftFraction.length, rightFraction.length);
-  const leftScaled = BigInt(`${leftInteger}${leftFraction.padEnd(scale, "0")}`);
-  const rightScaled = BigInt(
-    `${rightInteger}${rightFraction.padEnd(scale, "0")}`,
-  );
-  return leftScaled < rightScaled ? -1 : leftScaled > rightScaled ? 1 : 0;
-}
-
-function categoryIdentity(row: CategoryRow): string {
-  return row.categoryId ?? "system:uncategorized";
-}
-
-function sortLabel(
-  sort: ReturnType<typeof reportCategorySort>,
-  field: ReportCategorySortField,
-): string {
-  if (sort.field !== field) {
-    return field === "name"
-      ? "Сортировать по возрастанию"
-      : "Сортировать по убыванию";
-  }
-  return sort.direction === "asc"
-    ? "Сейчас по возрастанию; переключить на убывание"
-    : "Сейчас по убыванию; переключить на возрастание";
+function compareSignedDecimal(left: string, right: string): number {
+  const leftSign = decimalSign(left);
+  const rightSign = decimalSign(right);
+  if (leftSign !== rightSign) return leftSign < rightSign ? -1 : 1;
+  const magnitudeComparison = compareMagnitude(left, right);
+  return leftSign < 0 ? -magnitudeComparison : magnitudeComparison;
 }

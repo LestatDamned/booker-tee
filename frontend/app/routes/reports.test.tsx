@@ -1,11 +1,5 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { reportOverview, session } from "../features/reports/test-support";
@@ -13,30 +7,106 @@ import { ReportsRouteView } from "./reports";
 
 describe("reports route", () => {
   it("renders visible currency, period semantics and archived filter facts", () => {
-    render(
-      <MemoryRouter initialEntries={["/reports?currency=RUB"]}>
-        <ReportsRouteView
-          loaderData={{
-            session: { status: "authenticated", session },
-            reports: { status: "success", overview: reportOverview },
-          }}
-        />
-      </MemoryRouter>,
-    );
+    renderReports();
 
     expect(screen.getByRole("heading", { name: "Отчёты" })).toBeVisible();
     expect(screen.getAllByLabelText(/120.*RUB/)[0]).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "Балансы на 31.07.2026" }),
-    ).toBeVisible();
+    expect(screen.queryByText(/Балансы на/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Точные фильтры" }));
+    fireEvent.click(screen.getByRole("button", { name: "Фильтры" }));
     expect(
       screen.getByRole("option", { name: "Архивный долларовый · USD · архив" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("option", { name: "Квартира · архив" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows the period outcome and reconciled account balances", () => {
+    renderReports();
+
+    const picture = screen.getByRole("region", {
+      name: "Итог периода",
+    });
+    expect(within(picture).getByText("Положительный результат")).toBeVisible();
+    expect(within(picture).getAllByText("На начало")[0]).toBeVisible();
+    expect(within(picture).getAllByText("На конец")[0]).toBeVisible();
+
+    const accountsRegion = screen.getByRole("region", {
+      name: "Распределение денег по счетам",
+    });
+    const accounts = within(accountsRegion).getByRole("list", {
+      name: "Остатки по счетам за период",
+    });
+    const accountLink = within(accounts).getByRole("link", {
+      name: "Открыть операции счёта «Основной»",
+    });
+    const accountRow = accountLink.closest("li")!;
+    expect(accountRow).toHaveTextContent(/110.*000,00/);
+    expect(accountRow).toHaveTextContent(/185.*000,00/);
+    expect(accountRow).toHaveTextContent(/\+75.*000,00/);
+    const accountHref = new URL(
+      accountLink.getAttribute("href")!,
+      "http://localhost",
+    );
+    expect(accountHref.pathname).toBe(
+      `/app/accounts/${reportOverview.accountBalances[0]!.accountId}`,
+    );
+    expect(accountHref.searchParams.get("date_from")).toBe("2026-07-01");
+    expect(accountHref.searchParams.get("date_to")).toBe("2026-07-31");
+    expect(accountHref.searchParams.get("status")).toBe("confirmed");
+    expect(accountHref.searchParams.get("return_to")).toBe(
+      "/app/reports?date_from=2026-07-01&date_to=2026-07-31&currency=RUB",
+    );
+  });
+
+  it("keeps long account balances in compact records instead of a wide table", () => {
+    const accountBalances = [
+      ["ВТБ вклад", "1326326.24", "0.00", "-1326326.24"],
+      ["Наличка", "10000.00", "29000.00", "19000.00"],
+      ["Озон Банк вклад", "0.00", "1271395.00", "1271395.00"],
+      ["Экспобанк карта", "13973.23", "5475.47", "-8497.76"],
+    ].map(([name, openingBalance, closingBalance, balanceChange], index) => ({
+      ...reportOverview.accountBalances[0]!,
+      accountId: `wide-account-${index + 1}`,
+      name: name!,
+      openingBalance: openingBalance!,
+      closingBalance: closingBalance!,
+      balanceChange: balanceChange!,
+    }));
+
+    renderReports({ overview: { ...reportOverview, accountBalances } });
+
+    const accounts = screen.getByRole("list", {
+      name: "Остатки по счетам за период",
+    });
+    expect(within(accounts).getAllByRole("listitem")).toHaveLength(4);
+    expect(
+      screen.queryByRole("table", { name: "Остатки по счетам за период" }),
+    ).not.toBeInTheDocument();
+    expect(within(accounts).getAllByText(/1.*326.*326,24/)[0]).toBeVisible();
+    expect(within(accounts).getAllByText(/1.*271.*395,00/)[0]).toBeVisible();
+  });
+
+  it("keeps the summary first and gives category analysis priority over accounts", () => {
+    renderReports();
+
+    const summary = screen.getByRole("region", { name: "Итог периода" });
+    const categories = screen.getByRole("region", {
+      name: "Деньги по категориям",
+    });
+    const accounts = screen.getByRole("region", {
+      name: "Распределение денег по счетам",
+    });
+
+    expect(
+      summary.compareDocumentPosition(categories) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      categories.compareDocumentPosition(accounts) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("renders a stable login recovery path", () => {
@@ -57,102 +127,344 @@ describe("reports route", () => {
     );
   });
 
-  it("renders distinct category and property identities with exact money facts", () => {
+  it("shows both directions and result for every category on one common matrix", () => {
     renderReports();
 
-    const categoryTable = screen.getByRole("table", {
-      name: "Доходы, расходы и прибыль по категориям",
+    const matrix = screen.getByRole("table", {
+      name: "Поступления, расходы и итог по категориям",
     });
-    const categoryRows = within(categoryTable).getAllByRole("row");
-    expect(categoryRows).toHaveLength(3);
+    const matrixRows = within(matrix).getAllByRole("row");
+    expect(matrixRows).toHaveLength(4);
     expect(
-      categoryRows.filter((row) => row.textContent?.includes("Продукты")),
-    ).toHaveLength(2);
+      within(matrix).getByRole("link", {
+        name: "Категория: сортировать по возрастанию",
+      }),
+    ).toBeVisible();
     expect(
-      categoryRows.some((row) => row.textContent?.includes("Продукты · архив")),
-    ).toBe(true);
+      within(matrix).getByRole("link", {
+        name: "Поступления: сортировать по убыванию",
+      }),
+    ).toBeVisible();
     expect(
-      within(categoryTable).getByRole("link", { name: "Продукты" }),
-    ).toHaveAttribute(
-      "href",
-      `/categories/${reportOverview.categoryRows[0]!.categoryId}?date_from=2026-07-01&date_to=2026-07-31`,
+      within(matrix).getByRole("link", {
+        name: "Расходы: сортировать по убыванию",
+      }),
+    ).toBeVisible();
+    expect(
+      within(matrix).getByRole("link", {
+        name: "Итог: сортировать по убыванию",
+      }),
+    ).toBeVisible();
+    expect(screen.queryByText(/Все суммы в/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Сначала")).not.toBeInTheDocument();
+    expect(
+      within(matrix).getByRole("row", { name: /^Итого/ }),
+    ).toHaveTextContent(/120.*000,00.*−45.*000,00.*\+75.*000,00/);
+
+    const bidirectional = within(matrix).getByRole("row", {
+      name: /Продукты · архив/,
+    });
+    expect(matrixRows[1]).toBe(bidirectional);
+    expect(bidirectional).toHaveTextContent(
+      /120.*000,00.*RUB.*−5.*000,00.*RUB.*\+115.*000,00.*RUB/,
     );
 
-    const propertyTable = screen.getByRole("table", {
-      name: "Доходы, расходы и прибыль по объектам",
-    });
-    const propertyRows = within(propertyTable).getAllByRole("row");
-    expect(propertyRows).toHaveLength(3);
-    expect(propertyRows[1]).toHaveTextContent("Квартира");
-    expect(propertyRows[2]).toHaveTextContent("Квартира · архив");
-    expect(propertyRows[2]).toHaveTextContent(/10.*000,00.*RUB/);
+    const expenseOnly = within(matrix)
+      .getAllByRole("row")
+      .find((row) =>
+        within(row).queryByRole("link", {
+          name: "Открыть все операции категории «Продукты»",
+        }),
+      )!;
+    expect(expenseOnly).toHaveTextContent(
+      /0,00.*RUB.*−40.*000,00.*RUB.*−40.*000,00.*RUB/,
+    );
+    expect(matrix.querySelector('[style*="width"]')).not.toBeInTheDocument();
+    const categoryHref = new URL(
+      within(expenseOnly)
+        .getByRole("link", {
+          name: "Открыть все операции категории «Продукты»",
+        })
+        .getAttribute("href")!,
+      "http://localhost",
+    );
+    expect(categoryHref.pathname).toBe(
+      `/categories/${reportOverview.categoryRows[0]!.categoryId}`,
+    );
+    expect(categoryHref.searchParams.get("date_from")).toBe("2026-07-01");
+    expect(categoryHref.searchParams.get("date_to")).toBe("2026-07-31");
+    expect(categoryHref.searchParams.get("currency")).toBe("RUB");
+    expect(categoryHref.searchParams.has("type")).toBe(false);
+    expect(categoryHref.searchParams.get("return_to")).toBe(
+      "/app/reports?date_from=2026-07-01&date_to=2026-07-31&currency=RUB",
+    );
+    expect(screen.queryByText(/Показать все/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Показатель отчёта" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Раздел отчёта" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("publishes category sorting through URL and aria-sort", () => {
-    renderReports({ withLocation: true });
-
-    const categoryTable = screen.getByRole("table", {
-      name: "Доходы, расходы и прибыль по категориям",
+  it("keeps matrix sorting in the URL and updates the row order", () => {
+    renderReports({
+      initialEntry:
+        "/reports?date_from=2026-07-01&date_to=2026-07-31&currency=RUB&category_sort=expense",
     });
+
     expect(
-      within(categoryTable).getByRole("columnheader", { name: /Категория/ }),
-    ).toHaveAttribute("aria-sort", "ascending");
+      screen.getByRole("columnheader", {
+        name: "Расходы: сортировать по возрастанию",
+      }),
+    ).toHaveAttribute("aria-sort", "descending");
+
+    let matrix = screen.getByRole("table", {
+      name: "Поступления, расходы и итог по категориям",
+    });
+    expect(within(matrix).getAllByRole("row")[1]).toHaveAccessibleName(
+      /Открыть все операции категории «Продукты»/,
+    );
+
     fireEvent.click(
-      within(categoryTable).getByRole("link", {
-        name: "Расходы. Сортировать по убыванию",
+      within(matrix).getByRole("link", {
+        name: "Итог: сортировать по убыванию",
       }),
     );
-
-    expect(screen.getByTestId("location")).toHaveTextContent(
-      "category_sort=expense&category_sort_dir=desc",
-    );
     expect(
-      within(categoryTable).getByRole("columnheader", { name: /Расходы/ }),
-    ).toHaveAttribute("aria-sort", "descending");
-    expect(within(categoryTable).getAllByRole("row")[1]).toHaveTextContent(
-      /45.*000,00/,
-    );
-    expect(
-      within(
-        screen.getByRole("navigation", { name: "Сортировка категорий" }),
-      ).getByRole("link", { name: /Сортировать категории: Расходы/ }),
+      screen.getByRole("link", {
+        name: "Итог: сортировать по возрастанию",
+      }),
     ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("columnheader", {
+        name: "Итог: сортировать по возрастанию",
+      }),
+    ).toHaveAttribute("aria-sort", "descending");
+
+    matrix = screen.getByRole("table", {
+      name: "Поступления, расходы и итог по категориям",
+    });
+    const firstCategoryRow = within(matrix).getAllByRole("row")[1]!;
+    expect(firstCategoryRow).toHaveAccessibleName(
+      /Открыть все операции категории «Продукты · архив»/,
+    );
+    const drilldown = within(firstCategoryRow).getByRole("link", {
+      name: "Открыть все операции категории «Продукты · архив»",
+    });
+    expect(decodeURIComponent(drilldown.getAttribute("href")!)).toContain(
+      "return_to=/app/reports?date_from=2026-07-01&date_to=2026-07-31&currency=RUB&category_sort=result",
+    );
+
+    fireEvent.click(
+      screen.getByRole("link", {
+        name: "Итог: сортировать по возрастанию",
+      }),
+    );
+    expect(
+      screen.getByRole("columnheader", {
+        name: "Итог: сортировать по убыванию",
+      }),
+    ).toHaveAttribute("aria-sort", "ascending");
+    matrix = screen.getByRole("table", {
+      name: "Поступления, расходы и итог по категориям",
+    });
+    expect(within(matrix).getAllByRole("row")[1]).toHaveAccessibleName(
+      /Открыть все операции категории «Продукты»/,
+    );
+
+    fireEvent.click(
+      screen.getByRole("link", {
+        name: "Категория: сортировать по возрастанию",
+      }),
+    );
+    expect(
+      screen.getByRole("columnheader", {
+        name: "Категория: сортировать по убыванию",
+      }),
+    ).toHaveAttribute("aria-sort", "ascending");
   });
 
-  it("explains empty category and property breakdowns separately", () => {
+  it("keeps the headline, category flows and account balances reconciled", () => {
+    const categoryIncome = reportOverview.categoryRows.reduce(
+      (total, row) => total + Number(row.income),
+      0,
+    );
+    const categoryExpense = reportOverview.categoryRows.reduce(
+      (total, row) => total + Number(row.expense),
+      0,
+    );
+    const openingBalance = reportOverview.accountBalances.reduce(
+      (total, row) => total + Number(row.openingBalance),
+      0,
+    );
+    const closingBalance = reportOverview.accountBalances.reduce(
+      (total, row) => total + Number(row.closingBalance),
+      0,
+    );
+
+    expect(categoryIncome).toBe(Number(reportOverview.summary.income));
+    expect(categoryExpense).toBe(Number(reportOverview.summary.expense));
+    expect(categoryIncome - categoryExpense).toBe(
+      Number(reportOverview.summary.profit),
+    );
+    expect(openingBalance).toBe(
+      Number(reportOverview.balanceSummary.openingBalance),
+    );
+    expect(closingBalance).toBe(
+      Number(reportOverview.balanceSummary.closingBalance),
+    );
+    expect(closingBalance - openingBalance).toBe(
+      Number(reportOverview.balanceSummary.balanceChange),
+    );
+  });
+
+  it("shows zero result and negative archived account balances without hiding facts", () => {
+    const archivedAccount = {
+      ...reportOverview.accountBalances[0]!,
+      accountId: "archived-negative-account",
+      name: "Архивный накопительный счёт с очень длинным названием",
+      openingBalance: "-1500.00",
+      closingBalance: "-2500.00",
+      balanceChange: "-1000.00",
+      isActive: false,
+    };
+    renderReports({
+      overview: {
+        ...reportOverview,
+        summary: {
+          ...reportOverview.summary,
+          income: "0.00",
+          expense: "0.00",
+          profit: "0.00",
+        },
+        balanceSummary: {
+          ...reportOverview.balanceSummary,
+          openingBalance: "-1500.00",
+          closingBalance: "-2500.00",
+          balanceChange: "-1000.00",
+        },
+        accountBalances: [archivedAccount],
+        categoryRows: [],
+      },
+    });
+
+    expect(screen.getByText("Доходы и расходы равны")).toBeVisible();
+    const periodSummary = document.querySelector<HTMLElement>(
+      '[data-report-period-summary="true"]',
+    );
+    expect(periodSummary).not.toBeNull();
+    expect(
+      within(periodSummary!).getByRole("region", {
+        name: "Денежный поток",
+      }),
+    ).toHaveTextContent(/Доходы.*0,00.*RUB.*Расходы.*0,00.*RUB/);
+    expect(periodSummary).not.toHaveTextContent(/[+−]0,00/);
+    expect(screen.queryByLabelText("+0,00 RUB")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("−0,00 RUB")).not.toBeInTheDocument();
+    const accountRow = screen
+      .getByRole("link", {
+        name: "Открыть операции счёта «Архивный накопительный счёт с очень длинным названием · архив»",
+      })
+      .closest("li")!;
+    expect(accountRow).toHaveTextContent(/−1.*500,00/);
+    expect(accountRow).toHaveTextContent(/−2.*500,00/);
+    expect(accountRow).toHaveTextContent(/−1.*000,00/);
+    expect(
+      screen.getByText(
+        "За выбранный период нет доходов или расходов по категориям.",
+      ),
+    ).toBeVisible();
+  });
+
+  it("keeps every category visible when a ranked list is long", () => {
+    const categoryRows = Array.from({ length: 12 }, (_, index) => ({
+      ...reportOverview.categoryRows[0]!,
+      categoryId: `category-${index + 1}`,
+      name: `Категория ${index + 1}`,
+      expense: `${12000 - index * 500}.00`,
+      profit: `-${12000 - index * 500}.00`,
+    }));
+    renderReports({
+      overview: {
+        ...reportOverview,
+        categoryRows,
+      },
+    });
+
+    const matrix = screen.getByRole("table", {
+      name: "Поступления, расходы и итог по категориям",
+    });
+    expect(within(matrix).getAllByRole("row")).toHaveLength(14);
+    expect(within(matrix).getByText("Категория 12")).toBeVisible();
+    expect(screen.queryByText(/Показать все/)).not.toBeInTheDocument();
+  });
+
+  it("marks the actual period preset instead of always selecting this month", () => {
+    renderReports({
+      initialEntry: "/reports?currency=RUB",
+      overview: {
+        ...reportOverview,
+        appliedFilters: {
+          ...reportOverview.appliedFilters,
+          dateFrom: null,
+          dateTo: null,
+        },
+      },
+    });
+
+    expect(screen.getByRole("link", { name: "Всё время" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(
+      screen.getByRole("link", { name: "Этот месяц" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("shows one clear matrix empty state when the category structure is empty", () => {
     renderReports({
       overview: { ...reportOverview, categoryRows: [], propertyRows: [] },
     });
 
-    expect(screen.getByText("Нет данных по категориям")).toBeVisible();
-    expect(screen.getByText("Нет данных по объектам")).toBeVisible();
+    expect(
+      screen.getByText(
+        "За выбранный период нет доходов или расходов по категориям.",
+      ),
+    ).toBeVisible();
   });
 
-  it("renders a bounded uncategorized page with safe correction capabilities", () => {
+  it("compresses uncategorized operations into one actionable notice", () => {
     renderReports();
 
-    const table = screen.getByRole("table", { name: "Операции без категории" });
-    expect(within(table).getAllByRole("row")).toHaveLength(3);
-    expect(
-      within(table).getByRole("link", { name: "Открыть операцию" }),
-    ).toHaveAttribute(
+    expect(screen.getByText("12 операций без категории")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Разобрать" })).toHaveAttribute(
       "href",
       `/app/ledger/manual?operation_id=${reportOverview.uncategorized.items[0]!.operationId}#operation-${reportOverview.uncategorized.items[0]!.operationId}`,
     );
     expect(
-      within(table).getByText("Только чтение: недостаточно прав."),
-    ).toBeVisible();
-
-    const pagination = screen.getByRole("navigation", {
-      name: "Страницы операций без категории",
-    });
+      screen.queryByRole("table", { name: "Операции без категории" }),
+    ).not.toBeInTheDocument();
     expect(
-      within(pagination).getByRole("link", { name: "Дальше" }),
-    ).toHaveAttribute("href", expect.stringContaining("uncategorized_page=2"));
-    expect(screen.getByText("1–10 из 12")).toBeVisible();
+      screen.queryByRole("navigation", {
+        name: "Страницы операций без категории",
+      }),
+    ).not.toBeInTheDocument();
+
+    const breakdowns = screen.getByRole("region", {
+      name: "Деньги по категориям",
+    });
+    const notice = screen
+      .getByText("12 операций без категории")
+      .closest('[data-tone="warning"]');
+    expect(notice).not.toBeNull();
+    expect(
+      breakdowns.compareDocumentPosition(notice!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
-  it("shows a local empty state when all matching operations are categorized", () => {
+  it("hides the notice when all matching operations are categorized", () => {
     renderReports({
       overview: {
         ...reportOverview,
@@ -166,7 +478,7 @@ describe("reports route", () => {
       },
     });
 
-    expect(screen.getByText("Все операции распределены")).toBeVisible();
+    expect(screen.queryByText(/без категории$/)).not.toBeInTheDocument();
   });
 
   it("uses the existing account workflow for a correctable imported operation", () => {
@@ -189,61 +501,9 @@ describe("reports route", () => {
       },
     });
 
-    expect(
-      screen.getAllByRole("link", { name: "Открыть счёт" })[0],
-    ).toHaveAttribute("href", `/app/accounts/${imported.accountId}`);
-  });
-
-  it("renders both directions on a middle uncategorized page", () => {
-    renderReports({
-      initialEntry: "/reports?currency=RUB&uncategorized_page=2",
-      overview: {
-        ...reportOverview,
-        uncategorized: {
-          ...reportOverview.uncategorized,
-          page: 2,
-          total: 25,
-          totalPages: 3,
-          hasPrevious: true,
-          hasNext: true,
-        },
-      },
-    });
-
-    const pagination = screen.getByRole("navigation", {
-      name: "Страницы операций без категории",
-    });
-    expect(
-      within(pagination).getByRole("link", { name: "Назад" }),
-    ).toBeVisible();
-    expect(
-      within(pagination).getByRole("link", { name: "Дальше" }),
-    ).toBeVisible();
-    expect(within(pagination).getByLabelText("Страница 2")).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-  });
-
-  it("normalizes an empty deep-linked page to the last existing page", async () => {
-    renderReports({
-      initialEntry: "/reports?currency=RUB&uncategorized_page=999",
-      overview: {
-        ...reportOverview,
-        uncategorized: {
-          ...reportOverview.uncategorized,
-          page: 2,
-          hasPrevious: true,
-          hasNext: false,
-        },
-      },
-      withLocation: true,
-    });
-
-    await waitFor(() =>
-      expect(screen.getByTestId("location")).toHaveTextContent(
-        "uncategorized_page=2",
-      ),
+    expect(screen.getByRole("link", { name: "Разобрать" })).toHaveAttribute(
+      "href",
+      `/app/accounts/${imported.accountId}`,
     );
   });
 });
@@ -251,11 +511,9 @@ describe("reports route", () => {
 function renderReports({
   initialEntry = "/reports?date_from=2026-07-01&date_to=2026-07-31&currency=RUB",
   overview = reportOverview,
-  withLocation = false,
 }: {
   initialEntry?: string;
   overview?: typeof reportOverview;
-  withLocation?: boolean;
 } = {}) {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
@@ -265,12 +523,6 @@ function renderReports({
           reports: { status: "success", overview },
         }}
       />
-      {withLocation ? <LocationProbe /> : null}
     </MemoryRouter>,
   );
-}
-
-function LocationProbe() {
-  const location = useLocation();
-  return <output data-testid="location">{location.search}</output>;
 }

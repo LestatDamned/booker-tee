@@ -1,5 +1,17 @@
 import type { ReportOverviewDto } from "./api/reports-api";
 
+export type ReportCategorySort =
+  "turnover" | "name" | "income" | "expense" | "result";
+export type ReportCategorySortDirection = "asc" | "desc";
+
+const categorySorts = new Set<ReportCategorySort>([
+  "turnover",
+  "name",
+  "income",
+  "expense",
+  "result",
+]);
+
 export type ReportFilterDraft = {
   dateFrom: string;
   dateTo: string;
@@ -7,14 +19,6 @@ export type ReportFilterDraft = {
   accountId: string;
   categoryId: string;
   propertyId: string;
-};
-
-export type ReportCategorySortField = "name" | "income" | "expense" | "profit";
-export type ReportSortDirection = "asc" | "desc";
-
-export type ReportCategorySort = {
-  field: ReportCategorySortField;
-  direction: ReportSortDirection;
 };
 
 export function reportFilterDraft(
@@ -43,7 +47,61 @@ export function reportFilterSearch(
   setOrDelete(search, "category_id", draft.categoryId);
   setOrDelete(search, "property_id", draft.propertyId);
   search.delete("uncategorized_page");
+  search.delete("breakdown");
+  search.delete("metric");
+  const categorySort = reportCategorySort(currentSearch);
+  const categorySortDirection = reportCategorySortDirection(currentSearch);
+  setCategorySort(search, categorySort, categorySortDirection);
   return `?${search.toString()}`;
+}
+
+export function reportCategorySort(currentSearch: string): ReportCategorySort {
+  const value = new URLSearchParams(currentSearch).get("category_sort");
+  return categorySorts.has(value as ReportCategorySort)
+    ? (value as ReportCategorySort)
+    : "turnover";
+}
+
+export function reportCategorySortDirection(
+  currentSearch: string,
+): ReportCategorySortDirection {
+  return new URLSearchParams(currentSearch).get("category_sort_dir") === "asc"
+    ? "asc"
+    : "desc";
+}
+
+export function reportCategorySortSearch(
+  currentSearch: string,
+  sort: ReportCategorySort,
+): string {
+  const search = new URLSearchParams(currentSearch);
+  const currentSort = reportCategorySort(currentSearch);
+  const currentDirection = reportCategorySortDirection(currentSearch);
+  const direction =
+    currentSort === sort
+      ? currentDirection === "desc"
+        ? "asc"
+        : "desc"
+      : sort === "name"
+        ? "asc"
+        : "desc";
+  setCategorySort(search, sort, direction);
+  return `?${search.toString()}`;
+}
+
+function setCategorySort(
+  search: URLSearchParams,
+  sort: ReportCategorySort,
+  direction: ReportCategorySortDirection,
+) {
+  if (sort === "turnover" && direction === "desc") {
+    search.delete("category_sort");
+    search.delete("category_sort_dir");
+    return;
+  }
+  search.set("category_sort", sort);
+  if (direction === "desc") search.delete("category_sort_dir");
+  else search.set("category_sort_dir", direction);
 }
 
 export function reportMonthSearch(
@@ -105,63 +163,6 @@ export function reportAppliedFilters(overview: ReportOverviewDto): string[] {
   return labels;
 }
 
-export function reportCategorySort(searchValue: string): ReportCategorySort {
-  const search = new URLSearchParams(searchValue);
-  const requestedField = search.get("category_sort");
-  if (!isCategorySortField(requestedField)) {
-    return { field: "name", direction: "asc" };
-  }
-  const field = requestedField;
-  const requestedDirection = search.get("category_sort_dir");
-  return {
-    field,
-    direction:
-      requestedDirection === "asc" || requestedDirection === "desc"
-        ? requestedDirection
-        : field === "name"
-          ? "asc"
-          : "desc",
-  };
-}
-
-export function reportCategorySortSearch(
-  currentSearch: string,
-  nextField: ReportCategorySortField,
-): string {
-  const current = reportCategorySort(currentSearch);
-  const nextDirection: ReportSortDirection =
-    current.field === nextField
-      ? current.direction === "asc"
-        ? "desc"
-        : "asc"
-      : nextField === "name"
-        ? "asc"
-        : "desc";
-  const search = new URLSearchParams(currentSearch);
-  search.set("category_sort", nextField);
-  search.set("category_sort_dir", nextDirection);
-  return `?${search.toString()}`;
-}
-
-export function reportUncategorizedPage(searchValue: string): number {
-  const value = Number.parseInt(
-    new URLSearchParams(searchValue).get("uncategorized_page") ?? "1",
-    10,
-  );
-  return Number.isSafeInteger(value) && value > 0 ? value : 1;
-}
-
-export function reportUncategorizedPageSearch(
-  currentSearch: string,
-  page: number,
-): string {
-  const search = new URLSearchParams(currentSearch);
-  if (page <= 1) search.delete("uncategorized_page");
-  else search.set("uncategorized_page", String(page));
-  const value = search.toString();
-  return value ? `?${value}` : "";
-}
-
 function addMonths(monthStart: string, offset: number): string {
   const [year = 0, month = 1] = monthStart.split("-").map(Number);
   const value = new Date(Date.UTC(year, month - 1 + offset, 1));
@@ -181,15 +182,4 @@ function todayIso(): string {
 function setOrDelete(search: URLSearchParams, key: string, value: string) {
   if (value) search.set(key, value);
   else search.delete(key);
-}
-
-function isCategorySortField(
-  value: string | null,
-): value is ReportCategorySortField {
-  return (
-    value === "name" ||
-    value === "income" ||
-    value === "expense" ||
-    value === "profit"
-  );
 }

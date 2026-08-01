@@ -6,6 +6,7 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.features.ledger.domain.types import OperationType
 from app.features.ledger.models import (
     MoneyEntry,
     Operation,
@@ -230,6 +231,7 @@ class LedgerRepository:
         category_id: UUID | None = None,
         property_id: UUID | None = None,
         currency: str | None = None,
+        operation_type: OperationType | None = None,
     ) -> list[Operation]:
         query = (
             select(Operation)
@@ -255,6 +257,8 @@ class LedgerRepository:
             query = query.where(Operation.category_id == category_id)
         if property_id is not None:
             query = query.where(Operation.property_id == property_id)
+        if operation_type is not None:
+            query = query.where(Operation.type == operation_type)
         if date_from is not None:
             query = query.where(Operation.operation_date >= date_from)
         if date_to is not None:

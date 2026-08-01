@@ -2,15 +2,10 @@ import { useState } from "react";
 import { useLocation } from "react-router";
 
 import type { SessionDto } from "../../api/session";
-import { formatMoneyAmount } from "../../shared/money/format-money";
 import { AppShell } from "../../shell/app-shell";
 import { AppliedFilterSummary } from "../../ui/applied-filter-summary/applied-filter-summary";
 import { Button, ButtonLink, RouterButtonLink } from "../../ui/button/button";
-import { InlineNotice } from "../../ui/inline-notice/inline-notice";
-import { MoneyValue } from "../../ui/money-value/money-value";
 import { PageFrame } from "../../ui/page-frame/page-frame";
-import { PageHeader } from "../../ui/page-header/page-header";
-import { ResponsiveRecordCollection } from "../../ui/responsive-record-collection/responsive-record-collection";
 import { WorkbenchEmptyState } from "../../ui/workbench-empty-state/workbench-empty-state";
 import { WorkbenchFilterRegion } from "../../ui/workbench-content/workbench-filter-region";
 import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
@@ -24,7 +19,11 @@ import {
 } from "./report-filter-query";
 import { ReportFilters } from "./report-filters";
 import { ReportBreakdowns } from "./report-breakdowns";
-import { ReportUncategorized } from "./report-uncategorized";
+import { ReportUncategorizedNotice } from "./report-uncategorized";
+import {
+  ReportAccountBalances,
+  ReportPeriodSummary,
+} from "./report-period-overview";
 import styles from "./reports-page.module.css";
 
 export function ReportsPage({
@@ -45,22 +44,37 @@ export function ReportsPage({
     overview.categoryRows.length > 0 ||
     overview.propertyRows.length > 0;
   const filters = reportAppliedFilters(overview);
+  const detailedFilters = filters.filter(
+    (filter) =>
+      !filter.startsWith("Период") &&
+      (filter !== `Валюта: ${overview.summary.currency}` ||
+        overview.summary.currency !== session.workspace.defaultCurrency),
+  );
+  const currentMonthSelected = isCurrentMonth(overview);
+  const allTimeSelected = isAllTime(overview);
 
   return (
     <AppShell session={session}>
-      <PageFrame className={styles.page} spacing="none">
-        <PageHeader
-          description="Подтверждённые доходы и расходы без внутренних переводов и смешения валют."
-          eyebrow={`${overview.workspaceName} · ${periodLabel(overview)}`}
-          title="Отчёты"
-        />
-
+      <PageFrame
+        className={styles.page}
+        data-report-workspace="true"
+        spacing="none"
+      >
         <WorkbenchSurface
           aria-busy={navigationPending}
           aria-label="Параметры отчёта"
           className={styles.controls}
         >
-          <WorkbenchToolbar className={styles.toolbar}>
+          <WorkbenchToolbar
+            aria-label="Управление отчётом"
+            className={styles.toolbar}
+          >
+            <div className={styles.reportIdentity}>
+              <span>
+                {overview.workspaceName} · {overview.summary.currency}
+              </span>
+              <h1>Отчёты</h1>
+            </div>
             <nav
               aria-label="Навигация по периоду отчёта"
               className={styles.periodNav}
@@ -72,8 +86,11 @@ export function ReportsPage({
                   search: reportMonthSearch(overview, -1, location.search),
                 }}
               >
-                Предыдущий
+                ←
               </RouterButtonLink>
+              <strong className={styles.periodLabel}>
+                {periodLabel(overview)}
+              </strong>
               <RouterButtonLink
                 aria-label="Следующий месяц"
                 to={{
@@ -81,39 +98,47 @@ export function ReportsPage({
                   search: reportMonthSearch(overview, 1, location.search),
                 }}
               >
-                Следующий
+                →
               </RouterButtonLink>
+            </nav>
+            <div className={styles.toolbarActions}>
               <RouterButtonLink
+                aria-current={currentMonthSelected ? "page" : undefined}
                 to={{
                   pathname: location.pathname,
                   search: reportCurrentMonthSearch(overview, location.search),
                 }}
-                tone="primary"
+                tone={currentMonthSelected ? "primary" : "secondary"}
               >
                 Этот месяц
               </RouterButtonLink>
               <RouterButtonLink
+                aria-current={allTimeSelected ? "page" : undefined}
                 to={{
                   pathname: location.pathname,
                   search: reportAllTimeSearch(overview, location.search),
                 }}
+                tone={allTimeSelected ? "primary" : "secondary"}
               >
                 Всё время
               </RouterButtonLink>
-            </nav>
-            <Button
-              aria-controls="report-filter-region"
-              aria-expanded={filtersOpen}
-              disabled={navigationPending}
-              icon="filter"
-              onClick={() => setFiltersOpen((current) => !current)}
-            >
-              Точные фильтры
-            </Button>
+              <Button
+                aria-controls="report-filter-region"
+                aria-expanded={filtersOpen}
+                disabled={navigationPending}
+                icon="filter"
+                onClick={() => setFiltersOpen((current) => !current)}
+              >
+                Фильтры
+                {detailedFilters.length > 0
+                  ? ` · ${detailedFilters.length}`
+                  : ""}
+              </Button>
+            </div>
           </WorkbenchToolbar>
 
           <AppliedFilterSummary
-            filters={filtersOpen ? [] : filters}
+            filters={filtersOpen ? [] : detailedFilters}
             resetTo={location.pathname}
           />
 
@@ -129,26 +154,7 @@ export function ReportsPage({
           ) : null}
         </WorkbenchSurface>
 
-        <section aria-label="Финансовый результат" className={styles.kpis}>
-          <Metric
-            amount={overview.summary.income}
-            currency={overview.summary.currency}
-            label="Доходы"
-            tone="income"
-          />
-          <Metric
-            amount={overview.summary.expense}
-            currency={overview.summary.currency}
-            label="Расходы"
-            tone="expense"
-          />
-          <Metric
-            amount={overview.summary.profit}
-            currency={overview.summary.currency}
-            label="Итог"
-            tone="profit"
-          />
-        </section>
+        {hasAccounts ? <ReportPeriodSummary overview={overview} /> : null}
 
         {!hasAccounts ? (
           <WorkbenchEmptyState
@@ -167,55 +173,20 @@ export function ReportsPage({
           <ReportEmptyState overview={overview} />
         ) : null}
 
-        {overview.accountBalances.length > 0 ? (
-          <section className={styles.balanceSection}>
-            <div className={styles.sectionHeading}>
-              <div>
-                <p className={styles.sectionEyebrow}>Снимок средств</p>
-                <h2>{balanceHeading(overview.balanceAsOf)}</h2>
-              </div>
-              <InlineNotice tone="information">
-                Период доходов и расходов не меняет начальную дату баланса.
-              </InlineNotice>
+        {hasReportData ? (
+          <div className={styles.analysisLayout}>
+            <div data-report-primary-analysis="true">
+              <ReportBreakdowns overview={overview} />
             </div>
-            <ResponsiveRecordCollection
-              mobileList={<BalanceCards overview={overview} />}
-              table={<BalanceTable overview={overview} />}
-            />
-          </section>
+            {hasAccounts ? <ReportAccountBalances overview={overview} /> : null}
+          </div>
         ) : null}
 
-        {hasReportData ? <ReportBreakdowns overview={overview} /> : null}
-        {hasReportData ? <ReportUncategorized overview={overview} /> : null}
+        {hasReportData ? (
+          <ReportUncategorizedNotice overview={overview} />
+        ) : null}
       </PageFrame>
     </AppShell>
-  );
-}
-
-function Metric({
-  amount,
-  currency,
-  label,
-  tone,
-}: {
-  amount: string;
-  currency: string;
-  label: string;
-  tone: "income" | "expense" | "profit";
-}) {
-  return (
-    <article className={styles.metric} data-tone={tone}>
-      <span>{label}</span>
-      <MoneyValue
-        amount={formatMoneyAmount(
-          amount,
-          tone === "income" ? "income" : tone === "expense" ? "expense" : null,
-        )}
-        currency={currency}
-        size="prominent"
-        tone={tone}
-      />
-    </article>
   );
 }
 
@@ -256,68 +227,6 @@ function ReportEmptyState({ overview }: { overview: ReportOverviewDto }) {
   );
 }
 
-function BalanceTable({ overview }: { overview: ReportOverviewDto }) {
-  return (
-    <table className={styles.table}>
-      <caption className="visually-hidden">Балансы счетов</caption>
-      <thead>
-        <tr>
-          <th scope="col">Счёт</th>
-          <th scope="col">Валюта</th>
-          <th scope="col">Баланс</th>
-        </tr>
-      </thead>
-      <tbody>
-        {overview.accountBalances.map((account) => (
-          <tr key={account.accountId}>
-            <td>
-              <RouterButtonLink
-                to={`/accounts/${account.accountId}`}
-                tone="ghost"
-              >
-                {account.name}
-                {account.isActive ? "" : " · архив"}
-              </RouterButtonLink>
-            </td>
-            <td>{account.currency}</td>
-            <td className={styles.balanceAmount}>
-              <MoneyValue
-                amount={formatMoneyAmount(account.balance, null)}
-                currency={account.currency}
-                tone={
-                  positiveMoney(account.balance) ? "balancePositive" : "neutral"
-                }
-              />
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function BalanceCards({ overview }: { overview: ReportOverviewDto }) {
-  return (
-    <ul className={styles.balanceCards}>
-      {overview.accountBalances.map((account) => (
-        <li key={account.accountId}>
-          <RouterButtonLink to={`/accounts/${account.accountId}`} tone="ghost">
-            {account.name}
-            {account.isActive ? "" : " · архив"}
-          </RouterButtonLink>
-          <MoneyValue
-            amount={formatMoneyAmount(account.balance, null)}
-            currency={account.currency}
-            tone={
-              positiveMoney(account.balance) ? "balancePositive" : "neutral"
-            }
-          />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function periodLabel(overview: ReportOverviewDto): string {
   const { dateFrom, dateTo } = overview.appliedFilters;
   if (dateFrom && dateTo)
@@ -327,15 +236,26 @@ function periodLabel(overview: ReportOverviewDto): string {
   return "всё время";
 }
 
-function balanceHeading(dateValue: string | null): string {
-  return dateValue ? `Балансы на ${formatDate(dateValue)}` : "Текущие балансы";
+function isAllTime(overview: ReportOverviewDto): boolean {
+  return (
+    overview.appliedFilters.dateFrom === null &&
+    overview.appliedFilters.dateTo === null
+  );
+}
+
+function isCurrentMonth(overview: ReportOverviewDto): boolean {
+  const currentMonthStart = `${new Date().toISOString().slice(0, 7)}-01`;
+  const [year = 0, month = 1] = currentMonthStart.split("-").map(Number);
+  const currentMonthEnd = new Date(Date.UTC(year, month, 0))
+    .toISOString()
+    .slice(0, 10);
+  return (
+    overview.appliedFilters.dateFrom === currentMonthStart &&
+    overview.appliedFilters.dateTo === currentMonthEnd
+  );
 }
 
 function formatDate(value: string): string {
   const [year, month, day] = value.split("-");
   return `${day}.${month}.${year}`;
-}
-
-function positiveMoney(value: string): boolean {
-  return !value.startsWith("-") && !/^0+(?:\.0+)?$/.test(value);
 }

@@ -1,5 +1,7 @@
+import re
 from datetime import date
 from typing import Annotated
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
@@ -20,6 +22,7 @@ from app.features.categories.presentation.presenter import (
     normalize_category_view,
 )
 from app.features.categories.service import CategoryError, CategoryService
+from app.features.ledger.domain.types import OperationType
 from app.features.workspaces.dependencies import (
     get_current_workspace_context,
     require_financial_write_context,
@@ -71,9 +74,15 @@ async def category_detail(
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
     date_from: Annotated[str | None, Query()] = None,
     date_to: Annotated[str | None, Query()] = None,
+    currency: Annotated[str | None, Query()] = None,
+    operation_type: Annotated[str | None, Query(alias="type")] = None,
+    return_to: Annotated[str | None, Query()] = None,
 ) -> HTMLResponse:
     parsed_date_from = parse_optional_query_date(date_from, field_name="date_from")
     parsed_date_to = parse_optional_query_date(date_to, field_name="date_to")
+    parsed_currency = parse_optional_currency(currency) or context.workspace.default_currency
+    parsed_operation_type = parse_optional_operation_type(operation_type)
+    parsed_return_to = safe_reports_return_path(return_to)
     category_service = CategoryService(session)
     try:
         detail = await category_service.get_detail(
@@ -81,6 +90,8 @@ async def category_detail(
             category_id=category_id,
             date_from=parsed_date_from,
             date_to=parsed_date_to,
+            currency=parsed_currency,
+            operation_type=parsed_operation_type,
         )
     except CategoryError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -88,6 +99,9 @@ async def category_detail(
         detail,
         date_from=parsed_date_from,
         date_to=parsed_date_to,
+        currency=parsed_currency,
+        operation_type=parsed_operation_type,
+        return_to=parsed_return_to,
     )
     return templates.TemplateResponse(
         request,
@@ -110,6 +124,45 @@ def parse_optional_query_date(raw_value: str | None, *, field_name: str) -> date
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"{field_name} должен быть датой в формате YYYY-MM-DD.",
         ) from exc
+
+
+def parse_optional_currency(raw_value: str | None) -> str | None:
+    if not raw_value:
+        return None
+    normalized = raw_value.strip().upper()
+    if not re.fullmatch(r"[A-Z]{3}", normalized):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="currency должна быть трёхбуквенным кодом.",
+        )
+    return normalized
+
+
+def parse_optional_operation_type(raw_value: str | None) -> OperationType | None:
+    if not raw_value:
+        return None
+    try:
+        operation_type = OperationType(raw_value)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="type должен быть income или expense.",
+        ) from exc
+    if operation_type not in {OperationType.INCOME, OperationType.EXPENSE}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="type должен быть income или expense.",
+        )
+    return operation_type
+
+
+def safe_reports_return_path(raw_value: str | None) -> str | None:
+    if not raw_value or not raw_value.startswith("/"):
+        return None
+    parsed = urlsplit(raw_value)
+    if parsed.scheme or parsed.netloc or parsed.path != "/app/reports":
+        return None
+    return parsed.geturl()
 
 
 @router.post("")

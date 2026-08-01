@@ -40,12 +40,20 @@ export const reportOverviewSchema: z.ZodType<ReportOverviewDto> = z.object({
     currencies: z.array(z.string().length(3)),
   }),
   summary: moneySummarySchema,
+  balanceSummary: z.object({
+    currency: z.string().length(3),
+    openingBalance: decimalStringSchema,
+    closingBalance: decimalStringSchema,
+    balanceChange: decimalStringSchema,
+  }),
   accountBalances: z.array(
     z.object({
       accountId: z.uuid(),
       name: z.string(),
       currency: z.string().length(3),
-      balance: decimalStringSchema,
+      openingBalance: decimalStringSchema,
+      closingBalance: decimalStringSchema,
+      balanceChange: decimalStringSchema,
       isActive: z.boolean(),
     }),
   ),

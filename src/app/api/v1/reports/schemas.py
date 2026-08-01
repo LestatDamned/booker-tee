@@ -42,11 +42,20 @@ class ReportMoneySummaryApiResponse(ApiModel):
     profit: str
 
 
+class ReportBalanceSummaryApiResponse(ApiModel):
+    currency: str
+    opening_balance: str
+    closing_balance: str
+    balance_change: str
+
+
 class ReportAccountBalanceApiResponse(ApiModel):
     account_id: UUID
     name: str
     currency: str
-    balance: str
+    opening_balance: str
+    closing_balance: str
+    balance_change: str
     is_active: bool
 
 
@@ -102,6 +111,7 @@ class ReportOverviewApiResponse(ApiModel):
     applied_filters: ReportAppliedFiltersApiResponse
     filter_options: ReportFilterOptionsApiResponse
     summary: ReportMoneySummaryApiResponse
+    balance_summary: ReportBalanceSummaryApiResponse
     account_balances: list[ReportAccountBalanceApiResponse]
     category_rows: list[ReportCategoryAggregateApiResponse]
     property_rows: list[ReportPropertyAggregateApiResponse]

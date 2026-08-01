@@ -9,6 +9,7 @@ import sys
 import time
 from copy import deepcopy
 from dataclasses import asdict, dataclass
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
@@ -141,6 +142,7 @@ def parse_args() -> argparse.Namespace:
             "button_audit",
             "design_audit",
             "theme_audit",
+            "reports_stress",
         ),
         default="empty",
         help="Data scenario to prepare before auditing authenticated pages.",
@@ -592,6 +594,8 @@ def collect_ux_assertions(
 
     if path == "/app/reports":
         errors.extend(assert_react_reports(page))
+        if scenario == "reports_stress":
+            errors.extend(assert_react_reports_stress(page))
 
     if path.startswith("/reports") and "/app/reports" not in page.url:
         errors.append("historical Reports URL did not redirect to React")
@@ -643,28 +647,227 @@ def assert_react_reports(page: Page) -> list[str]:
     except PlaywrightError as exc:
         return [f"React Reports did not finish loading: {short_error(exc)}"]
 
-    for heading in ("По категориям", "По объектам", "Операции без категории"):
-        if page.get_by_role("heading", name=heading, exact=True).count() != 1:
-            errors.append(f"React Reports heading {heading!r} was not found")
-
-    category_table = page.locator("table").filter(
-        has=page.locator("caption", has_text="Доходы, расходы и прибыль по категориям")
+    if page.get_by_role("heading", name="Деньги по категориям", exact=True).count() != 1:
+        errors.append("React Reports category flow heading was not found")
+    if page.get_by_role("navigation", name="Раздел отчёта").count() != 0:
+        errors.append("React Reports still exposes superseded breakdown navigation")
+    if page.get_by_role("navigation", name="Показатель отчёта").count() != 0:
+        errors.append("React Reports still exposes superseded metric navigation")
+    category_table = page.get_by_role("table", name="Поступления, расходы и итог по категориям")
+    if category_table.count() == 1 and category_table.is_visible():
+        for label in ("Категория", "Поступления", "Расходы", "Итог"):
+            if page.get_by_role("link", name=re.compile(f"^{label}: сортировать по ")).count() != 1:
+                errors.append(f"React Reports direct category sort is not visible: {label}")
+    if page.get_by_text(re.compile("^Все суммы в ")).count() != 0:
+        errors.append("React Reports still exposes redundant category currency text")
+    if page.get_by_text("Сначала", exact=True).count() != 0:
+        errors.append("React Reports still exposes redundant category sort control")
+    category_matrix_views = (
+        page.get_by_role("table", name="Поступления, расходы и итог по категориям").count()
+        + page.get_by_role("list", name="Движение денег по категориям").count()
+        + page.get_by_text(
+            "За выбранный период нет доходов или расходов по категориям.",
+            exact=True,
+        ).count()
     )
-    if category_table.count() != 1:
-        errors.append("React Reports category table was not found")
-    elif category_table.locator('th[aria-sort="ascending"]').count() != 1:
-        errors.append("React Reports category default sort is not exposed through aria-sort")
-
-    uncategorized_table = page.locator("table").filter(
-        has=page.locator("caption", has_text="Операции без категории")
+    if category_matrix_views != 1:
+        errors.append("React Reports unified category matrix state was not found")
+    if page.get_by_role("region", name="Итог периода").count() != 1:
+        errors.append("React Reports period summary was not found")
+    if page.get_by_role("region", name="Распределение денег по счетам").count() != 1:
+        errors.append("React Reports account supporting pane was not found")
+    account_balance_views = (
+        page.get_by_role("table", name="Остатки по счетам за период").count()
+        + page.get_by_role("list", name="Остатки по счетам за период").count()
     )
-    if uncategorized_table.count() != 1:
-        errors.append("React Reports bounded uncategorized table was not found")
-    if page.get_by_role("link", name="Открыть операцию", exact=True).count() != 1:
-        errors.append("React Reports manual correction target was not found")
+    if account_balance_views != 1:
+        errors.append("React Reports account balance comparison was not found")
+    account_drilldown = page.locator('[data-record-identity][href^="/app/accounts/"]:visible').first
+    if account_drilldown.count() != 1:
+        errors.append("React Reports account drill-down was not found")
+    else:
+        account_href = account_drilldown.get_attribute("href") or ""
+        if "status=confirmed" not in account_href or "return_to=" not in account_href:
+            errors.append("React Reports account drill-down loses report context")
+    if page.get_by_role("link", name="Разобрать", exact=True).count() != 1:
+        errors.append("React Reports compact correction target was not found")
 
     if page.locator("html").evaluate("element => element.scrollWidth > element.clientWidth"):
         errors.append("React Reports causes horizontal page overflow")
+    errors.extend(assert_react_reports_ultrawide_layout(page))
+    errors.extend(assert_react_reports_keyboard_and_reflow(page))
+    return errors
+
+
+def assert_react_reports_ultrawide_layout(page: Page) -> list[str]:
+    errors: list[str] = []
+    viewport = page.viewport_size or {}
+    width = int(viewport.get("width") or 0)
+    height = int(viewport.get("height") or 0)
+    if width < 1200 or height == 0:
+        return errors
+
+    try:
+        for audit_width, audit_height in ((1920, 1080), (2560, 1440)):
+            page.set_viewport_size({"width": audit_width, "height": audit_height})
+            page.wait_for_timeout(100)
+            usage = page.locator("[data-report-workspace]").evaluate(
+                """element => ({
+                    frameWidth: element.getBoundingClientRect().width,
+                    parentContentWidth: (() => {
+                        const parent = element.parentElement;
+                        const style = getComputedStyle(parent);
+                        return parent.clientWidth
+                            - Number.parseFloat(style.paddingLeft)
+                            - Number.parseFloat(style.paddingRight);
+                    })(),
+                })"""
+            )
+            if float(usage["frameWidth"]) < float(usage["parentContentWidth"]) * 0.98:
+                errors.append(f"React Reports does not use the workspace width at {audit_width}px")
+            overflow = collect_overflow(page)
+            if int(overflow["horizontalOverflowPx"]) > 0:
+                errors.append(f"React Reports causes horizontal overflow at {audit_width}px")
+            layout = page.locator("[data-report-workspace]").evaluate(
+                """element => {
+                    const primary = element.querySelector('[data-report-primary-analysis]');
+                    const supporting = element.querySelector('[data-report-account-support]');
+                    if (!(primary instanceof HTMLElement) || !(supporting instanceof HTMLElement)) {
+                        return null;
+                    }
+                    const primaryRect = primary.getBoundingClientRect();
+                    const supportingRect = supporting.getBoundingClientRect();
+                    const workspaceRect = element.getBoundingClientRect();
+                    return {
+                        primaryLeft: primaryRect.left,
+                        primaryRight: primaryRect.right,
+                        primaryTop: primaryRect.top,
+                        supportingLeft: supportingRect.left,
+                        supportingRight: supportingRect.right,
+                        supportingTop: supportingRect.top,
+                        primaryWidth: primaryRect.width,
+                        supportingWidth: supportingRect.width,
+                        workspaceWidth: workspaceRect.width,
+                        accountContentClipped: Array.from(
+                            supporting.querySelectorAll('[aria-label]')
+                        ).some(node => {
+                            if (!(node instanceof HTMLElement)) return false;
+                            const rect = node.getBoundingClientRect();
+                            return rect.left < supportingRect.left - 1
+                                || rect.right > supportingRect.right + 1;
+                        }),
+                    };
+                }"""
+            )
+            if layout is None:
+                errors.append("React Reports primary/supporting layout regions were not found")
+            elif (
+                float(layout["primaryRight"]) > float(layout["supportingLeft"])
+                or abs(float(layout["primaryTop"]) - float(layout["supportingTop"])) > 2
+            ):
+                errors.append(
+                    "React Reports does not use an aligned primary/supporting "
+                    f"layout at {audit_width}px"
+                )
+            elif bool(layout["accountContentClipped"]):
+                errors.append(f"React Reports account values are clipped at {audit_width}px")
+            elif abs(float(layout["primaryWidth"]) - float(layout["supportingWidth"])) > 2:
+                errors.append(
+                    f"React Reports analytical pair is not evenly split at {audit_width}px"
+                )
+            elif (
+                float(layout["supportingRight"]) - float(layout["primaryLeft"])
+                < float(layout["workspaceWidth"]) * 0.95
+            ):
+                errors.append(
+                    f"React Reports analytical pair does not use workspace width at {audit_width}px"
+                )
+    finally:
+        page.set_viewport_size({"width": width, "height": height})
+        page.evaluate("window.scrollTo(0, 0)")
+    return errors
+
+
+def assert_react_reports_keyboard_and_reflow(page: Page) -> list[str]:
+    errors: list[str] = []
+    viewport = page.viewport_size or {}
+    width = int(viewport.get("width") or 0)
+    height = int(viewport.get("height") or 0)
+    if width > 400 or height == 0:
+        return errors
+
+    page.evaluate("document.activeElement?.blur()")
+    keyboard_target_found = False
+    for _ in range(40):
+        page.keyboard.press("Tab")
+        keyboard_target_found = bool(
+            page.evaluate("document.activeElement?.matches('[data-record-identity]') ?? false")
+        )
+        if keyboard_target_found:
+            break
+    if not keyboard_target_found:
+        errors.append("React Reports drill-downs are not reachable in keyboard order")
+    elif not page.evaluate("document.activeElement?.matches(':focus-visible') ?? false"):
+        errors.append("React Reports keyboard drill-down has no visible focus state")
+
+    try:
+        page.set_viewport_size({"width": 320, "height": height})
+        page.wait_for_timeout(100)
+        overflow = collect_overflow(page)
+        if int(overflow["horizontalOverflowPx"]) > 0:
+            errors.append("React Reports does not reflow at a 320px CSS viewport")
+    finally:
+        page.set_viewport_size({"width": width, "height": height})
+        page.evaluate("document.activeElement?.blur(); window.scrollTo(0, 0)")
+    return errors
+
+
+def assert_react_reports_stress(page: Page) -> list[str]:
+    errors: list[str] = []
+    primary = page.locator("[data-report-primary-analysis]")
+    accounts = page.locator("[data-report-account-support]")
+
+    category_table = page.get_by_role("table", name="Поступления, расходы и итог по категориям")
+    category_list = page.get_by_role("list", name="Движение денег по категориям")
+    if category_table.count() == 1 and category_table.is_visible():
+        category_count = category_table.locator("tbody tr").count()
+    elif category_list.count() == 1 and category_list.is_visible():
+        category_count = category_list.locator(":scope > li").count()
+    else:
+        category_count = 0
+    if category_count != 24:
+        errors.append(f"React Reports stress fixture hides categories: {category_count}/24")
+
+    account_list = page.get_by_role("list", name="Остатки по счетам за период")
+    account_count = account_list.locator(":scope > li").count()
+    if account_count != 8:
+        errors.append(f"React Reports stress fixture hides accounts: {account_count}/8")
+
+    body_text = page.locator("body").inner_text()
+    for expected_text in (
+        "Жильё, коммунальные услуги и обслуживание недвижимости",
+        "Расчётный счёт для ежедневных операций",
+    ):
+        if expected_text not in body_text:
+            errors.append(f"React Reports stress fixture lost long label: {expected_text!r}")
+
+    if page.get_by_text("Показать все", exact=True).count() != 0:
+        errors.append("React Reports hides stress rows behind a show-all action")
+
+    for region, label in ((primary, "categories"), (accounts, "accounts")):
+        if region.count() != 1:
+            errors.append(f"React Reports stress {label} region was not found")
+            continue
+        if region.evaluate("element => element.scrollWidth > element.clientWidth + 1"):
+            errors.append(f"React Reports stress {label} region overflows horizontally")
+    if category_table.count() == 1 and category_table.is_visible():
+        clipped_cells = category_table.locator("th, td").evaluate_all(
+            "cells => cells.filter(cell => cell.scrollWidth > cell.clientWidth + 1).length"
+        )
+        if int(clipped_cells) > 0:
+            errors.append(
+                f"React Reports stress table has {clipped_cells} clipped or overlapping cells"
+            )
     return errors
 
 
@@ -2412,6 +2615,180 @@ def install_explained_reconciliation_fixture(page: Page) -> None:
     page.route("**/api/v1/import-review/*", explain_reconciliation)
 
 
+def install_reports_stress_fixture(page: Page) -> None:
+    category_names = (
+        "Жильё, коммунальные услуги и обслуживание недвижимости с длинным названием",
+        "Продажи и возвраты покупателей",
+        "Проценты, кешбэк и вознаграждения",
+        "Категория без движения",
+        "Продукты и товары для дома",
+        "Транспорт и обслуживание автомобиля",
+        "Здоровье и медицинские услуги",
+        "Образование и профессиональное развитие",
+        "Путешествия и командировки",
+        "Кафе и рестораны",
+        "Подписки и цифровые сервисы",
+        "Связь и интернет",
+        "Налоги и обязательные платежи",
+        "Подарки и помощь близким",
+        "Одежда и обувь",
+        "Красота и уход",
+        "Домашние животные",
+        "Развлечения и культура",
+        "Спорт и активный отдых",
+        "Ремонт и оборудование",
+        "Маркетплейсы",
+        "Страхование",
+        "Благотворительность",
+        "Прочие операции",
+    )
+    account_names = (
+        "Расчётный счёт для ежедневных операций с особенно длинным названием",
+        "Основная дебетовая карта",
+        "Накопительный счёт",
+        "Вклад на крупные покупки",
+        "Наличные",
+        "Резервный счёт",
+        "Кредитная карта",
+        "Архивный валютный счёт",
+    )
+
+    def money(value: Decimal) -> str:
+        return format(value, ".2f")
+
+    def category_id(index: int) -> str:
+        return f"10000000-0000-4000-8000-{index:012d}"
+
+    category_amounts: list[tuple[Decimal, Decimal]] = [
+        (Decimal("9876543210.99"), Decimal("9876500000.88")),
+        (Decimal("1250000.05"), Decimal("1487654.37")),
+        (Decimal("7654321.10"), Decimal("0.00")),
+        (Decimal("0.00"), Decimal("0.00")),
+    ]
+    for index in range(4, len(category_names)):
+        income = Decimal(index * 17321) if index % 3 == 0 else Decimal("0")
+        expense = Decimal(index * (12345 if index % 2 == 0 else 4321)) + Decimal("0.67")
+        category_amounts.append((income, expense))
+
+    opening_balances = (
+        Decimal("9876543210.99"),
+        Decimal("135790.24"),
+        Decimal("0.00"),
+        Decimal("4200000.00"),
+        Decimal("15000.00"),
+        Decimal("875432.10"),
+        Decimal("-245678.90"),
+        Decimal("0.00"),
+    )
+    balance_changes = (
+        Decimal("43210.11"),
+        Decimal("-86420.55"),
+        Decimal("1250000.05"),
+        Decimal("0.00"),
+        Decimal("-15000.00"),
+        Decimal("98765.43"),
+        Decimal("-1234.56"),
+        Decimal("0.00"),
+    )
+
+    def replace_report(route: Route) -> None:
+        response = route.fetch()
+        payload = response.json()
+        category_rows = [
+            {
+                "categoryId": category_id(index),
+                "name": name,
+                "currency": "RUB",
+                "income": money(income),
+                "expense": money(expense),
+                "profit": money(income - expense),
+                "isActive": index != len(category_names) - 1,
+            }
+            for index, (name, (income, expense)) in enumerate(
+                zip(category_names, category_amounts, strict=True)
+            )
+        ]
+        account_rows = []
+        for index, (name, opening, change) in enumerate(
+            zip(account_names, opening_balances, balance_changes, strict=True)
+        ):
+            account_rows.append(
+                {
+                    "accountId": f"20000000-0000-4000-8000-{index:012d}",
+                    "name": name,
+                    "currency": "RUB",
+                    "openingBalance": money(opening),
+                    "closingBalance": money(opening + change),
+                    "balanceChange": money(change),
+                    "isActive": index != len(account_names) - 1,
+                }
+            )
+
+        total_income = sum((income for income, _ in category_amounts), Decimal("0"))
+        total_expense = sum((expense for _, expense in category_amounts), Decimal("0"))
+        total_opening = sum(opening_balances, Decimal("0"))
+        total_change = sum(balance_changes, Decimal("0"))
+        payload["summary"] = {
+            "currency": "RUB",
+            "income": money(total_income),
+            "expense": money(total_expense),
+            "profit": money(total_income - total_expense),
+        }
+        payload["balanceSummary"] = {
+            "currency": "RUB",
+            "openingBalance": money(total_opening),
+            "closingBalance": money(total_opening + total_change),
+            "balanceChange": money(total_change),
+        }
+        payload["categoryRows"] = category_rows
+        payload["accountBalances"] = account_rows
+        payload["filterOptions"]["categories"] = [
+            {
+                "id": row["categoryId"],
+                "name": row["name"],
+                "isActive": row["isActive"],
+            }
+            for row in category_rows
+        ]
+        payload["filterOptions"]["accounts"] = [
+            {
+                "id": row["accountId"],
+                "name": row["name"],
+                "currency": row["currency"],
+                "isActive": row["isActive"],
+            }
+            for row in account_rows
+        ]
+        payload["uncategorized"] = {
+            "items": [
+                {
+                    "operationId": "30000000-0000-4000-8000-000000000000",
+                    "version": 1,
+                    "operationDate": "2026-07-20",
+                    "operationType": "expense",
+                    "description": "Операция без категории для проверки действия",
+                    "source": "manual",
+                    "signedAmount": "-250.00",
+                    "currency": "RUB",
+                    "accountId": account_rows[0]["accountId"],
+                    "capabilities": {
+                        "canCorrect": True,
+                        "readonlyReasonCode": None,
+                    },
+                }
+            ],
+            "page": 1,
+            "pageSize": 10,
+            "total": 1,
+            "totalPages": 1,
+            "hasPrevious": False,
+            "hasNext": False,
+        }
+        route.fulfill(response=response, json=payload)
+
+    page.route("**/api/v1/reports*", replace_report)
+
+
 def audit_page(
     page: Page,
     *,
@@ -2450,6 +2827,8 @@ def audit_page(
     try:
         if scenario == "theme_audit" and path == scenario_state.get("react_review_path"):
             install_explained_reconciliation_fixture(page)
+        if scenario == "reports_stress" and path == "/app/reports":
+            install_reports_stress_fixture(page)
         response = page.goto(
             build_url(base_url, path),
             wait_until="domcontentloaded",

@@ -5,7 +5,7 @@ from math import ceil
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Select, String, and_, case, func, or_, select
+from sqlalchemy import Select, String, and_, case, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.accounts.models import Account
@@ -63,7 +63,9 @@ class ReportAccountBalanceRow:
     account_id: UUID
     name: str
     currency: str
-    balance: Decimal
+    opening_balance: Decimal
+    closing_balance: Decimal
+    balance_change: Decimal
     is_active: bool
 
 
@@ -192,14 +194,25 @@ class ReportsRepository:
             Operation.status == OperationStatus.CONFIRMED,
             Operation.workspace_id == workspace_id,
         ]
+        if filters.date_from is None:
+            opening_entry_total = literal(ZERO)
+        else:
+            opening_entry_total = func.coalesce(
+                func.sum(MoneyEntry.amount).filter(
+                    *confirmed_conditions,
+                    Operation.operation_date < filters.date_from,
+                ),
+                ZERO,
+            )
+        closing_conditions = list(confirmed_conditions)
         if filters.date_to is not None:
-            confirmed_conditions.append(Operation.operation_date <= filters.date_to)
-        confirmed_total = func.coalesce(
-            func.sum(MoneyEntry.amount).filter(*confirmed_conditions),
+            closing_conditions.append(Operation.operation_date <= filters.date_to)
+        closing_entry_total = func.coalesce(
+            func.sum(MoneyEntry.amount).filter(*closing_conditions),
             ZERO,
         )
         query = (
-            select(Account, confirmed_total)
+            select(Account, opening_entry_total, closing_entry_total)
             .outerjoin(
                 MoneyEntry,
                 and_(
@@ -209,22 +222,36 @@ class ReportsRepository:
                 ),
             )
             .outerjoin(Operation, Operation.id == MoneyEntry.operation_id)
-            .where(Account.workspace_id == workspace_id)
+            .where(
+                Account.workspace_id == workspace_id,
+                Account.currency == filters.currency,
+            )
             .group_by(Account.id)
             .order_by(Account.is_active.desc(), Account.name, Account.id)
         )
         if filters.account_id is not None:
             query = query.where(Account.id == filters.account_id)
         result = await self.session.execute(query)
-        return [
+        rows = [
             ReportAccountBalanceRow(
                 account_id=account.id,
                 name=account.name,
                 currency=account.currency,
-                balance=_money(account.initial_balance + confirmed_entry_total),
+                opening_balance=_money(account.initial_balance + opening_entry_total_value),
+                closing_balance=_money(account.initial_balance + closing_entry_total_value),
+                balance_change=_money(closing_entry_total_value - opening_entry_total_value),
                 is_active=account.is_active,
             )
-            for account, confirmed_entry_total in result.all()
+            for account, opening_entry_total_value, closing_entry_total_value in result.all()
+        ]
+        if filters.account_id is not None:
+            return rows
+        return [
+            row
+            for row in rows
+            if row.opening_balance != ZERO
+            or row.closing_balance != ZERO
+            or row.balance_change != ZERO
         ]
 
     async def list_category_aggregates(

@@ -370,6 +370,20 @@ describe("financial presentation primitives", () => {
     expect(screen.getByText("RUB")).toBeInTheDocument();
   });
 
+  it("can keep a repeated currency accessible in compact data regions", () => {
+    render(
+      <MoneyValue
+        amount="125 000,00"
+        currency="RUB"
+        currencyVisibility="accessible"
+        size="compact"
+      />,
+    );
+
+    expect(screen.getByLabelText("125 000,00 RUB")).toBeVisible();
+    expect(screen.getByText("RUB")).toHaveClass("visually-hidden");
+  });
+
   it("renders status text independently of its visual tone", () => {
     render(<StatusLabel tone="warning">требует проверки</StatusLabel>);
     expect(screen.getByText("требует проверки")).toBeInTheDocument();

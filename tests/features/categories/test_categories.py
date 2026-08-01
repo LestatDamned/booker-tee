@@ -25,6 +25,7 @@ from app.features.categories.service import (
     CategoryService,
     clean_optional_text,
 )
+from app.features.ledger.domain.types import OperationType
 from app.features.workspaces.models import WorkspaceType
 
 
@@ -225,6 +226,44 @@ def test_category_presenter_builds_period_context() -> None:
     assert page.reset_period_url == f"/categories/{category_id}"
 
 
+def test_category_presenter_preserves_report_drilldown_context() -> None:
+    category_id = uuid4()
+    return_to = "/app/reports?date_from=2026-06-01&currency=USD"
+
+    page = CategoryPagePresenter.build_detail(
+        cast(
+            Any,
+            SimpleNamespace(
+                category=SimpleNamespace(
+                    id=category_id,
+                    name="Аренда",
+                    kind=CategoryKind.INCOME,
+                    is_active=True,
+                    is_system=False,
+                    notes=None,
+                ),
+                operations=[],
+                rules=[],
+            ),
+        ),
+        date_from=date(2026, 6, 1),
+        date_to=date(2026, 6, 30),
+        currency="USD",
+        operation_type=OperationType.INCOME,
+        return_to=return_to,
+    )
+
+    assert page.back_url == return_to
+    assert page.back_label == "вернуться в отчёт"
+    assert page.currency == "USD"
+    assert page.flow_label == "только доходы"
+    reset_url = page.reset_period_url
+    assert "?date_from=" not in reset_url
+    assert "currency=USD" in reset_url
+    assert "type=income" in reset_url
+    assert "return_to=%2Fapp%2Freports" in reset_url
+
+
 def test_category_presenter_keeps_system_detail_readonly() -> None:
     page = CategoryPagePresenter.build_detail(
         cast(
@@ -282,6 +321,70 @@ def test_category_detail_url_targets_category_detail() -> None:
         )
         == f"/categories/{category_id}?date_from=2026-06-01&date_to=2026-06-30"
     )
+
+    drilldown = category_detail_url(
+        category_id,
+        date_from=date(2026, 6, 1),
+        date_to=date(2026, 6, 30),
+        currency="USD",
+        operation_type=OperationType.EXPENSE,
+        return_to="/app/reports?currency=USD",
+    )
+    assert "currency=USD" in drilldown
+    assert "type=expense" in drilldown
+    assert "return_to=%2Fapp%2Freports%3Fcurrency%3DUSD" in drilldown
+
+
+def test_report_return_path_accepts_only_local_reports() -> None:
+    target = "/app/reports?date_from=2026-06-01&currency=RUB"
+
+    assert categories_router.safe_reports_return_path(target) == target
+    assert categories_router.safe_reports_return_path("https://evil.example/reports") is None
+    assert categories_router.safe_reports_return_path("//evil.example/app/reports") is None
+    assert categories_router.safe_reports_return_path("/app/accounts") is None
+
+
+@pytest.mark.asyncio
+async def test_category_detail_forwards_currency_and_flow_to_ledger() -> None:
+    category = SimpleNamespace(id=uuid4())
+    captured: dict[str, object] = {}
+
+    class Categories:
+        async def get_for_workspace(self, *_args: object) -> object:
+            return category
+
+    class Ledger:
+        async def list_confirmed_operations(self, **kwargs: object) -> list[object]:
+            captured.update(kwargs)
+            return []
+
+    class Rules:
+        async def list_for_category(self, **_kwargs: object) -> list[object]:
+            return []
+
+    service = CategoryService(cast(Any, SimpleNamespace()))
+    service.categories = cast(Any, Categories())
+    service.ledger = cast(Any, Ledger())
+    service.rules = cast(Any, Rules())
+    workspace_id = uuid4()
+
+    await service.get_detail(
+        workspace_id,
+        category.id,
+        date_from=date(2026, 6, 1),
+        date_to=date(2026, 6, 30),
+        currency="USD",
+        operation_type=OperationType.EXPENSE,
+    )
+
+    assert captured == {
+        "workspace_id": workspace_id,
+        "category_id": category.id,
+        "date_from": date(2026, 6, 1),
+        "date_to": date(2026, 6, 30),
+        "currency": "USD",
+        "operation_type": OperationType.EXPENSE,
+    }
 
 
 @pytest.mark.asyncio

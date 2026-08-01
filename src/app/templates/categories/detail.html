@@ -14,7 +14,7 @@
         <p class="eyebrow">{{ workspace.name }}</p>
         <h1>{{ detail.category.name }}</h1>
       </div>
-      <a class="button" href="/categories">{{ icon("tag") }} категории</a>
+      <a class="button" href="{{ page.back_url }}">{{ icon("back") }} {{ page.back_label }}</a>
     </div>
 
     <article id="{{ header.anchor_id }}" class="financial-row entity-card category-detail-card {% if header.is_system %}category-card--system{% endif %} {% if header.is_inactive %}entity-card-inactive{% endif %}">
@@ -105,6 +105,7 @@
     <div class="report-context-bar category-detail-period">
       <span>{{ icon("calendar") }} период</span>
       <strong>{{ page.period_label }}</strong>
+      <span>{{ page.currency or workspace.default_currency }} · {{ page.flow_label }}</span>
       {% if page.has_period_filter %}
         <a class="button button-small filter-form__secondary-action" href="{{ page.reset_period_url }}">{{ icon("refresh") }} все время</a>
       {% endif %}
@@ -113,15 +114,15 @@
     <div class="summary-grid kpi-strip">
       <div>
         <span>доходы</span>
-        <strong class="money-value money-income">{{ detail.summary.income }} <small>{{ workspace.default_currency }}</small></strong>
+        <strong class="money-value money-income">{{ detail.summary.income }} <small>{{ page.currency or workspace.default_currency }}</small></strong>
       </div>
       <div>
         <span>расходы</span>
-        <strong class="money-value money-expense">{{ detail.summary.expense }} <small>{{ workspace.default_currency }}</small></strong>
+        <strong class="money-value money-expense">{{ detail.summary.expense }} <small>{{ page.currency or workspace.default_currency }}</small></strong>
       </div>
       <div>
         <span>прибыль</span>
-        <strong class="money-value money-profit">{{ detail.summary.profit }} <small>{{ workspace.default_currency }}</small></strong>
+        <strong class="money-value money-profit">{{ detail.summary.profit }} <small>{{ page.currency or workspace.default_currency }}</small></strong>
       </div>
     </div>
 

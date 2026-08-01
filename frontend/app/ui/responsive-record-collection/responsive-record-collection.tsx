@@ -13,8 +13,12 @@ export function ResponsiveRecordCollection({
 }: ResponsiveRecordCollectionProps) {
   return (
     <div className={styles.collection}>
-      <div className={styles.tableRegion}>{table}</div>
-      <div className={styles.mobileRegion}>{mobileList}</div>
+      <div className={styles.tableRegion} data-responsive-table-region>
+        {table}
+      </div>
+      <div className={styles.mobileRegion} data-responsive-mobile-region>
+        {mobileList}
+      </div>
     </div>
   );
 }

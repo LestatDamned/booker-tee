@@ -11,6 +11,7 @@ from app.api.v1.reports.dependencies import get_reporting_overview_reader
 from app.api.v1.reports.router import uncategorized_operation
 from app.features.ledger.domain.types import OperationSource, OperationType
 from app.features.reports.application.overview import (
+    ReportBalanceSummary,
     ReportingFilterError,
     ReportingFilterOptions,
     ReportingFilters,
@@ -84,13 +85,21 @@ class ReportingReaderStub:
                 Decimal("40.00"),
                 Decimal("60.00"),
             ),
+            balance_summary=ReportBalanceSummary(
+                currency=applied.currency or "",
+                opening_balance=Decimal("1000.00"),
+                closing_balance=Decimal("1060.00"),
+                balance_change=Decimal("60.00"),
+            ),
             account_balances=[
                 ReportAccountBalanceRow(
-                    self.account_id,
-                    "Основной",
-                    "RUB",
-                    Decimal("1060.00"),
-                    True,
+                    account_id=self.account_id,
+                    name="Основной",
+                    currency="RUB",
+                    opening_balance=Decimal("1000.00"),
+                    closing_balance=Decimal("1060.00"),
+                    balance_change=Decimal("60.00"),
+                    is_active=True,
                 )
             ],
             categories=[
@@ -168,7 +177,21 @@ def test_reports_api_returns_currency_safe_decimal_string_contract() -> None:
         "expense": "40.00",
         "profit": "60.00",
     }
-    assert payload["accountBalances"][0]["balance"] == "1060.00"
+    assert payload["balanceSummary"] == {
+        "currency": "RUB",
+        "openingBalance": "1000.00",
+        "closingBalance": "1060.00",
+        "balanceChange": "60.00",
+    }
+    assert payload["accountBalances"][0] == {
+        "accountId": str(reader.account_id),
+        "name": "Основной",
+        "currency": "RUB",
+        "openingBalance": "1000.00",
+        "closingBalance": "1060.00",
+        "balanceChange": "60.00",
+        "isActive": True,
+    }
     assert payload["filterOptions"]["currencies"] == ["RUB", "USD"]
     assert payload["filterOptions"]["accounts"][1]["isActive"] is False
     assert payload["balanceAsOf"] == "2026-07-31"

@@ -1,6 +1,8 @@
-.page {
+.page[data-report-workspace] {
   display: grid;
-  gap: var(--space-5);
+  max-width: none;
+  margin-inline: 0;
+  gap: var(--space-4);
 }
 
 .controls {
@@ -8,15 +10,68 @@
 }
 
 .toolbar {
-  display: flex;
+  grid-template-columns: auto minmax(20rem, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-4);
+  border-block: 0;
+}
+
+.reportIdentity {
+  display: grid;
+  min-width: 9rem;
+  gap: 0.125rem;
+}
+
+.reportIdentity > span,
+.sectionEyebrow {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.reportIdentity h1 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-tight);
 }
 
 .periodNav {
+  display: grid;
+  width: min(100%, 25rem);
+  justify-self: center;
+  grid-template-columns: var(--control-height) minmax(12rem, 1fr) var(
+      --control-height
+    );
+  align-items: center;
+}
+
+.periodNav > a:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.periodNav > a:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.periodLabel {
   display: flex;
-  flex-wrap: wrap;
+  min-height: var(--control-height);
+  align-items: center;
+  justify-content: center;
+  border-block: 1px solid var(--color-border-control);
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  padding-inline: var(--space-3);
+  text-align: center;
+}
+
+.toolbarActions {
+  display: flex;
+  justify-content: flex-end;
   gap: var(--space-2);
 }
 
@@ -31,248 +86,470 @@
   gap: var(--space-4);
 }
 
-.kpis {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-3);
+.periodSummarySurface {
+  overflow: clip;
 }
 
-.metric {
+.analysisLayout {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+  gap: var(--space-4);
+}
+
+.analysisLayout > * {
+  min-width: 0;
+}
+
+.periodSummary {
   display: grid;
   min-width: 0;
-  gap: var(--space-2);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-surface);
-  padding: var(--space-5);
+  grid-template-columns: minmax(15rem, 2fr) minmax(0, 5fr);
+  align-items: stretch;
+  padding: var(--space-4);
 }
 
-.metric > span:first-child,
-.sectionEyebrow {
+.periodSummaryHeader {
+  display: grid;
+  align-content: center;
+  gap: var(--space-2);
+  padding-inline-end: var(--space-4);
+}
+
+.resultLabel {
+  margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+}
+
+.summaryGroups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-inline-start: 1px solid var(--color-border-default);
+}
+
+.summaryGroup {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-4);
+}
+
+.summaryGroup + .summaryGroup {
+  border-inline-start: 1px solid var(--color-border-default);
+}
+
+.summaryGroupLabel {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.balanceSection {
+.summaryFacts {
   display: grid;
-  gap: var(--space-4);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-surface);
-  padding: var(--space-5);
-}
-
-.breakdowns {
-  display: grid;
-  gap: var(--space-5);
-}
-
-.breakdownSection {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-4);
-  overflow: clip;
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-surface);
-  padding: var(--space-5);
-}
-
-.uncategorizedSection {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-4);
-  overflow: clip;
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-surface);
-  padding: var(--space-5);
-}
-
-.breakdownHeading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.7fr);
-  align-items: start;
-  gap: var(--space-4);
-}
-
-.breakdownHeading h2,
-.breakdownHeading p {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 0;
 }
 
-.breakdownHeading h2 {
-  margin-top: var(--space-1);
+.summaryFact {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+  padding-block: var(--space-1);
 }
 
-.breakdownHeading > p {
+.summaryFact + .summaryFact {
+  border-inline-start: 1px solid var(--color-border-default);
+  padding-inline-start: var(--space-3);
+}
+
+.summaryFact:first-child {
+  padding-inline-end: var(--space-3);
+}
+
+.summaryFact dt,
+.accountBalanceFacts dt {
+  margin: 0;
   color: var(--color-text-secondary);
-  line-height: 1.55;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
 }
 
-.sectionHeading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.7fr);
-  align-items: start;
-  gap: var(--space-4);
-}
-
-.sectionHeading h2,
-.sectionEyebrow {
+.summaryFact dd,
+.accountBalanceFacts dd {
+  min-width: 0;
   margin: 0;
 }
 
-.sectionHeading h2 {
-  margin-top: var(--space-1);
+.accountsComparison {
+  min-width: 0;
+  overflow: clip;
+  container: report-accounts / inline-size;
 }
 
-.table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.table th,
-.table td {
+.accountsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
   border-bottom: 1px solid var(--color-border-default);
-  padding: var(--space-3);
-  text-align: left;
+  padding: var(--space-3) var(--space-4);
 }
 
-.table th {
+.accountsHeader h2 {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-lg);
+}
+
+.accountsCurrency {
+  flex: none;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-pill);
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  padding: var(--space-1) var(--space-2);
 }
 
-.balanceAmount {
-  text-align: right !important;
+.accountMobileList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.moneyColumn {
-  text-align: right !important;
-}
-
-.actionColumn {
-  width: 14rem;
-  text-align: right !important;
-}
-
-.operationMeta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.readonlyReason {
-  display: inline-block;
-  max-width: 14rem;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: 1.45;
-}
-
-.sortControl {
-  width: 100%;
-  justify-content: flex-start;
-  padding-inline: var(--space-2);
-  white-space: normal;
-}
-
-.mobileSortControls {
-  display: none;
-}
-
-.moneyColumn .sortControl {
-  justify-content: flex-end;
-}
-
-.balanceCards {
+.accountMobileList > li {
   display: grid;
   gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  padding: var(--space-3) var(--space-4);
 }
 
-.balanceCards li {
+.accountMobileList > li + li {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.accountRecordLink {
   display: flex;
-  min-width: 0;
+  min-height: var(--control-height);
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-}
-
-.breakdownCards {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.recordHeading {
-  min-width: 0;
+  border-radius: var(--radius-sm);
   color: var(--color-text-primary);
-  overflow-wrap: anywhere;
+  text-decoration: none;
 }
 
-.operationCardHeading {
-  display: flex;
-  min-width: 0;
-  align-items: start;
-  justify-content: space-between;
+.accountRecordLink > span {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.accountRecordLink:hover > strong,
+.accountRecordLink:focus-visible > strong {
+  color: var(--color-action-primary);
+}
+
+.accountRecordLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.accountBalanceFacts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
+  margin: 0;
 }
 
-.operationCardHeading > div {
+.accountBalanceFacts > div {
   display: grid;
   min-width: 0;
   gap: var(--space-1);
 }
 
-.operationCardHeading time {
+.accountBalanceFacts > div:not(:first-child) {
+  text-align: right;
+}
+
+@container report-accounts (max-width: 34rem) {
+  .accountBalanceFacts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .accountBalanceFacts > div:nth-child(2) {
+    text-align: right;
+  }
+
+  .accountBalanceFacts > div:last-child {
+    grid-column: 1 / -1;
+    border-block-start: 1px solid var(--color-border-default);
+    padding-block-start: var(--space-2);
+  }
+}
+
+.accountsEmpty {
+  margin: 0;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-variant-numeric: tabular-nums;
+  padding: var(--space-5) var(--space-4);
 }
 
-.operationCardHeading strong {
-  overflow-wrap: anywhere;
+.analysisSection {
+  min-width: 0;
+  overflow: clip;
+  container: report-analysis / inline-size;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
 }
 
-.operationAction {
+.analysisHeader {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
 }
 
-.moneyFacts {
-  display: grid;
-  gap: var(--space-2);
+.analysisHeader h2 {
   margin: 0;
 }
 
-.moneyFacts > div {
+.flowMatrix {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.flowMatrix th:first-child {
+  width: 34%;
+}
+
+.flowMatrix th:nth-child(2),
+.flowMatrix th:nth-child(3),
+.flowMatrix th:last-child {
+  width: 22%;
+}
+
+.flowMatrix th:nth-child(2),
+.flowMatrix td:nth-child(2),
+.flowMatrix th:nth-child(3),
+.flowMatrix td:nth-child(3),
+.flowMatrix th:last-child,
+.flowMatrix td:last-child {
+  text-align: right;
+}
+
+.flowMatrix tbody th {
+  font-size: var(--font-size-sm);
+}
+
+.flowMatrix th,
+.flowMatrix td {
+  padding-block: var(--space-1);
+}
+
+.flowMatrix thead th {
+  height: var(--control-height);
+  padding-block: 0;
+}
+
+.flowMatrix tbody tr {
+  height: 2.75rem;
+}
+
+.flowMatrix tfoot {
+  border-top: 1px solid var(--color-border-strong);
+  background: var(--color-bg-secondary-pane);
+}
+
+.flowMatrix tfoot th,
+.flowMatrix tfoot td {
+  height: 2.75rem;
+  font-weight: 800;
+}
+
+.matrixSortLink {
+  display: inline-flex;
+  min-height: var(--control-height);
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.flowMatrix th:first-child .matrixSortLink {
+  justify-content: flex-start;
+}
+
+.matrixSortLink:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.matrixSortIndicator {
+  opacity: 0.55;
+}
+
+.matrixSortLink[aria-current="page"] {
+  color: var(--color-text-primary);
+}
+
+.matrixSortLink[aria-current="page"] .matrixSortIndicator {
+  opacity: 1;
+}
+
+.matrixCategoryLink {
+  min-height: 0;
+  justify-content: flex-start;
+  border: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.resultCell {
+  background: color-mix(
+    in srgb,
+    var(--color-bg-secondary-pane) 45%,
+    transparent
+  );
+}
+
+.matrixEmpty {
+  margin: 0;
+  border-top: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
+  padding: var(--space-5) var(--space-4);
+}
+
+.matrixMobileHeader {
   display: flex;
-  align-items: baseline;
+  min-width: 0;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
 }
 
-.moneyFacts dt {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+.matrixMobileResult {
+  display: grid;
+  flex: none;
+  justify-items: end;
+  gap: var(--space-1);
 }
 
-.moneyFacts dd {
-  margin: 0;
+.matrixMobileResult > span,
+.matrixMobileFlow > span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.matrixMobileFlows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.matrixMobileTotals {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+  align-items: center;
+  gap: var(--space-3);
+  border-top: 1px solid var(--color-border-strong);
+  background: var(--color-bg-secondary-pane);
+  padding: var(--space-3);
+}
+
+.matrixMobileFlow {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.matrixMobileFlow[data-tone="income"] {
+  justify-items: start;
+  padding-inline-end: var(--space-3);
+  text-align: left;
+}
+
+.matrixMobileFlow[data-tone="expense"] {
+  justify-items: end;
+  border-inline-start: 1px solid var(--color-border-strong);
+  padding-inline-start: var(--space-3);
   text-align: right;
+}
+
+@container report-analysis (max-width: 56rem) {
+  .analysisHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 80rem) {
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .reportIdentity {
+    grid-column: 1 / -1;
+  }
+
+  .periodNav {
+    width: 100%;
+    justify-self: stretch;
+  }
+}
+
+@media (min-width: 90.01rem) {
+  .analysisLayout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+@media (max-width: 90rem) {
+  .periodSummary {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .periodSummaryHeader {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    padding-inline-end: 0;
+  }
+
+  .periodSummaryHeader > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .summaryGroups {
+    border-block-start: 1px solid var(--color-border-default);
+    border-inline-start: 0;
+    padding-block-start: var(--space-3);
+  }
+
+  .summaryGroup:first-child {
+    padding-inline-start: 0;
+  }
+
+  .summaryGroup:last-child {
+    padding-inline-end: 0;
+  }
 }
 
 @media (max-width: 64rem) {
@@ -280,69 +557,98 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .sectionHeading {
-    grid-template-columns: 1fr;
+  .analysisHeader {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-  .breakdownHeading {
-    grid-template-columns: 1fr;
+  .analysisHeader > p {
+    max-width: none;
   }
 
-  .mobileSortControls {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-2);
+  .toolbarActions {
+    justify-content: flex-start;
   }
 }
 
 @media (max-width: 48rem) {
   .toolbar {
-    align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
-  .toolbar > button {
-    width: 100%;
+  .reportIdentity {
+    grid-column: auto;
   }
 
   .periodNav {
+    width: 100%;
+  }
+
+  .toolbarActions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .kpis {
+  .toolbarActions > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .summaryGroups {
     grid-template-columns: 1fr;
+  }
+
+  .summaryGroup {
+    padding-inline: 0;
+  }
+
+  .summaryGroup + .summaryGroup {
+    margin-block-start: var(--space-3);
+    border-block-start: 1px solid var(--color-border-default);
+    border-inline-start: 0;
+    padding-block-start: var(--space-3);
   }
 }
 
 @media (max-width: 30rem) {
-  .filterGrid,
-  .periodNav {
+  .filterGrid {
     grid-template-columns: 1fr;
   }
 
-  .metric,
-  .balanceSection,
-  .breakdownSection,
-  .uncategorizedSection {
-    padding: var(--space-4);
+  .periodNav {
+    min-width: 0;
+    grid-template-columns: var(--control-height) minmax(0, 1fr) var(
+        --control-height
+      );
   }
 
-  .balanceCards li {
-    align-items: flex-start;
-    flex-direction: column;
+  .periodLabel {
+    font-size: var(--font-size-sm);
   }
 
-  .operationCardHeading {
-    align-items: flex-start;
-    flex-direction: column;
+  .periodSummaryHeader {
+    grid-template-columns: 1fr;
   }
 
-  .operationAction {
-    justify-content: stretch;
+  .analysisHeader {
+    padding-inline: var(--space-3);
   }
 
-  .operationAction > a {
-    width: 100%;
+  .analysisSection [data-responsive-record] {
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .matrixCategoryLink {
+    min-height: var(--control-height);
+    padding-block: var(--space-1);
+  }
+
+  .matrixMobileTotals {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .matrixMobileTotals > :nth-child(2),
+  .matrixMobileTotals > :nth-child(3) {
+    display: none;
   }
 }

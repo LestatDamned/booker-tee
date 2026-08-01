@@ -12,13 +12,15 @@ export type MoneyTone =
 type MoneyValueProps = {
   amount: string;
   currency: string;
-  size?: "default" | "prominent";
+  currencyVisibility?: "visible" | "accessible";
+  size?: "compact" | "default" | "prominent";
   tone?: MoneyTone;
 };
 
 export function MoneyValue({
   amount,
   currency,
+  currencyVisibility = "visible",
   size = "default",
   tone = "neutral",
 }: MoneyValueProps) {
@@ -28,7 +30,15 @@ export function MoneyValue({
       className={`${styles.value} ${styles[tone]} ${styles[size]}`}
     >
       <span className={styles.amount}>{amount}</span>
-      <span className={styles.currency}>{currency}</span>
+      <span
+        className={
+          currencyVisibility === "accessible"
+            ? "visually-hidden"
+            : styles.currency
+        }
+      >
+        {currency}
+      </span>
     </span>
   );
 }

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.categories.models import Category, CategoryKind
 from app.features.categories.repository import CategoryRepository
+from app.features.ledger.domain.types import OperationType
 from app.features.ledger.models import Operation
 from app.features.ledger.repository import LedgerRepository
 from app.features.reports.service import IncomeExpenseSummary, summarize_income_expense
@@ -156,6 +157,8 @@ class CategoryService:
         *,
         date_from: date | None = None,
         date_to: date | None = None,
+        currency: str | None = None,
+        operation_type: OperationType | None = None,
     ) -> CategoryDetailView:
         category = await self.categories.get_for_workspace(workspace_id, category_id)
         if category is None:
@@ -165,6 +168,8 @@ class CategoryService:
             category_id=category_id,
             date_from=date_from,
             date_to=date_to,
+            currency=currency,
+            operation_type=operation_type,
         )
         profit_operations = [operation for operation in operations if operation.affects_profit]
         return CategoryDetailView(

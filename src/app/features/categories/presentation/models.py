@@ -85,6 +85,10 @@ class CategoryDetailPageVM:
     period_label: str
     has_period_filter: bool
     reset_period_url: str
+    back_url: str
+    back_label: str
+    currency: str | None
+    flow_label: str
     kinds: list[CategoryKind]
     edit_form: CategoryFormStateVM
     edit_form_id: str

@@ -6,9 +6,11 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.accounts.models import Account
 from app.features.ledger.domain.types import OperationSource, OperationType
 from app.features.properties.models import PropertyStatus
 from app.features.reports.application.overview import (
+    ReportBalanceSummary,
     ReportingFilterError,
     ReportingFilters,
     ReportingOverviewReader,
@@ -63,7 +65,15 @@ class ReportingRepositoryStub:
     ) -> list[ReportAccountBalanceRow]:
         self.calls.append(("balances", workspace_id, filters))
         return [
-            ReportAccountBalanceRow(self.account_id, "Основной", "RUB", Decimal("1060.00"), True)
+            ReportAccountBalanceRow(
+                account_id=self.account_id,
+                name="Основной",
+                currency="RUB",
+                opening_balance=Decimal("1000.00"),
+                closing_balance=Decimal("1060.00"),
+                balance_change=Decimal("60.00"),
+                is_active=True,
+            )
         ]
 
     async def list_category_aggregates(
@@ -75,9 +85,9 @@ class ReportingRepositoryStub:
                 self.category_id,
                 "Продукты",
                 filters.currency or "",
-                Decimal("0.00"),
+                Decimal("100.00"),
                 Decimal("40.00"),
-                Decimal("-40.00"),
+                Decimal("60.00"),
                 True,
             )
         ]
@@ -119,7 +129,25 @@ async def test_reporting_reader_applies_default_currency_and_constant_read_shape
 
     assert overview.filters.currency == "RUB"
     assert overview.summary.currency == "RUB"
+    assert overview.balance_summary == ReportBalanceSummary(
+        currency="RUB",
+        opening_balance=Decimal("1000.00"),
+        closing_balance=Decimal("1060.00"),
+        balance_change=Decimal("60.00"),
+    )
     assert overview.balance_as_of == date(2026, 7, 31)
+    assert sum(row.income for row in overview.categories) == overview.summary.income
+    assert sum(row.expense for row in overview.categories) == overview.summary.expense
+    assert sum(row.profit for row in overview.categories) == overview.summary.profit
+    assert sum(row.opening_balance for row in overview.account_balances) == (
+        overview.balance_summary.opening_balance
+    )
+    assert sum(row.closing_balance for row in overview.account_balances) == (
+        overview.balance_summary.closing_balance
+    )
+    assert sum(row.balance_change for row in overview.account_balances) == (
+        overview.balance_summary.balance_change
+    )
     assert overview.filter_options.currencies == ["RUB", "USD"]
     assert overview.filter_options.accounts[1].is_active is False
     assert overview.next_review_document_id == repository.document_id
@@ -316,6 +344,61 @@ class AggregateSessionCapture:
     async def execute(self, query: Any) -> AggregateResult:
         self.queries.append(query)
         return AggregateResult(self.rows)
+
+
+@pytest.mark.asyncio
+async def test_account_balances_use_period_boundaries_currency_and_relevant_accounts() -> None:
+    workspace_id = uuid4()
+    active_account = Account(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        name="Основной",
+        currency="RUB",
+        initial_balance=Decimal("100.00"),
+        is_active=True,
+    )
+    inactive_empty_account = Account(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        name="Пустой архивный",
+        currency="RUB",
+        initial_balance=Decimal("0.00"),
+        is_active=False,
+    )
+    session = AggregateSessionCapture(
+        [
+            (active_account, Decimal("25.00"), Decimal("60.00")),
+            (inactive_empty_account, Decimal("0.00"), Decimal("0.00")),
+        ]
+    )
+
+    rows = await ReportsRepository(cast(AsyncSession, session)).list_account_balances(
+        workspace_id=workspace_id,
+        filters=ReportingFilters(
+            date_from=date(2026, 7, 1),
+            date_to=date(2026, 7, 31),
+            currency="RUB",
+        ),
+    )
+
+    assert rows == [
+        ReportAccountBalanceRow(
+            account_id=active_account.id,
+            name="Основной",
+            currency="RUB",
+            opening_balance=Decimal("125.00"),
+            closing_balance=Decimal("160.00"),
+            balance_change=Decimal("35.00"),
+            is_active=True,
+        )
+    ]
+    query = session.queries[0]
+    sql = str(query)
+    assert "operations.operation_date <" in sql
+    assert "operations.operation_date <=" in sql
+    assert "accounts.currency" in sql
+    assert workspace_id in query.compile().params.values()
+    assert "RUB" in query.compile().params.values()
 
 
 @pytest.mark.asyncio

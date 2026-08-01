@@ -11,6 +11,7 @@ from app.api.v1.reports.schemas import (
     ReportAccountBalanceApiResponse,
     ReportAccountOptionApiResponse,
     ReportAppliedFiltersApiResponse,
+    ReportBalanceSummaryApiResponse,
     ReportCategoryAggregateApiResponse,
     ReportFilterOptionsApiResponse,
     ReportMoneySummaryApiResponse,
@@ -85,12 +86,20 @@ async def get_report_overview(
             currencies=overview.filter_options.currencies,
         ),
         summary=money_summary(overview.summary),
+        balance_summary=ReportBalanceSummaryApiResponse(
+            currency=overview.balance_summary.currency,
+            opening_balance=decimal_string(overview.balance_summary.opening_balance),
+            closing_balance=decimal_string(overview.balance_summary.closing_balance),
+            balance_change=decimal_string(overview.balance_summary.balance_change),
+        ),
         account_balances=[
             ReportAccountBalanceApiResponse(
                 account_id=item.account_id,
                 name=item.name,
                 currency=item.currency,
-                balance=decimal_string(item.balance),
+                opening_balance=decimal_string(item.opening_balance),
+                closing_balance=decimal_string(item.closing_balance),
+                balance_change=decimal_string(item.balance_change),
                 is_active=item.is_active,
             )
             for item in overview.account_balances

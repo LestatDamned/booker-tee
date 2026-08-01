@@ -1,6 +1,9 @@
 import type { Icon as PhosphorIcon, IconWeight } from "@phosphor-icons/react";
 import {
+  ArrowDown,
   ArrowClockwise,
+  ArrowsDownUp,
+  ArrowUp,
   ArrowUUpLeft,
   ArrowsLeftRight,
   Buildings,
@@ -60,6 +63,9 @@ export type IconName =
   | "rules"
   | "search"
   | "source"
+  | "sort"
+  | "sortAscending"
+  | "sortDescending"
   | "transfer"
   | "undo"
   | "warning"
@@ -94,6 +100,9 @@ const icons: Record<IconName, PhosphorIcon> = {
   rules: ListChecks,
   search: MagnifyingGlass,
   source: FileText,
+  sort: ArrowsDownUp,
+  sortAscending: ArrowUp,
+  sortDescending: ArrowDown,
   transfer: ArrowsLeftRight,
   undo: ArrowUUpLeft,
   warning: WarningCircle,

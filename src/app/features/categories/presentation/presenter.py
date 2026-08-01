@@ -17,6 +17,7 @@ from app.features.categories.service import (
     CategoryError,
     CategoryManagementRow,
 )
+from app.features.ledger.domain.types import OperationType
 from app.shared.ui.actions import ActionVM
 from app.templating import ru_label
 
@@ -90,6 +91,9 @@ class CategoryPagePresenter:
         *,
         date_from: date | None = None,
         date_to: date | None = None,
+        currency: str | None = None,
+        operation_type: OperationType | None = None,
+        return_to: str | None = None,
         edit_form: CategoryFormStateVM | None = None,
         lifecycle_error: str | None = None,
     ) -> CategoryDetailPageVM:
@@ -111,7 +115,16 @@ class CategoryPagePresenter:
             header=category_detail_header_vm(detail),
             period_label=category_detail_period_label(date_from=date_from, date_to=date_to),
             has_period_filter=date_from is not None or date_to is not None,
-            reset_period_url=category_detail_url(category.id),
+            reset_period_url=category_detail_url(
+                category.id,
+                currency=currency,
+                operation_type=operation_type,
+                return_to=return_to,
+            ),
+            back_url=return_to or "/categories",
+            back_label="вернуться в отчёт" if return_to else "категории",
+            currency=currency,
+            flow_label=category_detail_flow_label(operation_type),
             kinds=list(CategoryKind),
             edit_form=resolved_edit_form,
             edit_form_id=form_id,
@@ -207,13 +220,27 @@ def category_detail_url(
     *,
     date_from: date | None = None,
     date_to: date | None = None,
+    currency: str | None = None,
+    operation_type: OperationType | None = None,
+    return_to: str | None = None,
 ) -> str:
     params = {
         "date_from": date_from.isoformat() if date_from else None,
         "date_to": date_to.isoformat() if date_to else None,
+        "currency": currency,
+        "type": operation_type.value if operation_type else None,
+        "return_to": return_to,
     }
     query = urlencode({key: value for key, value in params.items() if value not in {None, ""}})
     return f"/categories/{category_id}?{query}" if query else f"/categories/{category_id}"
+
+
+def category_detail_flow_label(operation_type: OperationType | None) -> str:
+    if operation_type == OperationType.INCOME:
+        return "только доходы"
+    if operation_type == OperationType.EXPENSE:
+        return "только расходы"
+    return "все операции"
 
 
 def category_detail_period_label(

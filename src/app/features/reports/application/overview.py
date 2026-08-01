@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
@@ -40,10 +41,19 @@ class ReportingFilterOptions:
 
 
 @dataclass(frozen=True)
+class ReportBalanceSummary:
+    currency: str
+    opening_balance: Decimal
+    closing_balance: Decimal
+    balance_change: Decimal
+
+
+@dataclass(frozen=True)
 class ReportingOverview:
     filters: ReportingFilters
     filter_options: ReportingFilterOptions
     summary: ReportMoneySummaryRow
+    balance_summary: ReportBalanceSummary
     account_balances: list[ReportAccountBalanceRow]
     categories: list[ReportCategoryAggregateRow]
     properties: list[ReportPropertyAggregateRow]
@@ -130,6 +140,22 @@ class ReportingOverviewReader:
             properties=properties,
             currencies=currencies,
         )
+        summary = await self.repository.read_money_summary(
+            workspace_id=workspace_id,
+            filters=applied,
+        )
+        account_balances = await self.repository.list_account_balances(
+            workspace_id=workspace_id,
+            filters=applied,
+        )
+        opening_balance = sum(
+            (item.opening_balance for item in account_balances),
+            start=Decimal("0.00"),
+        )
+        closing_balance = sum(
+            (item.closing_balance for item in account_balances),
+            start=Decimal("0.00"),
+        )
         return ReportingOverview(
             filters=applied,
             filter_options=ReportingFilterOptions(
@@ -138,14 +164,14 @@ class ReportingOverviewReader:
                 properties=properties,
                 currencies=currencies,
             ),
-            summary=await self.repository.read_money_summary(
-                workspace_id=workspace_id,
-                filters=applied,
+            summary=summary,
+            balance_summary=ReportBalanceSummary(
+                currency=summary.currency,
+                opening_balance=opening_balance,
+                closing_balance=closing_balance,
+                balance_change=closing_balance - opening_balance,
             ),
-            account_balances=await self.repository.list_account_balances(
-                workspace_id=workspace_id,
-                filters=applied,
-            ),
+            account_balances=account_balances,
             categories=await self.repository.list_category_aggregates(
                 workspace_id=workspace_id,
                 filters=applied,
