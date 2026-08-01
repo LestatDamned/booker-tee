@@ -48,6 +48,7 @@ class RuleFormVM:
     direction_options: list[RuleFormOptionVM]
     amount_min: Decimal | None
     amount_max: Decimal | None
+    expected_updated_at: str | None
     submit_action: ActionVM
 
 

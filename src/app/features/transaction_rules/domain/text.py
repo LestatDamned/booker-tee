@@ -14,7 +14,11 @@ def clean_rule_pattern(value: str | None) -> str:
     cleaned = clean_rule_name(value)
     if cleaned is None:
         raise TransactionRuleError("Rule pattern is required.")
-    return cleaned[:255]
+    if len(cleaned) > 255:
+        raise TransactionRuleError("Rule pattern must be 255 characters or fewer.")
+    if not normalized_text(cleaned):
+        raise TransactionRuleError("Rule pattern must contain searchable text.")
+    return cleaned
 
 
 def clean_description(value: str | None) -> str | None:

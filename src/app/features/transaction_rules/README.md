@@ -53,6 +53,8 @@ Domain rules чистые и тестируемые без БД:
 - `router_forms.py` - HTTP form parsing and command builders for the rules page.
 - `application/commands.py` - write-side command dataclasses.
 - `application/rule_management.py` - create/update/toggle/delete and rule from raw confirmation.
+- `application/target_resolution.py` - workspace and lifecycle validation for category,
+  property and dormant account references.
 - `application/rule_application.py` - apply active rules to raw transactions/documents.
 - `application/rule_queries.py` - read-side rule list query.
 - `application/fixture_seeding.py` - seed default merchant suggestion rules.
@@ -63,6 +65,24 @@ Domain rules чистые и тестируемые без БД:
 - `domain/matching.py` - pure matching predicates and raw transaction classifiers.
 - `domain/suggestions.py` - suggestion payload application and cleanup.
 - `domain/patterns.py` - rule pattern inference from raw descriptions.
+- `domain/validation.py` - pure text and Decimal range validation for write commands.
+
+## Hardened write contract
+
+- Standalone commands own commit/rollback; Import Review uses the explicitly
+  named `create_rule_in_transaction()` and keeps the outer transaction.
+- Interactive create always creates the reviewed command and never silently
+  returns a weak `pattern + category` match.
+- Update/lifecycle/delete accept `updated_at` snapshots; mutation queries lock
+  the workspace-scoped rule row.
+- Create and changed targets must be active and belong to the rule workspace.
+  Update may retain its current archived reference; enable revalidates all
+  current targets.
+- Delete requires a disabled rule with no direct raw suggestions. The database
+  FK uses `RESTRICT`, so a concurrent reference cannot erase provenance.
+- Default seeding locks the workspace, creates only missing rows and never
+  mutates an existing user rule.
+- Directory reads never seed or commit categories.
 
 ## Import style
 

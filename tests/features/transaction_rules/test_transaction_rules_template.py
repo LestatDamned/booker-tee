@@ -324,7 +324,10 @@ def test_transaction_rules_presenter_prepares_display_state_and_actions() -> Non
     assert row.edit_toggle_action.panel_id == row.edit_summary_id
     assert row.edit_toggle_action.icon == "settings"
     assert row.toggle_action.icon == "check"
-    assert row.toggle_action.hidden_fields == {"is_active": "true"}
+    assert row.toggle_action.hidden_fields == {
+        "is_active": "true",
+        "expected_active": "false",
+    }
     assert row.delete_action.style == "danger"
     assert row.delete_action.confirm_message is not None
     assert "YANDEX GO -> Такси" in row.delete_action.confirm_message

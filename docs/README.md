@@ -53,6 +53,7 @@ migration workflow — Transaction Rules.
 - [`Reports migration`](frontend/plan/reports/README.md)
 - [`Import documents and mapping`](frontend/plan/import-documents-and-mapping/README.md)
 - [`Categories migration`](frontend/plan/categories/README.md)
+- [`Transaction Rules audit and migration plan`](frontend/plan/transaction-rules/README.md)
 
 ## Правила поддержки
 

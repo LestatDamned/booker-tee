@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
@@ -9,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
+from app.features.categories.models import Category
 from app.features.categories.service import CategoryService
+from app.features.properties.models import Property
 from app.features.properties.service import PropertyService
 from app.features.transaction_rules.application.fixture_seeding import DefaultMerchantRuleSeeder
 from app.features.transaction_rules.application.rule_management import (
@@ -165,6 +168,7 @@ async def update_rule(
     target_operation_type: Annotated[str | None, Form()] = None,
     amount_min: Annotated[Decimal | None, Form()] = None,
     amount_max: Annotated[Decimal | None, Form()] = None,
+    expected_updated_at: Annotated[datetime | None, Form()] = None,
 ) -> Response:
     try:
         rule = await TransactionRuleManagementUseCase(session).update_rule(
@@ -181,6 +185,7 @@ async def update_rule(
                 application_mode=application_mode,
                 amount_min=amount_min,
                 amount_max=amount_max,
+                expected_updated_at=expected_updated_at,
             ),
         )
     except (ValueError, TransactionRuleError) as exc:
@@ -202,12 +207,19 @@ async def toggle_rule(
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
     is_active: Annotated[bool, Form()] = False,
+    expected_active: Annotated[bool | None, Form()] = None,
+    expected_updated_at: Annotated[datetime | None, Form()] = None,
 ) -> Response:
-    rule = await TransactionRuleManagementUseCase(session).set_rule_active(
-        workspace_id=context.workspace.id,
-        rule_id=rule_id,
-        is_active=is_active,
-    )
+    try:
+        rule = await TransactionRuleManagementUseCase(session).set_rule_active(
+            workspace_id=context.workspace.id,
+            rule_id=rule_id,
+            is_active=is_active,
+            expected_active=expected_active,
+            expected_updated_at=expected_updated_at,
+        )
+    except TransactionRuleError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if is_htmx_request(request):
         return await render_rule_row_response(
             request=request,
@@ -224,11 +236,18 @@ async def delete_rule(
     rule_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
     context: Annotated[WorkspaceContext, Depends(require_financial_write_context)],
+    expected_active: Annotated[bool | None, Form()] = None,
+    expected_updated_at: Annotated[datetime | None, Form()] = None,
 ) -> Response:
-    await TransactionRuleManagementUseCase(session).delete_rule(
-        workspace_id=context.workspace.id,
-        rule_id=rule_id,
-    )
+    try:
+        await TransactionRuleManagementUseCase(session).delete_rule(
+            workspace_id=context.workspace.id,
+            rule_id=rule_id,
+            expected_active=expected_active,
+            expected_updated_at=expected_updated_at,
+        )
+    except TransactionRuleError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if is_htmx_request(request):
         return await render_rules_list_response(
             request=request,
@@ -275,17 +294,16 @@ async def render_rule_edit_panel_response(
     context: WorkspaceContext,
     rule_id: UUID,
 ) -> HTMLResponse:
-    categories = await CategoryService(session).list_or_seed_defaults(
-        context.workspace.id,
-        context.workspace.type,
-    )
-    properties = await PropertyService(session).list_active(context.workspace.id)
     rule = await TransactionRuleQueryUseCase(session).get_rule(
         workspace_id=context.workspace.id,
         rule_id=rule_id,
     )
     if rule is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    categories = await CategoryService(session).list_active(context.workspace.id)
+    properties = await PropertyService(session).list_active(context.workspace.id)
+    categories = include_current_reference(categories, rule.category)
+    properties = include_current_reference(properties, rule.property)
     form = TransactionRulesPagePresenter.build_edit_form(
         rule,
         categories=categories,
@@ -338,10 +356,7 @@ async def build_rules_page(
     filter_status: str = "all",
     limit: int = RULE_LIST_DEFAULT_LIMIT,
 ) -> RulesPageVM:
-    categories = await CategoryService(session).list_or_seed_defaults(
-        context.workspace.id,
-        context.workspace.type,
-    )
+    categories = await CategoryService(session).list_active(context.workspace.id)
     properties = await PropertyService(session).list_active(context.workspace.id)
     result = await TransactionRuleQueryUseCase(session).list_rules_for_page(
         workspace_id=context.workspace.id,
@@ -391,3 +406,12 @@ def parse_rule_list_limit(raw_value: str | None) -> int:
         return normalize_limit(int(raw_value))
     except ValueError:
         return RULE_LIST_DEFAULT_LIMIT
+
+
+def include_current_reference[ReferenceT: (Category, Property)](
+    references: list[ReferenceT],
+    current: ReferenceT | None,
+) -> list[ReferenceT]:
+    if current is None or any(reference.id == current.id for reference in references):
+        return references
+    return [*references, current]

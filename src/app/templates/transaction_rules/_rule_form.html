@@ -13,6 +13,9 @@
   {% endif %}
 >
   {{ csrf_input() }}
+  {% if form.expected_updated_at %}
+    <input type="hidden" name="expected_updated_at" value="{{ form.expected_updated_at }}">
+  {% endif %}
   {% if form.layout == "create" %}
     <div class="rule-create-flow">
       <div class="rule-create-block">

@@ -22,6 +22,12 @@ class WorkspaceRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def lock_for_update(self, workspace_id: UUID) -> Workspace | None:
+        result = await self.session.execute(
+            select(Workspace).where(Workspace.id == workspace_id).with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     async def get_first_active_membership_for_user(
         self,
         user_id: UUID,

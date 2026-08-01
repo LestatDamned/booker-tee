@@ -239,6 +239,11 @@ class RawTransaction(Base):
         ),
         Index("ix_raw_transactions_workspace_dedupe_hash", "workspace_id", "dedupe_hash"),
         Index(
+            "ix_raw_transactions_workspace_suggested_rule",
+            "workspace_id",
+            "suggested_by_rule_id",
+        ),
+        Index(
             "uq_raw_transactions_workspace_confirmed_dedupe_hash",
             "workspace_id",
             "dedupe_hash",
@@ -289,7 +294,7 @@ class RawTransaction(Base):
         Enum(OperationType, values_callable=enum_values, name="operation_type")
     )
     suggested_by_rule_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("transaction_rules.id", ondelete="SET NULL")
+        ForeignKey("transaction_rules.id", ondelete="RESTRICT")
     )
     linked_operation_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("operations.id", ondelete="SET NULL")

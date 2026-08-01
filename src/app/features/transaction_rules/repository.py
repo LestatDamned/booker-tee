@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.features.imports.models import RawTransaction
 from app.features.transaction_rules.models import TransactionRule
 
 
@@ -109,19 +110,18 @@ class TransactionRuleRepository:
         )
         return result.scalar_one_or_none()
 
-    async def find_existing(
+    async def get_for_workspace_for_update(
         self,
-        *,
         workspace_id: UUID,
-        pattern: str,
-        category_id: UUID | None,
+        rule_id: UUID,
     ) -> TransactionRule | None:
         result = await self.session.execute(
-            select(TransactionRule).where(
+            select(TransactionRule)
+            .where(
+                TransactionRule.id == rule_id,
                 TransactionRule.workspace_id == workspace_id,
-                TransactionRule.pattern == pattern,
-                TransactionRule.category_id == category_id,
             )
+            .with_for_update()
         )
         return result.scalar_one_or_none()
 
@@ -129,6 +129,20 @@ class TransactionRuleRepository:
         self.session.add(rule)
         await self.session.flush()
         return rule
+
+    async def count_direct_raw_suggestions(
+        self,
+        *,
+        workspace_id: UUID,
+        rule_id: UUID,
+    ) -> int:
+        result = await self.session.execute(
+            select(func.count(RawTransaction.id)).where(
+                RawTransaction.workspace_id == workspace_id,
+                RawTransaction.suggested_by_rule_id == rule_id,
+            )
+        )
+        return result.scalar_one()
 
     async def delete(self, rule: TransactionRule) -> None:
         await self.session.delete(rule)

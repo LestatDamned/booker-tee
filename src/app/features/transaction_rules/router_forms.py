@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -53,6 +54,7 @@ def build_update_rule_command(
     application_mode: TransactionRuleApplicationMode,
     amount_min: Decimal | None,
     amount_max: Decimal | None,
+    expected_updated_at: datetime | None = None,
 ) -> UpdateTransactionRuleCommand:
     return UpdateTransactionRuleCommand(
         rule_id=rule_id,
@@ -66,6 +68,7 @@ def build_update_rule_command(
         application_mode=application_mode,
         amount_min=amount_min,
         amount_max=amount_max,
+        expected_updated_at=expected_updated_at,
     )
 
 

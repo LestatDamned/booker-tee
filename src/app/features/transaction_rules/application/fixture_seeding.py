@@ -6,6 +6,7 @@ from app.features.categories.models import Category, CategoryKind
 from app.features.categories.repository import CategoryRepository
 from app.features.ledger.models import OperationType
 from app.features.transaction_rules.domain.text import normalized_text
+from app.features.transaction_rules.errors import TransactionRuleValidationError
 from app.features.transaction_rules.models import (
     MoneyDirection,
     TransactionRule,
@@ -13,6 +14,7 @@ from app.features.transaction_rules.models import (
     TransactionRuleMatchType,
 )
 from app.features.transaction_rules.repository import TransactionRuleRepository
+from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -81,60 +83,97 @@ DEFAULT_MERCHANT_RULE_SEEDS = [
 ]
 
 
+@dataclass(frozen=True)
+class DefaultMerchantRuleSeedResult:
+    created_rules: tuple[TransactionRule, ...]
+    created_rule_count: int
+    existing_rule_count: int
+    created_category_count: int
+
+
 class DefaultMerchantRuleSeeder:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.categories = CategoryRepository(session)
         self.rules = TransactionRuleRepository(session)
+        self.workspaces = WorkspaceRepository(session)
 
-    async def seed(self, context: WorkspaceContext) -> list[TransactionRule]:
-        created_or_existing: list[TransactionRule] = []
+    async def seed(self, context: WorkspaceContext) -> DefaultMerchantRuleSeedResult:
+        try:
+            locked_workspace = await self.workspaces.lock_for_update(context.workspace.id)
+            if locked_workspace is None:
+                raise TransactionRuleValidationError("Workspace is not available.")
+            result = await self._seed_in_transaction(context)
+            await self.session.commit()
+            return result
+        except Exception:
+            await self.session.rollback()
+            raise
+
+    async def _seed_in_transaction(
+        self,
+        context: WorkspaceContext,
+    ) -> DefaultMerchantRuleSeedResult:
+        created_rules: list[TransactionRule] = []
+        existing_rule_count = 0
+        created_category_count = 0
         existing_by_identity = {
             (normalized_text(rule.pattern), rule.category_id): rule
             for rule in await self.rules.list_for_workspace(context.workspace.id)
         }
+        categories_by_name = {
+            category.name.casefold(): category
+            for category in await self.categories.list_for_workspace(context.workspace.id)
+        }
         for seed in DEFAULT_MERCHANT_RULE_SEEDS:
-            category = await self._get_or_create_category(
-                workspace_id=context.workspace.id,
-                name=seed.category_name,
-                kind=seed.category_kind,
-            )
+            category = categories_by_name.get(seed.category_name.casefold())
+            if category is None:
+                category = await self._create_category(
+                    workspace_id=context.workspace.id,
+                    name=seed.category_name,
+                    kind=seed.category_kind,
+                )
+                categories_by_name[seed.category_name.casefold()] = category
+                created_category_count += 1
+            elif not category.is_active:
+                raise TransactionRuleValidationError(
+                    f'Category "{category.name}" must be active before seeding rules.'
+                )
+
             rule_identity = (normalized_text(seed.pattern), category.id)
-            existing = existing_by_identity.get(rule_identity)
-            if existing is not None:
-                existing.application_mode = TransactionRuleApplicationMode.AUTO_APPLY
-                created_or_existing.append(existing)
+            if rule_identity in existing_by_identity:
+                existing_rule_count += 1
                 continue
-            created_or_existing.append(
-                await self.rules.create(
-                    TransactionRule(
-                        workspace_id=context.workspace.id,
-                        name=f"{seed.pattern} -> {seed.category_name}",
-                        match_type=TransactionRuleMatchType.CONTAINS,
-                        pattern=seed.pattern,
-                        application_mode=TransactionRuleApplicationMode.AUTO_APPLY,
-                        direction=seed.direction,
-                        target_operation_type=OperationType.EXPENSE,
-                        category_id=category.id,
-                        affects_profit=True,
-                        created_by_user_id=context.user.id,
-                    )
+            rule = await self.rules.create(
+                TransactionRule(
+                    workspace_id=context.workspace.id,
+                    name=f"{seed.pattern} -> {seed.category_name}",
+                    match_type=TransactionRuleMatchType.CONTAINS,
+                    pattern=seed.pattern,
+                    application_mode=TransactionRuleApplicationMode.AUTO_APPLY,
+                    direction=seed.direction,
+                    target_operation_type=OperationType.EXPENSE,
+                    category_id=category.id,
+                    affects_profit=True,
+                    created_by_user_id=context.user.id,
                 )
             )
-            existing_by_identity[rule_identity] = created_or_existing[-1]
-        await self.session.commit()
-        return created_or_existing
+            created_rules.append(rule)
+            existing_by_identity[rule_identity] = rule
+        return DefaultMerchantRuleSeedResult(
+            created_rules=tuple(created_rules),
+            created_rule_count=len(created_rules),
+            existing_rule_count=existing_rule_count,
+            created_category_count=created_category_count,
+        )
 
-    async def _get_or_create_category(
+    async def _create_category(
         self,
         *,
         workspace_id,
         name: str,
         kind: CategoryKind,
     ) -> Category:
-        category = await self.categories.get_by_name_for_workspace(workspace_id, name)
-        if category is not None:
-            return category
         return await self.categories.create(
             Category(
                 workspace_id=workspace_id,

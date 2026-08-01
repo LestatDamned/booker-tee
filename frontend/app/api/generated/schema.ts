@@ -1349,6 +1349,13 @@ export interface components {
              */
             default_currency: string;
         };
+        /** Body_delete_rule_rules__rule_id__delete_post */
+        Body_delete_rule_rules__rule_id__delete_post: {
+            /** Expected Active */
+            expected_active?: boolean | null;
+            /** Expected Updated At */
+            expected_updated_at?: string | null;
+        };
         /** Body_login_login_post */
         Body_login_login_post: {
             /** Email */
@@ -1388,6 +1395,10 @@ export interface components {
              * @default false
              */
             is_active: boolean;
+            /** Expected Active */
+            expected_active?: boolean | null;
+            /** Expected Updated At */
+            expected_updated_at?: string | null;
         };
         /** Body_update_rule_rules__rule_id__post */
         Body_update_rule_rules__rule_id__post: {
@@ -1408,6 +1419,8 @@ export interface components {
             amount_min?: number | string | null;
             /** Amount Max */
             amount_max?: number | string | null;
+            /** Expected Updated At */
+            expected_updated_at?: string | null;
         };
         /** Body_update_workspace_member_role_workspaces__workspace_id__members__member_id__role_post */
         Body_update_workspace_member_role_workspaces__workspace_id__members__member_id__role_post: {
@@ -7026,7 +7039,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/x-www-form-urlencoded": components["schemas"]["Body_delete_rule_rules__rule_id__delete_post"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

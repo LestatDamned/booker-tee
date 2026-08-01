@@ -149,6 +149,15 @@ class TransactionRulesPagePresenter:
         edit_summary_id = f"rule-edit-toggle-{rule.id}"
         edit_panel_id = f"rule-edit-panel-{rule.id}"
         title = rule_title(rule)
+        expected_updated_at = serialized_updated_at(rule)
+        toggle_fields = {
+            "is_active": "false" if rule.is_active else "true",
+            "expected_active": str(rule.is_active).lower(),
+        }
+        delete_fields = {"expected_active": str(rule.is_active).lower()}
+        if expected_updated_at is not None:
+            toggle_fields["expected_updated_at"] = expected_updated_at
+            delete_fields["expected_updated_at"] = expected_updated_at
         return RuleRowVM(
             anchor_id=f"rule-{rule.id}",
             title=title,
@@ -176,7 +185,7 @@ class TransactionRulesPagePresenter:
                 placement="secondary",
                 action_type="post",
                 url=f"/rules/{rule.id}/toggle",
-                hidden_fields={"is_active": "false" if rule.is_active else "true"},
+                hidden_fields=toggle_fields,
             ),
             delete_action=ActionVM(
                 id="delete-rule",
@@ -192,6 +201,7 @@ class TransactionRulesPagePresenter:
                     limit=limit,
                 ),
                 style="danger",
+                hidden_fields=delete_fields,
                 confirm_message=(
                     f"Удалить правило “{title}”?\nОно больше не будет применяться к новым выпискам."
                 ),
@@ -231,6 +241,7 @@ class TransactionRulesPagePresenter:
             selected_direction=rule.direction,
             amount_min=rule.amount_min,
             amount_max=rule.amount_max,
+            expected_updated_at=serialized_updated_at(rule),
         )
 
 
@@ -346,6 +357,7 @@ def rule_form(
     selected_direction: MoneyDirection | None = None,
     amount_min: Decimal | None = None,
     amount_max: Decimal | None = None,
+    expected_updated_at: str | None = None,
 ) -> RuleFormVM:
     return RuleFormVM(
         id=form_id,
@@ -375,8 +387,14 @@ def rule_form(
         direction_options=money_direction_options(selected_direction),
         amount_min=amount_min,
         amount_max=amount_max,
+        expected_updated_at=expected_updated_at,
         submit_action=submit_action,
     )
+
+
+def serialized_updated_at(rule: TransactionRule) -> str | None:
+    updated_at = getattr(rule, "updated_at", None)
+    return updated_at.isoformat() if updated_at is not None else None
 
 
 def enum_options(

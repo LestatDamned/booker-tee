@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -40,3 +41,4 @@ class UpdateTransactionRuleCommand:
     application_mode: TransactionRuleApplicationMode
     amount_min: Decimal | None = None
     amount_max: Decimal | None = None
+    expected_updated_at: datetime | None = None
