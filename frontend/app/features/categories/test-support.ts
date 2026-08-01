@@ -1,0 +1,118 @@
+import type { SessionDto } from "../../api/session";
+import type { CategoryDirectoryDto } from "./api/categories-api";
+
+export const session: SessionDto = {
+  user: {
+    id: "f4835818-f111-41d6-a59d-62f541ace357",
+    email: "max@example.test",
+    name: "Max",
+  },
+  workspace: {
+    id: "c12c9ac8-6851-4467-b87a-da7fc70586c8",
+    name: "Дом",
+    type: "personal",
+    defaultCurrency: "RUB",
+  },
+  membership: { role: "owner", status: "active" },
+  capabilities: {
+    canReadWorkspace: true,
+    canWriteFinancialData: true,
+    canManageImports: true,
+    canManageMembers: true,
+    canManageWorkspace: true,
+  },
+  csrfToken: "csrf-token",
+};
+
+export const directory: CategoryDirectoryDto = {
+  items: [
+    {
+      id: "d7b881e0-53bc-4b3c-a925-e64633400722",
+      name: "Продукты",
+      kind: "expense",
+      isActive: true,
+      isSystem: false,
+      systemKey: null,
+      notes: "Супермаркеты и доставка",
+      operationCount: 12,
+      ruleCount: 3,
+      activeRuleCount: 1,
+      updatedAt: "2026-08-01T08:30:00Z",
+      capabilities: {
+        canUpdate: true,
+        canArchive: false,
+        canRestore: false,
+        archiveBlockedReasonCode: "active_rules",
+      },
+    },
+    {
+      id: "eec78783-d82a-4d27-9192-8248ac958d27",
+      name: "Зарплата",
+      kind: "income",
+      isActive: true,
+      isSystem: false,
+      systemKey: null,
+      notes: null,
+      operationCount: 4,
+      ruleCount: 0,
+      activeRuleCount: 0,
+      updatedAt: "2026-08-01T08:30:00Z",
+      capabilities: {
+        canUpdate: true,
+        canArchive: true,
+        canRestore: false,
+        archiveBlockedReasonCode: null,
+      },
+    },
+    {
+      id: "e5ebc5bc-468f-4800-bab4-35acf99142c8",
+      name: "Старые покупки",
+      kind: "expense",
+      isActive: false,
+      isSystem: false,
+      systemKey: null,
+      notes: "Больше не используется",
+      operationCount: 2,
+      ruleCount: 0,
+      activeRuleCount: 0,
+      updatedAt: "2026-08-01T08:30:00Z",
+      capabilities: {
+        canUpdate: true,
+        canArchive: false,
+        canRestore: true,
+        archiveBlockedReasonCode: null,
+      },
+    },
+    {
+      id: "1ed1e91c-beb9-44f0-9530-2bf6cb721fc6",
+      name: "Без категории",
+      kind: "mixed",
+      isActive: true,
+      isSystem: true,
+      systemKey: "uncategorized",
+      notes: null,
+      operationCount: 2,
+      ruleCount: 0,
+      activeRuleCount: 0,
+      updatedAt: "2026-08-01T08:30:00Z",
+      capabilities: {
+        canUpdate: false,
+        canArchive: false,
+        canRestore: false,
+        archiveBlockedReasonCode: null,
+      },
+    },
+  ],
+  kindOptions: [
+    { value: "income", label: "Доход", description: "Для поступлений." },
+    { value: "expense", label: "Расход", description: "Для списаний." },
+    { value: "transfer", label: "Перевод", description: "Для переводов." },
+    {
+      value: "adjustment",
+      label: "Корректировка",
+      description: "Для корректировок.",
+    },
+    { value: "mixed", label: "Смешанная", description: "Для обоих потоков." },
+  ],
+  capabilities: { canCreate: true, readonlyReasonCode: null },
+};

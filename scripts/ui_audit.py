@@ -40,6 +40,7 @@ PAGES: tuple[tuple[str, str], ...] = (
     ("/app/imports/upload", "imports-upload"),
     ("/rules", "rules"),
     ("/categories", "categories"),
+    ("/app/categories", "react-categories"),
     ("/properties", "properties-redirect"),
     ("/app/properties", "react-properties"),
     ("/users", "users"),
@@ -58,6 +59,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/rules", "rules"),
     ("/reports?currency=RUB", "reports-redirect"),
     ("/categories", "categories"),
+    ("/app/categories", "react-categories"),
     ("/properties", "properties-redirect"),
     ("/app/properties", "react-properties"),
     ("/users", "users"),
@@ -1971,6 +1973,7 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
     if path in {
         "/app/imports",
         "/app/accounts",
+        "/app/categories",
         "/app/properties",
         "/categories",
         "/rules",

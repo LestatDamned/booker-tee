@@ -91,6 +91,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Categories */
+        get: operations["list_categories_api_v1_categories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/imports/documents/{document_id}/mapping": {
         parameters: {
             query?: never;
@@ -1480,10 +1497,83 @@ export interface components {
             account_id: string;
         };
         /**
+         * CategoryArchiveBlockedReason
+         * @enum {string}
+         */
+        CategoryArchiveBlockedReason: "active_rules";
+        /** CategoryDirectoryApiResponse */
+        CategoryDirectoryApiResponse: {
+            /** Items */
+            items: components["schemas"]["CategorySummaryApiResponse"][];
+            /** Kindoptions */
+            kindOptions: components["schemas"]["CategoryKindOptionApiResponse"][];
+            capabilities: components["schemas"]["CategoryDirectoryCapabilitiesApiResponse"];
+        };
+        /** CategoryDirectoryCapabilitiesApiResponse */
+        CategoryDirectoryCapabilitiesApiResponse: {
+            /** Cancreate */
+            canCreate: boolean;
+            readonlyReasonCode: components["schemas"]["CategoryDirectoryReadonlyReason"] | null;
+        };
+        /**
+         * CategoryDirectoryReadonlyReason
+         * @enum {string}
+         */
+        CategoryDirectoryReadonlyReason: "financial_write_forbidden";
+        /**
          * CategoryKind
          * @enum {string}
          */
         CategoryKind: "income" | "expense" | "transfer" | "adjustment" | "mixed";
+        /** CategoryKindOptionApiResponse */
+        CategoryKindOptionApiResponse: {
+            value: components["schemas"]["CategoryKind"];
+            /** Label */
+            label: string;
+            /** Description */
+            description: string;
+        };
+        /** CategorySummaryApiResponse */
+        CategorySummaryApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["CategoryKind"];
+            /** Isactive */
+            isActive: boolean;
+            /** Issystem */
+            isSystem: boolean;
+            /** Systemkey */
+            systemKey: string | null;
+            /** Notes */
+            notes: string | null;
+            /** Operationcount */
+            operationCount: number;
+            /** Rulecount */
+            ruleCount: number;
+            /** Activerulecount */
+            activeRuleCount: number;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            capabilities: components["schemas"]["CategorySummaryCapabilitiesApiResponse"];
+        };
+        /** CategorySummaryCapabilitiesApiResponse */
+        CategorySummaryCapabilitiesApiResponse: {
+            /** Canupdate */
+            canUpdate: boolean;
+            /** Canarchive */
+            canArchive: boolean;
+            /** Canrestore */
+            canRestore: boolean;
+            archiveBlockedReasonCode: components["schemas"]["CategoryArchiveBlockedReason"] | null;
+        };
         /** CreateAccountApiRequest */
         CreateAccountApiRequest: {
             /** Name */
@@ -3922,6 +4012,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_categories_api_v1_categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryDirectoryApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };

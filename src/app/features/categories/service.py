@@ -40,6 +40,7 @@ class CategoryManagementRow:
     category: Category
     operation_count: int
     rule_count: int
+    active_rule_count: int
 
 
 @dataclass(frozen=True)
@@ -141,11 +142,13 @@ class CategoryService:
         categories = await self.categories.list_for_workspace(workspace_id, include_inactive=True)
         operation_counts = await self.categories.count_operations_by_category(workspace_id)
         rule_counts = await self.categories.count_rules_by_category(workspace_id)
+        active_rule_counts = await self.categories.count_active_rules_by_category(workspace_id)
         return [
             CategoryManagementRow(
                 category=category,
                 operation_count=operation_counts.get(category.id, 0),
                 rule_count=rule_counts.get(category.id, 0),
+                active_rule_count=active_rule_counts.get(category.id, 0),
             )
             for category in categories
         ]

@@ -86,6 +86,20 @@ class CategoryRepository:
             category_id: count for category_id, count in result.all() if category_id is not None
         }
 
+    async def count_active_rules_by_category(self, workspace_id: UUID) -> dict[UUID, int]:
+        result = await self.session.execute(
+            select(TransactionRule.category_id, func.count(TransactionRule.id))
+            .where(
+                TransactionRule.workspace_id == workspace_id,
+                TransactionRule.category_id.is_not(None),
+                TransactionRule.is_active.is_(True),
+            )
+            .group_by(TransactionRule.category_id)
+        )
+        return {
+            category_id: count for category_id, count in result.all() if category_id is not None
+        }
+
     async def create(self, category: Category) -> Category:
         self.session.add(category)
         await self.session.flush()
