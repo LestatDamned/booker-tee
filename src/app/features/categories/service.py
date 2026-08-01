@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -17,6 +17,18 @@ from app.features.workspaces.models import WorkspaceType
 
 
 class CategoryError(ValueError):
+    pass
+
+
+class CategoryNotFoundError(CategoryError):
+    pass
+
+
+class CategorySystemImmutableError(CategoryError):
+    pass
+
+
+class CategoryUpdateConflictError(CategoryError):
     pass
 
 
@@ -333,8 +345,11 @@ class CategoryService:
         name: str,
         kind: CategoryKind,
         notes: str | None = None,
+        expected_updated_at: datetime | None = None,
     ) -> Category:
         category = await self._get_editable_category(workspace_id, category_id)
+        if expected_updated_at is not None and category.updated_at != expected_updated_at:
+            raise CategoryUpdateConflictError("Категория уже изменена в другом окне.")
         cleaned_name = " ".join(name.split())
         if not cleaned_name:
             raise CategoryError("Category name is required.")
@@ -348,6 +363,7 @@ class CategoryService:
         category.kind = kind
         category.notes = cleaned_notes
         await self.session.commit()
+        await self.session.refresh(category)
         return category
 
     async def set_active(
@@ -394,9 +410,9 @@ class CategoryService:
     async def _get_editable_category(self, workspace_id: UUID, category_id: UUID) -> Category:
         category = await self.categories.get_for_workspace(workspace_id, category_id)
         if category is None:
-            raise CategoryError("Category is not available in this workspace.")
+            raise CategoryNotFoundError("Category is not available in this workspace.")
         if category.is_system:
-            raise CategoryError("System categories cannot be edited.")
+            raise CategorySystemImmutableError("System categories cannot be edited.")
         return category
 
     async def _ensure_name_available(

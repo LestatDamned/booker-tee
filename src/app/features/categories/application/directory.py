@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -12,6 +13,7 @@ from app.features.categories.schemas import (
     CategorySummaryCapabilitiesDto,
     CategorySummaryDto,
     CreateCategoryCommand,
+    UpdateCategoryCommand,
 )
 from app.features.categories.service import CategoryManagementRow
 from app.features.workspaces.models import WorkspaceType
@@ -33,6 +35,17 @@ class CategoryMutationSource(Protocol):
         name: str,
         kind: CategoryKind,
         notes: str | None = None,
+    ) -> Category: ...
+
+    async def update_custom(
+        self,
+        *,
+        workspace_id: UUID,
+        category_id: UUID,
+        name: str,
+        kind: CategoryKind,
+        notes: str | None,
+        expected_updated_at: datetime,
     ) -> Category: ...
 
 
@@ -85,6 +98,32 @@ class CategoryDirectoryService:
             ),
             can_write=True,
         )
+
+    async def update(
+        self,
+        *,
+        workspace_id: UUID,
+        category_id: UUID,
+        command: UpdateCategoryCommand,
+    ) -> CategorySummaryDto:
+        category = await self._mutations.update_custom(
+            workspace_id=workspace_id,
+            category_id=category_id,
+            name=command.name,
+            kind=command.kind,
+            notes=command.notes,
+            expected_updated_at=command.expected_updated_at,
+        )
+        rows = await self._source.list_management_rows(workspace_id)
+        row = next((item for item in rows if item.category.id == category.id), None)
+        if row is None:
+            row = CategoryManagementRow(
+                category=category,
+                operation_count=0,
+                rule_count=0,
+                active_rule_count=0,
+            )
+        return category_summary(row, can_write=True)
 
 
 def category_summary(

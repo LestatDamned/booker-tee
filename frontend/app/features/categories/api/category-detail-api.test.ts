@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { detail } from "../test-support";
-import { loadCategoryDetail } from "./category-detail-api";
+import { loadCategoryDetail, updateCategory } from "./category-detail-api";
 
 describe("Category detail API", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -58,6 +58,70 @@ describe("Category detail API", () => {
     await expect(loadCategoryDetail(detail.category.id, "")).resolves.toEqual({
       status: "error",
       message: "API вернул статус 400.",
+    });
+  });
+
+  it("updates with CSRF, optimistic token and current detail context", async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(detail)));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      updateCategory({
+        categoryId: detail.category.id,
+        csrfToken: "csrf-token",
+        draft: { name: "Еда", kind: "mixed", notes: "Покупки" },
+        expectedUpdatedAt: detail.category.updatedAt,
+        search: "?currency=RUB&search=market",
+      }),
+    ).resolves.toEqual({ status: "success", detail });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/categories/${detail.category.id}?currency=RUB&search=market`,
+      expect.objectContaining({
+        body: JSON.stringify({
+          name: "Еда",
+          kind: "mixed",
+          notes: "Покупки",
+          expectedUpdatedAt: detail.category.updatedAt,
+        }),
+        headers: expect.objectContaining({ "X-CSRF-Token": "csrf-token" }),
+        method: "PUT",
+      }),
+    );
+  });
+
+  it("keeps update conflict recoverable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                code: "category_update_conflict",
+                message: "Категория уже изменена.",
+              },
+            }),
+            {
+              headers: { "Content-Type": "application/json" },
+              status: 409,
+            },
+          ),
+        ),
+      ),
+    );
+
+    await expect(
+      updateCategory({
+        categoryId: detail.category.id,
+        csrfToken: "csrf-token",
+        draft: { name: "Еда", kind: "expense", notes: "" },
+        expectedUpdatedAt: detail.category.updatedAt,
+        search: "",
+      }),
+    ).resolves.toEqual({
+      status: "conflict",
+      message: "Категория уже изменена.",
     });
   });
 });

@@ -5,7 +5,7 @@ import pytest
 
 from app.features.categories.application.directory import CategoryDirectoryService
 from app.features.categories.models import Category, CategoryKind
-from app.features.categories.schemas import CreateCategoryCommand
+from app.features.categories.schemas import CreateCategoryCommand, UpdateCategoryCommand
 from app.features.categories.service import CategoryManagementRow
 from app.features.workspaces.models import WorkspaceType
 
@@ -33,11 +33,15 @@ class CategoryManagementSourceStub:
     ) -> Category:
         raise AssertionError("Read-only test source must not create categories.")
 
+    async def update_custom(self, **_kwargs: object) -> Category:
+        raise AssertionError("Read-only test source must not update categories.")
+
 
 class CategoryMutationSourceStub:
     def __init__(self, category: Category) -> None:
         self.category = category
         self.calls: list[tuple[UUID, str, CategoryKind, str | None]] = []
+        self.update_calls: list[dict[str, object]] = []
 
     async def create_custom(
         self,
@@ -48,6 +52,10 @@ class CategoryMutationSourceStub:
         notes: str | None = None,
     ) -> Category:
         self.calls.append((workspace_id, name, kind, notes))
+        return self.category
+
+    async def update_custom(self, **kwargs: object) -> Category:
+        self.update_calls.append(kwargs)
         return self.category
 
 
@@ -169,6 +177,45 @@ async def test_category_directory_creates_committed_writable_summary() -> None:
     assert result.rule_count == 0
     assert result.capabilities.can_update
     assert result.capabilities.can_archive
+
+
+@pytest.mark.asyncio
+async def test_category_directory_updates_with_optimistic_token_and_usage_counts() -> None:
+    workspace_id = uuid4()
+    row = category_row(
+        workspace_id=workspace_id,
+        operation_count=12,
+        rule_count=3,
+    )
+    mutations = CategoryMutationSourceStub(row.category)
+    directory = CategoryDirectoryService(
+        CategoryManagementSourceStub([row]),
+        mutations,
+    )
+
+    result = await directory.update(
+        workspace_id=workspace_id,
+        category_id=row.category.id,
+        command=UpdateCategoryCommand(
+            name="Еда",
+            kind=CategoryKind.MIXED,
+            notes="Покупки и возвраты",
+            expected_updated_at=row.category.updated_at,
+        ),
+    )
+
+    assert mutations.update_calls == [
+        {
+            "workspace_id": workspace_id,
+            "category_id": row.category.id,
+            "name": "Еда",
+            "kind": CategoryKind.MIXED,
+            "notes": "Покупки и возвраты",
+            "expected_updated_at": row.category.updated_at,
+        }
+    ]
+    assert result.operation_count == 12
+    assert result.rule_count == 3
 
 
 def category_row(

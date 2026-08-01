@@ -26,6 +26,16 @@
   margin: 0;
 }
 
+.headerActions {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-3);
+}
+
+.headerActions > button {
+  min-width: 9rem;
+}
+
 .summaryGrid > div {
   display: grid;
   gap: var(--space-1);
@@ -56,6 +66,24 @@
 .filterForm {
   display: grid;
   gap: var(--space-3);
+}
+
+.editForm {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.editGrid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.kindImpactList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--color-text-secondary);
 }
 
 .filterGrid {
@@ -152,6 +180,11 @@
 
   .summaryGrid {
     width: 100%;
+  }
+
+  .headerActions {
+    width: 100%;
+    justify-items: stretch;
   }
 }
 

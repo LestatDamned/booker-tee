@@ -22,6 +22,13 @@ class CreateCategoryCommand(ApplicationModel):
     notes: str | None
 
 
+class UpdateCategoryCommand(ApplicationModel):
+    name: str
+    kind: CategoryKind
+    notes: str | None
+    expected_updated_at: datetime
+
+
 class CategoryArchiveBlockedReason(StrEnum):
     ACTIVE_RULES = "active_rules"
 
@@ -118,8 +125,18 @@ class CategoryRulePreviewDto(ApplicationModel):
     active_count: int
 
 
+class CategoryKindChangeImpactDto(ApplicationModel):
+    existing_operations_unchanged: bool
+    picker_compatibility_may_change: bool
+    operation_count: int
+    rule_count: int
+    requires_confirmation: bool
+
+
 class CategoryDetailDto(ApplicationModel):
     category: CategorySummaryDto
+    kind_options: list[CategoryKindOptionDto]
+    kind_change_impact: CategoryKindChangeImpactDto
     applied_filters: CategoryDetailFiltersDto
     available_currencies: list[str]
     summary: CategoryMoneySummaryDto

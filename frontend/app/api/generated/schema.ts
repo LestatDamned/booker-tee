@@ -118,7 +118,8 @@ export interface paths {
         };
         /** Get Category Detail */
         get: operations["get_category_detail_api_v1_categories__category_id__get"];
-        put?: never;
+        /** Update Category */
+        put: operations["update_category_api_v1_categories__category_id__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1522,6 +1523,9 @@ export interface components {
         /** CategoryDetailApiResponse */
         CategoryDetailApiResponse: {
             category: components["schemas"]["CategorySummaryApiResponse"];
+            /** Kindoptions */
+            kindOptions: components["schemas"]["CategoryKindOptionApiResponse"][];
+            kindChangeImpact: components["schemas"]["CategoryKindChangeImpactApiResponse"];
             appliedFilters: components["schemas"]["CategoryDetailFiltersApiResponse"];
             /** Availablecurrencies */
             availableCurrencies: string[];
@@ -1565,6 +1569,19 @@ export interface components {
          * @enum {string}
          */
         CategoryKind: "income" | "expense" | "transfer" | "adjustment" | "mixed";
+        /** CategoryKindChangeImpactApiResponse */
+        CategoryKindChangeImpactApiResponse: {
+            /** Existingoperationsunchanged */
+            existingOperationsUnchanged: boolean;
+            /** Pickercompatibilitymaychange */
+            pickerCompatibilityMayChange: boolean;
+            /** Operationcount */
+            operationCount: number;
+            /** Rulecount */
+            ruleCount: number;
+            /** Requiresconfirmation */
+            requiresConfirmation: boolean;
+        };
         /** CategoryKindOptionApiResponse */
         CategoryKindOptionApiResponse: {
             value: components["schemas"]["CategoryKind"];
@@ -3626,6 +3643,19 @@ export interface components {
              */
             expectedUpdatedAt: string;
         };
+        /** UpdateCategoryApiRequest */
+        UpdateCategoryApiRequest: {
+            /** Name */
+            name: string;
+            kind: components["schemas"]["CategoryKind"];
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Expectedupdatedat
+             * Format: date-time
+             */
+            expectedUpdatedAt: string;
+        };
         /** UpdateImportedOperationReviewFieldsApiRequest */
         UpdateImportedOperationReviewFieldsApiRequest: {
             /** Expectedversion */
@@ -4305,6 +4335,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_category_api_v1_categories__category_id__put: {
+        parameters: {
+            query?: {
+                date_from?: string | null;
+                date_to?: string | null;
+                currency?: string | null;
+                type?: string | null;
+                operations_page?: string | null;
+                operations_page_size?: string | null;
+                search?: string | null;
+            };
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCategoryApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryDetailApiResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };

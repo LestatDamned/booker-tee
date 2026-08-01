@@ -86,6 +86,10 @@ class CreateCategoryApiRequest(ApiRequestModel):
         return value
 
 
+class UpdateCategoryApiRequest(CreateCategoryApiRequest):
+    expected_updated_at: datetime
+
+
 class CategoryDetailFiltersApiResponse(ApiModel):
     date_from: date | None
     date_to: date | None
@@ -139,8 +143,18 @@ class CategoryRulePreviewApiResponse(ApiModel):
     active_count: int
 
 
+class CategoryKindChangeImpactApiResponse(ApiModel):
+    existing_operations_unchanged: bool
+    picker_compatibility_may_change: bool
+    operation_count: int
+    rule_count: int
+    requires_confirmation: bool
+
+
 class CategoryDetailApiResponse(ApiModel):
     category: CategorySummaryApiResponse
+    kind_options: list[CategoryKindOptionApiResponse]
+    kind_change_impact: CategoryKindChangeImpactApiResponse
     applied_filters: CategoryDetailFiltersApiResponse
     available_currencies: list[str]
     summary: CategoryMoneySummaryApiResponse

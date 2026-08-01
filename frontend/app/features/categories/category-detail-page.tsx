@@ -13,6 +13,7 @@ import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import { Tag, type TagTone } from "../../ui/tag/tag";
+import { ToastViewport, useToastQueue } from "../../ui/toast/toast";
 import { WorkbenchContent } from "../../ui/workbench-content/workbench-content";
 import { WorkbenchStatus } from "../../ui/workbench-content/workbench-status";
 import { WorkbenchEmptyState } from "../../ui/workbench-empty-state/workbench-empty-state";
@@ -21,6 +22,7 @@ import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
 import { WorkbenchSearch } from "../../ui/workbench-toolbar/workbench-search";
 import type { CategoryDetailDto } from "./api/category-detail-api";
+import { CategoryEditPanel } from "./category-edit-panel";
 import { CategoryDetailFilters } from "./category-detail-filters";
 import {
   CategoryOperations,
@@ -28,10 +30,12 @@ import {
 } from "./category-detail-operations";
 import {
   categoryDetailResetTarget,
+  categoryDetailApiSearch,
   categoryDetailSearchUrl,
   safeReportsReturnPath,
 } from "./category-detail-query";
 import { CategoryRulesPreview } from "./category-rules-preview";
+import { useCategoryEditor } from "./use-category-editor";
 import styles from "./category-detail-page.module.css";
 
 const kindLabels = {
@@ -43,7 +47,7 @@ const kindLabels = {
 } as const;
 
 export function CategoryDetailPage({
-  detail,
+  detail: initialDetail,
   navigationPending = false,
   session,
 }: {
@@ -53,8 +57,22 @@ export function CategoryDetailPage({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [localDetail, setLocalDetail] = useState<{
+    source: CategoryDetailDto;
+    value: CategoryDetailDto;
+  } | null>(null);
+  const detail =
+    localDetail?.source === initialDetail ? localDetail.value : initialDetail;
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const { dismissToast, showToast, toast } = useToastQueue();
   const searchParams = new URLSearchParams(location.search);
+  const editor = useCategoryEditor({
+    apiSearch: categoryDetailApiSearch(location.search),
+    csrfToken: session.csrfToken,
+    onCommitted: (value) => setLocalDetail({ source: initialDetail, value }),
+    onReloaded: (value) => setLocalDetail({ source: initialDetail, value }),
+    showToast,
+  });
   const reportsReturnPath = safeReportsReturnPath(
     searchParams.get("return_to"),
   );
@@ -96,7 +114,21 @@ export function CategoryDetailPage({
               {reportsReturnPath ? "Вернуться в отчёт" : "Все категории"}
             </BackLink>
             <PageHeader
-              actions={<CategorySummary summary={detail.summary} />}
+              actions={
+                <div className={styles.headerActions}>
+                  <CategorySummary summary={detail.summary} />
+                  {detail.category.capabilities.canUpdate ? (
+                    <Button
+                      icon="edit"
+                      onClick={(event) =>
+                        editor.beginEdit(detail, event.currentTarget)
+                      }
+                    >
+                      Изменить
+                    </Button>
+                  ) : null}
+                </div>
+              }
               description={
                 detail.category.notes ??
                 "Финансовый результат и подтверждённые операции категории."
@@ -109,15 +141,35 @@ export function CategoryDetailPage({
                 {kindLabels[detail.category.kind]}
               </Tag>
               {detail.category.isSystem ? (
-                <StatusLabel tone="information">Системная</StatusLabel>
+                <StatusLabel tone="information">
+                  Системная · только чтение
+                </StatusLabel>
               ) : detail.category.isActive ? (
                 <StatusLabel tone="success">Активна</StatusLabel>
               ) : (
                 <StatusLabel tone="neutral">В архиве</StatusLabel>
               )}
+              {!detail.category.isSystem &&
+              !detail.category.capabilities.canUpdate ? (
+                <StatusLabel tone="neutral">Только чтение</StatusLabel>
+              ) : null}
               <span>{ruleCountLabel(detail.rules.total)}</span>
             </div>
           </WorkbenchHeader>
+
+          {editor.editState ? (
+            <CategoryEditPanel
+              confirmation={editor.confirmation}
+              editState={editor.editState}
+              onCancelConfirmation={editor.cancelConfirmation}
+              onChange={editor.changeDraft}
+              onClose={editor.requestClose}
+              onConfirmDiscard={editor.confirmDiscard}
+              onConfirmKindChange={() => void editor.confirmKindChange()}
+              onReload={() => void editor.reloadSnapshot()}
+              onSubmit={(event) => void editor.submit(event)}
+            />
+          ) : null}
 
           <WorkbenchToolbar>
             <div className={styles.toolbarActions}>
@@ -197,6 +249,7 @@ export function CategoryDetailPage({
           <CategoryRulesPreview detail={detail} />
         </WorkbenchSurface>
       </PageFrame>
+      <ToastViewport onDismiss={dismissToast} toast={toast} />
     </AppShell>
   );
 }

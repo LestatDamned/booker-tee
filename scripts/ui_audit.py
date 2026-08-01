@@ -391,6 +391,22 @@ def prepare_realistic_scenario(
         ).first.get_attribute("href")
         if category_detail_path and category_detail_path.startswith("/categories/"):
             category_detail_path = f"/app{category_detail_path}"
+        if category_detail_path:
+            page.goto(build_url(base_url, category_detail_path), wait_until="networkidle")
+            page.get_by_role("button", name="Изменить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+            category_edit_form = page.locator("form[data-category-edit]:visible")
+            category_edit_form.wait_for(timeout=PAGE_TIMEOUT_MS)
+            page.screenshot(
+                path=output_dir / f"{viewport_name}-category-edit-panel.png",
+                full_page=True,
+            )
+            category_edit_form.locator('textarea[name="notes"]').fill("UI audit category edit")
+            category_edit_form.get_by_role("button", name="Сохранить", exact=True).click(
+                timeout=PAGE_TIMEOUT_MS
+            )
+            page.get_by_text(f"Категория «{rule_category_name}» изменена.", exact=True).wait_for(
+                timeout=PAGE_TIMEOUT_MS
+            )
 
         page.goto(build_url(base_url, "/app/properties"), wait_until="networkidle")
         page.get_by_role("button", name="Новый объект", exact=True).click(timeout=PAGE_TIMEOUT_MS)

@@ -1,12 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CategoryDetailPage } from "./category-detail-page";
 import { detail, session } from "./test-support";
 
 describe("CategoryDetailPage", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("renders currency-safe summary, bounded operations and rules preview", () => {
     renderPage();
 
@@ -119,6 +121,175 @@ describe("CategoryDetailPage", () => {
     expect(location).toHaveTextContent("operations_page_size=50");
     expect(location).not.toHaveTextContent("operations_page=2");
   });
+
+  it("edits a custom category and replaces the authoritative detail", async () => {
+    const user = userEvent.setup();
+    const committed = {
+      ...detail,
+      category: {
+        ...detail.category,
+        name: "Еда и покупки",
+        notes: "Покупки и возвраты",
+        updatedAt: "2026-08-01T09:00:00Z",
+      },
+    };
+    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(committed)));
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage("/categories/id?currency=RUB&search=market");
+
+    await user.click(screen.getByRole("button", { name: "Изменить" }));
+    expect(
+      screen.getByRole("dialog", { name: "Изменить категорию" }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Закрыть" })).toBeVisible();
+    const name = await screen.findByLabelText(/^Название/);
+    await user.clear(name);
+    await user.type(name, "Еда и покупки");
+    const notes = await screen.findByLabelText("Заметка");
+    await user.clear(notes);
+    await user.type(notes, "Покупки и возвраты");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Еда и покупки" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Категория «Еда и покупки» изменена."),
+    ).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/categories/${detail.category.id}?currency=RUB&search=market`,
+      expect.objectContaining({ method: "PUT" }),
+    );
+  });
+
+  it("confirms linked kind impact before saving", async () => {
+    const user = userEvent.setup();
+    const committed = {
+      ...detail,
+      category: { ...detail.category, kind: "mixed" as const },
+    };
+    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(committed)));
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: "Изменить" }));
+    await user.selectOptions(await screen.findByLabelText(/^Тип/), "mixed");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Изменить тип связанной категории?",
+      }),
+    ).toBeVisible();
+    expect(screen.getByText("12 операций сохранятся")).toBeVisible();
+    expect(screen.getByText("3 правила останутся связанными")).toBeVisible();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Изменить тип" }));
+    expect(await screen.findByText("Смешанная")).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves the draft while reloading after an update conflict", async () => {
+    const user = userEvent.setup();
+    const fresh = {
+      ...detail,
+      category: {
+        ...detail.category,
+        notes: "Изменено в другом окне",
+        updatedAt: "2026-08-01T09:15:00Z",
+      },
+    };
+    const committed = {
+      ...fresh,
+      category: { ...fresh.category, name: "Мой draft" },
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(apiErrorResponse(409, "category_update_conflict"))
+      .mockResolvedValueOnce(jsonResponse(fresh))
+      .mockResolvedValueOnce(jsonResponse(committed));
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: "Изменить" }));
+    const name = await screen.findByLabelText(/^Название/);
+    await user.clear(name);
+    await user.type(name, "Мой draft");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+    expect(
+      await screen.findByText("Категория уже была изменена"),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "Загрузить актуальную версию" }),
+    );
+    expect(await screen.findByDisplayValue("Мой draft")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Мой draft" }),
+    ).toBeVisible();
+    const retryBody = JSON.parse(
+      (fetchMock.mock.calls[2]?.[1] as RequestInit).body as string,
+    ) as { expectedUpdatedAt: string };
+    expect(retryBody.expectedUpdatedAt).toBe("2026-08-01T09:15:00Z");
+  });
+
+  it("hides mutation affordances for system categories and viewers", () => {
+    const { unmount } = renderPage("/categories/id", {
+      ...detail,
+      category: directorySystemCategory(),
+    });
+    expect(
+      screen.queryByRole("button", { name: "Изменить" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Системная · только чтение")).toBeVisible();
+    unmount();
+
+    renderPage("/categories/id", {
+      ...detail,
+      category: {
+        ...detail.category,
+        capabilities: { ...detail.category.capabilities, canUpdate: false },
+      },
+    });
+    expect(
+      screen.queryByRole("button", { name: "Изменить" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Только чтение")).toBeVisible();
+  });
+
+  it("focuses invalid fields and protects a dirty edit draft", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: "Изменить" }));
+    const name = await screen.findByLabelText(/^Название/);
+    await user.clear(name);
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+    expect(screen.getByText("Введите название категории.")).toBeVisible();
+    expect(name).toHaveFocus();
+
+    await user.type(name, "Мой draft");
+    await user.click(screen.getByRole("button", { name: "Закрыть" }));
+    expect(
+      screen.getByRole("heading", { name: "Закрыть редактирование?" }),
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Продолжить редактирование" }),
+    );
+    expect(screen.getByDisplayValue("Мой draft")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Закрыть" }));
+    await user.click(
+      screen.getByRole("button", { name: "Отменить изменения" }),
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Изменить категорию" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Изменить" })).toHaveFocus();
+  });
 });
 
 function renderPage(initialEntry = "/categories/id", categoryDetail = detail) {
@@ -138,4 +309,30 @@ function LocationProbe() {
       {location.search}
     </output>
   );
+}
+
+function jsonResponse(payload: unknown): Response {
+  return new Response(JSON.stringify(payload), {
+    headers: { "Content-Type": "application/json" },
+    status: 200,
+  });
+}
+
+function apiErrorResponse(status: number, code: string): Response {
+  return new Response(
+    JSON.stringify({ error: { code, message: "Категория уже изменена." } }),
+    { headers: { "Content-Type": "application/json" }, status },
+  );
+}
+
+function directorySystemCategory() {
+  return {
+    ...detail.category,
+    isSystem: true,
+    systemKey: "uncategorized",
+    capabilities: {
+      ...detail.category.capabilities,
+      canUpdate: false,
+    },
+  };
 }

@@ -7,7 +7,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import { Button } from "../button/button";
+import { Button, type ButtonTone } from "../button/button";
 import { IconButton } from "../button/icon-button";
 import styles from "./confirmation-dialog.module.css";
 
@@ -15,6 +15,7 @@ type ConfirmationDialogProps = {
   cancelLabel?: string;
   children?: ReactNode;
   confirmLabel: string;
+  confirmTone?: ButtonTone;
   description: string;
   disabled?: boolean;
   onCancel: () => void;
@@ -28,6 +29,7 @@ export function ConfirmationDialog({
   cancelLabel = "Отмена",
   children,
   confirmLabel,
+  confirmTone = "danger",
   description,
   disabled = false,
   onCancel,
@@ -100,7 +102,7 @@ export function ConfirmationDialog({
             disabled={disabled}
             isLoading={pending}
             onClick={onConfirm}
-            tone="danger"
+            tone={confirmTone}
           >
             {confirmLabel}
           </Button>

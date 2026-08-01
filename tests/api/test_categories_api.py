@@ -3,9 +3,14 @@ from datetime import date
 from categories_support import categories_app, category_detail_app
 
 from api_client import ApiTestClient as TestClient
+from app.features.categories.application.detail import CategoryDetailFilterError
 from app.features.categories.models import CategoryKind
-from app.features.categories.schemas import CreateCategoryCommand
-from app.features.categories.service import CategoryError
+from app.features.categories.schemas import CreateCategoryCommand, UpdateCategoryCommand
+from app.features.categories.service import (
+    CategoryError,
+    CategorySystemImmutableError,
+    CategoryUpdateConflictError,
+)
 from app.features.ledger.domain.types import OperationType
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.main import create_app
@@ -212,7 +217,7 @@ def test_category_detail_requires_authentication() -> None:
 
 
 def test_category_detail_dispatches_filters_and_returns_money_strings() -> None:
-    app, reader, workspace_id, category_id = category_detail_app()
+    app, _, reader, workspace_id, category_id = category_detail_app()
 
     with TestClient(app) as client:
         response = client.get(
@@ -254,7 +259,7 @@ def test_category_detail_dispatches_filters_and_returns_money_strings() -> None:
 
 
 def test_category_detail_rejects_invalid_parameters_before_reader() -> None:
-    app, reader, _, category_id = category_detail_app()
+    app, _, reader, _, category_id = category_detail_app()
 
     with TestClient(app) as client:
         invalid_type = client.get(
@@ -278,7 +283,7 @@ def test_category_detail_rejects_invalid_parameters_before_reader() -> None:
 
 
 def test_category_detail_returns_same_not_found_contract() -> None:
-    app, reader, _, category_id = category_detail_app()
+    app, _, reader, _, category_id = category_detail_app()
     reader.not_found = True
 
     with TestClient(app) as client:
@@ -289,6 +294,108 @@ def test_category_detail_returns_same_not_found_contract() -> None:
         "code": "category_not_found",
         "message": "Категория не найдена.",
     }
+
+
+def test_category_update_dispatches_optimistic_command_and_returns_fresh_detail() -> None:
+    app, service, reader, workspace_id, category_id = category_detail_app()
+    expected_updated_at = service.directory.items[0].updated_at
+
+    with TestClient(app) as client:
+        response = client.put(
+            f"/api/v1/categories/{category_id}",
+            params={"currency": "RUB", "search": "market"},
+            json={
+                "name": "  Еда и покупки  ",
+                "kind": "mixed",
+                "notes": "  Покупки   и возвраты ",
+                "expectedUpdatedAt": expected_updated_at.isoformat(),
+            },
+        )
+
+    assert response.status_code == 200
+    assert service.update_calls == [
+        (
+            workspace_id,
+            category_id,
+            UpdateCategoryCommand(
+                name="Еда и покупки",
+                kind=CategoryKind.MIXED,
+                notes="Покупки и возвраты",
+                expected_updated_at=expected_updated_at,
+            ),
+        )
+    ]
+    assert reader.calls[0]["search"] == "market"
+    assert response.json()["kindChangeImpact"] == {
+        "existingOperationsUnchanged": True,
+        "pickerCompatibilityMayChange": True,
+        "operationCount": 12,
+        "ruleCount": 3,
+        "requiresConfirmation": True,
+    }
+
+
+def test_category_update_returns_stable_conflict_and_immutable_errors() -> None:
+    app, service, reader, _, category_id = category_detail_app()
+    request = {
+        "name": "Еда",
+        "kind": "expense",
+        "expectedUpdatedAt": "2026-08-01T08:30:00Z",
+    }
+    service.update_error = CategoryUpdateConflictError("stale")
+
+    with TestClient(app) as client:
+        conflict = client.put(f"/api/v1/categories/{category_id}", json=request)
+        service.update_error = CategorySystemImmutableError("system")
+        immutable = client.put(f"/api/v1/categories/{category_id}", json=request)
+
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "category_update_conflict"
+    assert immutable.status_code == 422
+    assert immutable.json()["error"]["code"] == "category_system_immutable"
+    assert len(reader.calls) == 2
+
+
+def test_category_update_is_forbidden_for_viewer() -> None:
+    app, service, reader, _, category_id = category_detail_app(role=WorkspaceRole.VIEWER)
+
+    with TestClient(app) as client:
+        response = client.put(
+            f"/api/v1/categories/{category_id}",
+            json={
+                "name": "Еда",
+                "kind": "expense",
+                "expectedUpdatedAt": "2026-08-01T08:30:00Z",
+            },
+        )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "financial_write_forbidden"
+    assert service.update_calls == []
+    assert reader.calls == []
+
+
+def test_category_update_validates_detail_context_before_mutation() -> None:
+    app, service, reader, _, category_id = category_detail_app()
+    reader.filter_error = CategoryDetailFilterError(
+        "invalid_category_currency",
+        "Эта валюта недоступна в текущем workspace.",
+    )
+
+    with TestClient(app) as client:
+        response = client.put(
+            f"/api/v1/categories/{category_id}",
+            params={"currency": "EUR"},
+            json={
+                "name": "Еда",
+                "kind": "expense",
+                "expectedUpdatedAt": "2026-08-01T08:30:00Z",
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_category_currency"
+    assert service.update_calls == []
 
 
 def service_category_id() -> str:

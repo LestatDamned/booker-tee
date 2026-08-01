@@ -112,7 +112,7 @@ labels, submit feedback, keyboard focus и 375/768/1024/1440 acceptance.
    ├─ server-owned compact money summary
    ├─ paginated semantic list / ReadOnlyFinancialRow: confirmed operations
    ├─ bounded linked-rules preview + "Все правила"
-   ├─ ExpansionPanel: edit
+   ├─ WorkbenchPanel: page-level edit
    ├─ ConfirmationDialog: kind/lifecycle/delete impact
    └─ ToastViewport
 ```
@@ -126,26 +126,26 @@ notes/counts -> compact actions. Вся row может иметь один по�
 
 ### Из Properties
 
-| Pattern/component | Reuse | Category-specific boundary |
-| --- | --- | --- |
-| directory shell, URL search/view normalization | да | три views и grouping по kind |
-| `use*Collection`, authoritative replacement | pattern | новый DTO/capabilities, не импортировать Property hooks |
-| `WorkbenchPanel` create, dirty close | да | kind explanations and duplicate-name errors |
-| `ExpansionPanel` edit | да | detail route, kind-impact confirmation |
-| `ConfirmationDialog`, Toast, retry notices | да | rule/delete blockers принадлежат Categories |
-| responsive records and quiet row actions | да | columns identity/kind/usage/notes |
-| optimistic `updatedAt` recovery | да | category-specific error codes |
+| Pattern/component                              | Reuse   | Category-specific boundary                              |
+| ---------------------------------------------- | ------- | ------------------------------------------------------- |
+| directory shell, URL search/view normalization | да      | три views и grouping по kind                            |
+| `use*Collection`, authoritative replacement    | pattern | новый DTO/capabilities, не импортировать Property hooks |
+| `WorkbenchPanel` create, dirty close           | да      | kind explanations and duplicate-name errors             |
+| `WorkbenchPanel` edit                          | да      | page-level detail identity, kind-impact confirmation    |
+| `ConfirmationDialog`, Toast, retry notices     | да      | rule/delete blockers принадлежат Categories             |
+| responsive records and quiet row actions       | да      | columns identity/kind/usage/notes                       |
+| optimistic `updatedAt` recovery                | да      | category-specific error codes                           |
 
 ### Из Accounts и Reports
 
-| Pattern/component | Reuse | Граница |
-| --- | --- | --- |
-| detail route loader/request-state shell | да | Category API/read model local |
-| account ledger pagination/query precedent | да | category operation DTO не импортирует Account feature |
-| Reports query preservation and `MoneyValue` | да | all calculations stay server-side |
-| `ReadOnlyFinancialRow` financial history | да | category detail supplies its own prepared facts |
-| report filter route construction | да | canonical link becomes `/app/categories/:id` |
-| correction forms/business mapping | нет | Categories does not edit Operations |
+| Pattern/component                           | Reuse | Граница                                               |
+| ------------------------------------------- | ----- | ----------------------------------------------------- |
+| detail route loader/request-state shell     | да    | Category API/read model local                         |
+| account ledger pagination/query precedent   | да    | category operation DTO не импортирует Account feature |
+| Reports query preservation and `MoneyValue` | да    | all calculations stay server-side                     |
+| `ReadOnlyFinancialRow` financial history    | да    | category detail supplies its own prepared facts       |
+| report filter route construction            | да    | canonical link becomes `/app/categories/:id`          |
+| correction forms/business mapping           | нет   | Categories does not edit Operations                   |
 
 ### Из UI Foundation
 

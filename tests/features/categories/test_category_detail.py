@@ -138,6 +138,11 @@ async def test_detail_is_currency_safe_excludes_transfer_and_bounds_pages() -> N
     assert detail.rules.active_count == 4
     assert len(detail.rules.items) == CATEGORY_RULE_PREVIEW_LIMIT
     assert rule_source.preview_limit == CATEGORY_RULE_PREVIEW_LIMIT
+    assert detail.kind_change_impact.operation_count == 3
+    assert detail.kind_change_impact.rule_count == 7
+    assert detail.kind_change_impact.requires_confirmation
+    assert detail.kind_change_impact.existing_operations_unchanged
+    assert [option.value for option in detail.kind_options] == list(CategoryKind)
 
 
 @pytest.mark.asyncio

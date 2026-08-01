@@ -10,7 +10,10 @@ from app.api.v1.categories.dependencies import (
     get_category_detail_reader,
     get_category_directory_service,
 )
-from app.features.categories.application.detail import CategoryDetailNotFoundError
+from app.features.categories.application.detail import (
+    CategoryDetailFilterError,
+    CategoryDetailNotFoundError,
+)
 from app.features.categories.models import CategoryKind
 from app.features.categories.schemas import (
     CategoryArchiveBlockedReason,
@@ -19,6 +22,7 @@ from app.features.categories.schemas import (
     CategoryDirectoryCapabilitiesDto,
     CategoryDirectoryDto,
     CategoryDirectoryReadonlyReason,
+    CategoryKindChangeImpactDto,
     CategoryKindOptionDto,
     CategoryMoneySummaryDto,
     CategoryOperationPageDto,
@@ -26,6 +30,7 @@ from app.features.categories.schemas import (
     CategorySummaryCapabilitiesDto,
     CategorySummaryDto,
     CreateCategoryCommand,
+    UpdateCategoryCommand,
 )
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.features.workspaces.models import WorkspaceType
@@ -38,6 +43,8 @@ class CategoryDirectoryServiceStub:
         self.read_calls: list[tuple[UUID, WorkspaceType, bool]] = []
         self.create_calls: list[tuple[UUID, CreateCategoryCommand]] = []
         self.create_error: ValueError | None = None
+        self.update_calls: list[tuple[UUID, UUID, UpdateCategoryCommand]] = []
+        self.update_error: ValueError | None = None
 
     async def read(
         self,
@@ -60,17 +67,32 @@ class CategoryDirectoryServiceStub:
             raise self.create_error
         return self.directory.items[0]
 
+    async def update(
+        self,
+        *,
+        workspace_id: UUID,
+        category_id: UUID,
+        command: UpdateCategoryCommand,
+    ) -> CategorySummaryDto:
+        self.update_calls.append((workspace_id, category_id, command))
+        if self.update_error is not None:
+            raise self.update_error
+        return self.directory.items[0]
+
 
 class CategoryDetailReaderStub:
     def __init__(self, detail: CategoryDetailDto) -> None:
         self.detail = detail
         self.calls: list[dict[str, object]] = []
         self.not_found = False
+        self.filter_error: CategoryDetailFilterError | None = None
 
     async def read(self, **kwargs: object) -> CategoryDetailDto:
         self.calls.append(kwargs)
         if self.not_found:
             raise CategoryDetailNotFoundError
+        if self.filter_error is not None:
+            raise self.filter_error
         return self.detail
 
 
@@ -96,13 +118,30 @@ def categories_app(
     )
 
 
-def category_detail_app() -> tuple[FastAPI, CategoryDetailReaderStub, UUID, UUID]:
-    context = api_context(role=WorkspaceRole.OWNER)
+def category_detail_app(
+    *, role: WorkspaceRole = WorkspaceRole.OWNER
+) -> tuple[FastAPI, CategoryDirectoryServiceStub, CategoryDetailReaderStub, UUID, UUID]:
+    context = api_context(role=role)
     category_id = uuid4()
-    summary = category_directory(can_write=True).items[0].model_copy(update={"id": category_id})
+    can_write = role in {
+        WorkspaceRole.OWNER,
+        WorkspaceRole.ADMIN,
+        WorkspaceRole.EDITOR,
+    }
+    directory = category_directory(can_write=can_write)
+    service = CategoryDirectoryServiceStub(directory)
+    summary = directory.items[0].model_copy(update={"id": category_id})
     reader = CategoryDetailReaderStub(
         CategoryDetailDto(
             category=summary,
+            kind_options=category_directory(can_write=True).kind_options,
+            kind_change_impact=CategoryKindChangeImpactDto(
+                existing_operations_unchanged=True,
+                picker_compatibility_may_change=True,
+                operation_count=12,
+                rule_count=3,
+                requires_confirmation=True,
+            ),
             applied_filters=CategoryDetailFiltersDto(
                 date_from=None,
                 date_to=None,
@@ -131,8 +170,9 @@ def category_detail_app() -> tuple[FastAPI, CategoryDetailReaderStub, UUID, UUID
     )
     app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
+    app.dependency_overrides[get_category_directory_service] = lambda: service
     app.dependency_overrides[get_category_detail_reader] = lambda: reader
-    return app, reader, context.workspace.workspace.id, category_id
+    return app, service, reader, context.workspace.workspace.id, category_id
 
 
 def category_directory(*, can_write: bool) -> CategoryDirectoryDto:

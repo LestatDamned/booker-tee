@@ -120,6 +120,14 @@ export const directory: CategoryDirectoryDto = {
 
 export const detail: CategoryDetailDto = {
   category: directory.items[0]!,
+  kindOptions: directory.kindOptions,
+  kindChangeImpact: {
+    existingOperationsUnchanged: true,
+    pickerCompatibilityMayChange: true,
+    operationCount: 12,
+    ruleCount: 3,
+    requiresConfirmation: true,
+  },
   appliedFilters: {
     dateFrom: "2026-07-01",
     dateTo: "2026-07-31",

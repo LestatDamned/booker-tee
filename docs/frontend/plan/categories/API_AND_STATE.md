@@ -1,7 +1,7 @@
 # Categories API and state boundary
 
-Статус: accepted contract; D1–D5 приняты 2026-08-01, Slices 01–03 read/create/
-detail boundaries реализованы.
+Статус: accepted contract; D1–D5 приняты 2026-08-01, Slices 01–04 read/create/
+detail/edit boundaries реализованы.
 
 ## Application boundary
 
@@ -65,7 +65,8 @@ Query parameters:
 - `operations_page`, bounded `operations_page_size`.
 
 Response includes category summary/capabilities, applied filters, available
-currencies, money summary, operation page and bounded linked-rule preview.
+currencies, server-provided kind options and kind-change impact, money summary,
+operation page and bounded linked-rule preview.
 Operation DTO содержит уже подготовленные date/type/account/description/
 property/signed amount/currency facts. `search` сужает operation page и count,
 но не authoritative money summary. Browser только форматирует values.

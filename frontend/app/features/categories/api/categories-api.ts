@@ -13,7 +13,7 @@ export type CategorySummaryDto =
   components["schemas"]["CategorySummaryApiResponse"];
 export type CategoryKind = components["schemas"]["CategoryKind"];
 
-const categoryKindSchema = z.enum([
+export const categoryKindSchema = z.enum([
   "income",
   "expense",
   "transfer",

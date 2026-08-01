@@ -3,10 +3,11 @@ from datetime import date
 from typing import Protocol
 from uuid import UUID
 
-from app.features.categories.application.directory import category_summary
+from app.features.categories.application.directory import category_kind_options, category_summary
 from app.features.categories.schemas import (
     CategoryDetailDto,
     CategoryDetailFiltersDto,
+    CategoryKindChangeImpactDto,
     CategoryMoneySummaryDto,
     CategoryOperationDto,
     CategoryOperationPageDto,
@@ -212,6 +213,14 @@ class CategoryDetailReader:
         total_pages = max(1, (total + operations_page_size - 1) // operations_page_size)
         return CategoryDetailDto(
             category=category_summary(row, can_write=can_write),
+            kind_options=category_kind_options(),
+            kind_change_impact=CategoryKindChangeImpactDto(
+                existing_operations_unchanged=True,
+                picker_compatibility_may_change=True,
+                operation_count=row.operation_count,
+                rule_count=row.rule_count,
+                requires_confirmation=(row.operation_count + row.rule_count) > 0,
+            ),
             applied_filters=filters,
             available_currencies=available_currencies,
             summary=CategoryMoneySummaryDto(
