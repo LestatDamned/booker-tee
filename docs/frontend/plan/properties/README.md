@@ -1,6 +1,6 @@
 # Properties React migration
 
-Статус: `active`; analysis и решения D1–D4 согласованы, Slices 01–04 завершены.
+Статус: `completed 2026-08-01`; Slices 01–05 и SSR cleanup завершены.
 
 Этот child stage описывает первую задачу Wave B: замену authenticated SSR
 страницы `/properties` на React workflow `/app/properties` и versioned JSON API.
@@ -110,12 +110,11 @@ last-write-wins, но React/API conventions уже закрепили явный
   -> 05 replacement gate + cutover + cleanup
 ```
 
-Текущее положение: Slices 01–04 completed; Slice 05 cutover/cleanup next. SSR
-`/properties` остаётся canonical до прохождения replacement gate.
+Текущее положение: Slices 01–05 completed. `/app/properties` — canonical React
+workflow; historical `GET /properties` является query-preserving compatibility
+redirect. Legacy mutable presentation stack удалён после replacement gate.
 
-Каждый slice проходит `application/API -> typed state -> UI -> tests`. До Slice
-05 `/properties` остаётся canonical SSR route; наличие `/app/properties` само по
-себе не разрешает удалить legacy presentation.
+Каждый slice прошёл `application/API -> typed state -> UI -> tests`.
 
 ## Общий exit gate
 
@@ -130,3 +129,12 @@ last-write-wins, но React/API conventions уже закрепили явный
 - browser flow проходит в Mocha и Latte на 1440/920/390 без overflow и ошибок;
 - SSR router/presenter/template/property-only CSS/JS/test assertions удалены;
 - каждый сохранённый legacy consumer назван в delete manifest.
+
+## Completion
+
+Canonical React Properties реализует directory, URL search/status view,
+create/edit и archive/restore через versioned API с workspace, permission,
+CSRF и optimistic-concurrency authority на сервере. Historical GET сохраняет
+query; legacy mutations отсутствуют. SSR router/presenter/template, его тесты и
+property-only global assets удалены. Полный фактический check/cleanup/measurement
+record находится в [Slice 05](05_CUTOVER_AND_CLEANUP.md).

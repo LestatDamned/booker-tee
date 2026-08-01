@@ -26,6 +26,18 @@
   width: auto;
 }
 
+.horizontal .trigger {
+  width: var(--control-height);
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 0;
+}
+
+.horizontal .trigger span,
+.horizontal .triggerCaret {
+  display: none;
+}
+
 .more {
   position: relative;
   display: grid;

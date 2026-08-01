@@ -45,8 +45,27 @@ Child stages:
   completed;
 - Accounts and account ledger — completed 2026-07-31;
 - [`Reports`](reports/README.md) — completed 2026-07-31;
-- [`Properties`](properties/README.md) — active; directory/read/create/edit/
-  lifecycle completed, Slice 05 cutover/cleanup next.
+- [`Properties`](properties/README.md) — completed 2026-08-01.
+
+### Properties completion record
+
+Completed: 2026-08-01
+
+Implemented: versioned workspace-scoped Properties API; React directory,
+create/edit/archive/restore and Reports links; query-preserving historical GET
+redirect; canonical navigation.
+
+Checks run: Ruff, ty, full backend suite (`661 passed, 1 PostgreSQL-only
+skipped`) plus 261 focused regressions, frontend format/lint/styles/OpenAPI/
+typecheck, 305 React tests, production build, Mocha/Latte browser audit for
+canonical and redirect routes at 1440/920/390.
+
+Cleanup performed: legacy router/presenter/template/SSR tests, property-only
+global CSS/JS hooks and legacy generated OpenAPI operations removed.
+
+Measurements/risks: Properties route `24.94 kB` (`7.94 kB` gzip), CSS
+`1.82 kB` (`0.69 kB` gzip); dormant database enum label `inactive` remains by
+accepted D1 policy, while runtime exposes only `active | archived`.
 
 ### Reports completion record
 

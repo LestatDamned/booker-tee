@@ -5,6 +5,7 @@ from app.main import create_app
 
 DOCUMENT_ID = "5e4c43a1-7e08-4afe-a442-5d1d72e08ca8"
 ACCOUNT_ID = "11111111-1111-1111-1111-111111111111"
+PROPERTY_ID = "22222222-2222-2222-2222-222222222222"
 
 
 @pytest.mark.parametrize(
@@ -41,6 +42,10 @@ ACCOUNT_ID = "11111111-1111-1111-1111-111111111111"
             "/reports?date_from=2026-07-01&currency=RUB&category_sort=expense",
             "/app/reports?date_from=2026-07-01&currency=RUB&category_sort=expense",
         ),
+        (
+            "/properties?view=archived&search=дом",
+            "/app/properties?view=archived&search=%D0%B4%D0%BE%D0%BC",
+        ),
     ],
 )
 def test_historical_frontend_get_redirects_to_react(
@@ -67,6 +72,10 @@ def test_historical_frontend_get_redirects_to_react(
         (f"/imports/documents/{DOCUMENT_ID}/mapping/import", 404),
         (f"/imports/documents/{DOCUMENT_ID}/review", 405),
         ("/reports", 405),
+        ("/properties", 405),
+        (f"/properties/{PROPERTY_ID}", 404),
+        (f"/properties/{PROPERTY_ID}/archive", 404),
+        (f"/properties/{PROPERTY_ID}/restore", 404),
     ],
 )
 def test_historical_frontend_mutations_are_not_redirected(

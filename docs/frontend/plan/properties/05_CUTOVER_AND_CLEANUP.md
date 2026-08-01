@@ -1,6 +1,6 @@
 # Slice 05 — Cutover and cleanup
 
-Статус: planned.
+Статус: completed 2026-08-01.
 
 ## User outcome
 
@@ -62,17 +62,48 @@ tests. Если полный suite требует отдельной PostgreSQL 
 
 ## Completion record
 
-После exit gate свернуть child stage в короткую запись parent index:
+Completed: 2026-08-01.
 
-```text
-Completed: YYYY-MM-DD
 Implemented:
+
+- canonical AppShell и legacy base navigation ведут в React Properties;
+- `GET /properties?...` сохраняет query и отвечает `307` на
+  `/app/properties?...`;
+- legacy POST collection отвечает `405`, удалённые identity/lifecycle paths —
+  `404`, без второго mutation stack;
+- UI audit считает `/app/properties` canonical page, а `/properties` — redirect
+  scenario.
+
 Checks run:
-Intentional deviations:
+
+- Ruff format/check и `ty check`;
+- full backend suite: `661 passed, 1 skipped` (PostgreSQL-only concurrency test
+  без `BOOKER_TEE_TEST_DATABASE_URL`); отдельно `261` Properties/API/redirect и
+  named consumer regression tests;
+- frontend format, lint, styles, OpenAPI freshness, typecheck и `305` tests;
+- production build;
+- realistic Playwright audit canonical и redirect paths в Mocha/Latte на
+  `1440×1000`, `920×900`, `390×844`: 12/12 pages, без console/request/page,
+  UX и horizontal-overflow errors.
+
 Cleanup performed:
+
+- удалены legacy Properties router, Jinja presenter/ViewModels, template и
+  SSR-only tests;
+- удалены property-only global CSS selectors и shared JS recent hooks;
+- generated OpenAPI schema очищена от legacy HTML/form operations;
+- consumer search оставил только versioned API, React feature и compatibility
+  redirect/tests.
+
 Measurements/risks:
-```
 
-Детальные completed plans затем удаляются согласно documentation policy;
-актуальный feature contract остаётся рядом с React/application code.
+- cleanup: `1367` удалённых строк до documentation updates, включая `754`
+  строки выделенного SSR router/presentation/template/test stack;
+- Properties route chunk: `24.94 kB`, gzip `7.94 kB`; CSS: `1.82 kB`, gzip
+  `0.69 kB`;
+- `inactive` PostgreSQL enum label остаётся намеренным техническим артефактом
+  решения D1; runtime lifecycle остаётся `active | archived`.
 
+Intentional deviations: shared Property model/repository/service и consumers
+Manual Ledger, Import Review, Accounts, Reports, Transaction Rules и Chat
+сохранены как domain/application dependencies, а не presentation legacy.

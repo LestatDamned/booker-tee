@@ -2881,49 +2881,6 @@ html:not(.entity-target-cleared) .rule-card:target {
   display: inline;
 }
 
-.property-card {
-  border-left-color: color-mix(in srgb, var(--help) 54%, var(--border));
-}
-
-.property-card.entity-card-inactive {
-  border-left-color: color-mix(in srgb, var(--muted) 48%, var(--border));
-}
-
-.property-card--recent {
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
-  background: color-mix(in srgb, var(--surface) 88%, var(--accent));
-}
-
-.property-list-feedback {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
-  border-left: 3px solid color-mix(in srgb, var(--accent) 70%, var(--border));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 86%, var(--accent));
-  padding: 10px 12px;
-}
-
-.property-list-feedback > div {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.property-list-feedback strong {
-  overflow-wrap: anywhere;
-}
-
-.property-list-feedback span {
-  color: var(--muted);
-}
-
-.property-list-feedback__link {
-  white-space: nowrap;
-}
-
 .category-card {
   border-left-color: color-mix(in srgb, var(--help) 54%, var(--border));
 }
@@ -3160,136 +3117,6 @@ html:not(.entity-target-cleared) .rule-card:target {
 }
 
 .category-form__field--notes {
-  grid-column: 1 / -1;
-}
-
-.property-create-details {
-  border-color: color-mix(in srgb, var(--border) 76%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-strong) 36%, transparent);
-}
-
-.property-create-details > summary {
-  grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 42px;
-}
-
-.property-create-details > summary::after,
-.property-create-details[open] > summary::after {
-  content: none;
-}
-
-.property-create-form {
-  border-color: color-mix(in srgb, var(--border) 52%, transparent);
-  padding-top: 14px;
-}
-
-.property-create-form__error {
-  grid-column: 1 / -1;
-}
-
-.property-create-form__field--name {
-  grid-column: span 4;
-}
-
-.property-create-form__field--short-name {
-  grid-column: span 3;
-}
-
-.property-create-form__field--address {
-  grid-column: span 5;
-}
-
-.property-create-form__actions {
-  grid-column: 1 / -1;
-  justify-content: flex-end;
-  border-top: 1px solid color-mix(in srgb, var(--border) 46%, transparent);
-  padding-top: 10px;
-}
-
-.property-create-form__actions .button {
-  width: auto;
-  min-width: 180px;
-}
-
-.property-card__main {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-
-.property-card__topline {
-  grid-template-columns: minmax(0, 1fr) max-content;
-}
-
-.property-card__title strong {
-  font-size: 1.02rem;
-  overflow-wrap: anywhere;
-}
-
-.property-card__status {
-  min-height: 34px;
-  justify-self: end;
-  justify-content: center;
-  border-color: color-mix(in srgb, currentcolor 72%, var(--border));
-  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
-  padding-inline: 12px;
-}
-
-.property-card__actions {
-  min-width: 0;
-}
-
-.property-card__edit {
-  grid-column: 1 / -1;
-  width: 100%;
-  min-width: 0;
-}
-
-.property-card__edit-summary {
-  position: absolute;
-  width: 1px !important;
-  height: 1px;
-  min-height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  border: 0;
-  padding: 0;
-  white-space: nowrap;
-  list-style: none;
-}
-
-.property-card__edit > summary::after,
-.property-card__edit[open] > summary::after {
-  content: none;
-}
-
-.property-card__edit-panel {
-  display: grid;
-  gap: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  padding-top: 12px;
-}
-
-.property-form__error {
-  grid-column: 1 / -1;
-}
-
-.property-form--drawer {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 10px 12px;
-}
-
-.property-form__field--name {
-  grid-column: span 7;
-}
-
-.property-form__field--short-name {
-  grid-column: span 5;
-}
-
-.property-form__field--address {
   grid-column: 1 / -1;
 }
 
@@ -3956,7 +3783,6 @@ html:not(.entity-target-cleared) .rule-card:target {
 
   .operation-form__fields,
   .category-form--drawer,
-  .property-form--drawer,
   .workspace-form--drawer,
   .workspace-member-form--drawer,
   .operation-form__footer {
@@ -3970,9 +3796,6 @@ html:not(.entity-target-cleared) .rule-card:target {
   .category-form__field--name,
   .category-form__field--kind,
   .category-form__field--notes,
-  .property-form__field--name,
-  .property-form__field--short-name,
-  .property-form__field--address,
   .workspace-create-form__field--name,
   .workspace-create-form__field--type,
   .workspace-create-form__field--currency,

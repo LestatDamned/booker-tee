@@ -189,7 +189,6 @@ function PropertyActions({
           report
         )
       }
-      secondary={property.capabilities.canUpdate ? report : undefined}
       danger={
         property.capabilities.canArchive ? (
           <Button
@@ -203,15 +202,20 @@ function PropertyActions({
         ) : undefined
       }
       overflow={
-        property.capabilities.canRestore ? (
-          <Button
-            disabled={editing || lifecyclePending}
-            isLoading={lifecyclePending}
-            onClick={() => onRestore(property)}
-            tone="secondary"
-          >
-            Восстановить
-          </Button>
+        property.capabilities.canUpdate ? (
+          <>
+            {report}
+            {property.capabilities.canRestore ? (
+              <Button
+                disabled={editing || lifecyclePending}
+                isLoading={lifecyclePending}
+                onClick={() => onRestore(property)}
+                tone="secondary"
+              >
+                Восстановить
+              </Button>
+            ) : null}
+          </>
         ) : undefined
       }
     />

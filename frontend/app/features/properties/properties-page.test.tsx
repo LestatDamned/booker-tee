@@ -31,7 +31,8 @@ describe("PropertiesPage", () => {
     vi.mocked(loadProperties).mockReset();
     vi.mocked(updateProperty).mockReset();
   });
-  it("renders active properties with status counts and property-scoped reports", () => {
+  it("keeps one direct row action and puts property reports in compact overflow", async () => {
+    const user = userEvent.setup();
     renderPage(directory);
 
     expect(screen.getByRole("heading", { name: "Объекты" })).toBeVisible();
@@ -43,10 +44,22 @@ describe("PropertiesPage", () => {
     expect(screen.getAllByText("Квартира")).toHaveLength(2);
     expect(screen.getAllByText("Активен")).toHaveLength(2);
     expect(screen.getAllByText("Красноярск, ул. Мира, 1")).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Изменить" })).toHaveLength(2);
+    const actionMenus = screen.getAllByRole("button", {
+      name: "Ещё действия",
+    });
+    expect(actionMenus).toHaveLength(2);
     expect(
-      screen.getAllByRole("link", {
+      screen.queryByRole("link", {
         name: "Открыть отчёт по объекту «Квартира»",
-      })[0],
+      }),
+    ).toBeNull();
+
+    await user.click(actionMenus[0]!);
+    expect(
+      screen.getByRole("link", {
+        name: "Открыть отчёт по объекту «Квартира»",
+      }),
     ).toHaveAttribute("href", `/reports?property_id=${directory.items[0]!.id}`);
   });
 

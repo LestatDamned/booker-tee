@@ -6,17 +6,14 @@
   const RECENT_CLASS_NAMES = [
     "rule-card--recent",
     "category-card--recent",
-    "property-card--recent",
   ];
   const RECENT_FEEDBACK_SELECTORS = [
     ".rule-list-feedback",
     ".category-list-feedback",
-    ".property-list-feedback",
   ];
   const RECENT_QUERY_KEYS = [
     "recent_rule_id",
     "recent_category_id",
-    "recent_property_id",
   ];
   const INTERACTIVE_SELECTOR = [
     "a",

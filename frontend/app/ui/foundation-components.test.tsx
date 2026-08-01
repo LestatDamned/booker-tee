@@ -635,6 +635,18 @@ describe("request and workbench composition", () => {
     );
   });
 
+  it("keeps horizontal action overflow compact and accessibly named", () => {
+    render(
+      <ActionStack
+        orientation="row"
+        overflow={<Button>Открыть отчёт</Button>}
+        primary={<Button>Изменить</Button>}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Ещё действия" })).toBeVisible();
+  });
+
   it.each([
     ["recent", "Недавно"],
     ["target", "Текущая строка"],

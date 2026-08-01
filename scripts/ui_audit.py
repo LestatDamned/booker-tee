@@ -40,7 +40,7 @@ PAGES: tuple[tuple[str, str], ...] = (
     ("/app/imports/upload", "imports-upload"),
     ("/rules", "rules"),
     ("/categories", "categories"),
-    ("/properties", "properties"),
+    ("/properties", "properties-redirect"),
     ("/app/properties", "react-properties"),
     ("/users", "users"),
     ("/workspaces", "workspaces"),
@@ -58,7 +58,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/rules", "rules"),
     ("/reports?currency=RUB", "reports-redirect"),
     ("/categories", "categories"),
-    ("/properties", "properties"),
+    ("/properties", "properties-redirect"),
     ("/app/properties", "react-properties"),
     ("/users", "users"),
     ("/workspaces", "workspaces"),
@@ -1973,7 +1973,6 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
         "/app/accounts",
         "/app/properties",
         "/categories",
-        "/properties",
         "/rules",
     }:
         long_technical_labels = [

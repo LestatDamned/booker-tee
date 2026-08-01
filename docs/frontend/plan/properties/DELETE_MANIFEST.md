@@ -1,6 +1,6 @@
 # Properties future delete manifest
 
-Статус: execute только в Slice 05 после replacement gate.
+Статус: executed 2026-08-01 после replacement gate.
 
 ## Удалить полностью
 
@@ -76,5 +76,6 @@ rg -n "PropertiesPagePresenter|properties/index.html|property-card|property-crea
 rg -n '"/properties"|/properties\?' src tests frontend scripts
 ```
 
-Допустимы только compatibility redirect/tests и `/api/v1/properties` contracts.
-
+Допустимы compatibility redirect/tests, `/api/v1/properties` contracts и
+React-local route/form identifiers. Финальный search не нашёл SSR runtime
+consumer; shared Property domain/application consumers сохранены намеренно.

@@ -80,6 +80,9 @@ describe("SessionShell", () => {
       within(desktopNavigation).getByRole("link", { name: "Отчёты" }),
     ).toHaveAttribute("href", "/reports");
     expect(
+      within(desktopNavigation).getByRole("link", { name: "Объекты" }),
+    ).toHaveAttribute("href", "/properties");
+    expect(
       within(desktopNavigation).getByRole("link", { name: "Правила" }),
     ).toHaveAttribute("href", "/rules");
 

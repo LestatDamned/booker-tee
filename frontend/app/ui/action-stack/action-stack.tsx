@@ -16,6 +16,26 @@ import styles from "./action-stack.module.css";
 
 const ACTION_MENU_OPEN_EVENT = "booker:action-menu-open";
 
+function horizontalMenuPosition(triggerRect: DOMRect, compact: boolean) {
+  const viewportInset = 8;
+  const availableWidth = window.innerWidth - viewportInset * 2;
+  const width = compact
+    ? Math.min(224, availableWidth)
+    : Math.min(triggerRect.width, availableWidth);
+  return {
+    left: compact
+      ? Math.max(
+          viewportInset,
+          Math.min(
+            triggerRect.right - width,
+            window.innerWidth - width - viewportInset,
+          ),
+        )
+      : Math.max(viewportInset, triggerRect.left),
+    width,
+  };
+}
+
 type ActionStackProps = {
   danger?: ReactNode;
   disclosureOpen?: boolean;
@@ -44,6 +64,7 @@ export function ActionStack({
   const instanceId = useId();
   const menuId = useId();
   const open = disclosureOpen ?? internalOpen;
+  const compactTrigger = orientation === "row";
 
   const setOpen = useCallback(
     (nextOpen: boolean, restoreFocus = false) => {
@@ -63,9 +84,8 @@ export function ActionStack({
       const triggerRect = triggerRef.current?.getBoundingClientRect();
       if (triggerRect) {
         setMenuPosition({
-          left: Math.max(8, triggerRect.left),
+          ...horizontalMenuPosition(triggerRect, compactTrigger),
           top: triggerRect.bottom + 8,
-          width: Math.min(triggerRect.width, window.innerWidth - 16),
         });
       }
       window.dispatchEvent(
@@ -135,17 +155,13 @@ export function ActionStack({
         ? triggerRect.top - menuHeight - gap
         : triggerRect.bottom + gap;
       setMenuPosition({
-        left: Math.max(viewportInset, triggerRect.left),
+        ...horizontalMenuPosition(triggerRect, compactTrigger),
         top: Math.max(
           viewportInset,
           Math.min(
             proposedTop,
             window.innerHeight - menuHeight - viewportInset,
           ),
-        ),
-        width: Math.min(
-          triggerRect.width,
-          window.innerWidth - viewportInset * 2,
         ),
       });
     }
@@ -167,7 +183,7 @@ export function ActionStack({
       window.removeEventListener("resize", positionMenu);
       window.removeEventListener("scroll", positionMenu, true);
     };
-  }, [open, danger, overflow]);
+  }, [open, danger, overflow, compactTrigger]);
 
   const actionMenu =
     open && typeof document !== "undefined"
@@ -202,6 +218,7 @@ export function ActionStack({
       {overflow || danger ? (
         <div className={styles.more}>
           <button
+            aria-label="Ещё действия"
             aria-controls={menuId}
             aria-expanded={open}
             className={styles.trigger}

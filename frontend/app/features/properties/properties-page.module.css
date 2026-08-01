@@ -63,7 +63,8 @@
   text-align: right !important;
 }
 
-.actionCell > * {
+.actionCell > [class] {
+  flex-wrap: nowrap;
   justify-content: flex-end;
 }
 
