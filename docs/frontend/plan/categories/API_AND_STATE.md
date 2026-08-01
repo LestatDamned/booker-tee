@@ -1,7 +1,7 @@
 # Categories API and state boundary
 
-Статус: accepted contract; D1–D5 приняты 2026-08-01, Slices 01–05 read/create/
-detail/edit/lifecycle/delete boundaries реализованы.
+Статус: implemented contract; D1–D5 и Slices 01–06 завершены 2026-08-01,
+React/API являются canonical boundary.
 
 ## Application boundary
 

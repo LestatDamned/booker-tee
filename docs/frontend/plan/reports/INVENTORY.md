@@ -147,9 +147,9 @@ Chat не должны зависеть от browser response schema; Categories
 - server financial/application tests;
 - historical GET redirect и focused redirect test.
 
-`.report-table` нельзя удалять как общий selector, пока
-`src/app/templates/categories/detail.html` остаётся runtime consumer. Reports
-cutover удаляет только selectors, доказанно не используемые другими SSR pages.
+Последний runtime consumer `.report-table` был удалён вместе с
+`src/app/templates/categories/detail.html` во время Categories cutover; selector
+также удалён после consumer search.
 
 ## Existing tests baseline
 

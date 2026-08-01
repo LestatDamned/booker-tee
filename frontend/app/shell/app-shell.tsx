@@ -61,7 +61,12 @@ const navigationGroups: ReadonlyArray<NavigationGroup> = [
   {
     label: "Справочники",
     items: [
-      { href: "/categories", icon: "categories", label: "Категории" },
+      {
+        href: "/categories",
+        icon: "categories",
+        label: "Категории",
+        reactRoute: true,
+      },
       {
         href: "/properties",
         icon: "properties",

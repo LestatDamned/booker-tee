@@ -81,3 +81,16 @@ async def historical_reports(request: Request) -> RedirectResponse:
 @router.get("/properties")
 async def historical_properties(request: Request) -> RedirectResponse:
     return redirect_to_react(request, "/app/properties")
+
+
+@router.get("/categories")
+async def historical_categories(request: Request) -> RedirectResponse:
+    return redirect_to_react(request, "/app/categories")
+
+
+@router.get("/categories/{category_id}")
+async def historical_category_detail(
+    request: Request,
+    category_id: UUID,
+) -> RedirectResponse:
+    return redirect_to_react(request, f"/app/categories/{category_id}")

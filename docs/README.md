@@ -46,13 +46,13 @@
 
 ## Текущий frontend plan
 
-Stages 0–6 и Stage 7 Wave A (Imports, Accounts/account ledger, Reports)
-завершены. Следующий migration workflow выбирается из Wave B: Properties,
-Categories или Transaction Rules.
+Stages 0–6, Stage 7 Wave A и Wave B Properties/Categories завершены. Следующий
+migration workflow — Transaction Rules.
 
 - [`STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md`](frontend/plan/STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md)
 - [`Reports migration`](frontend/plan/reports/README.md)
 - [`Import documents and mapping`](frontend/plan/import-documents-and-mapping/README.md)
+- [`Categories migration`](frontend/plan/categories/README.md)
 
 ## Правила поддержки
 

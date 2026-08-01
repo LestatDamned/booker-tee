@@ -3,18 +3,9 @@
   const WORKING_CLASS_NAME = "entity-card--working";
   const WORKING_SELECTOR = '[data-entity-working="true"]';
   let pendingWorkingElementId = null;
-  const RECENT_CLASS_NAMES = [
-    "rule-card--recent",
-    "category-card--recent",
-  ];
-  const RECENT_FEEDBACK_SELECTORS = [
-    ".rule-list-feedback",
-    ".category-list-feedback",
-  ];
-  const RECENT_QUERY_KEYS = [
-    "recent_rule_id",
-    "recent_category_id",
-  ];
+  const RECENT_CLASS_NAMES = ["rule-card--recent"];
+  const RECENT_FEEDBACK_SELECTORS = [".rule-list-feedback"];
+  const RECENT_QUERY_KEYS = ["recent_rule_id"];
   const INTERACTIVE_SELECTOR = [
     "a",
     "button",

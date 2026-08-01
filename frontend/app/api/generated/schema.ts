@@ -626,93 +626,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/categories": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Category Index */
-        get: operations["category_index_categories_get"];
-        put?: never;
-        /** Create Category */
-        post: operations["create_category_categories_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/categories/{category_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Category Detail */
-        get: operations["category_detail_categories__category_id__get"];
-        put?: never;
-        /** Update Category */
-        post: operations["update_category_categories__category_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/categories/{category_id}/archive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Archive Category */
-        post: operations["archive_category_categories__category_id__archive_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/categories/{category_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Restore Category */
-        post: operations["restore_category_categories__category_id__restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/categories/{category_id}/delete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Delete Category */
-        post: operations["delete_category_categories__category_id__delete_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/chat-integrations/telegram/webhook": {
         parameters: {
             query?: never;
@@ -1399,22 +1312,6 @@ export interface components {
         ApiErrorEnvelope: {
             error: components["schemas"]["ApiErrorDetails"];
         };
-        /** Body_archive_category_categories__category_id__archive_post */
-        Body_archive_category_categories__category_id__archive_post: {
-            /** View */
-            view?: string | null;
-        };
-        /** Body_create_category_categories_post */
-        Body_create_category_categories_post: {
-            /** Name */
-            name: string;
-            /** @default mixed */
-            kind: components["schemas"]["CategoryKind"];
-            /** Notes */
-            notes?: string | null;
-            /** View */
-            view?: string | null;
-        };
         /** Body_create_rule_rules_post */
         Body_create_rule_rules_post: {
             /** Pattern */
@@ -1452,11 +1349,6 @@ export interface components {
              */
             default_currency: string;
         };
-        /** Body_delete_category_categories__category_id__delete_post */
-        Body_delete_category_categories__category_id__delete_post: {
-            /** View */
-            view?: string | null;
-        };
         /** Body_login_login_post */
         Body_login_login_post: {
             /** Email */
@@ -1465,11 +1357,6 @@ export interface components {
             password: string;
             /** Next */
             next?: string | null;
-        };
-        /** Body_restore_category_categories__category_id__restore_post */
-        Body_restore_category_categories__category_id__restore_post: {
-            /** View */
-            view?: string | null;
         };
         /** Body_select_workspace_workspaces__workspace_id__select_post */
         Body_select_workspace_workspaces__workspace_id__select_post: {
@@ -1501,16 +1388,6 @@ export interface components {
              * @default false
              */
             is_active: boolean;
-        };
-        /** Body_update_category_categories__category_id__post */
-        Body_update_category_categories__category_id__post: {
-            /** Name */
-            name: string;
-            kind: components["schemas"]["CategoryKind"];
-            /** Notes */
-            notes?: string | null;
-            /** View */
-            view?: string | null;
         };
         /** Body_update_rule_rules__rule_id__post */
         Body_update_rule_rules__rule_id__post: {
@@ -6804,248 +6681,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    category_index_categories_get: {
-        parameters: {
-            query?: {
-                view?: string;
-                recent_category_id?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_category_categories_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_create_category_categories_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    category_detail_categories__category_id__get: {
-        parameters: {
-            query?: {
-                date_from?: string | null;
-                date_to?: string | null;
-                currency?: string | null;
-                type?: string | null;
-                return_to?: string | null;
-            };
-            header?: never;
-            path: {
-                category_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_category_categories__category_id__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                category_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_update_category_categories__category_id__post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    archive_category_categories__category_id__archive_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                category_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_archive_category_categories__category_id__archive_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    restore_category_categories__category_id__restore_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                category_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_restore_category_categories__category_id__restore_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_category_categories__category_id__delete_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                category_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_delete_category_categories__category_id__delete_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

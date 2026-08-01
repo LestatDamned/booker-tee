@@ -34,10 +34,15 @@ authenticated workflow в legacy stack не добавляется.
 - `/app/imports/documents/:documentId`;
 - `/app/imports/documents/:documentId/mapping`;
 - `/app/imports/documents/:documentId/review`;
+- `/app/reports`;
+- `/app/properties`;
+- `/app/categories`;
+- `/app/categories/:categoryId`;
 - shared shell/foundation/themes.
 
-Accounts detail/management полностью принадлежат React. Reports и остальные
-authenticated pages пока SSR и мигрируют Stage 7. Следующий workflow — Reports.
+Accounts, Reports, Properties и Categories полностью принадлежат React.
+Transaction Rules и остальные authenticated pages пока SSR и мигрируют Stage
+7. Следующий workflow — Transaction Rules.
 Public home, login/signup могут оставаться минимальным SSR после financial
 cutover — это отдельное решение.
 

@@ -19,6 +19,7 @@ def test_base_header_hides_write_actions_for_viewer() -> None:
 
     assert "наблюдатель" in html
     assert 'href="/app/reports"' in html
+    assert 'href="/app/categories"' in html
     assert 'href="/imports/upload"' not in html
     assert 'href="/app/ledger/manual"' in html
 

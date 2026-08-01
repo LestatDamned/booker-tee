@@ -39,7 +39,7 @@ PAGES: tuple[tuple[str, str], ...] = (
     ("/app/imports", "imports"),
     ("/app/imports/upload", "imports-upload"),
     ("/rules", "rules"),
-    ("/categories", "categories"),
+    ("/categories", "categories-redirect"),
     ("/app/categories", "react-categories"),
     ("/properties", "properties-redirect"),
     ("/app/properties", "react-properties"),
@@ -58,7 +58,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/app/imports/upload", "imports-upload"),
     ("/rules", "rules"),
     ("/reports?currency=RUB", "reports-redirect"),
-    ("/categories", "categories"),
+    ("/categories", "categories-redirect"),
     ("/app/categories", "react-categories"),
     ("/properties", "properties-redirect"),
     ("/app/properties", "react-properties"),
@@ -301,14 +301,6 @@ def try_login(page: Page, *, base_url: str, email: str, password: str) -> None:
     page.wait_for_url("**/workspaces", timeout=PAGE_TIMEOUT_MS)
 
 
-def open_details_if_closed(page: Page, selector: str) -> None:
-    details = page.locator(selector).first
-    if details.count() == 0:
-        return
-    if details.get_attribute("open") is None:
-        details.locator("summary").first.click(timeout=PAGE_TIMEOUT_MS)
-
-
 def prepare_realistic_scenario(
     context: BrowserContext,
     *,
@@ -375,14 +367,16 @@ def prepare_realistic_scenario(
         page.wait_for_url("**/app/ledger/manual?operation_id=**", timeout=PAGE_TIMEOUT_MS)
         manual_target_path = page.url.replace(base_url.rstrip("/"), "")
 
-        page.goto(build_url(base_url, "/categories"), wait_until="domcontentloaded")
-        open_details_if_closed(page, "details.category-create-details")
-        category_form = page.locator('form[action="/categories"]').first
+        page.goto(build_url(base_url, "/app/categories"), wait_until="networkidle")
+        page.get_by_role("button", name="Новая категория", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        category_form = page.locator("form[data-category-create]:visible")
         category_form.locator('input[name="name"]').fill(rule_category_name)
         category_form.locator('select[name="kind"]').select_option("expense")
-        category_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        page.get_by_text(rule_category_name, exact=True).first.wait_for(timeout=PAGE_TIMEOUT_MS)
-        page.goto(build_url(base_url, "/app/categories"), wait_until="networkidle")
+        category_form.get_by_role("button", name="Создать категорию", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
         category_record = (
             page.locator("[data-category-record]:visible").filter(has_text=rule_category_name).first
         )
@@ -390,8 +384,6 @@ def prepare_realistic_scenario(
         category_detail_path = category_record.locator(
             "a[data-record-identity]"
         ).first.get_attribute("href")
-        if category_detail_path and category_detail_path.startswith("/categories/"):
-            category_detail_path = f"/app{category_detail_path}"
         if category_detail_path:
             page.goto(build_url(base_url, category_detail_path), wait_until="networkidle")
             page.get_by_role("button", name="Изменить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
@@ -409,16 +401,16 @@ def prepare_realistic_scenario(
                 timeout=PAGE_TIMEOUT_MS
             )
 
-        page.goto(build_url(base_url, "/categories"), wait_until="domcontentloaded")
-        open_details_if_closed(page, "details.category-create-details")
-        disposable_category_form = page.locator('form[action="/categories"]').first
-        disposable_category_form.locator('input[name="name"]').fill(disposable_category_name)
-        disposable_category_form.locator('select[name="kind"]').select_option("expense")
-        disposable_category_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        page.get_by_text(disposable_category_name, exact=True).first.wait_for(
+        page.goto(build_url(base_url, "/app/categories"), wait_until="networkidle")
+        page.get_by_role("button", name="Новая категория", exact=True).click(
             timeout=PAGE_TIMEOUT_MS
         )
-        page.goto(build_url(base_url, "/app/categories"), wait_until="networkidle")
+        disposable_category_form = page.locator("form[data-category-create]:visible")
+        disposable_category_form.locator('input[name="name"]').fill(disposable_category_name)
+        disposable_category_form.locator('select[name="kind"]').select_option("expense")
+        disposable_category_form.get_by_role("button", name="Создать категорию", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
         disposable_record = (
             page.locator("[data-category-record]:visible")
             .filter(has_text=disposable_category_name)
@@ -427,8 +419,6 @@ def prepare_realistic_scenario(
         disposable_detail_path = disposable_record.locator(
             "a[data-record-identity]"
         ).first.get_attribute("href")
-        if disposable_detail_path and disposable_detail_path.startswith("/categories/"):
-            disposable_detail_path = f"/app{disposable_detail_path}"
         if disposable_detail_path:
             page.goto(build_url(base_url, disposable_detail_path), wait_until="networkidle")
             page.get_by_role("button", name="В архив", exact=True).click(timeout=PAGE_TIMEOUT_MS)
@@ -2063,7 +2053,6 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
         "/app/accounts",
         "/app/categories",
         "/app/properties",
-        "/categories",
         "/rules",
     }:
         long_technical_labels = [

@@ -1,6 +1,6 @@
 # Categories future delete manifest
 
-Статус: planned; выполнять только в Slice 06 после replacement gate.
+Статус: `executed 2026-08-01`; delete gate пройден.
 
 ## Удалить полностью
 
@@ -15,9 +15,9 @@
 - Categories presenter/router/template assertions из
   `tests/features/categories/test_categories.py`; domain/service tests остаются
   и при необходимости разделяются по ответственности;
-- category blocks из
-  `tests/features/reference_data/test_reference_templates.py`; сам файл остаётся
-  для Transaction Rules до их cutover;
+- category template assertions из
+  `tests/features/reference_data/test_reference_templates.py`; после cleanup
+  других tests в файле не осталось, поэтому удалён весь файл;
 - selectors `category-card*`, `category-list-feedback*`,
   `category-create-*`, `category-detail-*`, `category-form*`,
   `category-more-actions*` и category-only responsive group entries из
@@ -81,4 +81,3 @@ rg -n '"/categories"|/categories/|/categories\?' src tests frontend scripts
 canonical `/app/categories*`, domain model/repository/service references и
 explicit temporary links to `/rules` until Transaction Rules cutover. Каждый
 остальной result должен быть удалён или назван как runtime consumer.
-

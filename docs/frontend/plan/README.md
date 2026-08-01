@@ -46,8 +46,27 @@ Child stages:
 - Accounts and account ledger — completed 2026-07-31;
 - [`Reports`](reports/README.md) — completed 2026-07-31;
 - [`Properties`](properties/README.md) — completed 2026-08-01;
-- [`Categories`](categories/README.md) — active; Slices 01–05 completed
-  2026-08-01, Slice 06 next.
+- [`Categories`](categories/README.md) — completed 2026-08-01.
+
+### Categories completion record
+
+Completed: 2026-08-01
+
+Implemented: workspace-scoped Categories API; React directory/detail,
+create/edit, financial drill-down, archive/restore/delete and direct row
+actions; query-preserving historical GET redirects; canonical navigation.
+
+Cleanup performed: legacy Categories router, presenter/ViewModels, two Jinja
+templates, 15 replacement-only SSR tests, category-only global CSS/JS hooks and
+legacy HTML OpenAPI operations removed. Browser fixture now uses React/API.
+
+Checks run: Ruff, ty, full backend (`683 passed, 1 skipped`), frontend full
+check (`357 passed`) and production build; Mocha/Latte realistic audit for
+directory/detail/redirect at 1440/920/390 (`9/9` pages per theme).
+
+Measurements/risks: directory `19.59 kB` (`6.81 kB` gzip), detail `27.87 kB`
+(`8.91 kB` gzip); Transaction Rules остаётся следующим Wave B workflow и
+сохраняет category domain/API consumers.
 
 ### Properties completion record
 

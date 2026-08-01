@@ -6,6 +6,7 @@ from app.main import create_app
 DOCUMENT_ID = "5e4c43a1-7e08-4afe-a442-5d1d72e08ca8"
 ACCOUNT_ID = "11111111-1111-1111-1111-111111111111"
 PROPERTY_ID = "22222222-2222-2222-2222-222222222222"
+CATEGORY_ID = "33333333-3333-3333-3333-333333333333"
 
 
 @pytest.mark.parametrize(
@@ -46,6 +47,16 @@ PROPERTY_ID = "22222222-2222-2222-2222-222222222222"
             "/properties?view=archived&search=дом",
             "/app/properties?view=archived&search=%D0%B4%D0%BE%D0%BC",
         ),
+        (
+            "/categories?view=archived&search=такси",
+            "/app/categories?view=archived&search=%D1%82%D0%B0%D0%BA%D1%81%D0%B8",
+        ),
+        (
+            f"/categories/{CATEGORY_ID}?date_from=2026-07-01&currency=RUB"
+            "&return_to=%2Fapp%2Freports%3Fcurrency%3DRUB",
+            f"/app/categories/{CATEGORY_ID}?date_from=2026-07-01&currency=RUB"
+            "&return_to=%2Fapp%2Freports%3Fcurrency%3DRUB",
+        ),
     ],
 )
 def test_historical_frontend_get_redirects_to_react(
@@ -76,6 +87,11 @@ def test_historical_frontend_get_redirects_to_react(
         (f"/properties/{PROPERTY_ID}", 404),
         (f"/properties/{PROPERTY_ID}/archive", 404),
         (f"/properties/{PROPERTY_ID}/restore", 404),
+        ("/categories", 405),
+        (f"/categories/{CATEGORY_ID}", 405),
+        (f"/categories/{CATEGORY_ID}/archive", 404),
+        (f"/categories/{CATEGORY_ID}/restore", 404),
+        (f"/categories/{CATEGORY_ID}/delete", 404),
     ],
 )
 def test_historical_frontend_mutations_are_not_redirected(

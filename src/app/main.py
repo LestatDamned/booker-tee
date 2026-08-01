@@ -15,7 +15,6 @@ from app.core.middleware import install_security_middleware
 from app.core.security import session_token_from_request
 from app.core.settings import Settings
 from app.db.session import get_session, session_factory
-from app.features.categories.router import router as categories_router
 from app.features.chat_integrations.router import router as chat_integrations_router
 from app.features.dashboard.router import router as dashboard_router
 from app.features.transaction_rules.router import router as transaction_rules_router
@@ -44,7 +43,6 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory="src/app/static"), name="static")
     app.include_router(api_router)
     app.include_router(legacy_frontend_redirects_router)
-    app.include_router(categories_router)
     app.include_router(chat_integrations_router)
     app.include_router(dashboard_router)
     app.include_router(transaction_rules_router)

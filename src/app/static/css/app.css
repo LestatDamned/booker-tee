@@ -952,50 +952,6 @@ input[type="checkbox"] {
   padding: 14px 0 0;
 }
 
-.category-edit-layout {
-  display: grid;
-  gap: 12px;
-}
-
-.category-edit-form {
-  align-items: end;
-}
-
-.category-name-field {
-  grid-column: span 6 !important;
-}
-
-.category-kind-field,
-.category-primary-action {
-  grid-column: span 3 !important;
-}
-
-.category-notes-field {
-  grid-column: span 9 !important;
-}
-
-.category-primary-action {
-  min-width: 0;
-}
-
-.category-lifecycle-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  justify-content: flex-end;
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  padding-top: 12px;
-}
-
-.category-lifecycle-actions form {
-  min-width: min(100%, 180px);
-}
-
-.category-lifecycle-actions .button {
-  width: 100%;
-}
-
 .filter-tabs {
   width: fit-content;
   max-width: 100%;
@@ -1365,11 +1321,6 @@ html:not(.entity-target-cleared) .entity-card:target {
 .debug-details > summary:hover {
   color: var(--accent);
   opacity: 1;
-}
-
-.category-edit-details {
-  border: 1px solid var(--border);
-  background: var(--surface-strong);
 }
 
 .entity-card-actions {
@@ -2881,245 +2832,6 @@ html:not(.entity-target-cleared) .rule-card:target {
   display: inline;
 }
 
-.category-card {
-  border-left-color: color-mix(in srgb, var(--help) 54%, var(--border));
-}
-
-.category-card--system {
-  border-left-color: color-mix(in srgb, var(--muted) 50%, var(--border));
-}
-
-.category-card--recent {
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
-  background: color-mix(in srgb, var(--surface) 88%, var(--accent));
-}
-
-.category-list-feedback {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
-  border-left: 3px solid color-mix(in srgb, var(--accent) 70%, var(--border));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 86%, var(--accent));
-  padding: 10px 12px;
-}
-
-.category-list-feedback > div {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.category-list-feedback strong {
-  overflow-wrap: anywhere;
-}
-
-.category-list-feedback span {
-  color: var(--muted);
-}
-
-.category-list-feedback__link {
-  white-space: nowrap;
-}
-
-.category-create-details {
-  border-color: color-mix(in srgb, var(--border) 76%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-strong) 36%, transparent);
-}
-
-.category-create-details > summary {
-  grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 42px;
-}
-
-.category-create-details > summary::after,
-.category-create-details[open] > summary::after {
-  content: none;
-}
-
-.category-create-form {
-  border-color: color-mix(in srgb, var(--border) 52%, transparent);
-  padding-top: 14px;
-}
-
-.category-create-form__error {
-  grid-column: 1 / -1;
-}
-
-.category-create-form__field--name {
-  grid-column: span 4;
-}
-
-.category-create-form__field--kind {
-  grid-column: span 3;
-}
-
-.category-create-form__field--notes {
-  grid-column: span 5;
-}
-
-.category-create-form__actions {
-  grid-column: 1 / -1;
-  justify-content: flex-end;
-  border-top: 1px solid color-mix(in srgb, var(--border) 46%, transparent);
-  padding-top: 10px;
-}
-
-.category-create-form__actions .button {
-  width: auto;
-  min-width: 180px;
-}
-
-.category-card__main {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-
-.category-card__topline {
-  grid-template-columns: minmax(0, 1fr) max-content;
-}
-
-.category-card__title strong {
-  font-size: 1.02rem;
-  overflow-wrap: anywhere;
-}
-
-.category-card__kind {
-  min-height: 34px;
-  justify-self: end;
-  justify-content: center;
-  border-color: color-mix(in srgb, currentcolor 72%, var(--border));
-  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
-  padding-inline: 12px;
-}
-
-.category-card__meta-link {
-  min-height: 28px;
-  align-items: center;
-}
-
-.category-card__actions {
-  min-width: 0;
-}
-
-.category-more-actions {
-  min-width: 0;
-  grid-column: 1 / -1;
-}
-
-.category-more-actions > summary {
-  width: 100%;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  list-style: none;
-}
-
-.category-more-actions > summary::-webkit-details-marker {
-  display: none;
-}
-
-.category-more-actions > summary::after,
-.category-more-actions[open] > summary::after {
-  content: none;
-}
-
-.category-more-actions[open] .details-toggle-open {
-  display: none;
-}
-
-.category-more-actions[open] .details-toggle-close {
-  display: inline;
-}
-
-.category-more-actions__menu {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-strong) 50%, transparent);
-  padding: 8px;
-}
-
-.category-detail-card {
-  border-left-color: color-mix(in srgb, var(--help) 54%, var(--border));
-}
-
-.category-detail-card__main {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-
-.category-detail-card__topline {
-  grid-template-columns: minmax(0, 1fr) max-content;
-}
-
-.category-detail-card__title strong {
-  font-size: 1.08rem;
-  overflow-wrap: anywhere;
-}
-
-.category-detail-card__actions {
-  min-width: 0;
-}
-
-.category-detail-card__edit {
-  grid-column: 1 / -1;
-  width: 100%;
-  min-width: 0;
-}
-
-.category-detail-card__edit-summary {
-  position: absolute;
-  width: 1px !important;
-  height: 1px;
-  min-height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  border: 0;
-  padding: 0;
-  white-space: nowrap;
-  list-style: none;
-}
-
-.category-detail-card__edit > summary::after,
-.category-detail-card__edit[open] > summary::after {
-  content: none;
-}
-
-.category-detail-card__edit-panel {
-  display: grid;
-  gap: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  padding-top: 12px;
-}
-
-.category-form__error {
-  grid-column: 1 / -1;
-}
-
-.category-form--drawer {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 10px 12px;
-}
-
-.category-form__field--name {
-  grid-column: span 7;
-}
-
-.category-form__field--kind {
-  grid-column: span 5;
-}
-
-.category-form__field--notes {
-  grid-column: 1 / -1;
-}
-
 .workspace-create-details,
 .workspace-invitation-details {
   border-color: color-mix(in srgb, var(--border) 76%, transparent);
@@ -3782,7 +3494,6 @@ html:not(.entity-target-cleared) .rule-card:target {
   }
 
   .operation-form__fields,
-  .category-form--drawer,
   .workspace-form--drawer,
   .workspace-member-form--drawer,
   .operation-form__footer {
@@ -3793,9 +3504,6 @@ html:not(.entity-target-cleared) .rule-card:target {
   .operation-form__field--date,
   .operation-form__field--amount,
   .operation-form__field--status,
-  .category-form__field--name,
-  .category-form__field--kind,
-  .category-form__field--notes,
   .workspace-create-form__field--name,
   .workspace-create-form__field--type,
   .workspace-create-form__field--currency,
@@ -3833,57 +3541,6 @@ html:not(.entity-target-cleared) .rule-card:target {
     overflow-x: auto;
   }
 
-  .report-table {
-    overflow: visible;
-  }
-
-  .report-table thead {
-    display: none;
-  }
-
-  .report-table tbody {
-    display: grid;
-    gap: 8px;
-  }
-
-  .report-table tr {
-    display: grid;
-    border: 1px solid var(--border);
-    background: var(--surface-strong);
-  }
-
-  .report-table th,
-  .report-table td {
-    border: 0;
-  }
-
-  .report-table td {
-    display: grid;
-    grid-template-columns: minmax(86px, 0.7fr) minmax(0, 1fr);
-    gap: 10px;
-    align-items: center;
-    border-bottom: 1px solid var(--border);
-    padding: 8px 10px;
-    overflow-wrap: anywhere;
-  }
-
-  .report-table td:last-child {
-    border-bottom: 0;
-  }
-
-  .report-table td::before {
-    content: attr(data-label);
-    color: var(--accent);
-    font-size: 0.74rem;
-    text-transform: uppercase;
-  }
-
-  .report-table .amount {
-    justify-content: end;
-    text-align: right;
-    white-space: nowrap;
-  }
-
   .form-panel {
     grid-template-columns: 1fr;
   }
@@ -3894,20 +3551,10 @@ html:not(.entity-target-cleared) .rule-card:target {
   .form-field-third,
   .form-field-quarter,
   .form-field-full,
-  .category-name-field,
-  .category-kind-field,
-  .category-notes-field,
-  .category-primary-action,
   .form-actions,
   .form-actions-inline,
   .form-submit {
     grid-column: 1 / -1 !important;
-  }
-
-  .category-lifecycle-actions {
-    display: grid;
-    grid-template-columns: 1fr;
-    justify-content: stretch;
   }
 
   .rule-advanced-grid {
