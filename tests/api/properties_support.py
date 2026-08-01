@@ -8,6 +8,7 @@ from app.api.dependencies import get_api_request_context
 from app.api.v1.properties.dependencies import get_property_directory_service
 from app.features.properties.models import PropertyStatus
 from app.features.properties.schemas import (
+    CreatePropertyCommand,
     PropertyDirectoryCapabilitiesDto,
     PropertyDirectoryDto,
     PropertyDirectoryReadonlyReason,
@@ -22,6 +23,7 @@ class PropertyDirectoryServiceStub:
     def __init__(self, directory: PropertyDirectoryDto) -> None:
         self.directory = directory
         self.read_calls: list[tuple[UUID, bool]] = []
+        self.create_calls: list[tuple[UUID, CreatePropertyCommand]] = []
 
     async def read(
         self,
@@ -31,6 +33,15 @@ class PropertyDirectoryServiceStub:
     ) -> PropertyDirectoryDto:
         self.read_calls.append((workspace_id, can_write))
         return self.directory
+
+    async def create(
+        self,
+        *,
+        workspace_id: UUID,
+        command: CreatePropertyCommand,
+    ) -> PropertySummaryDto:
+        self.create_calls.append((workspace_id, command))
+        return self.directory.items[0]
 
 
 def properties_app(

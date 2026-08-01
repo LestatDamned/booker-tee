@@ -1,6 +1,6 @@
 # Slice 02 — Create Property
 
-Статус: planned.
+Статус: completed 2026-08-01.
 
 ## User outcome
 
@@ -50,3 +50,28 @@ capabilities и timestamps.
 - SSR create остаётся доступен до cutover;
 - никакой browser code не создаёт status или capability самостоятельно.
 
+## Completion record
+
+Implemented:
+
+- `POST /api/v1/properties` с financial-write/CSRF boundary, нормализацией,
+  database bounds и stable validation field errors;
+- application create command через workspace-scoped mutation Protocol и
+  server-owned committed summary/capabilities;
+- React `WorkbenchPanel` с accessible fields, client/server validation,
+  pending guard, dirty-close confirmation, draft preservation, Toast и focus
+  restoration;
+- authoritative committed row вставляется по UUID, status/capabilities не
+  создаются в browser;
+- realistic browser fixture создаёт Property через React API вместо SSR form.
+
+Checks:
+
+- backend application/API/OpenAPI tests;
+- Properties API/form/page tests, включая server errors, dirty draft,
+  double-submit и committed insert;
+- Ruff, ty, frontend format/lint/styles/API/type/build;
+- end-to-end browser audit Mocha и Latte на 1440/920/390.
+
+Known follow-up: редактирование, optimistic concurrency и lifecycle остаются в
+Slices 03–04; SSR create сохраняется до Slice 05.

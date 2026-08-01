@@ -2,13 +2,19 @@
   overflow: clip;
 }
 
+.createForm,
+.formGrid {
+  display: grid;
+  gap: var(--space-4);
+}
+
 .readonlyNotice {
   margin: var(--space-4);
 }
 
 .listTools {
   display: grid;
-  grid-template-columns: minmax(16rem, 1fr) auto;
+  grid-template-columns: minmax(16rem, 1fr) auto auto;
   align-items: center;
   gap: var(--space-2);
 }
@@ -84,6 +90,20 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
+  }
+
+  .listTools > button {
+    width: 100%;
+  }
+}
+
+@media (min-width: 42.01rem) and (max-width: 70rem) {
+  .listTools {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .searchPlacement {
+    grid-column: 1 / -1;
   }
 }
 

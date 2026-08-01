@@ -462,7 +462,8 @@ export interface paths {
         /** List Properties */
         get: operations["list_properties_api_v1_properties_get"];
         put?: never;
-        post?: never;
+        /** Create Property */
+        post: operations["create_property_api_v1_properties_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1531,6 +1532,15 @@ export interface components {
              * @default 0.00
              */
             initialBalance: string;
+        };
+        /** CreatePropertyApiRequest */
+        CreatePropertyApiRequest: {
+            /** Name */
+            name: string;
+            /** Shortname */
+            shortName?: string | null;
+            /** Address */
+            address?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -5613,6 +5623,57 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_property_api_v1_properties_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePropertyApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PropertySummaryApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

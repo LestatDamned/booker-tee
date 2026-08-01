@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { loadProperties } from "./properties-api";
+import { createProperty, loadProperties } from "./properties-api";
 
 describe("Properties API", () => {
   afterEach(() => {
@@ -69,12 +69,73 @@ describe("Properties API", () => {
       message: "API вернул статус 503.",
     });
   });
+
+  it("creates a property with CSRF and validates the committed response", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(jsonResponse(directoryPayload.items[0], 201)),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await createProperty({
+      csrfToken: "csrf-token",
+      draft: { name: "Квартира", shortName: "Дом", address: "Мира, 1" },
+    });
+
+    expect(result).toEqual({
+      status: "success",
+      property: directoryPayload.items[0],
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/properties",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          name: "Квартира",
+          shortName: "Дом",
+          address: "Мира, 1",
+        }),
+        headers: expect.objectContaining({ "X-CSRF-Token": "csrf-token" }),
+      }),
+    );
+  });
+
+  it("preserves server field errors for the create form", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          jsonResponse(
+            {
+              error: {
+                code: "validation_error",
+                message: "Проверьте переданные данные.",
+                fieldErrors: { name: ["Название объекта обязательно."] },
+              },
+            },
+            422,
+          ),
+        ),
+      ),
+    );
+
+    await expect(
+      createProperty({
+        csrfToken: "csrf-token",
+        draft: { name: "", shortName: "", address: "" },
+      }),
+    ).resolves.toEqual({
+      status: "error",
+      code: "validation_error",
+      message: "Проверьте переданные данные.",
+      fieldErrors: { name: ["Название объекта обязательно."] },
+    });
+  });
 });
 
-function jsonResponse(payload: unknown): Response {
+function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     headers: { "Content-Type": "application/json" },
-    status: 200,
+    status,
   });
 }
 

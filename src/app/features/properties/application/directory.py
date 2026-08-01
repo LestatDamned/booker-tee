@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.features.properties.models import Property, PropertyStatus
 from app.features.properties.schemas import (
+    CreatePropertyCommand,
     PropertyDirectoryCapabilitiesDto,
     PropertyDirectoryDto,
     PropertyDirectoryReadonlyReason,
@@ -16,9 +17,26 @@ class PropertyDirectorySource(Protocol):
     async def list_for_workspace(self, workspace_id: UUID) -> Sequence[Property]: ...
 
 
+class PropertyMutationSource(Protocol):
+    async def create(
+        self,
+        *,
+        workspace_id: UUID,
+        name: str,
+        short_name: str | None,
+        address: str | None,
+    ) -> Property: ...
+
+
 class PropertyDirectoryService:
-    def __init__(self, properties: PropertyDirectorySource) -> None:
+    def __init__(
+        self,
+        *,
+        properties: PropertyDirectorySource,
+        creator: PropertyMutationSource,
+    ) -> None:
         self._properties = properties
+        self._creator = creator
 
     async def read(
         self,
@@ -36,6 +54,20 @@ class PropertyDirectoryService:
                 ),
             ),
         )
+
+    async def create(
+        self,
+        *,
+        workspace_id: UUID,
+        command: CreatePropertyCommand,
+    ) -> PropertySummaryDto:
+        property_ = await self._creator.create(
+            workspace_id=workspace_id,
+            name=command.name,
+            short_name=command.short_name,
+            address=command.address,
+        )
+        return property_summary(property_, can_write=True)
 
 
 def property_summary(property_: Property, *, can_write: bool) -> PropertySummaryDto:

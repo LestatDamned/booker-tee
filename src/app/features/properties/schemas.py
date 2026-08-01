@@ -35,3 +35,9 @@ class PropertyDirectoryCapabilitiesDto(ApplicationModel):
 class PropertyDirectoryDto(ApplicationModel):
     items: list[PropertySummaryDto]
     capabilities: PropertyDirectoryCapabilitiesDto
+
+
+class CreatePropertyCommand(ApplicationModel):
+    name: str
+    short_name: str | None
+    address: str | None

@@ -1,10 +1,10 @@
-import type { FormEvent } from "react";
+import { useRef, useState, type FormEvent, type RefObject } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
 import { ActionStack } from "../../ui/action-stack/action-stack";
-import { RouterButtonLink } from "../../ui/button/button";
+import { Button, RouterButtonLink } from "../../ui/button/button";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
@@ -14,15 +14,23 @@ import {
   SelectionTabs,
 } from "../../ui/selection-tabs/selection-tabs";
 import { StatusLabel } from "../../ui/status-label/status-label";
+import { ToastViewport, useToastQueue } from "../../ui/toast/toast";
 import { WorkbenchEmptyState } from "../../ui/workbench-empty-state/workbench-empty-state";
 import { WorkbenchHeader } from "../../ui/workbench-surface/workbench-header";
 import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import { WorkbenchSearch } from "../../ui/workbench-toolbar/workbench-search";
 import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
 import type {
+  CreatePropertyDraft,
   PropertyDirectoryDto,
   PropertySummaryDto,
 } from "./api/properties-api";
+import { createProperty } from "./api/properties-api";
+import { PropertyCreatePanel } from "./property-create-panel";
+import {
+  type PropertyFieldErrors,
+  validatePropertyDraft,
+} from "./property-form";
 import {
   propertyListQuery,
   propertyListUrl,
@@ -39,12 +47,25 @@ export function PropertiesPage({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const nameRef = useRef<HTMLInputElement>(null);
+  const shortNameRef = useRef<HTMLInputElement>(null);
+  const addressRef = useRef<HTMLTextAreaElement>(null);
+  const createTriggerRef = useRef<HTMLButtonElement>(null);
+  const pendingRef = useRef(false);
+  const [properties, setProperties] = useState(directory.items);
+  const [draft, setDraft] = useState<CreatePropertyDraft>(emptyPropertyDraft);
+  const [fieldErrors, setFieldErrors] = useState<PropertyFieldErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [confirmCreateClose, setConfirmCreateClose] = useState(false);
+  const { dismissToast, showToast, toast } = useToastQueue();
   const query = propertyListQuery(location.search);
-  const activeCount = directory.items.filter(
+  const activeCount = properties.filter(
     (property) => property.status === "active",
   ).length;
-  const archivedCount = directory.items.length - activeCount;
-  const visibleProperties = directory.items.filter(
+  const archivedCount = properties.length - activeCount;
+  const visibleProperties = properties.filter(
     (property) =>
       property.status === query.view &&
       propertyMatchesSearch(property, query.search),
@@ -56,6 +77,88 @@ export function PropertiesPage({
     void navigate(
       propertyListUrl(query.view, typeof value === "string" ? value : ""),
     );
+  }
+
+  function changeDraft<FieldName extends keyof CreatePropertyDraft>(
+    field: FieldName,
+    value: CreatePropertyDraft[FieldName],
+  ) {
+    setDraft((current) => ({ ...current, [field]: value }));
+    setFieldErrors((current) => ({ ...current, [field]: undefined }));
+    setSubmitError(null);
+  }
+
+  async function submitCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pendingRef.current) return;
+    const nextErrors = validatePropertyDraft(draft);
+    setFieldErrors(nextErrors);
+    setSubmitError(null);
+    const invalidField = firstInvalidField(nextErrors);
+    if (invalidField) {
+      focusPropertyField(invalidField, {
+        addressRef,
+        nameRef,
+        shortNameRef,
+      });
+      return;
+    }
+
+    pendingRef.current = true;
+    setPending(true);
+    const result = await createProperty({
+      csrfToken: session.csrfToken,
+      draft,
+    });
+    pendingRef.current = false;
+    setPending(false);
+    if (result.status === "success") {
+      setProperties((current) =>
+        insertCommittedProperty(current, result.property),
+      );
+      setDraft(emptyPropertyDraft);
+      setFieldErrors({});
+      showToast({ message: `Объект «${result.property.name}» создан.` });
+      setCreateOpen(false);
+      void navigate({ pathname: location.pathname, search: "", hash: "" });
+      window.setTimeout(() => createTriggerRef.current?.focus(), 0);
+      return;
+    }
+    if (result.status === "unauthenticated") {
+      window.location.assign("/login?next=/app/properties");
+      return;
+    }
+    if (result.status === "forbidden") {
+      setSubmitError(result.message);
+      return;
+    }
+    const serverErrors = propertyFieldErrors(result.fieldErrors);
+    setFieldErrors(serverErrors);
+    setSubmitError(result.message);
+    const serverInvalidField = firstInvalidField(serverErrors);
+    if (serverInvalidField) {
+      focusPropertyField(serverInvalidField, {
+        addressRef,
+        nameRef,
+        shortNameRef,
+      });
+    }
+  }
+
+  function requestCreateClose() {
+    if (propertyDraftIsDirty(draft)) {
+      setConfirmCreateClose(true);
+      return;
+    }
+    discardCreateDraft();
+  }
+
+  function discardCreateDraft() {
+    setDraft(emptyPropertyDraft);
+    setFieldErrors({});
+    setSubmitError(null);
+    setConfirmCreateClose(false);
+    setCreateOpen(false);
   }
 
   return (
@@ -107,6 +210,17 @@ export function PropertiesPage({
                   Архив
                 </SelectionTabLink>
               </SelectionTabs>
+              {directory.capabilities.canCreate ? (
+                <Button
+                  ref={createTriggerRef}
+                  aria-haspopup="dialog"
+                  icon="plus"
+                  onClick={() => setCreateOpen(true)}
+                  tone="primary"
+                >
+                  Новый объект
+                </Button>
+              ) : null}
             </div>
           </WorkbenchToolbar>
 
@@ -121,8 +235,22 @@ export function PropertiesPage({
             </InlineNotice>
           ) : null}
 
-          {directory.items.length === 0 ? (
-            <WorkbenchEmptyState icon="properties" title="Пока нет объектов">
+          {properties.length === 0 ? (
+            <WorkbenchEmptyState
+              action={
+                directory.capabilities.canCreate ? (
+                  <Button
+                    icon="plus"
+                    onClick={() => setCreateOpen(true)}
+                    tone="primary"
+                  >
+                    Добавить первый объект
+                  </Button>
+                ) : undefined
+              }
+              icon="properties"
+              title="Пока нет объектов"
+            >
               Объекты помогают отделять операции квартиры, аренды, проекта или
               другой финансовой цели.
             </WorkbenchEmptyState>
@@ -160,6 +288,26 @@ export function PropertiesPage({
           )}
         </WorkbenchSurface>
       </PageFrame>
+
+      <ToastViewport onDismiss={dismissToast} toast={toast} />
+
+      {createOpen ? (
+        <PropertyCreatePanel
+          addressRef={addressRef}
+          confirmClose={confirmCreateClose}
+          draft={draft}
+          fieldErrors={fieldErrors}
+          nameRef={nameRef}
+          onCancelConfirm={() => setConfirmCreateClose(false)}
+          onChange={changeDraft}
+          onClose={requestCreateClose}
+          onConfirmClose={discardCreateDraft}
+          onSubmit={submitCreate}
+          pending={pending}
+          shortNameRef={shortNameRef}
+          submitError={submitError}
+        />
+      ) : null}
     </AppShell>
   );
 }
@@ -278,4 +426,69 @@ function pluralize(
   if (units === 1) return one;
   if (units >= 2 && units <= 4) return few;
   return many;
+}
+
+const emptyPropertyDraft: CreatePropertyDraft = {
+  name: "",
+  shortName: "",
+  address: "",
+};
+
+function propertyDraftIsDirty(draft: CreatePropertyDraft): boolean {
+  return Boolean(draft.name || draft.shortName || draft.address);
+}
+
+function propertyFieldErrors(
+  fieldErrors: Record<string, string[]>,
+): PropertyFieldErrors {
+  const errors: PropertyFieldErrors = {};
+  for (const field of ["name", "shortName", "address"] as const) {
+    const message = fieldErrors[field]?.[0];
+    if (message) errors[field] = message;
+  }
+  return errors;
+}
+
+function firstInvalidField(
+  errors: PropertyFieldErrors,
+): keyof CreatePropertyDraft | null {
+  for (const field of ["name", "shortName", "address"] as const) {
+    if (errors[field]) return field;
+  }
+  return null;
+}
+
+function propertyFieldRefs({
+  addressRef,
+  nameRef,
+  shortNameRef,
+}: {
+  addressRef: RefObject<HTMLTextAreaElement | null>;
+  nameRef: RefObject<HTMLInputElement | null>;
+  shortNameRef: RefObject<HTMLInputElement | null>;
+}): Record<keyof CreatePropertyDraft, RefObject<HTMLElement | null>> {
+  return { address: addressRef, name: nameRef, shortName: shortNameRef };
+}
+
+function focusPropertyField(
+  field: keyof CreatePropertyDraft,
+  refs: Parameters<typeof propertyFieldRefs>[0],
+) {
+  window.setTimeout(() => propertyFieldRefs(refs)[field].current?.focus(), 0);
+}
+
+function insertCommittedProperty(
+  properties: PropertySummaryDto[],
+  property: PropertySummaryDto,
+): PropertySummaryDto[] {
+  const withoutCommitted = properties.filter((item) => item.id !== property.id);
+  const firstArchived = withoutCommitted.findIndex(
+    (item) => item.status === "archived",
+  );
+  if (firstArchived === -1) return [...withoutCommitted, property];
+  return [
+    ...withoutCommitted.slice(0, firstArchived),
+    property,
+    ...withoutCommitted.slice(firstArchived),
+  ];
 }

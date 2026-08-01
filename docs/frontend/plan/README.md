@@ -45,8 +45,8 @@ Child stages:
   completed;
 - Accounts and account ledger — completed 2026-07-31;
 - [`Reports`](reports/README.md) — completed 2026-07-31;
-- [`Properties`](properties/README.md) — active; Slice 01 directory/read
-  contract completed, Slice 02 create next.
+- [`Properties`](properties/README.md) — active; directory/read/create
+  completed, Slice 03 edit next.
 
 ### Reports completion record
 
