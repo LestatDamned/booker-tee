@@ -77,7 +77,7 @@ Rules preview не копирует Rule editing policy. До Transaction Rules 
 ## Mutation contracts
 
 - create/update normalize whitespace and return exact field errors;
-- name `maxLength=255`, notes bounded explicit API limit выбран до Slice 02;
+- name `maxLength=255`, notes `maxLength=1000` (зафиксировано в Slice 02);
 - update includes `expectedUpdatedAt`;
 - lifecycle/delete include `expectedStatus` and `expectedUpdatedAt`;
 - all writes require API financial-write context and CSRF;

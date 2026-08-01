@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 import type { components } from "../../../api/generated/schema";
-import { requestJson } from "../../../api/transport";
+import {
+  parseApiError,
+  requestJson,
+  type ApiErrorDetails,
+} from "../../../api/transport";
 
 export type CategoryDirectoryDto =
   components["schemas"]["CategoryDirectoryApiResponse"];
@@ -17,7 +21,7 @@ const categoryKindSchema = z.enum([
   "mixed",
 ]);
 
-const categorySummarySchema: z.ZodType<CategorySummaryDto> = z.object({
+export const categorySummarySchema: z.ZodType<CategorySummaryDto> = z.object({
   id: z.uuid(),
   name: z.string(),
   kind: categoryKindSchema,
@@ -57,6 +61,18 @@ export type CategoryDirectoryLoadResult =
   | { status: "unauthenticated" }
   | { status: "error"; message: string };
 
+export type CreateCategoryDraft = {
+  name: string;
+  kind: CategoryKind;
+  notes: string;
+};
+
+export type CreateCategoryResult =
+  | { status: "success"; category: CategorySummaryDto }
+  | { status: "unauthenticated" }
+  | { status: "forbidden"; message: string }
+  | ({ status: "error" } & ApiErrorDetails);
+
 export async function loadCategories(
   signal?: AbortSignal,
 ): Promise<CategoryDirectoryLoadResult> {
@@ -81,4 +97,55 @@ export async function loadCategories(
     };
   }
   return { status: "success", directory: parsed.data };
+}
+
+export async function createCategory({
+  csrfToken,
+  draft,
+}: {
+  csrfToken: string;
+  draft: CreateCategoryDraft;
+}): Promise<CreateCategoryResult> {
+  const response = await requestJson("/api/v1/categories", {
+    body: JSON.stringify(draft),
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    },
+    method: "POST",
+  });
+  if (response.status === "network_error") {
+    return {
+      status: "error",
+      code: "network_error",
+      fieldErrors: {},
+      message: "Backend недоступен. Проверьте соединение и повторите.",
+    };
+  }
+  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  const apiError = parseApiError(response.body);
+  if (response.httpStatus === 403) {
+    return {
+      status: "forbidden",
+      message: apiError?.message ?? "Создание категории недоступно.",
+    };
+  }
+  if (!response.ok) {
+    return {
+      status: "error",
+      code: apiError?.code ?? "category_create_failed",
+      fieldErrors: apiError?.fieldErrors ?? {},
+      message: apiError?.message ?? "Не удалось создать категорию.",
+    };
+  }
+  const parsed = categorySummarySchema.safeParse(response.body);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      code: "invalid_category_response",
+      fieldErrors: {},
+      message: "API вернул созданную категорию неожиданного формата.",
+    };
+  }
+  return { status: "success", category: parsed.data };
 }

@@ -11,4 +11,5 @@ from app.features.categories.service import CategoryService
 def get_category_directory_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> CategoryDirectoryService:
-    return CategoryDirectoryService(CategoryService(session))
+    categories = CategoryService(session)
+    return CategoryDirectoryService(source=categories, mutations=categories)

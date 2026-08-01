@@ -5,6 +5,7 @@ import pytest
 
 from app.features.categories.application.directory import CategoryDirectoryService
 from app.features.categories.models import Category, CategoryKind
+from app.features.categories.schemas import CreateCategoryCommand
 from app.features.categories.service import CategoryManagementRow
 from app.features.workspaces.models import WorkspaceType
 
@@ -22,6 +23,33 @@ class CategoryManagementSourceStub:
         self.calls.append((workspace_id, workspace_type))
         return self.rows
 
+    async def create_custom(
+        self,
+        *,
+        workspace_id: UUID,
+        name: str,
+        kind: CategoryKind,
+        notes: str | None = None,
+    ) -> Category:
+        raise AssertionError("Read-only test source must not create categories.")
+
+
+class CategoryMutationSourceStub:
+    def __init__(self, category: Category) -> None:
+        self.category = category
+        self.calls: list[tuple[UUID, str, CategoryKind, str | None]] = []
+
+    async def create_custom(
+        self,
+        *,
+        workspace_id: UUID,
+        name: str,
+        kind: CategoryKind,
+        notes: str | None = None,
+    ) -> Category:
+        self.calls.append((workspace_id, name, kind, notes))
+        return self.category
+
 
 @pytest.mark.asyncio
 async def test_category_directory_preserves_identity_usage_and_kind_options() -> None:
@@ -38,7 +66,7 @@ async def test_category_directory_preserves_identity_usage_and_kind_options() ->
         ]
     )
 
-    directory = await CategoryDirectoryService(source).read(
+    directory = await CategoryDirectoryService(source, source).read(
         workspace_id=workspace_id,
         workspace_type=WorkspaceType.PERSONAL,
         can_write=True,
@@ -68,7 +96,7 @@ async def test_category_directory_blocks_archive_while_active_rules_exist() -> N
         ]
     )
 
-    directory = await CategoryDirectoryService(source).read(
+    directory = await CategoryDirectoryService(source, source).read(
         workspace_id=workspace_id,
         workspace_type=WorkspaceType.PERSONAL,
         can_write=True,
@@ -94,7 +122,7 @@ async def test_system_category_is_immutable_and_viewer_has_no_write_capabilities
         ]
     )
 
-    directory = await CategoryDirectoryService(source).read(
+    directory = await CategoryDirectoryService(source, source).read(
         workspace_id=workspace_id,
         workspace_type=WorkspaceType.PERSONAL,
         can_write=False,
@@ -106,6 +134,41 @@ async def test_system_category_is_immutable_and_viewer_has_no_write_capabilities
         assert not item.capabilities.can_update
         assert not item.capabilities.can_archive
         assert not item.capabilities.can_restore
+
+
+@pytest.mark.asyncio
+async def test_category_directory_creates_committed_writable_summary() -> None:
+    workspace_id = uuid4()
+    category = Category(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        name="Питомцы",
+        kind=CategoryKind.EXPENSE,
+        is_active=True,
+        is_system=False,
+        updated_at=datetime(2026, 8, 1, 10, 0, tzinfo=UTC),
+    )
+    mutations = CategoryMutationSourceStub(category)
+    directory = CategoryDirectoryService(
+        CategoryManagementSourceStub([]),
+        mutations,
+    )
+
+    result = await directory.create(
+        workspace_id=workspace_id,
+        command=CreateCategoryCommand(
+            name="Питомцы",
+            kind=CategoryKind.EXPENSE,
+            notes="Корм и ветеринар",
+        ),
+    )
+
+    assert mutations.calls == [(workspace_id, "Питомцы", CategoryKind.EXPENSE, "Корм и ветеринар")]
+    assert result.name == "Питомцы"
+    assert result.operation_count == 0
+    assert result.rule_count == 0
+    assert result.capabilities.can_update
+    assert result.capabilities.can_archive
 
 
 def category_row(

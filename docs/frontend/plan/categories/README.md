@@ -1,6 +1,7 @@
 # Categories React migration
 
-Статус: `active 2026-08-01`; D1–D5 приняты, Slice 01 completed, Slice 02 next.
+Статус: `active 2026-08-01`; D1–D5 приняты, Slices 01–02 completed,
+Slice 03 next.
 
 Этот child stage описывает вторую задачу Wave B: замену authenticated SSR
 маршрутов `/categories*` на React directory `/app/categories`, React detail
@@ -113,7 +114,7 @@ last-write-wins; React/API conventions Properties уже закрепили stal
   -> 06 replacement gate/cutover/cleanup
 ```
 
-Текущее положение: Slice 01 completed; Slice 02 next. Каждый slice проходит
+Текущее положение: Slices 01–02 completed; Slice 03 next. Каждый slice проходит
 `application/API -> typed state -> UI -> tests`. Legacy
 SSR остаётся operational до Slice 06, но не получает новых presentation
 abstractions.

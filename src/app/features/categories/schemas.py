@@ -10,6 +10,12 @@ class CategoryDirectoryReadonlyReason(StrEnum):
     FINANCIAL_WRITE_FORBIDDEN = "financial_write_forbidden"
 
 
+class CreateCategoryCommand(ApplicationModel):
+    name: str
+    kind: CategoryKind
+    notes: str | None
+
+
 class CategoryArchiveBlockedReason(StrEnum):
     ACTIVE_RULES = "active_rules"
 

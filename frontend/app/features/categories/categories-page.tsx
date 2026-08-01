@@ -1,9 +1,15 @@
-import { type FormEvent, useMemo } from "react";
+import {
+  type FormEvent,
+  type RefObject,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
-import { RouterButtonLink } from "../../ui/button/button";
+import { Button, RouterButtonLink } from "../../ui/button/button";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
@@ -12,13 +18,25 @@ import {
   SelectionTabLink,
   SelectionTabs,
 } from "../../ui/selection-tabs/selection-tabs";
+import { ToastViewport, useToastQueue } from "../../ui/toast/toast";
 import { WorkbenchContent } from "../../ui/workbench-content/workbench-content";
 import { WorkbenchEmptyState } from "../../ui/workbench-empty-state/workbench-empty-state";
 import { WorkbenchHeader } from "../../ui/workbench-surface/workbench-header";
 import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import { WorkbenchSearch } from "../../ui/workbench-toolbar/workbench-search";
 import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
-import type { CategoryDirectoryDto } from "./api/categories-api";
+import type {
+  CategoryDirectoryDto,
+  CreateCategoryDraft,
+} from "./api/categories-api";
+import { createCategory } from "./api/categories-api";
+import { CategoryCreatePanel } from "./category-create-panel";
+import {
+  categoryFieldErrors,
+  firstInvalidCategoryField,
+  type CategoryFieldErrors,
+  validateCategoryDraft,
+} from "./category-form";
 import { CategoryMobileList, CategoryTable } from "./category-records";
 import {
   categoryListQuery,
@@ -37,6 +55,19 @@ export function CategoriesPage({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const nameRef = useRef<HTMLInputElement>(null);
+  const kindRef = useRef<HTMLSelectElement>(null);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const createTriggerRef = useRef<HTMLButtonElement>(null);
+  const pendingRef = useRef(false);
+  const [categories, setCategories] = useState(directory.items);
+  const [draft, setDraft] = useState<CreateCategoryDraft>(emptyCategoryDraft);
+  const [fieldErrors, setFieldErrors] = useState<CategoryFieldErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [confirmCreateClose, setConfirmCreateClose] = useState(false);
+  const { dismissToast, showToast, toast } = useToastQueue();
   const query = categoryListQuery(location.search);
   const kindLabels = useMemo(
     () =>
@@ -46,15 +77,15 @@ export function CategoriesPage({
     [directory.kindOptions],
   );
   const viewCounts = {
-    active: directory.items.filter(
+    active: categories.filter(
       (category) => !category.isSystem && category.isActive,
     ).length,
-    archived: directory.items.filter(
+    archived: categories.filter(
       (category) => !category.isSystem && !category.isActive,
     ).length,
-    system: directory.items.filter((category) => category.isSystem).length,
+    system: categories.filter((category) => category.isSystem).length,
   };
-  const categoriesInView = directory.items.filter((category) =>
+  const categoriesInView = categories.filter((category) =>
     categoryMatchesView(category, query.view),
   );
   const visibleCategories = categoriesInView.filter((category) =>
@@ -67,6 +98,81 @@ export function CategoriesPage({
     void navigate(
       categoryListUrl(query.view, typeof value === "string" ? value : ""),
     );
+  }
+
+  function changeDraft<FieldName extends keyof CreateCategoryDraft>(
+    field: FieldName,
+    value: CreateCategoryDraft[FieldName],
+  ) {
+    setDraft((current) => ({ ...current, [field]: value }));
+    setFieldErrors((current) => ({ ...current, [field]: undefined }));
+    setSubmitError(null);
+  }
+
+  async function submitCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pendingRef.current) return;
+    const nextErrors = validateCategoryDraft(draft);
+    setFieldErrors(nextErrors);
+    setSubmitError(null);
+    const invalidField = firstInvalidCategoryField(nextErrors);
+    if (invalidField) {
+      focusCategoryField(invalidField, { kindRef, nameRef, notesRef });
+      return;
+    }
+
+    pendingRef.current = true;
+    setPending(true);
+    const result = await createCategory({
+      csrfToken: session.csrfToken,
+      draft,
+    });
+    pendingRef.current = false;
+    setPending(false);
+    if (result.status === "success") {
+      setCategories((current) => [
+        result.category,
+        ...current.filter((category) => category.id !== result.category.id),
+      ]);
+      setDraft(emptyCategoryDraft);
+      setFieldErrors({});
+      showToast({ message: `Категория «${result.category.name}» создана.` });
+      setCreateOpen(false);
+      void navigate({ pathname: location.pathname, search: "", hash: "" });
+      window.setTimeout(() => createTriggerRef.current?.focus(), 0);
+      return;
+    }
+    if (result.status === "unauthenticated") {
+      window.location.assign("/login?next=/app/categories");
+      return;
+    }
+    if (result.status === "forbidden") {
+      setSubmitError(result.message);
+      return;
+    }
+    const serverErrors = categoryFieldErrors(result.fieldErrors);
+    setFieldErrors(serverErrors);
+    setSubmitError(result.message);
+    const serverInvalidField = firstInvalidCategoryField(serverErrors);
+    if (serverInvalidField) {
+      focusCategoryField(serverInvalidField, { kindRef, nameRef, notesRef });
+    }
+  }
+
+  function requestCreateClose() {
+    if (categoryDraftIsDirty(draft)) {
+      setConfirmCreateClose(true);
+      return;
+    }
+    discardCreateDraft();
+  }
+
+  function discardCreateDraft() {
+    setDraft(emptyCategoryDraft);
+    setFieldErrors({});
+    setSubmitError(null);
+    setConfirmCreateClose(false);
+    setCreateOpen(false);
   }
 
   return (
@@ -124,6 +230,17 @@ export function CategoriesPage({
                   Системные
                 </SelectionTabLink>
               </SelectionTabs>
+              {directory.capabilities.canCreate ? (
+                <Button
+                  ref={createTriggerRef}
+                  aria-haspopup="dialog"
+                  icon="plus"
+                  onClick={() => setCreateOpen(true)}
+                  tone="primary"
+                >
+                  Новая категория
+                </Button>
+              ) : null}
             </div>
           </WorkbenchToolbar>
 
@@ -181,8 +298,58 @@ export function CategoriesPage({
           </WorkbenchContent>
         </WorkbenchSurface>
       </PageFrame>
+
+      <ToastViewport onDismiss={dismissToast} toast={toast} />
+
+      {createOpen ? (
+        <CategoryCreatePanel
+          confirmClose={confirmCreateClose}
+          draft={draft}
+          fieldErrors={fieldErrors}
+          kindOptions={directory.kindOptions}
+          kindRef={kindRef}
+          nameRef={nameRef}
+          notesRef={notesRef}
+          onCancelConfirm={() => setConfirmCreateClose(false)}
+          onChange={changeDraft}
+          onClose={requestCreateClose}
+          onConfirmClose={discardCreateDraft}
+          onSubmit={submitCreate}
+          pending={pending}
+          submitError={submitError}
+        />
+      ) : null}
     </AppShell>
   );
+}
+
+const emptyCategoryDraft: CreateCategoryDraft = {
+  name: "",
+  kind: "mixed",
+  notes: "",
+};
+
+function categoryDraftIsDirty(draft: CreateCategoryDraft): boolean {
+  return Boolean(draft.name || draft.notes || draft.kind !== "mixed");
+}
+
+function categoryFieldRefs({
+  kindRef,
+  nameRef,
+  notesRef,
+}: {
+  kindRef: RefObject<HTMLSelectElement | null>;
+  nameRef: RefObject<HTMLInputElement | null>;
+  notesRef: RefObject<HTMLTextAreaElement | null>;
+}): Record<keyof CreateCategoryDraft, RefObject<HTMLElement | null>> {
+  return { kind: kindRef, name: nameRef, notes: notesRef };
+}
+
+function focusCategoryField(
+  field: keyof CreateCategoryDraft,
+  refs: Parameters<typeof categoryFieldRefs>[0],
+) {
+  window.setTimeout(() => categoryFieldRefs(refs)[field].current?.focus(), 0);
 }
 
 function categoryCountLabel(count: number) {

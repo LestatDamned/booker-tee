@@ -1,12 +1,22 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createCategory } from "./api/categories-api";
 import { CategoriesPage } from "./categories-page";
 import { directory, session } from "./test-support";
 
+vi.mock("./api/categories-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api/categories-api")>();
+  return { ...actual, createCategory: vi.fn() };
+});
+
 describe("CategoriesPage", () => {
+  beforeEach(() => {
+    vi.mocked(createCategory).mockReset();
+  });
+
   it("renders a compact active directory with semantic category facts", () => {
     renderPage();
 
@@ -27,8 +37,8 @@ describe("CategoriesPage", () => {
     expect(screen.queryByText("Старые покупки")).not.toBeInTheDocument();
     expect(screen.queryByText("Без категории")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Новая категория/ }),
-    ).toBeNull();
+      screen.getByRole("button", { name: "Новая категория" }),
+    ).toBeVisible();
   });
 
   it("shows archived and system records from URL state", () => {
@@ -86,6 +96,96 @@ describe("CategoriesPage", () => {
       screen.getByText("Категории доступны только для просмотра"),
     ).toBeVisible();
     expect(screen.getAllByText("Продукты")).toHaveLength(2);
+    expect(
+      screen.queryByRole("button", { name: "Новая категория" }),
+    ).toBeNull();
+  });
+
+  it("focuses an invalid name and protects a dirty draft", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: "Новая категория" }));
+    expect(screen.getByText("Для обоих потоков.")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Создать категорию" }));
+    expect(screen.getByText("Введите название категории.")).toBeVisible();
+    expect(screen.getByLabelText(/Название/)).toHaveFocus();
+    expect(createCategory).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText(/Название/), "Черновик");
+    await user.click(screen.getByRole("button", { name: "Отмена" }));
+    expect(
+      screen.getByRole("dialog", { name: "Закрыть создание категории?" }),
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Продолжить создание" }),
+    );
+    expect(screen.getByLabelText(/Название/)).toHaveValue("Черновик");
+  });
+
+  it("keeps duplicate errors local and focuses the server-invalid field", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createCategory).mockResolvedValue({
+      status: "error",
+      code: "category_validation_error",
+      message: "Категория с таким названием уже есть.",
+      fieldErrors: { name: ["Категория с таким названием уже есть."] },
+    });
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: "Новая категория" }));
+    await user.type(screen.getByLabelText(/Название/), "Продукты");
+    await user.click(screen.getByRole("button", { name: "Создать категорию" }));
+
+    expect(
+      await screen.findAllByText("Категория с таким названием уже есть."),
+    ).not.toHaveLength(0);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Название/)).toHaveFocus(),
+    );
+    expect(screen.getByLabelText(/Название/)).toHaveValue("Продукты");
+  });
+
+  it("inserts only committed state, closes, reports success and returns focus", async () => {
+    const user = userEvent.setup();
+    const committed = {
+      ...directory.items[0]!,
+      id: "af9366b6-8948-4a96-9280-7ee97712a50a",
+      name: "Питомцы",
+      notes: "Корм и ветеринар",
+      operationCount: 0,
+      ruleCount: 0,
+      activeRuleCount: 0,
+    };
+    vi.mocked(createCategory).mockResolvedValue({
+      status: "success",
+      category: committed,
+    });
+    renderPage("/categories?view=archived&search=старые");
+
+    const trigger = screen.getByRole("button", { name: "Новая категория" });
+    await user.click(trigger);
+    await user.type(screen.getByLabelText(/Название/), "Питомцы");
+    await user.selectOptions(screen.getByLabelText(/Тип/), "expense");
+    await user.type(screen.getByLabelText(/Заметка/), "Корм и ветеринар");
+    await user.click(screen.getByRole("button", { name: "Создать категорию" }));
+
+    expect(
+      await screen.findByText("Категория «Питомцы» создана."),
+    ).toBeVisible();
+    await waitFor(() => expect(screen.getAllByText("Питомцы")).toHaveLength(2));
+    expect(createCategory).toHaveBeenCalledWith({
+      csrfToken: "csrf-token",
+      draft: {
+        name: "Питомцы",
+        kind: "expense",
+        notes: "Корм и ветеринар",
+      },
+    });
+    expect(
+      screen.queryByRole("dialog", { name: "Новая категория" }),
+    ).not.toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 });
 

@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Protocol
 from uuid import UUID
 
-from app.features.categories.models import CategoryKind
+from app.features.categories.models import Category, CategoryKind
 from app.features.categories.schemas import (
     CategoryArchiveBlockedReason,
     CategoryDirectoryCapabilitiesDto,
@@ -11,6 +11,7 @@ from app.features.categories.schemas import (
     CategoryKindOptionDto,
     CategorySummaryCapabilitiesDto,
     CategorySummaryDto,
+    CreateCategoryCommand,
 )
 from app.features.categories.service import CategoryManagementRow
 from app.features.workspaces.models import WorkspaceType
@@ -24,9 +25,25 @@ class CategoryManagementSource(Protocol):
     ) -> Sequence[CategoryManagementRow]: ...
 
 
+class CategoryMutationSource(Protocol):
+    async def create_custom(
+        self,
+        *,
+        workspace_id: UUID,
+        name: str,
+        kind: CategoryKind,
+        notes: str | None = None,
+    ) -> Category: ...
+
+
 class CategoryDirectoryService:
-    def __init__(self, source: CategoryManagementSource) -> None:
+    def __init__(
+        self,
+        source: CategoryManagementSource,
+        mutations: CategoryMutationSource,
+    ) -> None:
         self._source = source
+        self._mutations = mutations
 
     async def read(
         self,
@@ -45,6 +62,28 @@ class CategoryDirectoryService:
                     None if can_write else CategoryDirectoryReadonlyReason.FINANCIAL_WRITE_FORBIDDEN
                 ),
             ),
+        )
+
+    async def create(
+        self,
+        *,
+        workspace_id: UUID,
+        command: CreateCategoryCommand,
+    ) -> CategorySummaryDto:
+        category = await self._mutations.create_custom(
+            workspace_id=workspace_id,
+            name=command.name,
+            kind=command.kind,
+            notes=command.notes,
+        )
+        return category_summary(
+            CategoryManagementRow(
+                category=category,
+                operation_count=0,
+                rule_count=0,
+                active_rule_count=0,
+            ),
+            can_write=True,
         )
 
 

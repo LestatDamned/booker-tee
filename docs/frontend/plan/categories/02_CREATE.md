@@ -1,6 +1,6 @@
 # Slice 02: Create category
 
-Статус: `planned`.
+Статус: `completed 2026-08-01`.
 
 ## Outcome
 
@@ -11,6 +11,7 @@ contract. Committed row появляется в Active view без full reload.
 
 - `POST /api/v1/categories`;
 - explicit name/notes length and whitespace normalization;
+- name `maxLength=255`, notes `maxLength=1000`;
 - case-insensitive workspace uniqueness;
 - allowed custom kind values and server-provided explanations;
 - 201 committed summary, stable validation/field errors;
@@ -32,3 +33,6 @@ contract. Committed row появляется в Active view без full reload.
 - new row is searchable and links to detail;
 - no generic form abstraction and no direct SSR POST from React.
 
+Выполнено: POST contract, application projection, typed client, accessible
+create panel, dirty-draft protection, committed-state insert и error/focus
+coverage добавлены. Legacy SSR create сохранён до Slice 06.

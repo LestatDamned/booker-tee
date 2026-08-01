@@ -15,6 +15,7 @@ from app.features.categories.schemas import (
     CategoryKindOptionDto,
     CategorySummaryCapabilitiesDto,
     CategorySummaryDto,
+    CreateCategoryCommand,
 )
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.features.workspaces.models import WorkspaceType
@@ -25,6 +26,8 @@ class CategoryDirectoryServiceStub:
     def __init__(self, directory: CategoryDirectoryDto) -> None:
         self.directory = directory
         self.read_calls: list[tuple[UUID, WorkspaceType, bool]] = []
+        self.create_calls: list[tuple[UUID, CreateCategoryCommand]] = []
+        self.create_error: ValueError | None = None
 
     async def read(
         self,
@@ -35,6 +38,17 @@ class CategoryDirectoryServiceStub:
     ) -> CategoryDirectoryDto:
         self.read_calls.append((workspace_id, workspace_type, can_write))
         return self.directory
+
+    async def create(
+        self,
+        *,
+        workspace_id: UUID,
+        command: CreateCategoryCommand,
+    ) -> CategorySummaryDto:
+        self.create_calls.append((workspace_id, command))
+        if self.create_error is not None:
+            raise self.create_error
+        return self.directory.items[0]
 
 
 def categories_app(
