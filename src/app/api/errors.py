@@ -16,6 +16,7 @@ class ApiErrorDetails(BaseModel):
     code: str
     message: str
     field_errors: dict[str, list[str]] | None = Field(default=None, alias="fieldErrors")
+    details: dict[str, Any] | None = None
 
 
 class ApiErrorEnvelope(BaseModel):
@@ -30,12 +31,14 @@ class ApiError(HTTPException):
         code: str,
         message: str,
         field_errors: Mapping[str, list[str]] | None = None,
+        details: Mapping[str, Any] | None = None,
         headers: Mapping[str, str] | None = None,
     ) -> None:
         super().__init__(status_code=status_code, detail=message, headers=headers)
         self.code = code
         self.message = message
         self.field_errors = dict(field_errors) if field_errors is not None else None
+        self.details = dict(details) if details is not None else None
 
 
 def install_api_exception_handlers(app: FastAPI) -> None:
@@ -69,6 +72,7 @@ async def api_http_exception_handler(
             code=exc.code,
             message=exc.message,
             field_errors=exc.field_errors,
+            details=exc.details,
             headers=exc.headers,
         )
 
@@ -101,6 +105,7 @@ def _error_response(
     code: str,
     message: str,
     field_errors: Mapping[str, list[str]] | None = None,
+    details: Mapping[str, Any] | None = None,
     headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     envelope = ApiErrorEnvelope(
@@ -108,6 +113,7 @@ def _error_response(
             code=code,
             message=message,
             fieldErrors=dict(field_errors) if field_errors is not None else None,
+            details=dict(details) if details is not None else None,
         )
     )
     return JSONResponse(

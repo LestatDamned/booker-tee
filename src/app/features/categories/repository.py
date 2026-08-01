@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.categories.models import Category
+from app.features.imports.models import RawTransaction
 from app.features.ledger.models import Operation, OperationStatus
 from app.features.transaction_rules.models import TransactionRule
 
@@ -73,6 +74,19 @@ class CategoryRepository:
             category_id: count for category_id, count in result.all() if category_id is not None
         }
 
+    async def count_all_operations_by_category(self, workspace_id: UUID) -> dict[UUID, int]:
+        result = await self.session.execute(
+            select(Operation.category_id, func.count(Operation.id))
+            .where(
+                Operation.workspace_id == workspace_id,
+                Operation.category_id.is_not(None),
+            )
+            .group_by(Operation.category_id)
+        )
+        return {
+            category_id: count for category_id, count in result.all() if category_id is not None
+        }
+
     async def count_rules_by_category(self, workspace_id: UUID) -> dict[UUID, int]:
         result = await self.session.execute(
             select(TransactionRule.category_id, func.count(TransactionRule.id))
@@ -99,6 +113,30 @@ class CategoryRepository:
         return {
             category_id: count for category_id, count in result.all() if category_id is not None
         }
+
+    async def count_raw_suggestions_by_category(self, workspace_id: UUID) -> dict[UUID, int]:
+        result = await self.session.execute(
+            select(RawTransaction.suggested_category_id, func.count(RawTransaction.id))
+            .where(
+                RawTransaction.workspace_id == workspace_id,
+                RawTransaction.suggested_category_id.is_not(None),
+            )
+            .group_by(RawTransaction.suggested_category_id)
+        )
+        return {
+            category_id: count for category_id, count in result.all() if category_id is not None
+        }
+
+    async def count_child_categories_by_parent(self, workspace_id: UUID) -> dict[UUID, int]:
+        result = await self.session.execute(
+            select(Category.parent_id, func.count(Category.id))
+            .where(
+                Category.workspace_id == workspace_id,
+                Category.parent_id.is_not(None),
+            )
+            .group_by(Category.parent_id)
+        )
+        return {parent_id: count for parent_id, count in result.all() if parent_id is not None}
 
     async def create(self, category: Category) -> Category:
         self.session.add(category)

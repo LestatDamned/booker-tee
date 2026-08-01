@@ -5,6 +5,7 @@ const apiErrorSchema = z.object({
     code: z.string(),
     message: z.string(),
     fieldErrors: z.record(z.string(), z.array(z.string())).nullish(),
+    details: z.record(z.string(), z.unknown()).nullish(),
   }),
 });
 
@@ -12,6 +13,7 @@ export type ApiErrorDetails = {
   code: string;
   fieldErrors: Record<string, string[]>;
   message: string;
+  details?: Record<string, unknown>;
 };
 
 export type ApiTransportResult =
@@ -63,6 +65,9 @@ export function parseApiError(body: unknown): ApiErrorDetails | null {
     code: parsed.data.error.code,
     fieldErrors: parsed.data.error.fieldErrors ?? {},
     message: parsed.data.error.message,
+    ...(parsed.data.error.details
+      ? { details: parsed.data.error.details }
+      : {}),
   };
 }
 

@@ -1,6 +1,7 @@
 import {
   type FormEvent,
   type RefObject,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -9,7 +10,8 @@ import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
-import { Button, RouterButtonLink } from "../../ui/button/button";
+import { Button, ButtonLink, RouterButtonLink } from "../../ui/button/button";
+import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
@@ -45,6 +47,7 @@ import {
   categoryMatchesView,
 } from "./category-list-query";
 import styles from "./categories-page.module.css";
+import { useCategoryDirectoryLifecycle } from "./use-category-directory-lifecycle";
 
 export function CategoriesPage({
   directory,
@@ -68,6 +71,39 @@ export function CategoriesPage({
   const [createOpen, setCreateOpen] = useState(false);
   const [confirmCreateClose, setConfirmCreateClose] = useState(false);
   const { dismissToast, showToast, toast } = useToastQueue();
+  const navigationToast = (location.state as { categoryToast?: string } | null)
+    ?.categoryToast;
+  const lifecycle = useCategoryDirectoryLifecycle({
+    csrfToken: session.csrfToken,
+    onCommitted: (committed) =>
+      setCategories((current) =>
+        current.map((category) =>
+          category.id === committed.id ? committed : category,
+        ),
+      ),
+    onReloaded: setCategories,
+    showToast,
+  });
+
+  useEffect(() => {
+    if (!navigationToast) return;
+    showToast({ message: navigationToast });
+    void navigate(
+      {
+        pathname: location.pathname,
+        search: location.search,
+        hash: location.hash,
+      },
+      { replace: true, state: null },
+    );
+  }, [
+    location.hash,
+    location.pathname,
+    location.search,
+    navigate,
+    navigationToast,
+    showToast,
+  ]);
   const query = categoryListQuery(location.search);
   const kindLabels = useMemo(
     () =>
@@ -255,6 +291,56 @@ export function CategoriesPage({
             </InlineNotice>
           ) : null}
 
+          {lifecycle.archiveBlocker ? (
+            <InlineNotice
+              action={
+                <ButtonLink
+                  href={`/rules?category_id=${lifecycle.archiveBlocker.id}`}
+                  icon="rules"
+                  tone="secondary"
+                >
+                  Открыть правила
+                </ButtonLink>
+              }
+              className={styles.readonlyNotice}
+              title="Сначала отключите активные правила"
+              tone="warning"
+            >
+              {activeRuleCountLabel(lifecycle.archiveBlocker.activeRuleCount)}
+              {
+                " продолжат предлагать эту категорию новым операциям. Правила не отключаются автоматически."
+              }
+            </InlineNotice>
+          ) : null}
+
+          {lifecycle.failure ? (
+            <InlineNotice
+              action={
+                <Button
+                  disabled={lifecycle.pendingId !== null}
+                  icon="retry"
+                  isLoading={lifecycle.pendingId !== null}
+                  onClick={() =>
+                    lifecycle.failure?.conflict
+                      ? void lifecycle.refreshAndRetry()
+                      : lifecycle.retry()
+                  }
+                  tone="secondary"
+                >
+                  {lifecycle.failure.conflict
+                    ? "Обновить и повторить"
+                    : "Повторить"}
+                </Button>
+              }
+              className={styles.readonlyNotice}
+              role="alert"
+              title="Не удалось изменить состояние категории"
+              tone="danger"
+            >
+              {lifecycle.failure.message}
+            </InlineNotice>
+          ) : null}
+
           <WorkbenchContent
             aria-label="Список категорий"
             isEmpty={visibleCategories.length === 0}
@@ -265,12 +351,18 @@ export function CategoriesPage({
                   <CategoryMobileList
                     categories={visibleCategories}
                     kindLabels={kindLabels}
+                    lifecyclePendingId={lifecycle.pendingId}
+                    onArchive={lifecycle.requestArchive}
+                    onRestore={lifecycle.restore}
                   />
                 }
                 table={
                   <CategoryTable
                     categories={visibleCategories}
                     kindLabels={kindLabels}
+                    lifecyclePendingId={lifecycle.pendingId}
+                    onArchive={lifecycle.requestArchive}
+                    onRestore={lifecycle.restore}
                   />
                 }
               />
@@ -319,6 +411,17 @@ export function CategoriesPage({
           submitError={submitError}
         />
       ) : null}
+
+      {lifecycle.archiveCandidate ? (
+        <ConfirmationDialog
+          confirmLabel="Перенести в архив"
+          description={`История, операции и отчёты категории «${lifecycle.archiveCandidate.name}» сохранятся. Категория исчезнет из выбора для новых операций. Связанные выключенные правила останутся без изменений.`}
+          onCancel={lifecycle.cancelArchive}
+          onConfirm={lifecycle.confirmArchive}
+          pending={lifecycle.pendingId === lifecycle.archiveCandidate.id}
+          title="Перенести категорию в архив?"
+        />
+      ) : null}
     </AppShell>
   );
 }
@@ -361,4 +464,18 @@ function emptyTitle(search: string, view: "active" | "archived" | "system") {
   if (view === "archived") return "Архив пуст";
   if (view === "system") return "Системных категорий нет";
   return "Активных категорий нет";
+}
+
+function activeRuleCountLabel(count: number) {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  const word =
+    lastTwo >= 11 && lastTwo <= 14
+      ? "активных правил"
+      : last === 1
+        ? "активное правило"
+        : last >= 2 && last <= 4
+          ? "активных правила"
+          : "активных правил";
+  return `${count} ${word}`;
 }

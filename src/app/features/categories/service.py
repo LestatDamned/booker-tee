@@ -32,6 +32,47 @@ class CategoryUpdateConflictError(CategoryError):
     pass
 
 
+class CategoryLifecycleConflictError(CategoryError):
+    pass
+
+
+@dataclass(frozen=True)
+class CategoryDeleteDependencies:
+    operation_count: int = 0
+    rule_count: int = 0
+    raw_suggestion_count: int = 0
+    child_category_count: int = 0
+
+    @property
+    def has_blockers(self) -> bool:
+        return any(
+            (
+                self.operation_count,
+                self.rule_count,
+                self.raw_suggestion_count,
+                self.child_category_count,
+            )
+        )
+
+
+class CategoryArchiveBlockedError(CategoryError):
+    def __init__(self, active_rule_count: int) -> None:
+        super().__init__("Сначала отключите активные правила категории.")
+        self.active_rule_count = active_rule_count
+
+
+class CategoryDeleteBlockedError(CategoryError):
+    def __init__(self, dependencies: CategoryDeleteDependencies) -> None:
+        super().__init__("Категория используется и не может быть удалена.")
+        self.dependencies = dependencies
+
+
+@dataclass(frozen=True)
+class DeletedCategory:
+    id: UUID
+    name: str
+
+
 @dataclass(frozen=True)
 class SystemCategorySeed:
     system_key: str
@@ -53,6 +94,9 @@ class CategoryManagementRow:
     operation_count: int
     rule_count: int
     active_rule_count: int
+    delete_operation_count: int = 0
+    raw_suggestion_count: int = 0
+    child_category_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -153,14 +197,24 @@ class CategoryService:
         await self.seed_defaults(workspace_id, workspace_type)
         categories = await self.categories.list_for_workspace(workspace_id, include_inactive=True)
         operation_counts = await self.categories.count_operations_by_category(workspace_id)
+        delete_operation_counts = await self.categories.count_all_operations_by_category(
+            workspace_id
+        )
         rule_counts = await self.categories.count_rules_by_category(workspace_id)
         active_rule_counts = await self.categories.count_active_rules_by_category(workspace_id)
+        raw_suggestion_counts = await self.categories.count_raw_suggestions_by_category(
+            workspace_id
+        )
+        child_category_counts = await self.categories.count_child_categories_by_parent(workspace_id)
         return [
             CategoryManagementRow(
                 category=category,
                 operation_count=operation_counts.get(category.id, 0),
                 rule_count=rule_counts.get(category.id, 0),
                 active_rule_count=active_rule_counts.get(category.id, 0),
+                delete_operation_count=delete_operation_counts.get(category.id, 0),
+                raw_suggestion_count=raw_suggestion_counts.get(category.id, 0),
+                child_category_count=child_category_counts.get(category.id, 0),
             )
             for category in categories
         ]
@@ -174,13 +228,23 @@ class CategoryService:
         if category is None:
             return None
         operation_counts = await self.categories.count_operations_by_category(workspace_id)
+        delete_operation_counts = await self.categories.count_all_operations_by_category(
+            workspace_id
+        )
         rule_counts = await self.categories.count_rules_by_category(workspace_id)
         active_rule_counts = await self.categories.count_active_rules_by_category(workspace_id)
+        raw_suggestion_counts = await self.categories.count_raw_suggestions_by_category(
+            workspace_id
+        )
+        child_category_counts = await self.categories.count_child_categories_by_parent(workspace_id)
         return CategoryManagementRow(
             category=category,
             operation_count=operation_counts.get(category.id, 0),
             rule_count=rule_counts.get(category.id, 0),
             active_rule_count=active_rule_counts.get(category.id, 0),
+            delete_operation_count=delete_operation_counts.get(category.id, 0),
+            raw_suggestion_count=raw_suggestion_counts.get(category.id, 0),
+            child_category_count=child_category_counts.get(category.id, 0),
         )
 
     async def get_detail(
@@ -372,10 +436,22 @@ class CategoryService:
         workspace_id: UUID,
         category_id: UUID,
         is_active: bool,
+        expected_status: bool | None = None,
+        expected_updated_at: datetime | None = None,
     ) -> Category:
         category = await self._get_editable_category(workspace_id, category_id)
+        if expected_status is not None and category.is_active != expected_status:
+            raise CategoryLifecycleConflictError("Состояние категории уже изменилось.")
+        if expected_updated_at is not None and category.updated_at != expected_updated_at:
+            raise CategoryLifecycleConflictError("Категория уже изменена в другом окне.")
+        if not is_active:
+            active_rule_counts = await self.categories.count_active_rules_by_category(workspace_id)
+            active_rule_count = active_rule_counts.get(category.id, 0)
+            if active_rule_count > 0:
+                raise CategoryArchiveBlockedError(active_rule_count)
         category.is_active = is_active
         await self.session.commit()
+        await self.session.refresh(category)
         return category
 
     async def delete_archived_custom(
@@ -383,20 +459,36 @@ class CategoryService:
         *,
         workspace_id: UUID,
         category_id: UUID,
-    ) -> None:
+        expected_status: bool | None = None,
+        expected_updated_at: datetime | None = None,
+    ) -> DeletedCategory:
         category = await self._get_editable_category(workspace_id, category_id)
+        if expected_status is not None and category.is_active != expected_status:
+            raise CategoryLifecycleConflictError("Состояние категории уже изменилось.")
+        if expected_updated_at is not None and category.updated_at != expected_updated_at:
+            raise CategoryLifecycleConflictError("Категория уже изменена в другом окне.")
         if category.is_active:
             raise CategoryError("Сначала перенесите категорию в архив.")
 
-        operation_counts = await self.categories.count_operations_by_category(workspace_id)
+        operation_counts = await self.categories.count_all_operations_by_category(workspace_id)
         rule_counts = await self.categories.count_rules_by_category(workspace_id)
-        if operation_counts.get(category.id, 0) > 0:
-            raise CategoryError("Нельзя удалить категорию, у которой есть операции.")
-        if rule_counts.get(category.id, 0) > 0:
-            raise CategoryError("Нельзя удалить категорию, у которой есть правила.")
+        raw_suggestion_counts = await self.categories.count_raw_suggestions_by_category(
+            workspace_id
+        )
+        child_category_counts = await self.categories.count_child_categories_by_parent(workspace_id)
+        dependencies = CategoryDeleteDependencies(
+            operation_count=operation_counts.get(category.id, 0),
+            rule_count=rule_counts.get(category.id, 0),
+            raw_suggestion_count=raw_suggestion_counts.get(category.id, 0),
+            child_category_count=child_category_counts.get(category.id, 0),
+        )
+        if dependencies.has_blockers:
+            raise CategoryDeleteBlockedError(dependencies)
 
+        deleted = DeletedCategory(id=category.id, name=category.name)
         await self.categories.delete(category)
         await self.session.commit()
+        return deleted
 
     @staticmethod
     def _default_category_seeds(

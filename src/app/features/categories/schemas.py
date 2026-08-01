@@ -29,14 +29,36 @@ class UpdateCategoryCommand(ApplicationModel):
     expected_updated_at: datetime
 
 
+class CategoryLifecycleCommand(ApplicationModel):
+    expected_status: bool
+    expected_updated_at: datetime
+
+
 class CategoryArchiveBlockedReason(StrEnum):
     ACTIVE_RULES = "active_rules"
+
+
+class CategoryDeleteBlockedReason(StrEnum):
+    ACTIVE_CATEGORY = "active_category"
+    OPERATIONS = "operations"
+    RULES = "rules"
+    RAW_SUGGESTIONS = "raw_suggestions"
+    CHILD_CATEGORIES = "child_categories"
+
+
+class CategoryDeleteBlockersDto(ApplicationModel):
+    operation_count: int
+    rule_count: int
+    raw_suggestion_count: int
+    child_category_count: int
+    reason_codes: list[CategoryDeleteBlockedReason]
 
 
 class CategorySummaryCapabilitiesDto(ApplicationModel):
     can_update: bool
     can_archive: bool
     can_restore: bool
+    can_delete: bool
     archive_blocked_reason_code: CategoryArchiveBlockedReason | None
 
 
@@ -51,6 +73,7 @@ class CategorySummaryDto(ApplicationModel):
     operation_count: int
     rule_count: int
     active_rule_count: int
+    delete_blockers: CategoryDeleteBlockersDto
     updated_at: datetime
     capabilities: CategorySummaryCapabilitiesDto
 
@@ -70,6 +93,22 @@ class CategoryDirectoryDto(ApplicationModel):
     items: list[CategorySummaryDto]
     kind_options: list[CategoryKindOptionDto]
     capabilities: CategoryDirectoryCapabilitiesDto
+
+
+class CategoryLifecycleImpactDto(ApplicationModel):
+    history_preserved: bool
+    rules_unchanged: bool
+    available_for_new_references: bool
+
+
+class CategoryLifecycleResultDto(ApplicationModel):
+    category: CategorySummaryDto
+    impact: CategoryLifecycleImpactDto
+
+
+class CategoryDeleteResultDto(ApplicationModel):
+    deleted_id: UUID
+    name: str
 
 
 class CategoryDetailFiltersDto(ApplicationModel):

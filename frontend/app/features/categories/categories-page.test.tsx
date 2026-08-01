@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createCategory } from "./api/categories-api";
+import { changeCategoryLifecycle } from "./api/category-detail-api";
 import { CategoriesPage } from "./categories-page";
 import { directory, session } from "./test-support";
 
@@ -12,9 +13,16 @@ vi.mock("./api/categories-api", async (importOriginal) => {
   return { ...actual, createCategory: vi.fn() };
 });
 
+vi.mock("./api/category-detail-api", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./api/category-detail-api")>();
+  return { ...actual, changeCategoryLifecycle: vi.fn() };
+});
+
 describe("CategoriesPage", () => {
   beforeEach(() => {
     vi.mocked(createCategory).mockReset();
+    vi.mocked(changeCategoryLifecycle).mockReset();
   });
 
   it("renders a compact active directory with semantic category facts", () => {
@@ -33,6 +41,11 @@ describe("CategoriesPage", () => {
     expect(screen.getAllByText("1 активных")).toHaveLength(2);
     expect(
       screen.getAllByRole("link", { name: "Открыть категорию «Продукты»" })[0],
+    ).toHaveAttribute("href", `/categories/${directory.items[0]!.id}`);
+    const productRow = screen.getAllByText("Продукты")[0]!.closest("tr");
+    expect(productRow).not.toBeNull();
+    expect(
+      within(productRow!).getByText("Открыть").closest("a"),
     ).toHaveAttribute("href", `/categories/${directory.items[0]!.id}`);
     expect(screen.queryByText("Старые покупки")).not.toBeInTheDocument();
     expect(screen.queryByText("Без категории")).not.toBeInTheDocument();
@@ -55,6 +68,136 @@ describe("CategoriesPage", () => {
     expect(screen.getAllByText("Без категории")).toHaveLength(2);
     expect(screen.getAllByText("Системная")).toHaveLength(2);
     expect(screen.getAllByText("Смешанная")).toHaveLength(2);
+  });
+
+  it("archives a category from the directory after explicit confirmation", async () => {
+    const user = userEvent.setup();
+    const category = directory.items[1]!;
+    const committed = {
+      ...category,
+      isActive: false,
+      updatedAt: "2026-08-01T09:00:00Z",
+      deleteBlockers: { ...category.deleteBlockers, reasonCodes: [] },
+      capabilities: {
+        ...category.capabilities,
+        canArchive: false,
+        canRestore: true,
+        canDelete: true,
+      },
+    };
+    vi.mocked(changeCategoryLifecycle).mockResolvedValue({
+      status: "success",
+      category: committed,
+      impact: {
+        historyPreserved: true,
+        rulesUnchanged: true,
+        availableForNewReferences: false,
+      },
+    });
+    renderPage();
+
+    const row = screen.getAllByText("Зарплата")[0]!.closest("tr");
+    expect(row).not.toBeNull();
+    await user.click(within(row!).getByRole("button", { name: "В архив" }));
+
+    const dialog = screen.getByRole("dialog", {
+      name: "Перенести категорию в архив?",
+    });
+    expect(
+      within(dialog).getByText(/История, операции и отчёты/),
+    ).toBeVisible();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Перенести в архив" }),
+    );
+
+    expect(changeCategoryLifecycle).toHaveBeenCalledWith({
+      action: "archive",
+      category,
+      csrfToken: "csrf-token",
+    });
+    expect(
+      await screen.findByText(
+        "Категория «Зарплата» перенесена в архив. История сохранена.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText("Зарплата")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Активные 1" })).toBeVisible();
+  });
+
+  it("explains an active-rule archive blocker without sending a mutation", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    const row = screen.getAllByText("Продукты")[0]!.closest("tr");
+    expect(row).not.toBeNull();
+    await user.click(within(row!).getByRole("button", { name: "В архив" }));
+
+    expect(
+      screen.getByText("Сначала отключите активные правила"),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Открыть правила" }),
+    ).toHaveAttribute("href", `/rules?category_id=${directory.items[0]!.id}`);
+    expect(changeCategoryLifecycle).not.toHaveBeenCalled();
+  });
+
+  it("restores an archived category directly from the directory", async () => {
+    const user = userEvent.setup();
+    const category = directory.items[2]!;
+    const committed = {
+      ...category,
+      isActive: true,
+      updatedAt: "2026-08-01T09:00:00Z",
+      deleteBlockers: {
+        ...category.deleteBlockers,
+        reasonCodes: ["active_category" as const],
+      },
+      capabilities: {
+        ...category.capabilities,
+        canArchive: true,
+        canRestore: false,
+        canDelete: false,
+      },
+    };
+    vi.mocked(changeCategoryLifecycle).mockResolvedValue({
+      status: "success",
+      category: committed,
+      impact: {
+        historyPreserved: true,
+        rulesUnchanged: true,
+        availableForNewReferences: true,
+      },
+    });
+    renderPage("/categories?view=archived");
+
+    const row = screen.getAllByText("Старые покупки")[0]!.closest("tr");
+    expect(row).not.toBeNull();
+    await user.click(
+      within(row!).getByRole("button", { name: "Восстановить" }),
+    );
+
+    expect(changeCategoryLifecycle).toHaveBeenCalledWith({
+      action: "restore",
+      category,
+      csrfToken: "csrf-token",
+    });
+    expect(
+      await screen.findByText("Категория «Старые покупки» восстановлена."),
+    ).toBeVisible();
+    expect(screen.queryByText("Старые покупки")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Архив 0" })).toBeVisible();
+  });
+
+  it("announces a deletion carried through navigation state", async () => {
+    renderPage({
+      pathname: "/categories",
+      search: "?view=archived",
+      state: { categoryToast: "Категория «Черновик» удалена." },
+    });
+
+    expect(
+      await screen.findByText("Категория «Черновик» удалена."),
+    ).toBeVisible();
   });
 
   it("searches by localized kind and offers one reset path", async () => {
@@ -86,6 +229,7 @@ describe("CategoriesPage", () => {
           canUpdate: false,
           canArchive: false,
           canRestore: false,
+          canDelete: false,
           archiveBlockedReasonCode:
             category.capabilities.archiveBlockedReasonCode,
         },
@@ -190,7 +334,9 @@ describe("CategoriesPage", () => {
 });
 
 function renderPage(
-  initialEntry = "/categories",
+  initialEntry:
+    | string
+    | { pathname: string; search?: string; state?: unknown } = "/categories",
   categoryDirectory = directory,
 ) {
   return render(

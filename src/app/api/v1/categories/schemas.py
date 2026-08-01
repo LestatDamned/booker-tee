@@ -8,6 +8,7 @@ from app.api.schemas import ApiModel, ApiRequestModel
 from app.features.categories.models import CategoryKind
 from app.features.categories.schemas import (
     CategoryArchiveBlockedReason,
+    CategoryDeleteBlockedReason,
     CategoryDirectoryReadonlyReason,
 )
 from app.features.ledger.domain.types import OperationType
@@ -21,7 +22,16 @@ class CategorySummaryCapabilitiesApiResponse(ApiModel):
     can_update: bool
     can_archive: bool
     can_restore: bool
+    can_delete: bool
     archive_blocked_reason_code: CategoryArchiveBlockedReason | None
+
+
+class CategoryDeleteBlockersApiResponse(ApiModel):
+    operation_count: int
+    rule_count: int
+    raw_suggestion_count: int
+    child_category_count: int
+    reason_codes: list[CategoryDeleteBlockedReason]
 
 
 class CategorySummaryApiResponse(ApiModel):
@@ -35,6 +45,7 @@ class CategorySummaryApiResponse(ApiModel):
     operation_count: int
     rule_count: int
     active_rule_count: int
+    delete_blockers: CategoryDeleteBlockersApiResponse
     updated_at: datetime
     capabilities: CategorySummaryCapabilitiesApiResponse
 
@@ -88,6 +99,27 @@ class CreateCategoryApiRequest(ApiRequestModel):
 
 class UpdateCategoryApiRequest(CreateCategoryApiRequest):
     expected_updated_at: datetime
+
+
+class CategoryLifecycleApiRequest(ApiRequestModel):
+    expected_status: bool
+    expected_updated_at: datetime
+
+
+class CategoryLifecycleImpactApiResponse(ApiModel):
+    history_preserved: bool
+    rules_unchanged: bool
+    available_for_new_references: bool
+
+
+class CategoryLifecycleApiResponse(ApiModel):
+    category: CategorySummaryApiResponse
+    impact: CategoryLifecycleImpactApiResponse
+
+
+class CategoryDeleteApiResponse(ApiModel):
+    deleted_id: UUID
+    name: str
 
 
 class CategoryDetailFiltersApiResponse(ApiModel):

@@ -1,7 +1,7 @@
 # Categories API and state boundary
 
-Статус: accepted contract; D1–D5 приняты 2026-08-01, Slices 01–04 read/create/
-detail/edit boundaries реализованы.
+Статус: accepted contract; D1–D5 приняты 2026-08-01, Slices 01–05 read/create/
+detail/edit/lifecycle/delete boundaries реализованы.
 
 ## Application boundary
 

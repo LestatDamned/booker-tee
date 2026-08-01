@@ -121,6 +121,41 @@ export interface paths {
         /** Update Category */
         put: operations["update_category_api_v1_categories__category_id__put"];
         post?: never;
+        /** Delete Category */
+        delete: operations["delete_category_api_v1_categories__category_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/categories/{category_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Category */
+        post: operations["archive_category_api_v1_categories__category_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/categories/{category_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Category */
+        post: operations["restore_category_api_v1_categories__category_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1355,6 +1390,10 @@ export interface components {
             fieldErrors?: {
                 [key: string]: string[];
             } | null;
+            /** Details */
+            details?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** ApiErrorEnvelope */
         ApiErrorEnvelope: {
@@ -1520,6 +1559,34 @@ export interface components {
          * @enum {string}
          */
         CategoryArchiveBlockedReason: "active_rules";
+        /** CategoryDeleteApiResponse */
+        CategoryDeleteApiResponse: {
+            /**
+             * Deletedid
+             * Format: uuid
+             */
+            deletedId: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * CategoryDeleteBlockedReason
+         * @enum {string}
+         */
+        CategoryDeleteBlockedReason: "active_category" | "operations" | "rules" | "raw_suggestions" | "child_categories";
+        /** CategoryDeleteBlockersApiResponse */
+        CategoryDeleteBlockersApiResponse: {
+            /** Operationcount */
+            operationCount: number;
+            /** Rulecount */
+            ruleCount: number;
+            /** Rawsuggestioncount */
+            rawSuggestionCount: number;
+            /** Childcategorycount */
+            childCategoryCount: number;
+            /** Reasoncodes */
+            reasonCodes: components["schemas"]["CategoryDeleteBlockedReason"][];
+        };
         /** CategoryDetailApiResponse */
         CategoryDetailApiResponse: {
             category: components["schemas"]["CategorySummaryApiResponse"];
@@ -1589,6 +1656,30 @@ export interface components {
             label: string;
             /** Description */
             description: string;
+        };
+        /** CategoryLifecycleApiRequest */
+        CategoryLifecycleApiRequest: {
+            /** Expectedstatus */
+            expectedStatus: boolean;
+            /**
+             * Expectedupdatedat
+             * Format: date-time
+             */
+            expectedUpdatedAt: string;
+        };
+        /** CategoryLifecycleApiResponse */
+        CategoryLifecycleApiResponse: {
+            category: components["schemas"]["CategorySummaryApiResponse"];
+            impact: components["schemas"]["CategoryLifecycleImpactApiResponse"];
+        };
+        /** CategoryLifecycleImpactApiResponse */
+        CategoryLifecycleImpactApiResponse: {
+            /** Historypreserved */
+            historyPreserved: boolean;
+            /** Rulesunchanged */
+            rulesUnchanged: boolean;
+            /** Availablefornewreferences */
+            availableForNewReferences: boolean;
         };
         /** CategoryMoneySummaryApiResponse */
         CategoryMoneySummaryApiResponse: {
@@ -1695,6 +1786,7 @@ export interface components {
             ruleCount: number;
             /** Activerulecount */
             activeRuleCount: number;
+            deleteBlockers: components["schemas"]["CategoryDeleteBlockersApiResponse"];
             /**
              * Updatedat
              * Format: date-time
@@ -1710,6 +1802,8 @@ export interface components {
             canArchive: boolean;
             /** Canrestore */
             canRestore: boolean;
+            /** Candelete */
+            canDelete: boolean;
             archiveBlockedReasonCode: components["schemas"]["CategoryArchiveBlockedReason"] | null;
         };
         /** CreateAccountApiRequest */
@@ -4378,6 +4472,219 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    delete_category_api_v1_categories__category_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryLifecycleApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryDeleteApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    archive_category_api_v1_categories__category_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryLifecycleApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryLifecycleApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    restore_category_api_v1_categories__category_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryLifecycleApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryLifecycleApiResponse"];
                 };
             };
             /** @description Unauthorized */

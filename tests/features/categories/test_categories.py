@@ -20,6 +20,7 @@ from app.features.categories.service import (
     DEFAULT_CATEGORY_SEEDS,
     PROPERTY_MANAGEMENT_CATEGORY_SEEDS,
     SYSTEM_CATEGORY_SEEDS,
+    CategoryDeleteBlockedError,
     CategoryError,
     CategoryManagementRow,
     CategoryService,
@@ -467,7 +468,7 @@ async def test_category_name_uniqueness_is_case_insensitive() -> None:
 @pytest.mark.asyncio
 async def test_archived_category_without_links_can_be_deleted() -> None:
     category_id = uuid4()
-    category = SimpleNamespace(id=category_id, is_active=False, is_system=False)
+    category = SimpleNamespace(id=category_id, name="Продукты", is_active=False, is_system=False)
     repository = FakeCategoryRepository(category=category)
     service = CategoryService(cast(Any, SimpleNamespace(commit=repository.commit)))
     service.categories = cast(Any, repository)
@@ -484,7 +485,7 @@ async def test_archived_category_without_links_can_be_deleted() -> None:
 @pytest.mark.asyncio
 async def test_active_category_must_be_archived_before_delete() -> None:
     category_id = uuid4()
-    category = SimpleNamespace(id=category_id, is_active=True, is_system=False)
+    category = SimpleNamespace(id=category_id, name="Продукты", is_active=True, is_system=False)
     repository = FakeCategoryRepository(category=category)
     service = CategoryService(cast(Any, SimpleNamespace(commit=repository.commit)))
     service.categories = cast(Any, repository)
@@ -501,17 +502,18 @@ async def test_active_category_must_be_archived_before_delete() -> None:
 @pytest.mark.asyncio
 async def test_archived_category_with_operations_cannot_be_deleted() -> None:
     category_id = uuid4()
-    category = SimpleNamespace(id=category_id, is_active=False, is_system=False)
+    category = SimpleNamespace(id=category_id, name="Продукты", is_active=False, is_system=False)
     repository = FakeCategoryRepository(category=category, operation_count=1)
     service = CategoryService(cast(Any, SimpleNamespace(commit=repository.commit)))
     service.categories = cast(Any, repository)
 
-    with pytest.raises(CategoryError, match="есть операции"):
+    with pytest.raises(CategoryDeleteBlockedError) as blocked:
         await service.delete_archived_custom(
             workspace_id=uuid4(),
             category_id=category_id,
         )
 
+    assert blocked.value.dependencies.operation_count == 1
     assert repository.deleted is None
 
 
@@ -573,8 +575,17 @@ class FakeCategoryRepository:
     async def count_operations_by_category(self, _workspace_id: object) -> dict[object, int]:
         return {self.category.id: self.operation_count}
 
+    async def count_all_operations_by_category(self, _workspace_id: object) -> dict[object, int]:
+        return {self.category.id: self.operation_count}
+
     async def count_rules_by_category(self, _workspace_id: object) -> dict[object, int]:
         return {self.category.id: self.rule_count}
+
+    async def count_raw_suggestions_by_category(self, _workspace_id: object) -> dict[object, int]:
+        return {}
+
+    async def count_child_categories_by_parent(self, _workspace_id: object) -> dict[object, int]:
+        return {}
 
     async def delete(self, category: object) -> None:
         self.deleted = category

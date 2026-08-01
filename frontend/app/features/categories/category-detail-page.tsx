@@ -7,7 +7,9 @@ import { AppShell } from "../../shell/app-shell";
 import { AppliedFilterSummary } from "../../ui/applied-filter-summary/applied-filter-summary";
 import { BackLink } from "../../ui/back-link/back-link";
 import { Badge } from "../../ui/badge/badge";
-import { Button, RouterButtonLink } from "../../ui/button/button";
+import { Button, ButtonLink, RouterButtonLink } from "../../ui/button/button";
+import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
+import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
 import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
@@ -23,6 +25,7 @@ import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
 import { WorkbenchSearch } from "../../ui/workbench-toolbar/workbench-search";
 import type { CategoryDetailDto } from "./api/category-detail-api";
 import { CategoryEditPanel } from "./category-edit-panel";
+import { CategoryLifecycleActions } from "./category-lifecycle-actions";
 import { CategoryDetailFilters } from "./category-detail-filters";
 import {
   CategoryOperations,
@@ -36,6 +39,7 @@ import {
 } from "./category-detail-query";
 import { CategoryRulesPreview } from "./category-rules-preview";
 import { useCategoryEditor } from "./use-category-editor";
+import { useCategoryLifecycle } from "./use-category-lifecycle";
 import styles from "./category-detail-page.module.css";
 
 const kindLabels = {
@@ -64,12 +68,37 @@ export function CategoryDetailPage({
   const detail =
     localDetail?.source === initialDetail ? localDetail.value : initialDetail;
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [archiveBlockerVisible, setArchiveBlockerVisible] = useState(false);
   const { dismissToast, showToast, toast } = useToastQueue();
   const searchParams = new URLSearchParams(location.search);
   const editor = useCategoryEditor({
     apiSearch: categoryDetailApiSearch(location.search),
     csrfToken: session.csrfToken,
     onCommitted: (value) => setLocalDetail({ source: initialDetail, value }),
+    onReloaded: (value) => setLocalDetail({ source: initialDetail, value }),
+    showToast,
+  });
+  const lifecycle = useCategoryLifecycle({
+    apiSearch: categoryDetailApiSearch(location.search),
+    csrfToken: session.csrfToken,
+    onCommitted: (category) => {
+      setArchiveBlockerVisible(false);
+      setLocalDetail((current) => ({
+        source: initialDetail,
+        value: {
+          ...(current?.source === initialDetail
+            ? current.value
+            : initialDetail),
+          category,
+        },
+      }));
+    },
+    onDeleted: (name) => {
+      void navigate("/categories?view=archived", {
+        replace: true,
+        state: { categoryToast: `Категория «${name}» удалена.` },
+      });
+    },
     onReloaded: (value) => setLocalDetail({ source: initialDetail, value }),
     showToast,
   });
@@ -117,16 +146,16 @@ export function CategoryDetailPage({
               actions={
                 <div className={styles.headerActions}>
                   <CategorySummary summary={detail.summary} />
-                  {detail.category.capabilities.canUpdate ? (
-                    <Button
-                      icon="edit"
-                      onClick={(event) =>
-                        editor.beginEdit(detail, event.currentTarget)
-                      }
-                    >
-                      Изменить
-                    </Button>
-                  ) : null}
+                  <CategoryLifecycleActions
+                    category={detail.category}
+                    editing={Boolean(editor.editState)}
+                    onArchive={() => lifecycle.requestArchive(detail.category)}
+                    onArchiveBlocked={() => setArchiveBlockerVisible(true)}
+                    onDelete={() => lifecycle.requestDelete(detail.category)}
+                    onEdit={(trigger) => editor.beginEdit(detail, trigger)}
+                    onRestore={() => lifecycle.restore(detail.category)}
+                    pending={lifecycle.pending}
+                  />
                 </div>
               }
               description={
@@ -156,6 +185,62 @@ export function CategoryDetailPage({
               <span>{ruleCountLabel(detail.rules.total)}</span>
             </div>
           </WorkbenchHeader>
+
+          {archiveBlockerVisible ? (
+            <InlineNotice
+              action={
+                <ButtonLink
+                  href={`/rules?category_id=${detail.category.id}`}
+                  icon="rules"
+                  tone="secondary"
+                >
+                  Открыть правила
+                </ButtonLink>
+              }
+              className={styles.lifecycleNotice}
+              title="Сначала отключите активные правила"
+              tone="warning"
+            >
+              {activeRuleCountLabel(detail.category.activeRuleCount)} продолжат
+              предлагать эту категорию новым операциям. Правила не отключаются
+              автоматически.
+            </InlineNotice>
+          ) : null}
+
+          {lifecycle.failure ? (
+            <InlineNotice
+              action={
+                <Button
+                  disabled={lifecycle.pending}
+                  icon="retry"
+                  isLoading={lifecycle.pending}
+                  onClick={() =>
+                    lifecycle.failure?.conflict || lifecycle.failure?.blocked
+                      ? void lifecycle.refreshAndRetry()
+                      : lifecycle.retry()
+                  }
+                  tone="secondary"
+                >
+                  {lifecycle.failure.conflict || lifecycle.failure.blocked
+                    ? "Обновить и повторить"
+                    : "Повторить"}
+                </Button>
+              }
+              className={styles.lifecycleNotice}
+              role="alert"
+              title="Не удалось изменить категорию"
+              tone="danger"
+            >
+              {lifecycle.failure.message}
+            </InlineNotice>
+          ) : null}
+
+          {!detail.category.isActive &&
+          detail.category.capabilities.canUpdate &&
+          !detail.category.capabilities.canDelete &&
+          detail.category.deleteBlockers.reasonCodes.length > 0 ? (
+            <CategoryDeleteBlockerNotice category={detail.category} />
+          ) : null}
 
           {editor.editState ? (
             <CategoryEditPanel
@@ -250,7 +335,73 @@ export function CategoryDetailPage({
         </WorkbenchSurface>
       </PageFrame>
       <ToastViewport onDismiss={dismissToast} toast={toast} />
+
+      {lifecycle.archiveCandidate ? (
+        <ConfirmationDialog
+          confirmLabel="Перенести в архив"
+          description={`История, операции и отчёты категории «${lifecycle.archiveCandidate.name}» сохранятся. Категория исчезнет из выбора для новых операций. Связанные выключенные правила останутся без изменений.`}
+          onCancel={lifecycle.cancelArchive}
+          onConfirm={lifecycle.confirmArchive}
+          pending={lifecycle.pending}
+          title="Перенести категорию в архив?"
+        />
+      ) : null}
+
+      {lifecycle.deleteCandidate ? (
+        <ConfirmationDialog
+          confirmLabel="Удалить категорию"
+          description={`Категория «${lifecycle.deleteCandidate.name}» будет удалена без возможности восстановления. Финансовой истории и связанных данных у неё нет.`}
+          onCancel={lifecycle.cancelDelete}
+          onConfirm={lifecycle.confirmDelete}
+          pending={lifecycle.pending}
+          title="Удалить категорию навсегда?"
+        />
+      ) : null}
     </AppShell>
+  );
+}
+
+function CategoryDeleteBlockerNotice({
+  category,
+}: {
+  category: CategoryDetailDto["category"];
+}) {
+  const blockers = category.deleteBlockers;
+  return (
+    <InlineNotice
+      action={
+        blockers.ruleCount > 0 ? (
+          <ButtonLink
+            href={`/rules?category_id=${category.id}`}
+            icon="rules"
+            tone="secondary"
+          >
+            Открыть правила
+          </ButtonLink>
+        ) : undefined
+      }
+      className={styles.lifecycleNotice}
+      title="Удаление пока недоступно"
+      tone="information"
+    >
+      Категория останется в архиве, пока существуют связанные данные:
+      <ul className={styles.blockerList}>
+        {blockers.operationCount > 0 ? (
+          <li>
+            {operationCountLabel(blockers.operationCount)} любого состояния
+          </li>
+        ) : null}
+        {blockers.ruleCount > 0 ? (
+          <li>{ruleCountLabel(blockers.ruleCount)}</li>
+        ) : null}
+        {blockers.rawSuggestionCount > 0 ? (
+          <li>{rawSuggestionCountLabel(blockers.rawSuggestionCount)}</li>
+        ) : null}
+        {blockers.childCategoryCount > 0 ? (
+          <li>{childCategoryCountLabel(blockers.childCategoryCount)}</li>
+        ) : null}
+      </ul>
+    </InlineNotice>
   );
 }
 
@@ -347,6 +498,18 @@ function operationCountLabel(count: number): string {
 
 function ruleCountLabel(count: number): string {
   return `${count} ${pluralize(count, "правило", "правила", "правил")}`;
+}
+
+function activeRuleCountLabel(count: number): string {
+  return `${count} ${pluralize(count, "активное правило", "активных правила", "активных правил")}`;
+}
+
+function rawSuggestionCountLabel(count: number): string {
+  return `${count} ${pluralize(count, "импорт-предложение", "импорт-предложения", "импорт-предложений")}`;
+}
+
+function childCategoryCountLabel(count: number): string {
+  return `${count} ${pluralize(count, "дочерняя категория", "дочерние категории", "дочерних категорий")}`;
 }
 
 function pluralize(count: number, one: string, few: string, many: string) {

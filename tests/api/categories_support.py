@@ -17,6 +17,9 @@ from app.features.categories.application.detail import (
 from app.features.categories.models import CategoryKind
 from app.features.categories.schemas import (
     CategoryArchiveBlockedReason,
+    CategoryDeleteBlockedReason,
+    CategoryDeleteBlockersDto,
+    CategoryDeleteResultDto,
     CategoryDetailDto,
     CategoryDetailFiltersDto,
     CategoryDirectoryCapabilitiesDto,
@@ -24,6 +27,9 @@ from app.features.categories.schemas import (
     CategoryDirectoryReadonlyReason,
     CategoryKindChangeImpactDto,
     CategoryKindOptionDto,
+    CategoryLifecycleCommand,
+    CategoryLifecycleImpactDto,
+    CategoryLifecycleResultDto,
     CategoryMoneySummaryDto,
     CategoryOperationPageDto,
     CategoryRulePreviewDto,
@@ -45,6 +51,10 @@ class CategoryDirectoryServiceStub:
         self.create_error: ValueError | None = None
         self.update_calls: list[tuple[UUID, UUID, UpdateCategoryCommand]] = []
         self.update_error: ValueError | None = None
+        self.lifecycle_calls: list[tuple[UUID, UUID, bool, CategoryLifecycleCommand]] = []
+        self.lifecycle_error: ValueError | None = None
+        self.delete_calls: list[tuple[UUID, UUID, CategoryLifecycleCommand]] = []
+        self.delete_error: ValueError | None = None
 
     async def read(
         self,
@@ -78,6 +88,56 @@ class CategoryDirectoryServiceStub:
         if self.update_error is not None:
             raise self.update_error
         return self.directory.items[0]
+
+    async def set_active(
+        self,
+        *,
+        workspace_id: UUID,
+        category_id: UUID,
+        is_active: bool,
+        command: CategoryLifecycleCommand,
+    ) -> CategoryLifecycleResultDto:
+        self.lifecycle_calls.append((workspace_id, category_id, is_active, command))
+        if self.lifecycle_error is not None:
+            raise self.lifecycle_error
+        remaining_delete_blockers = [
+            reason
+            for reason in self.directory.items[0].delete_blockers.reason_codes
+            if reason != "active_category"
+        ]
+        category = self.directory.items[0].model_copy(
+            update={
+                "id": category_id,
+                "is_active": is_active,
+                "capabilities": self.directory.items[0].capabilities.model_copy(
+                    update={
+                        "can_archive": is_active,
+                        "can_restore": not is_active,
+                        "can_delete": not is_active and not remaining_delete_blockers,
+                    }
+                ),
+            }
+        )
+        return CategoryLifecycleResultDto(
+            category=category,
+            impact=CategoryLifecycleImpactDto(
+                history_preserved=True,
+                rules_unchanged=True,
+                available_for_new_references=is_active,
+            ),
+        )
+
+    async def delete(
+        self,
+        *,
+        workspace_id: UUID,
+        category_id: UUID,
+        command: CategoryLifecycleCommand,
+    ) -> CategoryDeleteResultDto:
+        self.delete_calls.append((workspace_id, category_id, command))
+        if self.delete_error is not None:
+            raise self.delete_error
+        return CategoryDeleteResultDto(deleted_id=category_id, name="Продукты")
 
 
 class CategoryDetailReaderStub:
@@ -190,11 +250,23 @@ def category_directory(*, can_write: bool) -> CategoryDirectoryDto:
                 operation_count=12,
                 rule_count=3,
                 active_rule_count=1,
+                delete_blockers=CategoryDeleteBlockersDto(
+                    operation_count=12,
+                    rule_count=3,
+                    raw_suggestion_count=0,
+                    child_category_count=0,
+                    reason_codes=[
+                        CategoryDeleteBlockedReason.ACTIVE_CATEGORY,
+                        CategoryDeleteBlockedReason.OPERATIONS,
+                        CategoryDeleteBlockedReason.RULES,
+                    ],
+                ),
                 updated_at=updated_at,
                 capabilities=CategorySummaryCapabilitiesDto(
                     can_update=can_write,
                     can_archive=False,
                     can_restore=False,
+                    can_delete=False,
                     archive_blocked_reason_code=CategoryArchiveBlockedReason.ACTIVE_RULES,
                 ),
             ),
@@ -209,11 +281,22 @@ def category_directory(*, can_write: bool) -> CategoryDirectoryDto:
                 operation_count=2,
                 rule_count=0,
                 active_rule_count=0,
+                delete_blockers=CategoryDeleteBlockersDto(
+                    operation_count=2,
+                    rule_count=0,
+                    raw_suggestion_count=0,
+                    child_category_count=0,
+                    reason_codes=[
+                        CategoryDeleteBlockedReason.ACTIVE_CATEGORY,
+                        CategoryDeleteBlockedReason.OPERATIONS,
+                    ],
+                ),
                 updated_at=updated_at,
                 capabilities=CategorySummaryCapabilitiesDto(
                     can_update=False,
                     can_archive=False,
                     can_restore=False,
+                    can_delete=False,
                     archive_blocked_reason_code=None,
                 ),
             ),

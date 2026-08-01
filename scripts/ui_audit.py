@@ -320,6 +320,7 @@ def prepare_realistic_scenario(
     account_name = f"UI Audit Cash {scenario_id}"
     destination_account_name = f"UI Audit Savings {scenario_id}"
     rule_category_name = "UI Audit Food"
+    disposable_category_name = "UI Audit Disposable"
     property_name = f"UI Audit Apartment {scenario_id}"
     document_name = f"ui-audit-statement-{scenario_id}.xlsx"
     workbook_path = output_dir / document_name
@@ -408,6 +409,56 @@ def prepare_realistic_scenario(
                 timeout=PAGE_TIMEOUT_MS
             )
 
+        page.goto(build_url(base_url, "/categories"), wait_until="domcontentloaded")
+        open_details_if_closed(page, "details.category-create-details")
+        disposable_category_form = page.locator('form[action="/categories"]').first
+        disposable_category_form.locator('input[name="name"]').fill(disposable_category_name)
+        disposable_category_form.locator('select[name="kind"]').select_option("expense")
+        disposable_category_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
+        page.get_by_text(disposable_category_name, exact=True).first.wait_for(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        page.goto(build_url(base_url, "/app/categories"), wait_until="networkidle")
+        disposable_record = (
+            page.locator("[data-category-record]:visible")
+            .filter(has_text=disposable_category_name)
+            .first
+        )
+        disposable_detail_path = disposable_record.locator(
+            "a[data-record-identity]"
+        ).first.get_attribute("href")
+        if disposable_detail_path and disposable_detail_path.startswith("/categories/"):
+            disposable_detail_path = f"/app{disposable_detail_path}"
+        if disposable_detail_path:
+            page.goto(build_url(base_url, disposable_detail_path), wait_until="networkidle")
+            page.get_by_role("button", name="В архив", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+            page.get_by_role("dialog", name="Перенести категорию в архив?").get_by_role(
+                "button", name="Перенести в архив", exact=True
+            ).click(timeout=PAGE_TIMEOUT_MS)
+            page.get_by_text("В архиве", exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
+            page.get_by_role("button", name="Восстановить", exact=True).click(
+                timeout=PAGE_TIMEOUT_MS
+            )
+            page.get_by_text("Активна", exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
+            page.get_by_role("button", name="В архив", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+            page.get_by_role("dialog", name="Перенести категорию в архив?").get_by_role(
+                "button", name="Перенести в архив", exact=True
+            ).click(timeout=PAGE_TIMEOUT_MS)
+            page.get_by_text("В архиве", exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
+            page.get_by_role("button", name="Ещё действия", exact=True).click(
+                timeout=PAGE_TIMEOUT_MS
+            )
+            page.get_by_role("button", name="Удалить категорию", exact=True).click(
+                timeout=PAGE_TIMEOUT_MS
+            )
+            page.get_by_role("dialog", name="Удалить категорию навсегда?").get_by_role(
+                "button", name="Удалить категорию", exact=True
+            ).click(timeout=PAGE_TIMEOUT_MS)
+            page.wait_for_url("**/app/categories?view=archived", timeout=PAGE_TIMEOUT_MS)
+            page.get_by_text(
+                f"Категория «{disposable_category_name}» удалена.", exact=True
+            ).wait_for(timeout=PAGE_TIMEOUT_MS)
+
         page.goto(build_url(base_url, "/app/properties"), wait_until="networkidle")
         page.get_by_role("button", name="Новый объект", exact=True).click(timeout=PAGE_TIMEOUT_MS)
         property_form = page.locator("form[data-property-create]")
@@ -476,6 +527,16 @@ def prepare_realistic_scenario(
             f"OZON -> {rule_category_name}",
             exact=True,
         ).first.wait_for(timeout=PAGE_TIMEOUT_MS)
+        if category_detail_path:
+            page.goto(build_url(base_url, category_detail_path), wait_until="networkidle")
+            page.get_by_role("button", name="В архив", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+            page.get_by_text("Сначала отключите активные правила", exact=True).wait_for(
+                timeout=PAGE_TIMEOUT_MS
+            )
+            page.screenshot(
+                path=output_dir / f"{viewport_name}-category-archive-blocker.png",
+                full_page=True,
+            )
 
         page.goto(build_url(base_url, "/workspaces"), wait_until="domcontentloaded")
         page.locator("#workspace-invitation-create > summary").click(timeout=PAGE_TIMEOUT_MS)

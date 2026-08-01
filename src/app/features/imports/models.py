@@ -232,6 +232,11 @@ class RawTransaction(Base):
         Index("ix_raw_transactions_workspace_document", "workspace_id", "uploaded_document_id"),
         Index("ix_raw_transactions_workspace_attempt", "workspace_id", "parse_attempt_id"),
         Index("ix_raw_transactions_workspace_status", "workspace_id", "status"),
+        Index(
+            "ix_raw_transactions_workspace_suggested_category",
+            "workspace_id",
+            "suggested_category_id",
+        ),
         Index("ix_raw_transactions_workspace_dedupe_hash", "workspace_id", "dedupe_hash"),
         Index(
             "uq_raw_transactions_workspace_confirmed_dedupe_hash",

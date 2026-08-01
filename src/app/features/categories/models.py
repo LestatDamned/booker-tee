@@ -29,6 +29,7 @@ class Category(Base):
     __tablename__ = "categories"
     __table_args__ = (
         Index("ix_categories_workspace_kind", "workspace_id", "kind"),
+        Index("ix_categories_workspace_parent", "workspace_id", "parent_id"),
         Index("ix_categories_workspace_system_key", "workspace_id", "system_key", unique=True),
     )
 

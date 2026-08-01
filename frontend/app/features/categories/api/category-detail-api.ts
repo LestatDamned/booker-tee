@@ -14,6 +14,9 @@ import {
 
 export type CategoryDetailDto =
   components["schemas"]["CategoryDetailApiResponse"];
+export type CategoryLifecycleAction = "archive" | "restore";
+export type CategoryLifecycleImpactDto =
+  components["schemas"]["CategoryLifecycleImpactApiResponse"];
 
 const operationTypeSchema = z.enum([
   "income",
@@ -109,6 +112,42 @@ export type UpdateCategoryResult =
   | { status: "not_found"; message: string }
   | { status: "conflict"; message: string }
   | ({ status: "error" } & ApiErrorDetails);
+
+export type CategoryLifecycleResult =
+  | {
+      status: "success";
+      category: CategoryDetailDto["category"];
+      impact: CategoryLifecycleImpactDto;
+    }
+  | { status: "unauthenticated" }
+  | {
+      status: "forbidden" | "not_found" | "conflict" | "blocked";
+      message: string;
+    }
+  | ({ status: "error" } & ApiErrorDetails);
+
+export type CategoryDeleteResult =
+  | { status: "success"; deletedId: string; name: string }
+  | { status: "unauthenticated" }
+  | {
+      status: "forbidden" | "not_found" | "conflict" | "blocked";
+      message: string;
+    }
+  | ({ status: "error" } & ApiErrorDetails);
+
+const categoryLifecycleResponseSchema = z.object({
+  category: categorySummarySchema,
+  impact: z.object({
+    historyPreserved: z.boolean(),
+    rulesUnchanged: z.boolean(),
+    availableForNewReferences: z.boolean(),
+  }),
+});
+
+const categoryDeleteResponseSchema = z.object({
+  deletedId: z.uuid(),
+  name: z.string(),
+});
 
 export async function loadCategoryDetail(
   categoryId: string,
@@ -209,4 +248,161 @@ export async function updateCategory({
     };
   }
   return { status: "success", detail: parsed.data };
+}
+
+export async function changeCategoryLifecycle({
+  action,
+  category,
+  csrfToken,
+}: {
+  action: CategoryLifecycleAction;
+  category: Pick<
+    CategoryDetailDto["category"],
+    "id" | "isActive" | "updatedAt"
+  >;
+  csrfToken: string;
+}): Promise<CategoryLifecycleResult> {
+  const response = await requestJson(
+    `/api/v1/categories/${category.id}/${action}`,
+    {
+      body: JSON.stringify({
+        expectedStatus: category.isActive,
+        expectedUpdatedAt: category.updatedAt,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
+      method: "POST",
+    },
+  );
+  if (response.status === "network_error") {
+    return categoryMutationNetworkError();
+  }
+  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  const apiError = parseApiError(response.body);
+  if (response.httpStatus === 403) {
+    return mutationFailure(
+      "forbidden",
+      apiError,
+      "Изменение категории недоступно.",
+    );
+  }
+  if (response.httpStatus === 404) {
+    return mutationFailure("not_found", apiError, "Категория не найдена.");
+  }
+  if (response.httpStatus === 409) {
+    return mutationFailure("conflict", apiError, "Категория уже изменена.");
+  }
+  if (
+    response.httpStatus === 422 &&
+    apiError?.code === "category_archive_blocked"
+  ) {
+    return mutationFailure(
+      "blocked",
+      apiError,
+      "Сначала отключите активные правила категории.",
+    );
+  }
+  if (!response.ok) {
+    return categoryMutationError(
+      apiError,
+      "Не удалось изменить состояние категории.",
+    );
+  }
+  const parsed = categoryLifecycleResponseSchema.safeParse(response.body);
+  return parsed.success
+    ? { status: "success", ...parsed.data }
+    : categoryMutationError(
+        null,
+        "API вернул состояние категории неожиданного формата.",
+      );
+}
+
+export async function deleteCategory({
+  category,
+  csrfToken,
+}: {
+  category: Pick<
+    CategoryDetailDto["category"],
+    "id" | "isActive" | "updatedAt"
+  >;
+  csrfToken: string;
+}): Promise<CategoryDeleteResult> {
+  const response = await requestJson(`/api/v1/categories/${category.id}`, {
+    body: JSON.stringify({
+      expectedStatus: category.isActive,
+      expectedUpdatedAt: category.updatedAt,
+    }),
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    },
+    method: "DELETE",
+  });
+  if (response.status === "network_error")
+    return categoryMutationNetworkError();
+  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  const apiError = parseApiError(response.body);
+  if (response.httpStatus === 403) {
+    return mutationFailure(
+      "forbidden",
+      apiError,
+      "Удаление категории недоступно.",
+    );
+  }
+  if (response.httpStatus === 404) {
+    return mutationFailure("not_found", apiError, "Категория не найдена.");
+  }
+  if (response.httpStatus === 409) {
+    return mutationFailure("conflict", apiError, "Категория уже изменена.");
+  }
+  if (
+    response.httpStatus === 422 &&
+    apiError?.code === "category_delete_blocked"
+  ) {
+    return mutationFailure(
+      "blocked",
+      apiError,
+      "Категория используется и не может быть удалена.",
+    );
+  }
+  if (!response.ok) {
+    return categoryMutationError(apiError, "Не удалось удалить категорию.");
+  }
+  const parsed = categoryDeleteResponseSchema.safeParse(response.body);
+  return parsed.success
+    ? { status: "success", ...parsed.data }
+    : categoryMutationError(
+        null,
+        "API вернул результат удаления неожиданного формата.",
+      );
+}
+
+function categoryMutationNetworkError() {
+  return {
+    status: "error" as const,
+    code: "network_error",
+    fieldErrors: {},
+    message: "Backend недоступен. Проверьте соединение и повторите.",
+  };
+}
+
+function mutationFailure<
+  Status extends "forbidden" | "not_found" | "conflict" | "blocked",
+>(status: Status, error: ApiErrorDetails | null, fallback: string) {
+  return { status, message: error?.message ?? fallback };
+}
+
+function categoryMutationError(
+  error: ApiErrorDetails | null,
+  fallback: string,
+) {
+  return {
+    status: "error" as const,
+    code: error?.code ?? "category_mutation_failed",
+    ...(error?.details ? { details: error.details } : {}),
+    fieldErrors: error?.fieldErrors ?? {},
+    message: error?.message ?? fallback,
+  };
 }

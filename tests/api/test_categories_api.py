@@ -5,9 +5,17 @@ from categories_support import categories_app, category_detail_app
 from api_client import ApiTestClient as TestClient
 from app.features.categories.application.detail import CategoryDetailFilterError
 from app.features.categories.models import CategoryKind
-from app.features.categories.schemas import CreateCategoryCommand, UpdateCategoryCommand
+from app.features.categories.schemas import (
+    CategoryLifecycleCommand,
+    CreateCategoryCommand,
+    UpdateCategoryCommand,
+)
 from app.features.categories.service import (
+    CategoryArchiveBlockedError,
+    CategoryDeleteBlockedError,
+    CategoryDeleteDependencies,
     CategoryError,
+    CategoryLifecycleConflictError,
     CategorySystemImmutableError,
     CategoryUpdateConflictError,
 )
@@ -43,11 +51,19 @@ def test_category_directory_returns_workspace_snapshot_and_capabilities() -> Non
         "operationCount": 12,
         "ruleCount": 3,
         "activeRuleCount": 1,
+        "deleteBlockers": {
+            "operationCount": 12,
+            "ruleCount": 3,
+            "rawSuggestionCount": 0,
+            "childCategoryCount": 0,
+            "reasonCodes": ["active_category", "operations", "rules"],
+        },
         "updatedAt": "2026-08-01T08:30:00Z",
         "capabilities": {
             "canUpdate": True,
             "canArchive": False,
             "canRestore": False,
+            "canDelete": False,
             "archiveBlockedReasonCode": "active_rules",
         },
     }
@@ -55,6 +71,7 @@ def test_category_directory_returns_workspace_snapshot_and_capabilities() -> Non
         "canUpdate": False,
         "canArchive": False,
         "canRestore": False,
+        "canDelete": False,
         "archiveBlockedReasonCode": None,
     }
     assert payload["kindOptions"] == [
@@ -80,6 +97,133 @@ def test_category_directory_is_readonly_for_viewer() -> None:
     }
     assert response.json()["items"][0]["capabilities"]["canUpdate"] is False
     assert service.read_calls == [(workspace_id, workspace_type, False)]
+
+
+def test_category_archive_and_restore_return_committed_policy_impact() -> None:
+    app, service, _, workspace_id, category_id = category_detail_app()
+    category = service.directory.items[0]
+
+    with TestClient(app) as client:
+        archived = client.post(
+            f"/api/v1/categories/{category_id}/archive",
+            json={
+                "expectedStatus": True,
+                "expectedUpdatedAt": category.updated_at.isoformat(),
+            },
+        )
+        restored = client.post(
+            f"/api/v1/categories/{category_id}/restore",
+            json={
+                "expectedStatus": False,
+                "expectedUpdatedAt": category.updated_at.isoformat(),
+            },
+        )
+
+    assert archived.status_code == 200
+    assert archived.json()["category"]["isActive"] is False
+    assert archived.json()["impact"] == {
+        "historyPreserved": True,
+        "rulesUnchanged": True,
+        "availableForNewReferences": False,
+    }
+    assert restored.status_code == 200
+    assert restored.json()["category"]["isActive"] is True
+    assert service.lifecycle_calls == [
+        (
+            workspace_id,
+            category_id,
+            False,
+            CategoryLifecycleCommand(
+                expected_status=True,
+                expected_updated_at=category.updated_at,
+            ),
+        ),
+        (
+            workspace_id,
+            category_id,
+            True,
+            CategoryLifecycleCommand(
+                expected_status=False,
+                expected_updated_at=category.updated_at,
+            ),
+        ),
+    ]
+
+
+def test_category_lifecycle_maps_conflict_archive_blocker_and_permission() -> None:
+    app, service, _, _, category_id = category_detail_app()
+    category = service.directory.items[0]
+    payload = {
+        "expectedStatus": True,
+        "expectedUpdatedAt": category.updated_at.isoformat(),
+    }
+
+    with TestClient(app) as client:
+        wrong_state = client.post(f"/api/v1/categories/{category_id}/restore", json=payload)
+        service.lifecycle_error = CategoryLifecycleConflictError("stale")
+        conflict = client.post(f"/api/v1/categories/{category_id}/archive", json=payload)
+        service.lifecycle_error = CategoryArchiveBlockedError(2)
+        blocked = client.post(f"/api/v1/categories/{category_id}/archive", json=payload)
+
+    assert wrong_state.status_code == 409
+    assert conflict.json()["error"]["code"] == "category_lifecycle_conflict"
+    assert blocked.status_code == 422
+    assert blocked.json()["error"] == {
+        "code": "category_archive_blocked",
+        "message": "Сначала отключите активные правила категории.",
+        "details": {"activeRuleCount": 2},
+    }
+
+    viewer_app, viewer_service, _, _, viewer_category_id = category_detail_app(
+        role=WorkspaceRole.VIEWER
+    )
+    with TestClient(viewer_app) as client:
+        forbidden = client.post(
+            f"/api/v1/categories/{viewer_category_id}/archive",
+            json=payload,
+        )
+    assert forbidden.status_code == 403
+    assert viewer_service.lifecycle_calls == []
+
+
+def test_category_delete_returns_identity_and_full_blocker_details() -> None:
+    app, service, _, workspace_id, category_id = category_detail_app()
+    category = service.directory.items[0]
+    payload = {
+        "expectedStatus": False,
+        "expectedUpdatedAt": category.updated_at.isoformat(),
+    }
+
+    with TestClient(app) as client:
+        deleted = client.request(
+            "DELETE",
+            f"/api/v1/categories/{category_id}",
+            json=payload,
+        )
+        service.delete_error = CategoryDeleteBlockedError(
+            CategoryDeleteDependencies(
+                operation_count=2,
+                rule_count=3,
+                raw_suggestion_count=4,
+                child_category_count=1,
+            )
+        )
+        blocked = client.request(
+            "DELETE",
+            f"/api/v1/categories/{category_id}",
+            json=payload,
+        )
+
+    assert deleted.status_code == 200
+    assert deleted.json() == {"deletedId": str(category_id), "name": "Продукты"}
+    assert service.delete_calls[0][0] == workspace_id
+    assert blocked.status_code == 422
+    assert blocked.json()["error"]["details"] == {
+        "operationCount": 2,
+        "ruleCount": 3,
+        "rawSuggestionCount": 4,
+        "childCategoryCount": 1,
+    }
 
 
 def test_category_create_requires_authentication() -> None:

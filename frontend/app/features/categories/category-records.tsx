@@ -1,5 +1,7 @@
 import { Link } from "react-router";
 
+import { ActionStack } from "../../ui/action-stack/action-stack";
+import { Button, RouterButtonLink } from "../../ui/button/button";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import { Tag, type TagTone } from "../../ui/tag/tag";
 import type { CategoryKind, CategorySummaryDto } from "./api/categories-api";
@@ -8,11 +10,17 @@ import styles from "./categories-page.module.css";
 type CategoryRecordsProps = {
   categories: CategorySummaryDto[];
   kindLabels: ReadonlyMap<CategoryKind, string>;
+  lifecyclePendingId: string | null;
+  onArchive: (category: CategorySummaryDto) => void;
+  onRestore: (category: CategorySummaryDto) => void;
 };
 
 export function CategoryTable({
   categories,
   kindLabels,
+  lifecyclePendingId,
+  onArchive,
+  onRestore,
 }: CategoryRecordsProps) {
   return (
     <table className={styles.table}>
@@ -25,6 +33,9 @@ export function CategoryTable({
           <th scope="col">Тип и состояние</th>
           <th scope="col">Использование</th>
           <th scope="col">Заметка</th>
+          <th scope="col">
+            <span className="visually-hidden">Действие</span>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -45,6 +56,14 @@ export function CategoryTable({
             <td className={styles.notesCell}>
               {category.notes ?? <span aria-label="Заметка не указана">—</span>}
             </td>
+            <td className={styles.actionCell}>
+              <CategoryActions
+                category={category}
+                pending={lifecyclePendingId === category.id}
+                onArchive={onArchive}
+                onRestore={onRestore}
+              />
+            </td>
           </tr>
         ))}
       </tbody>
@@ -55,6 +74,9 @@ export function CategoryTable({
 export function CategoryMobileList({
   categories,
   kindLabels,
+  lifecyclePendingId,
+  onArchive,
+  onRestore,
 }: CategoryRecordsProps) {
   return (
     <ol aria-label="Категории текущего workspace">
@@ -72,10 +94,68 @@ export function CategoryMobileList({
             {category.notes ? (
               <p className={styles.mobileNotes}>{category.notes}</p>
             ) : null}
+            <div className={styles.mobileFooter}>
+              <CategoryActions
+                category={category}
+                pending={lifecyclePendingId === category.id}
+                onArchive={onArchive}
+                onRestore={onRestore}
+              />
+            </div>
           </article>
         </li>
       ))}
     </ol>
+  );
+}
+
+function CategoryActions({
+  category,
+  onArchive,
+  onRestore,
+  pending,
+}: {
+  category: CategorySummaryDto;
+  onArchive: CategoryRecordsProps["onArchive"];
+  onRestore: CategoryRecordsProps["onRestore"];
+  pending: boolean;
+}) {
+  const canRequestArchive =
+    category.capabilities.canUpdate &&
+    category.isActive &&
+    (category.capabilities.canArchive ||
+      category.capabilities.archiveBlockedReasonCode === "active_rules");
+  const action = canRequestArchive ? (
+    <Button
+      isLoading={pending}
+      onClick={() => onArchive(category)}
+      tone="dangerSecondary"
+    >
+      В архив
+    </Button>
+  ) : category.capabilities.canRestore ? (
+    <Button
+      icon="undo"
+      isLoading={pending}
+      onClick={() => onRestore(category)}
+      tone="secondary"
+    >
+      Восстановить
+    </Button>
+  ) : null;
+  return (
+    <ActionStack
+      orientation="row"
+      primary={
+        <RouterButtonLink
+          aria-label={`Открыть категорию «${category.name}»`}
+          to={`/categories/${category.id}`}
+        >
+          Открыть
+        </RouterButtonLink>
+      }
+      secondary={action ?? undefined}
+    />
   );
 }
 

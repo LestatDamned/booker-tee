@@ -32,11 +32,27 @@ export const categorySummarySchema: z.ZodType<CategorySummaryDto> = z.object({
   operationCount: z.number().int().nonnegative(),
   ruleCount: z.number().int().nonnegative(),
   activeRuleCount: z.number().int().nonnegative(),
+  deleteBlockers: z.object({
+    operationCount: z.number().int().nonnegative(),
+    ruleCount: z.number().int().nonnegative(),
+    rawSuggestionCount: z.number().int().nonnegative(),
+    childCategoryCount: z.number().int().nonnegative(),
+    reasonCodes: z.array(
+      z.enum([
+        "active_category",
+        "operations",
+        "rules",
+        "raw_suggestions",
+        "child_categories",
+      ]),
+    ),
+  }),
   updatedAt: z.iso.datetime({ offset: true }),
   capabilities: z.object({
     canUpdate: z.boolean(),
     canArchive: z.boolean(),
     canRestore: z.boolean(),
+    canDelete: z.boolean(),
     archiveBlockedReasonCode: z.enum(["active_rules"]).nullable(),
   }),
 });
