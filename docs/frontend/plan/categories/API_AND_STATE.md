@@ -1,7 +1,7 @@
 # Categories API and state boundary
 
-Статус: accepted contract; D1–D5 приняты 2026-08-01, Slice 01 read boundary
-реализован.
+Статус: accepted contract; D1–D5 приняты 2026-08-01, Slices 01–03 read/create/
+detail boundaries реализованы.
 
 ## Application boundary
 
@@ -61,12 +61,14 @@ Query parameters:
 - `date_from`, `date_to`;
 - `currency` (одна доступная workspace currency);
 - `type=income|expense`;
+- `search` (normalized description query, максимум 200 символов);
 - `operations_page`, bounded `operations_page_size`.
 
 Response includes category summary/capabilities, applied filters, available
 currencies, money summary, operation page and bounded linked-rule preview.
 Operation DTO содержит уже подготовленные date/type/account/description/
-property/signed amount/currency facts. Browser только форматирует values.
+property/signed amount/currency facts. `search` сужает operation page и count,
+но не authoritative money summary. Browser только форматирует values.
 
 Rules preview не копирует Rule editing policy. До Transaction Rules cutover он
 ведёт в historical `/rules#rule-<id>`; после него — в canonical React route.
@@ -103,7 +105,7 @@ Cross-workspace IDs use the same not-found response and never leak existence.
 | State | Owner |
 | --- | --- |
 | directory `view`, `search` | URL |
-| detail period/currency/type/page/return_to | URL |
+| detail period/currency/type/search/page/page size/return_to | URL |
 | directory/detail snapshots and capabilities | loader/API server state |
 | create/edit drafts, open panel, pending/retry/dialog | feature-local React |
 | profit eligibility, counts, blockers, permissions, system immutability | server only |

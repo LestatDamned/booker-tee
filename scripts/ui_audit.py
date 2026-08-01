@@ -381,6 +381,16 @@ def prepare_realistic_scenario(
         category_form.locator('select[name="kind"]').select_option("expense")
         category_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
         page.get_by_text(rule_category_name, exact=True).first.wait_for(timeout=PAGE_TIMEOUT_MS)
+        page.goto(build_url(base_url, "/app/categories"), wait_until="networkidle")
+        category_record = (
+            page.locator("[data-category-record]:visible").filter(has_text=rule_category_name).first
+        )
+        category_record.wait_for(timeout=PAGE_TIMEOUT_MS)
+        category_detail_path = category_record.locator(
+            "a[data-record-identity]"
+        ).first.get_attribute("href")
+        if category_detail_path and category_detail_path.startswith("/categories/"):
+            category_detail_path = f"/app{category_detail_path}"
 
         page.goto(build_url(base_url, "/app/properties"), wait_until="networkidle")
         page.get_by_role("button", name="Новый объект", exact=True).click(timeout=PAGE_TIMEOUT_MS)
@@ -471,6 +481,7 @@ def prepare_realistic_scenario(
     return {
         "account_name": account_name,
         "account_detail_path": account_detail_path or "",
+        "category_detail_path": category_detail_path or "",
         "manual_target_path": manual_target_path,
         "document_detail_path": detail_path,
         "mapping_path": f"{detail_path.rstrip('/')}/mapping",
@@ -3030,6 +3041,10 @@ def run_audit(
                     if scenario_state.get("account_detail_path"):
                         dynamic_pages.append(
                             (scenario_state["account_detail_path"], "account-detail")
+                        )
+                    if scenario_state.get("category_detail_path"):
+                        dynamic_pages.append(
+                            (scenario_state["category_detail_path"], "category-detail")
                         )
                     if scenario_state.get("manual_target_path"):
                         dynamic_pages.append(

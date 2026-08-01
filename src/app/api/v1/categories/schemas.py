@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import Field, field_validator
@@ -9,6 +9,11 @@ from app.features.categories.models import CategoryKind
 from app.features.categories.schemas import (
     CategoryArchiveBlockedReason,
     CategoryDirectoryReadonlyReason,
+)
+from app.features.ledger.domain.types import OperationType
+from app.features.transaction_rules.models import (
+    TransactionRuleApplicationMode,
+    TransactionRuleMatchType,
 )
 
 
@@ -79,3 +84,65 @@ class CreateCategoryApiRequest(ApiRequestModel):
         if isinstance(value, str):
             return " ".join(value.split()) or None
         return value
+
+
+class CategoryDetailFiltersApiResponse(ApiModel):
+    date_from: date | None
+    date_to: date | None
+    currency: str
+    operation_type: OperationType | None
+    search: str | None
+
+
+class CategoryMoneySummaryApiResponse(ApiModel):
+    currency: str
+    income: str
+    expense: str
+    profit: str
+
+
+class CategoryOperationApiResponse(ApiModel):
+    operation_id: UUID
+    operation_date: date
+    operation_type: OperationType
+    description: str
+    account_name: str
+    property_id: UUID | None
+    property_name: str | None
+    signed_amount: str
+    currency: str
+
+
+class CategoryOperationPageApiResponse(ApiModel):
+    items: list[CategoryOperationApiResponse]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+    has_previous: bool
+    has_next: bool
+
+
+class CategoryRulePreviewItemApiResponse(ApiModel):
+    id: UUID
+    name: str
+    is_active: bool
+    priority: int
+    pattern: str
+    match_type: TransactionRuleMatchType
+    application_mode: TransactionRuleApplicationMode
+
+
+class CategoryRulePreviewApiResponse(ApiModel):
+    items: list[CategoryRulePreviewItemApiResponse]
+    total: int
+    active_count: int
+
+
+class CategoryDetailApiResponse(ApiModel):
+    category: CategorySummaryApiResponse
+    applied_filters: CategoryDetailFiltersApiResponse
+    available_currencies: list[str]
+    summary: CategoryMoneySummaryApiResponse
+    operations: CategoryOperationPageApiResponse
+    rules: CategoryRulePreviewApiResponse

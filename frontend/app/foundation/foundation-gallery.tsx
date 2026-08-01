@@ -11,6 +11,7 @@ import { InlineNotice } from "../ui/inline-notice/inline-notice";
 import { MoneyValue } from "../ui/money-value/money-value";
 import { PageHeader } from "../ui/page-header/page-header";
 import { RequestState } from "../ui/request-state/request-state";
+import { ReadOnlyFinancialRow } from "../ui/read-only-financial-row/read-only-financial-row";
 import { ResponsiveRecordCollection } from "../ui/responsive-record-collection/responsive-record-collection";
 import { StatusLabel } from "../ui/status-label/status-label";
 import { Tag } from "../ui/tag/tag";
@@ -302,6 +303,36 @@ function ThemePreview({ label, theme }: ThemePreviewProps) {
             </table>
           }
         />
+      </section>
+
+      <section className={styles.section}>
+        <h3>Read-only financial rows</h3>
+        <ol className={styles.readOnlyRows}>
+          <li>
+            <ReadOnlyFinancialRow
+              context="Основной счёт"
+              date="20.07.2026"
+              dateTime="2026-07-20"
+              description="Комиссия банка"
+              details={<Tag tone="expense">расход</Tag>}
+              status={<StatusLabel tone="success">подтверждено</StatusLabel>}
+              value={
+                <MoneyValue amount="−450,00" currency="RUB" tone="expense" />
+              }
+            />
+          </li>
+          <li>
+            <ReadOnlyFinancialRow
+              context="стр. 2 · строка 14"
+              date="Дата не определена"
+              description="Описание не определено"
+              issues={<p role="alert">Дата и сумма требуют проверки.</p>}
+              status={<StatusLabel tone="danger">ошибка</StatusLabel>}
+              tone="problem"
+              value={<MoneyValue amount="—" currency="RUB" />}
+            />
+          </li>
+        </ol>
       </section>
 
       <section className={styles.section}>

@@ -1,5 +1,6 @@
 import type { SessionDto } from "../../api/session";
 import type { CategoryDirectoryDto } from "./api/categories-api";
+import type { CategoryDetailDto } from "./api/category-detail-api";
 
 export const session: SessionDto = {
   user: {
@@ -115,4 +116,78 @@ export const directory: CategoryDirectoryDto = {
     { value: "mixed", label: "Смешанная", description: "Для обоих потоков." },
   ],
   capabilities: { canCreate: true, readonlyReasonCode: null },
+};
+
+export const detail: CategoryDetailDto = {
+  category: directory.items[0]!,
+  appliedFilters: {
+    dateFrom: "2026-07-01",
+    dateTo: "2026-07-31",
+    currency: "RUB",
+    operationType: null,
+    search: null,
+  },
+  availableCurrencies: ["RUB", "USD"],
+  summary: {
+    currency: "RUB",
+    income: "100000.00",
+    expense: "35000.00",
+    profit: "65000.00",
+  },
+  operations: {
+    items: [
+      {
+        operationId: "9197dd11-9cb2-490d-81bf-febf6e31f476",
+        operationDate: "2026-07-20",
+        operationType: "expense",
+        description: "Супермаркет",
+        accountName: "Основная карта",
+        propertyId: null,
+        propertyName: null,
+        signedAmount: "-35000.00",
+        currency: "RUB",
+      },
+      {
+        operationId: "a771f239-1135-4968-98f1-73983e5c1584",
+        operationDate: "2026-07-15",
+        operationType: "transfer",
+        description: "Между счетами",
+        accountName: "Основная карта → Накопительный",
+        propertyId: null,
+        propertyName: null,
+        signedAmount: "0.00",
+        currency: "RUB",
+      },
+    ],
+    page: 1,
+    pageSize: 20,
+    total: 22,
+    totalPages: 2,
+    hasPrevious: false,
+    hasNext: true,
+  },
+  rules: {
+    items: [
+      {
+        id: "33dcdcc2-5f9c-4421-b21d-529371dcb04e",
+        name: "Супермаркеты",
+        isActive: true,
+        priority: 10,
+        pattern: "пятёрочка",
+        matchType: "contains",
+        applicationMode: "suggest",
+      },
+      {
+        id: "38ba54bd-e3d1-4d80-80d3-8d6493520ee8",
+        name: "Старое правило",
+        isActive: false,
+        priority: 20,
+        pattern: "магазин",
+        matchType: "contains",
+        applicationMode: "suggest",
+      },
+    ],
+    total: 7,
+    activeCount: 4,
+  },
 };

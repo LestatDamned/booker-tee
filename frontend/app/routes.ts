@@ -5,6 +5,7 @@ export default [
   route("accounts", "routes/accounts.tsx"),
   route("accounts/:accountId", "routes/account-detail.tsx"),
   route("categories", "routes/categories.tsx"),
+  route("categories/:categoryId", "routes/category-detail.tsx"),
   route("foundation", "routes/foundation.tsx"),
   route("imports", "routes/import-documents.tsx"),
   route("imports/upload", "routes/import-upload.tsx"),

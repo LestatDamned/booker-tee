@@ -189,7 +189,7 @@ describe("reports route", () => {
       "http://localhost",
     );
     expect(categoryHref.pathname).toBe(
-      `/categories/${reportOverview.categoryRows[0]!.categoryId}`,
+      `/app/categories/${reportOverview.categoryRows[0]!.categoryId}`,
     );
     expect(categoryHref.searchParams.get("date_from")).toBe("2026-07-01");
     expect(categoryHref.searchParams.get("date_to")).toBe("2026-07-31");

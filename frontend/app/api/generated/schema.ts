@@ -109,6 +109,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Category Detail */
+        get: operations["get_category_detail_api_v1_categories__category_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/imports/documents/{document_id}/mapping": {
         parameters: {
             query?: never;
@@ -1502,6 +1519,28 @@ export interface components {
          * @enum {string}
          */
         CategoryArchiveBlockedReason: "active_rules";
+        /** CategoryDetailApiResponse */
+        CategoryDetailApiResponse: {
+            category: components["schemas"]["CategorySummaryApiResponse"];
+            appliedFilters: components["schemas"]["CategoryDetailFiltersApiResponse"];
+            /** Availablecurrencies */
+            availableCurrencies: string[];
+            summary: components["schemas"]["CategoryMoneySummaryApiResponse"];
+            operations: components["schemas"]["CategoryOperationPageApiResponse"];
+            rules: components["schemas"]["CategoryRulePreviewApiResponse"];
+        };
+        /** CategoryDetailFiltersApiResponse */
+        CategoryDetailFiltersApiResponse: {
+            /** Datefrom */
+            dateFrom: string | null;
+            /** Dateto */
+            dateTo: string | null;
+            /** Currency */
+            currency: string;
+            operationType: components["schemas"]["OperationType"] | null;
+            /** Search */
+            search: string | null;
+        };
         /** CategoryDirectoryApiResponse */
         CategoryDirectoryApiResponse: {
             /** Items */
@@ -1533,6 +1572,87 @@ export interface components {
             label: string;
             /** Description */
             description: string;
+        };
+        /** CategoryMoneySummaryApiResponse */
+        CategoryMoneySummaryApiResponse: {
+            /** Currency */
+            currency: string;
+            /** Income */
+            income: string;
+            /** Expense */
+            expense: string;
+            /** Profit */
+            profit: string;
+        };
+        /** CategoryOperationApiResponse */
+        CategoryOperationApiResponse: {
+            /**
+             * Operationid
+             * Format: uuid
+             */
+            operationId: string;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            operationType: components["schemas"]["OperationType"];
+            /** Description */
+            description: string;
+            /** Accountname */
+            accountName: string;
+            /** Propertyid */
+            propertyId: string | null;
+            /** Propertyname */
+            propertyName: string | null;
+            /** Signedamount */
+            signedAmount: string;
+            /** Currency */
+            currency: string;
+        };
+        /** CategoryOperationPageApiResponse */
+        CategoryOperationPageApiResponse: {
+            /** Items */
+            items: components["schemas"]["CategoryOperationApiResponse"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+            /** Totalpages */
+            totalPages: number;
+            /** Hasprevious */
+            hasPrevious: boolean;
+            /** Hasnext */
+            hasNext: boolean;
+        };
+        /** CategoryRulePreviewApiResponse */
+        CategoryRulePreviewApiResponse: {
+            /** Items */
+            items: components["schemas"]["CategoryRulePreviewItemApiResponse"][];
+            /** Total */
+            total: number;
+            /** Activecount */
+            activeCount: number;
+        };
+        /** CategoryRulePreviewItemApiResponse */
+        CategoryRulePreviewItemApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Isactive */
+            isActive: boolean;
+            /** Priority */
+            priority: number;
+            /** Pattern */
+            pattern: string;
+            matchType: components["schemas"]["TransactionRuleMatchType"];
+            applicationMode: components["schemas"]["TransactionRuleApplicationMode"];
         };
         /** CategorySummaryApiResponse */
         CategorySummaryApiResponse: {
@@ -4110,6 +4230,81 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_category_detail_api_v1_categories__category_id__get: {
+        parameters: {
+            query?: {
+                date_from?: string | null;
+                date_to?: string | null;
+                currency?: string | null;
+                type?: string | null;
+                operations_page?: string | null;
+                operations_page_size?: string | null;
+                search?: string | null;
+            };
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryDetailApiResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

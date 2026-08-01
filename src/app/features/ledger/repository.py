@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -266,6 +266,89 @@ class LedgerRepository:
 
         result = await self.session.execute(query)
         return list(result.unique().scalars().all())
+
+    async def list_confirmed_category_operations_page(
+        self,
+        *,
+        workspace_id: UUID,
+        category_id: UUID,
+        date_from: date | None,
+        date_to: date | None,
+        currency: str,
+        operation_type: OperationType | None,
+        search: str | None,
+        offset: int,
+        limit: int,
+    ) -> list[Operation]:
+        query = (
+            select(Operation)
+            .options(
+                selectinload(Operation.money_entries).selectinload(MoneyEntry.account),
+                selectinload(Operation.property),
+            )
+            .where(
+                Operation.workspace_id == workspace_id,
+                Operation.category_id == category_id,
+                Operation.status == OperationStatus.CONFIRMED,
+                Operation.money_entries.any(
+                    and_(
+                        MoneyEntry.workspace_id == workspace_id,
+                        MoneyEntry.currency == currency,
+                    )
+                ),
+            )
+        )
+        if date_from is not None:
+            query = query.where(Operation.operation_date >= date_from)
+        if date_to is not None:
+            query = query.where(Operation.operation_date <= date_to)
+        if operation_type is not None:
+            query = query.where(Operation.type == operation_type)
+        if search is not None:
+            query = query.where(Operation.description.ilike(f"%{search}%"))
+        result = await self.session.execute(
+            query.order_by(
+                Operation.operation_date.desc(),
+                Operation.created_at.desc(),
+                Operation.id.desc(),
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.unique().scalars().all())
+
+    async def count_confirmed_category_operations(
+        self,
+        *,
+        workspace_id: UUID,
+        category_id: UUID,
+        date_from: date | None,
+        date_to: date | None,
+        currency: str,
+        operation_type: OperationType | None,
+        search: str | None,
+    ) -> int:
+        query = select(func.count(Operation.id)).where(
+            Operation.workspace_id == workspace_id,
+            Operation.category_id == category_id,
+            Operation.status == OperationStatus.CONFIRMED,
+            Operation.money_entries.any(
+                and_(
+                    MoneyEntry.workspace_id == workspace_id,
+                    MoneyEntry.currency == currency,
+                )
+            ),
+        )
+        if date_from is not None:
+            query = query.where(Operation.operation_date >= date_from)
+        if date_to is not None:
+            query = query.where(Operation.operation_date <= date_to)
+        if operation_type is not None:
+            query = query.where(Operation.type == operation_type)
+        if search is not None:
+            query = query.where(Operation.description.ilike(f"%{search}%"))
+        result = await self.session.execute(query)
+        return result.scalar_one()
 
     def _apply_account_entry_filters(
         self,

@@ -153,6 +153,24 @@ class CategoryService:
             for category in categories
         ]
 
+    async def get_management_row(
+        self,
+        workspace_id: UUID,
+        category_id: UUID,
+    ) -> CategoryManagementRow | None:
+        category = await self.categories.get_for_workspace(workspace_id, category_id)
+        if category is None:
+            return None
+        operation_counts = await self.categories.count_operations_by_category(workspace_id)
+        rule_counts = await self.categories.count_rules_by_category(workspace_id)
+        active_rule_counts = await self.categories.count_active_rules_by_category(workspace_id)
+        return CategoryManagementRow(
+            category=category,
+            operation_count=operation_counts.get(category.id, 0),
+            rule_count=rule_counts.get(category.id, 0),
+            active_rule_count=active_rule_counts.get(category.id, 0),
+        )
+
     async def get_detail(
         self,
         workspace_id: UUID,

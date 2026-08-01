@@ -129,11 +129,15 @@ def filter_accounts_for_balance(
     return [account for account in accounts if account.id == account_id]
 
 
-def summarize_income_expense(operations: list[Operation]) -> IncomeExpenseSummary:
+def summarize_income_expense(
+    operations: list[Operation],
+    *,
+    currency: str | None = None,
+) -> IncomeExpenseSummary:
     income = MONEY_ZERO
     expense = MONEY_ZERO
     for operation in operations:
-        total = operation_signed_total(operation)
+        total = operation_signed_total(operation, currency=currency)
         if operation.type == OperationType.INCOME or total > MONEY_ZERO:
             income += max(total, MONEY_ZERO)
         elif operation.type == OperationType.EXPENSE or total < MONEY_ZERO:
@@ -209,7 +213,16 @@ def list_uncategorized_operations(operations: list[Operation]) -> list[Uncategor
     return rows
 
 
-def operation_signed_total(operation: Operation) -> Decimal:
-    return sum((entry.amount for entry in operation.money_entries), MONEY_ZERO).quantize(
-        Decimal("0.01")
-    )
+def operation_signed_total(
+    operation: Operation,
+    *,
+    currency: str | None = None,
+) -> Decimal:
+    return sum(
+        (
+            entry.amount
+            for entry in operation.money_entries
+            if currency is None or entry.currency == currency
+        ),
+        MONEY_ZERO,
+    ).quantize(Decimal("0.01"))

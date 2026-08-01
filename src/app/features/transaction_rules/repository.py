@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -55,6 +55,40 @@ class TransactionRuleRepository:
             .order_by(TransactionRule.priority, TransactionRule.name)
         )
         return list(result.scalars().all())
+
+    async def list_category_preview(
+        self,
+        *,
+        workspace_id: UUID,
+        category_id: UUID,
+        limit: int,
+    ) -> list[TransactionRule]:
+        result = await self.session.execute(
+            select(TransactionRule)
+            .where(
+                TransactionRule.workspace_id == workspace_id,
+                TransactionRule.category_id == category_id,
+            )
+            .order_by(TransactionRule.priority, TransactionRule.name)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def count_category_rules(
+        self,
+        *,
+        workspace_id: UUID,
+        category_id: UUID,
+    ) -> tuple[int, int]:
+        active_count = func.count(TransactionRule.id).filter(TransactionRule.is_active.is_(True))
+        result = await self.session.execute(
+            select(func.count(TransactionRule.id), active_count).where(
+                TransactionRule.workspace_id == workspace_id,
+                TransactionRule.category_id == category_id,
+            )
+        )
+        row = result.one()
+        return row[0], row[1]
 
     async def get_for_workspace(
         self,

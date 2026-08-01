@@ -400,7 +400,7 @@ function categoryDetailHref(row: CategoryRow, currentSearch: string): string {
     if (value) query.set(key, value);
   }
   query.set("return_to", `/app/reports${currentSearch}`);
-  return `/categories/${row.categoryId}${query.size ? `?${query.toString()}` : ""}`;
+  return `/app/categories/${row.categoryId}${query.size ? `?${query.toString()}` : ""}`;
 }
 
 type DecimalMagnitude = { coefficient: bigint; scale: number };

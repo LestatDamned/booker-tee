@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+
 import { StatusLabel } from "../../ui/status-label/status-label";
 import { Tag, type TagTone } from "../../ui/tag/tag";
 import type { CategoryKind, CategorySummaryDto } from "./api/categories-api";
@@ -79,14 +81,14 @@ export function CategoryMobileList({
 
 function CategoryIdentity({ category }: { category: CategorySummaryDto }) {
   return (
-    <a
+    <Link
       aria-label={`Открыть категорию «${category.name}»`}
       className={styles.identityLink}
       data-record-identity
-      href={`/categories/${category.id}`}
+      to={`/categories/${category.id}`}
     >
       {category.name}
-    </a>
+    </Link>
   );
 }
 

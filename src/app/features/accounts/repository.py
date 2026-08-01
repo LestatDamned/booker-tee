@@ -36,6 +36,15 @@ class AccountRepository:
         )
         return list(result.scalars().all())
 
+    async def list_workspace_currencies(self, workspace_id: UUID) -> list[str]:
+        result = await self.session.execute(
+            select(Account.currency)
+            .where(Account.workspace_id == workspace_id)
+            .distinct()
+            .order_by(Account.currency)
+        )
+        return list(result.scalars().all())
+
     async def list_directory_rows(self, workspace_id: UUID) -> list[AccountDirectoryRow]:
         confirmed_entry_total = func.coalesce(
             func.sum(MoneyEntry.amount).filter(Operation.status == OperationStatus.CONFIRMED),

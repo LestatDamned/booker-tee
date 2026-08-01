@@ -140,7 +140,8 @@ label или icon.
 | `WorkbenchStatus`            | Result count или локальное состояние коллекции                     |
 | `WorkbenchContent`           | Основное содержимое внутри workbench                               |
 | `ResponsiveRecordCollection` | Desktop table + mobile record list с одной семантикой данных       |
-| `WorkbenchRow`               | Общая геометрия финансовой строки и её action/expansion zones      |
+| `WorkbenchRow`               | Интерактивная рабочая строка с action/expansion zones              |
+| `ReadOnlyFinancialRow`       | Компактный финансовый факт без row action, focus и раскрытия       |
 | `WorkbenchPagination`        | Range, page size и навигация страниц в нижней границе реестра      |
 | `WorkbenchEmptyState`        | Первичная пустота или отсутствие результатов после фильтрации      |
 | `AppliedFilterSummary`       | Читаемый applied state и единый сброс фильтров                     |
@@ -149,6 +150,13 @@ label или icon.
 `ResponsiveRecordCollection` владеет переключением desktop/mobile и базовой
 оболочкой. Feature по-прежнему владеет колонками, фактами, статусами и
 действиями конкретной сущности.
+
+`WorkbenchRow` и `ReadOnlyFinancialRow` намеренно разделены. Первый нужен там,
+где пользователь выбирает, редактирует, раскрывает или подтверждает строку.
+Второй — для уже подготовленного факта: операции в detail, raw rows документа и
+preview mapping. Read-only строка не получает `tabIndex`, click target, actions
+или скрытую expansion-семантику; feature передаёт ей только дату, контекст,
+описание, детали, status, money и при необходимости issues/problem tone.
 
 ### Формы и раскрытие
 
@@ -219,6 +227,11 @@ AppShell
 create -> WorkbenchPanel справа
 edit   -> ExpansionPanel под выбранной row
 ```
+
+Для компактной read-only истории внутри detail/review вместо collection table
+используется один semantic list с `ReadOnlyFinancialRow`. Не следует рендерить
+две копии данных для desktop и mobile: responsive geometry принадлежит самой
+read-only строке.
 
 Search остаётся видимым. Structured filters изменяют локальный draft;
 `Применить` записывает normalized state в URL и сбрасывает страницу на первую.

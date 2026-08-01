@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
+import { ReadOnlyFinancialRow } from "../../ui/read-only-financial-row/read-only-financial-row";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import type { ImportMappingPreviewDto } from "./api/import-mapping-api";
 import styles from "./import-mapping-page.module.css";
@@ -187,21 +188,38 @@ export function MappingPreview({
               data-status={row.status}
               key={`${row.tableRef.pageNumber}:${row.tableRef.tableIndex}:${row.sourceRowNumber}`}
             >
-              <article>
-                <div className={styles.previewRowFacts}>
-                  <time dateTime={row.operationDate ?? undefined}>
-                    {formatDate(row.operationDate, row.operationDateRaw)}
-                  </time>
-                  <span className={styles.previewSource}>
-                    стр. {row.tableRef.pageNumber} · строка{" "}
-                    {row.sourceRowNumber}
-                  </span>
+              <ReadOnlyFinancialRow
+                context={`стр. ${row.tableRef.pageNumber} · строка ${row.sourceRowNumber}`}
+                date={formatDate(row.operationDate, row.operationDateRaw)}
+                dateTime={row.operationDate ?? undefined}
+                description={row.description || "Описание не определено"}
+                details={
+                  row.postingDate || row.postingDateRaw ? (
+                    <span>
+                      Дата проводки:{" "}
+                      {formatDate(row.postingDate, row.postingDateRaw)}
+                    </span>
+                  ) : undefined
+                }
+                issues={
+                  row.errorCodes.length > 0 ? (
+                    <ul className={styles.rowErrors}>
+                      {row.errorCodes.map((code) => (
+                        <li key={code}>{mappingRowErrorMessage(code)}</li>
+                      ))}
+                    </ul>
+                  ) : undefined
+                }
+                status={
                   <StatusLabel
                     tone={row.status === "valid" ? "success" : "danger"}
                     variant="plain"
                   >
                     {row.status === "valid" ? "Корректно" : "Ошибка"}
                   </StatusLabel>
+                }
+                tone={row.status === "error" ? "problem" : "default"}
+                value={
                   <MoneyValue
                     amount={formatPreviewAmount(
                       row.amount,
@@ -211,24 +229,8 @@ export function MappingPreview({
                     currency={row.currency}
                     tone={previewAmountTone(row.amount)}
                   />
-                </div>
-                <p className={styles.previewDescription}>
-                  {row.description || "Описание не определено"}
-                </p>
-                {row.postingDate || row.postingDateRaw ? (
-                  <p className={styles.secondaryFact}>
-                    Дата проводки:{" "}
-                    {formatDate(row.postingDate, row.postingDateRaw)}
-                  </p>
-                ) : null}
-              </article>
-              {row.errorCodes.length > 0 ? (
-                <ul className={styles.rowErrors}>
-                  {row.errorCodes.map((code) => (
-                    <li key={code}>{mappingRowErrorMessage(code)}</li>
-                  ))}
-                </ul>
-              ) : null}
+                }
+              />
             </li>
           ))}
         </ol>

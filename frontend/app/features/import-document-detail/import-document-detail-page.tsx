@@ -10,6 +10,7 @@ import { DocumentWorkbenchHeader } from "../../ui/document-workbench-header/docu
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
 import { PageFrame } from "../../ui/page-frame/page-frame";
+import { ReadOnlyFinancialRow } from "../../ui/read-only-financial-row/read-only-financial-row";
 import {
   StatusLabel,
   type StatusTone,
@@ -330,27 +331,29 @@ function RawRowsSection({ document }: { document: ImportDocumentDetailDto }) {
         <ol className={styles.rows}>
           {document.rawRows.items.map((row) => (
             <li key={row.rowIndex}>
-              <article>
-                <div className={styles.rowFacts}>
-                  <time dateTime={row.displayDate ?? undefined}>
-                    {formatRowDate(row.displayDate)}
-                  </time>
+              <ReadOnlyFinancialRow
+                date={formatRowDate(row.displayDate)}
+                dateTime={row.displayDate ?? undefined}
+                description={row.description || "Без описания"}
+                issues={
+                  row.normalizationError ? (
+                    <p role="alert">{row.normalizationError}</p>
+                  ) : undefined
+                }
+                status={
                   <StatusLabel tone={rawStatusTone(row.status)} variant="plain">
                     {rawStatusLabel(row.status)}
                   </StatusLabel>
+                }
+                tone={row.normalizationError ? "problem" : "default"}
+                value={
                   <MoneyValue
                     amount={formatSignedAmount(row.amount ?? row.amountRaw)}
                     currency={row.currency ?? ""}
                     tone={rawAmountTone(row.amount ?? row.amountRaw)}
                   />
-                </div>
-                <p className={styles.rowDescription}>
-                  {row.description || "Без описания"}
-                </p>
-              </article>
-              {row.normalizationError ? (
-                <p role="alert">{row.normalizationError}</p>
-              ) : null}
+                }
+              />
             </li>
           ))}
         </ol>

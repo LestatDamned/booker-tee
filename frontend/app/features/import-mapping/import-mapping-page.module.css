@@ -743,59 +743,13 @@
   list-style: none;
 }
 
-.previewRows > li + li {
-  border-top: 1px solid var(--color-border-default);
-}
-
-.previewRows article {
-  padding: var(--space-3) var(--space-5);
-}
-
-.previewRows > li[data-status="error"] {
-  box-shadow: inset 0.2rem 0 var(--color-status-danger);
-}
-
-.previewRowFacts {
-  display: grid;
-  grid-template-columns: auto auto auto minmax(8rem, 1fr);
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.previewRowFacts time,
-.previewSource {
-  color: var(--color-text-secondary);
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-xs);
-  font-variant-numeric: tabular-nums;
-}
-
-.previewRowFacts > :last-child {
-  justify-self: end;
-}
-
-.previewDescription {
-  margin: var(--space-2) 0 0;
-  font-size: var(--font-size-sm);
-  font-weight: 650;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-
-.secondaryFact {
-  margin: var(--space-1) 0 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+.previewRows > li:last-child > * {
+  border-bottom: 0;
 }
 
 .rowErrors {
   margin: 0;
-  background: color-mix(in srgb, var(--color-status-danger) 8%, transparent);
-  padding: var(--space-2) var(--space-5) var(--space-3)
-    calc(var(--space-5) + var(--space-4));
-  color: var(--color-status-danger);
-  font-size: var(--font-size-sm);
+  padding-left: var(--space-4);
 }
 
 .importOptions {
@@ -1041,14 +995,6 @@
   .sourceViewport {
     min-height: 15rem;
     max-height: 55dvh;
-  }
-
-  .previewRowFacts {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .previewRowFacts > :last-child {
-    justify-self: start;
   }
 
   .actionBar button {

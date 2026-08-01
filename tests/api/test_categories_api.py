@@ -1,9 +1,12 @@
-from categories_support import categories_app
+from datetime import date
+
+from categories_support import categories_app, category_detail_app
 
 from api_client import ApiTestClient as TestClient
 from app.features.categories.models import CategoryKind
 from app.features.categories.schemas import CreateCategoryCommand
 from app.features.categories.service import CategoryError
+from app.features.ledger.domain.types import OperationType
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.main import create_app
 
@@ -198,3 +201,95 @@ def test_category_create_is_forbidden_for_viewer() -> None:
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "financial_write_forbidden"
     assert service.create_calls == []
+
+
+def test_category_detail_requires_authentication() -> None:
+    with TestClient(create_app()) as client:
+        response = client.get(f"/api/v1/categories/{service_category_id()}")
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "unauthorized"
+
+
+def test_category_detail_dispatches_filters_and_returns_money_strings() -> None:
+    app, reader, workspace_id, category_id = category_detail_app()
+
+    with TestClient(app) as client:
+        response = client.get(
+            f"/api/v1/categories/{category_id}",
+            params={
+                "date_from": "2026-07-01",
+                "date_to": "2026-07-31",
+                "currency": "rub",
+                "type": "expense",
+                "operations_page": "2",
+                "operations_page_size": "10",
+                "search": "  супермаркет  ",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["summary"] == {
+        "currency": "RUB",
+        "income": "100.00",
+        "expense": "35.00",
+        "profit": "65.00",
+    }
+    assert response.json()["availableCurrencies"] == ["RUB", "USD"]
+    assert reader.calls == [
+        {
+            "workspace_id": workspace_id,
+            "category_id": category_id,
+            "default_currency": "RUB",
+            "can_write": True,
+            "date_from": date(2026, 7, 1),
+            "date_to": date(2026, 7, 31),
+            "currency": "RUB",
+            "operation_type": OperationType.EXPENSE,
+            "search": "супермаркет",
+            "operations_page": 2,
+            "operations_page_size": 10,
+        }
+    ]
+
+
+def test_category_detail_rejects_invalid_parameters_before_reader() -> None:
+    app, reader, _, category_id = category_detail_app()
+
+    with TestClient(app) as client:
+        invalid_type = client.get(
+            f"/api/v1/categories/{category_id}",
+            params={"type": "transfer"},
+        )
+        invalid_page_size = client.get(
+            f"/api/v1/categories/{category_id}",
+            params={"operations_page_size": "101"},
+        )
+        invalid_search = client.get(
+            f"/api/v1/categories/{category_id}",
+            params={"search": "x" * 201},
+        )
+
+    assert invalid_type.status_code == 400
+    assert invalid_type.json()["error"]["code"] == "invalid_category_filter"
+    assert invalid_page_size.status_code == 400
+    assert invalid_search.status_code == 400
+    assert reader.calls == []
+
+
+def test_category_detail_returns_same_not_found_contract() -> None:
+    app, reader, _, category_id = category_detail_app()
+    reader.not_found = True
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/categories/{category_id}")
+
+    assert response.status_code == 404
+    assert response.json()["error"] == {
+        "code": "category_not_found",
+        "message": "Категория не найдена.",
+    }
+
+
+def service_category_id() -> str:
+    return "00000000-0000-0000-0000-000000000001"

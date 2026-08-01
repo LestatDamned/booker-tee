@@ -108,9 +108,9 @@ labels, submit feedback, keyboard focus и 375/768/1024/1440 acceptance.
 /app/categories/:categoryId
 └─ AppShell -> PageFrame -> WorkbenchSurface
    ├─ WorkbenchHeader: back context, identity, kind/status, actions
-   ├─ filter/context strip: period, currency, flow
+   ├─ WorkbenchToolbar: search, filters and applied state
    ├─ server-owned compact money summary
-   ├─ paginated ResponsiveRecordCollection: confirmed operations
+   ├─ paginated semantic list / ReadOnlyFinancialRow: confirmed operations
    ├─ bounded linked-rules preview + "Все правила"
    ├─ ExpansionPanel: edit
    ├─ ConfirmationDialog: kind/lifecycle/delete impact
@@ -143,7 +143,7 @@ notes/counts -> compact actions. Вся row может иметь один по�
 | detail route loader/request-state shell | да | Category API/read model local |
 | account ledger pagination/query precedent | да | category operation DTO не импортирует Account feature |
 | Reports query preservation and `MoneyValue` | да | all calculations stay server-side |
-| responsive financial record collection | да | category detail has category-specific columns |
+| `ReadOnlyFinancialRow` financial history | да | category detail supplies its own prepared facts |
 | report filter route construction | да | canonical link becomes `/app/categories/:id` |
 | correction forms/business mapping | нет | Categories does not edit Operations |
 
@@ -153,12 +153,14 @@ notes/counts -> compact actions. Вся row может иметь один по�
 `Tag`, `Field`, `Fieldset`, `FormGrid`, `FormActions`, `FormErrorSummary`,
 `WorkbenchPanel`, `ExpansionPanel`, `ConfirmationDialog`, `InlineNotice`,
 `RequestState`, `WorkbenchEmptyState`, `WorkbenchPagination`,
-`ResponsiveRecordCollection`, `MoneyValue`, `ToastViewport`, `Icon`,
+`ResponsiveRecordCollection`, `ReadOnlyFinancialRow`, `MoneyValue`,
+`ToastViewport`, `Icon`,
 `PageFrame`, `PageHeader`, `WorkbenchSurface/Header/Toolbar/Content`.
 
 `SearchableSelect` нужен в consumers, но category form использует небольшой
-fixed kind choice и не требует searchable select. Новый shared component по
-результатам аудита не нужен. Feature CSS остаётся в
+fixed kind choice и не требует searchable select. Повторный detail-аудит
+выделил один новый устойчивый shared contract — `ReadOnlyFinancialRow` для
+финансовых фактов без действий, focus и expansion. Feature CSS остаётся в
 `frontend/app/features/categories/*.module.css`; Accounts/Reports/Properties
 CSS и legacy `app.css` не импортируются.
 
@@ -177,4 +179,3 @@ CSS и legacy `app.css` не импортируются.
 - 390: no horizontal overflow, first meaningful records не скрыты chrome;
 - Mocha и Latte имеют одинаковую geometry и semantic contrast;
 - reduced motion respected для toast/highlight/panel transitions.
-
