@@ -1,7 +1,7 @@
 # Transaction Rules React migration
 
 Статус: `in progress`; аудит завершён 2026-08-01, решения D1–D7 приняты
-2026-08-02, Slice 0 завершён 2026-08-02. React implementation не начата.
+2026-08-02, Slice 0 и read-only Slice 1 завершены 2026-08-02.
 
 ## Цель
 
@@ -48,7 +48,20 @@ Slice 0 contract hardening завершён 2026-08-02:
 - matching/winner semantics не менялись;
 - migration `20260802_0021` проверена upgrade/downgrade и PostgreSQL tests.
 
-Slice 1 готов к началу, но ещё не начат.
+Slice 1 read-only directory завершён 2026-08-02:
+
+- добавлен workspace-scoped `GET /api/v1/transaction-rules` с SQL search,
+  category/status filters, counts, stable ordering и bounded pagination;
+- API возвращает полный read meaning правила, direct raw suggestion usage,
+  server-owned capabilities и active/current-archived references;
+- `/app/rules` доступен как прямой pre-cutover React route с runtime Zod
+  validation, URL-owned state, responsive table/mobile list и stable anchors;
+- viewer получает полный read projection без mutation controls;
+- empty-directory browser audit прошёл 9/9 комбинаций 1440/920/390 ×
+  Mocha/Latte/test theme без overflow или console/request errors;
+- canonical navigation и Categories links остаются на SSR до Slice 6.
+
+Следующий этап — Slice 2: create и explicit seed defaults.
 
 ## Краткий вывод аудита
 
@@ -204,6 +217,5 @@ Default `status=all`, `page=1`, `page_size=50`; допустимые page sizes 
 
 ## Approval record
 
-D1–D7 приняты пользователем 2026-08-02. План готов к исполнению, начиная со
-Slice 0; это согласование само по себе не является записью о начале или
-завершении production implementation.
+D1–D7 приняты пользователем 2026-08-02. Slice 0 и Slice 1 завершены; legacy SSR
+остаётся canonical до replacement gate Slice 6.

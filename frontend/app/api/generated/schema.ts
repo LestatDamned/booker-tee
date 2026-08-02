@@ -626,6 +626,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transaction-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Transaction Rules */
+        get: operations["list_transaction_rules_api_v1_transaction_rules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/chat-integrations/telegram/webhook": {
         parameters: {
             query?: never;
@@ -3602,11 +3619,164 @@ export interface components {
          * @enum {string}
          */
         TransactionRuleApplicationMode: "suggest" | "auto_apply";
+        /** TransactionRuleAppliedFiltersApiResponse */
+        TransactionRuleAppliedFiltersApiResponse: {
+            /** Q */
+            q: string | null;
+            /** Categoryid */
+            categoryId: string | null;
+            status: components["schemas"]["TransactionRuleDirectoryStatus"];
+        };
+        /** TransactionRuleConditionApiResponse */
+        TransactionRuleConditionApiResponse: {
+            /** Pattern */
+            pattern: string;
+            matchType: components["schemas"]["TransactionRuleMatchType"];
+            direction: components["schemas"]["MoneyDirection"];
+            account: components["schemas"]["TransactionRuleReferenceApiResponse"] | null;
+            /** Amountmin */
+            amountMin: string | null;
+            /** Amountmax */
+            amountMax: string | null;
+        };
+        /** TransactionRuleCountsApiResponse */
+        TransactionRuleCountsApiResponse: {
+            /** All */
+            all: number;
+            /** Active */
+            active: number;
+            /** Disabled */
+            disabled: number;
+        };
+        /**
+         * TransactionRuleDeleteBlockedReason
+         * @enum {string}
+         */
+        TransactionRuleDeleteBlockedReason: "active_rule" | "raw_suggestions";
+        /** TransactionRuleDirectoryApiResponse */
+        TransactionRuleDirectoryApiResponse: {
+            /** Items */
+            items: components["schemas"]["TransactionRuleSummaryApiResponse"][];
+            page: components["schemas"]["TransactionRulePageApiResponse"];
+            counts: components["schemas"]["TransactionRuleCountsApiResponse"];
+            appliedFilters: components["schemas"]["TransactionRuleAppliedFiltersApiResponse"];
+            references: components["schemas"]["TransactionRuleReferencesApiResponse"];
+            capabilities: components["schemas"]["TransactionRuleDirectoryCapabilitiesApiResponse"];
+        };
+        /** TransactionRuleDirectoryCapabilitiesApiResponse */
+        TransactionRuleDirectoryCapabilitiesApiResponse: {
+            /** Cancreate */
+            canCreate: boolean;
+            /** Canseeddefaults */
+            canSeedDefaults: boolean;
+            readonlyReasonCode: components["schemas"]["TransactionRuleDirectoryReadonlyReason"] | null;
+        };
+        /**
+         * TransactionRuleDirectoryReadonlyReason
+         * @enum {string}
+         */
+        TransactionRuleDirectoryReadonlyReason: "financial_write_forbidden";
+        /**
+         * TransactionRuleDirectoryStatus
+         * @enum {string}
+         */
+        TransactionRuleDirectoryStatus: "all" | "active" | "disabled";
+        /**
+         * TransactionRuleEnableBlockedReason
+         * @enum {string}
+         */
+        TransactionRuleEnableBlockedReason: "category_inactive" | "property_archived" | "account_unavailable";
         /**
          * TransactionRuleMatchType
          * @enum {string}
          */
         TransactionRuleMatchType: "contains" | "exact";
+        /** TransactionRuleOutcomeApiResponse */
+        TransactionRuleOutcomeApiResponse: {
+            operationType: components["schemas"]["OperationType"] | null;
+            category: components["schemas"]["TransactionRuleReferenceApiResponse"] | null;
+            property: components["schemas"]["TransactionRuleReferenceApiResponse"] | null;
+            applicationMode: components["schemas"]["TransactionRuleApplicationMode"];
+            /** Autodescription */
+            autoDescription: string | null;
+            /** Affectsprofit */
+            affectsProfit: boolean | null;
+        };
+        /** TransactionRulePageApiResponse */
+        TransactionRulePageApiResponse: {
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+            /** Totalpages */
+            totalPages: number;
+            /** Hasprevious */
+            hasPrevious: boolean;
+            /** Hasnext */
+            hasNext: boolean;
+        };
+        /** TransactionRuleReferenceApiResponse */
+        TransactionRuleReferenceApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Isactive */
+            isActive: boolean;
+        };
+        /** TransactionRuleReferencesApiResponse */
+        TransactionRuleReferencesApiResponse: {
+            /** Categories */
+            categories: components["schemas"]["TransactionRuleReferenceApiResponse"][];
+            /** Properties */
+            properties: components["schemas"]["TransactionRuleReferenceApiResponse"][];
+        };
+        /** TransactionRuleSummaryApiResponse */
+        TransactionRuleSummaryApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Priority */
+            priority: number;
+            /** Isactive */
+            isActive: boolean;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            condition: components["schemas"]["TransactionRuleConditionApiResponse"];
+            outcome: components["schemas"]["TransactionRuleOutcomeApiResponse"];
+            usage: components["schemas"]["TransactionRuleUsageApiResponse"];
+            capabilities: components["schemas"]["TransactionRuleSummaryCapabilitiesApiResponse"];
+        };
+        /** TransactionRuleSummaryCapabilitiesApiResponse */
+        TransactionRuleSummaryCapabilitiesApiResponse: {
+            /** Canupdate */
+            canUpdate: boolean;
+            /** Canenable */
+            canEnable: boolean;
+            /** Candisable */
+            canDisable: boolean;
+            /** Candelete */
+            canDelete: boolean;
+            enableBlockedReasonCode: components["schemas"]["TransactionRuleEnableBlockedReason"] | null;
+            deleteBlockedReasonCode: components["schemas"]["TransactionRuleDeleteBlockedReason"] | null;
+        };
+        /** TransactionRuleUsageApiResponse */
+        TransactionRuleUsageApiResponse: {
+            /** Directrawsuggestioncount */
+            directRawSuggestionCount: number;
+        };
         /**
          * UnsignedAmountDirection
          * @enum {string}
@@ -6694,6 +6864,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_transaction_rules_api_v1_transaction_rules_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                category_id?: string | null;
+                status?: string | null;
+                page?: string | null;
+                page_size?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionRuleDirectoryApiResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

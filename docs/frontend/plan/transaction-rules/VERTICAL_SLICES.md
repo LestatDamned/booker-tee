@@ -30,36 +30,37 @@ Exit gate:
 - [x] PostgreSQL delete guard preserves raw provenance and workspace cascade;
 - [x] full backend and frontend contract checks pass.
 
-## Slice 1 — Read-only directory API and route
+## Slice 1 — Read-only directory API and route — completed 2026-08-02
 
 User outcome: authenticated user can open React list, search/filter/page it and
 deep-link from Categories without mutation controls.
 
 Server:
 
-- Pydantic directory/read DTOs;
-- SQL filtering, counts, ordering and bounded pagination;
-- reference/current-archived projection;
-- reader/viewer capabilities;
-- auth, schema, isolation and no-read-side-effect tests.
+- [x] Pydantic directory/read DTOs;
+- [x] SQL filtering, counts, ordering and bounded pagination;
+- [x] reference/current-archived projection;
+- [x] reader/viewer capabilities;
+- [x] auth, schema, isolation and no-read-side-effect tests.
 
 React:
 
-- `/app/rules` route/loader/runtime schema;
-- Workbench composition, search, tabs, category filter, pagination;
-- responsive semantic table/mobile list;
-- target hash state and read-only notice;
-- loading/not-found/error states.
+- [x] `/app/rules` route/loader/runtime schema;
+- [x] Workbench composition, search, tabs, category filter, pagination;
+- [x] responsive semantic table/mobile list;
+- [x] target hash state and read-only notice;
+- [x] global route loading plus feature not-found/error states.
 
 Legacy remains canonical in navigation. Direct React route is pre-cutover
 evidence only.
 
 Exit gate:
 
-- URLs restore state with reload/Back/Forward;
-- category query/hash links work on React route;
-- 1440/920/390 no overflow in all themes;
-- viewer sees complete rule meaning and no mutation controls.
+- [x] URLs restore state with reload/Back/Forward;
+- [x] category query/hash links work on React route;
+- [x] Playwright geometry audit passes 9/9 empty-directory pages at
+  1440/920/390 across Mocha, Latte and test themes without page overflow;
+- [x] viewer sees complete rule meaning and no mutation controls.
 
 ## Slice 2 — Create and seed defaults
 

@@ -15,4 +15,5 @@ export default [
   route("ledger/manual", "routes/manual-ledger.tsx"),
   route("properties", "routes/properties.tsx"),
   route("reports", "routes/reports.tsx"),
+  route("rules", "routes/transaction-rules.tsx"),
 ] satisfies RouteConfig;

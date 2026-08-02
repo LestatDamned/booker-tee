@@ -64,12 +64,14 @@ Response shape:
     {
       "id": "uuid",
       "name": "OZON → Маркетплейсы",
+      "priority": 20,
       "isActive": true,
       "updatedAt": "ISO-8601",
       "condition": {
         "pattern": "OZON",
         "matchType": "contains",
         "direction": "outflow",
+        "account": null,
         "amountMin": null,
         "amountMax": null
       },
@@ -77,7 +79,9 @@ Response shape:
         "operationType": "expense",
         "category": {"id": "uuid", "name": "Маркетплейсы", "isActive": true},
         "property": null,
-        "applicationMode": "suggest"
+        "applicationMode": "suggest",
+        "autoDescription": null,
+        "affectsProfit": true
       },
       "usage": {"directRawSuggestionCount": 4},
       "capabilities": {
@@ -109,8 +113,9 @@ DTO may be flattened if that is clearer in final Pydantic/TypeScript, but these
 facts and ownership boundaries remain. Reference items include active choices
 plus a current archived reference required to render/edit a returned rule.
 
-Counts come from the same workspace/filter contract and do not derive from the
-visible page in React. Search/filter/order execute in SQL. Sort remains
+Counts come from the same workspace/search/category contract and do not derive
+from the visible page in React; status is intentionally excluded from tab
+counts, while `page.total` includes it. Search/filter/order execute in SQL. Sort remains
 `priority, name, id` until a separate matching/order decision.
 
 ## Mutation endpoints

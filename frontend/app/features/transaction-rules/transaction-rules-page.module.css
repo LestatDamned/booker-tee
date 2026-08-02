@@ -1,0 +1,135 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.workbench {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.registryTitle {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: 750;
+}
+
+.toolbarGrid {
+  display: grid;
+  grid-template-columns: minmax(18rem, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.filterForm {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) auto;
+  align-items: end;
+  gap: var(--space-4);
+}
+
+.table th:nth-child(1) {
+  width: 30%;
+}
+
+.table th:nth-child(2) {
+  width: 21%;
+}
+
+.table th:nth-child(3) {
+  width: 29%;
+}
+
+.table th:nth-child(4) {
+  width: 20%;
+}
+
+.priority {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.condition {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.factStack {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.mobileHeading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+}
+
+.table [data-targeted="true"],
+[data-responsive-record][data-targeted="true"] {
+  background: var(--color-bg-interactive);
+  box-shadow: inset 3px 0 0 var(--color-interactive-active);
+  scroll-margin-block: var(--space-8);
+}
+
+.table [data-targeted="true"]:focus,
+[data-responsive-record][data-targeted="true"]:focus {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+@media (max-width: 70rem) {
+  .toolbarGrid {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .toolbarGrid > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 44rem) {
+  .page {
+    gap: var(--space-4);
+  }
+
+  .toolbarGrid,
+  .filterForm {
+    grid-template-columns: 1fr;
+  }
+
+  .statusTabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .statusTabs > a {
+    min-width: 0;
+    padding-inline: var(--space-2);
+    font-size: var(--font-size-xs);
+  }
+
+  .toolbarGrid > button {
+    width: 100%;
+  }
+
+  .mobileHeading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

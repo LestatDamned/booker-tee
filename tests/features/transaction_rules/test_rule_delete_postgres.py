@@ -6,6 +6,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.features.categories.models import Category, CategoryKind
 from app.features.imports.documents.types import (
     ParseAttemptStatus,
     UploadedDocumentStatus,
@@ -13,6 +14,8 @@ from app.features.imports.documents.types import (
 from app.features.imports.models import ParseAttempt, RawTransaction, UploadedDocument
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.transaction_rules.models import TransactionRule
+from app.features.transaction_rules.repository import TransactionRuleRepository
+from app.features.transaction_rules.schemas import TransactionRuleDirectoryStatus
 from app.features.users.models import User
 from app.features.workspaces.domain.types import WorkspaceType
 from app.features.workspaces.models import Workspace
@@ -21,7 +24,7 @@ TEST_DATABASE_URL = os.getenv("BOOKER_TEE_TEST_DATABASE_URL")
 
 pytestmark = pytest.mark.skipif(
     not TEST_DATABASE_URL,
-    reason="BOOKER_TEE_TEST_DATABASE_URL is required for PostgreSQL delete guard tests.",
+    reason="BOOKER_TEE_TEST_DATABASE_URL is required for PostgreSQL rule repository tests.",
 )
 
 
@@ -70,6 +73,83 @@ async def test_workspace_delete_still_cascades_raw_rows_and_rules() -> None:
             assert await session.get(RawTransaction, ids.raw_transaction_id) is None
     finally:
         await delete_rule_suggestion(sessions, ids)
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_directory_sql_filters_counts_orders_pages_and_isolates_workspaces() -> None:
+    assert TEST_DATABASE_URL is not None
+    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    local = await seed_rule_suggestion(sessions)
+    foreign = await seed_rule_suggestion(sessions)
+    category_id = uuid4()
+    active_rule_id = uuid4()
+
+    try:
+        async with sessions() as session:
+            local_rule = await session.get(TransactionRule, local.rule_id)
+            assert local_rule is not None
+            local_rule.category_id = category_id
+            session.add_all(
+                [
+                    Category(
+                        id=category_id,
+                        workspace_id=local.workspace_id,
+                        name="Marketplaces",
+                        kind=CategoryKind.EXPENSE,
+                    ),
+                    TransactionRule(
+                        id=active_rule_id,
+                        workspace_id=local.workspace_id,
+                        name="Alpha market rule",
+                        pattern="TRAVEL",
+                        priority=5,
+                        is_active=True,
+                        category_id=category_id,
+                        created_by_user_id=local.user_id,
+                    ),
+                ]
+            )
+            await session.commit()
+
+        async with sessions() as session:
+            repository = TransactionRuleRepository(session)
+            first = await repository.read_directory(
+                workspace_id=local.workspace_id,
+                search="market",
+                category_id=category_id,
+                status=TransactionRuleDirectoryStatus.ALL,
+                page=1,
+                page_size=1,
+            )
+            second = await repository.read_directory(
+                workspace_id=local.workspace_id,
+                search="market",
+                category_id=category_id,
+                status=TransactionRuleDirectoryStatus.ALL,
+                page=2,
+                page_size=1,
+            )
+            foreign_result = await repository.read_directory(
+                workspace_id=foreign.workspace_id,
+                search=None,
+                category_id=None,
+                status=TransactionRuleDirectoryStatus.ALL,
+                page=1,
+                page_size=50,
+            )
+
+        assert (first.all_count, first.active_count, first.disabled_count) == (2, 1, 1)
+        assert first.total == 2
+        assert first.rows[0].rule.id == active_rule_id
+        assert second.rows[0].rule.id == local.rule_id
+        assert second.rows[0].direct_raw_suggestion_count == 1
+        assert foreign_result.total == 1
+        assert foreign_result.rows[0].rule.id == foreign.rule_id
+    finally:
+        await delete_rule_suggestion(sessions, local)
+        await delete_rule_suggestion(sessions, foreign)
         await engine.dispose()
 
 
