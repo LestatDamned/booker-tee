@@ -26,7 +26,7 @@ workflows вертикальными slices и удалить второй по�
 
 1. [properties](properties/README.md) — completed 2026-08-01;
 2. [categories](categories/README.md) — completed 2026-08-01;
-3. transaction rules — next.
+3. transaction rules — completed 2026-08-02.
 
 ### Wave C: context and administration
 

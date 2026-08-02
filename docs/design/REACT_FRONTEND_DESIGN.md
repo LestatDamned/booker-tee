@@ -256,9 +256,29 @@ posting, lifecycle и authoritative reconciliation.
 - imported correction переиспользует optimistic operation version и меняет
   только разрешенные review fields.
 
+### Transaction Rules
+
+Действующие contracts:
+
+- [`frontend/app/features/transaction-rules/README.md`](../../frontend/app/features/transaction-rules/README.md) —
+  React route, state и interaction ownership;
+- [`src/app/features/transaction_rules/README.md`](../../src/app/features/transaction_rules/README.md) —
+  application/domain, non-browser consumers и financial boundaries.
+
+Ключевые ограничения:
+
+- rule только предлагает/prefill-ит Import Review и не подтверждает ledger;
+- URL владеет directory filters/pagination, local state — drawer, один inline
+  editor и confirmations;
+- workspace access, references, capabilities и concurrency принадлежат server;
+- create идемпотентен, lifecycle влияет на future matching, hard delete
+  разрешён только disabled и directly unreferenced rule;
+- create открывается справа, edit раскрывается под выбранной записью.
+
 ### Remaining workflows
 
-Reports, reference data и administration получают собственный
+Wave C context/administration workflows — workspaces, members, invitations,
+profile и оставшиеся authenticated/integration surfaces — получают собственный
 inventory/API/state/delete manifest до production implementation.
 
 ## Vertical migration

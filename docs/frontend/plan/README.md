@@ -14,6 +14,7 @@ Stage 7 active
 Imports completed
 Accounts and account ledger completed
 Reports completed; canonical UI is React
+Properties, Categories and Transaction Rules completed; canonical UI is React
 ```
 
 ## Completed outcomes
@@ -31,6 +32,7 @@ Reports completed; canonical UI is React
 - `frontend/app/features/manual-ledger/README.md`;
 - `frontend/app/features/import-review/README.md`;
 - `frontend/app/features/accounts/README.md`;
+- `frontend/app/features/transaction-rules/README.md`;
 - server application/domain tests.
 
 ## Current stage
@@ -46,9 +48,39 @@ Child stages:
 - Accounts and account ledger — completed 2026-07-31;
 - [`Reports`](reports/README.md) — completed 2026-07-31;
 - [`Properties`](properties/README.md) — completed 2026-08-01;
-- [`Categories`](categories/README.md) — completed 2026-08-01.
-- [`Transaction Rules`](transaction-rules/README.md) — in progress; Slices 0–6
-  completed 2026-08-02; plan closure Slice 7 next.
+- [`Categories`](categories/README.md) — completed 2026-08-01;
+- Transaction Rules — completed 2026-08-02.
+
+### Transaction Rules completion record
+
+Completed: 2026-08-02
+
+Implemented: workspace-scoped versioned JSON directory/create/edit/seed,
+lifecycle and safe-delete API; canonical responsive React directory; URL-owned
+filters/pagination; right-side create panel; inline row editor; server-owned
+capabilities, concurrency and Import Review semantics.
+
+Checks run: Slice 6 full backend (`716 passed, 6 skipped`), focused Import
+Review/unknown mapping/Chat regressions (`79 passed`), generated API/adapter
+regression (`137 passed`), latest frontend suite (`391 passed`), frontend
+format/lint/styles/typecheck/build and responsive Transaction Rules browser
+audits. The replacement browser flow passed in Mocha and Latte at
+1440/920/390 before final design-only stabilization.
+
+Intentional deviations: dormant legacy fields outside the accepted first
+React form remain server-preserved rather than silently overwritten. The
+temporary `/app` prefix remains until the global Stage 7 routing decision.
+
+Cleanup performed: canonical navigation and cross-feature links moved to
+React; legacy router, presenter, templates, SSR-only adapters/tests,
+rule-specific global hooks and legacy HTML OpenAPI operations removed. The
+detailed child migration plan was deleted after this completion record and the
+durable feature contracts were moved next to code.
+
+Measurements/risks: rules affect only future matching or an explicit Apply
+rules action and never confirm ledger records. Existing suggestions are not
+silently rewritten; hard delete remains limited to disabled, directly
+unreferenced rules with restrictive database provenance protection.
 
 ### Categories completion record
 
@@ -67,8 +99,8 @@ check (`357 passed`) and production build; Mocha/Latte realistic audit for
 directory/detail/redirect at 1440/920/390 (`9/9` pages per theme).
 
 Measurements/risks: directory `19.59 kB` (`6.81 kB` gzip), detail `27.87 kB`
-(`8.91 kB` gzip); Transaction Rules остаётся следующим Wave B workflow и
-сохраняет category domain/API consumers.
+(`8.91 kB` gzip); Transaction Rules subsequently completed without removing
+its category domain/API consumers.
 
 ### Properties completion record
 
