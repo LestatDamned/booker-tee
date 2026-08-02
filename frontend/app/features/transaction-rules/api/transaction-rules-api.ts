@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { components } from "../../../api/generated/schema";
-import { requestJson } from "../../../api/transport";
+import { parseApiError, requestJson } from "../../../api/transport";
 
 export type TransactionRuleDirectoryDto =
   components["schemas"]["TransactionRuleDirectoryApiResponse"];
@@ -9,6 +9,10 @@ export type TransactionRuleSummaryDto =
   components["schemas"]["TransactionRuleSummaryApiResponse"];
 export type TransactionRuleDirectoryStatus =
   components["schemas"]["TransactionRuleDirectoryStatus"];
+export type TransactionRuleCreateRequest =
+  components["schemas"]["TransactionRuleCreateApiRequest"];
+export type TransactionRuleSeedDefaultsDto =
+  components["schemas"]["TransactionRuleSeedDefaultsApiResponse"];
 
 const referenceSchema = z.object({
   id: z.uuid(),
@@ -88,6 +92,28 @@ const directorySchema: z.ZodType<TransactionRuleDirectoryDto> = z.object({
   }),
 });
 
+const createResponseSchema = z.object({
+  item: summarySchema,
+  replayed: z.boolean(),
+});
+
+const seedResponseSchema: z.ZodType<TransactionRuleSeedDefaultsDto> = z.object({
+  createdRules: z.number().int().nonnegative(),
+  existingRules: z.number().int().nonnegative(),
+  createdCategories: z.number().int().nonnegative(),
+});
+
+export type TransactionRuleMutationResult<T> =
+  | { status: "success"; value: T }
+  | {
+      status: "validation_error";
+      fieldErrors: Record<string, string[]>;
+      message: string;
+    }
+  | { status: "conflict"; message: string }
+  | { status: "forbidden"; message: string }
+  | { status: "error"; message: string };
+
 export type TransactionRuleDirectoryLoadResult =
   | { status: "success"; directory: TransactionRuleDirectoryDto }
   | { status: "unauthenticated" }
@@ -118,4 +144,67 @@ export async function loadTransactionRules(
     };
   }
   return { status: "success", directory: parsed.data };
+}
+
+export async function createTransactionRule(
+  request: TransactionRuleCreateRequest,
+  options: { csrfToken: string; idempotencyKey: string },
+): Promise<
+  TransactionRuleMutationResult<{
+    item: TransactionRuleSummaryDto;
+    replayed: boolean;
+  }>
+> {
+  const response = await requestJson("/api/v1/transaction-rules", {
+    body: JSON.stringify(request),
+    headers: {
+      "Content-Type": "application/json",
+      "Idempotency-Key": options.idempotencyKey,
+      "X-CSRF-Token": options.csrfToken,
+    },
+    method: "POST",
+  });
+  return mutationResult(response, createResponseSchema);
+}
+
+export async function seedDefaultTransactionRules(
+  csrfToken: string,
+): Promise<TransactionRuleMutationResult<TransactionRuleSeedDefaultsDto>> {
+  const response = await requestJson(
+    "/api/v1/transaction-rules/seed-defaults",
+    {
+      headers: { "X-CSRF-Token": csrfToken },
+      method: "POST",
+    },
+  );
+  return mutationResult(response, seedResponseSchema);
+}
+
+function mutationResult<T>(
+  response: Awaited<ReturnType<typeof requestJson>>,
+  schema: z.ZodType<T>,
+): TransactionRuleMutationResult<T> {
+  if (response.status === "network_error") {
+    return { status: "error", message: "Backend недоступен." };
+  }
+  if (response.ok) {
+    const parsed = schema.safeParse(response.body);
+    return parsed.success
+      ? { status: "success", value: parsed.data }
+      : { status: "error", message: "API вернул неожиданный ответ." };
+  }
+  const error = parseApiError(response.body);
+  const message = error?.message ?? `API вернул статус ${response.httpStatus}.`;
+  if (response.httpStatus === 422) {
+    return {
+      status: "validation_error",
+      fieldErrors: error?.fieldErrors ?? {},
+      message,
+    };
+  }
+  if (response.httpStatus === 409) return { status: "conflict", message };
+  if (response.httpStatus === 401 || response.httpStatus === 403) {
+    return { status: "forbidden", message };
+  }
+  return { status: "error", message };
 }

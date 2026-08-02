@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
@@ -6,12 +6,14 @@ import { AppShell } from "../../shell/app-shell";
 import { AppliedFilterSummary } from "../../ui/applied-filter-summary/applied-filter-summary";
 import { Badge } from "../../ui/badge/badge";
 import { Button } from "../../ui/button/button";
+import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
 import { Field } from "../../ui/field/field";
 import { FormActions } from "../../ui/field/form-layout";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
 import { ResponsiveRecordCollection } from "../../ui/responsive-record-collection/responsive-record-collection";
+import { ToastViewport } from "../../ui/toast/toast";
 import {
   SelectionTabLink,
   SelectionTabs,
@@ -26,6 +28,7 @@ import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import { WorkbenchSearch } from "../../ui/workbench-toolbar/workbench-search";
 import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
 import type { TransactionRuleDirectoryDto } from "./api/transaction-rules-api";
+import { TransactionRuleCreatePanel } from "./transaction-rule-create-panel";
 import {
   transactionRuleAppliedFilters,
   transactionRuleFilterUrl,
@@ -42,14 +45,17 @@ import {
   TransactionRuleTable,
 } from "./transaction-rule-records";
 import styles from "./transaction-rules-page.module.css";
+import { useTransactionRuleMutations } from "./use-transaction-rule-mutations";
 
 export function TransactionRulesPage({
   directory,
   navigationPending = false,
+  onReload,
   session,
 }: {
   directory: TransactionRuleDirectoryDto;
   navigationPending?: boolean;
+  onReload?: () => void;
   session: SessionDto;
 }) {
   const location = useLocation();
@@ -57,11 +63,21 @@ export function TransactionRulesPage({
   const query = transactionRuleListQuery(location.search);
   const canonicalSearch = transactionRuleListSearch(query);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const createTriggerRef = useRef<HTMLButtonElement>(null);
+  const seedTriggerRef = useRef<HTMLButtonElement>(null);
+  const mutations = useTransactionRuleMutations({
+    csrfToken: session.csrfToken,
+    directory,
+    navigate,
+    ...(onReload ? { onReload } : {}),
+    pathname: location.pathname,
+  });
+  const { snapshot } = mutations;
   const [categoryDraft, setCategoryDraft] = useState(query.categoryId);
-  const appliedFilters = transactionRuleAppliedFilters(directory);
+  const appliedFilters = transactionRuleAppliedFilters(snapshot);
   const targetId = ruleTargetId(location.hash);
   const targetFound =
-    targetId === null || directory.items.some((rule) => rule.id === targetId);
+    targetId === null || snapshot.items.some((rule) => rule.id === targetId);
 
   useEffect(() => {
     if (canonicalSearch === location.search) return;
@@ -121,18 +137,19 @@ export function TransactionRulesPage({
       <PageFrame className={styles.page} spacing="none">
         <PageHeader
           description="Условия, которые готовят предложения для Import Review, не обходя пользовательское подтверждение."
-          eyebrow={ruleCountLabel(directory.counts.all)}
+          eyebrow={ruleCountLabel(snapshot.counts.all)}
           title="Правила операций"
         />
 
-        <InlineNotice
-          title="Каталог React пока работает только для чтения"
-          tone="information"
-        >
-          {directory.capabilities.readonlyReasonCode
-            ? "Просматривать смысл правил можно с вашей ролью; изменение финансовых настроек недоступно."
-            : "Создание, изменение и жизненный цикл остаются на действующей странице до следующих этапов миграции."}
-        </InlineNotice>
+        {snapshot.capabilities.readonlyReasonCode ? (
+          <InlineNotice
+            title="Правила доступны только для просмотра"
+            tone="information"
+          >
+            Просматривать смысл правил можно с вашей ролью; изменение финансовых
+            настроек недоступно.
+          </InlineNotice>
+        ) : null}
 
         {!targetFound ? (
           <InlineNotice
@@ -150,7 +167,20 @@ export function TransactionRulesPage({
           className={styles.workbench}
         >
           <WorkbenchHeader>
-            <span className={styles.registryTitle}>Каталог правил</span>
+            <div className={styles.registryHeading}>
+              <span className={styles.registryTitle}>Каталог правил</span>
+              {snapshot.capabilities.canSeedDefaults ? (
+                <Button
+                  ref={seedTriggerRef}
+                  disabled={mutations.seedPending}
+                  icon="rules"
+                  onClick={mutations.openSeed}
+                  tone="secondary"
+                >
+                  Базовые правила
+                </Button>
+              ) : null}
+            </div>
           </WorkbenchHeader>
           <WorkbenchToolbar>
             <div className={styles.toolbarGrid}>
@@ -170,21 +200,21 @@ export function TransactionRulesPage({
                 className={styles.statusTabs}
               >
                 <SelectionTabLink
-                  count={directory.counts.all}
+                  count={snapshot.counts.all}
                   selected={query.status === "all"}
                   to={transactionRuleStatusUrl(location.search, "all")}
                 >
                   Все
                 </SelectionTabLink>
                 <SelectionTabLink
-                  count={directory.counts.active}
+                  count={snapshot.counts.active}
                   selected={query.status === "active"}
                   to={transactionRuleStatusUrl(location.search, "active")}
                 >
                   Активные
                 </SelectionTabLink>
                 <SelectionTabLink
-                  count={directory.counts.disabled}
+                  count={snapshot.counts.disabled}
                   selected={query.status === "disabled"}
                   to={transactionRuleStatusUrl(location.search, "disabled")}
                 >
@@ -200,6 +230,17 @@ export function TransactionRulesPage({
                 Фильтры
                 {query.categoryId ? <Badge>1</Badge> : null}
               </Button>
+              {snapshot.capabilities.canCreate ? (
+                <Button
+                  ref={createTriggerRef}
+                  aria-haspopup="dialog"
+                  icon="plus"
+                  onClick={mutations.openCreate}
+                  tone="primary"
+                >
+                  Новое правило
+                </Button>
+              ) : null}
             </div>
             <AppliedFilterSummary
               filters={filtersOpen ? [] : appliedFilters}
@@ -222,7 +263,7 @@ export function TransactionRulesPage({
                     value={categoryDraft}
                   >
                     <option value="">Все категории</option>
-                    {directory.references.categories.map((category) => (
+                    {snapshot.references.categories.map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.name}
                         {category.isActive ? "" : " · архив"}
@@ -247,9 +288,9 @@ export function TransactionRulesPage({
           </WorkbenchStatus>
           <WorkbenchContent
             aria-label="Правила операций"
-            isEmpty={directory.items.length === 0}
+            isEmpty={snapshot.items.length === 0}
           >
-            {directory.items.length === 0 ? (
+            {snapshot.items.length === 0 ? (
               <WorkbenchEmptyState
                 icon={appliedFilters.length ? "search" : "rules"}
                 kind={appliedFilters.length ? "filtered" : "primary"}
@@ -261,19 +302,19 @@ export function TransactionRulesPage({
               >
                 {appliedFilters.length
                   ? "Измените поиск или категорию результата."
-                  : "Правила появятся здесь после создания на действующей странице управления."}
+                  : "Создайте первое правило или добавьте недостающий базовый набор."}
               </WorkbenchEmptyState>
             ) : (
               <ResponsiveRecordCollection
                 mobileList={
                   <TransactionRuleMobileList
-                    rules={directory.items}
+                    rules={snapshot.items}
                     targetId={targetId}
                   />
                 }
                 table={
                   <TransactionRuleTable
-                    rules={directory.items}
+                    rules={snapshot.items}
                     targetId={targetId}
                   />
                 }
@@ -282,12 +323,12 @@ export function TransactionRulesPage({
           </WorkbenchContent>
           <WorkbenchPagination
             ariaLabel="Страницы правил"
-            currentPage={directory.page.page}
+            currentPage={snapshot.page.page}
             getPageHref={(page) =>
               transactionRulePageUrl(location.search, page)
             }
-            hasNext={directory.page.hasNext}
-            hasPrevious={directory.page.hasPrevious}
+            hasNext={snapshot.page.hasNext}
+            hasPrevious={snapshot.page.hasPrevious}
             pageSize={{
               disabled: navigationPending,
               id: "transaction-rule-page-size",
@@ -296,16 +337,47 @@ export function TransactionRulesPage({
                   transactionRulePageSizeUrl(location.search, pageSize),
                 ),
               options: [25, 50, 100],
-              value: directory.page.pageSize,
+              value: snapshot.page.pageSize,
             }}
             summary={transactionRuleRangeLabel(
-              directory.page.page,
-              directory.page.pageSize,
-              directory.page.total,
+              snapshot.page.page,
+              snapshot.page.pageSize,
+              snapshot.page.total,
             )}
-            totalPages={directory.page.totalPages}
+            totalPages={snapshot.page.totalPages}
           />
         </WorkbenchSurface>
+        {mutations.createOpen ? (
+          <TransactionRuleCreatePanel
+            csrfToken={session.csrfToken}
+            onClose={mutations.closeCreate}
+            onCreated={mutations.ruleCreated}
+            references={snapshot.references}
+          />
+        ) : null}
+        {mutations.seedConfirmOpen ? (
+          <ConfirmationDialog
+            confirmLabel="Добавить недостающие"
+            confirmTone="primary"
+            description="Будут созданы только отсутствующие базовые категории и правила. Существующие правила, режимы и состояния не изменятся."
+            disabled={mutations.seedPending}
+            onCancel={mutations.closeSeed}
+            onConfirm={() => void mutations.seedDefaults()}
+            pending={mutations.seedPending}
+            returnFocusRef={seedTriggerRef}
+            title="Добавить базовые правила?"
+          >
+            {mutations.seedError ? (
+              <InlineNotice title="Не удалось добавить правила" tone="danger">
+                {mutations.seedError}
+              </InlineNotice>
+            ) : null}
+          </ConfirmationDialog>
+        ) : null}
+        <ToastViewport
+          onDismiss={mutations.dismissToast}
+          toast={mutations.toast}
+        />
       </PageFrame>
     </AppShell>
   );

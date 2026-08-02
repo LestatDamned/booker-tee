@@ -95,19 +95,23 @@ class TransactionRuleTargetResolver:
         if category is not None and not category.is_active:
             retained = retained_rule is not None and retained_rule.category_id == category.id
             if not retained:
-                raise error_type("Category is not available for an active rule.")
+                raise error_type(
+                    "Category is not available for an active rule.", field="categoryId"
+                )
 
         property_ = await self._property(workspace_id, property_id, error_type)
         if property_ is not None and property_.status != PropertyStatus.ACTIVE:
             retained = retained_rule is not None and retained_rule.property_id == property_.id
             if not retained:
-                raise error_type("Property is not available for an active rule.")
+                raise error_type(
+                    "Property is not available for an active rule.", field="propertyId"
+                )
 
         account = await self._account(workspace_id, account_id, error_type)
         if account is not None and not account.is_active:
             retained = retained_rule is not None and retained_rule.account_id == account.id
             if not retained:
-                raise error_type("Account is not available for an active rule.")
+                raise error_type("Account is not available for an active rule.", field="accountId")
 
         return ResolvedTransactionRuleTargets(
             category=category,
@@ -125,7 +129,7 @@ class TransactionRuleTargetResolver:
             return None
         category = await self.categories.get_for_workspace(workspace_id, category_id)
         if category is None:
-            raise error_type("Category is not available in this workspace.")
+            raise error_type("Category is not available in this workspace.", field="categoryId")
         return category
 
     async def _property(
@@ -138,7 +142,7 @@ class TransactionRuleTargetResolver:
             return None
         property_ = await self.properties.get_for_workspace(workspace_id, property_id)
         if property_ is None:
-            raise error_type("Property is not available in this workspace.")
+            raise error_type("Property is not available in this workspace.", field="propertyId")
         return property_
 
     async def _account(
@@ -151,5 +155,5 @@ class TransactionRuleTargetResolver:
             return None
         account = await self.accounts.get_for_workspace(workspace_id, account_id)
         if account is None:
-            raise error_type("Account is not available in this workspace.")
+            raise error_type("Account is not available in this workspace.", field="accountId")
         return account

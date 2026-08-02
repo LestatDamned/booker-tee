@@ -149,6 +149,7 @@ def parse_args() -> argparse.Namespace:
             "design_audit",
             "theme_audit",
             "reports_stress",
+            "transaction_rules_interactions",
         ),
         default="empty",
         help="Data scenario to prepare before auditing authenticated pages.",
@@ -751,6 +752,9 @@ def collect_ux_assertions(
     if scenario == "button_audit":
         errors.extend(assert_safe_click_interactions(page, base_url=base_url))
 
+    if scenario == "transaction_rules_interactions" and path == "/app/rules":
+        errors.extend(assert_transaction_rules_interactions(page))
+
     if scenario == "design_audit":
         errors.extend(assert_design_quality(page, path=path))
 
@@ -764,6 +768,68 @@ def collect_ux_assertions(
             )
         )
 
+    return errors
+
+
+def assert_transaction_rules_interactions(page: Page) -> list[str]:
+    errors: list[str] = []
+    create = page.get_by_role("button", name="Новое правило", exact=True)
+    if create.count() != 1:
+        return ["Transaction Rules create trigger was not found"]
+    create.click(timeout=PAGE_TIMEOUT_MS)
+    panel = page.get_by_role("dialog", name="Новое правило", exact=True)
+    try:
+        panel.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        return [f"Transaction Rules create drawer did not open: {short_error(exc)}"]
+
+    geometry = panel.evaluate(
+        """
+        (element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            left: rect.left,
+            right: rect.right,
+            viewportWidth: window.innerWidth,
+            documentOverflow: document.documentElement.scrollWidth - window.innerWidth,
+          };
+        }
+        """
+    )
+    if abs(float(geometry["right"]) - float(geometry["viewportWidth"])) > 1:
+        errors.append(f"Transaction Rules create drawer is not attached right: {geometry!r}")
+    if float(geometry["left"]) < -1 or float(geometry["documentOverflow"]) > 1:
+        errors.append(f"Transaction Rules create drawer overflows viewport: {geometry!r}")
+
+    for label in ("Условие", "Название", "Тип операции", "Категория", "Объект", "Режим"):
+        if panel.get_by_label(label, exact=False).count() != 1:
+            errors.append(f"Transaction Rules create field {label!r} was not found")
+    if panel.get_by_text("Подтверждение останется в Import Review.", exact=False).count() != 1:
+        errors.append("Transaction Rules create preview does not preserve review semantics")
+
+    pattern = panel.get_by_label("Условие", exact=False)
+    pattern.fill("UI AUDIT DRAFT")
+    panel.get_by_role("button", name="Отмена", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+    discard = page.get_by_role("dialog", name="Закрыть создание правила?", exact=True)
+    if discard.count() != 1:
+        errors.append("Transaction Rules dirty create does not request confirmation")
+    else:
+        discard.get_by_role("button", name="Закрыть без сохранения", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+
+    seed = page.get_by_role("button", name="Базовые правила", exact=True)
+    if seed.count() != 1:
+        errors.append("Transaction Rules seed trigger was not found")
+    else:
+        seed.click(timeout=PAGE_TIMEOUT_MS)
+        confirmation = page.get_by_role("dialog", name="Добавить базовые правила?", exact=True)
+        if confirmation.count() != 1:
+            errors.append("Transaction Rules seed confirmation did not open")
+        else:
+            confirmation.get_by_role("button", name="Отмена", exact=True).click(
+                timeout=PAGE_TIMEOUT_MS
+            )
     return errors
 
 

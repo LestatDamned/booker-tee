@@ -133,6 +133,12 @@ committed `TransactionRuleSummaryApiResponse`.
 
 Create rules:
 
+- require UUID `Idempotency-Key`; API rule id is deterministically derived
+  from workspace and key, so the same key is isolated between workspaces;
+- exact normalized replay returns the same committed rule with `replayed=true`;
+- reuse with a different payload returns
+  `transaction_rule_create_replay_conflict`;
+
 - normalize whitespace but reject >255 rather than silently truncate;
 - require pattern whose matching normalization is non-empty;
 - amount bounds are non-negative Decimal strings and `min <= max`;

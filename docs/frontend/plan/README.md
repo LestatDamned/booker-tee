@@ -47,8 +47,8 @@ Child stages:
 - [`Reports`](reports/README.md) — completed 2026-07-31;
 - [`Properties`](properties/README.md) — completed 2026-08-01;
 - [`Categories`](categories/README.md) — completed 2026-08-01.
-- [`Transaction Rules`](transaction-rules/README.md) — in progress; Slice 0
-  and read-only Slice 1 completed 2026-08-02; Slice 2 next.
+- [`Transaction Rules`](transaction-rules/README.md) — in progress; Slices 0–2
+  completed 2026-08-02; inline edit Slice 3 next.
 
 ### Categories completion record
 

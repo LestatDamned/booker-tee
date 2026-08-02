@@ -62,31 +62,31 @@ Exit gate:
   1440/920/390 across Mocha, Latte and test themes without page overflow;
 - [x] viewer sees complete rule meaning and no mutation controls.
 
-## Slice 2 — Create and seed defaults
+## Slice 2 — Create and seed defaults — completed 2026-08-02
 
 User outcome: writer creates one reviewed rule or explicitly loads missing
 defaults with truthful summary.
 
 Server:
 
-- create request/response/error/idempotency contract;
-- seed defaults request and result counts;
-- full target/amount/pattern validation;
-- no silent reuse or mutation of existing rule.
+- [x] create request/response/error/idempotency contract;
+- [x] seed defaults request and result counts;
+- [x] full target/amount/pattern validation;
+- [x] no silent reuse or mutation of existing rule.
 
 React:
 
-- `WorkbenchPanel` create form and condition/outcome preview;
-- pending/error summary/focus/draft preservation/unsaved close confirmation;
-- stable new-rule anchor and Toast;
-- secondary seed confirmation, pending, summary Toast and authoritative reload.
+- [x] right-side `WorkbenchPanel` create form and condition/outcome preview;
+- [x] pending/error summary/focus/draft preservation/unsaved close confirmation;
+- [x] stable new-rule anchor and Toast;
+- [x] secondary seed confirmation, pending, summary Toast and authoritative reload.
 
 Exit gate:
 
-- repeat/lost-response behavior is safe;
-- seeding twice creates no duplicate and changes no existing rule;
-- viewer cannot invoke mutation through hidden/manual API request;
-- current SSR create/seed still work until cutover.
+- [x] repeat/lost-response behavior is safe;
+- [x] seeding twice creates no duplicate and changes no existing rule;
+- [x] viewer cannot invoke mutation through hidden/manual API request;
+- [x] current SSR create/seed still work until cutover.
 
 ## Slice 3 — Edit
 
@@ -101,7 +101,7 @@ Server:
 
 React:
 
-- only one `ExpansionPanel` editor open;
+- only one `ExpansionPanel` editor open directly below its record row;
 - focus return, unsaved switch/close confirmation;
 - local draft, field errors, reload-and-retry on conflict;
 - committed row replacement and Toast.

@@ -1,8 +1,9 @@
 from uuid import uuid4
 
-from transaction_rules_support import transaction_rules_app
+from transaction_rules_support import transaction_rules_app, transaction_rules_mutation_app
 
 from api_client import ApiTestClient as TestClient
+from app.features.transaction_rules.application.commands import CreateTransactionRuleCommand
 from app.features.transaction_rules.schemas import TransactionRuleDirectoryStatus
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.main import create_app
@@ -96,3 +97,66 @@ def test_transaction_rule_directory_rejects_invalid_filters_without_calling_read
     assert invalid_category.status_code == 400
     assert invalid_status.json()["error"]["code"] == "invalid_transaction_rule_filter"
     assert reader.calls == []
+
+
+def test_create_transaction_rule_maps_command_and_returns_committed_summary() -> None:
+    app, mutations = transaction_rules_mutation_app()
+    idempotency_key = uuid4()
+    category_id = uuid4()
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/transaction-rules",
+            headers={"Idempotency-Key": str(idempotency_key)},
+            json={
+                "name": "  Ozon purchases  ",
+                "pattern": " OZON ",
+                "matchType": "contains",
+                "direction": "outflow",
+                "amountMin": "100.00",
+                "amountMax": "500.00",
+                "operationType": "expense",
+                "categoryId": str(category_id),
+                "propertyId": None,
+                "applicationMode": "suggest",
+            },
+        )
+
+    assert response.status_code == 201
+    assert response.json()["item"]["id"]
+    assert response.json()["replayed"] is False
+    action, call = mutations.calls[0]
+    assert action == "create"
+    assert call["idempotency_key"] == idempotency_key
+    command = call["command"]
+    assert isinstance(command, CreateTransactionRuleCommand)
+    assert command.category_id == category_id
+    assert str(command.amount_min) == "100.00"
+
+
+def test_create_and_seed_require_writer_and_valid_payload() -> None:
+    viewer_app, viewer = transaction_rules_mutation_app(role=WorkspaceRole.VIEWER)
+    owner_app, owner = transaction_rules_mutation_app()
+
+    with TestClient(viewer_app) as client:
+        forbidden = client.post(
+            "/api/v1/transaction-rules/seed-defaults",
+        )
+    with TestClient(owner_app) as client:
+        invalid = client.post(
+            "/api/v1/transaction-rules",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={"pattern": "", "matchType": "contains"},
+        )
+        seeded = client.post("/api/v1/transaction-rules/seed-defaults")
+
+    assert forbidden.status_code == 403
+    assert viewer.calls == []
+    assert invalid.status_code == 422
+    assert len(owner.calls) == 1
+    assert owner.calls[0][0] == "seed"
+    assert seeded.json() == {
+        "createdRules": 3,
+        "existingRules": 50,
+        "createdCategories": 1,
+    }

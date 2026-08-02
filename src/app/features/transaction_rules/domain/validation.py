@@ -37,15 +37,21 @@ def validate_transaction_rule_fields(
 ) -> ValidatedTransactionRuleFields:
     cleaned_pattern = clean_rule_name(pattern)
     if cleaned_pattern is None:
-        raise TransactionRuleValidationError("Rule pattern is required.")
+        raise TransactionRuleValidationError("Rule pattern is required.", field="pattern")
     if len(cleaned_pattern) > RULE_TEXT_MAX_LENGTH:
-        raise TransactionRuleValidationError("Rule pattern must be 255 characters or fewer.")
+        raise TransactionRuleValidationError(
+            "Rule pattern must be 255 characters or fewer.", field="pattern"
+        )
     if not normalized_text(cleaned_pattern):
-        raise TransactionRuleValidationError("Rule pattern must contain searchable text.")
+        raise TransactionRuleValidationError(
+            "Rule pattern must contain searchable text.", field="pattern"
+        )
 
     cleaned_name = clean_rule_name(name)
     if cleaned_name is not None and len(cleaned_name) > RULE_TEXT_MAX_LENGTH:
-        raise TransactionRuleValidationError("Rule name must be 255 characters or fewer.")
+        raise TransactionRuleValidationError(
+            "Rule name must be 255 characters or fewer.", field="name"
+        )
     if cleaned_name is None:
         cleaned_name = build_rule_name(
             pattern=cleaned_pattern,
@@ -73,16 +79,27 @@ def validate_amount_range(
         if amount is None:
             continue
         if not amount.is_finite():
-            raise TransactionRuleValidationError(f"{label} must be finite.")
+            raise TransactionRuleValidationError(
+                f"{label} must be finite.", field=_amount_field(label)
+            )
         if amount < Decimal("0"):
-            raise TransactionRuleValidationError(f"{label} cannot be negative.")
+            raise TransactionRuleValidationError(
+                f"{label} cannot be negative.", field=_amount_field(label)
+            )
         if amount > RULE_AMOUNT_MAX:
-            raise TransactionRuleValidationError(f"{label} is too large.")
+            raise TransactionRuleValidationError(
+                f"{label} is too large.", field=_amount_field(label)
+            )
         if amount != amount.quantize(Decimal("0.01")):
             raise TransactionRuleValidationError(
-                f"{label} must have no more than two decimal places."
+                f"{label} must have no more than two decimal places.",
+                field=_amount_field(label),
             )
     if amount_min is not None and amount_max is not None and amount_min > amount_max:
         raise TransactionRuleValidationError(
-            "Minimum amount cannot be greater than maximum amount."
+            "Minimum amount cannot be greater than maximum amount.", field="amountMax"
         )
+
+
+def _amount_field(label: str) -> str:
+    return "amountMin" if label == "Minimum amount" else "amountMax"

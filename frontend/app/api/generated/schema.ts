@@ -636,7 +636,25 @@ export interface paths {
         /** List Transaction Rules */
         get: operations["list_transaction_rules_api_v1_transaction_rules_get"];
         put?: never;
-        post?: never;
+        /** Create Transaction Rule */
+        post: operations["create_transaction_rule_api_v1_transaction_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transaction-rules/seed-defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Seed Default Transaction Rules */
+        post: operations["seed_default_transaction_rules_api_v1_transaction_rules_seed_defaults_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3648,6 +3666,31 @@ export interface components {
             /** Disabled */
             disabled: number;
         };
+        /** TransactionRuleCreateApiRequest */
+        TransactionRuleCreateApiRequest: {
+            /** Name */
+            name?: string | null;
+            /** Pattern */
+            pattern: string;
+            matchType: components["schemas"]["TransactionRuleMatchType"];
+            direction: components["schemas"]["MoneyDirection"];
+            /** Amountmin */
+            amountMin?: number | string | null;
+            /** Amountmax */
+            amountMax?: number | string | null;
+            operationType?: components["schemas"]["OperationType"] | null;
+            /** Categoryid */
+            categoryId?: string | null;
+            /** Propertyid */
+            propertyId?: string | null;
+            applicationMode: components["schemas"]["TransactionRuleApplicationMode"];
+        };
+        /** TransactionRuleCreateApiResponse */
+        TransactionRuleCreateApiResponse: {
+            item: components["schemas"]["TransactionRuleSummaryApiResponse"];
+            /** Replayed */
+            replayed: boolean;
+        };
         /**
          * TransactionRuleDeleteBlockedReason
          * @enum {string}
@@ -3735,6 +3778,15 @@ export interface components {
             categories: components["schemas"]["TransactionRuleReferenceApiResponse"][];
             /** Properties */
             properties: components["schemas"]["TransactionRuleReferenceApiResponse"][];
+        };
+        /** TransactionRuleSeedDefaultsApiResponse */
+        TransactionRuleSeedDefaultsApiResponse: {
+            /** Createdrules */
+            createdRules: number;
+            /** Existingrules */
+            existingRules: number;
+            /** Createdcategories */
+            createdCategories: number;
         };
         /** TransactionRuleSummaryApiResponse */
         TransactionRuleSummaryApiResponse: {
@@ -6926,6 +6978,115 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_transaction_rule_api_v1_transaction_rules_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransactionRuleCreateApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionRuleCreateApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    seed_default_transaction_rules_api_v1_transaction_rules_seed_defaults_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionRuleSeedDefaultsApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };

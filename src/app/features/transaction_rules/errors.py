@@ -10,6 +10,12 @@ class TransactionRuleNotFoundError(TransactionRuleError):
 
 
 class TransactionRuleValidationError(TransactionRuleError):
+    def __init__(self, message: str, *, field: str | None = None) -> None:
+        super().__init__(message)
+        self.field = field
+
+
+class TransactionRuleCreateReplayConflictError(TransactionRuleError):
     pass
 
 

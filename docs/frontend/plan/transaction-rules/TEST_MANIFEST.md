@@ -190,6 +190,22 @@ broken focus, hidden sticky content or theme geometry differences.
 
 ## Commands at implementation completion
 
+### Slice 2 evidence — 2026-08-02
+
+- focused Transaction Rules backend: `59 passed`, PostgreSQL contracts:
+  `4 passed`;
+- full backend: `718 passed, 5 skipped` (PostgreSQL-only cases отдельно
+  прошли на временной актуальной схеме);
+- frontend: `59` files, `373` tests, API drift/type/lint/styles и production
+  SPA build passed;
+- directory geometry: `9/9` at 1440/920/390 across Mocha/Latte/test;
+- non-mutating create drawer/dirty-close/seed confirmation interaction audit:
+  `3/3` at 1440/920/390.
+
+Temporary PostgreSQL database was removed after the focused run.
+
+## Commands at migration completion
+
 Backend, proportionate focused tests first, then:
 
 ```bash

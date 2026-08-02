@@ -2,6 +2,8 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
+from pydantic import Field
+
 from app.api.schemas import ApiModel
 from app.features.ledger.models import OperationType
 from app.features.transaction_rules.models import (
@@ -105,3 +107,27 @@ class TransactionRuleDirectoryApiResponse(ApiModel):
     applied_filters: TransactionRuleAppliedFiltersApiResponse
     references: TransactionRuleReferencesApiResponse
     capabilities: TransactionRuleDirectoryCapabilitiesApiResponse
+
+
+class TransactionRuleCreateApiRequest(ApiModel):
+    name: str | None = Field(default=None, max_length=255)
+    pattern: str = Field(min_length=1, max_length=255)
+    match_type: TransactionRuleMatchType
+    direction: MoneyDirection
+    amount_min: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    amount_max: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    operation_type: OperationType | None = None
+    category_id: UUID | None = None
+    property_id: UUID | None = None
+    application_mode: TransactionRuleApplicationMode
+
+
+class TransactionRuleCreateApiResponse(ApiModel):
+    item: TransactionRuleSummaryApiResponse
+    replayed: bool
+
+
+class TransactionRuleSeedDefaultsApiResponse(ApiModel):
+    created_rules: int
+    existing_rules: int
+    created_categories: int

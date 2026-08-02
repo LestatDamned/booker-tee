@@ -1,7 +1,7 @@
 # Transaction Rules React migration
 
 Статус: `in progress`; аудит завершён 2026-08-01, решения D1–D7 приняты
-2026-08-02, Slice 0 и read-only Slice 1 завершены 2026-08-02.
+2026-08-02, Slices 0–2 завершены 2026-08-02.
 
 ## Цель
 
@@ -61,7 +61,25 @@ Slice 1 read-only directory завершён 2026-08-02:
   Mocha/Latte/test theme без overflow или console/request errors;
 - canonical navigation и Categories links остаются на SSR до Slice 6.
 
-Следующий этап — Slice 2: create и explicit seed defaults.
+Slice 2 create и explicit seed defaults завершён 2026-08-02:
+
+- `POST /api/v1/transaction-rules` использует обязательный Idempotency-Key;
+  детерминированный workspace-scoped id безопасно повторяет точный payload и
+  отвергает reuse ключа с другим правилом;
+- создание доступно в правой `WorkbenchPanel`: полный SSR-equivalent набор
+  полей, preview, client/server validation, pending, сохранение draft,
+  подтверждение закрытия, Toast и stable anchor;
+- `POST /api/v1/transaction-rules/seed-defaults` вызывается только после
+  подтверждения, создаёт только отсутствующее и возвращает truthful counts;
+- viewer mutations закрыты server permission dependency, а UI не показывает
+  create/seed controls;
+- SSR create/seed остаются рабочими до cutover Slice 6.
+- browser geometry audit прошёл 9/9 комбинаций 1440/920/390 ×
+  Mocha/Latte/test theme; отдельный interaction audit create drawer,
+  dirty-close и seed confirmation прошёл 3/3 без выполнения mutations.
+
+Следующий этап — Slice 3: редактирование в `ExpansionPanel` непосредственно под
+строкой правила; одновременно открывается только одна форма.
 
 ## Краткий вывод аудита
 
@@ -217,5 +235,5 @@ Default `status=all`, `page=1`, `page_size=50`; допустимые page sizes 
 
 ## Approval record
 
-D1–D7 приняты пользователем 2026-08-02. Slice 0 и Slice 1 завершены; legacy SSR
+D1–D7 приняты пользователем 2026-08-02. Slices 0–2 завершены; legacy SSR
 остаётся canonical до replacement gate Slice 6.

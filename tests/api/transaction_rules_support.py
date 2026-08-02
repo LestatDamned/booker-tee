@@ -8,8 +8,13 @@ from manual_ledger_support import api_context
 from app.api.dependencies import get_api_request_context
 from app.api.v1.transaction_rules.dependencies import (
     get_transaction_rule_directory_reader,
+    get_transaction_rule_mutation_service,
 )
 from app.features.ledger.models import OperationType
+from app.features.transaction_rules.application.mutations import (
+    TransactionRuleCreateResult,
+    TransactionRuleSeedDefaultsResult,
+)
 from app.features.transaction_rules.models import (
     MoneyDirection,
     TransactionRuleApplicationMode,
@@ -46,6 +51,29 @@ class TransactionRuleDirectoryReaderStub:
         return self.directory
 
 
+class TransactionRuleMutationServiceStub:
+    def __init__(self, item: TransactionRuleSummaryDto) -> None:
+        self.item = item
+        self.calls: list[tuple[str, dict[str, object]]] = []
+        self.error: Exception | None = None
+
+    async def create(self, **kwargs: object) -> TransactionRuleCreateResult:
+        self.calls.append(("create", kwargs))
+        if self.error is not None:
+            raise self.error
+        return TransactionRuleCreateResult(item=self.item, replayed=False)
+
+    async def seed_defaults(self, **kwargs: object) -> TransactionRuleSeedDefaultsResult:
+        self.calls.append(("seed", kwargs))
+        if self.error is not None:
+            raise self.error
+        return TransactionRuleSeedDefaultsResult(
+            created_rules=3,
+            existing_rules=50,
+            created_categories=1,
+        )
+
+
 def transaction_rules_app(
     *,
     role: WorkspaceRole = WorkspaceRole.OWNER,
@@ -61,6 +89,15 @@ def transaction_rules_app(
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_transaction_rule_directory_reader] = lambda: reader
     return app, reader, context.workspace.workspace.id
+
+
+def transaction_rules_mutation_app(
+    *, role: WorkspaceRole = WorkspaceRole.OWNER
+) -> tuple[FastAPI, TransactionRuleMutationServiceStub]:
+    app, reader, _ = transaction_rules_app(role=role)
+    mutations = TransactionRuleMutationServiceStub(reader.directory.items[0])
+    app.dependency_overrides[get_transaction_rule_mutation_service] = lambda: mutations
+    return app, mutations
 
 
 def directory(*, can_write: bool = True) -> TransactionRuleDirectoryDto:

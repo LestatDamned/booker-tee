@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid5
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +20,7 @@ from app.features.transaction_rules.domain.matching import (
 from app.features.transaction_rules.domain.patterns import infer_rule_pattern
 from app.features.transaction_rules.domain.validation import validate_transaction_rule_fields
 from app.features.transaction_rules.errors import (
+    TransactionRuleCreateReplayConflictError,
     TransactionRuleDeleteBlockedError,
     TransactionRuleDeleteDependencies,
     TransactionRuleLifecycleConflictError,
@@ -39,6 +40,12 @@ from app.features.workspaces.service import WorkspaceContext
 class DeletedTransactionRule:
     id: UUID
     name: str
+
+
+@dataclass(frozen=True)
+class CreatedTransactionRule:
+    rule: TransactionRule
+    replayed: bool
 
 
 class TransactionRuleManagementUseCase:
@@ -62,11 +69,49 @@ class TransactionRuleManagementUseCase:
             await self.session.rollback()
             raise
 
+    async def create_rule_idempotently(
+        self,
+        *,
+        context: WorkspaceContext,
+        command: CreateTransactionRuleCommand,
+        idempotency_key: UUID,
+    ) -> CreatedTransactionRule:
+        rule_id = uuid5(
+            context.workspace.id,
+            f"transaction-rule-create:{idempotency_key}",
+        )
+        existing = await self.rules.get_for_workspace(context.workspace.id, rule_id)
+        if existing is not None:
+            self._validate_create_replay(existing, command)
+            return CreatedTransactionRule(rule=existing, replayed=True)
+        try:
+            rule = await self.create_rule_in_transaction(
+                context=context,
+                command=command,
+                rule_id=rule_id,
+            )
+            await self.session.commit()
+            created = await self.rules.get_for_workspace(context.workspace.id, rule.id)
+            if created is None:
+                raise TransactionRuleNotFoundError("Created rule is not available.")
+            return CreatedTransactionRule(rule=created, replayed=False)
+        except IntegrityError:
+            await self.session.rollback()
+            existing = await self.rules.get_for_workspace(context.workspace.id, rule_id)
+            if existing is None:
+                raise
+            self._validate_create_replay(existing, command)
+            return CreatedTransactionRule(rule=existing, replayed=True)
+        except Exception:
+            await self.session.rollback()
+            raise
+
     async def create_rule_in_transaction(
         self,
         *,
         context: WorkspaceContext,
         command: CreateTransactionRuleCommand,
+        rule_id: UUID | None = None,
     ) -> TransactionRule:
         """Create and flush a rule without taking ownership of the transaction."""
         targets = await self.targets.resolve_for_create(
@@ -85,25 +130,26 @@ class TransactionRuleManagementUseCase:
             amount_max=command.amount_max,
             auto_description=command.auto_description,
         )
-        return await self.rules.create(
-            TransactionRule(
-                workspace_id=context.workspace.id,
-                name=fields.name,
-                match_type=command.match_type,
-                pattern=fields.pattern,
-                application_mode=command.application_mode,
-                account_id=targets.account.id if targets.account else None,
-                amount_min=fields.amount_min,
-                amount_max=fields.amount_max,
-                direction=command.direction,
-                target_operation_type=command.target_operation_type,
-                category_id=targets.category.id if targets.category else None,
-                property_id=targets.property.id if targets.property else None,
-                auto_description=fields.auto_description,
-                affects_profit=command.affects_profit,
-                created_by_user_id=context.user.id,
-            )
+        rule = TransactionRule(
+            workspace_id=context.workspace.id,
+            name=fields.name,
+            match_type=command.match_type,
+            pattern=fields.pattern,
+            application_mode=command.application_mode,
+            account_id=targets.account.id if targets.account else None,
+            amount_min=fields.amount_min,
+            amount_max=fields.amount_max,
+            direction=command.direction,
+            target_operation_type=command.target_operation_type,
+            category_id=targets.category.id if targets.category else None,
+            property_id=targets.property.id if targets.property else None,
+            auto_description=fields.auto_description,
+            affects_profit=command.affects_profit,
+            created_by_user_id=context.user.id,
         )
+        if rule_id is not None:
+            rule.id = rule_id
+        return await self.rules.create(rule)
 
     async def update_rule(
         self,
@@ -247,3 +293,38 @@ class TransactionRuleManagementUseCase:
         if rule is None:
             raise TransactionRuleNotFoundError("Правило не найдено в этом workspace.")
         return rule
+
+    @staticmethod
+    def _validate_create_replay(
+        rule: TransactionRule,
+        command: CreateTransactionRuleCommand,
+    ) -> None:
+        fields = validate_transaction_rule_fields(
+            name=command.name,
+            pattern=command.pattern,
+            match_type=command.match_type,
+            category_name=rule.category.name if rule.category else None,
+            target_operation_type=command.target_operation_type,
+            amount_min=command.amount_min,
+            amount_max=command.amount_max,
+            auto_description=command.auto_description,
+        )
+        matches = (
+            rule.name == fields.name
+            and rule.pattern == fields.pattern
+            and rule.match_type == command.match_type
+            and rule.category_id == command.category_id
+            and rule.property_id == command.property_id
+            and rule.account_id == command.account_id
+            and rule.target_operation_type == command.target_operation_type
+            and rule.direction == command.direction
+            and rule.application_mode == command.application_mode
+            and rule.amount_min == fields.amount_min
+            and rule.amount_max == fields.amount_max
+            and rule.auto_description == fields.auto_description
+            and rule.affects_profit is command.affects_profit
+        )
+        if not matches:
+            raise TransactionRuleCreateReplayConflictError(
+                "Idempotency key was reused with a different transaction rule."
+            )

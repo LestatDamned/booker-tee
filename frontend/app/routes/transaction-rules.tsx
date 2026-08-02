@@ -1,4 +1,4 @@
-import { useNavigation } from "react-router";
+import { useNavigation, useRevalidator } from "react-router";
 
 import type { TransactionRuleDirectoryLoadResult } from "../features/transaction-rules/api/transaction-rules-api";
 import { TransactionRulesPage } from "../features/transaction-rules/transaction-rules-page";
@@ -20,10 +20,12 @@ export default function TransactionRulesRoute({
   loaderData,
 }: Route.ComponentProps) {
   const navigation = useNavigation();
+  const revalidator = useRevalidator();
   return (
     <TransactionRulesRouteView
       loaderData={loaderData}
       navigationPending={navigation.state !== "idle"}
+      onReload={() => void revalidator.revalidate()}
     />
   );
 }
@@ -31,9 +33,11 @@ export default function TransactionRulesRoute({
 export function TransactionRulesRouteView({
   loaderData,
   navigationPending = false,
+  onReload,
 }: {
   loaderData: Awaited<ReturnType<typeof loadTransactionRulesRoute>>;
   navigationPending?: boolean;
+  onReload?: () => void;
 }) {
   const { rules, session } = loaderData;
   if (
@@ -55,6 +59,7 @@ export function TransactionRulesRouteView({
     <TransactionRulesPage
       directory={rules.directory}
       navigationPending={navigationPending}
+      {...(onReload ? { onReload } : {})}
       session={session.session}
     />
   );

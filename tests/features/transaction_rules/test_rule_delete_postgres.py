@@ -1,4 +1,5 @@
 import os
+from dataclasses import replace
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,12 +14,23 @@ from app.features.imports.documents.types import (
 )
 from app.features.imports.models import ParseAttempt, RawTransaction, UploadedDocument
 from app.features.imports.statements.types import RawTransactionStatus
-from app.features.transaction_rules.models import TransactionRule
+from app.features.ledger.models import OperationType
+from app.features.transaction_rules.application.commands import CreateTransactionRuleCommand
+from app.features.transaction_rules.application.rule_management import (
+    TransactionRuleManagementUseCase,
+)
+from app.features.transaction_rules.errors import TransactionRuleCreateReplayConflictError
+from app.features.transaction_rules.models import (
+    MoneyDirection,
+    TransactionRule,
+    TransactionRuleMatchType,
+)
 from app.features.transaction_rules.repository import TransactionRuleRepository
 from app.features.transaction_rules.schemas import TransactionRuleDirectoryStatus
 from app.features.users.models import User
 from app.features.workspaces.domain.types import WorkspaceType
-from app.features.workspaces.models import Workspace
+from app.features.workspaces.models import Workspace, WorkspaceMember
+from app.features.workspaces.service import WorkspaceContext
 
 TEST_DATABASE_URL = os.getenv("BOOKER_TEE_TEST_DATABASE_URL")
 
@@ -150,6 +162,67 @@ async def test_directory_sql_filters_counts_orders_pages_and_isolates_workspaces
     finally:
         await delete_rule_suggestion(sessions, local)
         await delete_rule_suggestion(sessions, foreign)
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_create_idempotency_replays_exact_payload_and_rejects_key_reuse() -> None:
+    assert TEST_DATABASE_URL is not None
+    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    ids = await seed_rule_suggestion(sessions)
+    key = uuid4()
+
+    try:
+        async with sessions() as session:
+            user = await session.get(User, ids.user_id)
+            workspace = await session.get(Workspace, ids.workspace_id)
+            assert user is not None and workspace is not None
+            context = WorkspaceContext(
+                user=user,
+                workspace=workspace,
+                membership=WorkspaceMember(
+                    workspace_id=workspace.id,
+                    user_id=user.id,
+                ),
+            )
+            command = CreateTransactionRuleCommand(
+                name="Idempotent API rule",
+                pattern="API RETRY",
+                match_type=TransactionRuleMatchType.CONTAINS,
+                category_id=None,
+                property_id=None,
+                target_operation_type=OperationType.EXPENSE,
+                direction=MoneyDirection.OUTFLOW,
+            )
+            management = TransactionRuleManagementUseCase(session)
+            created = await management.create_rule_idempotently(
+                context=context,
+                command=command,
+                idempotency_key=key,
+            )
+            replay = await management.create_rule_idempotently(
+                context=context,
+                command=command,
+                idempotency_key=key,
+            )
+
+            assert created.replayed is False
+            assert replay.replayed is True
+            assert replay.rule.id == created.rule.id
+            with pytest.raises(TransactionRuleCreateReplayConflictError):
+                await management.create_rule_idempotently(
+                    context=context,
+                    command=replace(command, pattern="DIFFERENT"),
+                    idempotency_key=key,
+                )
+
+            await session.execute(
+                delete(TransactionRule).where(TransactionRule.id == created.rule.id)
+            )
+            await session.commit()
+    finally:
+        await delete_rule_suggestion(sessions, ids)
         await engine.dispose()
 
 

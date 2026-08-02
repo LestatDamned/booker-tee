@@ -14,6 +14,14 @@
   font-weight: 750;
 }
 
+.registryHeading {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 .toolbarGrid {
   display: grid;
   grid-template-columns: minmax(18rem, 1fr) auto auto;
@@ -26,6 +34,11 @@
   grid-template-columns: minmax(14rem, 1fr) auto;
   align-items: end;
   gap: var(--space-4);
+}
+
+.ruleForm {
+  display: grid;
+  gap: var(--space-5);
 }
 
 .table th:nth-child(1) {
@@ -127,6 +140,11 @@
 
   .toolbarGrid > button {
     width: 100%;
+  }
+
+  .registryHeading {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .mobileHeading {

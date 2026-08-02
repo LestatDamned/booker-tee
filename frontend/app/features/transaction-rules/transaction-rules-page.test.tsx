@@ -1,12 +1,14 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { directory, ruleId, session } from "./test-support";
 import { TransactionRulesPage } from "./transaction-rules-page";
 
 describe("TransactionRulesPage", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("renders complete rule meaning twice for desktop and mobile without mutation controls", () => {
     renderPage();
 
@@ -29,7 +31,7 @@ describe("TransactionRulesPage", () => {
     );
     expect(
       screen.queryByRole("button", {
-        name: /создать|изменить|выключить|удалить/i,
+        name: /изменить|выключить|удалить/i,
       }),
     ).not.toBeInTheDocument();
   });
@@ -86,6 +88,91 @@ describe("TransactionRulesPage", () => {
       screen.getByText(/Просматривать смысл правил можно с вашей ролью/),
     ).toBeVisible();
     expect(screen.queryByText("Редактировать")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Новое правило" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("creates a rule from the right-side dialog and preserves review semantics", async () => {
+    const user = userEvent.setup();
+    const created = {
+      ...directory.items[0]!,
+      id: "fc2d7025-7789-4312-9191-d9731d4be611",
+      name: "Такси",
+      condition: { ...directory.items[0]!.condition, pattern: "YANDEX GO" },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ item: created, replayed: false }), {
+            headers: { "Content-Type": "application/json" },
+            status: 201,
+          }),
+        ),
+      ),
+    );
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: "Новое правило" }));
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(screen.getByText(/не подтверждает операцию/i)).toBeVisible();
+    await user.type(screen.getByLabelText(/^Условие/), "YANDEX GO");
+    await user.selectOptions(screen.getByLabelText("Тип операции"), "expense");
+    await user.click(screen.getByRole("button", { name: "Создать правило" }));
+
+    expect(await screen.findByText("Правило «Такси» создано.")).toBeVisible();
+    expect(screen.getAllByText("Такси")).toHaveLength(2);
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        `#rule-${created.id}`,
+      ),
+    );
+  });
+
+  it("confirms discarding a dirty create draft", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("button", { name: "Новое правило" }));
+    await user.type(screen.getByLabelText(/^Условие/), "OZON");
+    await user.click(screen.getByRole("button", { name: "Отмена" }));
+    expect(
+      screen.getByRole("heading", { name: "Закрыть создание правила?" }),
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Продолжить создание" }),
+    );
+    expect(screen.getByDisplayValue("OZON")).toBeVisible();
+  });
+
+  it("seeds only after confirmation and reports truthful counts", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              createdRules: 2,
+              existingRules: 51,
+              createdCategories: 1,
+            }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
+        ),
+      ),
+    );
+    renderPage();
+    await user.click(screen.getByRole("button", { name: "Базовые правила" }));
+    expect(
+      screen.getByText(/Существующие правила, режимы и состояния не изменятся/),
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Добавить недостающие" }),
+    );
+    expect(
+      await screen.findByText(/создано 2, уже было 51, новых категорий 1/),
+    ).toBeVisible();
   });
 });
 
