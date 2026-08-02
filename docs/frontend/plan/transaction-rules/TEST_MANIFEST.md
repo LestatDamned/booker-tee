@@ -248,6 +248,24 @@ Temporary PostgreSQL database was removed after the focused run.
   partial index в одной transaction); временная база удалена, Slice 5 contracts
   проверены на актуальной выделенной test schema.
 
+### Slice 6 evidence — 2026-08-02
+
+- redirect and focused Transaction Rules backend: `86 passed, 5 skipped`;
+- Import Review, unknown mapping and Chat rule regressions: `79 passed`;
+- full backend: `716 passed, 6 skipped`; PostgreSQL-only rule delete contracts
+  остаются доказательством Slice 5 на актуальной test schema;
+- focused React Categories/Import Review/Transaction Rules/Shell suite:
+  `9` files, `137 passed`;
+- full frontend: formatting, ESLint, styles, generated API drift, TypeScript,
+  `59` files / `387 passed` and production SPA build passed;
+- первый full frontend прогон повторил известный timing failure в
+  `manual-operation-edit`; изолированный повтор дал `7 passed`, следующий
+  полный Vitest прогон — `387 passed` без изменения кода;
+- realistic Mocha replacement flow: `9/9` pages at 1440/920/390, включая
+  create, Category archive blocker, disable/delete и historical query/hash;
+- Latte и contrast test interaction/redirect audits: по `6/6` pages at
+  1440/920/390, без overflow, console/page/request errors.
+
 ## Commands at migration completion
 
 Backend, proportionate focused tests first, then:

@@ -10,7 +10,7 @@ import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { AppShell } from "../../shell/app-shell";
-import { Button, ButtonLink, RouterButtonLink } from "../../ui/button/button";
+import { Button, RouterButtonLink } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { PageFrame } from "../../ui/page-frame/page-frame";
@@ -294,13 +294,13 @@ export function CategoriesPage({
           {lifecycle.archiveBlocker ? (
             <InlineNotice
               action={
-                <ButtonLink
-                  href={`/rules?category_id=${lifecycle.archiveBlocker.id}`}
+                <RouterButtonLink
                   icon="rules"
                   tone="secondary"
+                  to={`/rules?category_id=${lifecycle.archiveBlocker.id}`}
                 >
                   Открыть правила
-                </ButtonLink>
+                </RouterButtonLink>
               }
               className={styles.readonlyNotice}
               title="Сначала отключите активные правила"

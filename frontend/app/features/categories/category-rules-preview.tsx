@@ -1,4 +1,6 @@
-import { ButtonLink } from "../../ui/button/button";
+import { Link } from "react-router";
+
+import { RouterButtonLink } from "../../ui/button/button";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import type { CategoryDetailDto } from "./api/category-detail-api";
 import styles from "./category-detail-page.module.css";
@@ -16,9 +18,9 @@ export function CategoryRulesPreview({
           <h2 id="category-rules-title">Связанные правила</h2>
         </div>
         {detail.rules.total ? (
-          <ButtonLink href="/rules" tone="secondary">
+          <RouterButtonLink to="/rules" tone="secondary">
             Все правила
-          </ButtonLink>
+          </RouterButtonLink>
         ) : null}
       </header>
       {detail.rules.items.length ? (
@@ -26,7 +28,7 @@ export function CategoryRulesPreview({
           {detail.rules.items.map((rule) => (
             <li key={rule.id}>
               <div>
-                <a href={`/rules#rule-${rule.id}`}>{rule.name}</a>
+                <Link to={`/rules#rule-${rule.id}`}>{rule.name}</Link>
                 <code>{rule.pattern}</code>
               </div>
               <StatusLabel tone={rule.isActive ? "success" : "neutral"}>

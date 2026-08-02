@@ -94,3 +94,8 @@ async def historical_category_detail(
     category_id: UUID,
 ) -> RedirectResponse:
     return redirect_to_react(request, f"/app/categories/{category_id}")
+
+
+@router.get("/rules")
+async def historical_transaction_rules(request: Request) -> RedirectResponse:
+    return redirect_to_react(request, "/app/rules")

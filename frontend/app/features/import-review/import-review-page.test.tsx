@@ -42,6 +42,9 @@ describe("import review page", () => {
     expect(screen.getByLabelText("Требуют решения")).toHaveTextContent("1");
     expect(document.getElementById(`raw-${remainingItemId}`)).not.toBeNull();
     expect(screen.getByText("Проверено как уникальное")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Открыть правила" }),
+    ).toHaveAttribute("href", "/rules");
   });
 
   it("opens all rows first and preserves filter counts and pressed state", async () => {

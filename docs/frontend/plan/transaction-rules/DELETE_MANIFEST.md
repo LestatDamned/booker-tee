@@ -1,7 +1,7 @@
 # Transaction Rules legacy delete manifest
 
-Статус: approved 2026-08-02. Ничего из этого списка не удаляется до Slice 6
-replacement gate и полного consumer search.
+Статус: executed 2026-08-02 после Slice 6 replacement gate и повторного
+consumer search.
 
 ## Delete after replacement evidence
 
@@ -157,14 +157,20 @@ Every remaining hit must be one of:
 - domain/application/persistence consumer;
 - current test/documentation with an explicit owner.
 
+Consumer proof также выявил два не перечисленных изначально SSR-only read
+adapter: `application/rule_queries.py` и `listing.py`. Их единственными
+runtime consumers были удалённые presenter/router; replacement-only tests были
+удалены вместе с ними. SQL directory read и JSON projection остаются в
+workspace-scoped repository/API.
+
 ## Final delete gate
 
-- canonical navigation and cross-feature links use React;
-- full replacement test manifest passes;
-- historical GET redirect preserves query; anchors are verified separately in
+- [x] canonical navigation and cross-feature links use React;
+- [x] full replacement test manifest passes;
+- [x] historical GET redirect preserves query; anchors are verified separately in
   browser because fragments are not sent to server;
-- no old mutation surface remains reachable;
-- generated OpenAPI has only JSON Transaction Rules operations;
-- rule-specific CSS/JS/template references are zero;
-- remaining shared legacy files each have a named runtime consumer;
-- Git diff contains no deletion of raw data, migrations or domain behavior.
+- [x] no old mutation surface remains reachable;
+- [x] generated OpenAPI has only JSON Transaction Rules operations;
+- [x] rule-specific CSS/JS/template references are zero;
+- [x] remaining shared legacy files each have a named runtime consumer;
+- [x] Git diff contains no deletion of raw data, migrations or domain behavior.

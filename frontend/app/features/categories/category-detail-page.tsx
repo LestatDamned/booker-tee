@@ -7,7 +7,7 @@ import { AppShell } from "../../shell/app-shell";
 import { AppliedFilterSummary } from "../../ui/applied-filter-summary/applied-filter-summary";
 import { BackLink } from "../../ui/back-link/back-link";
 import { Badge } from "../../ui/badge/badge";
-import { Button, ButtonLink, RouterButtonLink } from "../../ui/button/button";
+import { Button, RouterButtonLink } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
@@ -189,13 +189,13 @@ export function CategoryDetailPage({
           {archiveBlockerVisible ? (
             <InlineNotice
               action={
-                <ButtonLink
-                  href={`/rules?category_id=${detail.category.id}`}
+                <RouterButtonLink
                   icon="rules"
                   tone="secondary"
+                  to={`/rules?category_id=${detail.category.id}`}
                 >
                   Открыть правила
-                </ButtonLink>
+                </RouterButtonLink>
               }
               className={styles.lifecycleNotice}
               title="Сначала отключите активные правила"
@@ -371,13 +371,13 @@ function CategoryDeleteBlockerNotice({
     <InlineNotice
       action={
         blockers.ruleCount > 0 ? (
-          <ButtonLink
-            href={`/rules?category_id=${category.id}`}
+          <RouterButtonLink
             icon="rules"
             tone="secondary"
+            to={`/rules?category_id=${category.id}`}
           >
             Открыть правила
-          </ButtonLink>
+          </RouterButtonLink>
         ) : undefined
       }
       className={styles.lifecycleNotice}

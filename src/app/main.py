@@ -17,7 +17,6 @@ from app.core.settings import Settings
 from app.db.session import get_session, session_factory
 from app.features.chat_integrations.router import router as chat_integrations_router
 from app.features.dashboard.router import router as dashboard_router
-from app.features.transaction_rules.router import router as transaction_rules_router
 from app.features.users.router import router as users_router
 from app.features.users.service import AuthenticationService
 from app.features.workspaces.router import router as workspaces_router
@@ -45,7 +44,6 @@ def create_app() -> FastAPI:
     app.include_router(legacy_frontend_redirects_router)
     app.include_router(chat_integrations_router)
     app.include_router(dashboard_router)
-    app.include_router(transaction_rules_router)
     app.include_router(users_router)
     app.include_router(workspaces_router)
 

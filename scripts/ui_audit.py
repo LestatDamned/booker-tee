@@ -38,7 +38,10 @@ PAGES: tuple[tuple[str, str], ...] = (
     ("/ledger/manual", "manual-ledger-redirect"),
     ("/app/imports", "imports"),
     ("/app/imports/upload", "imports-upload"),
-    ("/rules", "rules"),
+    (
+        "/rules?q=redirect-audit#rule-11111111-1111-4111-8111-111111111111",
+        "rules-redirect",
+    ),
     ("/app/rules", "react-rules"),
     ("/categories", "categories-redirect"),
     ("/app/categories", "react-categories"),
@@ -57,7 +60,10 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/ledger/manual", "manual-ledger-redirect"),
     ("/app/imports", "imports"),
     ("/app/imports/upload", "imports-upload"),
-    ("/rules", "rules"),
+    (
+        "/rules?q=redirect-audit#rule-11111111-1111-4111-8111-111111111111",
+        "rules-redirect",
+    ),
     ("/app/rules", "react-rules"),
     ("/reports?currency=RUB", "reports-redirect"),
     ("/categories", "categories-redirect"),
@@ -315,6 +321,7 @@ def prepare_realistic_scenario(
     account_name = f"UI Audit Cash {scenario_id}"
     destination_account_name = f"UI Audit Savings {scenario_id}"
     rule_category_name = "UI Audit Food"
+    rule_name = f"UI Audit Rule {scenario_id}"
     disposable_category_name = "UI Audit Disposable"
     property_name = f"UI Audit Apartment {scenario_id}"
     document_name = f"ui-audit-statement-{scenario_id}.xlsx"
@@ -506,20 +513,21 @@ def prepare_realistic_scenario(
             .first.wait_for(timeout=PAGE_TIMEOUT_MS)
         )
 
-        page.goto(build_url(base_url, "/rules"), wait_until="domcontentloaded")
-        page.locator("details.rule-create-details > summary").click(timeout=PAGE_TIMEOUT_MS)
-        rule_form = page.locator("form#new-rule")
-        rule_form.locator('input[name="pattern"]').fill("OZON")
-        rule_form.locator('select[name="target_operation_type"]').select_option("expense")
-        rule_form.locator('select[name="category_id"]').select_option(label=rule_category_name)
-        rule_form.locator("details.rule-advanced-details summary").click(timeout=PAGE_TIMEOUT_MS)
-        rule_form.locator('select[name="direction"]').select_option("outflow")
-        rule_form.locator('select[name="application_mode"]').select_option("suggest")
-        rule_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        page.locator(".rule-card__title").get_by_text(
-            f"OZON -> {rule_category_name}",
-            exact=True,
-        ).first.wait_for(timeout=PAGE_TIMEOUT_MS)
+        page.goto(build_url(base_url, "/app/rules"), wait_until="networkidle")
+        page.get_by_role("button", name="Новое правило", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+        rule_form = page.get_by_role("dialog", name="Новое правило", exact=True)
+        rule_form.get_by_label("Условие", exact=False).fill("OZON")
+        rule_form.get_by_label("Название", exact=True).fill(rule_name)
+        rule_form.get_by_label("Тип операции", exact=True).select_option("expense")
+        rule_form.get_by_label("Категория", exact=True).select_option(label=rule_category_name)
+        rule_form.get_by_label("Направление", exact=True).select_option("outflow")
+        rule_form.get_by_label("Режим", exact=True).select_option("suggest")
+        rule_form.get_by_role("button", name="Создать правило", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        page.locator("[data-rule-id]:visible").filter(has_text=rule_name).first.wait_for(
+            timeout=PAGE_TIMEOUT_MS
+        )
         if category_detail_path:
             page.goto(build_url(base_url, category_detail_path), wait_until="networkidle")
             page.get_by_role("button", name="В архив", exact=True).click(timeout=PAGE_TIMEOUT_MS)
@@ -530,6 +538,27 @@ def prepare_realistic_scenario(
                 path=output_dir / f"{viewport_name}-category-archive-blocker.png",
                 full_page=True,
             )
+
+        page.goto(build_url(base_url, "/app/rules"), wait_until="networkidle")
+        rule_record = page.locator("[data-rule-id]:visible").filter(has_text=rule_name).first
+        rule_record.get_by_role("button", name="Выключить", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        rule_record = page.locator("[data-rule-id]:visible").filter(has_text=rule_name).first
+        rule_record.get_by_role("button", name="Ещё действия", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        page.get_by_role("button", name="Удалить правило", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        delete_dialog = page.get_by_role("dialog", name="Удалить правило?", exact=True)
+        delete_dialog.get_by_role("button", name="Удалить правило", exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        page.get_by_text(
+            f"Правило «{rule_name}» удалено. Финансовые данные не изменены.",
+            exact=True,
+        ).wait_for(timeout=PAGE_TIMEOUT_MS)
 
         page.goto(build_url(base_url, "/workspaces"), wait_until="domcontentloaded")
         page.locator("#workspace-invitation-create > summary").click(timeout=PAGE_TIMEOUT_MS)
@@ -711,6 +740,14 @@ def collect_ux_assertions(
 
     if path == "/ledger/manual" and "/app/ledger/manual" not in page.url:
         errors.append("historical manual ledger URL did not redirect to React")
+
+    if path.startswith("/rules?"):
+        expected_suffix = "/app/rules?q=redirect-audit#rule-11111111-1111-4111-8111-111111111111"
+        if not page.url.endswith(expected_suffix):
+            errors.append(
+                "historical Transaction Rules URL did not preserve query/hash "
+                f"during React redirect: {page.url!r}"
+            )
 
     if path == "/app/ledger/manual":
         errors.extend(
@@ -2121,7 +2158,7 @@ def assert_design_quality(page: Page, *, path: str) -> list[str]:
         "/app/accounts",
         "/app/categories",
         "/app/properties",
-        "/rules",
+        "/app/rules",
     }:
         long_technical_labels = [
             str(item.get("text") or "")

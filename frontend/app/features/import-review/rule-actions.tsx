@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router";
 
 import { Button } from "../../ui/button/button";
 import { Icon } from "../../ui/icon/icon";
@@ -73,10 +74,10 @@ export function RuleActions({
           <Icon name="source" size={16} />
           Открыть документ
         </a>
-        <a href="/transaction-rules">
+        <Link to="/rules">
           <Icon name="rules" size={16} />
           Открыть правила
-        </a>
+        </Link>
       </div>
       {!readonly ? (
         <Button

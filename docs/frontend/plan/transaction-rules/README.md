@@ -1,7 +1,7 @@
 # Transaction Rules React migration
 
 Статус: `in progress`; аудит завершён 2026-08-01, решения D1–D7 приняты
-2026-08-02, Slices 0–5 завершены 2026-08-02.
+2026-08-02, Slices 0–6 завершены 2026-08-02; Slice 7 plan closure следующий.
 
 ## Цель
 
@@ -115,8 +115,18 @@ Slice 5 safe delete завершён 2026-08-02:
 - pending/conflict reload+explicit retry, Toast, локальные counts и переход с
   опустевшей последней страницы сохраняют URL filters.
 
-Следующий этап — Slice 6: canonical links, replacement gate и выполнение
-`DELETE_MANIFEST.md` только после полного Import Review/browser evidence.
+Slice 6 replacement gate завершён 2026-08-02:
+
+- canonical AppShell, Import Review и Categories entry points используют React;
+- historical `GET /rules` сохраняет query, а browser audit подтвердил hash;
+- legacy SSR/form routes, templates, presenter, SSR-only listing adapters,
+  tests и rule-specific CSS/JS hooks удалены по `DELETE_MANIFEST.md`;
+- generated OpenAPI содержит только versioned JSON Transaction Rules API;
+- full Import Review/Chat/backend/frontend/browser regression gates прошли.
+
+Следующий этап — Slice 7: короткая запись завершения и удаление временного
+детального migration plan по docs retention policy. Product/runtime code в
+Slice 7 не расширяется.
 
 ## Краткий вывод аудита
 
@@ -272,5 +282,6 @@ Default `status=all`, `page=1`, `page_size=50`; допустимые page sizes 
 
 ## Approval record
 
-D1–D7 приняты пользователем 2026-08-02. Slices 0–4 завершены; legacy SSR
-остаётся canonical до replacement gate Slice 6.
+D1–D7 приняты пользователем 2026-08-02. Slices 0–6 завершены; React —
+единственная browser mutation surface, historical `GET /rules` оставлен только
+как compatibility redirect.

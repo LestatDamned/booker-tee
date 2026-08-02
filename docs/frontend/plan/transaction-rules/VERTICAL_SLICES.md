@@ -138,7 +138,7 @@ Exit gate:
 - [x] invalid archived target cannot be silently reactivated;
 - [x] Categories/Properties accepted policies remain intact.
 
-## Slice 5 — Safe delete
+## Slice 5 — Safe delete — completed 2026-08-02
 
 User outcome: writer deletes only an unused disabled rule and receives clear
 blocker guidance otherwise.
@@ -163,31 +163,31 @@ Exit gate:
 - [x] no raw source/suggestion/operation is cascaded or rewritten;
 - [x] forged delete cannot bypass server capability.
 
-## Slice 6 — Import Review links and replacement gate
+## Slice 6 — Import Review links and replacement gate — completed 2026-08-02
 
 User outcome: all canonical navigation reaches React and all rule entry points
 continue to affect Import Review consistently.
 
 Work:
 
-- switch AppShell Rules item to React `NavLink`;
-- fix Import Review `/transaction-rules` link to `/rules` within SPA;
-- keep Categories category/hash links and make them React-aware;
-- add query-preserving historical GET `/rules -> /app/rules`;
-- run end-to-end known parser, mapping, apply, remember rule and Chat scenarios;
-- run realistic browser flow and baseline comparison;
-- execute [`DELETE_MANIFEST.md`](DELETE_MANIFEST.md) only after replacement
+- [x] switch AppShell Rules item to React `NavLink`;
+- [x] fix Import Review `/transaction-rules` link to `/rules` within SPA;
+- [x] keep Categories category/hash links and make them React-aware;
+- [x] add query-preserving historical GET `/rules -> /app/rules`;
+- [x] run end-to-end known parser, mapping, apply, remember rule and Chat scenarios;
+- [x] run realistic browser flow and baseline comparison;
+- [x] execute [`DELETE_MANIFEST.md`](DELETE_MANIFEST.md) only after replacement
   evidence passes;
-- regenerate OpenAPI so legacy HTML/form operations disappear;
-- update feature/current-stage documentation and learning note.
+- [x] regenerate OpenAPI so legacy HTML/form operations disappear;
+- [x] update feature/current-stage documentation and learning note.
 
 Exit gate:
 
-- React is the only authenticated browser mutation surface for rules;
-- legacy POST paths are gone, not redirected;
-- GET `/rules?...#...` behavior has accepted query/hash compatibility;
-- all remaining server Transaction Rules code has named non-SSR consumers;
-- full backend/frontend/browser checks pass.
+- [x] React is the only authenticated browser mutation surface for rules;
+- [x] legacy POST paths are gone, not redirected;
+- [x] GET `/rules?...#...` behavior has accepted query/hash compatibility;
+- [x] all remaining server Transaction Rules code has named non-SSR consumers;
+- [x] full backend/frontend/browser checks pass.
 
 ## Slice 7 — Plan closure
 

@@ -57,6 +57,10 @@ CATEGORY_ID = "33333333-3333-3333-3333-333333333333"
             f"/app/categories/{CATEGORY_ID}?date_from=2026-07-01&currency=RUB"
             "&return_to=%2Fapp%2Freports%3Fcurrency%3DRUB",
         ),
+        (
+            f"/rules?q=ozon&category_id={CATEGORY_ID}&status=disabled&page=2",
+            f"/app/rules?q=ozon&category_id={CATEGORY_ID}&status=disabled&page=2",
+        ),
     ],
 )
 def test_historical_frontend_get_redirects_to_react(
@@ -92,6 +96,11 @@ def test_historical_frontend_get_redirects_to_react(
         (f"/categories/{CATEGORY_ID}/archive", 404),
         (f"/categories/{CATEGORY_ID}/restore", 404),
         (f"/categories/{CATEGORY_ID}/delete", 404),
+        ("/rules", 405),
+        (f"/rules/{CATEGORY_ID}", 404),
+        (f"/rules/{CATEGORY_ID}/toggle", 404),
+        (f"/rules/{CATEGORY_ID}/delete", 404),
+        ("/rules/seed-defaults", 404),
     ],
 )
 def test_historical_frontend_mutations_are_not_redirected(

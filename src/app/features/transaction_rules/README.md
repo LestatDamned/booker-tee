@@ -22,15 +22,16 @@ RawTransaction
 Внутри feature держим такой поток:
 
 ```text
-router.py
+React -> /api/v1/transaction-rules adapter
 -> application use cases
 -> domain rules
 -> repository.py
 -> models.py
 ```
 
-Router знает про формы, command builders, redirects и шаблон `/rules`. Он не
-должен решать, как сравнивать rule pattern с банковским описанием.
+Versioned API router знает только про HTTP schemas, permissions и application
+services. Historical browser `GET /rules` принадлежит общему compatibility
+redirect layer и сохраняет query при переходе на `/app/rules`.
 
 Application use case описывает пользовательское действие: создать правило,
 изменить правило, включить/выключить, удалить, применить правила к документу,
@@ -49,14 +50,14 @@ Domain rules чистые и тестируемые без БД:
 
 ## Current module map
 
-- `router.py` - HTTP endpoints and form-to-command builders for the rules page.
-- `router_forms.py` - HTTP form parsing and command builders for the rules page.
+- `app.api.v1.transaction_rules` - versioned JSON read/write adapter.
 - `application/commands.py` - write-side command dataclasses.
+- `application/directory.py` - workspace-scoped paginated React read model.
+- `application/mutations.py` - React/API mutation facade and committed DTOs.
 - `application/rule_management.py` - create/update/toggle/delete and rule from raw confirmation.
 - `application/target_resolution.py` - workspace and lifecycle validation for category,
   property and dormant account references.
 - `application/rule_application.py` - apply active rules to raw transactions/documents.
-- `application/rule_queries.py` - read-side rule list query.
 - `application/fixture_seeding.py` - seed default merchant suggestion rules.
 - `repository.py` - SQLAlchemy persistence and read queries.
 - `models.py` - `TransactionRule` persistence model and rule enums.
@@ -84,6 +85,16 @@ Domain rules чистые и тестируемые без БД:
   mutates an existing user rule.
 - Directory reads never seed or commit categories.
 
+## Browser ownership
+
+- canonical authenticated page: `/app/rules`;
+- React Router path inside the SPA: `/rules`;
+- historical `GET /rules?...` returns query-preserving `307`;
+- no legacy form/HTMX mutation route remains;
+- rules in Import Review and Categories use React navigation;
+- the API/domain code remains the behavior owner for non-browser consumers such
+  as Import Review, parsers/mapping and Chat.
+
 ## Import style
 
 Prefer explicit imports from concrete modules over package-level re-export
@@ -91,16 +102,6 @@ barrels. For example, import matching predicates from `domain/matching.py`,
 suggestion helpers from `domain/suggestions.py`, and command dataclasses from
 `application/commands.py`.
 
-## Near-term cleanup plan
-
-1. Keep pure domain rules outside `service.py`. Done.
-2. Add command dataclasses for create/update forms. Done.
-3. Split the old service facade into focused application use cases:
-   `rule_management`, `rule_application`, and fixture/default seeding. Done.
-4. Remove the unused service facade after callers move to concrete use cases.
-   Done.
-5. Add read-side DTOs only if the rules template starts depending on a rich ORM
-   graph or display-specific computed fields.
-
-This module is intentionally small. If a refactor makes rule behavior harder to
-read, prefer the simpler shape.
+The legacy SSR router, Jinja presenter/templates, Python list projection and
+form-only tests were removed after the React replacement gate. This module is
+intentionally cohesive; do not restore a second browser presentation stack.
