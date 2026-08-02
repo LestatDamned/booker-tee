@@ -5,6 +5,7 @@ import { ExpansionPanel } from "../../ui/expansion-panel/expansion-panel";
 import { FormErrorSummary } from "../../ui/field/form-error-summary";
 import { FormActions } from "../../ui/field/form-layout";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
+import { RequestState } from "../../ui/request-state/request-state";
 import type { TransactionRuleEditDto } from "./api/transaction-rules-api";
 import {
   TransactionRuleFormFields,
@@ -52,12 +53,13 @@ export function TransactionRuleEditPanel({
   );
   return (
     <ExpansionPanel
+      className={styles.editPanel}
       id={`${idPrefix}-panel`}
       onClose={onClose}
       title="Изменить правило"
     >
       {loading ? (
-        <p aria-live="polite">Загружаем актуальную версию правила…</p>
+        <RequestState message="Загружаем актуальную версию правила…" />
       ) : null}
       {loadError && !draft ? (
         <InlineNotice

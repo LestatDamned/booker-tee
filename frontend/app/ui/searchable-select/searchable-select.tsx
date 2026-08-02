@@ -61,6 +61,7 @@ export function SearchableSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [portalContainer, setPortalContainer] = useState<Element | null>(null);
   const [popupPosition, setPopupPosition] = useState<PopupPosition | null>(
     null,
   );
@@ -126,6 +127,7 @@ export function SearchableSelect({
         options.findIndex((option) => option.value === value),
       ),
     );
+    setPortalContainer(controlRef.current?.closest("dialog") ?? document.body);
     setOpen(true);
   }
 
@@ -133,6 +135,7 @@ export function SearchableSelect({
     setQuery("");
     setOpen(false);
     setPopupPosition(null);
+    setPortalContainer(null);
   }
 
   function selectOption(option: SearchableSelectOption) {
@@ -198,7 +201,12 @@ export function SearchableSelect({
           onChange={(event) => {
             setQuery(event.target.value);
             setActiveIndex(0);
-            if (!open) setOpen(true);
+            if (!open) {
+              setPortalContainer(
+                controlRef.current?.closest("dialog") ?? document.body,
+              );
+              setOpen(true);
+            }
           }}
           onClick={openList}
           onFocus={openList}
@@ -210,7 +218,7 @@ export function SearchableSelect({
         />
         <Icon className={styles.caret} name="expand" size={16} />
       </div>
-      {open && popupPosition
+      {open && popupPosition && portalContainer
         ? createPortal(
             <div className={styles.popup} style={popupStyle(popupPosition)}>
               {filteredOptions.length > 0 ? (
@@ -239,7 +247,7 @@ export function SearchableSelect({
                 <p className={styles.empty}>{emptyMessage}</p>
               )}
             </div>,
-            document.body,
+            portalContainer,
           )
         : null}
     </div>

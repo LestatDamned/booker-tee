@@ -21,6 +21,7 @@ import { RequestState } from "./request-state/request-state";
 import { ResponsiveRecordCollection } from "./responsive-record-collection/responsive-record-collection";
 import { RouteLoadingPage } from "./route-state-page/route-loading-page";
 import { RouteStatePage } from "./route-state-page/route-state-page";
+import { SearchableSelect } from "./searchable-select/searchable-select";
 import {
   SelectionTabButton,
   SelectionTabLink,
@@ -283,11 +284,13 @@ describe("foundation controls", () => {
   });
 
   it("requires an accessible label for an icon-only action", () => {
-    render(<IconButton aria-label="Редактировать" icon="edit" />);
+    render(
+      <IconButton aria-label="Редактировать" icon="edit" tone="secondary" />,
+    );
 
     expect(
       screen.getByRole("button", { name: "Редактировать" }),
-    ).toBeInTheDocument();
+    ).toHaveAttribute("data-tone", "secondary");
   });
 
   it("connects a field label and validation error to its native control", () => {
@@ -314,6 +317,44 @@ describe("foundation controls", () => {
       "id",
       "description-error",
     );
+  });
+
+  it("gives a field hint a stable accessible description id", () => {
+    render(
+      <Field
+        hint="Текст из описания банковской операции."
+        htmlFor="pattern"
+        label="Условие"
+      >
+        <input aria-describedby="pattern-hint" id="pattern" />
+      </Field>,
+    );
+
+    expect(screen.getByLabelText("Условие")).toHaveAccessibleDescription(
+      "Текст из описания банковской операции.",
+    );
+    expect(
+      screen.getByText("Текст из описания банковской операции."),
+    ).toHaveAttribute("id", "pattern-hint");
+  });
+
+  it("keeps a searchable select popup inside the native dialog top layer", async () => {
+    render(
+      <dialog open>
+        <SearchableSelect
+          id="category"
+          onChange={() => undefined}
+          options={[{ label: "Кафе", value: "cafe" }]}
+          placeholder="Найти категорию"
+          value=""
+        />
+      </dialog>,
+    );
+
+    fireEvent.click(screen.getByRole("combobox"));
+
+    const option = await screen.findByRole("option", { name: "Кафе" });
+    expect(option.closest("dialog")).toBeInTheDocument();
   });
 
   it("groups a short choice set and links summary errors to fields", () => {
@@ -591,6 +632,24 @@ describe("request and workbench composition", () => {
     );
     fireEvent.click(screen.getByText("Ещё действия"));
     expect(screen.getByLabelText("Опасные действия")).toBeInTheDocument();
+  });
+
+  it("closes an action menu after a command is selected", () => {
+    const action = vi.fn();
+    render(
+      <ActionStack
+        dismissOnAction
+        overflow={<Button onClick={action}>Выполнить действие</Button>}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ещё действия" }));
+    fireEvent.click(screen.getByRole("button", { name: "Выполнить действие" }));
+
+    expect(action).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByRole("button", { name: "Выполнить действие" }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps one action menu open and provides explicit escape routes", async () => {

@@ -9,27 +9,82 @@ import { TransactionRulesPage } from "./transaction-rules-page";
 describe("TransactionRulesPage", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("renders complete rule meaning twice with contextual edit controls", () => {
+  it("renders a compact rule summary twice with contextual edit controls", () => {
     renderPage();
 
     expect(
       screen.getByRole("heading", { name: "Правила операций" }),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: "Все 3" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(
+      screen.getByRole("link", { name: "Все правила: 3" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("Вкл.")).toBeVisible();
+    expect(screen.getByText("Выкл.")).toBeVisible();
     expect(screen.getAllByText("OZON → Маркетплейсы")).toHaveLength(2);
     expect(screen.getAllByText("Описание содержит «OZON»")).toHaveLength(2);
-    expect(screen.getAllByText("Сумма 100.00–500.00")).toHaveLength(2);
-    expect(screen.getAllByText("Категория: Маркетплейсы")).toHaveLength(2);
+    expect(screen.getAllByText("Сумма: 100.00–500.00")).toHaveLength(2);
+    expect(screen.getAllByText("Маркетплейсы")).toHaveLength(2);
     expect(screen.getAllByText("Объект: Старая квартира · архив")).toHaveLength(
       2,
     );
-    expect(screen.getAllByText("Влияет на финансовый результат")).toHaveLength(
-      2,
+    expect(screen.getAllByText("Предложений: 4")).toHaveLength(2);
+    expect(
+      screen.getByText(/Сохранённые предложения не меняются автоматически/),
+    ).toBeVisible();
+    expect(
+      screen.queryByText("Влияет на финансовый результат"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Сопоставляет только будущие review-операции"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Любая абсолютная сумма"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Любой счёт")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Приоритет 20")).toHaveLength(2);
+    const editActions = screen.getAllByRole("button", { name: "Изменить" });
+    expect(editActions).toHaveLength(2);
+    editActions.forEach((action) =>
+      expect(action).toHaveTextContent("Изменить"),
     );
-    expect(screen.getAllByRole("button", { name: "Изменить" })).toHaveLength(2);
+    editActions.forEach((action) =>
+      expect(action).toHaveAttribute("data-tone", "secondary"),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Выключить" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Ещё действия" }),
+    ).toHaveLength(2);
+  });
+
+  it("omits default constraints and names auto apply as prefill", () => {
+    const compactRule = {
+      ...directory.items[0]!,
+      priority: 100,
+      condition: {
+        ...directory.items[0]!.condition,
+        account: null,
+        amountMin: null,
+        amountMax: null,
+      },
+      outcome: {
+        ...directory.items[0]!.outcome,
+        applicationMode: "auto_apply" as const,
+        property: null,
+        autoDescription: null,
+      },
+      usage: { directRawSuggestionCount: 0 },
+    };
+
+    renderPage("/rules", { ...directory, items: [compactRule] });
+
+    expect(screen.getAllByText("Предзаполнение")).toHaveLength(2);
+    expect(screen.queryByText("Приоритет 100")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Сумма:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Счёт:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Объект:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Предложений:/)).not.toBeInTheDocument();
   });
 
   it("opens the category filter and navigates with URL-owned state", async () => {
@@ -37,17 +92,22 @@ describe("TransactionRulesPage", () => {
     renderPage();
 
     await user.click(screen.getByRole("button", { name: "Фильтры" }));
-    const category = screen.getByLabelText("Категория результата");
+    const category = screen.getByRole("combobox", {
+      name: "Категория результата",
+    });
+    await user.click(category);
     expect(
-      within(category).getByRole("option", {
+      screen.getByRole("option", {
         name: "Архивная категория · архив",
       }),
     ).toBeVisible();
-    await user.selectOptions(category, directory.references.categories[0]!.id);
+    await user.click(
+      screen.getByRole("option", { name: "Архивная категория · архив" }),
+    );
     await user.click(screen.getByRole("button", { name: "Применить" }));
 
     expect(screen.getByTestId("location")).toHaveTextContent(
-      `?category_id=${directory.references.categories[0]!.id}`,
+      `?category_id=${directory.references.categories[1]!.id}`,
     );
   });
 
@@ -175,8 +235,18 @@ describe("TransactionRulesPage", () => {
     });
     const panel = form.closest("section")!;
     expect(
-      within(panel).getByRole("option", { name: "Старая квартира · архив" }),
-    ).not.toBeDisabled();
+      within(panel).getByText(
+        /Описание содержит «OZON» → Расход · Маркетплейсы.*Предложение\. Подтверждение — в Import Review\./,
+      ),
+    ).toBeVisible();
+    expect(
+      panel.querySelector("[data-transaction-rule-preview]"),
+    ).toBeInTheDocument();
+    await user.click(within(panel).getByLabelText("Объект"));
+    expect(
+      screen.getByRole("option", { name: "Старая квартира · архив" }),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
     const name = within(panel).getByLabelText("Название");
     await user.clear(name);
     await user.type(name, "OZON покупки");
@@ -360,6 +430,10 @@ describe("TransactionRulesPage", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderPage("/rules?q=ozon");
 
+    const actionsTrigger = screen.getAllByRole("button", {
+      name: "Ещё действия",
+    })[0]!;
+    await user.click(actionsTrigger);
     await user.click(screen.getAllByRole("button", { name: "Выключить" })[0]!);
     expect(
       await screen.findByText(
@@ -367,6 +441,7 @@ describe("TransactionRulesPage", () => {
       ),
     ).toBeVisible();
     expect(screen.getAllByText("Выключено")).toHaveLength(2);
+    expect(actionsTrigger).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByTestId("location")).toHaveTextContent("?q=ozon");
     const body = JSON.parse(
       String((fetchMock.mock.calls[0]![1] as RequestInit).body),
@@ -419,6 +494,9 @@ describe("TransactionRulesPage", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
     renderPage();
+    await user.click(
+      screen.getAllByRole("button", { name: "Ещё действия" })[0]!,
+    );
     await user.click(screen.getAllByRole("button", { name: "Выключить" })[0]!);
     expect(await screen.findByText("Правило уже изменилось.")).toBeVisible();
     await user.click(
@@ -471,10 +549,17 @@ describe("TransactionRulesPage", () => {
       ),
     );
     renderPage("/rules?status=active", activeDirectory);
+    await user.click(
+      screen.getAllByRole("button", { name: "Ещё действия" })[0]!,
+    );
     await user.click(screen.getAllByRole("button", { name: "Выключить" })[0]!);
     expect(await screen.findByText("Правил пока нет")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Активные 1" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "Выключенные 2" })).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Активные правила: 1" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Выключенные правила: 2" }),
+    ).toBeVisible();
   });
 
   it("explains why a rule with an archived target cannot be enabled", async () => {
@@ -490,6 +575,9 @@ describe("TransactionRulesPage", () => {
     };
     const user = userEvent.setup();
     renderPage("/rules", { ...directory, items: [blocked] });
+    await user.click(
+      screen.getAllByRole("button", { name: "Ещё действия" })[0]!,
+    );
     await user.click(
       screen.getAllByRole("button", { name: "Почему нельзя включить" })[0]!,
     );
@@ -561,8 +649,10 @@ describe("TransactionRulesPage", () => {
     expect(
       await screen.findByText(/Финансовые данные не изменены/),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: "Все 2" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "Выключенные 0" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Все правила: 2" })).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Выключенные правила: 0" }),
+    ).toBeVisible();
     expect(screen.queryByText("OZON → Маркетплейсы")).not.toBeInTheDocument();
     const body = JSON.parse(
       String((fetchMock.mock.calls[0]![1] as RequestInit).body),

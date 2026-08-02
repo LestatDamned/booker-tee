@@ -4,6 +4,7 @@
 }
 
 .workbench {
+  container-type: inline-size;
   min-width: 0;
   overflow: hidden;
 }
@@ -12,6 +13,18 @@
   color: var(--color-text-primary);
   font-size: var(--font-size-lg);
   font-weight: 750;
+}
+
+.registryCopy {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.registryDescription {
+  max-width: 48rem;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
 }
 
 .registryHeading {
@@ -24,7 +37,7 @@
 
 .toolbarGrid {
   display: grid;
-  grid-template-columns: minmax(18rem, 1fr) auto auto;
+  grid-template-columns: minmax(18rem, 1fr) auto auto auto;
   align-items: center;
   gap: var(--space-3);
 }
@@ -46,29 +59,56 @@
   gap: var(--space-5);
 }
 
-.editRow > td {
+.editPanel[data-workbench-row-expansion] {
+  gap: var(--space-4);
+  border-block: 1px solid var(--color-border-default);
+  background: var(--color-bg-secondary-pane);
+  padding: var(--space-5);
+}
+
+.rulePreview {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-2);
+  border-left: 2px solid var(--color-information);
+  background: color-mix(in srgb, var(--color-information) 5%, transparent);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.rulePreview strong {
+  color: var(--color-text-primary);
+}
+
+.table .editRow > td:last-child {
   padding: 0;
   border-block-start: 0;
+  text-align: left;
+}
+
+.table tbody .editRow:hover {
+  background: transparent;
 }
 
 .table th:nth-child(1) {
-  width: 25%;
+  width: 34%;
 }
 
 .table th:nth-child(2) {
-  width: 18%;
+  width: 29%;
 }
 
 .table th:nth-child(3) {
-  width: 25%;
-}
-
-.table th:nth-child(4) {
   width: 18%;
 }
 
-.table th:nth-child(5) {
-  width: 14%;
+.table th:nth-child(4) {
+  width: 19%;
 }
 
 .priority {
@@ -81,7 +121,7 @@
 }
 
 .condition {
-  margin: var(--space-2) 0 0;
+  margin: var(--space-1) 0 0;
   color: var(--color-text-secondary);
   font-family: var(--font-family-mono);
   font-size: var(--font-size-sm);
@@ -94,10 +134,27 @@
   min-width: 0;
   align-items: flex-start;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   overflow-wrap: anywhere;
+}
+
+.compactFacts {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.table th:last-child,
+.table td:last-child {
+  text-align: right;
 }
 
 .mobileHeading {
@@ -120,9 +177,9 @@
   outline-offset: -2px;
 }
 
-@media (max-width: 70rem) {
+@container (max-width: 64rem) {
   .toolbarGrid {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
   .toolbarGrid > :first-child {
@@ -130,9 +187,39 @@
   }
 }
 
+@container (max-width: 48rem) {
+  .toolbarGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .statusTabs {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .statusTabs > a {
+    min-width: 0;
+  }
+
+  .toolbarGrid > button {
+    width: 100%;
+  }
+}
+
 @media (max-width: 44rem) {
   .page {
     gap: var(--space-4);
+  }
+
+  .editPanel[data-workbench-row-expansion] {
+    padding: var(--space-4);
+  }
+
+  .rulePreview {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
   }
 
   .toolbarGrid,

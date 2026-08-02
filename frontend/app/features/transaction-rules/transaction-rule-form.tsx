@@ -1,13 +1,14 @@
 import { Field } from "../../ui/field/field";
 import type { FormErrorSummaryItem } from "../../ui/field/form-error-summary";
 import { FormGrid } from "../../ui/field/form-layout";
-import { InlineNotice } from "../../ui/inline-notice/inline-notice";
+import { SearchableSelect } from "../../ui/searchable-select/searchable-select";
 import type {
   TransactionRuleCreateRequest,
   TransactionRuleDirectoryDto,
   TransactionRuleSummaryDto,
   TransactionRuleUpdateRequest,
 } from "./api/transaction-rules-api";
+import styles from "./transaction-rules-page.module.css";
 
 export type TransactionRuleDraft = {
   applicationMode: "suggest" | "auto_apply";
@@ -74,17 +75,27 @@ export function TransactionRuleFormFields({
 }) {
   const categories = references.categories;
   const properties = references.properties;
+  const controlId = (suffix: string) => `${idPrefix}-${suffix}`;
+  const errorId = (suffix: string) => `${controlId(suffix)}-error`;
+  const describedBy = (
+    suffix: string,
+    error: string | undefined,
+    hasHint = false,
+  ) =>
+    error ? errorId(suffix) : hasHint ? `${controlId(suffix)}-hint` : undefined;
   return (
     <>
       <FormGrid columns="two">
         <Field
           error={errors.pattern}
-          htmlFor={`${idPrefix}-pattern`}
+          errorId={errorId("pattern")}
+          htmlFor={controlId("pattern")}
           hint="Текст из описания банковской операции."
           label="Условие"
           required
         >
           <input
+            aria-describedby={describedBy("pattern", errors.pattern, true)}
             aria-invalid={Boolean(errors.pattern)}
             autoFocus={autoFocus}
             disabled={pending}
@@ -113,11 +124,14 @@ export function TransactionRuleFormFields({
         </Field>
         <Field
           error={errors.name}
-          htmlFor={`${idPrefix}-name`}
+          errorId={errorId("name")}
+          htmlFor={controlId("name")}
           hint="Необязательно — иначе название будет собрано автоматически."
           label="Название"
         >
           <input
+            aria-describedby={describedBy("name", errors.name, true)}
+            aria-invalid={Boolean(errors.name)}
             disabled={pending}
             id={`${idPrefix}-name`}
             maxLength={255}
@@ -145,10 +159,13 @@ export function TransactionRuleFormFields({
         </Field>
         <Field
           error={errors.amountMin}
-          htmlFor={`${idPrefix}-min`}
+          errorId={errorId("min")}
+          htmlFor={controlId("min")}
           label="Сумма от"
         >
           <input
+            aria-describedby={describedBy("min", errors.amountMin)}
+            aria-invalid={Boolean(errors.amountMin)}
             disabled={pending}
             id={`${idPrefix}-min`}
             inputMode="decimal"
@@ -159,10 +176,13 @@ export function TransactionRuleFormFields({
         </Field>
         <Field
           error={errors.amountMax}
-          htmlFor={`${idPrefix}-max`}
+          errorId={errorId("max")}
+          htmlFor={controlId("max")}
           label="Сумма до"
         >
           <input
+            aria-describedby={describedBy("max", errors.amountMax)}
+            aria-invalid={Boolean(errors.amountMax)}
             disabled={pending}
             id={`${idPrefix}-max`}
             inputMode="decimal"
@@ -192,51 +212,49 @@ export function TransactionRuleFormFields({
         </Field>
         <Field
           error={errors.categoryId}
-          htmlFor={`${idPrefix}-category`}
+          errorId={errorId("category")}
+          htmlFor={controlId("category")}
           label="Категория"
         >
-          <select
+          <SearchableSelect
+            aria-describedby={describedBy("category", errors.categoryId)}
+            aria-invalid={Boolean(errors.categoryId)}
             disabled={pending}
-            id={`${idPrefix}-category`}
-            onChange={(event) => onChange("categoryId", event.target.value)}
+            id={controlId("category")}
+            onChange={(value) => onChange("categoryId", value)}
+            options={[
+              { label: "Без категории", value: "" },
+              ...categories.map((item) => ({
+                label: `${item.name}${item.isActive ? "" : " · архив"}`,
+                value: item.id,
+              })),
+            ]}
+            placeholder="Найти категорию"
             value={draft.categoryId}
-          >
-            <option value="">Без категории</option>
-            {categories.map((item) => (
-              <option
-                disabled={!item.isActive && item.id !== draft.categoryId}
-                key={item.id}
-                value={item.id}
-              >
-                {item.name}
-                {item.isActive ? "" : " · архив"}
-              </option>
-            ))}
-          </select>
+          />
         </Field>
         <Field
           error={errors.propertyId}
-          htmlFor={`${idPrefix}-property`}
+          errorId={errorId("property")}
+          htmlFor={controlId("property")}
           label="Объект"
         >
-          <select
+          <SearchableSelect
+            aria-describedby={describedBy("property", errors.propertyId)}
+            aria-invalid={Boolean(errors.propertyId)}
             disabled={pending}
-            id={`${idPrefix}-property`}
-            onChange={(event) => onChange("propertyId", event.target.value)}
+            id={controlId("property")}
+            onChange={(value) => onChange("propertyId", value)}
+            options={[
+              { label: "Без объекта", value: "" },
+              ...properties.map((item) => ({
+                label: `${item.name}${item.isActive ? "" : " · архив"}`,
+                value: item.id,
+              })),
+            ]}
+            placeholder="Найти объект"
             value={draft.propertyId}
-          >
-            <option value="">Без объекта</option>
-            {properties.map((item) => (
-              <option
-                disabled={!item.isActive && item.id !== draft.propertyId}
-                key={item.id}
-                value={item.id}
-              >
-                {item.name}
-                {item.isActive ? "" : " · архив"}
-              </option>
-            ))}
-          </select>
+          />
         </Field>
         <Field
           htmlFor={`${idPrefix}-mode`}
@@ -244,6 +262,7 @@ export function TransactionRuleFormFields({
           label="Режим"
         >
           <select
+            aria-describedby={`${idPrefix}-mode-hint`}
             disabled={pending}
             id={`${idPrefix}-mode`}
             onChange={(event) =>
@@ -259,9 +278,14 @@ export function TransactionRuleFormFields({
           </select>
         </Field>
       </FormGrid>
-      <InlineNotice title="Предпросмотр" tone="information">
-        {transactionRulePreview(draft, categories, properties)}
-      </InlineNotice>
+      <output
+        aria-live="polite"
+        className={styles.rulePreview}
+        data-transaction-rule-preview
+      >
+        <strong>Итог</strong>
+        <span>{transactionRulePreview(draft, categories, properties)}</span>
+      </output>
     </>
   );
 }
@@ -381,12 +405,22 @@ function transactionRulePreview(
   const propertyName = properties.find(
     (item) => item.id === draft.propertyId,
   )?.name;
-  const outcome =
-    [
-      category && `категория «${category}»`,
-      propertyName && `объект «${propertyName}»`,
-    ]
-      .filter(Boolean)
-      .join(", ") || "без категории и объекта";
-  return `Если описание ${draft.matchType === "exact" ? "совпадает с" : "содержит"} «${draft.pattern.trim() || "…"}», подготовить ${outcome}. Подтверждение останется в Import Review.`;
+  const operationType = draft.operationType
+    ? {
+        adjustment: "Корректировка",
+        expense: "Расход",
+        income: "Доход",
+        transfer: "Перевод",
+      }[draft.operationType]
+    : "Тип не задан";
+  const condition = `Описание ${draft.matchType === "exact" ? "совпадает с" : "содержит"} «${draft.pattern.trim() || "…"}»`;
+  const outcome = [
+    operationType,
+    category ?? "Без категории",
+    propertyName,
+    draft.applicationMode === "auto_apply" ? "Предзаполнение" : "Предложение",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return `${condition} → ${outcome}. Подтверждение — в Import Review.`;
 }

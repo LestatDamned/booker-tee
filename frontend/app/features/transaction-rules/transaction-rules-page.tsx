@@ -13,6 +13,7 @@ import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
 import { ResponsiveRecordCollection } from "../../ui/responsive-record-collection/responsive-record-collection";
+import { SearchableSelect } from "../../ui/searchable-select/searchable-select";
 import { ToastViewport } from "../../ui/toast/toast";
 import {
   SelectionTabLink,
@@ -235,7 +236,13 @@ export function TransactionRulesPage({
         >
           <WorkbenchHeader>
             <div className={styles.registryHeading}>
-              <span className={styles.registryTitle}>Каталог правил</span>
+              <div className={styles.registryCopy}>
+                <span className={styles.registryTitle}>Каталог правил</span>
+                <p className={styles.registryDescription}>
+                  Правила работают при импорте и явном применении. Сохранённые
+                  предложения не меняются автоматически.
+                </p>
+              </div>
               {snapshot.capabilities.canSeedDefaults ? (
                 <Button
                   ref={seedTriggerRef}
@@ -267,6 +274,7 @@ export function TransactionRulesPage({
                 className={styles.statusTabs}
               >
                 <SelectionTabLink
+                  aria-label={`Все правила: ${snapshot.counts.all}`}
                   count={snapshot.counts.all}
                   selected={query.status === "all"}
                   to={transactionRuleStatusUrl(location.search, "all")}
@@ -274,18 +282,20 @@ export function TransactionRulesPage({
                   Все
                 </SelectionTabLink>
                 <SelectionTabLink
+                  aria-label={`Активные правила: ${snapshot.counts.active}`}
                   count={snapshot.counts.active}
                   selected={query.status === "active"}
                   to={transactionRuleStatusUrl(location.search, "active")}
                 >
-                  Активные
+                  Вкл.
                 </SelectionTabLink>
                 <SelectionTabLink
+                  aria-label={`Выключенные правила: ${snapshot.counts.disabled}`}
                   count={snapshot.counts.disabled}
                   selected={query.status === "disabled"}
                   to={transactionRuleStatusUrl(location.search, "disabled")}
                 >
-                  Выключенные
+                  Выкл.
                 </SelectionTabLink>
               </SelectionTabs>
               <Button
@@ -322,21 +332,19 @@ export function TransactionRulesPage({
                   htmlFor="transaction-rule-category"
                   label="Категория результата"
                 >
-                  <select
+                  <SearchableSelect
                     id="transaction-rule-category"
-                    onChange={(event) =>
-                      setCategoryDraft(event.currentTarget.value)
-                    }
+                    onChange={setCategoryDraft}
+                    options={[
+                      { label: "Все категории", value: "" },
+                      ...snapshot.references.categories.map((category) => ({
+                        label: `${category.name}${category.isActive ? "" : " · архив"}`,
+                        value: category.id,
+                      })),
+                    ]}
+                    placeholder="Найти категорию"
                     value={categoryDraft}
-                  >
-                    <option value="">Все категории</option>
-                    {snapshot.references.categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                        {category.isActive ? "" : " · архив"}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </Field>
                 <FormActions layout="split">
                   <Button onClick={() => setCategoryDraft("")} type="button">

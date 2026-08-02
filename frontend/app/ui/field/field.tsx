@@ -8,6 +8,7 @@ type FieldProps = {
   error?: string | undefined;
   errorId?: string;
   hint?: string;
+  hintId?: string;
   htmlFor: string;
   label: ReactNode;
   required?: boolean;
@@ -18,6 +19,7 @@ export function Field({
   error,
   errorId,
   hint,
+  hintId,
   htmlFor,
   label,
   required = false,
@@ -29,7 +31,11 @@ export function Field({
         {required ? <span aria-hidden="true"> *</span> : null}
       </label>
       {children}
-      {hint && !error ? <span className={styles.hint}>{hint}</span> : null}
+      {hint && !error ? (
+        <span className={styles.hint} id={hintId ?? `${htmlFor}-hint`}>
+          {hint}
+        </span>
+      ) : null}
       {error ? (
         errorId ? (
           <FormError id={errorId}>{error}</FormError>

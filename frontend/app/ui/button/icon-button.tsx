@@ -9,7 +9,7 @@ type IconButtonProps = Omit<
 > & {
   "aria-label": string;
   icon: IconName;
-  tone?: "ghost" | "danger";
+  tone?: "ghost" | "secondary" | "danger";
 };
 
 export function IconButton({
@@ -24,6 +24,7 @@ export function IconButton({
       {...buttonProps}
       aria-label={accessibleLabel}
       className={`${styles.iconButton} ${styles[tone]}`}
+      data-tone={tone}
       data-tooltip={accessibleLabel}
       type={type}
     >

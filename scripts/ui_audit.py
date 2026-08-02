@@ -17,7 +17,7 @@ from urllib.request import urlopen
 from uuid import UUID
 
 from openpyxl import Workbook
-from playwright.sync_api import BrowserContext, Page, Route, sync_playwright
+from playwright.sync_api import BrowserContext, Locator, Page, Route, sync_playwright
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
@@ -76,6 +76,13 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
 
 VIEWPORTS: tuple[tuple[str, int, int], ...] = (
     ("desktop", 1440, 1000),
+    ("tablet", 920, 900),
+    ("mobile", 390, 844),
+)
+
+TRANSACTION_RULE_VIEWPORTS: tuple[tuple[str, int, int], ...] = (
+    ("desktop", 1440, 1000),
+    ("compact-desktop", 1280, 900),
     ("tablet", 920, 900),
     ("mobile", 390, 844),
 )
@@ -310,6 +317,72 @@ def try_login(page: Page, *, base_url: str, email: str, password: str) -> None:
     page.wait_for_url("**/workspaces", timeout=PAGE_TIMEOUT_MS)
 
 
+def assert_transaction_rule_form_geometry(form: Locator, *, context: str) -> None:
+    pairs = (
+        ("Условие", "Сопоставление"),
+        ("Название", "Направление"),
+        ("Сумма от", "Сумма до"),
+        ("Тип операции", "Категория"),
+        ("Объект", "Режим"),
+    )
+    for left_label, right_label in pairs:
+        left = form.get_by_label(left_label, exact=False)
+        right = form.get_by_label(right_label, exact=False)
+        left_box = left.bounding_box()
+        right_box = right.bounding_box()
+        if left_box is None or right_box is None:
+            raise RuntimeError(f"Transaction Rules {context} form contains a hidden field")
+        is_two_column = abs(left_box["x"] - right_box["x"]) > 8
+        if is_two_column and abs(left_box["y"] - right_box["y"]) > 2:
+            raise RuntimeError(
+                f"Transaction Rules {context} form fields form a staircase: "
+                f"{left_label!r}={left_box!r}, {right_label!r}={right_box!r}"
+            )
+
+    first_label = form.locator('label[for$="-pattern"]')
+    if first_label.evaluate("element => getComputedStyle(element).textAlign") == "right":
+        raise RuntimeError(f"Transaction Rules {context} form inherited right alignment")
+
+    preview = form.locator("[data-transaction-rule-preview]")
+    preview_box = preview.bounding_box()
+    form_box = form.bounding_box()
+    if preview_box is None or form_box is None:
+        raise RuntimeError(f"Transaction Rules {context} preview is hidden")
+    preview_height_limit = 72 if form_box["width"] > 600 else 112
+    if preview_box["height"] > preview_height_limit:
+        raise RuntimeError(f"Transaction Rules {context} preview is too tall: {preview_box!r}")
+
+    if context == "edit":
+        panel = form.locator("xpath=ancestor::*[@data-workbench-row-expansion][1]")
+        panel_geometry = panel.evaluate(
+            """
+            (element) => {
+              const style = getComputedStyle(element);
+              return {
+                backgroundColor: style.backgroundColor,
+                paddingLeft: parseFloat(style.paddingLeft),
+                paddingRight: parseFloat(style.paddingRight),
+              };
+            }
+            """
+        )
+        if (
+            min(
+                float(panel_geometry["paddingLeft"]),
+                float(panel_geometry["paddingRight"]),
+            )
+            < 16
+        ):
+            raise RuntimeError(
+                f"Transaction Rules edit panel has no horizontal gutters: {panel_geometry!r}"
+            )
+        if panel_geometry["backgroundColor"] in {
+            "rgba(0, 0, 0, 0)",
+            "transparent",
+        }:
+            raise RuntimeError("Transaction Rules edit panel has no own surface")
+
+
 def prepare_realistic_scenario(
     context: BrowserContext,
     *,
@@ -516,10 +589,19 @@ def prepare_realistic_scenario(
         page.goto(build_url(base_url, "/app/rules"), wait_until="networkidle")
         page.get_by_role("button", name="Новое правило", exact=True).click(timeout=PAGE_TIMEOUT_MS)
         rule_form = page.get_by_role("dialog", name="Новое правило", exact=True)
+        assert_transaction_rule_form_geometry(rule_form, context="create")
+        page.screenshot(
+            path=output_dir / f"{viewport_name}-transaction-rule-create-form.png",
+            full_page=True,
+        )
         rule_form.get_by_label("Условие", exact=False).fill("OZON")
         rule_form.get_by_label("Название", exact=True).fill(rule_name)
         rule_form.get_by_label("Тип операции", exact=True).select_option("expense")
-        rule_form.get_by_label("Категория", exact=True).select_option(label=rule_category_name)
+        rule_category = rule_form.get_by_label("Категория", exact=True)
+        rule_category.fill(rule_category_name)
+        page.get_by_role("option", name=rule_category_name, exact=True).click(
+            timeout=PAGE_TIMEOUT_MS
+        )
         rule_form.get_by_label("Направление", exact=True).select_option("outflow")
         rule_form.get_by_label("Режим", exact=True).select_option("suggest")
         rule_form.get_by_role("button", name="Создать правило", exact=True).click(
@@ -541,13 +623,50 @@ def prepare_realistic_scenario(
 
         page.goto(build_url(base_url, "/app/rules"), wait_until="networkidle")
         rule_record = page.locator("[data-rule-id]:visible").filter(has_text=rule_name).first
-        rule_record.get_by_role("button", name="Выключить", exact=True).click(
+        if rule_record.get_by_text("Любая абсолютная сумма", exact=True).count() != 0:
+            raise RuntimeError("Transaction Rules compact row still shows the default amount")
+        if rule_record.get_by_text("Любой счёт", exact=True).count() != 0:
+            raise RuntimeError("Transaction Rules compact row still shows the default account")
+        if rule_record.get_by_text("Приоритет 100", exact=True).count() != 0:
+            raise RuntimeError("Transaction Rules compact row still shows the default priority")
+        if rule_record.get_by_role("button", name="Выключить", exact=True).count() != 0:
+            raise RuntimeError("Transaction Rules lifecycle action escaped the overflow menu")
+        edit_action = rule_record.get_by_role("button", name="Изменить", exact=True)
+        edit_box = edit_action.bounding_box()
+        menu_box = rule_record.get_by_role("button", name="Ещё действия", exact=True).bounding_box()
+        if edit_box is None or menu_box is None or abs(edit_box["y"] - menu_box["y"]) > 2:
+            raise RuntimeError(
+                "Transaction Rules compact actions are not aligned: "
+                f"edit={edit_box!r}, menu={menu_box!r}"
+            )
+        if edit_box["width"] < 88 or edit_action.get_by_text("Изменить", exact=True).count() != 1:
+            raise RuntimeError("Transaction Rules edit action collapsed to an icon-only control")
+        page.screenshot(
+            path=output_dir / f"{viewport_name}-transaction-rule-compact-row.png",
+            full_page=True,
+        )
+        rule_record.get_by_role("button", name="Изменить", exact=True).click(
             timeout=PAGE_TIMEOUT_MS
         )
-        rule_record = page.locator("[data-rule-id]:visible").filter(has_text=rule_name).first
+        edit_form = page.locator("form[data-transaction-rule-edit]:visible")
+        edit_form.wait_for(timeout=PAGE_TIMEOUT_MS)
+        assert_transaction_rule_form_geometry(edit_form, context="edit")
+        page.screenshot(
+            path=output_dir / f"{viewport_name}-transaction-rule-edit-form.png",
+            full_page=True,
+        )
+        page.locator("[data-workbench-row-expansion]:visible").get_by_role(
+            "button", name="Закрыть панель", exact=True
+        ).click(timeout=PAGE_TIMEOUT_MS)
         rule_record.get_by_role("button", name="Ещё действия", exact=True).click(
             timeout=PAGE_TIMEOUT_MS
         )
+        page.get_by_role("button", name="Выключить", exact=True).click(timeout=PAGE_TIMEOUT_MS)
+        rule_record = page.locator("[data-rule-id]:visible").filter(has_text=rule_name).first
+        rule_record.get_by_text("Выключено", exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
+        actions_trigger = rule_record.get_by_role("button", name="Ещё действия", exact=True)
+        if actions_trigger.get_attribute("aria-expanded") != "true":
+            actions_trigger.click(timeout=PAGE_TIMEOUT_MS)
         page.get_by_role("button", name="Удалить правило", exact=True).click(
             timeout=PAGE_TIMEOUT_MS
         )
@@ -810,6 +929,7 @@ def collect_ux_assertions(
 
 def assert_transaction_rules_interactions(page: Page) -> list[str]:
     errors: list[str] = []
+    errors.extend(assert_transaction_rules_toolbar(page))
     create = page.get_by_role("button", name="Новое правило", exact=True)
     if create.count() != 1:
         return ["Transaction Rules create trigger was not found"]
@@ -841,7 +961,7 @@ def assert_transaction_rules_interactions(page: Page) -> list[str]:
     for label in ("Условие", "Название", "Тип операции", "Категория", "Объект", "Режим"):
         if panel.get_by_label(label, exact=False).count() != 1:
             errors.append(f"Transaction Rules create field {label!r} was not found")
-    if panel.get_by_text("Подтверждение останется в Import Review.", exact=False).count() != 1:
+    if panel.get_by_text("Подтверждение — в Import Review.", exact=False).count() != 1:
         errors.append("Transaction Rules create preview does not preserve review semantics")
 
     pattern = panel.get_by_label("Условие", exact=False)
@@ -868,6 +988,73 @@ def assert_transaction_rules_interactions(page: Page) -> list[str]:
                 timeout=PAGE_TIMEOUT_MS
             )
     return errors
+
+
+def assert_transaction_rules_toolbar(page: Page) -> list[str]:
+    controls = {
+        "search": page.get_by_role("search", name="Поиск правил операций"),
+        "status": page.get_by_role("navigation", name="Состояние правил"),
+        "filters": page.get_by_role("button", name="Фильтры", exact=True),
+        "create": page.get_by_role("button", name="Новое правило", exact=True),
+    }
+    missing = [name for name, locator in controls.items() if locator.count() != 1]
+    if missing:
+        return [f"Transaction Rules toolbar controls were not found: {missing!r}"]
+
+    status = controls["status"]
+    expected_status_labels = ("Все", "Вкл.", "Выкл.")
+    if any(status.get_by_text(label, exact=True).count() != 1 for label in expected_status_labels):
+        return ["Transaction Rules toolbar does not use compact status labels"]
+    if status.get_by_role("link", name=re.compile(r"^Активные правила: \d+$")).count() != 1:
+        return ["Transaction Rules active status has no full accessible label"]
+    if status.get_by_role("link", name=re.compile(r"^Выключенные правила: \d+$")).count() != 1:
+        return ["Transaction Rules disabled status has no full accessible label"]
+
+    boxes = {name: locator.bounding_box() for name, locator in controls.items()}
+    if any(box is None for box in boxes.values()):
+        return ["Transaction Rules toolbar contains a hidden control"]
+
+    geometry = {name: box for name, box in boxes.items() if box is not None}
+    viewport = page.viewport_size
+    viewport_width = viewport["width"] if viewport is not None else 0
+    toolbar_width = float(
+        controls["search"].evaluate(
+            "element => element.parentElement.getBoundingClientRect().width"
+        )
+    )
+    tolerance = 2
+
+    def same_row(*names: str) -> bool:
+        tops = [float(geometry[name]["y"]) for name in names]
+        return max(tops) - min(tops) <= tolerance
+
+    if toolbar_width > 1024:
+        if not same_row("search", "status", "filters", "create"):
+            return [f"Transaction Rules desktop toolbar wrapped unexpectedly: {geometry!r}"]
+    elif toolbar_width > 768:
+        search_bottom = float(geometry["search"]["y"] + geometry["search"]["height"])
+        controls_top = min(float(geometry[name]["y"]) for name in ("status", "filters", "create"))
+        if search_bottom > controls_top + tolerance or not same_row("status", "filters", "create"):
+            return [f"Transaction Rules tablet toolbar rows are unstable: {geometry!r}"]
+    elif viewport_width > 704:
+        search_bottom = float(geometry["search"]["y"] + geometry["search"]["height"])
+        status_bottom = float(geometry["status"]["y"] + geometry["status"]["height"])
+        actions_top = min(float(geometry[name]["y"]) for name in ("filters", "create"))
+        if (
+            search_bottom > float(geometry["status"]["y"]) + tolerance
+            or status_bottom > actions_top + tolerance
+            or not same_row("filters", "create")
+        ):
+            return [f"Transaction Rules compact tablet toolbar rows are unstable: {geometry!r}"]
+    else:
+        tops = [float(geometry[name]["y"]) for name in controls]
+        if tops != sorted(tops) or any(
+            current + tolerance >= following
+            for current, following in zip(tops[:-1], tops[1:], strict=True)
+        ):
+            return [f"Transaction Rules mobile toolbar order is unstable: {geometry!r}"]
+
+    return []
 
 
 def assert_react_reports(page: Page) -> list[str]:
@@ -3170,7 +3357,12 @@ def run_audit(
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         try:
-            for viewport_name, width, height in VIEWPORTS:
+            viewports = (
+                TRANSACTION_RULE_VIEWPORTS
+                if scenario == "transaction_rules_interactions"
+                else VIEWPORTS
+            )
+            for viewport_name, width, height in viewports:
                 print(f"Viewport: {viewport_name} ({width}x{height})", flush=True)
                 context = browser.new_context(
                     viewport={"width": width, "height": height},

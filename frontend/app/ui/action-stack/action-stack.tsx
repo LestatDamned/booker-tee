@@ -39,6 +39,7 @@ function horizontalMenuPosition(triggerRect: DOMRect, compact: boolean) {
 type ActionStackProps = {
   danger?: ReactNode;
   disclosureOpen?: boolean;
+  dismissOnAction?: boolean;
   onDisclosureChange?: (open: boolean) => void;
   overflow?: ReactNode;
   primary?: ReactNode;
@@ -49,6 +50,7 @@ type ActionStackProps = {
 export function ActionStack({
   danger,
   disclosureOpen,
+  dismissOnAction = false,
   onDisclosureChange,
   overflow,
   primary,
@@ -192,6 +194,16 @@ export function ActionStack({
             aria-label="Дополнительные действия"
             className={styles.menu}
             id={menuId}
+            onClick={(event) => {
+              if (!dismissOnAction) return;
+              const target = event.target;
+              if (
+                target instanceof Element &&
+                target.closest("button:not(:disabled), a[href]")
+              ) {
+                setOpen(false);
+              }
+            }}
             ref={menuRef}
             style={menuPosition ?? undefined}
           >

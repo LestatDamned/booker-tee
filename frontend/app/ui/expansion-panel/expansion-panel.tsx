@@ -5,6 +5,7 @@ import styles from "./expansion-panel.module.css";
 
 type ExpansionPanelProps = {
   children: ReactNode;
+  className?: string | undefined;
   id: string;
   isOpen?: boolean;
   onClose?: () => void;
@@ -15,6 +16,7 @@ type ExpansionPanelProps = {
 
 export function ExpansionPanel({
   children,
+  className,
   id,
   isOpen = true,
   onClose,
@@ -26,7 +28,7 @@ export function ExpansionPanel({
     <section
       aria-labelledby={showHeader ? titleId : undefined}
       aria-live="polite"
-      className={styles.panel}
+      className={[styles.panel, className].filter(Boolean).join(" ")}
       data-workbench-row-expansion
       hidden={!isOpen}
       id={id}

@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from "react";
 
-import { Button } from "../../ui/button/button";
 import { ActionStack } from "../../ui/action-stack/action-stack";
+import { Button } from "../../ui/button/button";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import { Tag, type TagTone } from "../../ui/tag/tag";
 import type { TransactionRuleSummaryDto } from "./api/transaction-rules-api";
@@ -49,10 +49,9 @@ export function TransactionRuleTable({
       </caption>
       <thead>
         <tr>
-          <th scope="col">Правило и условие</th>
-          <th scope="col">Область</th>
+          <th scope="col">Условие</th>
           <th scope="col">Результат</th>
-          <th scope="col">Режим и состояние</th>
+          <th scope="col">Статус</th>
           <th scope="col">Действия</th>
         </tr>
       </thead>
@@ -72,10 +71,8 @@ export function TransactionRuleTable({
                 <th scope="row">
                   <RuleIdentity rule={rule} />
                   <p className={styles.condition}>{conditionLabel(rule)}</p>
+                  <RuleConditionFacts rule={rule} />
                 </th>
-                <td>
-                  <RuleScope rule={rule} />
-                </td>
                 <td>
                   <RuleOutcome rule={rule} />
                 </td>
@@ -101,7 +98,7 @@ export function TransactionRuleTable({
               </tr>
               {isEditing ? (
                 <tr className={styles.editRow}>
-                  <td colSpan={5}>{editPanel}</td>
+                  <td colSpan={4}>{editPanel}</td>
                 </tr>
               ) : null}
             </Fragment>
@@ -146,7 +143,7 @@ export function TransactionRuleMobileList({
                 <RuleStatus rule={rule} />
               </div>
               <p className={styles.condition}>{conditionLabel(rule)}</p>
-              <RuleScope rule={rule} />
+              <RuleConditionFacts rule={rule} />
               <RuleOutcome rule={rule} />
               <RuleBehavior rule={rule} showStatus={false} />
               <RuleActions
@@ -176,26 +173,28 @@ function RuleIdentity({ rule }: { rule: TransactionRuleSummaryDto }) {
   return (
     <span data-record-identity>
       {rule.name}
-      <small className={styles.priority}>Приоритет {rule.priority}</small>
+      {rule.priority === 100 ? null : (
+        <small className={styles.priority}>Приоритет {rule.priority}</small>
+      )}
     </span>
   );
 }
 
-function RuleScope({ rule }: { rule: TransactionRuleSummaryDto }) {
+function RuleConditionFacts({ rule }: { rule: TransactionRuleSummaryDto }) {
+  const amount = boundedAmountLabel(
+    rule.condition.amountMin,
+    rule.condition.amountMax,
+  );
   return (
-    <div className={styles.factStack}>
+    <div className={styles.compactFacts}>
       <Tag variant="soft">{directionLabel(rule.condition.direction)}</Tag>
-      <span>
-        {amountLabel(rule.condition.amountMin, rule.condition.amountMax)}
-      </span>
+      {amount ? <span>{amount}</span> : null}
       {rule.condition.account ? (
         <span>
           Счёт: {rule.condition.account.name}
           {!rule.condition.account.isActive ? " · недоступен" : ""}
         </span>
-      ) : (
-        <span>Любой счёт</span>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -211,12 +210,18 @@ function RuleOutcome({ rule }: { rule: TransactionRuleSummaryDto }) {
       ) : (
         <Tag variant="soft">Тип не меняется</Tag>
       )}
-      <span>{referenceLabel("Категория", rule.outcome.category)}</span>
-      <span>{referenceLabel("Объект", rule.outcome.property)}</span>
+      {rule.outcome.category ? (
+        <span>{referenceValue(rule.outcome.category)}</span>
+      ) : null}
+      {rule.outcome.property ? (
+        <span>Объект: {referenceValue(rule.outcome.property)}</span>
+      ) : null}
       {rule.outcome.autoDescription ? (
         <span>Описание: {rule.outcome.autoDescription}</span>
       ) : null}
-      <span>{profitLabel(rule.outcome.affectsProfit)}</span>
+      {profitExceptionLabel(rule) ? (
+        <span>{profitExceptionLabel(rule)}</span>
+      ) : null}
     </div>
   );
 }
@@ -233,19 +238,12 @@ function RuleBehavior({
       {showStatus ? <RuleStatus rule={rule} /> : null}
       <Tag tone="automation" variant="soft">
         {rule.outcome.applicationMode === "auto_apply"
-          ? "Быстрое подтверждение"
+          ? "Предзаполнение"
           : "Предложение"}
       </Tag>
-      <span>
-        {rule.usage.directRawSuggestionCount === 0
-          ? "Существующих предложений нет"
-          : `${rule.usage.directRawSuggestionCount} существующих предложений сохранены`}
-      </span>
-      <span>
-        {rule.isActive
-          ? "Сопоставляет только будущие review-операции"
-          : "Будущие операции не сопоставляются"}
-      </span>
+      {rule.usage.directRawSuggestionCount > 0 ? (
+        <span>Предложений: {rule.usage.directRawSuggestionCount}</span>
+      ) : null}
     </div>
   );
 }
@@ -287,7 +285,7 @@ function RuleActions({
         disabled={editing || mutationPending}
         isLoading={pending}
         onClick={() => onDisable(rule)}
-        tone="secondary"
+        tone="ghost"
       >
         Выключить
       </Button>
@@ -297,7 +295,7 @@ function RuleActions({
       disabled={editing || mutationPending}
       isLoading={pending}
       onClick={() => onEnable(rule)}
-      tone="secondary"
+      tone="ghost"
     >
       Включить
     </Button>
@@ -305,21 +303,33 @@ function RuleActions({
     <Button
       disabled={editing || mutationPending}
       onClick={() => onEnableBlocked(rule)}
-      tone="secondary"
+      tone="ghost"
     >
       Почему нельзя включить
     </Button>
   ) : null;
+  const deleteBlocker =
+    !rule.isActive &&
+    rule.capabilities.deleteBlockedReasonCode === "raw_suggestions" ? (
+      <Button
+        disabled={editing || mutationPending}
+        onClick={() => onDeleteBlocked(rule)}
+        tone="ghost"
+      >
+        Почему нельзя удалить
+      </Button>
+    ) : null;
   return (
     <ActionStack
+      dismissOnAction
       orientation="row"
       primary={
         rule.capabilities.canUpdate ? (
           <Button
             aria-controls={panelId}
             aria-expanded={isEditing}
+            aria-label={isEditing ? "Закрыть редактирование" : "Изменить"}
             disabled={mutationPending}
-            icon="edit"
             onClick={(event) => onEdit(event.currentTarget)}
             tone="secondary"
           >
@@ -327,7 +337,6 @@ function RuleActions({
           </Button>
         ) : undefined
       }
-      secondary={lifecycle ?? undefined}
       danger={
         rule.capabilities.canDelete ? (
           <Button
@@ -342,14 +351,11 @@ function RuleActions({
         ) : undefined
       }
       overflow={
-        !rule.isActive &&
-        rule.capabilities.deleteBlockedReasonCode === "raw_suggestions" ? (
-          <Button
-            disabled={editing || mutationPending}
-            onClick={() => onDeleteBlocked(rule)}
-          >
-            Почему нельзя удалить
-          </Button>
+        lifecycle || deleteBlocker ? (
+          <>
+            {lifecycle}
+            {deleteBlocker}
+          </>
         ) : undefined
       }
     />
@@ -378,19 +384,21 @@ function directionLabel(
   return "Любое направление";
 }
 
-function amountLabel(minimum: string | null, maximum: string | null): string {
-  if (minimum && maximum) return `Сумма ${minimum}–${maximum}`;
-  if (minimum) return `Сумма от ${minimum}`;
-  if (maximum) return `Сумма до ${maximum}`;
-  return "Любая абсолютная сумма";
+function boundedAmountLabel(
+  minimum: string | null,
+  maximum: string | null,
+): string | null {
+  if (minimum && maximum) return `Сумма: ${minimum}–${maximum}`;
+  if (minimum) return `Сумма: от ${minimum}`;
+  if (maximum) return `Сумма: до ${maximum}`;
+  return null;
 }
 
-function referenceLabel(
-  label: string,
+function referenceValue(
   reference: TransactionRuleSummaryDto["outcome"]["category"],
 ): string {
-  if (!reference) return `${label}: не задана`;
-  return `${label}: ${reference.name}${reference.isActive ? "" : " · архив"}`;
+  if (!reference) return "";
+  return `${reference.name}${reference.isActive ? "" : " · архив"}`;
 }
 
 function operationTypeLabel(
@@ -414,4 +422,19 @@ function profitLabel(affectsProfit: boolean | null): string {
   if (affectsProfit === true) return "Влияет на финансовый результат";
   if (affectsProfit === false) return "Не влияет на финансовый результат";
   return "Влияние на результат определяется типом операции";
+}
+
+function profitExceptionLabel(rule: TransactionRuleSummaryDto): string | null {
+  const operationType = rule.outcome.operationType;
+  const affectsProfit = rule.outcome.affectsProfit;
+  if (operationType === "transfer" || operationType === "adjustment") {
+    return profitLabel(affectsProfit);
+  }
+  if (
+    (operationType === "income" || operationType === "expense") &&
+    affectsProfit === true
+  ) {
+    return null;
+  }
+  return affectsProfit === null ? null : profitLabel(affectsProfit);
 }
