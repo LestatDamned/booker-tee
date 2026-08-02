@@ -17,9 +17,12 @@ type TransactionRuleRecordsProps = {
     trigger: HTMLButtonElement,
   ) => void;
   lifecyclePendingId: string | null;
+  deletePendingId: string | null;
   onDisable: (rule: TransactionRuleSummaryDto) => void;
   onEnable: (rule: TransactionRuleSummaryDto) => void;
   onEnableBlocked: (rule: TransactionRuleSummaryDto) => void;
+  onDelete: (rule: TransactionRuleSummaryDto) => void;
+  onDeleteBlocked: (rule: TransactionRuleSummaryDto) => void;
   rules: TransactionRuleSummaryDto[];
   targetId: string | null;
 };
@@ -29,10 +32,13 @@ export function TransactionRuleTable({
   editingRuleId,
   editingVariant,
   onEdit,
+  deletePendingId,
   lifecyclePendingId,
   onDisable,
   onEnable,
   onEnableBlocked,
+  onDelete,
+  onDeleteBlocked,
   rules,
   targetId,
 }: TransactionRuleRecordsProps) {
@@ -79,12 +85,15 @@ export function TransactionRuleTable({
                 <td>
                   <RuleActions
                     editing={editingRuleId !== null}
+                    deletePendingId={deletePendingId}
                     isEditing={isEditing}
                     lifecyclePendingId={lifecyclePendingId}
                     onDisable={onDisable}
                     onEdit={(trigger) => onEdit(rule.id, "desktop", trigger)}
                     onEnable={onEnable}
                     onEnableBlocked={onEnableBlocked}
+                    onDelete={onDelete}
+                    onDeleteBlocked={onDeleteBlocked}
                     panelId={panelId}
                     rule={rule}
                   />
@@ -108,10 +117,13 @@ export function TransactionRuleMobileList({
   editingRuleId,
   editingVariant,
   onEdit,
+  deletePendingId,
   lifecyclePendingId,
   onDisable,
   onEnable,
   onEnableBlocked,
+  onDelete,
+  onDeleteBlocked,
   rules,
   targetId,
 }: TransactionRuleRecordsProps) {
@@ -139,12 +151,15 @@ export function TransactionRuleMobileList({
               <RuleBehavior rule={rule} showStatus={false} />
               <RuleActions
                 editing={editingRuleId !== null}
+                deletePendingId={deletePendingId}
                 isEditing={isEditing}
                 lifecyclePendingId={lifecyclePendingId}
                 onDisable={onDisable}
                 onEdit={(trigger) => onEdit(rule.id, "mobile", trigger)}
                 onEnable={onEnable}
                 onEnableBlocked={onEnableBlocked}
+                onDelete={onDelete}
+                onDeleteBlocked={onDeleteBlocked}
                 panelId={panelId}
                 rule={rule}
               />
@@ -237,30 +252,39 @@ function RuleBehavior({
 
 function RuleActions({
   editing,
+  deletePendingId,
   isEditing,
   lifecyclePendingId,
   onDisable,
   onEdit,
   onEnable,
   onEnableBlocked,
+  onDelete,
+  onDeleteBlocked,
   panelId,
   rule,
 }: {
   editing: boolean;
+  deletePendingId: string | null;
   isEditing: boolean;
   lifecyclePendingId: string | null;
   onDisable: (rule: TransactionRuleSummaryDto) => void;
   onEdit: (trigger: HTMLButtonElement) => void;
   onEnable: (rule: TransactionRuleSummaryDto) => void;
   onEnableBlocked: (rule: TransactionRuleSummaryDto) => void;
+  onDelete: (rule: TransactionRuleSummaryDto) => void;
+  onDeleteBlocked: (rule: TransactionRuleSummaryDto) => void;
   panelId: string;
   rule: TransactionRuleSummaryDto;
 }) {
   const pending = lifecyclePendingId === rule.id;
+  const deletePending = deletePendingId === rule.id;
+  const mutationPending =
+    lifecyclePendingId !== null || deletePendingId !== null;
   const lifecycle = rule.isActive ? (
     rule.capabilities.canDisable ? (
       <Button
-        disabled={editing || lifecyclePendingId !== null}
+        disabled={editing || mutationPending}
         isLoading={pending}
         onClick={() => onDisable(rule)}
         tone="secondary"
@@ -270,7 +294,7 @@ function RuleActions({
     ) : null
   ) : rule.capabilities.canEnable ? (
     <Button
-      disabled={editing || lifecyclePendingId !== null}
+      disabled={editing || mutationPending}
       isLoading={pending}
       onClick={() => onEnable(rule)}
       tone="secondary"
@@ -279,7 +303,7 @@ function RuleActions({
     </Button>
   ) : rule.capabilities.enableBlockedReasonCode ? (
     <Button
-      disabled={editing || lifecyclePendingId !== null}
+      disabled={editing || mutationPending}
       onClick={() => onEnableBlocked(rule)}
       tone="secondary"
     >
@@ -294,7 +318,7 @@ function RuleActions({
           <Button
             aria-controls={panelId}
             aria-expanded={isEditing}
-            disabled={lifecyclePendingId !== null}
+            disabled={mutationPending}
             icon="edit"
             onClick={(event) => onEdit(event.currentTarget)}
             tone="secondary"
@@ -304,6 +328,30 @@ function RuleActions({
         ) : undefined
       }
       secondary={lifecycle ?? undefined}
+      danger={
+        rule.capabilities.canDelete ? (
+          <Button
+            disabled={editing || mutationPending}
+            icon="delete"
+            isLoading={deletePending}
+            onClick={() => onDelete(rule)}
+            tone="danger"
+          >
+            Удалить правило
+          </Button>
+        ) : undefined
+      }
+      overflow={
+        !rule.isActive &&
+        rule.capabilities.deleteBlockedReasonCode === "raw_suggestions" ? (
+          <Button
+            disabled={editing || mutationPending}
+            onClick={() => onDeleteBlocked(rule)}
+          >
+            Почему нельзя удалить
+          </Button>
+        ) : undefined
+      }
     />
   );
 }

@@ -7,6 +7,7 @@ import {
   type TransactionRuleDirectoryDto,
   type TransactionRuleSummaryDto,
 } from "./api/transaction-rules-api";
+import { transactionRulePageUrl } from "./transaction-rule-list-query";
 
 export function useTransactionRuleMutations({
   csrfToken,
@@ -14,12 +15,14 @@ export function useTransactionRuleMutations({
   navigate,
   onReload,
   pathname,
+  search,
 }: {
   csrfToken: string;
   directory: TransactionRuleDirectoryDto;
   navigate: NavigateFunction;
   onReload?: () => void;
   pathname: string;
+  search: string;
 }) {
   const [createdRules, setCreatedRules] = useState<TransactionRuleSummaryDto[]>(
     [],
@@ -27,13 +30,22 @@ export function useTransactionRuleMutations({
   const [updatedRules, setUpdatedRules] = useState<TransactionRuleSummaryDto[]>(
     [],
   );
+  const [deletedRules, setDeletedRules] = useState<TransactionRuleSummaryDto[]>(
+    [],
+  );
   const [createOpen, setCreateOpen] = useState(false);
   const [seedConfirmOpen, setSeedConfirmOpen] = useState(false);
   const [seedPending, setSeedPending] = useState(false);
   const [seedError, setSeedError] = useState<string | null>(null);
   const snapshot = useMemo(
-    () => directoryWithLocalRules(directory, createdRules, updatedRules),
-    [createdRules, directory, updatedRules],
+    () =>
+      directoryWithLocalRules(
+        directory,
+        createdRules,
+        updatedRules,
+        deletedRules,
+      ),
+    [createdRules, deletedRules, directory, updatedRules],
   );
   const { dismissToast, showToast, toast } = useToastQueue();
 
@@ -77,6 +89,19 @@ export function useTransactionRuleMutations({
     onReload?.();
   }
 
+  function ruleDeleted(item: TransactionRuleSummaryDto) {
+    setDeletedRules((current) => [
+      item,
+      ...current.filter((rule) => rule.id !== item.id),
+    ]);
+    if (snapshot.items.length === 1 && snapshot.page.page > 1) {
+      void navigate(transactionRulePageUrl(search, snapshot.page.page - 1), {
+        replace: true,
+      });
+    }
+    onReload?.();
+  }
+
   return {
     closeCreate: () => setCreateOpen(false),
     closeSeed: () => setSeedConfirmOpen(false),
@@ -88,6 +113,7 @@ export function useTransactionRuleMutations({
       setSeedConfirmOpen(true);
     },
     ruleCreated,
+    ruleDeleted,
     ruleReplaced,
     ruleUpdated,
     seedConfirmOpen,
@@ -104,6 +130,7 @@ function directoryWithLocalRules(
   directory: TransactionRuleDirectoryDto,
   createdRules: TransactionRuleSummaryDto[],
   updatedRules: TransactionRuleSummaryDto[],
+  deletedRules: TransactionRuleSummaryDto[],
 ): TransactionRuleDirectoryDto {
   const replacements = new Map(updatedRules.map((item) => [item.id, item]));
   let activeDelta = 0;
@@ -137,22 +164,42 @@ function directoryWithLocalRules(
   );
   const total =
     directory.page.total + visibilityDelta + visibleAdditions.length;
-  const totalPages = Math.max(1, Math.ceil(total / directory.page.pageSize));
+  const deletedIds = new Set(deletedRules.map((item) => item.id));
+  const countedSourceIds = new Set([
+    ...directory.items.map((item) => item.id),
+    ...additions.map((item) => item.id),
+  ]);
+  const deletedCounted = deletedRules.filter((item) =>
+    countedSourceIds.has(item.id),
+  );
+  const deletedActive = deletedCounted.filter((item) => item.isActive).length;
+  const deletedVisible = [...visibleAdditions, ...items].filter((item) =>
+    deletedIds.has(item.id),
+  ).length;
+  const normalizedTotal = Math.max(0, total - deletedVisible);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(normalizedTotal / directory.page.pageSize),
+  );
   return {
     ...directory,
-    items: [...visibleAdditions, ...items],
+    items: [...visibleAdditions, ...items].filter(
+      (item) => !deletedIds.has(item.id),
+    ),
     counts: {
-      all: directory.counts.all + additions.length,
-      active: directory.counts.active + activeAdditions + activeDelta,
+      all: directory.counts.all + additions.length - deletedCounted.length,
+      active:
+        directory.counts.active + activeAdditions + activeDelta - deletedActive,
       disabled:
         directory.counts.disabled +
         additions.length -
         activeAdditions +
-        disabledDelta,
+        disabledDelta -
+        (deletedCounted.length - deletedActive),
     },
     page: {
       ...directory.page,
-      total,
+      total: normalizedTotal,
       totalPages,
       hasNext: directory.page.page < totalPages,
     },

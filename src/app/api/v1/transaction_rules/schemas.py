@@ -131,6 +131,11 @@ class TransactionRuleLifecycleApiRequest(ApiModel):
     expected_updated_at: datetime
 
 
+class TransactionRuleDeleteApiRequest(ApiModel):
+    expected_active: bool
+    expected_updated_at: datetime
+
+
 class TransactionRuleCreateApiResponse(ApiModel):
     item: TransactionRuleSummaryApiResponse
     replayed: bool
@@ -150,6 +155,11 @@ class TransactionRuleLifecycleImpactApiResponse(ApiModel):
 class TransactionRuleLifecycleApiResponse(ApiModel):
     item: TransactionRuleSummaryApiResponse
     impact: TransactionRuleLifecycleImpactApiResponse
+
+
+class TransactionRuleDeleteApiResponse(ApiModel):
+    deleted_id: UUID
+    name: str
 
 
 class TransactionRuleSeedDefaultsApiResponse(ApiModel):

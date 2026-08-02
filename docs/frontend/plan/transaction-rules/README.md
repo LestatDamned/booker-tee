@@ -1,7 +1,7 @@
 # Transaction Rules React migration
 
 Статус: `in progress`; аудит завершён 2026-08-01, решения D1–D7 приняты
-2026-08-02, Slices 0–4 завершены 2026-08-02.
+2026-08-02, Slices 0–5 завершены 2026-08-02.
 
 ## Цель
 
@@ -100,8 +100,23 @@ Slice 4 lifecycle завершён 2026-08-02:
   stale reload/retry и Toast;
 - active/disabled counts и видимость строки синхронно следуют URL status view.
 
-Следующий этап — Slice 5: safe delete только для выключенного неиспользованного
-правила согласно принятой policy D2.
+Slice 5 safe delete завершён 2026-08-02:
+
+- versioned `DELETE /api/v1/transaction-rules/{rule_id}` требует writer,
+  `expectedActive` и `expectedUpdatedAt`, а response возвращает удалённые id/name;
+- сервер повторно проверяет disabled state и прямые workspace-scoped
+  `RawTransaction.suggested_by_rule_id` references под row lock; typed blocker
+  сообщает причину и актуальный direct reference count;
+- restrictive FK закрывает race между capability read/count и delete: raw
+  provenance не обнуляется, source/suggestion/operation не каскадируются;
+- React показывает delete только в dangerous overflow для `canDelete=true`,
+  фокусирует Cancel в irreversible confirmation и не предлагает ложное действие
+  active/referenced rule;
+- pending/conflict reload+explicit retry, Toast, локальные counts и переход с
+  опустевшей последней страницы сохраняют URL filters.
+
+Следующий этап — Slice 6: canonical links, replacement gate и выполнение
+`DELETE_MANIFEST.md` только после полного Import Review/browser evidence.
 
 ## Краткий вывод аудита
 

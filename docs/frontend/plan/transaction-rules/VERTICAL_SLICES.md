@@ -145,23 +145,23 @@ blocker guidance otherwise.
 
 Server:
 
-- workspace-scoped reference count and capability;
-- disabled + zero-reference + stale token enforcement;
-- typed blocker response and deleted identity;
-- FK/race integration test.
+- [x] workspace-scoped reference count and capability;
+- [x] disabled + zero-reference + stale token enforcement;
+- [x] typed blocker response and deleted identity;
+- [x] FK/race integration test.
 
 React:
 
-- Delete only in dangerous overflow group;
-- `ConfirmationDialog`, initial focus Cancel, irreversible copy;
-- referenced/active rule shows disable/blocker path rather than false action;
-- pending, conflict recovery, Toast and page normalization.
+- [x] Delete only in dangerous overflow group;
+- [x] `ConfirmationDialog`, initial focus Cancel, irreversible copy;
+- [x] referenced/active rule shows disable/blocker path rather than false action;
+- [x] pending, conflict recovery, Toast and page normalization.
 
 Exit gate:
 
-- referenced raw row never loses provenance through UI delete;
-- no raw source/suggestion/operation is cascaded or rewritten;
-- forged delete cannot bypass server capability.
+- [x] referenced raw row never loses provenance through UI delete;
+- [x] no raw source/suggestion/operation is cascaded or rewritten;
+- [x] forged delete cannot bypass server capability.
 
 ## Slice 6 — Import Review links and replacement gate
 

@@ -503,6 +503,223 @@ describe("TransactionRulesPage", () => {
       screen.getByRole("button", { name: "Изменить правило" }),
     ).toBeVisible();
   });
+
+  it("keeps delete in dangerous overflow, focuses cancel and removes only the rule", async () => {
+    const user = userEvent.setup();
+    const deletable = {
+      ...directory.items[0]!,
+      isActive: false,
+      usage: { directRawSuggestionCount: 0 },
+      capabilities: {
+        ...directory.items[0]!.capabilities,
+        canDisable: false,
+        canEnable: true,
+        canDelete: true,
+        deleteBlockedReasonCode: null,
+      },
+    };
+    const snapshot = {
+      ...directory,
+      items: [deletable],
+      counts: { all: 3, active: 2, disabled: 1 },
+    };
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ deletedId: deletable.id, name: deletable.name }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage("/rules?status=disabled", snapshot);
+
+    expect(
+      screen.queryByRole("button", { name: "Удалить правило" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getAllByRole("button", { name: "Ещё действия" })[0]!,
+    );
+    const deleteAction = screen.getByRole("button", {
+      name: "Удалить правило",
+    });
+    expect(
+      deleteAction.closest('[aria-label="Опасные действия"]'),
+    ).not.toBeNull();
+    await user.click(deleteAction);
+    expect(screen.getByText(/без возможности восстановления/)).toBeVisible();
+    expect(screen.getByText(/источники импорта.*не изменятся/)).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Отмена" })).toHaveFocus(),
+    );
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Удалить правило",
+      }),
+    );
+
+    expect(
+      await screen.findByText(/Финансовые данные не изменены/),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: "Все 2" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Выключенные 0" })).toBeVisible();
+    expect(screen.queryByText("OZON → Маркетплейсы")).not.toBeInTheDocument();
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]![1] as RequestInit).body),
+    );
+    expect(body).toEqual({
+      expectedActive: false,
+      expectedUpdatedAt: "2026-08-02T09:00:00Z",
+    });
+  });
+
+  it("explains preserved provenance instead of offering a false delete action", async () => {
+    const user = userEvent.setup();
+    const referenced = {
+      ...directory.items[0]!,
+      isActive: false,
+      capabilities: {
+        ...directory.items[0]!.capabilities,
+        canDisable: false,
+        canEnable: true,
+        canDelete: false,
+        deleteBlockedReasonCode: "raw_suggestions" as const,
+      },
+    };
+    renderPage("/rules", { ...directory, items: [referenced] });
+
+    await user.click(
+      screen.getAllByRole("button", { name: "Ещё действия" })[0]!,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Удалить правило" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Почему нельзя удалить" }),
+    );
+    expect(screen.getByText("Правило нельзя удалить")).toBeVisible();
+    expect(
+      screen.getByText(/4 review-предложений хранит provenance/),
+    ).toBeVisible();
+  });
+
+  it("reloads an authoritative delete conflict before explicit retry", async () => {
+    const user = userEvent.setup();
+    const deletable = {
+      ...directory.items[0]!,
+      isActive: false,
+      usage: { directRawSuggestionCount: 0 },
+      capabilities: {
+        ...directory.items[0]!.capabilities,
+        canDisable: false,
+        canDelete: true,
+        deleteBlockedReasonCode: null,
+      },
+    };
+    const fresh = { ...deletable, updatedAt: "2026-08-02T09:30:00Z" };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "transaction_rule_delete_conflict",
+              message: "Правило уже изменилось в другом окне.",
+            },
+          }),
+          { headers: { "Content-Type": "application/json" }, status: 409 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ item: fresh, references: directory.references }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ deletedId: fresh.id, name: fresh.name }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage("/rules", { ...directory, items: [deletable] });
+
+    await user.click(
+      screen.getAllByRole("button", { name: "Ещё действия" })[0]!,
+    );
+    await user.click(screen.getByRole("button", { name: "Удалить правило" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Удалить правило",
+      }),
+    );
+    expect(await screen.findByText("Правило изменилось")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Обновить и повторить" }),
+    );
+
+    expect(
+      await screen.findByText(/Финансовые данные не изменены/),
+    ).toBeVisible();
+    expect(
+      JSON.parse(String((fetchMock.mock.calls[2]![1] as RequestInit).body)),
+    ).toMatchObject({ expectedUpdatedAt: "2026-08-02T09:30:00Z" });
+  });
+
+  it("normalizes the last page after delete while preserving filters", async () => {
+    const user = userEvent.setup();
+    const deletable = {
+      ...directory.items[0]!,
+      isActive: false,
+      usage: { directRawSuggestionCount: 0 },
+      capabilities: {
+        ...directory.items[0]!.capabilities,
+        canDisable: false,
+        canDelete: true,
+        deleteBlockedReasonCode: null,
+      },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({ deletedId: deletable.id, name: deletable.name }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
+        ),
+      ),
+    );
+    renderPage("/rules?q=ozon&status=disabled&page=2&page_size=25", {
+      ...directory,
+      items: [deletable],
+      page: {
+        page: 2,
+        pageSize: 25,
+        total: 26,
+        totalPages: 2,
+        hasPrevious: true,
+        hasNext: false,
+      },
+      appliedFilters: { q: "ozon", categoryId: null, status: "disabled" },
+    });
+    await user.click(
+      screen.getAllByRole("button", { name: "Ещё действия" })[0]!,
+    );
+    await user.click(screen.getByRole("button", { name: "Удалить правило" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Удалить правило",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "?q=ozon&status=disabled&page_size=25",
+      ),
+    );
+  });
 });
 
 function renderPage(initialEntry = "/rules", snapshot = directory) {

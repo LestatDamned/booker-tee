@@ -21,6 +21,8 @@ from app.api.v1.transaction_rules.parameters import (
 from app.api.v1.transaction_rules.schemas import (
     TransactionRuleCreateApiRequest,
     TransactionRuleCreateApiResponse,
+    TransactionRuleDeleteApiRequest,
+    TransactionRuleDeleteApiResponse,
     TransactionRuleDirectoryApiResponse,
     TransactionRuleEditApiResponse,
     TransactionRuleLifecycleApiRequest,
@@ -302,4 +304,38 @@ async def disable_transaction_rule(
         context=context,
         mutations=mutations,
         is_active=False,
+    )
+
+
+@router.delete(
+    "/{rule_id}",
+    response_model=TransactionRuleDeleteApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+    ),
+)
+async def delete_transaction_rule(
+    rule_id: UUID,
+    request: TransactionRuleDeleteApiRequest,
+    context: Annotated[ApiRequestContext, Depends(require_api_financial_write_context)],
+    mutations: Annotated[
+        TransactionRuleMutationService,
+        Depends(get_transaction_rule_mutation_service),
+    ],
+) -> TransactionRuleDeleteApiResponse:
+    try:
+        deleted = await mutations.delete(
+            context=context.workspace,
+            rule_id=rule_id,
+            expected_active=request.expected_active,
+            expected_updated_at=request.expected_updated_at,
+        )
+    except TransactionRuleError as error:
+        raise transaction_rule_api_error(error) from error
+    return TransactionRuleDeleteApiResponse(
+        deleted_id=deleted.id,
+        name=deleted.name,
     )

@@ -48,6 +48,7 @@ import {
 import styles from "./transaction-rules-page.module.css";
 import { useTransactionRuleMutations } from "./use-transaction-rule-mutations";
 import { useTransactionRuleEditor } from "./use-transaction-rule-editor";
+import { useTransactionRuleDelete } from "./use-transaction-rule-delete";
 import { useTransactionRuleLifecycle } from "./use-transaction-rule-lifecycle";
 
 export function TransactionRulesPage({
@@ -74,6 +75,7 @@ export function TransactionRulesPage({
     navigate,
     ...(onReload ? { onReload } : {}),
     pathname: location.pathname,
+    search: location.search,
   });
   const { snapshot } = mutations;
   const editor = useTransactionRuleEditor({
@@ -83,6 +85,12 @@ export function TransactionRulesPage({
   const lifecycle = useTransactionRuleLifecycle({
     csrfToken: session.csrfToken,
     onCommitted: mutations.ruleReplaced,
+    showToast: mutations.showToast,
+  });
+  const deletion = useTransactionRuleDelete({
+    csrfToken: session.csrfToken,
+    onDeleted: mutations.ruleDeleted,
+    onReloaded: mutations.ruleReplaced,
     showToast: mutations.showToast,
   });
   const [categoryDraft, setCategoryDraft] = useState(query.categoryId);
@@ -182,6 +190,42 @@ export function TransactionRulesPage({
             onRetry={lifecycle.retry}
             pending={lifecycle.pendingId !== null}
           />
+        ) : null}
+
+        {deletion.failure ? (
+          <InlineNotice
+            action={
+              deletion.failure.conflict ? (
+                <Button
+                  disabled={deletion.pendingId !== null}
+                  onClick={() => void deletion.refreshAndRetry()}
+                  tone="secondary"
+                >
+                  Обновить и повторить
+                </Button>
+              ) : deletion.failure.blocked ? (
+                <Button onClick={deletion.clearFailure}>Понятно</Button>
+              ) : (
+                <Button
+                  disabled={deletion.pendingId !== null}
+                  onClick={deletion.retry}
+                  tone="secondary"
+                >
+                  Повторить
+                </Button>
+              )
+            }
+            title={
+              deletion.failure.blocked
+                ? "Правило нельзя удалить"
+                : deletion.failure.conflict
+                  ? "Правило изменилось"
+                  : "Не удалось удалить правило"
+            }
+            tone={deletion.failure.blocked ? "warning" : "danger"}
+          >
+            {deletion.failure.message}
+          </InlineNotice>
         ) : null}
 
         <WorkbenchSurface
@@ -331,12 +375,15 @@ export function TransactionRulesPage({
               <ResponsiveRecordCollection
                 mobileList={
                   <TransactionRuleMobileList
+                    deletePendingId={deletion.pendingId}
                     editPanel={editor.panel}
                     editingRuleId={editor.opened?.ruleId ?? null}
                     editingVariant={editor.opened?.variant ?? null}
                     onEdit={editor.requestOpen}
                     lifecyclePendingId={lifecycle.pendingId}
                     onDisable={lifecycle.disable}
+                    onDelete={deletion.requestDelete}
+                    onDeleteBlocked={deletion.explainBlocked}
                     onEnable={lifecycle.enable}
                     onEnableBlocked={lifecycle.explainBlocked}
                     rules={snapshot.items}
@@ -345,12 +392,15 @@ export function TransactionRulesPage({
                 }
                 table={
                   <TransactionRuleTable
+                    deletePendingId={deletion.pendingId}
                     editPanel={editor.panel}
                     editingRuleId={editor.opened?.ruleId ?? null}
                     editingVariant={editor.opened?.variant ?? null}
                     onEdit={editor.requestOpen}
                     lifecyclePendingId={lifecycle.pendingId}
                     onDisable={lifecycle.disable}
+                    onDelete={deletion.requestDelete}
+                    onDeleteBlocked={deletion.explainBlocked}
                     onEnable={lifecycle.enable}
                     onEnableBlocked={lifecycle.explainBlocked}
                     rules={snapshot.items}
@@ -414,6 +464,7 @@ export function TransactionRulesPage({
           </ConfirmationDialog>
         ) : null}
         {editor.dialog}
+        {deletion.dialog}
         <ToastViewport
           onDismiss={mutations.dismissToast}
           toast={mutations.toast}

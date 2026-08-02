@@ -17,6 +17,8 @@ export type TransactionRuleEditDto =
   components["schemas"]["TransactionRuleEditApiResponse"];
 export type TransactionRuleLifecycleDto =
   components["schemas"]["TransactionRuleLifecycleApiResponse"];
+export type TransactionRuleDeleteDto =
+  components["schemas"]["TransactionRuleDeleteApiResponse"];
 export type TransactionRuleSeedDefaultsDto =
   components["schemas"]["TransactionRuleSeedDefaultsApiResponse"];
 
@@ -127,6 +129,11 @@ const lifecycleResponseSchema: z.ZodType<TransactionRuleLifecycleDto> =
     }),
   });
 
+const deleteResponseSchema: z.ZodType<TransactionRuleDeleteDto> = z.object({
+  deletedId: z.uuid(),
+  name: z.string(),
+});
+
 export type TransactionRuleMutationResult<T> =
   | { status: "success"; value: T }
   | {
@@ -148,6 +155,18 @@ export type TransactionRuleLifecycleResult =
   | {
       status: "blocked";
       blockedReasonCode: string | null;
+      message: string;
+    }
+  | { status: "conflict"; message: string }
+  | { status: "forbidden"; message: string }
+  | { status: "error"; message: string };
+
+export type TransactionRuleDeleteResult =
+  | { status: "success"; value: TransactionRuleDeleteDto }
+  | {
+      status: "blocked";
+      blockedReasonCode: "active_rule" | "raw_suggestions" | null;
+      directRawSuggestionCount: number;
       message: string;
     }
   | { status: "conflict"; message: string }
@@ -278,6 +297,58 @@ export async function changeTransactionRuleLifecycle(
     return {
       status: "blocked",
       blockedReasonCode: typeof reason === "string" ? reason : null,
+      message,
+    };
+  }
+  if (response.httpStatus === 409) return { status: "conflict", message };
+  if (response.httpStatus === 401 || response.httpStatus === 403) {
+    return { status: "forbidden", message };
+  }
+  return { status: "error", message };
+}
+
+export async function deleteTransactionRule(
+  item: TransactionRuleSummaryDto,
+  csrfToken: string,
+): Promise<TransactionRuleDeleteResult> {
+  const response = await requestJson(`/api/v1/transaction-rules/${item.id}`, {
+    body: JSON.stringify({
+      expectedActive: item.isActive,
+      expectedUpdatedAt: item.updatedAt,
+    }),
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    },
+    method: "DELETE",
+  });
+  if (response.status === "network_error") {
+    return { status: "error", message: "Backend недоступен." };
+  }
+  if (response.ok) {
+    const parsed = deleteResponseSchema.safeParse(response.body);
+    return parsed.success
+      ? { status: "success", value: parsed.data }
+      : { status: "error", message: "API вернул неожиданный ответ." };
+  }
+  const error = parseApiError(response.body);
+  const message = error?.message ?? `API вернул статус ${response.httpStatus}.`;
+  if (
+    response.httpStatus === 409 &&
+    error?.code === "transaction_rule_delete_blocked"
+  ) {
+    const reason = error.details?.blockedReasonCode;
+    const count = error.details?.directRawSuggestionCount;
+    return {
+      status: "blocked",
+      blockedReasonCode:
+        reason === "active_rule" || reason === "raw_suggestions"
+          ? reason
+          : null,
+      directRawSuggestionCount:
+        typeof count === "number" && Number.isInteger(count) && count >= 0
+          ? count
+          : 0,
       message,
     };
   }

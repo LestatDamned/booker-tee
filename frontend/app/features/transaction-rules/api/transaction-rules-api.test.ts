@@ -4,6 +4,7 @@ import { directory } from "../test-support";
 import {
   createTransactionRule,
   changeTransactionRuleLifecycle,
+  deleteTransactionRule,
   loadTransactionRuleForEdit,
   loadTransactionRules,
   seedDefaultTransactionRules,
@@ -219,6 +220,58 @@ describe("transaction rules API adapter", () => {
       status: "blocked",
       blockedReasonCode: "category_inactive",
       message: "Category unavailable.",
+    });
+  });
+
+  it("deletes with stale guards and preserves typed provenance blockers", async () => {
+    const item = {
+      ...directory.items[0]!,
+      isActive: false,
+      capabilities: {
+        ...directory.items[0]!.capabilities,
+        canDelete: true,
+      },
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ deletedId: item.id, name: item.name }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            error: {
+              code: "transaction_rule_delete_blocked",
+              message: "Правило используется в истории импорта.",
+              details: {
+                blockedReasonCode: "raw_suggestions",
+                directRawSuggestionCount: 4,
+              },
+            },
+          },
+          409,
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deleteTransactionRule(item, "csrf")).resolves.toEqual({
+      status: "success",
+      value: { deletedId: item.id, name: item.name },
+    });
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      `/api/v1/transaction-rules/${item.id}`,
+    );
+    const request = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(request.method).toBe("DELETE");
+    expect(JSON.parse(String(request.body))).toEqual({
+      expectedActive: false,
+      expectedUpdatedAt: item.updatedAt,
+    });
+    await expect(deleteTransactionRule(item, "csrf")).resolves.toEqual({
+      status: "blocked",
+      blockedReasonCode: "raw_suggestions",
+      directRawSuggestionCount: 4,
+      message: "Правило используется в истории импорта.",
     });
   });
 });

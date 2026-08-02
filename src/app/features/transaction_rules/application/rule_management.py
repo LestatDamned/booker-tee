@@ -22,6 +22,7 @@ from app.features.transaction_rules.domain.validation import validate_transactio
 from app.features.transaction_rules.errors import (
     TransactionRuleCreateReplayConflictError,
     TransactionRuleDeleteBlockedError,
+    TransactionRuleDeleteConflictError,
     TransactionRuleDeleteDependencies,
     TransactionRuleLifecycleConflictError,
     TransactionRuleNotFoundError,
@@ -235,9 +236,9 @@ class TransactionRuleManagementUseCase:
         try:
             rule = await self._get_rule_for_update(workspace_id, rule_id)
             if expected_active is not None and rule.is_active is not expected_active:
-                raise TransactionRuleLifecycleConflictError("Состояние правила уже изменилось.")
+                raise TransactionRuleDeleteConflictError("Состояние правила уже изменилось.")
             if expected_updated_at is not None and rule.updated_at != expected_updated_at:
-                raise TransactionRuleLifecycleConflictError("Правило уже изменилось в другом окне.")
+                raise TransactionRuleDeleteConflictError("Правило уже изменилось в другом окне.")
             dependencies = TransactionRuleDeleteDependencies(
                 is_active=rule.is_active,
                 raw_suggestion_count=await self.rules.count_direct_raw_suggestions(

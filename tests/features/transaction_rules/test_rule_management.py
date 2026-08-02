@@ -19,6 +19,7 @@ from app.features.transaction_rules.application.target_resolution import (
 )
 from app.features.transaction_rules.errors import (
     TransactionRuleDeleteBlockedError,
+    TransactionRuleDeleteConflictError,
     TransactionRuleLifecycleConflictError,
     TransactionRuleNotFoundError,
     TransactionRuleUpdateConflictError,
@@ -195,6 +196,23 @@ async def test_delete_removes_only_unused_disabled_workspace_rule() -> None:
     assert deleted.name == rule.name
     repository.delete.assert_awaited_once_with(rule)
     session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_delete_rejects_stale_state_before_dependency_check() -> None:
+    rule, service, session, repository, _targets = management_service(is_active=False)
+
+    with pytest.raises(TransactionRuleDeleteConflictError):
+        await service.delete_rule(
+            workspace_id=rule.workspace_id,
+            rule_id=rule.id,
+            expected_active=True,
+            expected_updated_at=rule.updated_at,
+        )
+
+    repository.count_direct_raw_suggestions.assert_not_awaited()
+    repository.delete.assert_not_awaited()
+    session.commit.assert_not_awaited()
 
 
 def management_service(

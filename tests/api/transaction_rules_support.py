@@ -18,6 +18,9 @@ from app.features.transaction_rules.application.mutations import (
     TransactionRuleLifecycleResult,
     TransactionRuleSeedDefaultsResult,
 )
+from app.features.transaction_rules.application.rule_management import (
+    DeletedTransactionRule,
+)
 from app.features.transaction_rules.models import (
     MoneyDirection,
     TransactionRuleApplicationMode,
@@ -103,6 +106,12 @@ class TransactionRuleMutationServiceStub:
                 existing_suggestion_count=4,
             ),
         )
+
+    async def delete(self, **kwargs: object) -> DeletedTransactionRule:
+        self.calls.append(("delete", kwargs))
+        if self.error is not None:
+            raise self.error
+        return DeletedTransactionRule(id=self.item.id, name=self.item.name)
 
 
 def transaction_rules_app(

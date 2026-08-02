@@ -27,6 +27,10 @@ class TransactionRuleLifecycleConflictError(TransactionRuleError):
     pass
 
 
+class TransactionRuleDeleteConflictError(TransactionRuleLifecycleConflictError):
+    pass
+
+
 class TransactionRuleActivationBlockedError(TransactionRuleValidationError):
     pass
 

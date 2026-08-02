@@ -689,7 +689,8 @@ export interface paths {
         /** Update Transaction Rule */
         put: operations["update_transaction_rule_api_v1_transaction_rules__rule_id__put"];
         post?: never;
-        delete?: never;
+        /** Delete Transaction Rule */
+        delete: operations["delete_transaction_rule_api_v1_transaction_rules__rule_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3758,6 +3759,26 @@ export interface components {
             item: components["schemas"]["TransactionRuleSummaryApiResponse"];
             /** Replayed */
             replayed: boolean;
+        };
+        /** TransactionRuleDeleteApiRequest */
+        TransactionRuleDeleteApiRequest: {
+            /** Expectedactive */
+            expectedActive: boolean;
+            /**
+             * Expectedupdatedat
+             * Format: date-time
+             */
+            expectedUpdatedAt: string;
+        };
+        /** TransactionRuleDeleteApiResponse */
+        TransactionRuleDeleteApiResponse: {
+            /**
+             * Deletedid
+             * Format: uuid
+             */
+            deletedId: string;
+            /** Name */
+            name: string;
         };
         /**
          * TransactionRuleDeleteBlockedReason
@@ -7337,6 +7358,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    delete_transaction_rule_api_v1_transaction_rules__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransactionRuleDeleteApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionRuleDeleteApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -17,6 +17,7 @@ from app.features.transaction_rules.application.fixture_seeding import (
     DefaultMerchantRuleSeeder,
 )
 from app.features.transaction_rules.application.rule_management import (
+    DeletedTransactionRule,
     TransactionRuleManagementUseCase,
 )
 from app.features.transaction_rules.errors import TransactionRuleNotFoundError
@@ -168,6 +169,21 @@ class TransactionRuleMutationService:
                 existing_suggestions_changed=False,
                 existing_suggestion_count=direct_count,
             ),
+        )
+
+    async def delete(
+        self,
+        *,
+        context: WorkspaceContext,
+        rule_id: UUID,
+        expected_active: bool,
+        expected_updated_at: datetime,
+    ) -> DeletedTransactionRule:
+        return await self._management.delete_rule(
+            workspace_id=context.workspace.id,
+            rule_id=rule_id,
+            expected_active=expected_active,
+            expected_updated_at=expected_updated_at,
         )
 
     async def _edit_result(

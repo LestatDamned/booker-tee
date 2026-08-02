@@ -4,6 +4,8 @@ from app.api.errors import ApiError
 from app.features.transaction_rules.errors import (
     TransactionRuleActivationBlockedError,
     TransactionRuleCreateReplayConflictError,
+    TransactionRuleDeleteBlockedError,
+    TransactionRuleDeleteConflictError,
     TransactionRuleLifecycleConflictError,
     TransactionRuleNotFoundError,
     TransactionRuleUpdateConflictError,
@@ -23,6 +25,23 @@ def transaction_rule_api_error(error: Exception) -> ApiError:
             status_code=status.HTTP_409_CONFLICT,
             code="transaction_rule_update_conflict",
             message="Правило уже изменилось в другом окне.",
+        )
+    if isinstance(error, TransactionRuleDeleteConflictError):
+        return ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="transaction_rule_delete_conflict",
+            message=str(error),
+        )
+    if isinstance(error, TransactionRuleDeleteBlockedError):
+        reason_code = "active_rule" if error.dependencies.is_active else "raw_suggestions"
+        return ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="transaction_rule_delete_blocked",
+            message=str(error),
+            details={
+                "blockedReasonCode": reason_code,
+                "directRawSuggestionCount": error.dependencies.raw_suggestion_count,
+            },
         )
     if isinstance(error, TransactionRuleLifecycleConflictError):
         return ApiError(

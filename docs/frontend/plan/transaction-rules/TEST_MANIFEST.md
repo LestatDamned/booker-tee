@@ -230,6 +230,24 @@ Temporary PostgreSQL database was removed after the focused run.
   старая test DB не содержит принятого в Slice 0 restrictive rule-provenance FK
   (падение существующего delete-guard test, не lifecycle test).
 
+### Slice 5 evidence — 2026-08-02
+
+- focused API/application/Transaction Rules suite: `66 passed, 5 skipped`;
+  PostgreSQL-only suite отдельно прошёл `5 passed` на базе с Alembic
+  `20260802_0021`, включая restrictive FK и сохранение provenance;
+- React Transaction Rules adapter/component suite: `25 passed`, включая stale
+  reload+explicit retry, dangerous overflow, Cancel focus, blocker guidance,
+  counts и last-page normalization;
+- full frontend: `59` files, `387 passed`; formatting, ESLint, styles,
+  generated OpenAPI drift, TypeScript и production SPA build passed;
+- первый full Vitest прогон дал один timing failure в существующем
+  `manual-operation-edit` URL assertion; изолированный повтор `7 passed`, затем
+  полный повтор `387 passed` без изменений кода;
+- Ruff и ty passed. Отдельная пустая PostgreSQL база не смогла мигрировать с
+  нуля из-за существующей migration `20260722_0017` (PostgreSQL enum value и
+  partial index в одной transaction); временная база удалена, Slice 5 contracts
+  проверены на актуальной выделенной test schema.
+
 ## Commands at migration completion
 
 Backend, proportionate focused tests first, then:

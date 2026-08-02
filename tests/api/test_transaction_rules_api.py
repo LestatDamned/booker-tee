@@ -9,6 +9,9 @@ from app.features.transaction_rules.application.commands import (
 )
 from app.features.transaction_rules.errors import (
     TransactionRuleActivationBlockedError,
+    TransactionRuleDeleteBlockedError,
+    TransactionRuleDeleteConflictError,
+    TransactionRuleDeleteDependencies,
     TransactionRuleLifecycleConflictError,
     TransactionRuleNotFoundError,
     TransactionRuleUpdateConflictError,
@@ -307,3 +310,71 @@ def test_lifecycle_requires_writer_and_maps_conflict_and_activation_blocker() ->
     assert blocked.status_code == 422
     assert blocked.json()["error"]["code"] == "transaction_rule_activation_blocked"
     assert blocked.json()["error"]["details"] == {"blockedReasonCode": "category_inactive"}
+
+
+def test_delete_dispatches_stale_guards_and_returns_deleted_identity() -> None:
+    app, mutations = transaction_rules_mutation_app()
+    rule = mutations.item
+
+    with TestClient(app) as client:
+        response = client.request(
+            "DELETE",
+            f"/api/v1/transaction-rules/{rule.id}",
+            json={
+                "expectedActive": False,
+                "expectedUpdatedAt": rule.updated_at.isoformat(),
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"deletedId": str(rule.id), "name": rule.name}
+    action, call = mutations.calls[0]
+    assert action == "delete"
+    assert call["rule_id"] == rule.id
+    assert call["expected_active"] is False
+    assert call["expected_updated_at"] == rule.updated_at
+
+
+def test_delete_requires_writer_and_maps_conflict_and_reference_blocker() -> None:
+    viewer_app, viewer = transaction_rules_mutation_app(role=WorkspaceRole.VIEWER)
+    app, mutations = transaction_rules_mutation_app()
+    payload = {
+        "expectedActive": False,
+        "expectedUpdatedAt": mutations.item.updated_at.isoformat(),
+    }
+
+    with TestClient(viewer_app) as client:
+        forbidden = client.request(
+            "DELETE",
+            f"/api/v1/transaction-rules/{viewer.item.id}",
+            json=payload,
+        )
+    assert forbidden.status_code == 403
+    assert viewer.calls == []
+
+    with TestClient(app) as client:
+        mutations.error = TransactionRuleDeleteConflictError(
+            "Правило уже изменилось в другом окне."
+        )
+        conflict = client.request(
+            "DELETE",
+            f"/api/v1/transaction-rules/{mutations.item.id}",
+            json=payload,
+        )
+        mutations.error = TransactionRuleDeleteBlockedError(
+            TransactionRuleDeleteDependencies(raw_suggestion_count=4)
+        )
+        blocked = client.request(
+            "DELETE",
+            f"/api/v1/transaction-rules/{mutations.item.id}",
+            json=payload,
+        )
+
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "transaction_rule_delete_conflict"
+    assert blocked.status_code == 409
+    assert blocked.json()["error"]["code"] == "transaction_rule_delete_blocked"
+    assert blocked.json()["error"]["details"] == {
+        "blockedReasonCode": "raw_suggestions",
+        "directRawSuggestionCount": 4,
+    }
