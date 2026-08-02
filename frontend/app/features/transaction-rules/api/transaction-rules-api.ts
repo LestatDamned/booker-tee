@@ -11,6 +11,10 @@ export type TransactionRuleDirectoryStatus =
   components["schemas"]["TransactionRuleDirectoryStatus"];
 export type TransactionRuleCreateRequest =
   components["schemas"]["TransactionRuleCreateApiRequest"];
+export type TransactionRuleUpdateRequest =
+  components["schemas"]["TransactionRuleUpdateApiRequest"];
+export type TransactionRuleEditDto =
+  components["schemas"]["TransactionRuleEditApiResponse"];
 export type TransactionRuleSeedDefaultsDto =
   components["schemas"]["TransactionRuleSeedDefaultsApiResponse"];
 
@@ -97,6 +101,14 @@ const createResponseSchema = z.object({
   replayed: z.boolean(),
 });
 
+const editResponseSchema: z.ZodType<TransactionRuleEditDto> = z.object({
+  item: summarySchema,
+  references: z.object({
+    categories: z.array(referenceSchema),
+    properties: z.array(referenceSchema),
+  }),
+});
+
 const seedResponseSchema: z.ZodType<TransactionRuleSeedDefaultsDto> = z.object({
   createdRules: z.number().int().nonnegative(),
   existingRules: z.number().int().nonnegative(),
@@ -178,6 +190,31 @@ export async function seedDefaultTransactionRules(
     },
   );
   return mutationResult(response, seedResponseSchema);
+}
+
+export async function loadTransactionRuleForEdit(
+  ruleId: string,
+): Promise<TransactionRuleMutationResult<TransactionRuleEditDto>> {
+  const response = await requestJson(
+    `/api/v1/transaction-rules/${ruleId}/edit`,
+  );
+  return mutationResult(response, editResponseSchema);
+}
+
+export async function updateTransactionRule(
+  ruleId: string,
+  request: TransactionRuleUpdateRequest,
+  csrfToken: string,
+): Promise<TransactionRuleMutationResult<TransactionRuleSummaryDto>> {
+  const response = await requestJson(`/api/v1/transaction-rules/${ruleId}`, {
+    body: JSON.stringify(request),
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    },
+    method: "PUT",
+  });
+  return mutationResult(response, summarySchema);
 }
 
 function mutationResult<T>(

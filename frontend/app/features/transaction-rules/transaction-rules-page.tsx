@@ -46,6 +46,7 @@ import {
 } from "./transaction-rule-records";
 import styles from "./transaction-rules-page.module.css";
 import { useTransactionRuleMutations } from "./use-transaction-rule-mutations";
+import { useTransactionRuleEditor } from "./use-transaction-rule-editor";
 
 export function TransactionRulesPage({
   directory,
@@ -73,6 +74,10 @@ export function TransactionRulesPage({
     pathname: location.pathname,
   });
   const { snapshot } = mutations;
+  const editor = useTransactionRuleEditor({
+    csrfToken: session.csrfToken,
+    onCommitted: mutations.ruleUpdated,
+  });
   const [categoryDraft, setCategoryDraft] = useState(query.categoryId);
   const appliedFilters = transactionRuleAppliedFilters(snapshot);
   const targetId = ruleTargetId(location.hash);
@@ -308,12 +313,20 @@ export function TransactionRulesPage({
               <ResponsiveRecordCollection
                 mobileList={
                   <TransactionRuleMobileList
+                    editPanel={editor.panel}
+                    editingRuleId={editor.opened?.ruleId ?? null}
+                    editingVariant={editor.opened?.variant ?? null}
+                    onEdit={editor.requestOpen}
                     rules={snapshot.items}
                     targetId={targetId}
                   />
                 }
                 table={
                   <TransactionRuleTable
+                    editPanel={editor.panel}
+                    editingRuleId={editor.opened?.ruleId ?? null}
+                    editingVariant={editor.opened?.variant ?? null}
+                    onEdit={editor.requestOpen}
                     rules={snapshot.items}
                     targetId={targetId}
                   />
@@ -374,6 +387,7 @@ export function TransactionRulesPage({
             ) : null}
           </ConfirmationDialog>
         ) : null}
+        {editor.dialog}
         <ToastViewport
           onDismiss={mutations.dismissToast}
           toast={mutations.toast}

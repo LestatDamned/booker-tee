@@ -24,13 +24,16 @@ export function useTransactionRuleMutations({
   const [createdRules, setCreatedRules] = useState<TransactionRuleSummaryDto[]>(
     [],
   );
+  const [updatedRules, setUpdatedRules] = useState<TransactionRuleSummaryDto[]>(
+    [],
+  );
   const [createOpen, setCreateOpen] = useState(false);
   const [seedConfirmOpen, setSeedConfirmOpen] = useState(false);
   const [seedPending, setSeedPending] = useState(false);
   const [seedError, setSeedError] = useState<string | null>(null);
   const snapshot = useMemo(
-    () => directoryWithCreatedRules(directory, createdRules),
-    [createdRules, directory],
+    () => directoryWithLocalRules(directory, createdRules, updatedRules),
+    [createdRules, directory, updatedRules],
   );
   const { dismissToast, showToast, toast } = useToastQueue();
 
@@ -61,6 +64,15 @@ export function useTransactionRuleMutations({
     onReload?.();
   }
 
+  function ruleUpdated(item: TransactionRuleSummaryDto) {
+    setUpdatedRules((current) => [
+      item,
+      ...current.filter((rule) => rule.id !== item.id),
+    ]);
+    showToast({ message: `Правило «${item.name}» сохранено.` });
+    onReload?.();
+  }
+
   return {
     closeCreate: () => setCreateOpen(false),
     closeSeed: () => setSeedConfirmOpen(false),
@@ -72,6 +84,7 @@ export function useTransactionRuleMutations({
       setSeedConfirmOpen(true);
     },
     ruleCreated,
+    ruleUpdated,
     seedConfirmOpen,
     seedDefaults,
     seedError,
@@ -81,20 +94,25 @@ export function useTransactionRuleMutations({
   };
 }
 
-function directoryWithCreatedRules(
+function directoryWithLocalRules(
   directory: TransactionRuleDirectoryDto,
   createdRules: TransactionRuleSummaryDto[],
+  updatedRules: TransactionRuleSummaryDto[],
 ): TransactionRuleDirectoryDto {
-  const additions = createdRules.filter(
-    (created) => !directory.items.some((item) => item.id === created.id),
+  const replacements = new Map(updatedRules.map((item) => [item.id, item]));
+  const items = directory.items.map(
+    (item) => replacements.get(item.id) ?? item,
   );
-  if (additions.length === 0) return directory;
+  const additions = createdRules.filter(
+    (created) => !items.some((item) => item.id === created.id),
+  );
+  if (additions.length === 0) return { ...directory, items };
   const activeAdditions = additions.filter((item) => item.isActive).length;
   const total = directory.page.total + additions.length;
   const totalPages = Math.max(1, Math.ceil(total / directory.page.pageSize));
   return {
     ...directory,
-    items: [...additions, ...directory.items],
+    items: [...additions, ...items],
     counts: {
       all: directory.counts.all + additions.length,
       active: directory.counts.active + activeAdditions,

@@ -122,9 +122,18 @@ class TransactionRuleCreateApiRequest(ApiModel):
     application_mode: TransactionRuleApplicationMode
 
 
+class TransactionRuleUpdateApiRequest(TransactionRuleCreateApiRequest):
+    expected_updated_at: datetime
+
+
 class TransactionRuleCreateApiResponse(ApiModel):
     item: TransactionRuleSummaryApiResponse
     replayed: bool
+
+
+class TransactionRuleEditApiResponse(ApiModel):
+    item: TransactionRuleSummaryApiResponse
+    references: TransactionRuleReferencesApiResponse
 
 
 class TransactionRuleSeedDefaultsApiResponse(ApiModel):

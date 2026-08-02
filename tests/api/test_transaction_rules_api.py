@@ -3,7 +3,15 @@ from uuid import uuid4
 from transaction_rules_support import transaction_rules_app, transaction_rules_mutation_app
 
 from api_client import ApiTestClient as TestClient
-from app.features.transaction_rules.application.commands import CreateTransactionRuleCommand
+from app.features.transaction_rules.application.commands import (
+    CreateTransactionRuleCommand,
+    UpdateTransactionRuleCommand,
+)
+from app.features.transaction_rules.errors import (
+    TransactionRuleNotFoundError,
+    TransactionRuleUpdateConflictError,
+    TransactionRuleValidationError,
+)
 from app.features.transaction_rules.schemas import TransactionRuleDirectoryStatus
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.main import create_app
@@ -160,3 +168,81 @@ def test_create_and_seed_require_writer_and_valid_payload() -> None:
         "existingRules": 50,
         "createdCategories": 1,
     }
+
+
+def test_edit_load_and_update_dispatch_workspace_scoped_version() -> None:
+    app, mutations = transaction_rules_mutation_app()
+    rule = mutations.item
+    assert rule.outcome.category is not None
+    assert rule.outcome.property is not None
+
+    with TestClient(app) as client:
+        loaded = client.get(f"/api/v1/transaction-rules/{rule.id}/edit")
+        updated = client.put(
+            f"/api/v1/transaction-rules/{rule.id}",
+            json={
+                "name": "Ozon updated",
+                "pattern": "OZON",
+                "matchType": "exact",
+                "direction": "outflow",
+                "amountMin": "100.00",
+                "amountMax": None,
+                "operationType": "expense",
+                "categoryId": str(rule.outcome.category.id),
+                "propertyId": str(rule.outcome.property.id),
+                "applicationMode": "suggest",
+                "expectedUpdatedAt": rule.updated_at.isoformat(),
+            },
+        )
+
+    assert loaded.status_code == 200
+    assert loaded.json()["item"]["id"] == str(rule.id)
+    assert loaded.json()["references"]["properties"][0]["isActive"] is False
+    assert updated.status_code == 200
+    action, call = mutations.calls[-1]
+    assert action == "update"
+    command = call["command"]
+    assert isinstance(command, UpdateTransactionRuleCommand)
+    assert command.rule_id == rule.id
+    assert command.expected_updated_at == rule.updated_at
+
+
+def test_edit_requires_writer_and_maps_not_found_conflict_and_field_error() -> None:
+    viewer_app, viewer = transaction_rules_mutation_app(role=WorkspaceRole.VIEWER)
+    app, mutations = transaction_rules_mutation_app()
+    rule_id = mutations.item.id
+
+    with TestClient(viewer_app) as client:
+        forbidden = client.get(f"/api/v1/transaction-rules/{viewer.item.id}/edit")
+    assert forbidden.status_code == 403
+    assert viewer.calls == []
+
+    cases = [
+        (TransactionRuleNotFoundError(), 404, "transaction_rule_not_found"),
+        (TransactionRuleUpdateConflictError(), 409, "transaction_rule_update_conflict"),
+        (
+            TransactionRuleValidationError("Недоступная категория.", field="category_id"),
+            422,
+            "transaction_rule_validation_error",
+        ),
+    ]
+    payload = {
+        "name": None,
+        "pattern": "OZON",
+        "matchType": "contains",
+        "direction": "any",
+        "amountMin": None,
+        "amountMax": None,
+        "operationType": None,
+        "categoryId": None,
+        "propertyId": None,
+        "applicationMode": "suggest",
+        "expectedUpdatedAt": mutations.item.updated_at.isoformat(),
+    }
+    with TestClient(app) as client:
+        for error, expected_status, expected_code in cases:
+            mutations.error = error
+            response = client.put(f"/api/v1/transaction-rules/{rule_id}", json=payload)
+            assert response.status_code == expected_status
+            assert response.json()["error"]["code"] == expected_code
+    assert response.json()["error"]["fieldErrors"] == {"category_id": ["Недоступная категория."]}

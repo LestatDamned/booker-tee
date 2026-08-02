@@ -88,30 +88,30 @@ Exit gate:
 - [x] viewer cannot invoke mutation through hidden/manual API request;
 - [x] current SSR create/seed still work until cutover.
 
-## Slice 3 — Edit
+## Slice 3 — Edit — completed 2026-08-02
 
 User outcome: writer changes one rule in context and understands stale/current
 archived targets.
 
 Server:
 
-- optimistic update contract;
-- current target projection and preservation of dormant fields;
-- typed field/conflict errors.
+- [x] optimistic update contract;
+- [x] current target projection and preservation of dormant fields;
+- [x] typed field/conflict errors.
 
 React:
 
-- only one `ExpansionPanel` editor open directly below its record row;
-- focus return, unsaved switch/close confirmation;
-- local draft, field errors, reload-and-retry on conflict;
-- committed row replacement and Toast.
+- [x] only one `ExpansionPanel` editor open directly below its record row;
+- [x] focus return, unsaved switch/close confirmation;
+- [x] local draft, field errors, reload-and-retry on conflict;
+- [x] committed row replacement and Toast.
 
 Exit gate:
 
-- two-tab stale edit is rejected;
-- editing an unrelated field cannot clear a current archived target;
-- update cannot attach foreign-workspace or newly unavailable target;
-- list filters/page remain stable.
+- [x] two-tab stale edit is rejected;
+- [x] editing an unrelated field cannot clear a current archived target;
+- [x] update cannot attach foreign-workspace or newly unavailable target;
+- [x] list filters/page remain stable.
 
 ## Slice 4 — Enable and disable
 

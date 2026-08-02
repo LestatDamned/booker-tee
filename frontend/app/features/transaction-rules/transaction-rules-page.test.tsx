@@ -9,7 +9,7 @@ import { TransactionRulesPage } from "./transaction-rules-page";
 describe("TransactionRulesPage", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("renders complete rule meaning twice for desktop and mobile without mutation controls", () => {
+  it("renders complete rule meaning twice with contextual edit controls", () => {
     renderPage();
 
     expect(
@@ -29,11 +29,7 @@ describe("TransactionRulesPage", () => {
     expect(screen.getAllByText("Влияет на финансовый результат")).toHaveLength(
       2,
     );
-    expect(
-      screen.queryByRole("button", {
-        name: /изменить|выключить|удалить/i,
-      }),
-    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Изменить" })).toHaveLength(2);
   });
 
   it("opens the category filter and navigates with URL-owned state", async () => {
@@ -143,6 +139,166 @@ describe("TransactionRulesPage", () => {
       screen.getByRole("button", { name: "Продолжить создание" }),
     );
     expect(screen.getByDisplayValue("OZON")).toBeVisible();
+  });
+
+  it("edits one rule under its desktop row and replaces the committed row without changing URL state", async () => {
+    const user = userEvent.setup();
+    const committed = {
+      ...directory.items[0]!,
+      name: "OZON покупки",
+      updatedAt: "2026-08-02T10:00:00Z",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            item: directory.items[0],
+            references: directory.references,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(committed), {
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage("/rules?q=ozon&page=1");
+
+    const edit = screen.getAllByRole("button", { name: "Изменить" })[0]!;
+    await user.click(edit);
+    expect(edit).toHaveAttribute("aria-expanded", "true");
+    const form = await screen.findByRole("heading", {
+      name: "Изменить правило",
+    });
+    const panel = form.closest("section")!;
+    expect(
+      within(panel).getByRole("option", { name: "Старая квартира · архив" }),
+    ).not.toBeDisabled();
+    const name = within(panel).getByLabelText("Название");
+    await user.clear(name);
+    await user.type(name, "OZON покупки");
+    await user.click(within(panel).getByRole("button", { name: "Сохранить" }));
+
+    expect(
+      await screen.findByText("Правило «OZON покупки» сохранено."),
+    ).toBeVisible();
+    expect(screen.getAllByText("OZON покупки")).toHaveLength(2);
+    expect(screen.getByTestId("location")).toHaveTextContent("?q=ozon");
+    const updateInit = fetchMock.mock.calls[1]![1] as RequestInit;
+    expect(JSON.parse(String(updateInit.body))).toMatchObject({
+      expectedUpdatedAt: "2026-08-02T09:00:00Z",
+      propertyId: directory.items[0]!.outcome.property!.id,
+    });
+  });
+
+  it("keeps the draft on a stale update until the user explicitly reloads", async () => {
+    const user = userEvent.setup();
+    const latest = {
+      ...directory.items[0]!,
+      name: "Версия из другого окна",
+      updatedAt: "2026-08-02T10:00:00Z",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              item: directory.items[0],
+              references: directory.references,
+            }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              error: {
+                code: "transaction_rule_update_conflict",
+                message: "Правило уже изменилось в другом окне.",
+              },
+            }),
+            { headers: { "Content-Type": "application/json" }, status: 409 },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ item: latest, references: directory.references }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
+        ),
+    );
+    renderPage();
+    await user.click(screen.getAllByRole("button", { name: "Изменить" })[0]!);
+    const name = await screen.findByDisplayValue("OZON → Маркетплейсы");
+    await user.clear(name);
+    await user.type(name, "Мой черновик");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+    expect(
+      await screen.findByText(
+        "Ваш черновик сохранён. Загрузка актуальной версии заменит его только после нажатия кнопки.",
+      ),
+    ).toBeVisible();
+    expect(screen.getByDisplayValue("Мой черновик")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Загрузить актуальную версию" }),
+    );
+    expect(
+      await screen.findByDisplayValue("Версия из другого окна"),
+    ).toBeVisible();
+  });
+
+  it("keeps only one inline editor and confirms a dirty switch", async () => {
+    const user = userEvent.setup();
+    const second = {
+      ...directory.items[0]!,
+      id: "9b6bb65d-ec08-4528-bfcb-81466e00ce29",
+      name: "Такси",
+      condition: { ...directory.items[0]!.condition, pattern: "TAXI" },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              item: directory.items[0],
+              references: directory.references,
+            }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ item: second, references: directory.references }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
+        ),
+    );
+    renderPage("/rules", {
+      ...directory,
+      items: [directory.items[0]!, second],
+    });
+    const buttons = screen.getAllByRole("button", { name: "Изменить" });
+    await user.click(buttons[0]!);
+    const name = await screen.findByDisplayValue("OZON → Маркетплейсы");
+    await user.type(name, " draft");
+    await user.click(buttons[1]!);
+    expect(
+      screen.getByRole("heading", { name: "Отбросить изменения правила?" }),
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Отбросить изменения" }),
+    );
+    expect(await screen.findByDisplayValue("Такси")).toBeVisible();
+    expect(
+      screen.getAllByRole("heading", { name: "Изменить правило" }),
+    ).toHaveLength(1);
   });
 
   it("seeds only after confirmation and reports truthful counts", async () => {

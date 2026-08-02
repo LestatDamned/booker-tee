@@ -1,7 +1,7 @@
 # Transaction Rules React migration
 
 Статус: `in progress`; аудит завершён 2026-08-01, решения D1–D7 приняты
-2026-08-02, Slices 0–2 завершены 2026-08-02.
+2026-08-02, Slices 0–3 завершены 2026-08-02.
 
 ## Цель
 
@@ -78,8 +78,19 @@ Slice 2 create и explicit seed defaults завершён 2026-08-02:
   Mocha/Latte/test theme; отдельный interaction audit create drawer,
   dirty-close и seed confirmation прошёл 3/3 без выполнения mutations.
 
-Следующий этап — Slice 3: редактирование в `ExpansionPanel` непосредственно под
-строкой правила; одновременно открывается только одна форма.
+Slice 3 edit завершён 2026-08-02:
+
+- authoritative edit snapshot загружается отдельным workspace-scoped API;
+- `PUT` требует `expectedUpdatedAt`, stale update возвращает typed `409`;
+- одна `ExpansionPanel`-форма раскрывается непосредственно под desktop row или
+  mobile record, возвращает фокус и подтверждает потерю dirty draft;
+- текущие archived targets остаются видимыми и сохраняемыми, но новая
+  unavailable/foreign target не принимается;
+- committed summary заменяет строку без изменения URL filters/page, результат
+  подтверждается Toast; dormant поля update не перезаписывает.
+
+Следующий этап — Slice 4: enable/disable с явным влиянием только на будущий
+matching и без скрытой перезаписи существующих Import Review suggestions.
 
 ## Краткий вывод аудита
 
@@ -235,5 +246,5 @@ Default `status=all`, `page=1`, `page_size=50`; допустимые page sizes 
 
 ## Approval record
 
-D1–D7 приняты пользователем 2026-08-02. Slices 0–2 завершены; legacy SSR
+D1–D7 приняты пользователем 2026-08-02. Slices 0–3 завершены; legacy SSR
 остаётся canonical до replacement gate Slice 6.

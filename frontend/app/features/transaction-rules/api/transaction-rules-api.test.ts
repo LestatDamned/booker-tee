@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { directory } from "../test-support";
 import {
   createTransactionRule,
+  loadTransactionRuleForEdit,
   loadTransactionRules,
   seedDefaultTransactionRules,
+  updateTransactionRule,
 } from "./transaction-rules-api";
 
 describe("transaction rules API adapter", () => {
@@ -121,6 +123,47 @@ describe("transaction rules API adapter", () => {
       fieldErrors: { pattern: ["Pattern is invalid."] },
       message: "Pattern is invalid.",
     });
+  });
+
+  it("loads an authoritative edit snapshot and sends its expected version", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          item: directory.items[0],
+          references: directory.references,
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse(directory.items[0]));
+    vi.stubGlobal("fetch", fetchMock);
+    const loaded = await loadTransactionRuleForEdit(directory.items[0]!.id);
+    expect(loaded.status).toBe("success");
+    await updateTransactionRule(
+      directory.items[0]!.id,
+      {
+        name: null,
+        pattern: "OZON",
+        matchType: "contains",
+        direction: "outflow",
+        amountMin: null,
+        amountMax: null,
+        operationType: "expense",
+        categoryId: null,
+        propertyId: null,
+        applicationMode: "suggest",
+        expectedUpdatedAt: directory.items[0]!.updatedAt,
+      },
+      "csrf",
+    );
+    expect(fetchMock.mock.calls[1]![0]).toBe(
+      `/api/v1/transaction-rules/${directory.items[0]!.id}`,
+    );
+    expect(fetchMock.mock.calls[1]![1]).toEqual(
+      expect.objectContaining({
+        method: "PUT",
+        headers: expect.objectContaining({ "X-CSRF-Token": "csrf" }),
+      }),
+    );
   });
 });
 

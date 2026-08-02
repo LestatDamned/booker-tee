@@ -22,11 +22,15 @@ from app.api.v1.transaction_rules.schemas import (
     TransactionRuleCreateApiRequest,
     TransactionRuleCreateApiResponse,
     TransactionRuleDirectoryApiResponse,
+    TransactionRuleEditApiResponse,
     TransactionRuleSeedDefaultsApiResponse,
+    TransactionRuleSummaryApiResponse,
+    TransactionRuleUpdateApiRequest,
 )
 from app.features.ledger.domain.money import affects_profit_for_operation_type
 from app.features.transaction_rules.application.commands import (
     CreateTransactionRuleCommand,
+    UpdateTransactionRuleCommand,
 )
 from app.features.transaction_rules.application.directory import (
     TransactionRuleDirectoryReader,
@@ -148,3 +152,74 @@ async def seed_default_transaction_rules(
     except TransactionRuleError as error:
         raise transaction_rule_api_error(error) from error
     return TransactionRuleSeedDefaultsApiResponse.model_validate(seeded)
+
+
+@router.get(
+    "/{rule_id}/edit",
+    response_model=TransactionRuleEditApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+    ),
+)
+async def get_transaction_rule_for_edit(
+    rule_id: UUID,
+    context: Annotated[
+        ApiRequestContext,
+        Depends(require_api_financial_write_context),
+    ],
+    mutations: Annotated[
+        TransactionRuleMutationService,
+        Depends(get_transaction_rule_mutation_service),
+    ],
+) -> TransactionRuleEditApiResponse:
+    try:
+        editor = await mutations.get_for_edit(context=context.workspace, rule_id=rule_id)
+    except TransactionRuleError as error:
+        raise transaction_rule_api_error(error) from error
+    return TransactionRuleEditApiResponse.model_validate(editor)
+
+
+@router.put(
+    "/{rule_id}",
+    response_model=TransactionRuleSummaryApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def update_transaction_rule(
+    rule_id: UUID,
+    request: TransactionRuleUpdateApiRequest,
+    context: Annotated[
+        ApiRequestContext,
+        Depends(require_api_financial_write_context),
+    ],
+    mutations: Annotated[
+        TransactionRuleMutationService,
+        Depends(get_transaction_rule_mutation_service),
+    ],
+) -> TransactionRuleSummaryApiResponse:
+    command = UpdateTransactionRuleCommand(
+        rule_id=rule_id,
+        name=request.name,
+        pattern=request.pattern,
+        match_type=request.match_type,
+        category_id=request.category_id,
+        property_id=request.property_id,
+        target_operation_type=request.operation_type,
+        direction=request.direction,
+        application_mode=request.application_mode,
+        amount_min=request.amount_min,
+        amount_max=request.amount_max,
+        expected_updated_at=request.expected_updated_at,
+    )
+    try:
+        updated = await mutations.update(context=context.workspace, command=command)
+    except TransactionRuleError as error:
+        raise transaction_rule_api_error(error) from error
+    return TransactionRuleSummaryApiResponse.model_validate(updated)

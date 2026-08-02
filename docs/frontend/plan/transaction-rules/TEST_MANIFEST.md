@@ -204,6 +204,19 @@ broken focus, hidden sticky content or theme geometry differences.
 
 Temporary PostgreSQL database was removed after the focused run.
 
+### Slice 3 evidence — 2026-08-02
+
+- API/domain focused edit contracts: `18 passed`;
+- React Transaction Rules adapter/component tests: `18 passed`, включая stale
+  reload, archived target preservation, single editor и dirty switch;
+- full frontend: `59` files, `377` tests, formatting, lint, styles, generated
+  API drift, typecheck и production SPA build passed;
+- full backend Ruff и ty passed; полный pytest результат записывается после
+  завершения текущего прогона;
+- Slice 2 browser geometry/interaction baseline остаётся действующим; отдельный
+  realistic edit/conflict browser сценарий остаётся обязательным до Slice 6
+  replacement gate.
+
 ## Commands at migration completion
 
 Backend, proportionate focused tests first, then:

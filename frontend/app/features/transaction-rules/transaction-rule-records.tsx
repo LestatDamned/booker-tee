@@ -1,14 +1,29 @@
+import { Fragment, type ReactNode } from "react";
+
+import { Button } from "../../ui/button/button";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import { Tag, type TagTone } from "../../ui/tag/tag";
 import type { TransactionRuleSummaryDto } from "./api/transaction-rules-api";
 import styles from "./transaction-rules-page.module.css";
 
 type TransactionRuleRecordsProps = {
+  editPanel: ReactNode;
+  editingRuleId: string | null;
+  editingVariant: "desktop" | "mobile" | null;
+  onEdit: (
+    ruleId: string,
+    variant: "desktop" | "mobile",
+    trigger: HTMLButtonElement,
+  ) => void;
   rules: TransactionRuleSummaryDto[];
   targetId: string | null;
 };
 
 export function TransactionRuleTable({
+  editPanel,
+  editingRuleId,
+  editingVariant,
+  onEdit,
   rules,
   targetId,
 }: TransactionRuleRecordsProps) {
@@ -23,62 +38,112 @@ export function TransactionRuleTable({
           <th scope="col">Область</th>
           <th scope="col">Результат</th>
           <th scope="col">Режим и состояние</th>
+          <th scope="col">Действия</th>
         </tr>
       </thead>
       <tbody>
-        {rules.map((rule) => (
-          <tr
-            data-rule-id={rule.id}
-            data-targeted={targetId === rule.id ? "true" : undefined}
-            id={`rule-${rule.id}`}
-            key={rule.id}
-            tabIndex={-1}
-          >
-            <th scope="row">
-              <RuleIdentity rule={rule} />
-              <p className={styles.condition}>{conditionLabel(rule)}</p>
-            </th>
-            <td>
-              <RuleScope rule={rule} />
-            </td>
-            <td>
-              <RuleOutcome rule={rule} />
-            </td>
-            <td>
-              <RuleBehavior rule={rule} />
-            </td>
-          </tr>
-        ))}
+        {rules.map((rule) => {
+          const isEditing =
+            editingRuleId === rule.id && editingVariant === "desktop";
+          const panelId = `rule-edit-desktop-${rule.id}-panel`;
+          return (
+            <Fragment key={rule.id}>
+              <tr
+                data-rule-id={rule.id}
+                data-targeted={targetId === rule.id ? "true" : undefined}
+                id={`rule-${rule.id}`}
+                tabIndex={-1}
+              >
+                <th scope="row">
+                  <RuleIdentity rule={rule} />
+                  <p className={styles.condition}>{conditionLabel(rule)}</p>
+                </th>
+                <td>
+                  <RuleScope rule={rule} />
+                </td>
+                <td>
+                  <RuleOutcome rule={rule} />
+                </td>
+                <td>
+                  <RuleBehavior rule={rule} />
+                </td>
+                <td>
+                  {rule.capabilities.canUpdate ? (
+                    <Button
+                      aria-controls={panelId}
+                      aria-expanded={isEditing}
+                      icon="edit"
+                      onClick={(event) =>
+                        onEdit(rule.id, "desktop", event.currentTarget)
+                      }
+                      tone="secondary"
+                    >
+                      {isEditing ? "Закрыть" : "Изменить"}
+                    </Button>
+                  ) : null}
+                </td>
+              </tr>
+              {isEditing ? (
+                <tr className={styles.editRow}>
+                  <td colSpan={5}>{editPanel}</td>
+                </tr>
+              ) : null}
+            </Fragment>
+          );
+        })}
       </tbody>
     </table>
   );
 }
 
 export function TransactionRuleMobileList({
+  editPanel,
+  editingRuleId,
+  editingVariant,
+  onEdit,
   rules,
   targetId,
 }: TransactionRuleRecordsProps) {
   return (
     <ol aria-label="Правила обработки операций текущего workspace">
-      {rules.map((rule) => (
-        <li key={rule.id}>
-          <article
-            data-responsive-record
-            data-rule-id={rule.id}
-            data-targeted={targetId === rule.id ? "true" : undefined}
-            tabIndex={-1}
-          >
-            <div className={styles.mobileHeading}>
-              <RuleIdentity rule={rule} />
-              <RuleStatus rule={rule} />
-            </div>
-            <p className={styles.condition}>{conditionLabel(rule)}</p>
-            <RuleScope rule={rule} />
-            <RuleOutcome rule={rule} />
-            <RuleBehavior rule={rule} showStatus={false} />
-          </article>
-        </li>
-      ))}
+      {rules.map((rule) => {
+        const isEditing =
+          editingRuleId === rule.id && editingVariant === "mobile";
+        const panelId = `rule-edit-mobile-${rule.id}-panel`;
+        return (
+          <li key={rule.id}>
+            <article
+              data-responsive-record
+              data-rule-id={rule.id}
+              data-targeted={targetId === rule.id ? "true" : undefined}
+              tabIndex={-1}
+            >
+              <div className={styles.mobileHeading}>
+                <RuleIdentity rule={rule} />
+                <RuleStatus rule={rule} />
+              </div>
+              <p className={styles.condition}>{conditionLabel(rule)}</p>
+              <RuleScope rule={rule} />
+              <RuleOutcome rule={rule} />
+              <RuleBehavior rule={rule} showStatus={false} />
+              {rule.capabilities.canUpdate ? (
+                <Button
+                  aria-controls={panelId}
+                  aria-expanded={isEditing}
+                  icon="edit"
+                  onClick={(event) =>
+                    onEdit(rule.id, "mobile", event.currentTarget)
+                  }
+                  tone="secondary"
+                >
+                  {isEditing ? "Закрыть" : "Изменить"}
+                </Button>
+              ) : null}
+            </article>
+            {isEditing ? editPanel : null}
+          </li>
+        );
+      })}
     </ol>
   );
 }

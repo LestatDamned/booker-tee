@@ -661,6 +661,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transaction-rules/{rule_id}/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Transaction Rule For Edit */
+        get: operations["get_transaction_rule_for_edit_api_v1_transaction_rules__rule_id__edit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transaction-rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Transaction Rule */
+        put: operations["update_transaction_rule_api_v1_transaction_rules__rule_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/chat-integrations/telegram/webhook": {
         parameters: {
             query?: never;
@@ -3724,6 +3758,11 @@ export interface components {
          * @enum {string}
          */
         TransactionRuleDirectoryStatus: "all" | "active" | "disabled";
+        /** TransactionRuleEditApiResponse */
+        TransactionRuleEditApiResponse: {
+            item: components["schemas"]["TransactionRuleSummaryApiResponse"];
+            references: components["schemas"]["TransactionRuleReferencesApiResponse"];
+        };
         /**
          * TransactionRuleEnableBlockedReason
          * @enum {string}
@@ -3823,6 +3862,30 @@ export interface components {
             canDelete: boolean;
             enableBlockedReasonCode: components["schemas"]["TransactionRuleEnableBlockedReason"] | null;
             deleteBlockedReasonCode: components["schemas"]["TransactionRuleDeleteBlockedReason"] | null;
+        };
+        /** TransactionRuleUpdateApiRequest */
+        TransactionRuleUpdateApiRequest: {
+            /** Name */
+            name?: string | null;
+            /** Pattern */
+            pattern: string;
+            matchType: components["schemas"]["TransactionRuleMatchType"];
+            direction: components["schemas"]["MoneyDirection"];
+            /** Amountmin */
+            amountMin?: number | string | null;
+            /** Amountmax */
+            amountMax?: number | string | null;
+            operationType?: components["schemas"]["OperationType"] | null;
+            /** Categoryid */
+            categoryId?: string | null;
+            /** Propertyid */
+            propertyId?: string | null;
+            applicationMode: components["schemas"]["TransactionRuleApplicationMode"];
+            /**
+             * Expectedupdatedat
+             * Format: date-time
+             */
+            expectedUpdatedAt: string;
         };
         /** TransactionRuleUsageApiResponse */
         TransactionRuleUsageApiResponse: {
@@ -7073,6 +7136,135 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_transaction_rule_for_edit_api_v1_transaction_rules__rule_id__edit_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionRuleEditApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_transaction_rule_api_v1_transaction_rules__rule_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransactionRuleUpdateApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionRuleSummaryApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

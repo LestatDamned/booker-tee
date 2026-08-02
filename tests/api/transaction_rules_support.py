@@ -13,6 +13,7 @@ from app.api.v1.transaction_rules.dependencies import (
 from app.features.ledger.models import OperationType
 from app.features.transaction_rules.application.mutations import (
     TransactionRuleCreateResult,
+    TransactionRuleEditResult,
     TransactionRuleSeedDefaultsResult,
 )
 from app.features.transaction_rules.models import (
@@ -72,6 +73,21 @@ class TransactionRuleMutationServiceStub:
             existing_rules=50,
             created_categories=1,
         )
+
+    async def get_for_edit(self, **kwargs: object) -> TransactionRuleEditResult:
+        self.calls.append(("edit", kwargs))
+        if self.error is not None:
+            raise self.error
+        return TransactionRuleEditResult(
+            item=self.item,
+            references=directory().references,
+        )
+
+    async def update(self, **kwargs: object) -> TransactionRuleSummaryDto:
+        self.calls.append(("update", kwargs))
+        if self.error is not None:
+            raise self.error
+        return self.item
 
 
 def transaction_rules_app(

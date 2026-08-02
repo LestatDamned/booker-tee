@@ -3,11 +3,25 @@ from fastapi import status
 from app.api.errors import ApiError
 from app.features.transaction_rules.errors import (
     TransactionRuleCreateReplayConflictError,
+    TransactionRuleNotFoundError,
+    TransactionRuleUpdateConflictError,
     TransactionRuleValidationError,
 )
 
 
 def transaction_rule_api_error(error: Exception) -> ApiError:
+    if isinstance(error, TransactionRuleNotFoundError):
+        return ApiError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="transaction_rule_not_found",
+            message="Правило не найдено.",
+        )
+    if isinstance(error, TransactionRuleUpdateConflictError):
+        return ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="transaction_rule_update_conflict",
+            message="Правило уже изменилось в другом окне.",
+        )
     if isinstance(error, TransactionRuleCreateReplayConflictError):
         return ApiError(
             status_code=status.HTTP_409_CONFLICT,
