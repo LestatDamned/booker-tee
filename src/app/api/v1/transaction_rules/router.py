@@ -23,6 +23,8 @@ from app.api.v1.transaction_rules.schemas import (
     TransactionRuleCreateApiResponse,
     TransactionRuleDirectoryApiResponse,
     TransactionRuleEditApiResponse,
+    TransactionRuleLifecycleApiRequest,
+    TransactionRuleLifecycleApiResponse,
     TransactionRuleSeedDefaultsApiResponse,
     TransactionRuleSummaryApiResponse,
     TransactionRuleUpdateApiRequest,
@@ -223,3 +225,81 @@ async def update_transaction_rule(
     except TransactionRuleError as error:
         raise transaction_rule_api_error(error) from error
     return TransactionRuleSummaryApiResponse.model_validate(updated)
+
+
+async def _change_transaction_rule_lifecycle(
+    *,
+    rule_id: UUID,
+    request: TransactionRuleLifecycleApiRequest,
+    context: ApiRequestContext,
+    mutations: TransactionRuleMutationService,
+    is_active: bool,
+) -> TransactionRuleLifecycleApiResponse:
+    try:
+        changed = await mutations.set_active(
+            context=context.workspace,
+            rule_id=rule_id,
+            is_active=is_active,
+            expected_active=request.expected_active,
+            expected_updated_at=request.expected_updated_at,
+        )
+    except TransactionRuleError as error:
+        raise transaction_rule_api_error(error) from error
+    return TransactionRuleLifecycleApiResponse.model_validate(changed)
+
+
+@router.post(
+    "/{rule_id}/enable",
+    response_model=TransactionRuleLifecycleApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def enable_transaction_rule(
+    rule_id: UUID,
+    request: TransactionRuleLifecycleApiRequest,
+    context: Annotated[ApiRequestContext, Depends(require_api_financial_write_context)],
+    mutations: Annotated[
+        TransactionRuleMutationService,
+        Depends(get_transaction_rule_mutation_service),
+    ],
+) -> TransactionRuleLifecycleApiResponse:
+    return await _change_transaction_rule_lifecycle(
+        rule_id=rule_id,
+        request=request,
+        context=context,
+        mutations=mutations,
+        is_active=True,
+    )
+
+
+@router.post(
+    "/{rule_id}/disable",
+    response_model=TransactionRuleLifecycleApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+    ),
+)
+async def disable_transaction_rule(
+    rule_id: UUID,
+    request: TransactionRuleLifecycleApiRequest,
+    context: Annotated[ApiRequestContext, Depends(require_api_financial_write_context)],
+    mutations: Annotated[
+        TransactionRuleMutationService,
+        Depends(get_transaction_rule_mutation_service),
+    ],
+) -> TransactionRuleLifecycleApiResponse:
+    return await _change_transaction_rule_lifecycle(
+        rule_id=rule_id,
+        request=request,
+        context=context,
+        mutations=mutations,
+        is_active=False,
+    )

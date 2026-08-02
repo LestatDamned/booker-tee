@@ -126,6 +126,11 @@ class TransactionRuleUpdateApiRequest(TransactionRuleCreateApiRequest):
     expected_updated_at: datetime
 
 
+class TransactionRuleLifecycleApiRequest(ApiModel):
+    expected_active: bool
+    expected_updated_at: datetime
+
+
 class TransactionRuleCreateApiResponse(ApiModel):
     item: TransactionRuleSummaryApiResponse
     replayed: bool
@@ -134,6 +139,17 @@ class TransactionRuleCreateApiResponse(ApiModel):
 class TransactionRuleEditApiResponse(ApiModel):
     item: TransactionRuleSummaryApiResponse
     references: TransactionRuleReferencesApiResponse
+
+
+class TransactionRuleLifecycleImpactApiResponse(ApiModel):
+    future_matching_changed: bool
+    existing_suggestions_changed: bool
+    existing_suggestion_count: int
+
+
+class TransactionRuleLifecycleApiResponse(ApiModel):
+    item: TransactionRuleSummaryApiResponse
+    impact: TransactionRuleLifecycleImpactApiResponse
 
 
 class TransactionRuleSeedDefaultsApiResponse(ApiModel):

@@ -1,5 +1,6 @@
 import os
 from dataclasses import replace
+from typing import cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -221,6 +222,50 @@ async def test_create_idempotency_replays_exact_payload_and_rejects_key_reuse() 
                 delete(TransactionRule).where(TransactionRule.id == created.rule.id)
             )
             await session.commit()
+    finally:
+        await delete_rule_suggestion(sessions, ids)
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_disable_changes_future_matching_state_without_rewriting_existing_suggestion() -> (
+    None
+):
+    assert TEST_DATABASE_URL is not None
+    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    ids = await seed_rule_suggestion(sessions)
+
+    try:
+        async with sessions() as session:
+            rule = await session.get(TransactionRule, ids.rule_id)
+            assert rule is not None
+            management = TransactionRuleManagementUseCase(session)
+            enabled = await management.set_rule_active(
+                workspace_id=ids.workspace_id,
+                rule_id=ids.rule_id,
+                is_active=True,
+                expected_active=False,
+                expected_updated_at=rule.updated_at,
+            )
+            await management.set_rule_active(
+                workspace_id=ids.workspace_id,
+                rule_id=ids.rule_id,
+                is_active=False,
+                expected_active=True,
+                expected_updated_at=enabled.updated_at,
+            )
+
+        async with sessions() as session:
+            raw = await session.get(RawTransaction, ids.raw_transaction_id)
+            rule = await session.get(TransactionRule, ids.rule_id)
+            assert raw is not None and rule is not None
+            assert rule.is_active is False
+            assert raw.status == RawTransactionStatus.SUGGESTED
+            assert raw.suggested_by_rule_id == ids.rule_id
+            payload = raw.raw_payload
+            suggestion = cast(dict[str, object], payload["rule_suggestion"])
+            assert suggestion["rule_id"] == str(ids.rule_id)
     finally:
         await delete_rule_suggestion(sessions, ids)
         await engine.dispose()

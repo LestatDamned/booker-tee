@@ -1,7 +1,7 @@
 # Transaction Rules React migration
 
 Статус: `in progress`; аудит завершён 2026-08-01, решения D1–D7 приняты
-2026-08-02, Slices 0–3 завершены 2026-08-02.
+2026-08-02, Slices 0–4 завершены 2026-08-02.
 
 ## Цель
 
@@ -89,8 +89,19 @@ Slice 3 edit завершён 2026-08-02:
 - committed summary заменяет строку без изменения URL filters/page, результат
   подтверждается Toast; dormant поля update не перезаписывает.
 
-Следующий этап — Slice 4: enable/disable с явным влиянием только на будущий
-matching и без скрытой перезаписи существующих Import Review suggestions.
+Slice 4 lifecycle завершён 2026-08-02:
+
+- отдельные enable/disable commands требуют expected state и timestamp;
+- enable повторно проверяет current category/property/account и возвращает
+  typed blocker, disable не меняет существующие raw suggestions;
+- authoritative response явно разделяет future matching и сохранённые existing
+  suggestions;
+- lifecycle — subordinate row action с pending lock, blocker guidance,
+  stale reload/retry и Toast;
+- active/disabled counts и видимость строки синхронно следуют URL status view.
+
+Следующий этап — Slice 5: safe delete только для выключенного неиспользованного
+правила согласно принятой policy D2.
 
 ## Краткий вывод аудита
 
@@ -246,5 +257,5 @@ Default `status=all`, `page=1`, `page_size=50`; допустимые page sizes 
 
 ## Approval record
 
-D1–D7 приняты пользователем 2026-08-02. Slices 0–3 завершены; legacy SSR
+D1–D7 приняты пользователем 2026-08-02. Slices 0–4 завершены; legacy SSR
 остаётся canonical до replacement gate Slice 6.

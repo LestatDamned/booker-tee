@@ -8,6 +8,8 @@ from app.features.transaction_rules.application.commands import (
     UpdateTransactionRuleCommand,
 )
 from app.features.transaction_rules.errors import (
+    TransactionRuleActivationBlockedError,
+    TransactionRuleLifecycleConflictError,
     TransactionRuleNotFoundError,
     TransactionRuleUpdateConflictError,
     TransactionRuleValidationError,
@@ -246,3 +248,62 @@ def test_edit_requires_writer_and_maps_not_found_conflict_and_field_error() -> N
             assert response.status_code == expected_status
             assert response.json()["error"]["code"] == expected_code
     assert response.json()["error"]["fieldErrors"] == {"category_id": ["Недоступная категория."]}
+
+
+def test_enable_and_disable_dispatch_expected_state_and_return_truthful_impact() -> None:
+    app, mutations = transaction_rules_mutation_app()
+    rule = mutations.item
+    payload = {
+        "expectedActive": rule.is_active,
+        "expectedUpdatedAt": rule.updated_at.isoformat(),
+    }
+
+    with TestClient(app) as client:
+        disabled = client.post(f"/api/v1/transaction-rules/{rule.id}/disable", json=payload)
+        enabled = client.post(
+            f"/api/v1/transaction-rules/{rule.id}/enable",
+            json={**payload, "expectedActive": False},
+        )
+
+    assert disabled.status_code == 200
+    assert enabled.status_code == 200
+    assert disabled.json()["impact"] == {
+        "futureMatchingChanged": True,
+        "existingSuggestionsChanged": False,
+        "existingSuggestionCount": 4,
+    }
+    assert mutations.calls[0][0] == "lifecycle"
+    assert mutations.calls[0][1]["is_active"] is False
+    assert mutations.calls[0][1]["expected_active"] is True
+    assert mutations.calls[1][1]["is_active"] is True
+    assert mutations.calls[1][1]["expected_active"] is False
+
+
+def test_lifecycle_requires_writer_and_maps_conflict_and_activation_blocker() -> None:
+    viewer_app, viewer = transaction_rules_mutation_app(role=WorkspaceRole.VIEWER)
+    app, mutations = transaction_rules_mutation_app()
+    payload = {
+        "expectedActive": False,
+        "expectedUpdatedAt": mutations.item.updated_at.isoformat(),
+    }
+
+    with TestClient(viewer_app) as client:
+        forbidden = client.post(f"/api/v1/transaction-rules/{viewer.item.id}/disable", json=payload)
+    assert forbidden.status_code == 403
+    assert viewer.calls == []
+
+    with TestClient(app) as client:
+        mutations.error = TransactionRuleLifecycleConflictError("Состояние правила уже изменилось.")
+        conflict = client.post(
+            f"/api/v1/transaction-rules/{mutations.item.id}/enable", json=payload
+        )
+        mutations.error = TransactionRuleActivationBlockedError(
+            "Category is not available for an active rule.", field="categoryId"
+        )
+        blocked = client.post(f"/api/v1/transaction-rules/{mutations.item.id}/enable", json=payload)
+
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "transaction_rule_lifecycle_conflict"
+    assert blocked.status_code == 422
+    assert blocked.json()["error"]["code"] == "transaction_rule_activation_blocked"
+    assert blocked.json()["error"]["details"] == {"blockedReasonCode": "category_inactive"}

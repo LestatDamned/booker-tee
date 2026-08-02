@@ -113,30 +113,30 @@ Exit gate:
 - [x] update cannot attach foreign-workspace or newly unavailable target;
 - [x] list filters/page remain stable.
 
-## Slice 4 — Enable and disable
+## Slice 4 — Enable and disable — completed 2026-08-02
 
 User outcome: writer disables future matching or deliberately re-enables a
 valid rule; existing review suggestions are not silently rewritten.
 
 Server:
 
-- explicit enable/disable commands with expected state/timestamp;
-- target revalidation and blocker codes;
-- authoritative summary/impact response.
+- [x] explicit enable/disable commands with expected state/timestamp;
+- [x] target revalidation and blocker codes;
+- [x] authoritative summary/impact response.
 
 React:
 
-- direct subordinate lifecycle action through `ActionStack`;
-- impact copy: future matching changes, existing suggestions remain;
-- pending row lock, conflict reload/retry, Toast;
-- row moves correctly between URL status views.
+- [x] direct subordinate lifecycle action through `ActionStack`;
+- [x] impact copy: future matching changes, existing suggestions remain;
+- [x] pending row lock, conflict reload/retry, Toast;
+- [x] row moves correctly between URL status views.
 
 Exit gate:
 
-- disable affects new parse/manual reapply but not existing snapshot until
+- [x] disable affects new parse/manual reapply but not existing snapshot until
   explicit apply;
-- invalid archived target cannot be silently reactivated;
-- Categories/Properties accepted policies remain intact.
+- [x] invalid archived target cannot be silently reactivated;
+- [x] Categories/Properties accepted policies remain intact.
 
 ## Slice 5 — Safe delete
 

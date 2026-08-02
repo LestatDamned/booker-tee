@@ -15,6 +15,8 @@ export type TransactionRuleUpdateRequest =
   components["schemas"]["TransactionRuleUpdateApiRequest"];
 export type TransactionRuleEditDto =
   components["schemas"]["TransactionRuleEditApiResponse"];
+export type TransactionRuleLifecycleDto =
+  components["schemas"]["TransactionRuleLifecycleApiResponse"];
 export type TransactionRuleSeedDefaultsDto =
   components["schemas"]["TransactionRuleSeedDefaultsApiResponse"];
 
@@ -115,6 +117,16 @@ const seedResponseSchema: z.ZodType<TransactionRuleSeedDefaultsDto> = z.object({
   createdCategories: z.number().int().nonnegative(),
 });
 
+const lifecycleResponseSchema: z.ZodType<TransactionRuleLifecycleDto> =
+  z.object({
+    item: summarySchema,
+    impact: z.object({
+      futureMatchingChanged: z.boolean(),
+      existingSuggestionsChanged: z.boolean(),
+      existingSuggestionCount: z.number().int().nonnegative(),
+    }),
+  });
+
 export type TransactionRuleMutationResult<T> =
   | { status: "success"; value: T }
   | {
@@ -129,6 +141,17 @@ export type TransactionRuleMutationResult<T> =
 export type TransactionRuleDirectoryLoadResult =
   | { status: "success"; directory: TransactionRuleDirectoryDto }
   | { status: "unauthenticated" }
+  | { status: "error"; message: string };
+
+export type TransactionRuleLifecycleResult =
+  | { status: "success"; value: TransactionRuleLifecycleDto }
+  | {
+      status: "blocked";
+      blockedReasonCode: string | null;
+      message: string;
+    }
+  | { status: "conflict"; message: string }
+  | { status: "forbidden"; message: string }
   | { status: "error"; message: string };
 
 export async function loadTransactionRules(
@@ -215,6 +238,54 @@ export async function updateTransactionRule(
     method: "PUT",
   });
   return mutationResult(response, summarySchema);
+}
+
+export async function changeTransactionRuleLifecycle(
+  item: TransactionRuleSummaryDto,
+  action: "enable" | "disable",
+  csrfToken: string,
+): Promise<TransactionRuleLifecycleResult> {
+  const response = await requestJson(
+    `/api/v1/transaction-rules/${item.id}/${action}`,
+    {
+      body: JSON.stringify({
+        expectedActive: item.isActive,
+        expectedUpdatedAt: item.updatedAt,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
+      method: "POST",
+    },
+  );
+  if (response.status === "network_error") {
+    return { status: "error", message: "Backend недоступен." };
+  }
+  if (response.ok) {
+    const parsed = lifecycleResponseSchema.safeParse(response.body);
+    return parsed.success
+      ? { status: "success", value: parsed.data }
+      : { status: "error", message: "API вернул неожиданный ответ." };
+  }
+  const error = parseApiError(response.body);
+  const message = error?.message ?? `API вернул статус ${response.httpStatus}.`;
+  if (
+    response.httpStatus === 422 &&
+    error?.code === "transaction_rule_activation_blocked"
+  ) {
+    const reason = error.details?.blockedReasonCode;
+    return {
+      status: "blocked",
+      blockedReasonCode: typeof reason === "string" ? reason : null,
+      message,
+    };
+  }
+  if (response.httpStatus === 409) return { status: "conflict", message };
+  if (response.httpStatus === 401 || response.httpStatus === 403) {
+    return { status: "forbidden", message };
+  }
+  return { status: "error", message };
 }
 
 function mutationResult<T>(

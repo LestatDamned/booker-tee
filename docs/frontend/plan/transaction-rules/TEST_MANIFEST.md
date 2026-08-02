@@ -217,6 +217,19 @@ Temporary PostgreSQL database was removed after the focused run.
   realistic edit/conflict browser сценарий остаётся обязательным до Slice 6
   replacement gate.
 
+### Slice 4 evidence — 2026-08-02
+
+- focused lifecycle API/domain contracts: `20 passed`;
+- React Transaction Rules adapter/component suite: `23 passed`, включая
+  authoritative impact, stale refresh/retry, blocker guidance и status-view row
+  movement;
+- full frontend: `59` files, `382 passed`; production SPA build passed;
+- Ruff, ty, TypeScript, ESLint, styles и generated API drift passed;
+- новый PostgreSQL lifecycle provenance contract: `1 passed`; весь файл дал
+  `4 passed, 1 failed` на существующей `booker_tee_reparse_test`, потому что эта
+  старая test DB не содержит принятого в Slice 0 restrictive rule-provenance FK
+  (падение существующего delete-guard test, не lifecycle test).
+
 ## Commands at migration completion
 
 Backend, proportionate focused tests first, then:

@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from "react";
 
 import { Button } from "../../ui/button/button";
+import { ActionStack } from "../../ui/action-stack/action-stack";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import { Tag, type TagTone } from "../../ui/tag/tag";
 import type { TransactionRuleSummaryDto } from "./api/transaction-rules-api";
@@ -15,6 +16,10 @@ type TransactionRuleRecordsProps = {
     variant: "desktop" | "mobile",
     trigger: HTMLButtonElement,
   ) => void;
+  lifecyclePendingId: string | null;
+  onDisable: (rule: TransactionRuleSummaryDto) => void;
+  onEnable: (rule: TransactionRuleSummaryDto) => void;
+  onEnableBlocked: (rule: TransactionRuleSummaryDto) => void;
   rules: TransactionRuleSummaryDto[];
   targetId: string | null;
 };
@@ -24,6 +29,10 @@ export function TransactionRuleTable({
   editingRuleId,
   editingVariant,
   onEdit,
+  lifecyclePendingId,
+  onDisable,
+  onEnable,
+  onEnableBlocked,
   rules,
   targetId,
 }: TransactionRuleRecordsProps) {
@@ -68,19 +77,17 @@ export function TransactionRuleTable({
                   <RuleBehavior rule={rule} />
                 </td>
                 <td>
-                  {rule.capabilities.canUpdate ? (
-                    <Button
-                      aria-controls={panelId}
-                      aria-expanded={isEditing}
-                      icon="edit"
-                      onClick={(event) =>
-                        onEdit(rule.id, "desktop", event.currentTarget)
-                      }
-                      tone="secondary"
-                    >
-                      {isEditing ? "Закрыть" : "Изменить"}
-                    </Button>
-                  ) : null}
+                  <RuleActions
+                    editing={editingRuleId !== null}
+                    isEditing={isEditing}
+                    lifecyclePendingId={lifecyclePendingId}
+                    onDisable={onDisable}
+                    onEdit={(trigger) => onEdit(rule.id, "desktop", trigger)}
+                    onEnable={onEnable}
+                    onEnableBlocked={onEnableBlocked}
+                    panelId={panelId}
+                    rule={rule}
+                  />
                 </td>
               </tr>
               {isEditing ? (
@@ -101,6 +108,10 @@ export function TransactionRuleMobileList({
   editingRuleId,
   editingVariant,
   onEdit,
+  lifecyclePendingId,
+  onDisable,
+  onEnable,
+  onEnableBlocked,
   rules,
   targetId,
 }: TransactionRuleRecordsProps) {
@@ -126,19 +137,17 @@ export function TransactionRuleMobileList({
               <RuleScope rule={rule} />
               <RuleOutcome rule={rule} />
               <RuleBehavior rule={rule} showStatus={false} />
-              {rule.capabilities.canUpdate ? (
-                <Button
-                  aria-controls={panelId}
-                  aria-expanded={isEditing}
-                  icon="edit"
-                  onClick={(event) =>
-                    onEdit(rule.id, "mobile", event.currentTarget)
-                  }
-                  tone="secondary"
-                >
-                  {isEditing ? "Закрыть" : "Изменить"}
-                </Button>
-              ) : null}
+              <RuleActions
+                editing={editingRuleId !== null}
+                isEditing={isEditing}
+                lifecyclePendingId={lifecyclePendingId}
+                onDisable={onDisable}
+                onEdit={(trigger) => onEdit(rule.id, "mobile", trigger)}
+                onEnable={onEnable}
+                onEnableBlocked={onEnableBlocked}
+                panelId={panelId}
+                rule={rule}
+              />
             </article>
             {isEditing ? editPanel : null}
           </li>
@@ -214,10 +223,88 @@ function RuleBehavior({
       </Tag>
       <span>
         {rule.usage.directRawSuggestionCount === 0
-          ? "Нет прямых предложений"
-          : `${rule.usage.directRawSuggestionCount} прямых предложений`}
+          ? "Существующих предложений нет"
+          : `${rule.usage.directRawSuggestionCount} существующих предложений сохранены`}
+      </span>
+      <span>
+        {rule.isActive
+          ? "Сопоставляет только будущие review-операции"
+          : "Будущие операции не сопоставляются"}
       </span>
     </div>
+  );
+}
+
+function RuleActions({
+  editing,
+  isEditing,
+  lifecyclePendingId,
+  onDisable,
+  onEdit,
+  onEnable,
+  onEnableBlocked,
+  panelId,
+  rule,
+}: {
+  editing: boolean;
+  isEditing: boolean;
+  lifecyclePendingId: string | null;
+  onDisable: (rule: TransactionRuleSummaryDto) => void;
+  onEdit: (trigger: HTMLButtonElement) => void;
+  onEnable: (rule: TransactionRuleSummaryDto) => void;
+  onEnableBlocked: (rule: TransactionRuleSummaryDto) => void;
+  panelId: string;
+  rule: TransactionRuleSummaryDto;
+}) {
+  const pending = lifecyclePendingId === rule.id;
+  const lifecycle = rule.isActive ? (
+    rule.capabilities.canDisable ? (
+      <Button
+        disabled={editing || lifecyclePendingId !== null}
+        isLoading={pending}
+        onClick={() => onDisable(rule)}
+        tone="secondary"
+      >
+        Выключить
+      </Button>
+    ) : null
+  ) : rule.capabilities.canEnable ? (
+    <Button
+      disabled={editing || lifecyclePendingId !== null}
+      isLoading={pending}
+      onClick={() => onEnable(rule)}
+      tone="secondary"
+    >
+      Включить
+    </Button>
+  ) : rule.capabilities.enableBlockedReasonCode ? (
+    <Button
+      disabled={editing || lifecyclePendingId !== null}
+      onClick={() => onEnableBlocked(rule)}
+      tone="secondary"
+    >
+      Почему нельзя включить
+    </Button>
+  ) : null;
+  return (
+    <ActionStack
+      orientation="row"
+      primary={
+        rule.capabilities.canUpdate ? (
+          <Button
+            aria-controls={panelId}
+            aria-expanded={isEditing}
+            disabled={lifecyclePendingId !== null}
+            icon="edit"
+            onClick={(event) => onEdit(event.currentTarget)}
+            tone="secondary"
+          >
+            {isEditing ? "Закрыть" : "Изменить"}
+          </Button>
+        ) : undefined
+      }
+      secondary={lifecycle ?? undefined}
+    />
   );
 }
 

@@ -330,6 +330,179 @@ describe("TransactionRulesPage", () => {
       await screen.findByText(/создано 2, уже было 51, новых категорий 1/),
     ).toBeVisible();
   });
+
+  it("disables future matching, preserves existing suggestions and keeps list state", async () => {
+    const user = userEvent.setup();
+    const changed = {
+      ...directory.items[0]!,
+      isActive: false,
+      updatedAt: "2026-08-02T10:00:00Z",
+      capabilities: {
+        ...directory.items[0]!.capabilities,
+        canDisable: false,
+        canEnable: true,
+        deleteBlockedReasonCode: "raw_suggestions" as const,
+      },
+    };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          item: changed,
+          impact: {
+            futureMatchingChanged: true,
+            existingSuggestionsChanged: false,
+            existingSuggestionCount: 4,
+          },
+        }),
+        { headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage("/rules?q=ozon");
+
+    await user.click(screen.getAllByRole("button", { name: "Выключить" })[0]!);
+    expect(
+      await screen.findByText(
+        /Новые операции больше не сопоставляются; 4 существующих предложений сохранено/,
+      ),
+    ).toBeVisible();
+    expect(screen.getAllByText("Выключено")).toHaveLength(2);
+    expect(screen.getByTestId("location")).toHaveTextContent("?q=ozon");
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]![1] as RequestInit).body),
+    );
+    expect(body).toEqual({
+      expectedActive: true,
+      expectedUpdatedAt: "2026-08-02T09:00:00Z",
+    });
+  });
+
+  it("reloads an authoritative lifecycle conflict and explicitly retries", async () => {
+    const user = userEvent.setup();
+    const fresh = { ...directory.items[0]!, updatedAt: "2026-08-02T09:30:00Z" };
+    const changed = {
+      ...fresh,
+      isActive: false,
+      updatedAt: "2026-08-02T10:00:00Z",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "transaction_rule_lifecycle_conflict",
+              message: "Правило уже изменилось.",
+            },
+          }),
+          { headers: { "Content-Type": "application/json" }, status: 409 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ item: fresh, references: directory.references }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            item: changed,
+            impact: {
+              futureMatchingChanged: true,
+              existingSuggestionsChanged: false,
+              existingSuggestionCount: 4,
+            },
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+    await user.click(screen.getAllByRole("button", { name: "Выключить" })[0]!);
+    expect(await screen.findByText("Правило уже изменилось.")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Обновить и повторить" }),
+    );
+    expect(
+      await screen.findByText(/Правило «OZON → Маркетплейсы» выключено/),
+    ).toBeVisible();
+    expect(
+      JSON.parse(String((fetchMock.mock.calls[2]![1] as RequestInit).body)),
+    ).toMatchObject({ expectedUpdatedAt: "2026-08-02T09:30:00Z" });
+  });
+
+  it("removes a disabled rule from the active URL view and updates counts", async () => {
+    const user = userEvent.setup();
+    const activeDirectory = {
+      ...directory,
+      appliedFilters: {
+        ...directory.appliedFilters,
+        status: "active" as const,
+      },
+      page: { ...directory.page, total: 1 },
+    };
+    const changed = {
+      ...directory.items[0]!,
+      isActive: false,
+      updatedAt: "2026-08-02T10:00:00Z",
+      capabilities: {
+        ...directory.items[0]!.capabilities,
+        canDisable: false,
+        canEnable: true,
+      },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              item: changed,
+              impact: {
+                futureMatchingChanged: true,
+                existingSuggestionsChanged: false,
+                existingSuggestionCount: 4,
+              },
+            }),
+            { headers: { "Content-Type": "application/json" } },
+          ),
+        ),
+      ),
+    );
+    renderPage("/rules?status=active", activeDirectory);
+    await user.click(screen.getAllByRole("button", { name: "Выключить" })[0]!);
+    expect(await screen.findByText("Правил пока нет")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Активные 1" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Выключенные 2" })).toBeVisible();
+  });
+
+  it("explains why a rule with an archived target cannot be enabled", async () => {
+    const blocked = {
+      ...directory.items[0]!,
+      isActive: false,
+      capabilities: {
+        ...directory.items[0]!.capabilities,
+        canDisable: false,
+        canEnable: false,
+        enableBlockedReasonCode: "property_archived" as const,
+      },
+    };
+    const user = userEvent.setup();
+    renderPage("/rules", { ...directory, items: [blocked] });
+    await user.click(
+      screen.getAllByRole("button", { name: "Почему нельзя включить" })[0]!,
+    );
+    expect(screen.getByText("Правило пока нельзя включить")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Сначала выберите активный объект или уберите объект из правила.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Изменить правило" }),
+    ).toBeVisible();
+  });
 });
 
 function renderPage(initialEntry = "/rules", snapshot = directory) {

@@ -29,6 +29,7 @@ import { WorkbenchSearch } from "../../ui/workbench-toolbar/workbench-search";
 import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
 import type { TransactionRuleDirectoryDto } from "./api/transaction-rules-api";
 import { TransactionRuleCreatePanel } from "./transaction-rule-create-panel";
+import { TransactionRuleLifecycleNotice } from "./transaction-rule-lifecycle-notice";
 import {
   transactionRuleAppliedFilters,
   transactionRuleFilterUrl,
@@ -47,6 +48,7 @@ import {
 import styles from "./transaction-rules-page.module.css";
 import { useTransactionRuleMutations } from "./use-transaction-rule-mutations";
 import { useTransactionRuleEditor } from "./use-transaction-rule-editor";
+import { useTransactionRuleLifecycle } from "./use-transaction-rule-lifecycle";
 
 export function TransactionRulesPage({
   directory,
@@ -77,6 +79,11 @@ export function TransactionRulesPage({
   const editor = useTransactionRuleEditor({
     csrfToken: session.csrfToken,
     onCommitted: mutations.ruleUpdated,
+  });
+  const lifecycle = useTransactionRuleLifecycle({
+    csrfToken: session.csrfToken,
+    onCommitted: mutations.ruleReplaced,
+    showToast: mutations.showToast,
   });
   const [categoryDraft, setCategoryDraft] = useState(query.categoryId);
   const appliedFilters = transactionRuleAppliedFilters(snapshot);
@@ -164,6 +171,17 @@ export function TransactionRulesPage({
             Сбросьте фильтры или откройте страницу, на которой находится правило
             из ссылки.
           </InlineNotice>
+        ) : null}
+
+        {lifecycle.failure ? (
+          <TransactionRuleLifecycleNotice
+            failure={lifecycle.failure}
+            onClear={lifecycle.clearFailure}
+            onOpenEditor={editor.requestOpen}
+            onRefreshAndRetry={() => void lifecycle.refreshAndRetry()}
+            onRetry={lifecycle.retry}
+            pending={lifecycle.pendingId !== null}
+          />
         ) : null}
 
         <WorkbenchSurface
@@ -317,6 +335,10 @@ export function TransactionRulesPage({
                     editingRuleId={editor.opened?.ruleId ?? null}
                     editingVariant={editor.opened?.variant ?? null}
                     onEdit={editor.requestOpen}
+                    lifecyclePendingId={lifecycle.pendingId}
+                    onDisable={lifecycle.disable}
+                    onEnable={lifecycle.enable}
+                    onEnableBlocked={lifecycle.explainBlocked}
                     rules={snapshot.items}
                     targetId={targetId}
                   />
@@ -327,6 +349,10 @@ export function TransactionRulesPage({
                     editingRuleId={editor.opened?.ruleId ?? null}
                     editingVariant={editor.opened?.variant ?? null}
                     onEdit={editor.requestOpen}
+                    lifecyclePendingId={lifecycle.pendingId}
+                    onDisable={lifecycle.disable}
+                    onEnable={lifecycle.enable}
+                    onEnableBlocked={lifecycle.explainBlocked}
                     rules={snapshot.items}
                     targetId={targetId}
                   />

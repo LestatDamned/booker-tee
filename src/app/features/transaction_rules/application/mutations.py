@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,6 +45,19 @@ class TransactionRuleSeedDefaultsResult:
 class TransactionRuleEditResult:
     item: TransactionRuleSummaryDto
     references: TransactionRuleReferencesDto
+
+
+@dataclass(frozen=True)
+class TransactionRuleLifecycleImpact:
+    future_matching_changed: bool
+    existing_suggestions_changed: bool
+    existing_suggestion_count: int
+
+
+@dataclass(frozen=True)
+class TransactionRuleLifecycleResult:
+    item: TransactionRuleSummaryDto
+    impact: TransactionRuleLifecycleImpact
 
 
 class TransactionRuleMutationService:
@@ -118,6 +132,42 @@ class TransactionRuleMutationService:
             committed,
             direct_raw_suggestion_count=direct_count,
             can_write=True,
+        )
+
+    async def set_active(
+        self,
+        *,
+        context: WorkspaceContext,
+        rule_id: UUID,
+        is_active: bool,
+        expected_active: bool,
+        expected_updated_at: datetime,
+    ) -> TransactionRuleLifecycleResult:
+        changed = await self._management.set_rule_active(
+            workspace_id=context.workspace.id,
+            rule_id=rule_id,
+            is_active=is_active,
+            expected_active=expected_active,
+            expected_updated_at=expected_updated_at,
+        )
+        committed = await self._rules.get_for_workspace(context.workspace.id, changed.id)
+        if committed is None:
+            raise TransactionRuleNotFoundError("Правило не найдено.")
+        direct_count = await self._rules.count_direct_raw_suggestions(
+            workspace_id=context.workspace.id,
+            rule_id=committed.id,
+        )
+        return TransactionRuleLifecycleResult(
+            item=transaction_rule_summary(
+                committed,
+                direct_raw_suggestion_count=direct_count,
+                can_write=True,
+            ),
+            impact=TransactionRuleLifecycleImpact(
+                future_matching_changed=True,
+                existing_suggestions_changed=False,
+                existing_suggestion_count=direct_count,
+            ),
         )
 
     async def _edit_result(

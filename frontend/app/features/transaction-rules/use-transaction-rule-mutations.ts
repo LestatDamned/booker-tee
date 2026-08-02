@@ -65,11 +65,15 @@ export function useTransactionRuleMutations({
   }
 
   function ruleUpdated(item: TransactionRuleSummaryDto) {
+    ruleReplaced(item);
+    showToast({ message: `Правило «${item.name}» сохранено.` });
+  }
+
+  function ruleReplaced(item: TransactionRuleSummaryDto) {
     setUpdatedRules((current) => [
       item,
       ...current.filter((rule) => rule.id !== item.id),
     ]);
-    showToast({ message: `Правило «${item.name}» сохранено.` });
     onReload?.();
   }
 
@@ -84,11 +88,13 @@ export function useTransactionRuleMutations({
       setSeedConfirmOpen(true);
     },
     ruleCreated,
+    ruleReplaced,
     ruleUpdated,
     seedConfirmOpen,
     seedDefaults,
     seedError,
     seedPending,
+    showToast,
     snapshot,
     toast,
   };
@@ -100,23 +106,49 @@ function directoryWithLocalRules(
   updatedRules: TransactionRuleSummaryDto[],
 ): TransactionRuleDirectoryDto {
   const replacements = new Map(updatedRules.map((item) => [item.id, item]));
-  const items = directory.items.map(
-    (item) => replacements.get(item.id) ?? item,
-  );
-  const additions = createdRules.filter(
-    (created) => !items.some((item) => item.id === created.id),
-  );
-  if (additions.length === 0) return { ...directory, items };
+  let activeDelta = 0;
+  let disabledDelta = 0;
+  let visibilityDelta = 0;
+  const items = directory.items.flatMap((item) => {
+    const replacement = replacements.get(item.id);
+    if (!replacement) return [item];
+    if (replacement.isActive !== item.isActive) {
+      activeDelta += replacement.isActive ? 1 : -1;
+      disabledDelta += replacement.isActive ? -1 : 1;
+      const wasVisible = matchesStatus(item, directory.appliedFilters.status);
+      const isVisible = matchesStatus(
+        replacement,
+        directory.appliedFilters.status,
+      );
+      visibilityDelta += Number(isVisible) - Number(wasVisible);
+    }
+    return matchesStatus(replacement, directory.appliedFilters.status)
+      ? [replacement]
+      : [];
+  });
+  const additions = createdRules
+    .filter(
+      (created) => !directory.items.some((item) => item.id === created.id),
+    )
+    .map((created) => replacements.get(created.id) ?? created);
   const activeAdditions = additions.filter((item) => item.isActive).length;
-  const total = directory.page.total + additions.length;
+  const visibleAdditions = additions.filter((item) =>
+    matchesStatus(item, directory.appliedFilters.status),
+  );
+  const total =
+    directory.page.total + visibilityDelta + visibleAdditions.length;
   const totalPages = Math.max(1, Math.ceil(total / directory.page.pageSize));
   return {
     ...directory,
-    items: [...additions, ...items],
+    items: [...visibleAdditions, ...items],
     counts: {
       all: directory.counts.all + additions.length,
-      active: directory.counts.active + activeAdditions,
-      disabled: directory.counts.disabled + additions.length - activeAdditions,
+      active: directory.counts.active + activeAdditions + activeDelta,
+      disabled:
+        directory.counts.disabled +
+        additions.length -
+        activeAdditions +
+        disabledDelta,
     },
     page: {
       ...directory.page,
@@ -125,4 +157,13 @@ function directoryWithLocalRules(
       hasNext: directory.page.page < totalPages,
     },
   };
+}
+
+function matchesStatus(
+  item: TransactionRuleSummaryDto,
+  status: TransactionRuleDirectoryDto["appliedFilters"]["status"],
+): boolean {
+  if (status === "active") return item.isActive;
+  if (status === "disabled") return !item.isActive;
+  return true;
 }

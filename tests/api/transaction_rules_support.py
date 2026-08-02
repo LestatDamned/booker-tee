@@ -14,6 +14,8 @@ from app.features.ledger.models import OperationType
 from app.features.transaction_rules.application.mutations import (
     TransactionRuleCreateResult,
     TransactionRuleEditResult,
+    TransactionRuleLifecycleImpact,
+    TransactionRuleLifecycleResult,
     TransactionRuleSeedDefaultsResult,
 )
 from app.features.transaction_rules.models import (
@@ -88,6 +90,19 @@ class TransactionRuleMutationServiceStub:
         if self.error is not None:
             raise self.error
         return self.item
+
+    async def set_active(self, **kwargs: object) -> TransactionRuleLifecycleResult:
+        self.calls.append(("lifecycle", kwargs))
+        if self.error is not None:
+            raise self.error
+        return TransactionRuleLifecycleResult(
+            item=self.item,
+            impact=TransactionRuleLifecycleImpact(
+                future_matching_changed=True,
+                existing_suggestions_changed=False,
+                existing_suggestion_count=4,
+            ),
+        )
 
 
 def transaction_rules_app(

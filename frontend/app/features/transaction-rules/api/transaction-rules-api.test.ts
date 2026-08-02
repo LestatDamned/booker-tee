@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { directory } from "../test-support";
 import {
   createTransactionRule,
+  changeTransactionRuleLifecycle,
   loadTransactionRuleForEdit,
   loadTransactionRules,
   seedDefaultTransactionRules,
@@ -164,6 +165,61 @@ describe("transaction rules API adapter", () => {
         headers: expect.objectContaining({ "X-CSRF-Token": "csrf" }),
       }),
     );
+  });
+
+  it("changes lifecycle with stale guards and maps activation blocker details", async () => {
+    const changed = { ...directory.items[0]!, isActive: false };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          item: changed,
+          impact: {
+            futureMatchingChanged: true,
+            existingSuggestionsChanged: false,
+            existingSuggestionCount: 4,
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            error: {
+              code: "transaction_rule_activation_blocked",
+              message: "Category unavailable.",
+              details: { blockedReasonCode: "category_inactive" },
+            },
+          },
+          422,
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      changeTransactionRuleLifecycle(directory.items[0]!, "disable", "csrf"),
+    ).resolves.toEqual({
+      status: "success",
+      value: {
+        item: changed,
+        impact: {
+          futureMatchingChanged: true,
+          existingSuggestionsChanged: false,
+          existingSuggestionCount: 4,
+        },
+      },
+    });
+    const request = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(JSON.parse(String(request.body))).toEqual({
+      expectedActive: true,
+      expectedUpdatedAt: "2026-08-02T09:00:00Z",
+    });
+    await expect(
+      changeTransactionRuleLifecycle(changed, "enable", "csrf"),
+    ).resolves.toEqual({
+      status: "blocked",
+      blockedReasonCode: "category_inactive",
+      message: "Category unavailable.",
+    });
   });
 });
 
