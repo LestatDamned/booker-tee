@@ -185,6 +185,13 @@ Additional facts:
 Severity expresses migration risk, not an assertion that exploitation has
 already happened.
 
+Authenticated unsafe SSR routes уже защищены form-token CSRF проверкой:
+`get_current_workspace_context()` вызывает `verify_request_csrf()` до session
+resolution для каждого метода вне `GET/HEAD/OPTIONS/TRACE`. Все текущие
+authenticated workspace POST handlers зависят от этого context напрямую или
+через permission dependencies. Пробел относится к route-level regression
+coverage, а не к отсутствию runtime guard (`dependencies.py`, `router.py`).
+
 1. **High — concurrent invitation replay is not serialized.** Token lookup is
    not locked and status is checked before create/commit. Two users can race a
    pending token; unit tests cover sequential consumption only
@@ -234,4 +241,3 @@ Named non-browser/domain consumers to preserve:
 - transaction-rule seeding workspace lock;
 - persistence relationships/migrations and workspace-scoped repositories across
   Accounts, Imports, Ledger, Reports, Categories, Properties and Rules.
-

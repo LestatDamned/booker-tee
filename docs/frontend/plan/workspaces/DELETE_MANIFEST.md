@@ -1,6 +1,7 @@
 # Workspaces future delete/keep manifest
 
-Статус: proposed only. Nothing listed here may be deleted before Slice 7 gate.
+Статус: accepted gate manifest. Nothing listed here may be deleted before its
+explicit replacement gate.
 
 ## Delete after full authenticated replacement gate
 
@@ -129,4 +130,3 @@ Allowed after cleanup must be classified as one of:
 
 Any legacy authenticated POST route, Jinja index/card/presenter, workspace-only
 global selector or unexplained generated HTML operation fails the gate.
-

@@ -1,6 +1,7 @@
 # Workspaces API and state boundary
 
-Статус: proposal pending D1–D14. Current factual boundary is called out first.
+Статус: target accepted 2026-08-03 in ADR-0006; not implemented. Current
+factual boundary is called out first.
 
 ## Current boundary
 
@@ -52,7 +53,8 @@ separate credential boundary, not an ordinary workspace read.
 | `/workspaces?...` | Historical query-preserving 307 only after full directory replacement |
 | `/workspaces/invitations/:token` | Kept public bridge initially per D11 |
 
-Potential `section` URL values for settings are a proposal, not yet accepted.
+Конкретная форма settings sections остаётся implementation detail Slice 2;
+canonical directory/settings split принят в D2–D3.
 Do not create routes for members/invites until D3 decides sections vs subroutes.
 
 ## Proposed versioned JSON endpoints
@@ -232,4 +234,3 @@ sense in the new boundary.
 - Accept/revoke performs compare-and-consume under lock.
 - Token/hash is absent from logs, audit details, list DTOs, generated labels and
   analytics. The one-time share URL is never cached in loader state.
-

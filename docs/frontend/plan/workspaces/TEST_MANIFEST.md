@@ -1,6 +1,6 @@
 # Workspaces replacement test manifest
 
-Статус: proposed manifest; audit did not add or change tests.
+Статус: accepted replacement manifest; Slice 0 characterization in progress.
 
 ## Existing evidence
 
@@ -15,9 +15,28 @@
 | Chat | `tests/features/chat_integrations/test_identity_workspace.py`, `test_service_dashboard.py` | active binding resolution and switch orchestration |
 | Existing UI audit script | `scripts/ui_audit.py` | workspace page is visited; realistic scenario asserts pending invitation only |
 
-Current gaps: no Workspaces route integration matrix, no versioned API, no
-foreign-ID masking tests, no concurrent PostgreSQL invite/owner tests, no React
-state/interaction tests and no dedicated workspace browser scenario.
+## Slice 0 evidence added after policy acceptance
+
+| Evidence | Test | Result on 2026-08-03 |
+| --- | --- | --- |
+| Every authenticated legacy workspace POST rejects a missing form CSRF token before session/service work | `test_workspace_route_security.py` | 9 route cases pass |
+| Current invalid-current fallback commits during context resolution | `test_workspace_context_characterization.py` | characterization passes |
+| Current no-membership read silently creates a personal workspace and audit event | `test_workspace_context_characterization.py` | characterization passes |
+| Two concurrent users can pass the invitation status guard and consume one credential | `test_workspace_invitation_concurrency.py` | deterministic strict `xfail` for D13; PostgreSQL lock proof still pending |
+| Two owners can concurrently pass the service count guard and disable each other | `test_workspace_owner_concurrency.py` | deterministic strict `xfail` for D8; PostgreSQL lock proof still pending |
+
+The strict `xfail` cases state the accepted invariant, reproduce the current
+race deterministically and must be converted to ordinary passing tests when the
+locked application actors are implemented. Both currently use service harnesses
+because the initial database harnesses could block nondeterministically. The
+PostgreSQL lock proofs therefore remain mandatory Slice 0 gates. These tests are
+evidence of known gaps, not waived requirements.
+
+Current gaps: no foreign-ID response-indistinguishability route matrix, no
+versioned Workspaces API, no PostgreSQL accept-vs-revoke race, no React
+state/interaction tests and no dedicated workspace browser scenario. The
+missing-CSRF route matrix and the two primary PostgreSQL races now have Slice 0
+evidence above.
 
 ## Server/application tests required
 
@@ -174,4 +193,3 @@ The audit itself may run existing focused tests, import/route introspection,
 `rg` consumer searches and Markdown/link checks. It must not run the realistic
 UI scenario against normal developer data because that script creates users,
 workspaces, invitations and financial fixtures.
-

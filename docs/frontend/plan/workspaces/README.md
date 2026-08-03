@@ -1,11 +1,12 @@
 # Workspaces React migration audit
 
-Статус: `audit complete; decisions pending`.
+Статус: `audit complete; D1–D14 accepted 2026-08-03; Slice 0 active`.
 
 Этот временный child stage готовит Stage 7 Wave C migration для authenticated
 workflow Workspaces. Runtime-код, маршруты, API, схема БД и тесты на этапе
-аудита не изменялись. Реализация и legacy cleanup запрещены до явного
-согласования D1–D14 ниже.
+аудита не изменялись. D1–D14 приняты без отклонений и зафиксированы в
+[`ADR-0006`](../../../architecture/decisions/0006-workspace-migration-policy.md).
+Legacy cleanup остаётся запрещён до соответствующих replacement gates.
 
 ## Граница аудита
 
@@ -67,7 +68,7 @@ capabilities и CSRF token (`src/app/api/v1/session/*`).
 - Lifecycle workspace не реализован: поля `is_active` и `archived_at` есть, но
   routes/use cases deactivate/archive/restore/leave/transfer/delete отсутствуют.
 
-## Решения для согласования
+## Принятые решения
 
 ### D1. Scope первого React slice
 
@@ -217,13 +218,13 @@ read-only bounded section, но не заменяет server audit/security logs
 Альтернатива: подтверждать каждую mutation. Это создаёт confirmation fatigue и
 не выделяет действительно опасные transitions.
 
-## Реализация заблокирована до
+## Slice 0 policy lock
 
-1. Явного решения по D1–D14.
-2. Выбора single-owner или multi-owner semantics (D8).
-3. Решения, входит ли deactivate/restore и leave/transfer в этот Wave C child
-   stage или остаётся отдельным product stage.
-4. Решения о public invitation bridge (D11).
-5. До implementation slice — PostgreSQL concurrency characterization для invite
-   consume/revoke, last owner и session fallback.
+D1–D14 приняты 2026-08-03 без отклонений. Тем самым зафиксированы single-owner
+semantics, включение leave/transfer и deactivate/restore в последовательность
+Wave C, а также первоначальное сохранение public invitation SSR bridge.
 
+До Slice 1 остаются characterization gates: PostgreSQL concurrency evidence для
+invitation consume/revoke и last-owner transitions, route-level CSRF/masking
+matrix, session fallback behavior и точный deactivate impact на Chat,
+integrations и in-flight imports.

@@ -1,6 +1,6 @@
 # Workspaces vertical slices
 
-Статус: proposal pending D1–D14. Никакой slice не начат.
+Статус: D1–D14 accepted 2026-08-03; Slice 0 active. Production slices не начаты.
 
 ## Ordering rationale
 
@@ -13,15 +13,29 @@ crosses authenticated/public presentation decisions.
 
 Outcome: no production behavior change.
 
-- Accept D1–D14 and record deviations.
+- Record accepted D1–D14 in ADR-0006 (completed 2026-08-03, no deviations).
 - Capture current SSR geometry at 1440/920/390 in isolated disposable data.
 - Add PostgreSQL characterization for invitation accept/revoke race,
   last-owner race, current-session fallback and workspace delete blast radius.
-- Decide single-owner/multi-owner and public invitation route.
+- Use accepted single-owner policy and retain the public invitation SSR bridge.
 - Specify deactivate impact on Chat/integrations and in-flight imports.
 
 Gate: decisions accepted; no unresolved critical concurrency/isolation
 ambiguity; exact existing behavior and intentional changes are named.
+
+Progress 2026-08-03:
+
+- completed: ADR-0006 policy lock;
+- completed: authenticated legacy POST missing-CSRF matrix;
+- completed: current session fallback/auto-create read-side-effect
+  characterization;
+- completed: deterministic service-level invitation replay and last-owner race
+  reproduction as strict `xfail`;
+- existing evidence retained: workspace hard-delete cascade characterization in
+  `test_rule_delete_postgres.py`;
+- pending: PostgreSQL invitation and last-owner lock proofs, accept-vs-revoke
+  race, foreign-ID response-indistinguishability, isolated browser geometry and
+  final deactivate impact contract.
 
 ## Slice 1 — directory, create and boundary switch
 
@@ -138,4 +152,3 @@ before its replacement evidence passed.
 4. No generic CRUD/form/table abstraction is introduced for visual symmetry.
 5. Legacy remains working until the corresponding replacement gate.
 6. Canonical navigation changes only after behavior, security and browser gates.
-
