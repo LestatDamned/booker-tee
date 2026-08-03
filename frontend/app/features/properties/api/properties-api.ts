@@ -1,11 +1,20 @@
 import { z } from "zod";
 
-import type { components } from "../../../api/generated/schema";
 import {
-  parseApiError,
-  requestJson,
-  type ApiErrorDetails,
-} from "../../../api/transport";
+  apiForbiddenFailure,
+  apiLoadError,
+  apiLoadNetworkError,
+  apiMutationError,
+  apiMutationNetworkError,
+  apiUnauthenticatedFailure,
+  apiUnexpectedStatusError,
+  type ApiForbiddenFailure,
+  type ApiLoadError,
+  type ApiMutationError,
+  type ApiUnauthenticatedFailure,
+} from "../../../api/failures";
+import type { components } from "../../../api/generated/schema";
+import { parseApiError, requestJson } from "../../../api/transport";
 
 export type PropertyDirectoryDto =
   components["schemas"]["PropertyDirectoryApiResponse"];
@@ -42,8 +51,8 @@ export const propertyDirectorySchema: z.ZodType<PropertyDirectoryDto> =
 
 export type PropertyDirectoryLoadResult =
   | { status: "success"; directory: PropertyDirectoryDto }
-  | { status: "unauthenticated" }
-  | { status: "error"; message: string };
+  | ApiUnauthenticatedFailure
+  | ApiLoadError;
 
 export type CreatePropertyDraft = {
   name: string;
@@ -53,9 +62,9 @@ export type CreatePropertyDraft = {
 
 export type CreatePropertyResult =
   | { status: "success"; property: PropertySummaryDto }
-  | { status: "unauthenticated" }
-  | { status: "forbidden"; message: string }
-  | ({ status: "error" } & ApiErrorDetails);
+  | ApiUnauthenticatedFailure
+  | ApiForbiddenFailure
+  | ApiMutationError;
 
 export type UpdatePropertyDraft = CreatePropertyDraft & {
   expectedUpdatedAt: string;
@@ -63,11 +72,11 @@ export type UpdatePropertyDraft = CreatePropertyDraft & {
 
 export type UpdatePropertyResult =
   | { status: "success"; property: PropertySummaryDto }
-  | { status: "unauthenticated" }
-  | { status: "forbidden"; message: string }
+  | ApiUnauthenticatedFailure
+  | ApiForbiddenFailure
   | { status: "not_found"; message: string }
   | { status: "conflict"; message: string }
-  | ({ status: "error" } & ApiErrorDetails);
+  | ApiMutationError;
 
 export type PropertyLifecycleAction = "archive" | "restore";
 
@@ -77,11 +86,11 @@ export type PropertyLifecycleResult =
       property: PropertySummaryDto;
       impact: PropertyLifecycleImpactDto;
     }
-  | { status: "unauthenticated" }
-  | { status: "forbidden"; message: string }
+  | ApiUnauthenticatedFailure
+  | ApiForbiddenFailure
   | { status: "not_found"; message: string }
   | { status: "conflict"; message: string }
-  | ({ status: "error" } & ApiErrorDetails);
+  | ApiMutationError;
 
 const propertyLifecycleResponseSchema = z.object({
   property: propertySummarySchema,
@@ -99,23 +108,17 @@ export async function loadProperties(
     ...(signal ? { signal } : {}),
   });
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
   if (response.httpStatus === 401) {
-    return { status: "unauthenticated" };
+    return apiUnauthenticatedFailure();
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      message: `API вернул статус ${response.httpStatus}.`,
-    };
+    return apiUnexpectedStatusError(response.httpStatus);
   }
   const parsed = propertyDirectorySchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      message: "API вернул список объектов неожиданного формата.",
-    };
+    return apiLoadError("API вернул список объектов неожиданного формата.");
   }
   return { status: "success", directory: parsed.data };
 }
@@ -136,37 +139,25 @@ export async function createProperty({
     method: "POST",
   });
   if (response.status === "network_error") {
-    return {
-      status: "error",
-      code: "network_error",
-      fieldErrors: {},
-      message: "Backend недоступен. Проверьте соединение и повторите.",
-    };
+    return apiMutationNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   const apiError = parseApiError(response.body);
   if (response.httpStatus === 403) {
-    return {
-      status: "forbidden",
-      message: apiError?.message ?? "Создание объекта недоступно.",
-    };
+    return apiForbiddenFailure(apiError, "Создание объекта недоступно.");
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      code: apiError?.code ?? "property_create_failed",
-      fieldErrors: apiError?.fieldErrors ?? {},
-      message: apiError?.message ?? "Не удалось создать объект.",
-    };
+    return apiMutationError(apiError, {
+      fallbackCode: "property_create_failed",
+      fallbackMessage: "Не удалось создать объект.",
+    });
   }
   const parsed = propertySummarySchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      code: "invalid_property_response",
-      fieldErrors: {},
-      message: "API вернул созданный объект неожиданного формата.",
-    };
+    return apiMutationError(null, {
+      fallbackCode: "invalid_property_response",
+      fallbackMessage: "API вернул созданный объект неожиданного формата.",
+    });
   }
   return { status: "success", property: parsed.data };
 }
@@ -189,20 +180,12 @@ export async function updateProperty({
     method: "PUT",
   });
   if (response.status === "network_error") {
-    return {
-      status: "error",
-      code: "network_error",
-      fieldErrors: {},
-      message: "Backend недоступен. Проверьте соединение и повторите.",
-    };
+    return apiMutationNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   const apiError = parseApiError(response.body);
   if (response.httpStatus === 403) {
-    return {
-      status: "forbidden",
-      message: apiError?.message ?? "Изменение объекта недоступно.",
-    };
+    return apiForbiddenFailure(apiError, "Изменение объекта недоступно.");
   }
   if (response.httpStatus === 404) {
     return {
@@ -217,21 +200,17 @@ export async function updateProperty({
     };
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      code: apiError?.code ?? "property_update_failed",
-      fieldErrors: apiError?.fieldErrors ?? {},
-      message: apiError?.message ?? "Не удалось изменить объект.",
-    };
+    return apiMutationError(apiError, {
+      fallbackCode: "property_update_failed",
+      fallbackMessage: "Не удалось изменить объект.",
+    });
   }
   const parsed = propertySummarySchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      code: "invalid_property_response",
-      fieldErrors: {},
-      message: "API вернул изменённый объект неожиданного формата.",
-    };
+    return apiMutationError(null, {
+      fallbackCode: "invalid_property_response",
+      fallbackMessage: "API вернул изменённый объект неожиданного формата.",
+    });
   }
   return { status: "success", property: parsed.data };
 }
@@ -260,20 +239,15 @@ export async function changePropertyLifecycle({
     },
   );
   if (response.status === "network_error") {
-    return {
-      status: "error",
-      code: "network_error",
-      fieldErrors: {},
-      message: "Backend недоступен. Проверьте соединение и повторите.",
-    };
+    return apiMutationNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   const apiError = parseApiError(response.body);
   if (response.httpStatus === 403) {
-    return {
-      status: "forbidden",
-      message: apiError?.message ?? "Изменение состояния объекта недоступно.",
-    };
+    return apiForbiddenFailure(
+      apiError,
+      "Изменение состояния объекта недоступно.",
+    );
   }
   if (response.httpStatus === 404) {
     return {
@@ -288,21 +262,17 @@ export async function changePropertyLifecycle({
     };
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      code: apiError?.code ?? "property_lifecycle_failed",
-      fieldErrors: apiError?.fieldErrors ?? {},
-      message: apiError?.message ?? "Не удалось изменить состояние объекта.",
-    };
+    return apiMutationError(apiError, {
+      fallbackCode: "property_lifecycle_failed",
+      fallbackMessage: "Не удалось изменить состояние объекта.",
+    });
   }
   const parsed = propertyLifecycleResponseSchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      code: "invalid_property_lifecycle_response",
-      fieldErrors: {},
-      message: "API вернул состояние объекта неожиданного формата.",
-    };
+    return apiMutationError(null, {
+      fallbackCode: "invalid_property_lifecycle_response",
+      fallbackMessage: "API вернул состояние объекта неожиданного формата.",
+    });
   }
   return {
     status: "success",

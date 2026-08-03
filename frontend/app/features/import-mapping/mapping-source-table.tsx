@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { Button } from "../../ui/button/button";
 import type {
   ImportMappingCommand,
@@ -78,12 +79,7 @@ export function MappingSourceTable({
       tableRef: table.ref,
     });
     setRowsPending(false);
-    if (result.status === "unauthenticated") {
-      window.location.assign(
-        `/login?next=${encodeURIComponent(window.location.pathname)}`,
-      );
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status !== "success") {
       setRowsError(
         result.status === "not_found"

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import type { CategorySummaryDto } from "./api/categories-api";
 import { loadCategories } from "./api/categories-api";
 import {
@@ -7,7 +8,7 @@ import {
   type CategoryLifecycleAction,
 } from "./api/category-detail-api";
 
-export type CategoryDirectoryLifecycleFailure = {
+type CategoryDirectoryLifecycleFailure = {
   action: CategoryLifecycleAction;
   category: CategorySummaryDto;
   conflict: boolean;
@@ -62,10 +63,7 @@ export function useCategoryDirectoryLifecycle({
       });
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/categories");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "blocked") {
       await reloadArchiveBlocker(category);
       return;
@@ -80,10 +78,7 @@ export function useCategoryDirectoryLifecycle({
 
   async function reloadArchiveBlocker(category: CategorySummaryDto) {
     const result = await loadCategories();
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/categories");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "error") {
       setArchiveBlocker(category);
       return;
@@ -103,10 +98,7 @@ export function useCategoryDirectoryLifecycle({
     const result = await loadCategories();
     pendingRef.current = null;
     setPendingId(null);
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/categories");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "error") {
       setFailure({ ...retry, message: result.message });
       return;

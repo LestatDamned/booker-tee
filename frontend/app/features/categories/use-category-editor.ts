@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from "react";
 
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import {
   loadCategoryDetail,
   updateCategory,
@@ -141,12 +142,7 @@ export function useCategoryEditor({
       window.setTimeout(() => editTriggerRef.current?.focus(), 0);
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign(
-        `/login?next=/app/categories/${submitted.snapshot.category.id}`,
-      );
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "conflict") {
       setEditState({
         ...submitted,
@@ -185,12 +181,7 @@ export function useCategoryEditor({
       submitted.snapshot.category.id,
       apiSearch,
     );
-    if (result.status === "unauthenticated") {
-      window.location.assign(
-        `/login?next=/app/categories/${submitted.snapshot.category.id}`,
-      );
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status !== "success") {
       setEditState((current) =>
         current

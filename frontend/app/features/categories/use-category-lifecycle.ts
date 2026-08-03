@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import {
   changeCategoryLifecycle,
   deleteCategory,
@@ -73,10 +74,7 @@ export function useCategoryLifecycle({
       });
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign(`/login?next=/app/categories/${category.id}`);
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     setFailure({
       action,
       blocked: result.status === "blocked",
@@ -94,12 +92,7 @@ export function useCategoryLifecycle({
     const result = await loadCategoryDetail(retry.category.id, apiSearch);
     pendingRef.current = false;
     setPending(false);
-    if (result.status === "unauthenticated") {
-      window.location.assign(
-        `/login?next=/app/categories/${retry.category.id}`,
-      );
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status !== "success") {
       setFailure({
         ...retry,

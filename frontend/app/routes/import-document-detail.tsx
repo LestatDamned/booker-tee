@@ -1,5 +1,6 @@
 import type { ImportDocumentDetailLoadResult } from "../features/import-document-detail/api/import-document-detail-api";
 import { ImportDocumentDetailPage } from "../features/import-document-detail/import-document-detail-page";
+import { loginHref } from "../session/unauthenticated";
 import { RouteStatePage } from "../ui/route-state-page/route-state-page";
 import type { Route } from "./+types/import-document-detail";
 import { loadImportDocumentDetailRoute } from "./import-document-detail-loader";
@@ -85,7 +86,7 @@ function routeStateCopy(
       title: "Войдите в Booker Tee",
       message: "Для просмотра выписки нужна активная сессия.",
       action: "Войти",
-      href: `/login?next=${encodeURIComponent(window.location.pathname)}`,
+      href: loginHref(window.location.pathname),
     };
   }
   if (result.status === "forbidden") {

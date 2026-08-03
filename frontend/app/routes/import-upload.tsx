@@ -1,4 +1,5 @@
 import { ImportUploadPage } from "../features/import-upload/import-upload-page";
+import { loginHref } from "../session/unauthenticated";
 import { RouteStatePage } from "../ui/route-state-page/route-state-page";
 import type { Route } from "./+types/import-upload";
 import { loadImportUploadRoute } from "./import-upload-loader";
@@ -58,7 +59,7 @@ function RouteState({
         : "Не удалось открыть загрузку";
   const href =
     kind === "unauthenticated"
-      ? "/login?next=/app/imports/upload"
+      ? loginHref("/app/imports/upload")
       : kind === "forbidden"
         ? "/app/imports"
         : "/app/imports/upload";

@@ -1,13 +1,13 @@
 import { useRef, useState } from "react";
 
-import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import {
   deleteTransactionRule,
   loadTransactionRuleForEdit,
   type TransactionRuleSummaryDto,
 } from "./api/transaction-rules-api";
 
-export type TransactionRuleDeleteFailure = {
+type TransactionRuleDeleteFailure = {
   blocked: boolean;
   conflict: boolean;
   item: TransactionRuleSummaryDto;
@@ -42,6 +42,7 @@ export function useTransactionRuleDelete({
     const result = await deleteTransactionRule(item, csrfToken);
     pendingRef.current = false;
     setPendingId(null);
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "success") {
       setCandidate(null);
       onDeleted(item);
@@ -73,6 +74,7 @@ export function useTransactionRuleDelete({
     const loaded = await loadTransactionRuleForEdit(retry.item.id);
     pendingRef.current = false;
     setPendingId(null);
+    if (redirectIfUnauthenticated(loaded)) return;
     if (loaded.status !== "success") {
       setFailure({ ...retry, conflict: false, message: loaded.message });
       return;
@@ -107,20 +109,13 @@ export function useTransactionRuleDelete({
     });
   }
 
-  const dialog = candidate ? (
-    <ConfirmationDialog
-      confirmLabel="Удалить правило"
-      description={`Правило «${candidate.name}» будет удалено без возможности восстановления. Это удалит только определение правила: источники импорта, review-предложения и подтверждённые операции не изменятся.`}
-      onCancel={() => setCandidate(null)}
-      onConfirm={() => void run(candidate)}
-      pending={pendingId === candidate.id}
-      title="Удалить правило?"
-    />
-  ) : null;
-
   return {
+    cancelDelete: () => setCandidate(null),
+    candidate,
     clearFailure: () => setFailure(null),
-    dialog,
+    confirmDelete: () => {
+      if (candidate) void run(candidate);
+    },
     explainBlocked,
     failure,
     pendingId,

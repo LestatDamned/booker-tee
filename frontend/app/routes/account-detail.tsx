@@ -2,6 +2,7 @@ import { useNavigation } from "react-router";
 
 import type { AccountDetailLoadResult } from "../features/accounts/api/account-detail-api";
 import { AccountDetailPage } from "../features/accounts/account-detail-page";
+import { loginHref } from "../session/unauthenticated";
 import { RouteStatePage } from "../ui/route-state-page/route-state-page";
 import type { Route } from "./+types/account-detail";
 import { loadAccountDetailRoute } from "./account-detail-loader";
@@ -71,7 +72,7 @@ function RouteState({
   return (
     <RouteStatePage
       actionHref={
-        unauthenticated ? "/login?next=/app/accounts" : "/app/accounts"
+        unauthenticated ? loginHref("/app/accounts") : "/app/accounts"
       }
       actionIcon={unauthenticated ? "forward" : "back"}
       actionLabel={unauthenticated ? "Войти" : "К списку счетов"}

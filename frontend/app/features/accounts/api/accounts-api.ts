@@ -1,11 +1,20 @@
 import { z } from "zod";
 
-import type { components } from "../../../api/generated/schema";
 import {
-  parseApiError,
-  requestJson,
-  type ApiErrorDetails,
-} from "../../../api/transport";
+  apiForbiddenFailure,
+  apiLoadError,
+  apiLoadNetworkError,
+  apiMutationError,
+  apiMutationNetworkError,
+  apiUnauthenticatedFailure,
+  apiUnexpectedStatusError,
+  type ApiForbiddenFailure,
+  type ApiLoadError,
+  type ApiMutationError,
+  type ApiUnauthenticatedFailure,
+} from "../../../api/failures";
+import type { components } from "../../../api/generated/schema";
+import { parseApiError, requestJson } from "../../../api/transport";
 
 export type AccountDirectoryDto =
   components["schemas"]["AccountDirectoryApiResponse"];
@@ -49,8 +58,8 @@ export const accountDirectorySchema: z.ZodType<AccountDirectoryDto> = z.object({
 
 export type AccountDirectoryLoadResult =
   | { status: "success"; directory: AccountDirectoryDto }
-  | { status: "unauthenticated" }
-  | { status: "error"; message: string };
+  | ApiUnauthenticatedFailure
+  | ApiLoadError;
 
 export type CreateAccountDraft = {
   accountType: AccountType;
@@ -61,9 +70,9 @@ export type CreateAccountDraft = {
 
 export type CreateAccountResult =
   | { status: "success"; account: AccountSummaryDto }
-  | { status: "unauthenticated" }
-  | { status: "forbidden"; message: string }
-  | ({ status: "error" } & ApiErrorDetails);
+  | ApiUnauthenticatedFailure
+  | ApiForbiddenFailure
+  | ApiMutationError;
 
 export type AccountLifecycleAction = "archive" | "restore";
 export type AccountMutationSnapshot = Pick<
@@ -76,17 +85,17 @@ export type UpdateAccountDraft = CreateAccountDraft & {
 
 export type AccountLifecycleResult =
   | { status: "success"; account: AccountSummaryDto }
-  | { status: "unauthenticated" }
-  | { status: "forbidden"; message: string }
+  | ApiUnauthenticatedFailure
+  | ApiForbiddenFailure
   | { status: "conflict"; message: string }
-  | ({ status: "error" } & ApiErrorDetails);
+  | ApiMutationError;
 
 export type UpdateAccountResult =
   | { status: "success"; account: AccountSummaryDto }
-  | { status: "unauthenticated" }
-  | { status: "forbidden"; message: string }
+  | ApiUnauthenticatedFailure
+  | ApiForbiddenFailure
   | { status: "conflict"; code: string; message: string }
-  | ({ status: "error" } & ApiErrorDetails);
+  | ApiMutationError;
 
 export async function loadAccounts(
   signal?: AbortSignal,
@@ -95,23 +104,17 @@ export async function loadAccounts(
     ...(signal ? { signal } : {}),
   });
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
   if (response.httpStatus === 401) {
-    return { status: "unauthenticated" };
+    return apiUnauthenticatedFailure();
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      message: `API вернул статус ${response.httpStatus}.`,
-    };
+    return apiUnexpectedStatusError(response.httpStatus);
   }
   const parsed = accountDirectorySchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      message: "API вернул список счетов неожиданного формата.",
-    };
+    return apiLoadError("API вернул список счетов неожиданного формата.");
   }
   return { status: "success", directory: parsed.data };
 }
@@ -132,39 +135,27 @@ export async function createAccount({
     method: "POST",
   });
   if (response.status === "network_error") {
-    return {
-      status: "error",
-      code: "network_error",
-      fieldErrors: {},
-      message: "Backend недоступен. Проверьте соединение и повторите.",
-    };
+    return apiMutationNetworkError();
   }
   if (response.httpStatus === 401) {
-    return { status: "unauthenticated" };
+    return apiUnauthenticatedFailure();
   }
   const apiError = parseApiError(response.body);
   if (response.httpStatus === 403) {
-    return {
-      status: "forbidden",
-      message: apiError?.message ?? "Создание счета недоступно.",
-    };
+    return apiForbiddenFailure(apiError, "Создание счета недоступно.");
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      code: apiError?.code ?? "account_create_failed",
-      fieldErrors: apiError?.fieldErrors ?? {},
-      message: apiError?.message ?? "Не удалось создать счёт.",
-    };
+    return apiMutationError(apiError, {
+      fallbackCode: "account_create_failed",
+      fallbackMessage: "Не удалось создать счёт.",
+    });
   }
   const parsed = accountSummarySchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      code: "invalid_account_response",
-      fieldErrors: {},
-      message: "API вернул созданный счёт неожиданного формата.",
-    };
+    return apiMutationError(null, {
+      fallbackCode: "invalid_account_response",
+      fallbackMessage: "API вернул созданный счёт неожиданного формата.",
+    });
   }
   return { status: "success", account: parsed.data };
 }
@@ -193,20 +184,12 @@ export async function changeAccountLifecycle({
     },
   );
   if (response.status === "network_error") {
-    return {
-      status: "error",
-      code: "network_error",
-      fieldErrors: {},
-      message: "Backend недоступен. Проверьте соединение и повторите.",
-    };
+    return apiMutationNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   const apiError = parseApiError(response.body);
   if (response.httpStatus === 403) {
-    return {
-      status: "forbidden",
-      message: apiError?.message ?? "Изменение счета недоступно.",
-    };
+    return apiForbiddenFailure(apiError, "Изменение счета недоступно.");
   }
   if (response.httpStatus === 409) {
     return {
@@ -215,21 +198,17 @@ export async function changeAccountLifecycle({
     };
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      code: apiError?.code ?? "account_lifecycle_failed",
-      fieldErrors: apiError?.fieldErrors ?? {},
-      message: apiError?.message ?? "Не удалось изменить состояние счёта.",
-    };
+    return apiMutationError(apiError, {
+      fallbackCode: "account_lifecycle_failed",
+      fallbackMessage: "Не удалось изменить состояние счёта.",
+    });
   }
   const parsed = accountSummarySchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      code: "invalid_account_response",
-      fieldErrors: {},
-      message: "API вернул счёт неожиданного формата.",
-    };
+    return apiMutationError(null, {
+      fallbackCode: "invalid_account_response",
+      fallbackMessage: "API вернул счёт неожиданного формата.",
+    });
   }
   return { status: "success", account: parsed.data };
 }
@@ -252,20 +231,12 @@ export async function updateAccount({
     method: "PUT",
   });
   if (response.status === "network_error") {
-    return {
-      status: "error",
-      code: "network_error",
-      fieldErrors: {},
-      message: "Backend недоступен. Проверьте соединение и повторите.",
-    };
+    return apiMutationNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   const apiError = parseApiError(response.body);
   if (response.httpStatus === 403) {
-    return {
-      status: "forbidden",
-      message: apiError?.message ?? "Изменение счёта недоступно.",
-    };
+    return apiForbiddenFailure(apiError, "Изменение счёта недоступно.");
   }
   if (response.httpStatus === 409) {
     return {
@@ -275,21 +246,17 @@ export async function updateAccount({
     };
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      code: apiError?.code ?? "account_update_failed",
-      fieldErrors: apiError?.fieldErrors ?? {},
-      message: apiError?.message ?? "Не удалось сохранить изменения.",
-    };
+    return apiMutationError(apiError, {
+      fallbackCode: "account_update_failed",
+      fallbackMessage: "Не удалось сохранить изменения.",
+    });
   }
   const parsed = accountSummarySchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      code: "invalid_account_response",
-      fieldErrors: {},
-      message: "API вернул счёт неожиданного формата.",
-    };
+    return apiMutationError(null, {
+      fallbackCode: "invalid_account_response",
+      fallbackMessage: "API вернул счёт неожиданного формата.",
+    });
   }
   return { status: "success", account: parsed.data };
 }

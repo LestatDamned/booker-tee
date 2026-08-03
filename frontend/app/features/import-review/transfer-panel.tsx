@@ -5,11 +5,16 @@ import { Field } from "../../ui/field/field";
 import { FormActions } from "../../ui/field/form-layout";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import type { ImportReviewDto } from "./api/import-review-api";
+import { postImportReviewTransfer } from "./api/import-review-mutations";
+import { reviewForDocument } from "./review-reconciliation";
+import styles from "./transfer-panel.module.css";
 import {
-  postImportReviewTransfer,
-  type ImportReviewTransferRequest,
-} from "./api/import-review-mutations";
-import styles from "./import-review-editor.module.css";
+  transferDirectionLabel,
+  transferFailure,
+  transferRequest,
+  type TransferItem,
+} from "./transfer-model";
+import { useImportReviewActionFeedback } from "./use-import-review-action-feedback";
 
 type TransferPanelProps = {
   csrfToken: string;
@@ -17,8 +22,8 @@ type TransferPanelProps = {
   item: ImportReviewDto["items"][number];
   onCancel: () => void;
   onReviewReconciled: (review: ImportReviewDto) => void;
-  onSuccess: (message: string) => void;
   onSelectionChange: (selection: string) => void;
+  onSuccess: (message: string) => void;
   selection: string;
 };
 
@@ -28,32 +33,29 @@ export function TransferPanel({
   item,
   onCancel,
   onReviewReconciled,
-  onSuccess,
   onSelectionChange,
+  onSuccess,
   selection,
 }: TransferPanelProps) {
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [canRetry, setCanRetry] = useState(false);
   const idempotencyKey = useRef(crypto.randomUUID());
+  const { alertRef, clearFeedback, error, recovery, showFailure } =
+    useImportReviewActionFeedback<"retry">();
 
   function changeSelection(value: string) {
     onSelectionChange(value);
-    setError(null);
-    setCanRetry(false);
+    clearFeedback();
     idempotencyKey.current = crypto.randomUUID();
   }
 
   async function submit() {
     const request = transferRequest(selection);
     if (!request) {
-      setError("Выберите счёт или подходящий перевод.");
-      setCanRetry(false);
+      showFailure("Выберите счёт или подходящий перевод.");
       return;
     }
     setPending(true);
-    setError(null);
-    setCanRetry(false);
+    clearFeedback();
     const result = await postImportReviewTransfer(
       documentId,
       item.id,
@@ -63,51 +65,94 @@ export function TransferPanel({
     );
     setPending(false);
     if (result.status === "success") {
-      const current = result.data.reviews.find(
-        (review) => review.document.id === result.data.primaryDocumentId,
+      const current = reviewForDocument(
+        result.data.reviews,
+        result.data.primaryDocumentId,
       );
       if (!current) {
-        setError("Backend не вернул обновлённое состояние документа.");
-        setCanRetry(true);
+        showFailure(
+          "Backend не вернул обновлённое состояние документа.",
+          "retry",
+        );
         return;
       }
       onReviewReconciled(current);
       onSuccess("Перевод проведён.");
       return;
     }
-    if (result.status === "conflict") {
-      setError(`${result.message} Обновите выбор и попробуйте снова.`);
-      setCanRetry(false);
-      return;
-    }
-    if (result.status === "validation_error") {
-      setError(result.message);
-      setCanRetry(false);
-      return;
-    }
-    if (result.status === "unauthenticated") {
-      setError("Сессия завершилась. Войдите снова.");
-      setCanRetry(false);
-      return;
-    }
-    if (result.status === "forbidden") {
-      setError("Недостаточно прав для проведения перевода.");
-      setCanRetry(false);
-      return;
-    }
-    setError(
-      result.status === "error"
-        ? result.message
-        : "Операцию не удалось выполнить.",
-    );
-    setCanRetry(true);
+    const failure = transferFailure(result);
+    showFailure(failure.message, failure.canRetry ? "retry" : null);
   }
 
   return (
     <section aria-label="Параметры перевода" className={styles.transferPanel}>
+      <TransferFields
+        item={item}
+        onSelectionChange={changeSelection}
+        pending={pending}
+        selection={selection}
+      />
+      <FormActions layout="split">
+        <Button disabled={pending} onClick={onCancel} tone="secondary">
+          Отмена
+        </Button>
+        <Button
+          disabled={pending || !selection}
+          icon="transfer"
+          onClick={() => void submit()}
+          tone="primary"
+        >
+          {pending ? "Проводим…" : "Провести перевод"}
+        </Button>
+      </FormActions>
+      {error ? (
+        <InlineNotice
+          action={
+            selection && recovery === "retry" ? (
+              <Button
+                disabled={pending}
+                icon="retry"
+                onClick={() => void submit()}
+                tone="secondary"
+              >
+                Повторить перевод
+              </Button>
+            ) : undefined
+          }
+          ref={alertRef}
+          role="alert"
+          tabIndex={-1}
+          title="Не удалось провести перевод"
+          tone="danger"
+        >
+          {error}
+        </InlineNotice>
+      ) : null}
+    </section>
+  );
+}
+
+function TransferFields({
+  item,
+  onSelectionChange,
+  pending,
+  selection,
+}: {
+  item: TransferItem;
+  onSelectionChange: (selection: string) => void;
+  pending: boolean;
+  selection: string;
+}) {
+  const hasOptions =
+    item.transfer.accounts.length > 0 ||
+    item.transfer.rawRowCandidates.length > 0 ||
+    item.transfer.existingOperationCandidates.length > 0;
+
+  return (
+    <>
       <div className={styles.transferPreview}>
         <span>Направление</span>
-        <strong>{directionLabel(item, selection)}</strong>
+        <strong>{transferDirectionLabel(item, selection)}</strong>
       </div>
       <Field
         htmlFor={`transfer-selection-${item.id}`}
@@ -116,7 +161,7 @@ export function TransferPanel({
         <select
           disabled={pending}
           id={`transfer-selection-${item.id}`}
-          onChange={(event) => changeSelection(event.target.value)}
+          onChange={(event) => onSelectionChange(event.target.value)}
           value={selection}
         >
           <option value="">Выберите вариант</option>
@@ -159,106 +204,9 @@ export function TransferPanel({
           ) : null}
         </select>
       </Field>
-      {item.transfer.accounts.length === 0 &&
-      item.transfer.rawRowCandidates.length === 0 &&
-      item.transfer.existingOperationCandidates.length === 0 ? (
+      {!hasOptions ? (
         <p>Подходящих счетов, строк или ручных переводов не найдено.</p>
       ) : null}
-      <FormActions layout="split">
-        <Button disabled={pending} onClick={onCancel} tone="secondary">
-          Отмена
-        </Button>
-        <Button
-          disabled={pending || !selection}
-          onClick={() => void submit()}
-          tone="primary"
-          icon="transfer"
-        >
-          {pending ? "Проводим…" : "Провести перевод"}
-        </Button>
-      </FormActions>
-      {error ? (
-        <InlineNotice
-          action={
-            selection && canRetry ? (
-              <Button
-                disabled={pending}
-                icon="retry"
-                onClick={() => void submit()}
-                tone="secondary"
-              >
-                Повторить перевод
-              </Button>
-            ) : undefined
-          }
-          role="alert"
-          title="Не удалось провести перевод"
-          tone="danger"
-        >
-          {error}
-        </InlineNotice>
-      ) : null}
-    </section>
-  );
-}
-
-function transferRequest(
-  selection: string,
-): ImportReviewTransferRequest | null {
-  const [kind, id] = selection.split(":", 2);
-  if (!id) return null;
-  if (kind === "account") {
-    return { kind: "new_transfer", counterpartyAccountId: id };
-  }
-  if (kind === "raw") {
-    return { kind: "raw_row_match", matchedItemId: id };
-  }
-  if (kind === "operation") {
-    return { kind: "existing_operation_link", operationId: id };
-  }
-  return null;
-}
-
-function directionLabel(
-  item: ImportReviewDto["items"][number],
-  selection: string,
-): string {
-  const source =
-    item.transfer.sourceAccount?.name ??
-    item.sourceAccount?.name ??
-    "Счёт выписки";
-  const counterparty = selectedCounterparty(item, selection);
-  if (item.transfer.direction === "source_to_counterparty") {
-    return `${source} → ${counterparty}`;
-  }
-  if (item.transfer.direction === "counterparty_to_source") {
-    return `${counterparty} → ${source}`;
-  }
-  return "Недостаточно данных";
-}
-
-function selectedCounterparty(
-  item: ImportReviewDto["items"][number],
-  selection: string,
-): string {
-  if (!selection) return "Не выбран второй счёт";
-  const [kind, id] = selection.split(":", 2);
-  if (kind === "account") {
-    return (
-      item.transfer.accounts.find((account) => account.id === id)?.name ??
-      "Второй счёт"
-    );
-  }
-  if (kind === "raw") {
-    return (
-      item.transfer.rawRowCandidates.find(
-        (candidate) => candidate.itemId === id,
-      )?.account.name ?? "Второй счёт"
-    );
-  }
-  return (
-    item.transfer.existingOperationCandidates.find(
-      (candidate) => candidate.operationId === id,
-    )?.counterpartyAccount?.name ?? "Второй счёт"
+    </>
   );
 }

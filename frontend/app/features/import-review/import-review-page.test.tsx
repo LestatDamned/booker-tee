@@ -831,6 +831,24 @@ describe("import review page", () => {
     );
   });
 
+  it("focuses a recoverable rule application failure and offers retry", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    renderPage(importReviewPayload());
+
+    await user.click(screen.getByRole("button", { name: "Применить правила" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveFocus();
+    expect(alert).toHaveTextContent("Backend недоступен.");
+    expect(
+      within(alert).getByRole("button", { name: "Повторить" }),
+    ).toBeInTheDocument();
+  });
+
   it("confirms an auto-applied rule suggestion directly from the row", async () => {
     const user = userEvent.setup();
     const review = importReviewPayload();
@@ -933,6 +951,94 @@ describe("import review page", () => {
     expect(screen.getByLabelText("Итог правила")).toHaveTextContent(
       "KRASNOE&BELOE→Расход · Продукты · Без объекта",
     );
+  });
+
+  it("keeps and focuses an invalid auto-rule pattern", async () => {
+    const user = userEvent.setup();
+    const review = importReviewPayload();
+    const item = review.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.selection.categoryId = expenseCategoryId;
+    item.confirmability = { canConfirm: true, blockingReasonCodes: [] };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: {
+                code: "invalid_rule_pattern",
+                message: "Проверьте автоправило.",
+                fieldErrors: {
+                  rulePattern: ["Шаблон слишком общий."],
+                },
+              },
+            }),
+            { status: 422 },
+          ),
+        ),
+      ),
+    );
+    renderPage(review);
+
+    await user.click(
+      screen.getByRole("button", { name: "Проверить операцию" }),
+    );
+    const pattern = screen.getByRole("textbox", { name: /Автоправило/ });
+    await user.type(pattern, "Магазин");
+    await user.click(
+      screen.getByRole("button", { name: "Провести с правилом" }),
+    );
+
+    expect(await screen.findByText("Шаблон слишком общий.")).toBeVisible();
+    expect(pattern).toHaveValue("Магазин");
+    expect(pattern).toHaveFocus();
+  });
+
+  it("focuses a posting conflict and refreshes the authoritative review", async () => {
+    const user = userEvent.setup();
+    const review = importReviewPayload();
+    const item = review.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.selection.categoryId = expenseCategoryId;
+    item.confirmability = { canConfirm: true, blockingReasonCodes: [] };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "import_review_posting_conflict",
+              message: "Состояние строки уже изменилось.",
+            },
+          }),
+          { status: 409 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(review), { status: 200 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage(review);
+
+    await user.click(
+      screen.getByRole("button", { name: "Проверить операцию" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Провести" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveFocus();
+    expect(alert).toHaveTextContent("Состояние строки уже изменилось.");
+    await user.click(
+      within(alert).getByRole("button", { name: "Обновить строку" }),
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("does not repeat the raw description in the rule field", async () => {
@@ -1329,6 +1435,30 @@ describe("import review page", () => {
         }),
       }),
     );
+  });
+
+  it("focuses a recoverable transfer failure and keeps retry local", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    renderPage(importReviewPayload());
+
+    await user.click(screen.getByRole("button", { name: "Выбрать категорию" }));
+    await user.click(screen.getByRole("radio", { name: "Перевод" }));
+    await user.selectOptions(
+      screen.getByLabelText("Второй счёт или готовая пара"),
+      "account:c145935c-67c6-4bf6-a0ce-64e5d611cf47",
+    );
+    await user.click(screen.getByRole("button", { name: "Провести перевод" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveFocus();
+    expect(alert).toHaveTextContent("Backend недоступен.");
+    expect(
+      within(alert).getByRole("button", { name: "Повторить перевод" }),
+    ).toBeInTheDocument();
   });
 
   it("requires danger confirmation and reconciles duplicate lifecycle", async () => {

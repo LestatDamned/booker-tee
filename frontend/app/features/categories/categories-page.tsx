@@ -9,6 +9,7 @@ import {
 import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { AppShell } from "../../shell/app-shell";
 import { Button, RouterButtonLink } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
@@ -178,10 +179,7 @@ export function CategoriesPage({
       window.setTimeout(() => createTriggerRef.current?.focus(), 0);
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/categories");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "forbidden") {
       setSubmitError(result.message);
       return;

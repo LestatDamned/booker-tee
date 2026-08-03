@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 
+import { redirectIfUnauthenticated } from "../../../session/unauthenticated";
 import { Button } from "../../../ui/button/button";
 import { ConfirmationDialog } from "../../../ui/confirmation-dialog/confirmation-dialog";
 import { InlineNotice } from "../../../ui/inline-notice/inline-notice";
@@ -43,10 +44,7 @@ export function ManualOperationDelete({
       onDeleted?.(operationId);
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/ledger/manual");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     setState({ status: result.status, message: result.message });
   }
 

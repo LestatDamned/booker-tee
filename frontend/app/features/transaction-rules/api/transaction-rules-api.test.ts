@@ -127,6 +127,68 @@ describe("transaction rules API adapter", () => {
     });
   });
 
+  it("keeps expired sessions distinct from permission failures", async () => {
+    const unauthenticated = jsonResponse(
+      { error: { code: "unauthenticated", message: "Session expired." } },
+      401,
+    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(unauthenticated.clone())
+      .mockResolvedValueOnce(unauthenticated.clone())
+      .mockResolvedValueOnce(unauthenticated.clone())
+      .mockResolvedValueOnce(unauthenticated.clone());
+    vi.stubGlobal("fetch", fetchMock);
+    const item = directory.items[0]!;
+
+    await expect(seedDefaultTransactionRules("csrf")).resolves.toEqual({
+      status: "unauthenticated",
+    });
+    await expect(loadTransactionRuleForEdit(item.id)).resolves.toEqual({
+      status: "unauthenticated",
+    });
+    await expect(
+      changeTransactionRuleLifecycle(item, "disable", "csrf"),
+    ).resolves.toEqual({ status: "unauthenticated" });
+    await expect(deleteTransactionRule(item, "csrf")).resolves.toEqual({
+      status: "unauthenticated",
+    });
+  });
+
+  it("preserves forbidden responses for authenticated users", async () => {
+    const forbidden = jsonResponse(
+      {
+        error: {
+          code: "financial_write_forbidden",
+          message: "Недостаточно прав.",
+        },
+      },
+      403,
+    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(forbidden.clone())
+      .mockResolvedValueOnce(forbidden.clone())
+      .mockResolvedValueOnce(forbidden.clone());
+    vi.stubGlobal("fetch", fetchMock);
+    const item = directory.items[0]!;
+
+    await expect(seedDefaultTransactionRules("csrf")).resolves.toEqual({
+      status: "forbidden",
+      message: "Недостаточно прав.",
+    });
+    await expect(
+      changeTransactionRuleLifecycle(item, "disable", "csrf"),
+    ).resolves.toEqual({
+      status: "forbidden",
+      message: "Недостаточно прав.",
+    });
+    await expect(deleteTransactionRule(item, "csrf")).resolves.toEqual({
+      status: "forbidden",
+      message: "Недостаточно прав.",
+    });
+  });
+
   it("loads an authoritative edit snapshot and sends its expected version", async () => {
     const fetchMock = vi
       .fn()

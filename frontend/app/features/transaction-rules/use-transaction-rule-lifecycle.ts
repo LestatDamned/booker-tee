@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import {
   changeTransactionRuleLifecycle,
   loadTransactionRuleForEdit,
@@ -45,6 +46,7 @@ export function useTransactionRuleLifecycle({
     );
     pendingRef.current = false;
     setPendingId(null);
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "success") {
       onCommitted(result.value.item);
       const count = result.value.impact.existingSuggestionCount;
@@ -73,6 +75,7 @@ export function useTransactionRuleLifecycle({
     const loaded = await loadTransactionRuleForEdit(retry.item.id);
     pendingRef.current = false;
     setPendingId(null);
+    if (redirectIfUnauthenticated(loaded)) return;
     if (loaded.status !== "success") {
       setFailure({ ...retry, conflict: false, message: loaded.message });
       return;

@@ -1,5 +1,6 @@
 import { type FormEvent, useMemo, useRef, useState } from "react";
 
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { Button } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
 import { FormErrorSummary } from "../../ui/field/form-error-summary";
@@ -81,6 +82,7 @@ export function TransactionRuleCreatePanel({
       onCreated(result.value.item);
       return;
     }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "validation_error") {
       const serverErrors = normalizeTransactionRuleFieldErrors(
         result.fieldErrors,

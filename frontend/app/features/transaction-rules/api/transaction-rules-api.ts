@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+import {
+  apiForbiddenFailure,
+  apiLoadError,
+  apiLoadNetworkError,
+  apiResponseErrorMessage,
+  apiUnauthenticatedFailure,
+  apiUnexpectedStatusError,
+  type ApiForbiddenFailure,
+  type ApiLoadError,
+  type ApiUnauthenticatedFailure,
+} from "../../../api/failures";
 import type { components } from "../../../api/generated/schema";
 import { parseApiError, requestJson } from "../../../api/transport";
 
@@ -136,33 +147,36 @@ const deleteResponseSchema: z.ZodType<TransactionRuleDeleteDto> = z.object({
 
 export type TransactionRuleMutationResult<T> =
   | { status: "success"; value: T }
+  | ApiUnauthenticatedFailure
   | {
       status: "validation_error";
       fieldErrors: Record<string, string[]>;
       message: string;
     }
   | { status: "conflict"; message: string }
-  | { status: "forbidden"; message: string }
-  | { status: "error"; message: string };
+  | ApiForbiddenFailure
+  | ApiLoadError;
 
 export type TransactionRuleDirectoryLoadResult =
   | { status: "success"; directory: TransactionRuleDirectoryDto }
-  | { status: "unauthenticated" }
-  | { status: "error"; message: string };
+  | ApiUnauthenticatedFailure
+  | ApiLoadError;
 
 export type TransactionRuleLifecycleResult =
   | { status: "success"; value: TransactionRuleLifecycleDto }
+  | ApiUnauthenticatedFailure
   | {
       status: "blocked";
       blockedReasonCode: string | null;
       message: string;
     }
   | { status: "conflict"; message: string }
-  | { status: "forbidden"; message: string }
-  | { status: "error"; message: string };
+  | ApiForbiddenFailure
+  | ApiLoadError;
 
 export type TransactionRuleDeleteResult =
   | { status: "success"; value: TransactionRuleDeleteDto }
+  | ApiUnauthenticatedFailure
   | {
       status: "blocked";
       blockedReasonCode: "active_rule" | "raw_suggestions" | null;
@@ -170,8 +184,8 @@ export type TransactionRuleDeleteResult =
       message: string;
     }
   | { status: "conflict"; message: string }
-  | { status: "forbidden"; message: string }
-  | { status: "error"; message: string };
+  | ApiForbiddenFailure
+  | ApiLoadError;
 
 export async function loadTransactionRules(
   search: string,
@@ -181,21 +195,15 @@ export async function loadTransactionRules(
     ...(signal ? { signal } : {}),
   });
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   if (!response.ok) {
-    return {
-      status: "error",
-      message: `API вернул статус ${response.httpStatus}.`,
-    };
+    return apiUnexpectedStatusError(response.httpStatus);
   }
   const parsed = directorySchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      message: "API вернул список правил неожиданного формата.",
-    };
+    return apiLoadError("API вернул список правил неожиданного формата.");
   }
   return { status: "success", directory: parsed.data };
 }
@@ -279,16 +287,16 @@ export async function changeTransactionRuleLifecycle(
     },
   );
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
   if (response.ok) {
     const parsed = lifecycleResponseSchema.safeParse(response.body);
     return parsed.success
       ? { status: "success", value: parsed.data }
-      : { status: "error", message: "API вернул неожиданный ответ." };
+      : apiLoadError("API вернул неожиданный ответ.");
   }
   const error = parseApiError(response.body);
-  const message = error?.message ?? `API вернул статус ${response.httpStatus}.`;
+  const message = apiResponseErrorMessage(error, response.httpStatus);
   if (
     response.httpStatus === 422 &&
     error?.code === "transaction_rule_activation_blocked"
@@ -301,10 +309,9 @@ export async function changeTransactionRuleLifecycle(
     };
   }
   if (response.httpStatus === 409) return { status: "conflict", message };
-  if (response.httpStatus === 401 || response.httpStatus === 403) {
-    return { status: "forbidden", message };
-  }
-  return { status: "error", message };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
+  if (response.httpStatus === 403) return apiForbiddenFailure(error, message);
+  return apiLoadError(message);
 }
 
 export async function deleteTransactionRule(
@@ -323,16 +330,16 @@ export async function deleteTransactionRule(
     method: "DELETE",
   });
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
   if (response.ok) {
     const parsed = deleteResponseSchema.safeParse(response.body);
     return parsed.success
       ? { status: "success", value: parsed.data }
-      : { status: "error", message: "API вернул неожиданный ответ." };
+      : apiLoadError("API вернул неожиданный ответ.");
   }
   const error = parseApiError(response.body);
-  const message = error?.message ?? `API вернул статус ${response.httpStatus}.`;
+  const message = apiResponseErrorMessage(error, response.httpStatus);
   if (
     response.httpStatus === 409 &&
     error?.code === "transaction_rule_delete_blocked"
@@ -353,10 +360,9 @@ export async function deleteTransactionRule(
     };
   }
   if (response.httpStatus === 409) return { status: "conflict", message };
-  if (response.httpStatus === 401 || response.httpStatus === 403) {
-    return { status: "forbidden", message };
-  }
-  return { status: "error", message };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
+  if (response.httpStatus === 403) return apiForbiddenFailure(error, message);
+  return apiLoadError(message);
 }
 
 function mutationResult<T>(
@@ -364,16 +370,16 @@ function mutationResult<T>(
   schema: z.ZodType<T>,
 ): TransactionRuleMutationResult<T> {
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
   if (response.ok) {
     const parsed = schema.safeParse(response.body);
     return parsed.success
       ? { status: "success", value: parsed.data }
-      : { status: "error", message: "API вернул неожиданный ответ." };
+      : apiLoadError("API вернул неожиданный ответ.");
   }
   const error = parseApiError(response.body);
-  const message = error?.message ?? `API вернул статус ${response.httpStatus}.`;
+  const message = apiResponseErrorMessage(error, response.httpStatus);
   if (response.httpStatus === 422) {
     return {
       status: "validation_error",
@@ -382,8 +388,7 @@ function mutationResult<T>(
     };
   }
   if (response.httpStatus === 409) return { status: "conflict", message };
-  if (response.httpStatus === 401 || response.httpStatus === 403) {
-    return { status: "forbidden", message };
-  }
-  return { status: "error", message };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
+  if (response.httpStatus === 403) return apiForbiddenFailure(error, message);
+  return apiLoadError(message);
 }

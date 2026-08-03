@@ -1,5 +1,6 @@
 import type { ImportReviewLoadResult } from "../features/import-review/api/import-review-api";
 import { ImportReviewPage } from "../features/import-review/import-review-page";
+import { loginHref } from "../session/unauthenticated";
 import { RouteStatePage } from "../ui/route-state-page/route-state-page";
 import type { Route } from "./+types/import-review";
 import { loadImportReviewRoute } from "./import-review-loader";
@@ -84,7 +85,7 @@ function routeStateContent(
       title: "Войдите в Booker Tee",
       message: "Для проверки импорта нужна активная сессия.",
       action: "Войти",
-      href: `/login?next=${encodeURIComponent(window.location.pathname)}`,
+      href: loginHref(window.location.pathname),
     };
   }
   if (result.status === "forbidden") {

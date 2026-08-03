@@ -3,6 +3,7 @@ import type {
   ImportMappingControlTotalCell,
   ImportMappingDto,
 } from "./api/import-mapping-api";
+import { formatMoneyWithCurrency } from "../../shared/money/format-money";
 import styles from "./import-mapping-page.module.css";
 
 export type ControlTotalKind = "opening_balance" | "closing_balance";
@@ -119,7 +120,7 @@ function ControlTotalSlot({
         <span>{label}</span>
         <strong>
           {candidate
-            ? formatMoney(candidate.amount, candidate.currency)
+            ? formatMoneyWithCurrency(candidate.amount, candidate.currency)
             : cell
               ? "Выбрано в таблице"
               : "Не указан"}
@@ -160,14 +161,4 @@ export function sameCell(
     left.rowNumber === right.rowNumber &&
     left.columnIndex === right.columnIndex,
   );
-}
-
-function formatMoney(amount: string, currency: string): string {
-  const value = Number(amount);
-  if (!Number.isFinite(value)) return `${amount} ${currency}`;
-  return new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-  }).format(value);
 }

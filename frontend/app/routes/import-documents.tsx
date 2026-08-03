@@ -1,8 +1,10 @@
 import { useNavigation } from "react-router";
 
-import type { ImportDocumentListLoadResult } from "../features/import-documents/api/import-documents-api";
 import { ImportDocumentListPage } from "../features/import-documents/import-document-list-page";
-import { RouteStatePage } from "../ui/route-state-page/route-state-page";
+import {
+  AuthenticatedRouteStatePage,
+  type AuthenticatedRouteFailure,
+} from "../session/authenticated-route-state-page";
 import type { Route } from "./+types/import-documents";
 import { loadImportDocumentsRoute } from "./import-documents-loader";
 
@@ -40,17 +42,17 @@ export function ImportDocumentsRouteView({
     session.status === "unauthenticated" ||
     documents.status === "unauthenticated"
   ) {
-    return <RouteState result={{ status: "unauthenticated" }} />;
+    return <ImportDocumentsRouteState result={{ status: "unauthenticated" }} />;
   }
   if (session.status === "error") {
-    return <RouteState result={session} />;
+    return <ImportDocumentsRouteState result={session} />;
   }
   if (documents.status === "error") {
-    return <RouteState result={documents} />;
+    return <ImportDocumentsRouteState result={documents} />;
   }
   if (session.status !== "authenticated") {
     return (
-      <RouteState
+      <ImportDocumentsRouteState
         result={{ status: "error", message: "Сессия не загружена." }}
       />
     );
@@ -64,27 +66,19 @@ export function ImportDocumentsRouteView({
   );
 }
 
-function RouteState({
+function ImportDocumentsRouteState({
   result,
 }: {
-  result: Exclude<ImportDocumentListLoadResult, { status: "success" }>;
+  result: AuthenticatedRouteFailure;
 }) {
-  const unauthenticated = result.status === "unauthenticated";
   return (
-    <RouteStatePage
-      actionHref={
-        unauthenticated ? "/login?next=/app/imports" : window.location.href
-      }
-      actionLabel={unauthenticated ? "Войти" : "Повторить"}
-      eyebrow={unauthenticated ? "Сессия не найдена" : "Ошибка загрузки"}
-      kind={unauthenticated ? "unauthenticated" : "error"}
-      title={
-        unauthenticated
-          ? "Войдите в Booker Tee"
-          : "Не удалось загрузить документы"
-      }
-    >
-      {!unauthenticated ? result.message : null}
-    </RouteStatePage>
+    <AuthenticatedRouteStatePage
+      errorTitle="Не удалось загрузить документы"
+      {...(result.status === "error"
+        ? { retryHref: window.location.href }
+        : {})}
+      result={result}
+      returnTo="/app/imports"
+    />
   );
 }

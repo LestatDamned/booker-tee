@@ -1,8 +1,10 @@
 import { useNavigation } from "react-router";
 
-import type { ReportOverviewLoadResult } from "../features/reports/api/reports-api";
 import { ReportsPage } from "../features/reports/reports-page";
-import { RouteStatePage } from "../ui/route-state-page/route-state-page";
+import {
+  AuthenticatedRouteStatePage,
+  type AuthenticatedRouteFailure,
+} from "../session/authenticated-route-state-page";
 import type { Route } from "./+types/reports";
 import { loadReportsRoute } from "./reports-loader";
 
@@ -38,13 +40,13 @@ export function ReportsRouteView({
     session.status === "unauthenticated" ||
     reports.status === "unauthenticated"
   ) {
-    return <RouteState result={{ status: "unauthenticated" }} />;
+    return <ReportsRouteState result={{ status: "unauthenticated" }} />;
   }
-  if (session.status === "error") return <RouteState result={session} />;
-  if (reports.status === "error") return <RouteState result={reports} />;
+  if (session.status === "error") return <ReportsRouteState result={session} />;
+  if (reports.status === "error") return <ReportsRouteState result={reports} />;
   if (session.status !== "authenticated") {
     return (
-      <RouteState
+      <ReportsRouteState
         result={{ status: "error", message: "Сессия не загружена." }}
       />
     );
@@ -58,23 +60,12 @@ export function ReportsRouteView({
   );
 }
 
-function RouteState({
-  result,
-}: {
-  result: Exclude<ReportOverviewLoadResult, { status: "success" }>;
-}) {
-  const unauthenticated = result.status === "unauthenticated";
+function ReportsRouteState({ result }: { result: AuthenticatedRouteFailure }) {
   return (
-    <RouteStatePage
-      actionHref={unauthenticated ? "/login?next=/app/reports" : "/app/reports"}
-      actionLabel={unauthenticated ? "Войти" : "Повторить"}
-      eyebrow={unauthenticated ? "Сессия не найдена" : "Ошибка загрузки"}
-      kind={unauthenticated ? "unauthenticated" : "error"}
-      title={
-        unauthenticated ? "Войдите в Booker Tee" : "Не удалось загрузить отчёт"
-      }
-    >
-      {!unauthenticated ? result.message : null}
-    </RouteStatePage>
+    <AuthenticatedRouteStatePage
+      errorTitle="Не удалось загрузить отчёт"
+      result={result}
+      returnTo="/app/reports"
+    />
   );
 }

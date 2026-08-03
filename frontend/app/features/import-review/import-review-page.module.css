@@ -8,9 +8,6 @@
 .documentContext {
   margin: var(--space-1) 0 0;
   color: var(--color-text-secondary);
-}
-
-.documentContext {
   font-size: var(--font-size-sm);
   overflow-wrap: anywhere;
 }
@@ -45,45 +42,6 @@
 .summaryBody {
   display: grid;
   border-top: 1px solid var(--color-border-default);
-}
-
-.reviewTools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-3);
-  margin: 0;
-  width: 100%;
-  border: 0;
-  padding: 0;
-}
-
-.reviewToolLinks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-inline-end: auto;
-}
-
-.reviewToolLinks a {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-link);
-  font-weight: 700;
-}
-
-.ruleApplicationStatus {
-  flex-basis: 100%;
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  text-align: right;
-}
-
-.ruleApplicationFeedback {
-  flex-basis: 100%;
 }
 
 .queue {
@@ -186,209 +144,6 @@
   rotate: 180deg;
 }
 
-.reconciliation {
-  display: grid;
-  min-width: 0;
-}
-
-.reconciliationSummary {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-}
-
-.reconciliationEyebrow {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.reconciliationStatus {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: fit-content;
-  border: 1px solid currentcolor;
-  border-radius: var(--radius-pill);
-  padding: var(--space-1) var(--space-3);
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-}
-
-.reconciliationStatus h2 {
-  margin: 0;
-  font: inherit;
-}
-
-.reconciliationOutcome {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-3);
-}
-
-.reconciliationOutcome p {
-  margin: 0;
-}
-
-.reconciliationOutcome p {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  line-height: 1.4;
-}
-
-.reconciliationSummary[data-tone="success"] .reconciliationStatus {
-  color: var(--color-status-success);
-}
-
-.reconciliationSummary[data-tone="warning"] .reconciliationStatus {
-  color: var(--color-status-warning);
-}
-
-.reconciliationSummary[data-tone="neutral"] .reconciliationStatus {
-  color: var(--color-text-secondary);
-}
-
-.technicalReconciliationDetails {
-  border-top: 1px solid var(--color-border-default);
-}
-
-.technicalReconciliationDetails > summary {
-  width: fit-content;
-  min-height: var(--control-height);
-  align-content: center;
-  margin-inline: var(--space-4);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.technicalReconciliationBody {
-  display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(18rem, 1.25fr);
-  align-items: start;
-  gap: var(--space-3);
-  border-top: 1px solid var(--color-border-default);
-  padding: var(--space-3) var(--space-4);
-}
-
-.validationCounts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(5rem, 1fr));
-  gap: var(--space-3);
-  margin: 0;
-}
-
-.validationCounts div {
-  display: grid;
-  align-content: start;
-  gap: var(--space-1);
-}
-
-.validationCounts dt {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-}
-
-.validationCounts dd {
-  margin: 0;
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-}
-
-.flowTable {
-  width: 100%;
-  border-top: 1px solid var(--color-border-default);
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.flowTableCaption {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.flowTable th,
-.flowTable td {
-  padding: var(--space-2) var(--space-3);
-  text-align: start;
-  vertical-align: baseline;
-}
-
-.flowTable thead th {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-}
-
-.flowTable thead th:first-child,
-.flowComparison > th {
-  width: 9rem;
-  padding-inline-start: var(--space-4);
-}
-
-.flowComparison {
-  border-top: 1px solid var(--color-border-default);
-}
-
-.flowComparison h3 {
-  margin: 0;
-  font-size: var(--font-size-sm);
-}
-
-.flowOperatorColumn,
-.flowOperator {
-  width: 1.5rem;
-}
-
-.moneyFact {
-  min-width: 8rem;
-}
-
-.moneyFactValue {
-  display: block;
-}
-
-.flowOperator {
-  color: var(--color-text-secondary);
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  text-align: center !important;
-  line-height: var(--line-height-body);
-}
-
-.flowDifferenceColumn,
-.moneyFactDifference {
-  border-inline-start: 1px solid var(--color-border-default);
-}
-
-.moneyFactWarning {
-  border-inline-start: 3px solid var(--color-status-warning);
-  background: color-mix(in srgb, var(--color-status-warning) 8%, transparent);
-  padding-inline-start: var(--space-2);
-}
-
-.balanceChain {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
 .sectionEyebrow {
   margin: 0 0 var(--space-1);
   color: var(--color-text-secondary);
@@ -415,10 +170,10 @@
 
 .queueToolbar {
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  min-width: 0;
   border-bottom: 1px solid var(--color-border-default);
   padding: var(--space-3) var(--space-4);
 }
@@ -445,10 +200,6 @@
   font-size: var(--font-size-sm);
 }
 
-.fieldError {
-  color: var(--color-status-danger);
-}
-
 @media (max-width: 70rem) {
   .summaryHeader {
     grid-template-columns: 1fr;
@@ -456,86 +207,9 @@
 }
 
 @media (max-width: 57.5rem) {
-  .reviewTools {
-    justify-content: flex-start;
-  }
-
-  .ruleApplicationStatus {
-    text-align: left;
-  }
-
   .queueToolbar {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .flowTable,
-  .flowTable tbody {
-    display: grid;
-  }
-
-  .flowTable {
-    table-layout: auto;
-  }
-
-  .flowTable thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .flowComparison {
-    display: grid;
-    padding: var(--space-2) var(--space-3);
-  }
-
-  .flowComparison > th {
-    width: auto;
-    padding: 0 0 var(--space-1);
-  }
-
-  .moneyFact {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--space-3);
-    min-width: 0;
-    padding: var(--space-1) 0;
-  }
-
-  .moneyFact::before {
-    content: attr(data-label);
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-xs);
-  }
-
-  .flowOperator {
-    width: auto;
-    padding: 0;
-    text-align: start !important;
-    line-height: 1;
-  }
-
-  .flowOperator:not(.flowOperatorEquals) {
-    display: none;
-  }
-
-  .moneyFactIgnored .moneyFactValue::before {
-    content: "+";
-    margin-inline-end: var(--space-2);
-    color: var(--color-text-secondary);
-    font-family: var(--font-family-mono);
-    font-weight: 700;
-  }
-
-  .moneyFactDifference {
-    border-top: 1px solid var(--color-border-default);
-    border-inline-start: 0;
-    padding-block-start: var(--space-2);
   }
 }
 
@@ -548,20 +222,11 @@
     padding: var(--space-3);
   }
 
-  .reviewTools,
-  .reviewToolLinks {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .reviewTools > button {
-    width: 100%;
-  }
-
   .queue {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--space-2) var(--space-3);
     padding: var(--space-3);
+    top: calc(var(--control-height) + 2 * var(--space-3) + 1px);
   }
 
   .queueProgressSummary {
@@ -576,30 +241,5 @@
     grid-column: 1 / -1;
     align-items: baseline;
     justify-content: space-between;
-  }
-
-  .reconciliationSummary {
-    grid-template-columns: 1fr;
-    gap: var(--space-2);
-    padding: var(--space-3);
-  }
-
-  .reconciliationOutcome {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .technicalReconciliationBody {
-    grid-template-columns: 1fr;
-  }
-
-  .validationCounts {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 45rem) {
-  .queue {
-    top: calc(var(--control-height) + 2 * var(--space-3) + 1px);
   }
 }

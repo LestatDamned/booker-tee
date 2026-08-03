@@ -1,11 +1,19 @@
 import { z } from "zod";
 
+import {
+  apiLoadError,
+  apiLoadNetworkError,
+  apiResponseErrorMessage,
+  apiUnauthenticatedFailure,
+  apiUnexpectedStatusError,
+  type ApiLoadError,
+  type ApiUnauthenticatedFailure,
+} from "../../../api/failures";
 import type { components } from "../../../api/generated/schema";
 import { parseApiError, requestJson } from "../../../api/transport";
 
 export type ImportDocumentDetailDto =
   components["schemas"]["ImportDocumentDetailApiResponse"];
-export type ImportDocumentStatus = ImportDocumentDetailDto["status"];
 export type ImportDocumentManagementAction = "ignore" | "delete";
 
 const statusSchema = z.enum([
@@ -139,14 +147,14 @@ export const importDocumentDetailSchema: z.ZodType<ImportDocumentDetailDto> =
 
 export type ImportDocumentDetailLoadResult =
   | { status: "success"; document: ImportDocumentDetailDto }
-  | { status: "unauthenticated" }
+  | ApiUnauthenticatedFailure
   | { status: "forbidden" }
   | { status: "not_found" }
-  | { status: "error"; message: string };
+  | ApiLoadError;
 
 export type ImportDocumentMutationResult =
   | { status: "success"; document?: ImportDocumentDetailDto }
-  | { status: "unauthenticated" }
+  | ApiUnauthenticatedFailure
   | { status: "conflict" | "error"; message: string };
 
 export async function loadImportDocumentDetail(
@@ -160,21 +168,18 @@ export async function loadImportDocumentDetail(
     },
   );
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   if (response.httpStatus === 403) return { status: "forbidden" };
   if (response.httpStatus === 404) return { status: "not_found" };
   if (!response.ok) {
-    return {
-      status: "error",
-      message: `API вернул статус ${response.httpStatus}.`,
-    };
+    return apiUnexpectedStatusError(response.httpStatus);
   }
   const parsed = importDocumentDetailSchema.safeParse(response.body);
   return parsed.success
     ? { status: "success", document: parsed.data }
-    : { status: "error", message: "API вернул документ неожиданного формата." };
+    : apiLoadError("API вернул документ неожиданного формата.");
 }
 
 export async function mutateImportDocument(
@@ -194,9 +199,9 @@ export async function mutateImportDocument(
     },
   );
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   if (response.httpStatus === 409) {
     return {
       status: "conflict",
@@ -206,16 +211,16 @@ export async function mutateImportDocument(
     };
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      message:
-        parseApiError(response.body)?.message ??
-        `API вернул статус ${response.httpStatus}.`,
-    };
+    return apiLoadError(
+      apiResponseErrorMessage(
+        parseApiError(response.body),
+        response.httpStatus,
+      ),
+    );
   }
   if (action === "delete") return { status: "success" };
   const parsed = importDocumentDetailSchema.safeParse(response.body);
   return parsed.success
     ? { status: "success", document: parsed.data }
-    : { status: "error", message: "API вернул документ неожиданного формата." };
+    : apiLoadError("API вернул документ неожиданного формата.");
 }

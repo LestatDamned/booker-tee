@@ -1,6 +1,8 @@
-import type { CategoryDirectoryLoadResult } from "../features/categories/api/categories-api";
 import { CategoriesPage } from "../features/categories/categories-page";
-import { RouteStatePage } from "../ui/route-state-page/route-state-page";
+import {
+  AuthenticatedRouteStatePage,
+  type AuthenticatedRouteFailure,
+} from "../session/authenticated-route-state-page";
 import type { Route } from "./+types/categories";
 import { loadCategoriesRoute } from "./categories-loader";
 
@@ -28,13 +30,15 @@ export function CategoriesRouteView({
     session.status === "unauthenticated" ||
     categories.status === "unauthenticated"
   ) {
-    return <RouteState result={{ status: "unauthenticated" }} />;
+    return <CategoriesRouteState result={{ status: "unauthenticated" }} />;
   }
-  if (session.status === "error") return <RouteState result={session} />;
-  if (categories.status === "error") return <RouteState result={categories} />;
+  if (session.status === "error")
+    return <CategoriesRouteState result={session} />;
+  if (categories.status === "error")
+    return <CategoriesRouteState result={categories} />;
   if (session.status !== "authenticated") {
     return (
-      <RouteState
+      <CategoriesRouteState
         result={{ status: "error", message: "Сессия не загружена." }}
       />
     );
@@ -47,27 +51,16 @@ export function CategoriesRouteView({
   );
 }
 
-function RouteState({
+function CategoriesRouteState({
   result,
 }: {
-  result: Exclude<CategoryDirectoryLoadResult, { status: "success" }>;
+  result: AuthenticatedRouteFailure;
 }) {
-  const unauthenticated = result.status === "unauthenticated";
   return (
-    <RouteStatePage
-      actionHref={
-        unauthenticated ? "/login?next=/app/categories" : "/app/categories"
-      }
-      actionLabel={unauthenticated ? "Войти" : "Повторить"}
-      eyebrow={unauthenticated ? "Сессия не найдена" : "Ошибка загрузки"}
-      kind={unauthenticated ? "unauthenticated" : "error"}
-      title={
-        unauthenticated
-          ? "Войдите в Booker Tee"
-          : "Не удалось загрузить категории"
-      }
-    >
-      {!unauthenticated ? result.message : null}
-    </RouteStatePage>
+    <AuthenticatedRouteStatePage
+      errorTitle="Не удалось загрузить категории"
+      result={result}
+      returnTo="/app/categories"
+    />
   );
 }

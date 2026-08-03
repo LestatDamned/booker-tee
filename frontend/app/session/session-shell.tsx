@@ -3,6 +3,7 @@ import { AppShell } from "../shell/app-shell";
 import styles from "../styles/shell.module.css";
 import { RouteLoadingPage } from "../ui/route-state-page/route-loading-page";
 import { RouteStatePage } from "../ui/route-state-page/route-state-page";
+import { loginHref } from "./unauthenticated";
 
 export function SessionShell({ result }: { result: SessionLoadResult }) {
   if (result.status === "loading") {
@@ -14,7 +15,7 @@ export function SessionShell({ result }: { result: SessionLoadResult }) {
   if (result.status === "unauthenticated") {
     return (
       <RouteStatePage
-        actionHref="/login?next=/app"
+        actionHref={loginHref("/app")}
         actionLabel="Войти"
         eyebrow="Сессия не найдена"
         kind="unauthenticated"

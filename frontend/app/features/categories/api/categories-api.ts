@@ -1,11 +1,20 @@
 import { z } from "zod";
 
-import type { components } from "../../../api/generated/schema";
 import {
-  parseApiError,
-  requestJson,
-  type ApiErrorDetails,
-} from "../../../api/transport";
+  apiForbiddenFailure,
+  apiLoadError,
+  apiLoadNetworkError,
+  apiMutationError,
+  apiMutationNetworkError,
+  apiUnauthenticatedFailure,
+  apiUnexpectedStatusError,
+  type ApiForbiddenFailure,
+  type ApiLoadError,
+  type ApiMutationError,
+  type ApiUnauthenticatedFailure,
+} from "../../../api/failures";
+import type { components } from "../../../api/generated/schema";
+import { parseApiError, requestJson } from "../../../api/transport";
 
 export type CategoryDirectoryDto =
   components["schemas"]["CategoryDirectoryApiResponse"];
@@ -74,8 +83,8 @@ const categoryDirectorySchema: z.ZodType<CategoryDirectoryDto> = z.object({
 
 export type CategoryDirectoryLoadResult =
   | { status: "success"; directory: CategoryDirectoryDto }
-  | { status: "unauthenticated" }
-  | { status: "error"; message: string };
+  | ApiUnauthenticatedFailure
+  | ApiLoadError;
 
 export type CreateCategoryDraft = {
   name: string;
@@ -85,9 +94,9 @@ export type CreateCategoryDraft = {
 
 export type CreateCategoryResult =
   | { status: "success"; category: CategorySummaryDto }
-  | { status: "unauthenticated" }
-  | { status: "forbidden"; message: string }
-  | ({ status: "error" } & ApiErrorDetails);
+  | ApiUnauthenticatedFailure
+  | ApiForbiddenFailure
+  | ApiMutationError;
 
 export async function loadCategories(
   signal?: AbortSignal,
@@ -96,21 +105,15 @@ export async function loadCategories(
     ...(signal ? { signal } : {}),
   });
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   if (!response.ok) {
-    return {
-      status: "error",
-      message: `API вернул статус ${response.httpStatus}.`,
-    };
+    return apiUnexpectedStatusError(response.httpStatus);
   }
   const parsed = categoryDirectorySchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      message: "API вернул список категорий неожиданного формата.",
-    };
+    return apiLoadError("API вернул список категорий неожиданного формата.");
   }
   return { status: "success", directory: parsed.data };
 }
@@ -131,37 +134,25 @@ export async function createCategory({
     method: "POST",
   });
   if (response.status === "network_error") {
-    return {
-      status: "error",
-      code: "network_error",
-      fieldErrors: {},
-      message: "Backend недоступен. Проверьте соединение и повторите.",
-    };
+    return apiMutationNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   const apiError = parseApiError(response.body);
   if (response.httpStatus === 403) {
-    return {
-      status: "forbidden",
-      message: apiError?.message ?? "Создание категории недоступно.",
-    };
+    return apiForbiddenFailure(apiError, "Создание категории недоступно.");
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      code: apiError?.code ?? "category_create_failed",
-      fieldErrors: apiError?.fieldErrors ?? {},
-      message: apiError?.message ?? "Не удалось создать категорию.",
-    };
+    return apiMutationError(apiError, {
+      fallbackCode: "category_create_failed",
+      fallbackMessage: "Не удалось создать категорию.",
+    });
   }
   const parsed = categorySummarySchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      code: "invalid_category_response",
-      fieldErrors: {},
-      message: "API вернул созданную категорию неожиданного формата.",
-    };
+    return apiMutationError(null, {
+      fallbackCode: "invalid_category_response",
+      fallbackMessage: "API вернул созданную категорию неожиданного формата.",
+    });
   }
   return { status: "success", category: parsed.data };
 }

@@ -2,7 +2,10 @@ import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
-import { formatMoneyAmount } from "../../shared/money/format-money";
+import {
+  decimalSign,
+  formatMoneyAmount,
+} from "../../shared/money/format-money";
 import { AppShell } from "../../shell/app-shell";
 import { AppliedFilterSummary } from "../../ui/applied-filter-summary/applied-filter-summary";
 import { BackLink } from "../../ui/back-link/back-link";
@@ -428,7 +431,7 @@ function CategorySummary({
         amount={summary.profit}
         currency={summary.currency}
         label="Результат"
-        tone={decimalSign(summary.profit) < 0 ? "expense" : "profit"}
+        tone={decimalSign(summary.profit) === -1 ? "expense" : "profit"}
       />
     </dl>
   );
@@ -484,12 +487,6 @@ function appliedFilterLabels(
 
 function kindTone(kind: keyof typeof kindLabels): TagTone {
   return kind === "mixed" ? "category" : kind;
-}
-
-function decimalSign(value: string): -1 | 0 | 1 {
-  const normalized = value.replace(/^[+-]/, "").replace(/[.,]/, "");
-  if (/^0*$/.test(normalized)) return 0;
-  return value.startsWith("-") ? -1 : 1;
 }
 
 function operationCountLabel(count: number): string {

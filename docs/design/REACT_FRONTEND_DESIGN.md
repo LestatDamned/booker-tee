@@ -129,6 +129,24 @@ Frontend выбирает copy, icon, layout и target route. Он не выво
 Error response имеет stable code, message и optional field errors. Draft не
 теряется при ожидаемой server validation.
 
+Повторяющиеся frontend-типы и constructors для network, `401`, `403` и generic
+mutation errors находятся в `app/api/failures.ts`. Feature API сохраняет рядом с
+workflow обработку `404`, `409`, `422`, blocker codes, fallback copy и runtime
+validation успешного ответа. Общий слой не выбирает доменный transition и не
+скрывает порядок обработки feature-specific статусов.
+
+Loader-запросы возвращают `unauthenticated`, чтобы route мог показать стабильное
+состояние входа. Browser mutation handlers используют общий
+`session/unauthenticated.ts`: он перенаправляет только для `401` и сохраняет
+`pathname + search + hash` в параметре `next`. Feature-код не собирает login URL
+и не вызывает `window.location.assign` самостоятельно. `403` остаётся локальной
+ошибкой capability и никогда не превращается в login redirect.
+
+Collection routes с одинаковым контрактом `unauthenticated | error` используют
+`session/authenticated-route-state-page.tsx` поверх общего `RouteStatePage`.
+Detail и document workflows оставляют локальную композицию, когда их
+`forbidden`, `notFound`, copy или recovery action действительно различаются.
+
 ### Mutations
 
 - Финансовые mutations не optimistic.

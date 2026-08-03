@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { AppShell } from "../../shell/app-shell";
 import { BackLink } from "../../ui/back-link/back-link";
 import { Button, ButtonLink } from "../../ui/button/button";
@@ -75,12 +76,7 @@ export function ImportDocumentDetailPage({ initialDocument, session }: Props) {
       session.csrfToken,
     );
     setPending(null);
-    if (result.status === "unauthenticated") {
-      window.location.assign(
-        `/login?next=${encodeURIComponent(window.location.pathname)}`,
-      );
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status !== "success") {
       setFeedback({ tone: "error", message: result.message });
       return;

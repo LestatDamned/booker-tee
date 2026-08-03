@@ -77,7 +77,7 @@ describe("manual ledger route", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Войти" })).toHaveAttribute(
       "href",
-      "/login?next=/app/ledger/manual",
+      "/login?next=%2Fapp%2Fledger%2Fmanual",
     );
   });
 

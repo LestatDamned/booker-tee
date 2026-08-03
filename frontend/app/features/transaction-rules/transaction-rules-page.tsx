@@ -30,6 +30,7 @@ import { WorkbenchSearch } from "../../ui/workbench-toolbar/workbench-search";
 import { WorkbenchToolbar } from "../../ui/workbench-toolbar/workbench-toolbar";
 import type { TransactionRuleDirectoryDto } from "./api/transaction-rules-api";
 import { TransactionRuleCreatePanel } from "./transaction-rule-create-panel";
+import { TransactionRuleEditPanel } from "./transaction-rule-edit-panel";
 import { TransactionRuleLifecycleNotice } from "./transaction-rule-lifecycle-notice";
 import {
   transactionRuleAppliedFilters,
@@ -94,6 +95,23 @@ export function TransactionRulesPage({
     onReloaded: mutations.ruleReplaced,
     showToast: mutations.showToast,
   });
+  const editPanel = editor.opened ? (
+    <TransactionRuleEditPanel
+      conflict={editor.conflict}
+      draft={editor.draft}
+      errors={editor.errors}
+      loadError={editor.message}
+      loading={editor.loading}
+      onChange={editor.change}
+      onClose={editor.requestClose}
+      onReload={() => void editor.reload()}
+      onSubmit={editor.submit}
+      pending={editor.pending}
+      ruleId={editor.opened.ruleId}
+      source={editor.source}
+      variant={editor.opened.variant}
+    />
+  ) : null;
   const [categoryDraft, setCategoryDraft] = useState(query.categoryId);
   const appliedFilters = transactionRuleAppliedFilters(snapshot);
   const targetId = ruleTargetId(location.hash);
@@ -384,7 +402,7 @@ export function TransactionRulesPage({
                 mobileList={
                   <TransactionRuleMobileList
                     deletePendingId={deletion.pendingId}
-                    editPanel={editor.panel}
+                    editPanel={editPanel}
                     editingRuleId={editor.opened?.ruleId ?? null}
                     editingVariant={editor.opened?.variant ?? null}
                     onEdit={editor.requestOpen}
@@ -401,7 +419,7 @@ export function TransactionRulesPage({
                 table={
                   <TransactionRuleTable
                     deletePendingId={deletion.pendingId}
-                    editPanel={editor.panel}
+                    editPanel={editPanel}
                     editingRuleId={editor.opened?.ruleId ?? null}
                     editingVariant={editor.opened?.variant ?? null}
                     onEdit={editor.requestOpen}
@@ -471,8 +489,27 @@ export function TransactionRulesPage({
             ) : null}
           </ConfirmationDialog>
         ) : null}
-        {editor.dialog}
-        {deletion.dialog}
+        {editor.discardConfirmationOpen ? (
+          <ConfirmationDialog
+            cancelLabel="Продолжить редактирование"
+            confirmLabel="Отбросить изменения"
+            description="Несохранённые изменения правила будут потеряны."
+            onCancel={editor.cancelDiscard}
+            onConfirm={editor.confirmDiscard}
+            returnFocusRef={{ current: editor.opened?.trigger ?? null }}
+            title="Отбросить изменения правила?"
+          />
+        ) : null}
+        {deletion.candidate ? (
+          <ConfirmationDialog
+            confirmLabel="Удалить правило"
+            description={`Правило «${deletion.candidate.name}» будет удалено без возможности восстановления. Это удалит только определение правила: источники импорта, review-предложения и подтверждённые операции не изменятся.`}
+            onCancel={deletion.cancelDelete}
+            onConfirm={deletion.confirmDelete}
+            pending={deletion.pendingId === deletion.candidate.id}
+            title="Удалить правило?"
+          />
+        ) : null}
         <ToastViewport
           onDismiss={mutations.dismissToast}
           toast={mutations.toast}

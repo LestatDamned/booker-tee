@@ -1,13 +1,12 @@
-import { type FormEvent, type RefObject, useRef, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 
-import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import {
   loadTransactionRuleForEdit,
   type TransactionRuleEditDto,
   type TransactionRuleSummaryDto,
   updateTransactionRule,
 } from "./api/transaction-rules-api";
-import { TransactionRuleEditPanel } from "./transaction-rule-edit-panel";
 import {
   focusFirstTransactionRuleError,
   normalizeTransactionRuleFieldErrors,
@@ -39,7 +38,7 @@ export function useTransactionRuleEditor({
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(false);
   const [conflict, setConflict] = useState(false);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
   const nextEditor = useRef<RequestedEditor | null>(null);
   const dirty = Boolean(
     source &&
@@ -58,6 +57,7 @@ export function useTransactionRuleEditor({
     setDraft(null);
     const result = await loadTransactionRuleForEdit(requested.ruleId);
     setLoading(false);
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status !== "success") {
       setMessage(result.message);
       return;
@@ -84,7 +84,7 @@ export function useTransactionRuleEditor({
     const requested = { ruleId, variant, trigger };
     if (dirty) {
       nextEditor.current = requested;
-      setConfirmDiscard(true);
+      setDiscardConfirmationOpen(true);
       return;
     }
     void load(requested);
@@ -101,11 +101,11 @@ export function useTransactionRuleEditor({
   function requestClose() {
     if (dirty) {
       nextEditor.current = null;
-      setConfirmDiscard(true);
+      setDiscardConfirmationOpen(true);
     } else finishClose();
   }
-  function discard() {
-    setConfirmDiscard(false);
+  function confirmDiscard() {
+    setDiscardConfirmationOpen(false);
     const requested = nextEditor.current;
     nextEditor.current = null;
     if (requested) void load(requested);
@@ -147,6 +147,7 @@ export function useTransactionRuleEditor({
       finishClose();
       return;
     }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "validation_error") {
       const serverErrors = normalizeTransactionRuleFieldErrors(
         result.fieldErrors,
@@ -159,38 +160,27 @@ export function useTransactionRuleEditor({
     setMessage(result.message);
     setConflict(result.status === "conflict");
   }
-  const panel = opened ? (
-    <TransactionRuleEditPanel
-      conflict={conflict}
-      draft={draft}
-      errors={errors}
-      loadError={message}
-      loading={loading}
-      onChange={change}
-      onClose={requestClose}
-      onReload={() => void reload()}
-      onSubmit={submit}
-      pending={pending}
-      ruleId={opened.ruleId}
-      source={source}
-      variant={opened.variant}
-    />
-  ) : null;
-  const dialog = confirmDiscard ? (
-    <ConfirmationDialog
-      cancelLabel="Продолжить редактирование"
-      confirmLabel="Отбросить изменения"
-      description="Несохранённые изменения правила будут потеряны."
-      onCancel={() => {
-        nextEditor.current = null;
-        setConfirmDiscard(false);
-      }}
-      onConfirm={discard}
-      returnFocusRef={
-        { current: opened?.trigger ?? null } as RefObject<HTMLElement | null>
-      }
-      title="Отбросить изменения правила?"
-    />
-  ) : null;
-  return { dialog, opened, panel, requestOpen };
+  function cancelDiscard() {
+    nextEditor.current = null;
+    setDiscardConfirmationOpen(false);
+  }
+
+  return {
+    cancelDiscard,
+    change,
+    confirmDiscard,
+    conflict,
+    discardConfirmationOpen,
+    draft,
+    errors,
+    loading,
+    message,
+    opened,
+    pending,
+    reload,
+    requestClose,
+    requestOpen,
+    source,
+    submit,
+  };
 }

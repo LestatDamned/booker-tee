@@ -6,6 +6,8 @@ import {
   reportCategorySort,
   reportCategorySortDirection,
   reportCategorySortSearch,
+  reportCurrentMonthRange,
+  reportCurrentMonthSearch,
   reportFilterSearch,
   reportMonthSearch,
 } from "./report-filter-query";
@@ -60,6 +62,21 @@ describe("report filter query", () => {
     expect(reportMonthSearch(reportOverview, -1, "?currency=RUB")).toContain(
       "date_to=2026-06-30",
     );
+  });
+
+  it("builds the current month from the local calendar date", () => {
+    const now = new Date(2026, 7, 1, 0, 30);
+    expect(reportCurrentMonthRange(now)).toEqual({
+      dateFrom: "2026-08-01",
+      dateTo: "2026-08-31",
+    });
+    const search = reportCurrentMonthSearch(
+      reportOverview,
+      "?currency=RUB",
+      now,
+    );
+    expect(search).toContain("date_from=2026-08-01");
+    expect(search).toContain("date_to=2026-08-31");
   });
 
   it("clears only the period for all-time view", () => {

@@ -6,7 +6,7 @@ import {
 } from "../../ui/status-label/status-label";
 import { Tag, type TagTone } from "../../ui/tag/tag";
 import type { ImportReviewDto } from "./api/import-review-api";
-import styles from "./review-item.module.css";
+import styles from "./review-item-presentation.module.css";
 
 export type ReviewItemDto = ImportReviewDto["items"][number];
 export type RowProblem = NonNullable<

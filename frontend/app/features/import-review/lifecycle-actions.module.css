@@ -1,0 +1,25 @@
+.lifecycleActions {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.lifecycleButtons,
+.lifecycleConfirmation > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.lifecycleConfirmation {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid
+    color-mix(in srgb, var(--color-status-danger) 38%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-status-danger) 8%, transparent);
+  padding: var(--space-3);
+}
+
+.lifecycleConfirmation p {
+  margin: 0;
+}

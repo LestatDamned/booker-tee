@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+import {
+  apiLoadError,
+  apiLoadNetworkError,
+  apiUnauthenticatedFailure,
+  apiUnexpectedStatusError,
+  type ApiLoadError,
+  type ApiUnauthenticatedFailure,
+} from "../../../api/failures";
 import type { components } from "../../../api/generated/schema";
 import { requestJson } from "../../../api/transport";
 
@@ -108,8 +116,8 @@ export const reportOverviewSchema: z.ZodType<ReportOverviewDto> = z.object({
 
 export type ReportOverviewLoadResult =
   | { status: "success"; overview: ReportOverviewDto }
-  | { status: "unauthenticated" }
-  | { status: "error"; message: string };
+  | ApiUnauthenticatedFailure
+  | ApiLoadError;
 
 const reportApiParameters = [
   "date_from",
@@ -137,24 +145,17 @@ export async function loadReportOverview(
     signal ? { signal } : {},
   );
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   if (!response.ok) {
-    return {
-      status: "error",
-      message:
-        response.httpStatus === 400
-          ? "Проверьте период и выбранные фильтры."
-          : `API вернул статус ${response.httpStatus}.`,
-    };
+    return response.httpStatus === 400
+      ? apiLoadError("Проверьте период и выбранные фильтры.")
+      : apiUnexpectedStatusError(response.httpStatus);
   }
   const parsed = reportOverviewSchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      message: "API вернул отчёт неожиданного формата.",
-    };
+    return apiLoadError("API вернул отчёт неожиданного формата.");
   }
   return { status: "success", overview: parsed.data };
 }

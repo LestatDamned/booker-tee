@@ -7,6 +7,7 @@ import {
 } from "react";
 import { useLocation, useNavigate } from "react-router";
 
+import { redirectIfUnauthenticated } from "../../../session/unauthenticated";
 import { Button } from "../../../ui/button/button";
 import { FormErrorSummary } from "../../../ui/field/form-error-summary";
 import { FormActions } from "../../../ui/field/form-layout";
@@ -84,10 +85,7 @@ export function ManualOperationEdit({
     requested.current = true;
     setState({ status: "loading" });
     const result = await loadManualOperationEdit(operationId);
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/ledger/manual");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "error") {
       setState({ status: "load_error", message: result.message });
       return;
@@ -168,10 +166,7 @@ export function ManualOperationEdit({
       }
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/ledger/manual");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "validation_error") {
       setState({
         ...submitted,

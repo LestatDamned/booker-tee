@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 
 import { Button } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
@@ -12,11 +12,18 @@ import {
 } from "./api/import-review-api";
 import {
   confirmImportReviewItem,
-  type ImportReviewDraftEvaluationDto,
-  type ImportReviewMutationResult,
   undoImportReviewPosting,
+  type ImportReviewDraftEvaluationDto,
 } from "./api/import-review-mutations";
-import styles from "./import-review-editor.module.css";
+import styles from "./posting-actions.module.css";
+import {
+  buildPostingConfirmationRequest,
+  confirmedPostingSelection,
+  normalizedRulePattern,
+  postingError,
+  postingSelectionFingerprint,
+} from "./posting-model";
+import { reviewForDocument } from "./review-reconciliation";
 
 type PostingActionProps = {
   categoryName?: string;
@@ -49,6 +56,7 @@ export function ConfirmPostingAction({
   evaluation: ImportReviewDraftEvaluationDto;
   variant?: "panel" | "quick";
 }) {
+  const selection = confirmedPostingSelection(dirty, evaluation);
   const [rulePattern, setRulePattern] = useState("");
   const [rulePatternError, setRulePatternError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -59,9 +67,12 @@ export function ConfirmPostingAction({
   const alertRef = useRef<HTMLDivElement>(null);
   const rulePatternRef = useRef<HTMLInputElement>(null);
   const idempotencyKey = useRef(crypto.randomUUID());
-  const cleanedRulePattern = rulePattern.trim();
-  const rememberRule = cleanedRulePattern.length > 0;
-  const selectionFingerprint = `${evaluation.classification.operationType}:${evaluation.selection.categoryId}:${evaluation.selection.propertyId}:${cleanedRulePattern}`;
+  const { cleanedRulePattern, rememberRule } =
+    normalizedRulePattern(rulePattern);
+  const selectionFingerprint = postingSelectionFingerprint(
+    selection,
+    rulePattern,
+  );
 
   useEffect(() => {
     idempotencyKey.current = crypto.randomUUID();
@@ -71,26 +82,18 @@ export function ConfirmPostingAction({
     if (error) alertRef.current?.focus();
   }, [error]);
 
-  const operationType = evaluation.classification.operationType;
-  const categoryId = evaluation.selection.categoryId;
-  if (
-    dirty ||
-    !evaluation.confirmability.canConfirm ||
-    (operationType !== "income" && operationType !== "expense") ||
-    categoryId === null
-  ) {
-    return variant === "panel" && onCancel ? (
-      <FormActions layout="split">
-        <Button onClick={onCancel} tone="secondary">
-          Отмена
-        </Button>
-      </FormActions>
-    ) : null;
+  useEffect(() => {
+    if (rulePatternError) rulePatternRef.current?.focus();
+  }, [rulePatternError]);
+
+  function changeRulePattern(value: string) {
+    setRulePattern(value);
+    setRulePatternError(null);
+    setError(null);
   }
-  const confirmedOperationType = operationType;
-  const confirmedCategoryId = categoryId;
 
   async function confirm() {
+    if (selection === null) return;
     setPending(true);
     setError(null);
     setRulePatternError(null);
@@ -99,26 +102,15 @@ export function ConfirmPostingAction({
     const result = await confirmImportReviewItem(
       documentId,
       item.id,
-      {
-        operationType: confirmedOperationType,
-        categoryId: confirmedCategoryId,
-        propertyId: evaluation.selection.propertyId,
-        expectedStatus: item.status,
-        rememberRule,
-        rulePattern: rememberRule ? cleanedRulePattern : null,
-      },
+      buildPostingConfirmationRequest(selection, item.status, rulePattern),
       csrfToken,
       idempotencyKey.current,
     );
     setPending(false);
     if (result.status === "success") {
       onMenuDismiss?.();
-      const review = result.data.reviews.find(
-        (candidate) => candidate.document.id === documentId,
-      );
-      if (review) {
-        onReviewReconciled(review);
-      }
+      const review = reviewForDocument(result.data.reviews, documentId);
+      if (review) onReviewReconciled(review);
       onSuccess("Операция проведена.");
       return;
     }
@@ -128,7 +120,6 @@ export function ConfirmPostingAction({
       result.fieldErrors.rulePattern?.length
     ) {
       setRulePatternError(result.fieldErrors.rulePattern.join(" "));
-      queueMicrotask(() => rulePatternRef.current?.focus());
       return;
     }
     setError(postingError(result));
@@ -156,15 +147,25 @@ export function ConfirmPostingAction({
     setCanRetry(true);
   }
 
+  if (selection === null) {
+    return variant === "panel" && onCancel ? (
+      <FormActions layout="split">
+        <Button onClick={onCancel} tone="secondary">
+          Отмена
+        </Button>
+      </FormActions>
+    ) : null;
+  }
+
   if (variant === "quick") {
     return (
       <>
         <Button
           disabled={pending || refreshing}
+          icon="check"
           isLoading={pending}
           onClick={() => void confirm()}
           tone="primary"
-          icon="check"
         >
           Подтвердить
         </Button>
@@ -175,48 +176,19 @@ export function ConfirmPostingAction({
 
   return (
     <section aria-label="Подтверждение операции" className={styles.postingBox}>
-      <div className={styles.rulePatternField}>
-        <Field
-          error={rulePatternError ?? undefined}
-          errorId={`rule-pattern-error-${item.id}`}
-          htmlFor={`rule-pattern-${item.id}`}
-          label={
-            <span className={styles.rulePatternLabel}>
-              <Icon name="automation" size={16} />
-              Автоправило <small>· необязательно</small>
-            </span>
-          }
-        >
-          <input
-            aria-describedby={
-              rulePatternError ? `rule-pattern-error-${item.id}` : undefined
-            }
-            aria-invalid={rulePatternError ? true : undefined}
-            autoComplete="off"
-            disabled={pending}
-            id={`rule-pattern-${item.id}`}
-            maxLength={255}
-            onChange={(event) => {
-              setRulePattern(event.target.value);
-              setRulePatternError(null);
-              setError(null);
-            }}
-            placeholder="Фрагмент описания"
-            ref={rulePatternRef}
-            value={rulePattern}
-          />
-        </Field>
-        {rememberRule ? (
-          <p className={styles.rulePreview} aria-label="Итог правила">
-            <strong>{cleanedRulePattern}</strong>
-            <span aria-hidden="true">→</span>
-            <span>
-              {operationType === "income" ? "Доход" : "Расход"} · {categoryName}{" "}
-              · {propertyName}
-            </span>
-          </p>
-        ) : null}
-      </div>
+      <PostingRuleField
+        categoryName={categoryName}
+        cleanedRulePattern={cleanedRulePattern}
+        error={rulePatternError}
+        inputRef={rulePatternRef}
+        itemId={item.id}
+        onChange={changeRulePattern}
+        operationType={selection.operationType}
+        pending={pending}
+        propertyName={propertyName}
+        rememberRule={rememberRule}
+        rulePattern={rulePattern}
+      />
       <FormActions layout="split">
         {onCancel ? (
           <Button onClick={onCancel} tone="secondary">
@@ -225,10 +197,10 @@ export function ConfirmPostingAction({
         ) : null}
         <Button
           disabled={pending || refreshing}
+          icon={rememberRule ? "automation" : "check"}
           isLoading={pending}
           onClick={() => void confirm()}
           tone="primary"
-          icon={rememberRule ? "automation" : "check"}
         >
           {rememberRule ? "Провести с правилом" : "Провести"}
         </Button>
@@ -237,10 +209,10 @@ export function ConfirmPostingAction({
         action={
           conflict ? (
             <Button
+              icon="retry"
               isLoading={refreshing}
               onClick={() => void refresh()}
               tone="secondary"
-              icon="retry"
             >
               Обновить строку
             </Button>
@@ -280,46 +252,41 @@ export function UndoPostingAction({
     if (error) alertRef.current?.focus();
   }, [error]);
 
-  if (readonly || !item.posting.canUndo || item.posting.operationId === null) {
-    return null;
+  function openConfirmation() {
+    setError(null);
+    setConfirming(true);
   }
 
   async function undo() {
-    if (item.posting.operationId === null) return;
+    const operationId = item.posting.operationId;
+    if (operationId === null) return;
     setPending(true);
     setError(null);
     const result = await undoImportReviewPosting(
       documentId,
       item.id,
-      { expectedOperationId: item.posting.operationId },
+      { expectedOperationId: operationId },
       csrfToken,
     );
     setPending(false);
     if (result.status === "success") {
       setConfirming(false);
       onMenuDismiss?.();
-      const review = result.data.reviews.find(
-        (candidate) => candidate.document.id === documentId,
-      );
-      if (review) {
-        onReviewReconciled(review);
-      }
+      const review = reviewForDocument(result.data.reviews, documentId);
+      if (review) onReviewReconciled(review);
       onSuccess("Проведение отменено. Строка возвращена на проверку.");
       return;
     }
     setError(postingError(result));
   }
 
+  if (readonly || !item.posting.canUndo || item.posting.operationId === null) {
+    return null;
+  }
+
   return (
     <>
-      <Button
-        icon="undo"
-        onClick={() => {
-          setError(null);
-          setConfirming(true);
-        }}
-        tone="dangerSecondary"
-      >
+      <Button icon="undo" onClick={openConfirmation} tone="dangerSecondary">
         Вернуть на проверку
       </Button>
       {confirming ? (
@@ -341,14 +308,81 @@ export function UndoPostingAction({
   );
 }
 
+type PostingRuleFieldProps = {
+  categoryName: string;
+  cleanedRulePattern: string;
+  error: string | null;
+  inputRef: Ref<HTMLInputElement>;
+  itemId: string;
+  onChange: (value: string) => void;
+  operationType: "income" | "expense";
+  pending: boolean;
+  propertyName: string;
+  rememberRule: boolean;
+  rulePattern: string;
+};
+
+function PostingRuleField({
+  categoryName,
+  cleanedRulePattern,
+  error,
+  inputRef,
+  itemId,
+  onChange,
+  operationType,
+  pending,
+  propertyName,
+  rememberRule,
+  rulePattern,
+}: PostingRuleFieldProps) {
+  return (
+    <div className={styles.rulePatternField}>
+      <Field
+        error={error ?? undefined}
+        errorId={`rule-pattern-error-${itemId}`}
+        htmlFor={`rule-pattern-${itemId}`}
+        label={
+          <span className={styles.rulePatternLabel}>
+            <Icon name="automation" size={16} />
+            Автоправило <small>· необязательно</small>
+          </span>
+        }
+      >
+        <input
+          aria-describedby={error ? `rule-pattern-error-${itemId}` : undefined}
+          aria-invalid={error ? true : undefined}
+          autoComplete="off"
+          disabled={pending}
+          id={`rule-pattern-${itemId}`}
+          maxLength={255}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="Фрагмент описания"
+          ref={inputRef}
+          value={rulePattern}
+        />
+      </Field>
+      {rememberRule ? (
+        <p className={styles.rulePreview} aria-label="Итог правила">
+          <strong>{cleanedRulePattern}</strong>
+          <span aria-hidden="true">→</span>
+          <span>
+            {operationType === "income" ? "Доход" : "Расход"} · {categoryName} ·{" "}
+            {propertyName}
+          </span>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function PostingError({
   action,
   error,
   ref,
 }: {
-  action?: React.ReactNode;
+  action?: ReactNode;
   error: string | null;
-  ref: React.Ref<HTMLDivElement>;
+  ref: Ref<HTMLDivElement>;
 }) {
   if (!error) return null;
   return (
@@ -363,19 +397,4 @@ function PostingError({
       {error}
     </InlineNotice>
   );
-}
-
-type ImportReviewMutationFailure = Exclude<
-  ImportReviewMutationResult<unknown>,
-  { status: "success" }
->;
-
-function postingError(result: ImportReviewMutationFailure): string {
-  if (result.status === "unauthenticated") {
-    return "Сессия завершилась. Войдите снова; операция не показана как проведённая.";
-  }
-  if (result.status === "forbidden") {
-    return "Недостаточно прав для проведения операции.";
-  }
-  return "message" in result ? result.message : "Операцию не удалось изменить.";
 }

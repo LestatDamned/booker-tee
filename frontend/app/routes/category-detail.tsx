@@ -2,6 +2,7 @@ import { useNavigation } from "react-router";
 
 import type { CategoryDetailLoadResult } from "../features/categories/api/category-detail-api";
 import { CategoryDetailPage } from "../features/categories/category-detail-page";
+import { loginHref } from "../session/unauthenticated";
 import { RouteStatePage } from "../ui/route-state-page/route-state-page";
 import type { Route } from "./+types/category-detail";
 import { loadCategoryDetailRoute } from "./category-detail-loader";
@@ -71,7 +72,7 @@ function RouteState({
   return (
     <RouteStatePage
       actionHref={
-        unauthenticated ? "/login?next=/app/categories" : "/app/categories"
+        unauthenticated ? loginHref("/app/categories") : "/app/categories"
       }
       actionIcon={unauthenticated ? "forward" : "back"}
       actionLabel={unauthenticated ? "Войти" : "Все категории"}

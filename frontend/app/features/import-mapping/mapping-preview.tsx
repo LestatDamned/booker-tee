@@ -1,5 +1,10 @@
 import type { RefObject } from "react";
 
+import {
+  decimalSign,
+  formatMoneyAmount,
+  formatMoneyWithCurrency,
+} from "../../shared/money/format-money";
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
 import { ReadOnlyFinancialRow } from "../../ui/read-only-financial-row/read-only-financial-row";
 import { StatusLabel } from "../../ui/status-label/status-label";
@@ -128,7 +133,7 @@ export function MappingPreview({
               <div>
                 <dt>Баланс на начало выписки</dt>
                 <dd>
-                  {formatControlMoney(
+                  {formatMoneyWithCurrency(
                     preview.reconciliation.openingBalance,
                     preview.controlTotals[0]?.currency ?? "RUB",
                   )}
@@ -137,7 +142,7 @@ export function MappingPreview({
               <div>
                 <dt>Изменение баланса по операциям</dt>
                 <dd>
-                  {formatControlMoney(
+                  {formatMoneyWithCurrency(
                     preview.reconciliation.movement,
                     preview.controlTotals[0]?.currency ?? "RUB",
                   )}
@@ -146,7 +151,7 @@ export function MappingPreview({
               <div>
                 <dt>Баланс на конец по расчёту</dt>
                 <dd>
-                  {formatControlMoney(
+                  {formatMoneyWithCurrency(
                     preview.reconciliation.calculatedClosingBalance,
                     preview.controlTotals[0]?.currency ?? "RUB",
                   )}
@@ -155,7 +160,7 @@ export function MappingPreview({
               <div>
                 <dt>Баланс на конец выписки</dt>
                 <dd>
-                  {formatControlMoney(
+                  {formatMoneyWithCurrency(
                     preview.reconciliation.statementClosingBalance,
                     preview.controlTotals[0]?.currency ?? "RUB",
                   )}
@@ -171,7 +176,7 @@ export function MappingPreview({
           {preview.reconciliation && !preview.reconciliation.matches ? (
             <p className={styles.reconciliationWarning} role="status">
               Расхождение{" "}
-              {formatControlMoney(
+              {formatMoneyWithCurrency(
                 preview.reconciliation.difference,
                 preview.controlTotals[0]?.currency ?? "RUB",
               )}
@@ -250,18 +255,6 @@ export function MappingPreview({
   );
 }
 
-function formatControlMoney(amount: string, currency: string): string {
-  const value = Number(amount);
-  if (!Number.isFinite(value)) return `${amount} ${currency}`;
-  return new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-    signDisplay: "auto",
-  }).format(value);
-}
-
 function formatDate(normalized: string | null, raw: string): string {
   if (!normalized) return raw || "Дата не определена";
   return new Intl.DateTimeFormat("ru-RU", { timeZone: "UTC" }).format(
@@ -270,9 +263,9 @@ function formatDate(normalized: string | null, raw: string): string {
 }
 
 function previewAmountTone(amount: string | null): MoneyTone {
-  const parsed = parseAmount(amount);
-  if (parsed === null || parsed === 0) return "neutral";
-  return parsed > 0 ? "income" : "expense";
+  const sign = amount === null ? null : decimalSign(amount);
+  if (sign === null || sign === 0) return "neutral";
+  return sign > 0 ? "income" : "expense";
 }
 
 function formatPreviewAmount(
@@ -280,24 +273,18 @@ function formatPreviewAmount(
   raw: string,
   currency: string,
 ): string {
-  const normalizedAmount = parseAmount(amount);
-  const parsed = normalizedAmount ?? parseRawAmount(raw);
-  if (parsed === null) return rawAmountWithoutCurrency(raw, currency) || "—";
-  return new Intl.NumberFormat("ru-RU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-    signDisplay: normalizedAmount === null ? "auto" : "exceptZero",
-  }).format(parsed);
+  const normalizedSign = amount === null ? null : decimalSign(amount);
+  if (amount !== null && normalizedSign !== null) {
+    return formatMoneyAmount(amount, normalizedSign > 0 ? "income" : null);
+  }
+  const parsedRaw = parseRawAmount(raw);
+  if (parsedRaw === null) {
+    return rawAmountWithoutCurrency(raw, currency) || "—";
+  }
+  return formatMoneyAmount(parsedRaw, null);
 }
 
-function parseAmount(amount: string | null): number | null {
-  if (!amount) return null;
-  const parsed = Number(amount.replace(",", "."));
-  if (!Number.isFinite(parsed)) return null;
-  return parsed;
-}
-
-function parseRawAmount(raw: string): number | null {
+function parseRawAmount(raw: string): string | null {
   const compact = raw
     .replaceAll("\u00a0", "")
     .replaceAll("\u202f", "")
@@ -313,9 +300,14 @@ function parseRawAmount(raw: string): number | null {
     decimalIndex < 0
       ? unsigned
       : `${unsigned.slice(0, decimalIndex).replace(/[,.]/gu, "")}.${unsigned.slice(decimalIndex + 1)}`;
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed)) return null;
-  return negativeParentheses || compact.startsWith("-") ? -parsed : parsed;
+  if (!/^\d+(?:\.\d+)?$/.test(normalized)) return null;
+  const sign =
+    negativeParentheses || compact.startsWith("-")
+      ? "-"
+      : compact.startsWith("+")
+        ? "+"
+        : "";
+  return `${sign}${normalized}`;
 }
 
 function rawAmountWithoutCurrency(raw: string, currency: string): string {

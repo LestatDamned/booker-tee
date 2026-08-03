@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+import {
+  apiLoadError,
+  apiLoadNetworkError,
+  apiUnauthenticatedFailure,
+  apiUnexpectedStatusError,
+  type ApiLoadError,
+  type ApiUnauthenticatedFailure,
+} from "../../../api/failures";
 import type { components } from "../../../api/generated/schema";
 import { requestJson } from "../../../api/transport";
 
@@ -86,8 +94,8 @@ export const importDocumentListSchema: z.ZodType<ImportDocumentListDto> =
 
 export type ImportDocumentListLoadResult =
   | { status: "success"; documents: ImportDocumentListDto }
-  | { status: "unauthenticated" }
-  | { status: "error"; message: string };
+  | ApiUnauthenticatedFailure
+  | ApiLoadError;
 
 export async function loadImportDocuments(
   search = "",
@@ -97,23 +105,17 @@ export async function loadImportDocuments(
     ...(signal ? { signal } : {}),
   });
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
   if (response.httpStatus === 401) {
-    return { status: "unauthenticated" };
+    return apiUnauthenticatedFailure();
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      message: `API вернул статус ${response.httpStatus}.`,
-    };
+    return apiUnexpectedStatusError(response.httpStatus);
   }
   const parsed = importDocumentListSchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      message: "API вернул список документов неожиданного формата.",
-    };
+    return apiLoadError("API вернул список документов неожиданного формата.");
   }
   return { status: "success", documents: parsed.data };
 }

@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
 
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import type {
   PropertyLifecycleAction,
   PropertySummaryDto,
 } from "./api/properties-api";
 import { changePropertyLifecycle, loadProperties } from "./api/properties-api";
 
-export type PropertyLifecycleFailure = {
+type PropertyLifecycleFailure = {
   action: PropertyLifecycleAction;
   conflict: boolean;
   message: string;
@@ -56,10 +57,7 @@ export function usePropertyLifecycle({
       });
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/properties");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     setArchiveCandidate(null);
     setFailure({
       action,
@@ -77,10 +75,7 @@ export function usePropertyLifecycle({
     const result = await loadProperties();
     pendingRef.current = null;
     setPendingId(null);
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/properties");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "error") {
       setFailure({ ...retry, message: result.message });
       return;

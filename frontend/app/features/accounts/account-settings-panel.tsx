@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import { Button } from "../../ui/button/button";
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
 import { Field } from "../../ui/field/field";
 import {
@@ -113,12 +114,7 @@ export function AccountSettingsPanel({
       onCommitted(result.account, "Настройки счёта сохранены.");
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign(
-        `/login?next=${encodeURIComponent(window.location.pathname)}`,
-      );
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "conflict") {
       setConflict(result.code === "account_update_conflict");
       setSubmitError(result.message);
@@ -158,12 +154,7 @@ export function AccountSettingsPanel({
       );
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign(
-        `/login?next=${encodeURIComponent(window.location.pathname)}`,
-      );
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     setConfirmArchive(false);
     setSubmitError(result.message);
     setConflict(result.status === "conflict");

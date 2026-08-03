@@ -1,0 +1,117 @@
+.meaningSummary {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.meaningBadges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.propertyFact {
+  color: var(--color-text-secondary);
+}
+
+.decisionSource {
+  display: grid;
+  gap: 0.1rem;
+  border-inline-start: 2px solid
+    color-mix(in srgb, var(--color-information) 55%, transparent);
+  padding-inline-start: var(--space-2);
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+}
+
+.decisionSource span {
+  color: var(--color-text-secondary);
+}
+
+.decisionSource strong {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.reviewOutcome {
+  --outcome-tone: var(--color-text-secondary);
+
+  display: grid;
+  gap: var(--space-1);
+  border-inline-start: 3px solid
+    color-mix(in srgb, var(--outcome-tone) 55%, transparent);
+  padding: var(--space-1) 0 var(--space-1) var(--space-3);
+}
+
+.reviewOutcome[data-tone="income"] {
+  --outcome-tone: var(--color-money-income);
+}
+
+.reviewOutcome[data-tone="expense"] {
+  --outcome-tone: var(--color-money-expense);
+}
+
+.reviewOutcome[data-tone="transfer"] {
+  --outcome-tone: var(--color-money-transfer);
+}
+
+.reviewOutcome[data-tone="adjustment"] {
+  --outcome-tone: var(--color-money-adjustment);
+}
+
+.outcomeLabel {
+  color: var(--outcome-tone);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.outcomeResult {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.outcomeDetail {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.reviewBlocker {
+  display: grid;
+  flex-basis: 100%;
+  gap: var(--space-1);
+  border-inline-start: 3px solid var(--color-status-warning);
+  background: color-mix(in srgb, var(--color-status-warning) 8%, transparent);
+  padding: var(--space-2) var(--space-3);
+}
+
+.reviewBlocker span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.reviewBlocker strong {
+  color: var(--color-text-primary);
+}
+
+.rowProblem {
+  display: grid;
+  flex-basis: 100%;
+  gap: var(--space-1);
+  border-inline-start: 0.2rem solid var(--color-status-warning);
+  background: color-mix(in srgb, var(--color-status-warning) 10%, transparent);
+  padding: var(--space-3);
+  color: var(--color-text-primary);
+}
+
+.rowProblem span {
+  color: var(--color-text-secondary);
+}

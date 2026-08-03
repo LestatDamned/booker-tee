@@ -1,6 +1,9 @@
 import { Link, useLocation } from "react-router";
 
-import { formatMoneyAmount } from "../../shared/money/format-money";
+import {
+  decimalSign,
+  formatMoneyAmount,
+} from "../../shared/money/format-money";
 import { ButtonLink } from "../../ui/button/button";
 import { Icon, type IconName } from "../../ui/icon/icon";
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
@@ -324,7 +327,7 @@ function FlowValue({
   currency: string;
   kind: FlowKind;
 }) {
-  const sign = decimalSign(amount);
+  const sign = decimalSign(amount) ?? 0;
   return (
     <MoneyValue
       amount={formatMoneyAmount(amount, sign === 0 ? null : kind)}
@@ -343,7 +346,7 @@ function ResultValue({
   amount: string;
   currency: string;
 }) {
-  const sign = decimalSign(amount);
+  const sign = decimalSign(amount) ?? 0;
   return (
     <MoneyValue
       amount={formatMoneyAmount(amount, sign > 0 ? "income" : null)}
@@ -414,11 +417,6 @@ function parseMagnitude(value: string): DecimalMagnitude {
   };
 }
 
-function decimalSign(value: string): -1 | 0 | 1 {
-  if (/^-/.test(value) && !/^-[0.]+$/.test(value)) return -1;
-  return /^[+]?0+(?:\.0+)?$/.test(value) ? 0 : 1;
-}
-
 function resultTone(sign: -1 | 0 | 1): MoneyTone {
   if (sign > 0) return "profit";
   if (sign < 0) return "expense";
@@ -484,8 +482,8 @@ function sortCategoryRows(
 }
 
 function compareSignedDecimal(left: string, right: string): number {
-  const leftSign = decimalSign(left);
-  const rightSign = decimalSign(right);
+  const leftSign = decimalSign(left) ?? 0;
+  const rightSign = decimalSign(right) ?? 0;
   if (leftSign !== rightSign) return leftSign < rightSign ? -1 : 1;
   const magnitudeComparison = compareMagnitude(left, right);
   return leftSign < 0 ? -magnitudeComparison : magnitudeComparison;

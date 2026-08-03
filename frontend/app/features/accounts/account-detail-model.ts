@@ -1,5 +1,8 @@
 import type { AccountDetailDto } from "./api/account-detail-api";
-import { formatMoneyAmount } from "../../shared/money/format-money";
+import {
+  decimalSign,
+  formatMoneyAmount,
+} from "../../shared/money/format-money";
 import type { MoneyTone } from "../../ui/money-value/money-value";
 import type { StatusTone } from "../../ui/status-label/status-label";
 import type { TagTone } from "../../ui/tag/tag";
@@ -76,9 +79,9 @@ export function movementView(movement: Movement) {
 }
 
 export function accountBalanceTone(balance: string): MoneyTone {
-  const value = Number(balance);
-  if (value > 0) return "balancePositive";
-  if (value < 0) return "expense";
+  const sign = decimalSign(balance);
+  if (sign === 1) return "balancePositive";
+  if (sign === -1) return "expense";
   return "neutral";
 }
 

@@ -123,7 +123,7 @@ describe("reports route", () => {
 
     expect(screen.getByRole("link", { name: "Войти" })).toHaveAttribute(
       "href",
-      "/login?next=/app/reports",
+      "/login?next=%2Fapp%2Freports",
     );
   });
 

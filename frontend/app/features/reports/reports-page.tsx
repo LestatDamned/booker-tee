@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation } from "react-router";
 
 import type { SessionDto } from "../../api/session";
+import { formatIsoDate } from "../../shared/date/format-date";
 import { AppShell } from "../../shell/app-shell";
 import { AppliedFilterSummary } from "../../ui/applied-filter-summary/applied-filter-summary";
 import { Button, ButtonLink, RouterButtonLink } from "../../ui/button/button";
@@ -15,6 +16,7 @@ import {
   reportAllTimeSearch,
   reportAppliedFilters,
   reportCurrentMonthSearch,
+  reportCurrentMonthRange,
   reportMonthSearch,
 } from "./report-filter-query";
 import { ReportFilters } from "./report-filters";
@@ -244,18 +246,13 @@ function isAllTime(overview: ReportOverviewDto): boolean {
 }
 
 function isCurrentMonth(overview: ReportOverviewDto): boolean {
-  const currentMonthStart = `${new Date().toISOString().slice(0, 7)}-01`;
-  const [year = 0, month = 1] = currentMonthStart.split("-").map(Number);
-  const currentMonthEnd = new Date(Date.UTC(year, month, 0))
-    .toISOString()
-    .slice(0, 10);
+  const currentMonth = reportCurrentMonthRange();
   return (
-    overview.appliedFilters.dateFrom === currentMonthStart &&
-    overview.appliedFilters.dateTo === currentMonthEnd
+    overview.appliedFilters.dateFrom === currentMonth.dateFrom &&
+    overview.appliedFilters.dateTo === currentMonth.dateTo
   );
 }
 
 function formatDate(value: string): string {
-  const [year, month, day] = value.split("-");
-  return `${day}.${month}.${year}`;
+  return formatIsoDate(value);
 }

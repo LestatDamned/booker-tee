@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 import { useLocation } from "react-router";
 
-import { formatMoneyAmount } from "../../shared/money/format-money";
+import {
+  decimalSign,
+  formatMoneyAmount,
+} from "../../shared/money/format-money";
 import { Icon } from "../../ui/icon/icon";
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
 import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
@@ -46,7 +49,7 @@ export function ReportAccountBalances({
 }
 
 function PeriodSummary({ overview }: { overview: ReportOverviewDto }) {
-  const resultSign = decimalSign(overview.summary.profit);
+  const resultSign = decimalSign(overview.summary.profit) ?? 0;
   return (
     <article className={styles.periodSummary} data-report-period-summary="true">
       <header className={styles.periodSummaryHeader}>
@@ -127,7 +130,7 @@ function FlowSummaryFact({
   kind: "income" | "expense";
   label: string;
 }) {
-  const sign = decimalSign(amount);
+  const sign = decimalSign(amount) ?? 0;
   return (
     <SummaryFact
       amount={formatMoneyAmount(amount, sign === 0 ? null : kind)}
@@ -273,7 +276,7 @@ function AccountChange({
   amount: string;
   currency: string;
 }) {
-  const sign = decimalSign(amount);
+  const sign = decimalSign(amount) ?? 0;
   return (
     <MoneyValue
       amount={formatMoneyAmount(amount, sign > 0 ? "income" : null)}
@@ -310,12 +313,6 @@ function accountDetailHref(
 
 function accountName(row: AccountBalance): string {
   return row.isActive ? row.name : `${row.name} · архив`;
-}
-
-function decimalSign(value: string): -1 | 0 | 1 {
-  const normalized = value.replace(/^[+-]/, "").replace(/[.,]/, "");
-  if (/^0*$/.test(normalized)) return 0;
-  return value.startsWith("-") ? -1 : 1;
 }
 
 function resultLabel(sign: -1 | 0 | 1): string {

@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+import {
+  apiLoadError,
+  apiLoadNetworkError,
+  apiResponseErrorMessage,
+  apiUnauthenticatedFailure,
+  apiUnexpectedStatusError,
+  type ApiLoadError,
+  type ApiUnauthenticatedFailure,
+} from "../../../api/failures";
 import type { components } from "../../../api/generated/schema";
 import { parseApiError, requestJson } from "../../../api/transport";
 
@@ -42,13 +51,13 @@ const uploadResponseSchema: z.ZodType<ImportDocumentUploadDto> = z.object({
 
 export type ImportUploadReferenceLoadResult =
   | { status: "success"; reference: ImportUploadReferenceDto }
-  | { status: "unauthenticated" }
+  | ApiUnauthenticatedFailure
   | { status: "forbidden" }
-  | { status: "error"; message: string };
+  | ApiLoadError;
 
 export type ImportUploadResult =
   | { status: "success"; document: ImportDocumentUploadDto }
-  | { status: "unauthenticated" }
+  | ApiUnauthenticatedFailure
   | {
       status: "conflict" | "error";
       code?: string | undefined;
@@ -63,23 +72,17 @@ export async function loadImportUploadReference(
     ...(signal ? { signal } : {}),
   });
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   if (response.httpStatus === 403) return { status: "forbidden" };
   if (!response.ok) {
-    return {
-      status: "error",
-      message: `API вернул статус ${response.httpStatus}.`,
-    };
+    return apiUnexpectedStatusError(response.httpStatus);
   }
   const parsed = uploadReferenceSchema.safeParse(response.body);
   return parsed.success
     ? { status: "success", reference: parsed.data }
-    : {
-        status: "error",
-        message: "API вернул настройки загрузки неожиданного формата.",
-      };
+    : apiLoadError("API вернул настройки загрузки неожиданного формата.");
 }
 
 export async function uploadImportDocument({
@@ -112,14 +115,14 @@ export async function uploadImportDocument({
         "Связь прервалась. Повторите отправку: уже сохранённый документ не продублируется.",
     };
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   if (!response.ok) {
     const error = parseApiError(response.body);
     return {
       status: response.httpStatus === 409 ? "conflict" : "error",
       code: error?.code,
       fieldErrors: error?.fieldErrors ?? {},
-      message: error?.message ?? `API вернул статус ${response.httpStatus}.`,
+      message: apiResponseErrorMessage(error, response.httpStatus),
     };
   }
   const parsed = uploadResponseSchema.safeParse(response.body);

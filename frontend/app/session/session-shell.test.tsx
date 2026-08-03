@@ -15,7 +15,7 @@ describe("SessionShell", () => {
     render(<SessionShell result={{ status: "unauthenticated" }} />);
     expect(screen.getByRole("link", { name: "Войти" })).toHaveAttribute(
       "href",
-      "/login?next=/app",
+      "/login?next=%2Fapp",
     );
   });
 

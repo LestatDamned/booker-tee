@@ -1,7 +1,7 @@
 import { MoneyValue } from "../../ui/money-value/money-value";
 import { Icon, type IconName } from "../../ui/icon/icon";
 import type { ImportReviewDto } from "./api/import-review-api";
-import styles from "./import-review-page.module.css";
+import styles from "./statement-reconciliation.module.css";
 
 type Validation = ImportReviewDto["validation"];
 type PresentValidation = NonNullable<Validation>;

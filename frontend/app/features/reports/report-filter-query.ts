@@ -1,3 +1,4 @@
+import { todayIsoDate } from "../../shared/date/format-date";
 import type { ReportOverviewDto } from "./api/reports-api";
 
 export type ReportCategorySort =
@@ -108,9 +109,10 @@ export function reportMonthSearch(
   overview: ReportOverviewDto,
   offset: number,
   currentSearch: string,
+  now: Date = new Date(),
 ): string {
   const filters = reportFilterDraft(overview);
-  const anchor = filters.dateFrom || filters.dateTo || todayIso();
+  const anchor = filters.dateFrom || filters.dateTo || todayIsoDate(now);
   const monthStart = addMonths(`${anchor.slice(0, 7)}-01`, offset);
   filters.dateFrom = monthStart;
   filters.dateTo = monthEnd(monthStart);
@@ -120,12 +122,21 @@ export function reportMonthSearch(
 export function reportCurrentMonthSearch(
   overview: ReportOverviewDto,
   currentSearch: string,
+  now: Date = new Date(),
 ): string {
   const filters = reportFilterDraft(overview);
-  const start = `${todayIso().slice(0, 7)}-01`;
-  filters.dateFrom = start;
-  filters.dateTo = monthEnd(start);
+  const range = reportCurrentMonthRange(now);
+  filters.dateFrom = range.dateFrom;
+  filters.dateTo = range.dateTo;
   return reportFilterSearch(filters, currentSearch);
+}
+
+export function reportCurrentMonthRange(now: Date = new Date()): {
+  dateFrom: string;
+  dateTo: string;
+} {
+  const dateFrom = `${todayIsoDate(now).slice(0, 7)}-01`;
+  return { dateFrom, dateTo: monthEnd(dateFrom) };
 }
 
 export function reportAllTimeSearch(
@@ -173,10 +184,6 @@ function monthEnd(monthStart: string): string {
   const [year = 0, month = 1] = monthStart.split("-").map(Number);
   const value = new Date(Date.UTC(year, month, 0));
   return value.toISOString().slice(0, 10);
-}
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function setOrDelete(search: URLSearchParams, key: string, value: string) {

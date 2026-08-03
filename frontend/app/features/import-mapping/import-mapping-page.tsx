@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { AppShell } from "../../shell/app-shell";
 import { BackLink } from "../../ui/back-link/back-link";
 import { Button } from "../../ui/button/button";
@@ -165,12 +166,7 @@ export function ImportMappingPage({
       documentId: mapping.documentId,
     });
     setPreviewPending(false);
-    if (result.status === "unauthenticated") {
-      window.location.assign(
-        `/login?next=${encodeURIComponent(window.location.pathname)}`,
-      );
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "validation_error") {
       const errors = Object.fromEntries(
         Object.entries(result.fieldErrors).map(([field, messages]) => [
@@ -230,12 +226,7 @@ export function ImportMappingPage({
     });
     setImportPending(false);
 
-    if (result.status === "unauthenticated") {
-      window.location.assign(
-        `/login?next=${encodeURIComponent(window.location.pathname)}`,
-      );
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "validation_error") {
       const errors = Object.fromEntries(
         Object.entries(result.fieldErrors).map(([field, messages]) => [

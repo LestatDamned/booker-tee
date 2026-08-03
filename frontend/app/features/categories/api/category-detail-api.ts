@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+import {
+  apiForbiddenFailure,
+  apiLoadError,
+  apiLoadNetworkError,
+  apiMutationError,
+  apiMutationNetworkError,
+  apiUnauthenticatedFailure,
+  apiUnexpectedStatusError,
+  type ApiForbiddenFailure,
+  type ApiLoadError,
+  type ApiMutationError,
+  type ApiUnauthenticatedFailure,
+} from "../../../api/failures";
 import type { components } from "../../../api/generated/schema";
 import {
   parseApiError,
@@ -95,9 +108,9 @@ export const categoryDetailSchema: z.ZodType<CategoryDetailDto> = z.object({
 
 export type CategoryDetailLoadResult =
   | { status: "success"; detail: CategoryDetailDto }
-  | { status: "unauthenticated" }
+  | ApiUnauthenticatedFailure
   | { status: "not_found" }
-  | { status: "error"; message: string };
+  | ApiLoadError;
 
 export type UpdateCategoryDraft = {
   name: string;
@@ -107,11 +120,11 @@ export type UpdateCategoryDraft = {
 
 export type UpdateCategoryResult =
   | { status: "success"; detail: CategoryDetailDto }
-  | { status: "unauthenticated" }
-  | { status: "forbidden"; message: string }
+  | ApiUnauthenticatedFailure
+  | ApiForbiddenFailure
   | { status: "not_found"; message: string }
   | { status: "conflict"; message: string }
-  | ({ status: "error" } & ApiErrorDetails);
+  | ApiMutationError;
 
 export type CategoryLifecycleResult =
   | {
@@ -119,21 +132,23 @@ export type CategoryLifecycleResult =
       category: CategoryDetailDto["category"];
       impact: CategoryLifecycleImpactDto;
     }
-  | { status: "unauthenticated" }
+  | ApiUnauthenticatedFailure
+  | ApiForbiddenFailure
   | {
-      status: "forbidden" | "not_found" | "conflict" | "blocked";
+      status: "not_found" | "conflict" | "blocked";
       message: string;
     }
-  | ({ status: "error" } & ApiErrorDetails);
+  | ApiMutationError;
 
 export type CategoryDeleteResult =
   | { status: "success"; deletedId: string; name: string }
-  | { status: "unauthenticated" }
+  | ApiUnauthenticatedFailure
+  | ApiForbiddenFailure
   | {
-      status: "forbidden" | "not_found" | "conflict" | "blocked";
+      status: "not_found" | "conflict" | "blocked";
       message: string;
     }
-  | ({ status: "error" } & ApiErrorDetails);
+  | ApiMutationError;
 
 const categoryLifecycleResponseSchema = z.object({
   category: categorySummarySchema,
@@ -159,23 +174,17 @@ export async function loadCategoryDetail(
     { ...(signal ? { signal } : {}) },
   );
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   if (response.httpStatus === 404) return { status: "not_found" };
   if (!response.ok) {
-    return {
-      status: "error",
-      message: `API вернул статус ${response.httpStatus}.`,
-    };
+    return apiUnexpectedStatusError(response.httpStatus);
   }
   const parsed = categoryDetailSchema.safeParse(response.body);
   return parsed.success
     ? { status: "success", detail: parsed.data }
-    : {
-        status: "error",
-        message: "API вернул detail категории неожиданного формата.",
-      };
+    : apiLoadError("API вернул detail категории неожиданного формата.");
 }
 
 export async function updateCategory({
@@ -203,20 +212,12 @@ export async function updateCategory({
     },
   );
   if (response.status === "network_error") {
-    return {
-      status: "error",
-      code: "network_error",
-      fieldErrors: {},
-      message: "Backend недоступен. Проверьте соединение и повторите.",
-    };
+    return apiMutationNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   const apiError = parseApiError(response.body);
   if (response.httpStatus === 403) {
-    return {
-      status: "forbidden",
-      message: apiError?.message ?? "Изменение категории недоступно.",
-    };
+    return apiForbiddenFailure(apiError, "Изменение категории недоступно.");
   }
   if (response.httpStatus === 404) {
     return {
@@ -231,21 +232,17 @@ export async function updateCategory({
     };
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      code: apiError?.code ?? "category_update_failed",
-      fieldErrors: apiError?.fieldErrors ?? {},
-      message: apiError?.message ?? "Не удалось изменить категорию.",
-    };
+    return apiMutationError(apiError, {
+      fallbackCode: "category_update_failed",
+      fallbackMessage: "Не удалось изменить категорию.",
+    });
   }
   const parsed = categoryDetailSchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      code: "invalid_category_detail_response",
-      fieldErrors: {},
-      message: "API вернул изменённую категорию неожиданного формата.",
-    };
+    return apiMutationError(null, {
+      fallbackCode: "invalid_category_detail_response",
+      fallbackMessage: "API вернул изменённую категорию неожиданного формата.",
+    });
   }
   return { status: "success", detail: parsed.data };
 }
@@ -277,16 +274,12 @@ export async function changeCategoryLifecycle({
     },
   );
   if (response.status === "network_error") {
-    return categoryMutationNetworkError();
+    return apiMutationNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   const apiError = parseApiError(response.body);
   if (response.httpStatus === 403) {
-    return mutationFailure(
-      "forbidden",
-      apiError,
-      "Изменение категории недоступно.",
-    );
+    return apiForbiddenFailure(apiError, "Изменение категории недоступно.");
   }
   if (response.httpStatus === 404) {
     return mutationFailure("not_found", apiError, "Категория не найдена.");
@@ -305,18 +298,18 @@ export async function changeCategoryLifecycle({
     );
   }
   if (!response.ok) {
-    return categoryMutationError(
-      apiError,
-      "Не удалось изменить состояние категории.",
-    );
+    return apiMutationError(apiError, {
+      fallbackCode: "category_mutation_failed",
+      fallbackMessage: "Не удалось изменить состояние категории.",
+    });
   }
   const parsed = categoryLifecycleResponseSchema.safeParse(response.body);
   return parsed.success
     ? { status: "success", ...parsed.data }
-    : categoryMutationError(
-        null,
-        "API вернул состояние категории неожиданного формата.",
-      );
+    : apiMutationError(null, {
+        fallbackCode: "category_mutation_failed",
+        fallbackMessage: "API вернул состояние категории неожиданного формата.",
+      });
 }
 
 export async function deleteCategory({
@@ -340,16 +333,11 @@ export async function deleteCategory({
     },
     method: "DELETE",
   });
-  if (response.status === "network_error")
-    return categoryMutationNetworkError();
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.status === "network_error") return apiMutationNetworkError();
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   const apiError = parseApiError(response.body);
   if (response.httpStatus === 403) {
-    return mutationFailure(
-      "forbidden",
-      apiError,
-      "Удаление категории недоступно.",
-    );
+    return apiForbiddenFailure(apiError, "Удаление категории недоступно.");
   }
   if (response.httpStatus === 404) {
     return mutationFailure("not_found", apiError, "Категория не найдена.");
@@ -368,41 +356,22 @@ export async function deleteCategory({
     );
   }
   if (!response.ok) {
-    return categoryMutationError(apiError, "Не удалось удалить категорию.");
+    return apiMutationError(apiError, {
+      fallbackCode: "category_mutation_failed",
+      fallbackMessage: "Не удалось удалить категорию.",
+    });
   }
   const parsed = categoryDeleteResponseSchema.safeParse(response.body);
   return parsed.success
     ? { status: "success", ...parsed.data }
-    : categoryMutationError(
-        null,
-        "API вернул результат удаления неожиданного формата.",
-      );
-}
-
-function categoryMutationNetworkError() {
-  return {
-    status: "error" as const,
-    code: "network_error",
-    fieldErrors: {},
-    message: "Backend недоступен. Проверьте соединение и повторите.",
-  };
+    : apiMutationError(null, {
+        fallbackCode: "category_mutation_failed",
+        fallbackMessage: "API вернул результат удаления неожиданного формата.",
+      });
 }
 
 function mutationFailure<
   Status extends "forbidden" | "not_found" | "conflict" | "blocked",
 >(status: Status, error: ApiErrorDetails | null, fallback: string) {
   return { status, message: error?.message ?? fallback };
-}
-
-function categoryMutationError(
-  error: ApiErrorDetails | null,
-  fallback: string,
-) {
-  return {
-    status: "error" as const,
-    code: error?.code ?? "category_mutation_failed",
-    ...(error?.details ? { details: error.details } : {}),
-    fieldErrors: error?.fieldErrors ?? {},
-    message: error?.message ?? fallback,
-  };
 }

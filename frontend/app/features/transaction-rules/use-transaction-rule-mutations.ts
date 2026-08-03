@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { NavigateFunction } from "react-router";
 
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { useToastQueue } from "../../ui/toast/toast";
 import {
   seedDefaultTransactionRules,
@@ -65,6 +66,7 @@ export function useTransactionRuleMutations({
     setSeedError(null);
     const result = await seedDefaultTransactionRules(csrfToken);
     setSeedPending(false);
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status !== "success") {
       setSeedError(result.message);
       return;

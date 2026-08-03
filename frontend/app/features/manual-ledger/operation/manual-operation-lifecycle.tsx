@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { redirectIfUnauthenticated } from "../../../session/unauthenticated";
 import { Button } from "../../../ui/button/button";
 import { InlineNotice } from "../../../ui/inline-notice/inline-notice";
 import type { ManualOperationDto } from "../api/manual-ledger-api";
@@ -60,10 +61,7 @@ export function ManualOperationLifecycle({
       onUpdated?.(result.operation);
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/ledger/manual");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     setState({
       status: result.status === "conflict" ? "conflict" : "error",
       message: result.message,

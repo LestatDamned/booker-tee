@@ -140,26 +140,6 @@ export function suggestedColumn(
   );
 }
 
-export function mappingColumnOptions(
-  table: ImportMappingSourceTable,
-  command: ImportMappingCommand,
-): Array<{ label: string; value: number }> {
-  const headerRow =
-    table.sampleRows.find(
-      (row) => row.rowNumber === command.firstDataRowNumber - 1,
-    ) ?? table.sampleRows[0];
-  return Array.from({ length: table.columnCount }, (_, index) => {
-    const candidateHeader = table.candidates.find(
-      (candidate) => candidate.columnIndex === index && candidate.header.trim(),
-    )?.header;
-    const rawHeader = headerRow?.cells[index]?.trim();
-    return {
-      value: index,
-      label: `${index + 1} · ${candidateHeader || rawHeader || `Колонка ${index + 1}`}`,
-    };
-  });
-}
-
 export function validateMappingDraft(
   command: ImportMappingCommand,
   table: ImportMappingSourceTable,

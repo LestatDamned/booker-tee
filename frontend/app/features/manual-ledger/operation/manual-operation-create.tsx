@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 
+import { redirectIfUnauthenticated } from "../../../session/unauthenticated";
 import { Button } from "../../../ui/button/button";
 import { FormErrorSummary } from "../../../ui/field/form-error-summary";
 import { FormActions } from "../../../ui/field/form-layout";
@@ -88,10 +89,7 @@ export function ManualOperationCreate({
       });
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/ledger/manual");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     setSubmitState({
       status: "error",
       message: result.message,

@@ -2,7 +2,7 @@ import { formatIsoDate } from "../../shared/date/format-date";
 import { formatMoneyAmount } from "../../shared/money/format-money";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import type { ImportReviewDto } from "./api/import-review-api";
-import styles from "./review-item.module.css";
+import styles from "./source-comparison.module.css";
 
 type ReviewItemDto = ImportReviewDto["items"][number];
 

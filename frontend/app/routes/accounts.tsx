@@ -1,6 +1,8 @@
-import type { AccountDirectoryLoadResult } from "../features/accounts/api/accounts-api";
 import { AccountListPage } from "../features/accounts/account-list-page";
-import { RouteStatePage } from "../ui/route-state-page/route-state-page";
+import {
+  AuthenticatedRouteStatePage,
+  type AuthenticatedRouteFailure,
+} from "../session/authenticated-route-state-page";
 import type { Route } from "./+types/accounts";
 import { loadAccountsRoute } from "./accounts-loader";
 
@@ -28,17 +30,17 @@ export function AccountsRouteView({
     session.status === "unauthenticated" ||
     accounts.status === "unauthenticated"
   ) {
-    return <RouteState result={{ status: "unauthenticated" }} />;
+    return <AccountsRouteState result={{ status: "unauthenticated" }} />;
   }
   if (session.status === "error") {
-    return <RouteState result={session} />;
+    return <AccountsRouteState result={session} />;
   }
   if (accounts.status === "error") {
-    return <RouteState result={accounts} />;
+    return <AccountsRouteState result={accounts} />;
   }
   if (session.status !== "authenticated") {
     return (
-      <RouteState
+      <AccountsRouteState
         result={{ status: "error", message: "Сессия не загружена." }}
       />
     );
@@ -48,25 +50,12 @@ export function AccountsRouteView({
   );
 }
 
-function RouteState({
-  result,
-}: {
-  result: Exclude<AccountDirectoryLoadResult, { status: "success" }>;
-}) {
-  const unauthenticated = result.status === "unauthenticated";
+function AccountsRouteState({ result }: { result: AuthenticatedRouteFailure }) {
   return (
-    <RouteStatePage
-      actionHref={
-        unauthenticated ? "/login?next=/app/accounts" : "/app/accounts"
-      }
-      actionLabel={unauthenticated ? "Войти" : "Повторить"}
-      eyebrow={unauthenticated ? "Сессия не найдена" : "Ошибка загрузки"}
-      kind={unauthenticated ? "unauthenticated" : "error"}
-      title={
-        unauthenticated ? "Войдите в Booker Tee" : "Не удалось загрузить счета"
-      }
-    >
-      {!unauthenticated ? result.message : null}
-    </RouteStatePage>
+    <AuthenticatedRouteStatePage
+      errorTitle="Не удалось загрузить счета"
+      result={result}
+      returnTo="/app/accounts"
+    />
   );
 }

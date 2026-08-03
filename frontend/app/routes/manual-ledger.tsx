@@ -1,12 +1,12 @@
 import { useNavigation, useRevalidator } from "react-router";
 
 import type { Route } from "./+types/manual-ledger";
-import type {
-  ManualLedgerLoadResult,
-  ManualOperationDto,
-} from "../features/manual-ledger/api/manual-ledger-api";
+import type { ManualOperationDto } from "../features/manual-ledger/api/manual-ledger-api";
 import { ManualLedgerPage } from "../features/manual-ledger/list/manual-ledger-page";
-import { RouteStatePage } from "../ui/route-state-page/route-state-page";
+import {
+  AuthenticatedRouteStatePage,
+  type AuthenticatedRouteFailure,
+} from "../session/authenticated-route-state-page";
 import { loadManualLedgerRoute } from "./manual-ledger-loader";
 
 export { loadManualLedgerRoute } from "./manual-ledger-loader";
@@ -53,17 +53,17 @@ export function ManualLedgerRouteView({
     session.status === "unauthenticated" ||
     ledger.status === "unauthenticated"
   ) {
-    return <RouteState result={{ status: "unauthenticated" }} />;
+    return <ManualLedgerRouteState result={{ status: "unauthenticated" }} />;
   }
   if (session.status === "error") {
-    return <RouteState result={session} />;
+    return <ManualLedgerRouteState result={session} />;
   }
   if (ledger.status === "error") {
-    return <RouteState result={ledger} />;
+    return <ManualLedgerRouteState result={ledger} />;
   }
   if (session.status !== "authenticated") {
     return (
-      <RouteState
+      <ManualLedgerRouteState
         result={{ status: "error", message: "Сессия не загружена." }}
       />
     );
@@ -80,29 +80,19 @@ export function ManualLedgerRouteView({
   );
 }
 
-function RouteState({
+function ManualLedgerRouteState({
   result,
 }: {
-  result: Exclude<ManualLedgerLoadResult, { status: "success" }>;
+  result: AuthenticatedRouteFailure;
 }) {
-  const unauthenticated = result.status === "unauthenticated";
   return (
-    <RouteStatePage
-      actionHref={
-        unauthenticated
-          ? "/login?next=/app/ledger/manual"
-          : window.location.href
-      }
-      actionLabel={unauthenticated ? "Войти" : "Повторить"}
-      eyebrow={unauthenticated ? "Сессия не найдена" : "Ошибка загрузки"}
-      kind={unauthenticated ? "unauthenticated" : "error"}
-      title={
-        unauthenticated
-          ? "Войдите в Booker Tee"
-          : "Не удалось загрузить операции"
-      }
-    >
-      {!unauthenticated ? result.message : null}
-    </RouteStatePage>
+    <AuthenticatedRouteStatePage
+      errorTitle="Не удалось загрузить операции"
+      {...(result.status === "error"
+        ? { retryHref: window.location.href }
+        : {})}
+      result={result}
+      returnTo="/app/ledger/manual"
+    />
   );
 }

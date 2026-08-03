@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { AppShell } from "../../shell/app-shell";
 import { BackLink } from "../../ui/back-link/back-link";
 import { Button } from "../../ui/button/button";
@@ -74,10 +75,7 @@ export function ImportUploadPage({
       navigate(`/imports/documents/${result.document.id}`);
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/imports/upload");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     const serverErrors = {
       accountId: result.fieldErrors.accountId?.[0],
       statement: result.fieldErrors.statement?.[0],

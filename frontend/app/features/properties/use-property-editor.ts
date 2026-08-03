@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from "react";
 
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import type {
   CreatePropertyDraft,
   PropertySummaryDto,
@@ -145,10 +146,7 @@ export function usePropertyEditor({
       window.setTimeout(() => editTriggerRef.current?.focus(), 0);
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/properties");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "conflict") {
       setEditState({
         ...submitted,
@@ -186,10 +184,7 @@ export function usePropertyEditor({
     const propertyId = editState.snapshot.id;
     setEditState({ ...editState, pending: true });
     const result = await loadProperties();
-    if (result.status === "unauthenticated") {
-      window.location.assign("/login?next=/app/properties");
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "error") {
       setEditState((current) =>
         current

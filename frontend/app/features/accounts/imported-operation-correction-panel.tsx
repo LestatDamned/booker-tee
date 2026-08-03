@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { Button } from "../../ui/button/button";
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
 import { Field } from "../../ui/field/field";
 import { FormActions } from "../../ui/field/form-layout";
@@ -120,12 +121,7 @@ export const ImportedOperationCorrectionPanel = forwardRef<
       onCommitted(result.movement);
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign(
-        `/login?next=${encodeURIComponent(window.location.pathname)}`,
-      );
-      return;
-    }
+    if (redirectIfUnauthenticated(result)) return;
     if (result.status === "conflict") {
       setConflict(result.code === "operation_version_conflict");
       setSubmitError(result.message);

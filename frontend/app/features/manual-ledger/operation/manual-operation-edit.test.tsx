@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -201,8 +201,10 @@ describe("manual operation editing", () => {
       screen.getByRole("button", { name: "Сохранить изменения" }),
     );
 
-    expect(await screen.findByTestId("location")).toHaveTextContent(
-      `/ledger/manual?type=expense&page=2&operation_id=${operationId}#operation-${operationId}`,
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        `/ledger/manual?type=expense&page=2&operation_id=${operationId}#operation-${operationId}`,
+      ),
     );
     const updateOptions = fetchMock.mock.calls[1]?.[1] as RequestInit;
     expect(updateOptions.method).toBe("PUT");

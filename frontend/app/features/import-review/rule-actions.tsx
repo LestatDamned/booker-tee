@@ -1,12 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 
+import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { Button } from "../../ui/button/button";
 import { Icon } from "../../ui/icon/icon";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import type { ImportReviewDto } from "./api/import-review-api";
 import { applyRulesToImportReview } from "./api/import-review-mutations";
-import styles from "./import-review-page.module.css";
+import {
+  ruleApplicationFailure,
+  ruleApplicationMessage,
+} from "./rule-application-model";
+import styles from "./rule-actions.module.css";
+import { useImportReviewActionFeedback } from "./use-import-review-action-feedback";
 
 type RuleActionsProps = {
   csrfToken: string;
@@ -24,18 +30,12 @@ export function RuleActions({
   readonly,
 }: RuleActionsProps) {
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [canRetry, setCanRetry] = useState(false);
-  const alertRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (error) alertRef.current?.focus();
-  }, [error]);
+  const { alertRef, clearFeedback, error, recovery, showFailure } =
+    useImportReviewActionFeedback<"retry">();
 
   async function applyRules() {
     setPending(true);
-    setError(null);
-    setCanRetry(false);
+    clearFeedback();
     const result = await applyRulesToImportReview(documentId, csrfToken);
     setPending(false);
     if (result.status === "success") {
@@ -43,28 +43,9 @@ export function RuleActions({
       onSuccess(ruleApplicationMessage(result.data));
       return;
     }
-    if (result.status === "unauthenticated") {
-      window.location.assign(
-        `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`,
-      );
-      return;
-    }
-    if (result.status === "forbidden") {
-      setError("Недостаточно прав для применения правил.");
-      setCanRetry(false);
-      return;
-    }
-    if (
-      result.status === "validation_error" ||
-      result.status === "conflict" ||
-      result.status === "error"
-    ) {
-      setError(result.message);
-      setCanRetry(true);
-      return;
-    }
-    setError("Не удалось применить правила.");
-    setCanRetry(true);
+    if (redirectIfUnauthenticated(result)) return;
+    const failure = ruleApplicationFailure(result);
+    showFailure(failure.message, failure.canRetry ? "retry" : null);
   }
 
   return (
@@ -82,10 +63,10 @@ export function RuleActions({
       {!readonly ? (
         <Button
           disabled={pending}
+          icon="filterApply"
           isLoading={pending}
           onClick={() => void applyRules()}
           tone="secondary"
-          icon="filterApply"
         >
           Применить правила
         </Button>
@@ -93,7 +74,7 @@ export function RuleActions({
       {error ? (
         <InlineNotice
           action={
-            canRetry ? (
+            recovery === "retry" ? (
               <Button
                 disabled={pending}
                 icon="retry"
@@ -116,16 +97,4 @@ export function RuleActions({
       ) : null}
     </div>
   );
-}
-
-function ruleApplicationMessage({
-  checkedCount,
-  suggestedCount,
-}: {
-  checkedCount: number;
-  suggestedCount: number;
-}) {
-  if (checkedCount === 0)
-    return "Нет строк, к которым можно применить правила.";
-  return `Проверено строк: ${checkedCount}. Предложений применено: ${suggestedCount}.`;
 }

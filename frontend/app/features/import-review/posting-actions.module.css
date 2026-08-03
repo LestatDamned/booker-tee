@@ -1,0 +1,58 @@
+.postingBox {
+  display: grid;
+  justify-items: stretch;
+  gap: var(--space-2);
+  width: 100%;
+  margin-block: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.rulePatternField {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  padding-block: var(--space-1);
+}
+
+.rulePatternLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.rulePatternLabel > svg {
+  flex: none;
+  color: var(--color-automation);
+}
+
+.rulePatternLabel small {
+  font-size: inherit;
+  font-weight: 500;
+}
+
+.rulePreview {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.rulePreview strong {
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 45rem) {
+  .postingBox {
+    justify-items: stretch;
+  }
+}

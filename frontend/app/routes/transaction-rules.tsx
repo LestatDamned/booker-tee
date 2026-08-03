@@ -1,8 +1,10 @@
 import { useNavigation, useRevalidator } from "react-router";
 
-import type { TransactionRuleDirectoryLoadResult } from "../features/transaction-rules/api/transaction-rules-api";
 import { TransactionRulesPage } from "../features/transaction-rules/transaction-rules-page";
-import { RouteStatePage } from "../ui/route-state-page/route-state-page";
+import {
+  AuthenticatedRouteStatePage,
+  type AuthenticatedRouteFailure,
+} from "../session/authenticated-route-state-page";
 import type { Route } from "./+types/transaction-rules";
 import { loadTransactionRulesRoute } from "./transaction-rules-loader";
 
@@ -44,13 +46,17 @@ export function TransactionRulesRouteView({
     session.status === "unauthenticated" ||
     rules.status === "unauthenticated"
   ) {
-    return <RouteState result={{ status: "unauthenticated" }} />;
+    return (
+      <TransactionRulesRouteState result={{ status: "unauthenticated" }} />
+    );
   }
-  if (session.status === "error") return <RouteState result={session} />;
-  if (rules.status === "error") return <RouteState result={rules} />;
+  if (session.status === "error")
+    return <TransactionRulesRouteState result={session} />;
+  if (rules.status === "error")
+    return <TransactionRulesRouteState result={rules} />;
   if (session.status !== "authenticated") {
     return (
-      <RouteState
+      <TransactionRulesRouteState
         result={{ status: "error", message: "Сессия не загружена." }}
       />
     );
@@ -65,27 +71,19 @@ export function TransactionRulesRouteView({
   );
 }
 
-function RouteState({
+function TransactionRulesRouteState({
   result,
 }: {
-  result: Exclude<TransactionRuleDirectoryLoadResult, { status: "success" }>;
+  result: AuthenticatedRouteFailure;
 }) {
-  const unauthenticated = result.status === "unauthenticated";
   return (
-    <RouteStatePage
-      actionHref={
-        unauthenticated ? "/login?next=/app/rules" : window.location.href
-      }
-      actionLabel={unauthenticated ? "Войти" : "Повторить"}
-      eyebrow={unauthenticated ? "Сессия не найдена" : "Ошибка загрузки"}
-      kind={unauthenticated ? "unauthenticated" : "error"}
-      title={
-        unauthenticated
-          ? "Войдите в Booker Tee"
-          : "Не удалось загрузить правила операций"
-      }
-    >
-      {!unauthenticated ? result.message : null}
-    </RouteStatePage>
+    <AuthenticatedRouteStatePage
+      errorTitle="Не удалось загрузить правила операций"
+      {...(result.status === "error"
+        ? { retryHref: window.location.href }
+        : {})}
+      result={result}
+      returnTo="/app/rules"
+    />
   );
 }

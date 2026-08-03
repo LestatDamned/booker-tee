@@ -1,11 +1,20 @@
 import { z } from "zod";
 
-import type { components } from "../../../api/generated/schema";
 import {
-  parseApiError,
-  requestJson,
-  type ApiErrorDetails,
-} from "../../../api/transport";
+  apiForbiddenFailure,
+  apiLoadError,
+  apiLoadNetworkError,
+  apiMutationError,
+  apiMutationNetworkError,
+  apiUnauthenticatedFailure,
+  apiUnexpectedStatusError,
+  type ApiForbiddenFailure,
+  type ApiLoadError,
+  type ApiMutationError,
+  type ApiUnauthenticatedFailure,
+} from "../../../api/failures";
+import type { components } from "../../../api/generated/schema";
+import { parseApiError, requestJson } from "../../../api/transport";
 
 export type AccountDetailDto =
   components["schemas"]["AccountDetailApiResponse"];
@@ -82,9 +91,9 @@ export const accountDetailSchema: z.ZodType<AccountDetailDto> = z.object({
 
 export type AccountDetailLoadResult =
   | { status: "success"; detail: AccountDetailDto }
-  | { status: "unauthenticated" }
+  | ApiUnauthenticatedFailure
   | { status: "not_found" }
-  | { status: "error"; message: string };
+  | ApiLoadError;
 
 export type ImportedOperationCorrectionDraft = {
   categoryId: string | null;
@@ -95,10 +104,10 @@ export type ImportedOperationCorrectionDraft = {
 
 export type ImportedOperationCorrectionResult =
   | { status: "success"; movement: AccountDetailDto["items"][number] }
-  | { status: "unauthenticated" }
-  | { status: "forbidden"; message: string }
+  | ApiUnauthenticatedFailure
+  | ApiForbiddenFailure
   | { status: "conflict"; code: string; message: string }
-  | ({ status: "error" } & ApiErrorDetails);
+  | ApiMutationError;
 
 export async function loadAccountDetail(
   accountId: string,
@@ -109,23 +118,17 @@ export async function loadAccountDetail(
     ...(signal ? { signal } : {}),
   });
   if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
+    return apiLoadNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   if (response.httpStatus === 404) return { status: "not_found" };
   if (!response.ok) {
-    return {
-      status: "error",
-      message: `API вернул статус ${response.httpStatus}.`,
-    };
+    return apiUnexpectedStatusError(response.httpStatus);
   }
   const parsed = accountDetailSchema.safeParse(response.body);
   return parsed.success
     ? { status: "success", detail: parsed.data }
-    : {
-        status: "error",
-        message: "API вернул проводки счёта неожиданного формата.",
-      };
+    : apiLoadError("API вернул проводки счёта неожиданного формата.");
 }
 
 export async function updateImportedOperationReviewFields({
@@ -151,20 +154,12 @@ export async function updateImportedOperationReviewFields({
     },
   );
   if (response.status === "network_error") {
-    return {
-      status: "error",
-      code: "network_error",
-      fieldErrors: {},
-      message: "Backend недоступен. Проверьте соединение и повторите.",
-    };
+    return apiMutationNetworkError();
   }
-  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   const apiError = parseApiError(response.body);
   if (response.httpStatus === 403) {
-    return {
-      status: "forbidden",
-      message: apiError?.message ?? "Исправление операции недоступно.",
-    };
+    return apiForbiddenFailure(apiError, "Исправление операции недоступно.");
   }
   if (response.httpStatus === 409) {
     return {
@@ -174,21 +169,17 @@ export async function updateImportedOperationReviewFields({
     };
   }
   if (!response.ok) {
-    return {
-      status: "error",
-      code: apiError?.code ?? "operation_correction_failed",
-      fieldErrors: apiError?.fieldErrors ?? {},
-      message: apiError?.message ?? "Не удалось сохранить исправления.",
-    };
+    return apiMutationError(apiError, {
+      fallbackCode: "operation_correction_failed",
+      fallbackMessage: "Не удалось сохранить исправления.",
+    });
   }
   const parsed = accountMovementSchema.safeParse(response.body);
   if (!parsed.success) {
-    return {
-      status: "error",
-      code: "invalid_movement_response",
-      fieldErrors: {},
-      message: "API вернул операцию неожиданного формата.",
-    };
+    return apiMutationError(null, {
+      fallbackCode: "invalid_movement_response",
+      fallbackMessage: "API вернул операцию неожиданного формата.",
+    });
   }
   return { status: "success", movement: parsed.data };
 }
