@@ -99,7 +99,7 @@ def run_flow(*, base_url: str, email: str, password: str, output_dir: Path) -> N
         initial_id = str(initial_workspace["id"])
         initial_name = str(initial_workspace["name"])
 
-        page.get_by_role("button", name="Создать пространство").click()
+        page.get_by_role("button", name="Новое пространство").click()
         expect(page.get_by_label("Название", exact=False)).to_be_focused()
         page.get_by_label("Название", exact=False).fill("Семейный бюджет Slice 1")
         page.get_by_label("Тип", exact=False).select_option("family")
@@ -136,7 +136,7 @@ def run_flow(*, base_url: str, email: str, password: str, output_dir: Path) -> N
         page.goto(f"{base_url}/app/workspaces", wait_until="networkidle")
         page.get_by_role(
             "button",
-            name=f"Перейти в пространство «{initial_name}»",
+            name=f"Выбрать пространство «{initial_name}»",
             exact=True,
         ).click()
         expect(page.get_by_text(f"Текущее пространство: «{initial_name}».")).to_be_visible(

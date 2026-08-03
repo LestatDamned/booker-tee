@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,8 @@ from app.features.chat_integrations.models import (
     ChatConversationState,
     ChatIdentityBinding,
     ChatNotificationLevel,
+    IntegrationConnection,
+    IntegrationConnectionStatus,
     IntegrationDeliveryStatus,
     IntegrationEventDelivery,
 )
@@ -22,6 +24,31 @@ from app.features.chat_integrations.schemas import ChatProviderCode
 class ChatIntegrationRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def count_active_connections_for_workspace(self, workspace_id: UUID) -> int:
+        result = await self.session.execute(
+            select(func.count())
+            .select_from(IntegrationConnection)
+            .where(
+                IntegrationConnection.workspace_id == workspace_id,
+                IntegrationConnection.status == IntegrationConnectionStatus.ACTIVE,
+            )
+        )
+        return result.scalar_one()
+
+    async def count_active_identity_bindings_for_workspace(
+        self,
+        workspace_id: UUID,
+    ) -> int:
+        result = await self.session.execute(
+            select(func.count())
+            .select_from(ChatIdentityBinding)
+            .where(
+                ChatIdentityBinding.workspace_id == workspace_id,
+                ChatIdentityBinding.is_active.is_(True),
+            )
+        )
+        return result.scalar_one()
 
     async def get_active_identity_binding(
         self,

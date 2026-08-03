@@ -1,7 +1,7 @@
 # Workspaces replacement test manifest
 
-Статус: accepted replacement manifest; Slice 0 characterization and Slice 1
-production gate complete.
+Статус: accepted replacement manifest; Slice 0 characterization and Slice 1–2
+production gates complete.
 
 ## Existing evidence
 
@@ -41,11 +41,11 @@ real repository reads, then let ordinary flush/commit behavior run: no fake
 transaction or lock implementation is involved. These tests are evidence of
 known gaps, not waived requirements.
 
-Current gaps after Slice 1: settings same-actor foreign/missing route outcomes
-still need a database-backed matrix; PostgreSQL invitation/last-owner locking
-fixes remain later-slice work but their failure mode is no longer ambiguous.
-React/API tests now cover directory/create/select; settings, members,
-invitations and lifecycle still have no replacement evidence.
+Current gaps after Slice 2: PostgreSQL invitation/last-owner locking fixes
+remain later-slice work but their failure mode is no longer ambiguous. Settings
+now has application/API/React evidence plus a real database-backed
+foreign/missing and concurrent-stale matrix. Members, invitations and lifecycle
+mutations still have no replacement evidence.
 
 The accepted Slice 1 contract now has a standalone non-runtime visual prototype
 at `docs/frontend/plan/workspaces/prototype/index.html`. Its 2026-08-03 capture
@@ -74,6 +74,23 @@ test-environment failure, not a Workspaces code regression. The disposable
 `booker_tee_reparse_test` database was then recreated at current head; the two
 Slice 1 PostgreSQL concurrency cases and the previously failing FK guard pass
 there (`3 passed`). The temporary verification database was removed.
+
+## Slice 2 production evidence
+
+| Evidence | Test/command | Result on 2026-08-03 |
+| --- | --- | --- |
+| Target-scoped read, owner-only update, normalization, lifecycle privacy and rollback | `test_workspace_settings_application.py` | pass |
+| Auth/CSRF, response schema, 403/404 masking, 409 stale and 422 fields | `test_workspaces_api.py` | pass |
+| Real row lock gives exactly one winner; foreign/missing outcomes match | `test_workspace_settings_postgres.py` | 2 pass |
+| Strict runtime DTO parsing and stable errors | `workspace-settings-api.test.ts` | pass |
+| Owner form, read-only member projection, stale snapshot reset and lifecycle copy | `workspace-settings-page.test.tsx` | pass |
+| Deep-link loader/route states and directory settings links | `routes/workspace-settings.test.tsx`, existing Workspaces React tests | pass |
+| Personal/shared owner flow, current shell identity, real stale snapshot recovery and 1440/920/390 geometry | `scripts/workspaces_slice02_browser.py` | pass; one expected 409, zero unexpected console/page errors, overflow or visible targets below 44 px |
+| Full backend regression on current PostgreSQL head | `pytest -q` with `BOOKER_TEE_TEST_DATABASE_URL` | 773 pass, 6 known strict xfail |
+| Full frontend regression | `vitest run` | 76 files, 459 pass |
+
+Screenshots and the machine-readable browser report are disposable artifacts in
+`/tmp/booker-workspaces-slice02-browser`; they are not runtime assets.
 
 ## Server/application tests required
 
@@ -162,7 +179,8 @@ after cutover and new schemas are camelCase/generated/runtime-validated.
 - switch success discards old snapshots/drafts and performs safe boundary
   navigation; late old-workspace response is ignored/aborted;
 - switch conflict refreshes session truth;
-- create/settings/member drafts survive 422 and 409;
+- create/member drafts survive recoverable errors; settings retains input on
+  `422` but resets its short form to the authoritative snapshot on `409`;
 - pending buttons disable double submit and expose busy state;
 - one-time invite credential disappears on dismissal/navigation and is absent
   after reload;

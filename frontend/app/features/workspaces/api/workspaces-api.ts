@@ -21,7 +21,7 @@ export type WorkspaceDirectoryItemDto =
   components["schemas"]["WorkspaceDirectoryItemApiResponse"];
 export type WorkspaceType = WorkspaceDirectoryItemDto["type"];
 
-const workspaceTypeSchema = z.enum([
+export const workspaceTypeSchema = z.enum([
   "personal",
   "family",
   "business",
@@ -29,7 +29,7 @@ const workspaceTypeSchema = z.enum([
   "project",
   "other",
 ]);
-const workspaceRoleSchema = z.enum([
+export const workspaceRoleSchema = z.enum([
   "owner",
   "admin",
   "editor",

@@ -169,14 +169,14 @@ function ShellContext({
   return (
     <div className={styles.shellContext}>
       <a
-        aria-label={`Текущий workspace: ${session.workspace.name}. Открыть пространства`}
+        aria-label={`Текущее пространство: ${session.workspace.name}. Открыть рабочие пространства`}
         className={styles.workspaceCard}
         href="/workspaces"
         onClick={onNavigate}
       >
-        <span className={styles.contextEyebrow}>Текущий workspace</span>
+        <span className={styles.contextEyebrow}>Текущее пространство</span>
         <strong title={session.workspace.name}>{session.workspace.name}</strong>
-        <small>Все пространства</small>
+        <small>Рабочие пространства</small>
       </a>
 
       <ShellNavigation currentPath={currentPath} onNavigate={onNavigate} />

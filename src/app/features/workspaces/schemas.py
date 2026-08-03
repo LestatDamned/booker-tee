@@ -60,3 +60,39 @@ class WorkspaceDirectoryDto(ApplicationModel):
     capabilities: WorkspaceDirectoryCapabilitiesDto
     workspace_type_options: list[WorkspaceOptionDto]
     currency_options: list[WorkspaceOptionDto]
+
+
+class WorkspaceSettingsCapabilitiesDto(ApplicationModel):
+    can_update: bool
+    can_manage_members: bool
+    can_invite: bool
+    can_deactivate: bool
+    can_restore: bool
+
+
+class WorkspaceLifecycleImpactDto(ApplicationModel):
+    financial_history_preserved: bool
+    current_session_count: int
+    pending_invitation_count: int
+    active_integration_connection_count: int
+    active_chat_identity_binding_count: int
+
+
+class WorkspaceSettingsItemDto(ApplicationModel):
+    id: UUID
+    name: str
+    type: WorkspaceType
+    default_currency: str
+    is_active: bool
+    archived_at: datetime | None
+    updated_at: datetime
+    membership: WorkspaceMembershipDto
+    capabilities: WorkspaceSettingsCapabilitiesDto
+    blocking_reason_codes: list[WorkspaceBlockingReason]
+
+
+class WorkspaceSettingsDto(ApplicationModel):
+    workspace: WorkspaceSettingsItemDto
+    workspace_type_options: list[WorkspaceOptionDto]
+    currency_options: list[WorkspaceOptionDto]
+    lifecycle_impact: WorkspaceLifecycleImpactDto | None

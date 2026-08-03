@@ -765,6 +765,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Workspace Settings */
+        get: operations["get_workspace_settings_api_v1_workspaces__workspace_id__get"];
+        /** Update Workspace Settings */
+        put: operations["update_workspace_settings_api_v1_workspaces__workspace_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/chat-integrations/telegram/webhook": {
         parameters: {
             query?: never;
@@ -3932,6 +3950,19 @@ export interface components {
              */
             expectedUpdatedAt: string;
         };
+        /** UpdateWorkspaceSettingsApiRequest */
+        UpdateWorkspaceSettingsApiRequest: {
+            /** Name */
+            name: string;
+            workspaceType: components["schemas"]["WorkspaceType"];
+            /** Defaultcurrency */
+            defaultCurrency: string;
+            /**
+             * Expectedupdatedat
+             * Format: date-time
+             */
+            expectedUpdatedAt: string;
+        };
         /**
          * UploadedDocumentStatus
          * @enum {string}
@@ -4020,6 +4051,19 @@ export interface components {
             /** Canrestore */
             canRestore: boolean;
         };
+        /** WorkspaceLifecycleImpactApiResponse */
+        WorkspaceLifecycleImpactApiResponse: {
+            /** Financialhistorypreserved */
+            financialHistoryPreserved: boolean;
+            /** Currentsessioncount */
+            currentSessionCount: number;
+            /** Pendinginvitationcount */
+            pendingInvitationCount: number;
+            /** Activeintegrationconnectioncount */
+            activeIntegrationConnectionCount: number;
+            /** Activechatidentitybindingcount */
+            activeChatIdentityBindingCount: number;
+        };
         /**
          * WorkspaceMemberStatus
          * @enum {string}
@@ -4068,6 +4112,54 @@ export interface components {
          * @enum {string}
          */
         WorkspaceRole: "owner" | "admin" | "editor" | "viewer" | "uploader" | "analyst";
+        /** WorkspaceSettingsApiResponse */
+        WorkspaceSettingsApiResponse: {
+            workspace: components["schemas"]["WorkspaceSettingsItemApiResponse"];
+            /** Workspacetypeoptions */
+            workspaceTypeOptions: components["schemas"]["WorkspaceOptionApiResponse"][];
+            /** Currencyoptions */
+            currencyOptions: components["schemas"]["WorkspaceOptionApiResponse"][];
+            lifecycleImpact: components["schemas"]["WorkspaceLifecycleImpactApiResponse"] | null;
+        };
+        /** WorkspaceSettingsCapabilitiesApiResponse */
+        WorkspaceSettingsCapabilitiesApiResponse: {
+            /** Canupdate */
+            canUpdate: boolean;
+            /** Canmanagemembers */
+            canManageMembers: boolean;
+            /** Caninvite */
+            canInvite: boolean;
+            /** Candeactivate */
+            canDeactivate: boolean;
+            /** Canrestore */
+            canRestore: boolean;
+        };
+        /** WorkspaceSettingsItemApiResponse */
+        WorkspaceSettingsItemApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            type: components["schemas"]["WorkspaceType"];
+            /** Defaultcurrency */
+            defaultCurrency: string;
+            /** Isactive */
+            isActive: boolean;
+            /** Archivedat */
+            archivedAt: string | null;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            membership: components["schemas"]["WorkspaceMembershipApiResponse"];
+            capabilities: components["schemas"]["WorkspaceSettingsCapabilitiesApiResponse"];
+            /** Blockingreasoncodes */
+            blockingReasonCodes: components["schemas"]["WorkspaceBlockingReason"][];
+        };
         /**
          * WorkspaceType
          * @enum {string}
@@ -7753,6 +7845,126 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_workspace_settings_api_v1_workspaces__workspace_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceSettingsApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_workspace_settings_api_v1_workspaces__workspace_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateWorkspaceSettingsApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceSettingsApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };

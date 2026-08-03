@@ -33,18 +33,20 @@ describe("WorkspacesPage", () => {
   it("shows current, selectable and inactive records without clickable rows", () => {
     renderPage();
 
-    expect(screen.getByRole("heading", { name: "Пространства" })).toHaveFocus();
-    expect(screen.getAllByText("Дом")).toHaveLength(6);
+    expect(
+      screen.getByRole("heading", { name: "Рабочие пространства" }),
+    ).toHaveFocus();
+    expect(screen.getAllByText("Дом")).toHaveLength(5);
     expect(screen.getAllByText("Текущее")).toHaveLength(2);
-    expect(screen.getAllByText("Доступно")).toHaveLength(2);
+    expect(screen.getAllByText("Активно")).toHaveLength(2);
     expect(screen.getAllByText("Неактивно")).toHaveLength(2);
     expect(
       screen.getAllByRole("button", {
-        name: "Перейти в пространство «Семейный бюджет»",
+        name: "Выбрать пространство «Семейный бюджет»",
       }),
     ).toHaveLength(2);
     expect(
-      screen.queryByRole("button", { name: "Перейти в пространство «Дом»" }),
+      screen.queryByRole("button", { name: "Выбрать пространство «Дом»" }),
     ).toBeNull();
     expect(screen.queryByRole("link", { name: "Семейный бюджет" })).toBeNull();
   });
@@ -54,7 +56,7 @@ describe("WorkspacesPage", () => {
     renderPage();
 
     await user.click(
-      screen.getByRole("button", { name: "Создать пространство" }),
+      screen.getByRole("button", { name: "Новое пространство" }),
     );
     await user.click(screen.getByRole("button", { name: "Создать и перейти" }));
     expect(screen.getByText("Введите название пространства.")).toBeVisible();
@@ -89,7 +91,7 @@ describe("WorkspacesPage", () => {
     renderPage(boundaryNavigate);
 
     await user.click(
-      screen.getByRole("button", { name: "Создать пространство" }),
+      screen.getByRole("button", { name: "Новое пространство" }),
     );
     await user.type(screen.getByLabelText(/Название/), "Новый проект");
     await user.selectOptions(screen.getByLabelText(/Тип/), "project");
@@ -126,7 +128,7 @@ describe("WorkspacesPage", () => {
     renderPage(boundaryNavigate);
 
     const actions = screen.getAllByRole("button", {
-      name: "Перейти в пространство «Семейный бюджет»",
+      name: "Выбрать пространство «Семейный бюджет»",
     });
     await user.click(actions[0]!);
     expect(screen.getAllByText("Переключаем…")).toHaveLength(2);
@@ -157,7 +159,7 @@ describe("WorkspacesPage", () => {
 
     await user.click(
       screen.getAllByRole("button", {
-        name: "Перейти в пространство «Семейный бюджет»",
+        name: "Выбрать пространство «Семейный бюджет»",
       })[0]!,
     );
 
@@ -193,7 +195,7 @@ describe("WorkspacesPage", () => {
 
     await user.click(
       screen.getAllByRole("button", {
-        name: "Перейти в пространство «Семейный бюджет»",
+        name: "Выбрать пространство «Семейный бюджет»",
       })[0]!,
     );
 
@@ -208,7 +210,7 @@ describe("WorkspacesPage", () => {
 
     expect(screen.getByText("Нет доступных пространств")).toBeVisible();
     expect(
-      screen.getAllByRole("button", { name: "Создать пространство" }),
+      screen.getAllByRole("button", { name: "Новое пространство" }),
     ).toHaveLength(1);
   });
 });

@@ -12,7 +12,6 @@ import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
 import { ResponsiveRecordCollection } from "../../ui/responsive-record-collection/responsive-record-collection";
 import { WorkbenchEmptyState } from "../../ui/workbench-empty-state/workbench-empty-state";
-import { WorkbenchStatus } from "../../ui/workbench-content/workbench-status";
 import { WorkbenchHeader } from "../../ui/workbench-surface/workbench-header";
 import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import {
@@ -221,7 +220,7 @@ export function WorkspacesPage({
       onClick={openCreate}
       tone="primary"
     >
-      Создать пространство
+      Новое пространство
     </Button>
   ) : null;
 
@@ -234,23 +233,14 @@ export function WorkspacesPage({
               actions={directory.items.length === 0 ? null : createAction}
               description={
                 currentWorkspace
-                  ? `Сейчас: ${currentWorkspace.name}. Выберите контекст, в котором будут открываться финансовые данные.`
-                  : "Создайте финансовый контекст, чтобы начать работу."
+                  ? "Выберите пространство, с финансовыми данными которого хотите работать."
+                  : "Создайте первое пространство, чтобы начать работу с финансами."
               }
-              eyebrow="Финансовый контекст"
-              title="Пространства"
+              eyebrow={workspaceCountLabel(directory.items.length)}
+              title="Рабочие пространства"
               titleId="workspaces-page-title"
             />
           </WorkbenchHeader>
-
-          <WorkbenchStatus className={styles.directoryStatus}>
-            <span>{workspaceCountLabel(directory.items.length)}</span>
-            {currentWorkspace ? (
-              <span>
-                Текущее: <strong>{currentWorkspace.name}</strong>
-              </span>
-            ) : null}
-          </WorkbenchStatus>
 
           {successMessage ? (
             <InlineNotice

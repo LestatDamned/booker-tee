@@ -58,7 +58,7 @@ describe("SessionShell", () => {
     const sidebar = screen.getByRole("complementary");
     expect(
       within(sidebar).getByRole("link", {
-        name: "Текущий workspace: Personal ledger. Открыть пространства",
+        name: "Текущее пространство: Personal ledger. Открыть рабочие пространства",
       }),
     ).toHaveAttribute("href", "/workspaces");
     expect(
@@ -67,7 +67,7 @@ describe("SessionShell", () => {
       }),
     ).toHaveAttribute("href", "/users");
     expect(
-      within(screen.getByRole("main")).queryByText("Текущий workspace"),
+      within(screen.getByRole("main")).queryByText("Текущее пространство"),
     ).not.toBeInTheDocument();
 
     const desktopNavigation = within(sidebar).getByRole("navigation", {

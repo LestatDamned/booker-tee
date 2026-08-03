@@ -83,6 +83,45 @@ class WorkspaceRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_visible_membership_for_user(
+        self,
+        *,
+        user_id: UUID,
+        workspace_id: UUID,
+    ) -> WorkspaceMember | None:
+        result = await self.session.execute(
+            select(WorkspaceMember)
+            .join(Workspace)
+            .options(selectinload(WorkspaceMember.workspace))
+            .where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == user_id,
+                WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_visible_membership_for_user_for_update(
+        self,
+        *,
+        user_id: UUID,
+        workspace_id: UUID,
+    ) -> WorkspaceMember | None:
+        result = await self.session.execute(
+            select(WorkspaceMember)
+            .join(Workspace)
+            .options(selectinload(WorkspaceMember.workspace))
+            .where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == user_id,
+                WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+            )
+            .with_for_update(of=Workspace)
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def get_member_by_id(
         self,
         *,
@@ -134,6 +173,17 @@ class WorkspaceRepository:
             .order_by(WorkspaceInvitation.created_at)
         )
         return list(result.scalars().all())
+
+    async def count_pending_invitations(self, workspace_id: UUID) -> int:
+        result = await self.session.execute(
+            select(func.count())
+            .select_from(WorkspaceInvitation)
+            .where(
+                WorkspaceInvitation.workspace_id == workspace_id,
+                WorkspaceInvitation.status == WorkspaceInvitationStatus.PENDING,
+            )
+        )
+        return result.scalar_one()
 
     async def list_recent_audit_events(
         self,

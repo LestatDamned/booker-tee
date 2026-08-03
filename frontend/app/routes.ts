@@ -17,4 +17,5 @@ export default [
   route("reports", "routes/reports.tsx"),
   route("rules", "routes/transaction-rules.tsx"),
   route("workspaces", "routes/workspaces.tsx"),
+  route("workspaces/:workspaceId/settings", "routes/workspace-settings.tsx"),
 ] satisfies RouteConfig;

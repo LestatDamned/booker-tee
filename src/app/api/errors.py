@@ -95,7 +95,7 @@ async def api_validation_exception_handler(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         code=(
             "workspace_validation_error"
-            if request.url.path == "/api/v1/workspaces"
+            if request.url.path.startswith("/api/v1/workspaces")
             else "validation_error"
         ),
         message="Проверьте переданные данные.",

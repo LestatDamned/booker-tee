@@ -62,6 +62,42 @@ class WorkspaceDirectoryApiResponse(ApiModel):
     currency_options: list[WorkspaceOptionApiResponse]
 
 
+class WorkspaceSettingsCapabilitiesApiResponse(ApiModel):
+    can_update: bool
+    can_manage_members: bool
+    can_invite: bool
+    can_deactivate: bool
+    can_restore: bool
+
+
+class WorkspaceLifecycleImpactApiResponse(ApiModel):
+    financial_history_preserved: bool
+    current_session_count: int
+    pending_invitation_count: int
+    active_integration_connection_count: int
+    active_chat_identity_binding_count: int
+
+
+class WorkspaceSettingsItemApiResponse(ApiModel):
+    id: UUID
+    name: str
+    type: WorkspaceType
+    default_currency: str
+    is_active: bool
+    archived_at: datetime | None
+    updated_at: datetime
+    membership: WorkspaceMembershipApiResponse
+    capabilities: WorkspaceSettingsCapabilitiesApiResponse
+    blocking_reason_codes: list[WorkspaceBlockingReason]
+
+
+class WorkspaceSettingsApiResponse(ApiModel):
+    workspace: WorkspaceSettingsItemApiResponse
+    workspace_type_options: list[WorkspaceOptionApiResponse]
+    currency_options: list[WorkspaceOptionApiResponse]
+    lifecycle_impact: WorkspaceLifecycleImpactApiResponse | None
+
+
 class CreateWorkspaceApiRequest(ApiRequestModel):
     name: str = Field(max_length=255)
     workspace_type: WorkspaceType
@@ -94,6 +130,37 @@ class CreateWorkspaceApiRequest(ApiRequestModel):
 
 class SelectWorkspaceApiRequest(ApiRequestModel):
     expected_current_workspace_id: UUID
+
+
+class UpdateWorkspaceSettingsApiRequest(ApiRequestModel):
+    name: str = Field(max_length=255)
+    workspace_type: WorkspaceType
+    default_currency: str = Field(min_length=3, max_length=3)
+    expected_updated_at: datetime
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: object) -> object:
+        if isinstance(value, str):
+            return " ".join(value.split())
+        return value
+
+    @field_validator("name")
+    @classmethod
+    def require_name(cls, name: str) -> str:
+        if not name:
+            raise PydanticCustomError(
+                "workspace_name_required",
+                "Название пространства обязательно.",
+            )
+        return name
+
+    @field_validator("default_currency", mode="before")
+    @classmethod
+    def normalize_currency(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().upper()
+        return value
 
 
 class WorkspaceNavigationOutcomeApiResponse(ApiModel):

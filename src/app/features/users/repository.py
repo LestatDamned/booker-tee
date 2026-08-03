@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -77,6 +77,18 @@ class UserRepository:
             .with_for_update()
         )
         return result.scalar_one_or_none()
+
+    async def count_active_sessions_for_workspace(self, workspace_id: UUID) -> int:
+        result = await self.session.execute(
+            select(func.count())
+            .select_from(UserSession)
+            .where(
+                UserSession.current_workspace_id == workspace_id,
+                UserSession.revoked_at.is_(None),
+                UserSession.expires_at > utc_now(),
+            )
+        )
+        return result.scalar_one()
 
     async def revoke_session(self, user_session: UserSession) -> None:
         user_session.revoked_at = utc_now()

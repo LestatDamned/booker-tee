@@ -254,6 +254,23 @@ not merely an editable entity.
 - Personal/shared use the same shell; unavailable collaboration section shows
   a server reason only when the user may know the feature exists.
 
+### Slice 1–2 visual hardening — 2026-08-03
+
+- Directory uses the same header/table/action rhythm as Accounts and
+  Properties: one count eyebrow, one clear title, no duplicate current-workspace
+  status strip and a stable two-column action grid.
+- Programmatic route focus keeps its screen-reader announcement without drawing
+  a non-interactive rectangle around the page title.
+- Settings uses one `WorkbenchSurface` with flat, divider-separated sections;
+  nested card-on-card presentation was removed.
+- User-facing copy avoids internal terms such as `workspace`, `Read-only`,
+  `lifecycle` and `Chat binding`; mobile form actions use short labels that do
+  not wrap.
+- Production captures at 1440/920/390 pass without horizontal overflow,
+  undersized visible targets, console errors or page errors
+  (`scripts/workspaces_slice01_browser.py`,
+  `scripts/workspaces_slice02_browser.py`).
+
 ## Accessibility and keyboard contract (proposed gate)
 
 - Route change focuses main heading; AppShell skip link continues to work.
@@ -268,8 +285,10 @@ not merely an editable entity.
   workspace.
 - Pending mutation sets disabled/busy on the initiating button and prevents
   duplicate submit.
-- Error summary focuses first invalid field; `409` notice keeps draft and offers
-  reload/retry/discard.
+- Error summary focuses first invalid field. For short workspace settings a
+  `409` automatically reloads authoritative values and asks the user to repeat
+  the edit; longer workflows may offer reload/retry/discard with draft
+  preservation.
 - Toast uses polite live status and never steals focus.
 - At 390 px no horizontal page overflow; long workspace names, emails and invite
   links wrap or use an explicitly accessible disclosure.

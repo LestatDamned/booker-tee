@@ -1,4 +1,4 @@
-import { Button } from "../../ui/button/button";
+import { Button, RouterButtonLink } from "../../ui/button/button";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import { Tag } from "../../ui/tag/tag";
 import type { WorkspaceDirectoryItemDto } from "./api/workspaces-api";
@@ -40,7 +40,6 @@ export function WorkspaceTable({
           >
             <th scope="row">
               <strong data-record-identity>{workspace.name}</strong>
-              <span className={styles.recordHint}>Финансовый контекст</span>
             </th>
             <td>
               <WorkspaceTypeAndCurrency workspace={workspace} />
@@ -50,7 +49,7 @@ export function WorkspaceTable({
               <WorkspaceStatus workspace={workspace} />
             </td>
             <td className={styles.actionCell}>
-              <WorkspaceSelectAction
+              <WorkspaceActions
                 allPending={pendingId !== null}
                 onSelect={onSelect}
                 pending={pendingId === workspace.id}
@@ -94,29 +93,55 @@ export function WorkspaceMobileList({
                 <dt>Ваш доступ</dt>
                 <dd>{workspaceRoleLabel(workspace.membership.role)}</dd>
               </div>
-              <div>
-                <dt>Тип</dt>
-                <dd>{workspaceTypeLabel(workspace.type)}</dd>
-              </div>
-              <div>
-                <dt>Валюта</dt>
-                <dd>{workspace.defaultCurrency}</dd>
-              </div>
             </dl>
-            {workspace.capabilities.canSelect ? (
-              <div className={styles.mobileAction}>
-                <WorkspaceSelectAction
-                  allPending={pendingId !== null}
-                  onSelect={onSelect}
-                  pending={pendingId === workspace.id}
-                  workspace={workspace}
-                />
-              </div>
-            ) : null}
+            <div className={styles.mobileAction}>
+              <WorkspaceActions
+                allPending={pendingId !== null}
+                onSelect={onSelect}
+                pending={pendingId === workspace.id}
+                workspace={workspace}
+              />
+            </div>
           </article>
         </li>
       ))}
     </ol>
+  );
+}
+
+function WorkspaceActions({
+  allPending,
+  onSelect,
+  pending,
+  workspace,
+}: {
+  allPending: boolean;
+  onSelect: WorkspaceRecordsProps["onSelect"];
+  pending: boolean;
+  workspace: WorkspaceDirectoryItemDto;
+}) {
+  return (
+    <div className={styles.recordActions}>
+      <RouterButtonLink
+        aria-label={`Настройки пространства «${workspace.name}»`}
+        className={
+          workspace.capabilities.canSelect
+            ? undefined
+            : styles.singleRecordAction
+        }
+        icon="edit"
+        tone="secondary"
+        to={`/workspaces/${workspace.id}/settings`}
+      >
+        Настройки
+      </RouterButtonLink>
+      <WorkspaceSelectAction
+        allPending={allPending}
+        onSelect={onSelect}
+        pending={pending}
+        workspace={workspace}
+      />
+    </div>
   );
 }
 
@@ -148,7 +173,7 @@ function WorkspaceStatus({
   if (!workspace.isActive) {
     return <StatusLabel tone="neutral">Неактивно</StatusLabel>;
   }
-  return <StatusLabel tone="success">Доступно</StatusLabel>;
+  return <StatusLabel tone="success">Активно</StatusLabel>;
 }
 
 function WorkspaceSelectAction({
@@ -165,14 +190,13 @@ function WorkspaceSelectAction({
   if (!workspace.capabilities.canSelect) return null;
   return (
     <Button
-      aria-label={`Перейти в пространство «${workspace.name}»`}
-      className={styles.switchAction ?? ""}
+      aria-label={`Выбрать пространство «${workspace.name}»`}
       disabled={allPending}
       isLoading={pending}
       onClick={() => onSelect(workspace)}
       tone="primary"
     >
-      {pending ? "Переключаем…" : "Перейти"}
+      {pending ? "Переключаем…" : "Выбрать"}
     </Button>
   );
 }

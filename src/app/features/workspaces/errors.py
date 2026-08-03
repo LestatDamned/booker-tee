@@ -18,3 +18,11 @@ class WorkspaceIdempotencyConflictError(WorkspaceError):
 
 class WorkspaceSessionNotFoundError(WorkspaceError):
     pass
+
+
+class WorkspaceSettingsForbiddenError(WorkspaceError):
+    pass
+
+
+class WorkspaceUpdateConflictError(WorkspaceError):
+    pass

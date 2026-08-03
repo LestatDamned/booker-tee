@@ -56,20 +56,21 @@ separate credential boundary, not an ordinary workspace read.
 | Browser route | Ownership |
 | --- | --- |
 | `/app/workspaces` | React directory/create/switch |
-| `/app/workspaces/:workspaceId/settings` | React authenticated settings/access/activity after its gate |
+| `/app/workspaces/:workspaceId/settings` | React general settings and lifecycle impact read model; members/invites/activity remain later slices |
 | `/workspaces?...` | Historical query-preserving 307 only after full directory replacement |
 | `/workspaces/invitations/:token` | Kept public bridge initially per D11 |
 
-Конкретная форма settings sections остаётся implementation detail Slice 2;
-canonical directory/settings split принят в D2–D3.
-Do not create routes for members/invites until D3 decides sections vs subroutes.
+Slice 2 uses a dedicated general settings page without a `section` query.
+Do not create routes for members/invites until their slices choose sections vs
+subroutes from measured content size.
 
 ## Versioned JSON endpoints
 
 ### Directory and switch
 
-These three endpoints are implemented in Slice 1. Settings, members and
-invitations tables remain proposed contracts.
+The directory endpoints are implemented in Slice 1. The two settings endpoints
+are implemented in Slice 2. Members, invitations and lifecycle mutation rows
+remain proposed contracts.
 
 | Method | Endpoint | Contract |
 | --- | --- | --- |
@@ -81,8 +82,8 @@ invitations tables remain proposed contracts.
 
 | Method | Endpoint | Contract |
 | --- | --- | --- |
-| `GET` | `/api/v1/workspaces/{id}` | Mask absent/foreign workspace; settings/membership capabilities |
-| `PUT` | `/api/v1/workspaces/{id}` | Name/type/currency + `expectedUpdatedAt` |
+| `GET` | `/api/v1/workspaces/{id}` | **Implemented Slice 2:** mask absent/foreign workspace; identity, actor membership, capabilities, options and owner-only lifecycle counts |
+| `PUT` | `/api/v1/workspaces/{id}` | **Implemented Slice 2:** owner-only name/type/currency + `expectedUpdatedAt`; committed settings snapshot |
 | `POST` | `/api/v1/workspaces/{id}/deactivate` | Locked impact command, explicit confirmation payload |
 | `POST` | `/api/v1/workspaces/{id}/restore` | Owner-only restore with stale token |
 
@@ -134,22 +135,24 @@ currencyOptions[]
 Do not expose owner/member emails in directory unless the view needs them. Do
 not expose slug until it has an active route contract.
 
-### Settings response
+### Settings response (implemented Slice 2)
 
 ```text
 workspace facts + updatedAt
-actor membership + server capabilities/reasons
-bounded member summaries
-bounded pending invitation metadata
-bounded activity events (safe projected labels/facts, no arbitrary secrets)
+actor membership + server capabilities
+workspaceTypeOptions + currencyOptions
 lifecycle impact:
-  active sessions count (if safe/useful)
+  financialHistoryPreserved=true
+  active sessions count
   pending invitations count
-  active chat/integration bindings count
+  active chat connections/identity bindings count
 ```
 
-Counts and capabilities are server-owned. React must not infer permission from
-role strings or calculate last-owner/deactivation eligibility from visible rows.
+Lifecycle counts are returned only to the authoritative owner; other active
+members receive `lifecycleImpact: null`. Member summaries, invitation identity
+and activity events are deliberately deferred to their own slices. Counts and
+capabilities are server-owned. React does not infer update authority from role
+strings or calculate lifecycle eligibility from visible rows.
 
 ### Mutation response
 
@@ -227,8 +230,9 @@ sense in the new boundary.
 ## Stale/conflict recovery
 
 - Financial/workspace mutations are not optimistic.
-- `409` reloads the authoritative record/member/session and preserves user
-  draft where retry is meaningful.
+- `409` reloads the authoritative record/member/session. The short three-field
+  workspace settings form resets to that snapshot and asks for the edit again;
+  longer create/member workflows preserve a draft where retry is meaningful.
 - Transition conflicts (invite consumed, member already disabled, owner
   changed) show the new state and do not blindly retry.
 - Create retries use the same Idempotency-Key and receive the original committed

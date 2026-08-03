@@ -1,14 +1,19 @@
 from uuid import uuid4
 
-from workspaces_support import workspaces_app
+from workspaces_support import workspace_settings_app, workspaces_app
 
 from api_client import ApiTestClient as TestClient
-from app.features.workspaces.commands import CreateWorkspaceCommand
+from app.features.workspaces.commands import (
+    CreateWorkspaceCommand,
+    UpdateWorkspaceSettingsCommand,
+)
 from app.features.workspaces.domain.types import WorkspaceType
 from app.features.workspaces.errors import (
     WorkspaceIdempotencyConflictError,
     WorkspaceNotFoundError,
+    WorkspaceSettingsForbiddenError,
     WorkspaceSwitchConflictError,
+    WorkspaceUpdateConflictError,
 )
 from app.main import create_app
 
@@ -156,3 +161,98 @@ def test_workspace_select_masks_missing_and_reports_stale_current() -> None:
     assert conflict.status_code == 409
     assert conflict.json()["error"]["code"] == "workspace_switch_conflict"
     assert conflict.json()["error"]["details"] == {"currentWorkspaceId": str(new_current_id)}
+
+
+def test_workspace_settings_read_is_target_scoped_and_returns_impact() -> None:
+    app, service, actor_id, workspace_id = workspace_settings_app()
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/workspaces/{workspace_id}")
+
+    assert response.status_code == 200
+    assert service.read_calls == [(actor_id, workspace_id)]
+    payload = response.json()
+    assert payload["workspace"]["name"] == "Семейный бюджет"
+    assert payload["workspace"]["capabilities"]["canUpdate"] is True
+    assert payload["lifecycleImpact"] == {
+        "financialHistoryPreserved": True,
+        "currentSessionCount": 2,
+        "pendingInvitationCount": 1,
+        "activeIntegrationConnectionCount": 1,
+        "activeChatIdentityBindingCount": 2,
+    }
+
+
+def test_workspace_settings_masks_missing_and_foreign_identically() -> None:
+    app, service, _, workspace_id = workspace_settings_app()
+    service.read_error = WorkspaceNotFoundError("foreign")
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/workspaces/{workspace_id}")
+
+    assert response.status_code == 404
+    assert response.json()["error"] == {
+        "code": "workspace_not_found",
+        "message": "Пространство не найдено.",
+    }
+
+
+def test_workspace_settings_update_dispatches_expected_snapshot() -> None:
+    app, service, actor_id, workspace_id = workspace_settings_app()
+    expected = service.settings.workspace.updated_at
+
+    with TestClient(app) as client:
+        response = client.put(
+            f"/api/v1/workspaces/{workspace_id}",
+            json={
+                "name": "  Новый   дом ",
+                "workspaceType": "personal",
+                "defaultCurrency": " usd ",
+                "expectedUpdatedAt": expected.isoformat(),
+            },
+        )
+
+    assert response.status_code == 200
+    assert service.update_calls == [
+        (
+            actor_id,
+            workspace_id,
+            UpdateWorkspaceSettingsCommand(
+                name="Новый дом",
+                workspace_type=WorkspaceType.PERSONAL,
+                default_currency="USD",
+                expected_updated_at=expected,
+            ),
+        )
+    ]
+
+
+def test_workspace_settings_update_maps_authority_conflict_and_validation() -> None:
+    app, service, _, workspace_id = workspace_settings_app()
+    payload = {
+        "name": "Дом",
+        "workspaceType": "personal",
+        "defaultCurrency": "RUB",
+        "expectedUpdatedAt": service.settings.workspace.updated_at.isoformat(),
+    }
+
+    with TestClient(app) as client:
+        service.update_error = WorkspaceSettingsForbiddenError("forbidden")
+        forbidden = client.put(f"/api/v1/workspaces/{workspace_id}", json=payload)
+        service.update_error = WorkspaceUpdateConflictError("stale")
+        conflict = client.put(f"/api/v1/workspaces/{workspace_id}", json=payload)
+        service.update_error = None
+        invalid = client.put(
+            f"/api/v1/workspaces/{workspace_id}",
+            json={**payload, "name": " "},
+        )
+
+    assert forbidden.status_code == 403
+    assert forbidden.json()["error"]["code"] == "workspace_forbidden"
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "workspace_update_conflict"
+    assert invalid.status_code == 422
+    assert invalid.json()["error"]["code"] == "workspace_validation_error"
+    assert invalid.json()["error"]["fieldErrors"] == {
+        "name": ["Название пространства обязательно."]
+    }

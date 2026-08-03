@@ -49,23 +49,31 @@ class WorkspaceDirectoryReader:
                 for membership in memberships
             ],
             capabilities=WorkspaceDirectoryCapabilitiesDto(can_create=True),
-            workspace_type_options=[
-                WorkspaceOptionDto(value=WorkspaceType.PERSONAL.value, label="Личное"),
-                WorkspaceOptionDto(value=WorkspaceType.FAMILY.value, label="Семейное"),
-                WorkspaceOptionDto(value=WorkspaceType.BUSINESS.value, label="Бизнес"),
-                WorkspaceOptionDto(
-                    value=WorkspaceType.PROPERTY_MANAGEMENT.value,
-                    label="Управление недвижимостью",
-                ),
-                WorkspaceOptionDto(value=WorkspaceType.PROJECT.value, label="Проект"),
-                WorkspaceOptionDto(value=WorkspaceType.OTHER.value, label="Другое"),
-            ],
-            currency_options=[
-                WorkspaceOptionDto(value="RUB", label="RUB — российский рубль"),
-                WorkspaceOptionDto(value="USD", label="USD — доллар США"),
-                WorkspaceOptionDto(value="EUR", label="EUR — евро"),
-            ],
+            workspace_type_options=workspace_type_options(),
+            currency_options=workspace_currency_options(),
         )
+
+
+def workspace_type_options() -> list[WorkspaceOptionDto]:
+    return [
+        WorkspaceOptionDto(value=WorkspaceType.PERSONAL.value, label="Личное"),
+        WorkspaceOptionDto(value=WorkspaceType.FAMILY.value, label="Семейное"),
+        WorkspaceOptionDto(value=WorkspaceType.BUSINESS.value, label="Бизнес"),
+        WorkspaceOptionDto(
+            value=WorkspaceType.PROPERTY_MANAGEMENT.value,
+            label="Управление недвижимостью",
+        ),
+        WorkspaceOptionDto(value=WorkspaceType.PROJECT.value, label="Проект"),
+        WorkspaceOptionDto(value=WorkspaceType.OTHER.value, label="Другое"),
+    ]
+
+
+def workspace_currency_options() -> list[WorkspaceOptionDto]:
+    return [
+        WorkspaceOptionDto(value="RUB", label="RUB — российский рубль"),
+        WorkspaceOptionDto(value="USD", label="USD — доллар США"),
+        WorkspaceOptionDto(value="EUR", label="EUR — евро"),
+    ]
 
 
 def workspace_directory_item(

@@ -21,6 +21,10 @@
   line-height: var(--line-height-tight);
 }
 
+.title:focus {
+  outline: none;
+}
+
 .description {
   max-width: 44rem;
   margin: var(--space-3) 0 0;

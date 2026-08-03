@@ -1,5 +1,6 @@
 import type { SessionDto } from "../../api/session";
 import type { WorkspaceDirectoryDto } from "./api/workspaces-api";
+import type { WorkspaceSettingsDto } from "./api/workspace-settings-api";
 
 export const session: SessionDto = {
   user: {
@@ -145,4 +146,34 @@ export const createSuccessPayload = {
     boundary: "hard_reload",
   },
   replayed: false,
+};
+
+export const workspaceSettings: WorkspaceSettingsDto = {
+  workspace: {
+    id: session.workspace.id,
+    name: "Дом",
+    type: "personal",
+    defaultCurrency: "RUB",
+    isActive: true,
+    archivedAt: null,
+    updatedAt,
+    membership: { role: "owner", status: "active", updatedAt },
+    capabilities: {
+      canUpdate: true,
+      canManageMembers: true,
+      canInvite: true,
+      canDeactivate: false,
+      canRestore: false,
+    },
+    blockingReasonCodes: [],
+  },
+  workspaceTypeOptions: workspaceDirectory.workspaceTypeOptions,
+  currencyOptions: workspaceDirectory.currencyOptions,
+  lifecycleImpact: {
+    financialHistoryPreserved: true,
+    currentSessionCount: 2,
+    pendingInvitationCount: 1,
+    activeIntegrationConnectionCount: 1,
+    activeChatIdentityBindingCount: 2,
+  },
 };

@@ -1,7 +1,7 @@
 # Workspaces vertical slices
 
-Статус: D1–D14 accepted 2026-08-03; Slice 0 complete; Slice 1 production gate
-passed. Slice 2 не начат.
+Статус: D1–D14 accepted 2026-08-03; Slice 0 complete; Slice 1–2 production
+gates passed.
 
 ## Ordering rationale
 
@@ -101,10 +101,30 @@ stranded before their replacement slices.
   D12 remains deferred.
 - Keep route target workspace membership-scoped; current workspace ID is not
   assumed.
-- Preserve drafts and recover from stale update.
+- On stale update, automatically replace the short form with authoritative
+  values and ask the user to repeat the edit.
 
 Gate: owner-only update, foreign/not-found masking, stale recovery, default
 currency impact copy and personal/shared variants pass.
+
+Implementation result 2026-08-03:
+
+- added target-membership-scoped `GET/PUT /api/v1/workspaces/{id}` and
+  `/app/workspaces/:workspaceId/settings`;
+- update locks the target workspace, rechecks authoritative owner authority and
+  `expectedUpdatedAt`, and commits workspace plus audit event atomically;
+- settings DTO exposes identity, membership, server capabilities, supported
+  type/currency options and owner-only lifecycle counts; it does not expose
+  member/invitation identities or lifecycle mutation controls;
+- React automatically replaces the three-field form with the authoritative
+  server version on stale conflict, projects non-owner settings read-only and
+  updates current AppShell identity after a successful save;
+- focused API/application/React tests and real PostgreSQL lock/masking tests
+  pass;
+- production browser gate passes personal/shared settings, stale snapshot
+  recovery and 1440/920/390 geometry. Full regressions pass with 773 backend
+  tests plus 6 known strict xfails and 459 frontend tests. Exact evidence is in
+  `TEST_MANIFEST.md`.
 
 ## Slice 3 — members and ownership
 

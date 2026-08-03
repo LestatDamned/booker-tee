@@ -10,29 +10,38 @@ from app.api.v1.workspaces.dependencies import (
     get_workspace_creator,
     get_workspace_directory_reader,
     get_workspace_session_switcher,
+    get_workspace_settings_service,
 )
 from app.api.v1.workspaces.schemas import (
     CreateWorkspaceApiRequest,
     CreateWorkspaceApiResponse,
     SelectWorkspaceApiRequest,
     SelectWorkspaceApiResponse,
+    UpdateWorkspaceSettingsApiRequest,
     WorkspaceDirectoryApiResponse,
     WorkspaceDirectoryItemApiResponse,
     WorkspaceNavigationOutcomeApiResponse,
+    WorkspaceSettingsApiResponse,
 )
 from app.features.workspaces.application.creation import WorkspaceCreator
 from app.features.workspaces.application.directory import (
     WorkspaceDirectoryReader,
     workspace_directory_item,
 )
+from app.features.workspaces.application.settings import WorkspaceSettingsService
 from app.features.workspaces.application.switching import WorkspaceSessionSwitcher
-from app.features.workspaces.commands import CreateWorkspaceCommand
+from app.features.workspaces.commands import (
+    CreateWorkspaceCommand,
+    UpdateWorkspaceSettingsCommand,
+)
 from app.features.workspaces.errors import (
     WorkspaceError,
     WorkspaceIdempotencyConflictError,
     WorkspaceNotFoundError,
     WorkspaceSessionNotFoundError,
+    WorkspaceSettingsForbiddenError,
     WorkspaceSwitchConflictError,
+    WorkspaceUpdateConflictError,
 )
 from app.features.workspaces.service import WorkspaceContext
 
@@ -184,6 +193,92 @@ async def select_workspace(
     )
 
 
+@router.get(
+    "/{workspace_id}",
+    response_model=WorkspaceSettingsApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_404_NOT_FOUND,
+    ),
+)
+async def get_workspace_settings(
+    workspace_id: UUID,
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    settings_service: Annotated[
+        WorkspaceSettingsService,
+        Depends(get_workspace_settings_service),
+    ],
+) -> WorkspaceSettingsApiResponse:
+    try:
+        settings = await settings_service.read(
+            actor_user_id=context.workspace.user.id,
+            workspace_id=workspace_id,
+        )
+    except WorkspaceNotFoundError as error:
+        raise _workspace_not_found(error) from error
+    return WorkspaceSettingsApiResponse.model_validate(settings)
+
+
+@router.put(
+    "/{workspace_id}",
+    response_model=WorkspaceSettingsApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def update_workspace_settings(
+    workspace_id: UUID,
+    request: UpdateWorkspaceSettingsApiRequest,
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    settings_service: Annotated[
+        WorkspaceSettingsService,
+        Depends(get_workspace_settings_service),
+    ],
+) -> WorkspaceSettingsApiResponse:
+    try:
+        settings = await settings_service.update(
+            actor_user_id=context.workspace.user.id,
+            workspace_id=workspace_id,
+            command=UpdateWorkspaceSettingsCommand(
+                name=request.name,
+                workspace_type=request.workspace_type,
+                default_currency=request.default_currency,
+                expected_updated_at=request.expected_updated_at,
+            ),
+        )
+    except WorkspaceNotFoundError as error:
+        raise _workspace_not_found(error) from error
+    except WorkspaceSettingsForbiddenError as error:
+        raise ApiError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="workspace_forbidden",
+            message="Изменение настроек workspace недоступно.",
+        ) from error
+    except WorkspaceUpdateConflictError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="workspace_update_conflict",
+            message="Workspace уже изменён. Загрузите актуальные данные.",
+        ) from error
+    except WorkspaceError as error:
+        field_errors = (
+            {"name": [str(error)]}
+            if "назван" in str(error).lower()
+            else {"defaultCurrency": [str(error)]}
+        )
+        raise ApiError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="workspace_validation_error",
+            message=str(error),
+            field_errors=field_errors,
+        ) from error
+    return WorkspaceSettingsApiResponse.model_validate(settings)
+
+
 def _session_token(context: ApiRequestContext) -> str:
     if context.session_token is None:
         raise ApiError(
@@ -192,3 +287,11 @@ def _session_token(context: ApiRequestContext) -> str:
             message="Требуется вход.",
         )
     return context.session_token
+
+
+def _workspace_not_found(error: WorkspaceNotFoundError) -> ApiError:
+    return ApiError(
+        status_code=status.HTTP_404_NOT_FOUND,
+        code="workspace_not_found",
+        message="Пространство не найдено.",
+    )

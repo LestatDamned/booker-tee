@@ -67,6 +67,10 @@ D1–D14 приняты владельцем проекта 2026-08-03 без о
 - Rename и role save не требуют отдельного dialog. Revoke, remove, leave,
   ownership transfer и deactivate требуют explicit confirmation. Switch требует
   confirmation только при наличии dirty draft.
+- Короткая workspace settings form (name/type/currency) не сохраняет draft
+  между переходами и не блокирует navigation. При `409` она автоматически
+  загружает authoritative snapshot и просит повторить изменение. Create panel
+  остаётся защищён от случайного закрытия с dirty draft.
 
 ## Consequences
 

@@ -1,0 +1,67 @@
+import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+  session,
+  workspaceSettings,
+} from "../features/workspaces/test-support";
+import { loadWorkspaceSettingsRoute } from "./workspace-settings-loader";
+import { WorkspaceSettingsRouteView } from "./workspace-settings";
+
+describe("workspace settings route", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("loads session and target workspace in parallel", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input) === "/api/v1/session") {
+        return Promise.resolve(jsonResponse(session));
+      }
+      if (
+        String(input) === `/api/v1/workspaces/${workspaceSettings.workspace.id}`
+      ) {
+        return Promise.resolve(jsonResponse(workspaceSettings));
+      }
+      return Promise.resolve(new Response(null, { status: 404 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await loadWorkspaceSettingsRoute(
+      new Request(
+        `http://localhost/app/workspaces/${workspaceSettings.workspace.id}/settings`,
+      ),
+      workspaceSettings.workspace.id,
+    );
+
+    expect(result.session.status).toBe("authenticated");
+    expect(result.settings.status).toBe("success");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses one masked not-found state", () => {
+    render(
+      <MemoryRouter>
+        <WorkspaceSettingsRouteView
+          loaderData={{
+            session: { status: "authenticated", session },
+            settings: { status: "not_found" },
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Такого пространства нет" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Рабочие пространства" }),
+    ).toHaveAttribute("href", "/app/workspaces");
+  });
+});
+
+function jsonResponse(payload: unknown): Response {
+  return new Response(JSON.stringify(payload), {
+    headers: { "Content-Type": "application/json" },
+    status: 200,
+  });
+}

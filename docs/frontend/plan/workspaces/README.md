@@ -1,11 +1,12 @@
 # Workspaces React migration audit
 
-Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1 production gate passed 2026-08-03`.
+Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1–2 production gates passed 2026-08-03`.
 
 Этот временный child stage ведёт Stage 7 Wave C migration authenticated
 workflow Workspaces. На этапе аудита production runtime не менялся. После
 принятия решений реализован и проверен Slice 1: directory, create и explicit
-workspace switch на `/app/workspaces` через versioned JSON API. D1–D14 приняты
+workspace switch на `/app/workspaces` через versioned JSON API. Slice 2 добавил
+target-scoped general settings и lifecycle impact read model. D1–D14 приняты
 без отклонений и зафиксированы в
 [`ADR-0006`](../../../architecture/decisions/0006-workspace-migration-policy.md).
 Legacy cleanup остаётся запрещён до соответствующих replacement gates.
@@ -34,9 +35,12 @@ public invitation link
 
 Slice 1 зарегистрирован в `src/app/api/v1/router.py` и `frontend/app/routes.ts`:
 `GET/POST /api/v1/workspaces`, `POST /api/v1/workspaces/{id}/select` и
-`/app/workspaces`. `/api/v1/session` остаётся источником активного workspace,
-membership, capabilities и CSRF token (`src/app/api/v1/session/*`). Settings,
-members, invitations и lifecycle по-прежнему обслуживаются legacy workflow.
+`/app/workspaces`; Slice 2 добавляет `GET/PUT /api/v1/workspaces/{id}` и
+`/app/workspaces/:workspaceId/settings`. `/api/v1/session` остаётся источником
+активного workspace, membership, capabilities и CSRF token
+(`src/app/api/v1/session/*`). Members, invitations и lifecycle mutations
+по-прежнему обслуживаются legacy workflow; React settings показывает только
+read-only lifecycle impact.
 
 ## Материалы
 
@@ -221,6 +225,10 @@ draft; rename/role save — без отдельного dialog; revoke invite, r
 ownership transfer, deactivate и restore-with-impact — explicit
 `ConfirmationDialog`; successful mutations дают Toast. Activity остаётся
 read-only bounded section, но не заменяет server audit/security logs.
+
+Уточнение 2026-08-03: короткая settings form name/type/currency не сохраняет
+draft и не блокирует navigation. После `409` она загружает актуальные значения
+и просит повторить изменение; dirty create panel по-прежнему защищён.
 
 Альтернатива: подтверждать каждую mutation. Это создаёт confirmation fatigue и
 не выделяет действительно опасные transitions.

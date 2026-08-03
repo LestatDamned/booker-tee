@@ -9,7 +9,7 @@ import { loadWorkspacesRoute } from "./workspaces-loader";
 export { loadWorkspacesRoute } from "./workspaces-loader";
 
 export function meta() {
-  return [{ title: "Пространства — Booker Tee" }];
+  return [{ title: "Рабочие пространства — Booker Tee" }];
 }
 
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
