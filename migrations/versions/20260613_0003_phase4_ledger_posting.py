@@ -41,7 +41,10 @@ operation_source = sa.Enum(
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE raw_transaction_status ADD VALUE IF NOT EXISTS 'confirmed'")
+    # PostgreSQL requires a newly added enum value to be committed before a
+    # later migration can use it in DDL, such as the partial index in 0017.
+    with op.get_context().autocommit_block():
+        op.execute("ALTER TYPE raw_transaction_status ADD VALUE IF NOT EXISTS 'confirmed'")
     op.create_table(
         "operations",
         sa.Column("id", sa.Uuid(), nullable=False),

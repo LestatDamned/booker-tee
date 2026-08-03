@@ -227,22 +227,25 @@ coverage, а не к отсутствию runtime guard (`dependencies.py`, `rou
     foreign/missing service outcomes and missing-CSRF rejection. Database-backed
     settings/select identity masking and the future JSON API matrix remain open.
 
-## Clean-database migration blocker found during browser isolation
+## Clean-database migration blocker found during browser isolation — resolved
 
 Creating the disposable browser database exposed a repository-wide portability
 defect outside the Workspaces runtime: `alembic upgrade head` from an empty
-PostgreSQL database fails at
+PostgreSQL database failed at
 `migrations/versions/20260722_0017_confirmed_raw_dedupe_guard.py` with
 `UnsafeNewEnumValueUsageError`. The partial index predicate uses
 `raw_transaction_status = 'confirmed'` in the same Alembic transaction in which
 an earlier revision added that enum value. PostgreSQL requires the enum change
 to be committed before use.
 
-The browser audit used a schema-only snapshot from an already migrated test
-database; no application rows were copied. This workaround is suitable only for
-the audit. A clean migration-chain fix and regression check are required before
-claiming Slice 0 environment reproducibility; no migration was changed during
-this work.
+Resolved 2026-08-03 in
+`migrations/versions/20260613_0003_phase4_ledger_posting.py` and
+`migrations/versions/20260613_0004_phase5_dedup_reparse.py`: both PostgreSQL enum
+additions use Alembic `autocommit_block`, making the values visible to later
+revisions in a full-chain run. A clean disposable PostgreSQL database reached
+`20260802_0021`; SQL inspection confirmed `confirmed`, `possible_duplicate` and
+`uq_raw_transactions_workspace_confirmed_dedupe_hash`. The disposable database
+also passed `head -> 20260720_0016 -> head`.
 
 ## Existing tests and consumers
 

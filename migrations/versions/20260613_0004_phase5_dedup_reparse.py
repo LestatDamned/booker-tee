@@ -16,7 +16,9 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE raw_transaction_status ADD VALUE IF NOT EXISTS 'possible_duplicate'")
+    # Keep enum additions usable by later revisions in the same full-chain run.
+    with op.get_context().autocommit_block():
+        op.execute("ALTER TYPE raw_transaction_status ADD VALUE IF NOT EXISTS 'possible_duplicate'")
 
 
 def downgrade() -> None:

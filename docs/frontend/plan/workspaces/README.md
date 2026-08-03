@@ -252,12 +252,11 @@ states также завершены: 24 state/viewport комбинации п�
 screen не считается пропущенным screenshot: текущий context resolver создаёт
 personal workspace на read, и это доказано characterization-тестом.
 
-Отдельный repository blocker обнаружен при создании чистой browser БД:
-`alembic upgrade head` падает в
-`migrations/versions/20260722_0017_confirmed_raw_dedupe_guard.py` с PostgreSQL
-`UnsafeNewEnumValueUsageError`, потому что partial index использует новое enum
-значение `confirmed` до commit транзакции, добавившей это значение. Для аудита
-использован schema-only snapshot уже мигрированной тестовой БД; application
-rows не копировались. Миграция не менялась. До заявления о воспроизводимом
-Slice 0 окружении нужен отдельный согласованный migration fix и clean-database
-regression check.
+Обнаруженный при создании чистой browser БД repository blocker закрыт
+2026-08-03. Ревизии `20260613_0003_phase4_ledger_posting.py` и
+`20260613_0004_phase5_dedup_reparse.py` теперь добавляют PostgreSQL enum values
+через Alembic `autocommit_block`, поэтому поздняя ревизия
+`20260722_0017_confirmed_raw_dedupe_guard.py` может безопасно использовать
+`confirmed` в predicate partial index. `alembic upgrade head` от пустой
+одноразовой PostgreSQL БД и цикл `head -> 20260720_0016 -> head` прошли; revision
+`20260802_0021`, оба enum values и partial unique index проверены SQL-запросом.
