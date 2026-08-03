@@ -52,8 +52,10 @@
 }
 
 .brand {
-  display: block;
+  display: flex;
   width: fit-content;
+  min-height: var(--control-height);
+  align-items: center;
   margin: 0 0 var(--space-5) var(--space-2);
   border-inline-end: 0.25rem solid var(--color-brand-detail);
   color: var(--color-brand);
@@ -280,7 +282,11 @@
   }
 
   .mobileWorkspace {
+    display: flex;
     min-width: 0;
+    min-height: var(--control-height);
+    align-items: center;
+    justify-content: flex-end;
     overflow: hidden;
     color: var(--color-text-secondary);
     font-size: var(--font-size-sm);

@@ -1,6 +1,7 @@
 # Workspaces replacement test manifest
 
-Статус: accepted replacement manifest; Slice 0 characterization complete.
+Статус: accepted replacement manifest; Slice 0 characterization and Slice 1
+production gate complete.
 
 ## Existing evidence
 
@@ -40,13 +41,39 @@ real repository reads, then let ordinary flush/commit behavior run: no fake
 transaction or lock implementation is involved. These tests are evidence of
 known gaps, not waived requirements.
 
-Current gaps: settings/select same-actor foreign/missing route outcomes still
-need a database-backed matrix; no versioned Workspaces API exists; PostgreSQL
-locking fixes remain future implementation work but their failure mode is no
-longer ambiguous; no React state/interaction tests exist. Browser baseline is
-complete: it proves rich-state mobile overflow, sub-44 px legacy controls,
-pointer-inaccessible edit closure and unannounced one-time credential as
-replacement requirements rather than unmeasured risks.
+Current gaps after Slice 1: settings same-actor foreign/missing route outcomes
+still need a database-backed matrix; PostgreSQL invitation/last-owner locking
+fixes remain later-slice work but their failure mode is no longer ambiguous.
+React/API tests now cover directory/create/select; settings, members,
+invitations and lifecycle still have no replacement evidence.
+
+The accepted Slice 1 contract now has a standalone non-runtime visual prototype
+at `docs/frontend/plan/workspaces/prototype/index.html`. Its 2026-08-03 capture
+produced 24 Mocha/Latte state/viewport combinations with zero horizontal
+overflow, sub-44 px visible targets, console errors or page errors. This is a
+visual/preflight artifact, not React/API replacement evidence; the browser gates
+below remain mandatory for production.
+
+## Slice 1 production evidence
+
+| Evidence | Test/command | Result on 2026-08-03 |
+| --- | --- | --- |
+| Directory ordering, capabilities and inactive projection | `test_workspace_directory_application.py` | pass |
+| Create atomicity/idempotency and session switch | `test_workspace_slice01_mutations.py`, `test_workspaces_api.py` | pass |
+| Real PostgreSQL concurrent switch/create | `test_workspace_slice01_postgres.py` | 2 pass; exactly one stale-switch winner and one create aggregate |
+| React DTO, create/switch recovery and accessible UI | `workspaces-api.test.ts`, `workspaces-page.test.tsx`, `routes/workspaces.test.tsx` | 15 pass; shared panel focus test also passes |
+| Cross-feature hard boundary and responsive browser flow | `scripts/workspaces_slice01_browser.py` | Accounts/Imports/Ledger/Reports/Rules identity verified; 1440/920/390 pass, zero browser errors/overflow/sub-44 px targets |
+| Full backend regression on clean Alembic head | `pytest -q` with isolated PostgreSQL | 761 pass, 6 known strict xfail |
+| Full frontend regression in bounded Vitest groups | all 73 `*.test.*` files | 446 pass |
+
+The first full backend attempt against `booker_tee_reparse_test` exposed schema
+drift: its `alembic_version` was obsolete `20260727_0020` and the transaction
+rule provenance FK still used `SET NULL`. A new isolated database migrated from
+empty to current `20260802_0021` produced the clean result above. This was a
+test-environment failure, not a Workspaces code regression. The disposable
+`booker_tee_reparse_test` database was then recreated at current head; the two
+Slice 1 PostgreSQL concurrency cases and the previously failing FK guard pass
+there (`3 passed`). The temporary verification database was removed.
 
 ## Server/application tests required
 
@@ -165,6 +192,14 @@ No financial aggregate may combine old/new workspace state. Draft entity IDs
 from the old workspace must produce masked not-found after switch.
 
 ## Browser scenarios
+
+Slice 1 uses the exact presentation states and interaction contract in
+[`SLICE_01_DESIGN_SPEC.md`](SLICE_01_DESIGN_SPEC.md). Its focused matrix adds
+normal, long-name, inactive, explicit no-workspace, switch/create pending,
+stale-tab conflict and ambiguous-timeout recovery. Run it keyboard-only and at
+200% text zoom in addition to the standard viewport/theme matrix; verify
+reduced motion, visible focus, live announcements and that hidden responsive
+projections never enter the tab order.
 
 Run in Mocha and Latte at 1440x1000, 920x900 and 390x844:
 

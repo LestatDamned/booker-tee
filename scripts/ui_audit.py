@@ -49,6 +49,7 @@ PAGES: tuple[tuple[str, str], ...] = (
     ("/app/properties", "react-properties"),
     ("/users", "users"),
     ("/workspaces", "workspaces"),
+    ("/app/workspaces", "react-workspaces"),
 )
 
 AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
@@ -72,6 +73,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/app/properties", "react-properties"),
     ("/users", "users"),
     ("/workspaces", "workspaces"),
+    ("/app/workspaces", "react-workspaces"),
 )
 
 VIEWPORTS: tuple[tuple[str, int, int], ...] = (

@@ -3,6 +3,11 @@
 Статус: accepted gate manifest. Nothing listed here may be deleted before its
 explicit replacement gate.
 
+Slice 1 result 2026-08-03: **nothing deleted**. Legacy `/workspaces`, its POST
+handlers, presenters, templates, CSS, AppShell links and public invitation
+bridge are deliberately retained because settings/members/invitations have not
+passed their replacement gates. The new React route/API coexist with them.
+
 ## Delete after full authenticated replacement gate
 
 - `src/app/features/workspaces/router.py` authenticated directory and mutation

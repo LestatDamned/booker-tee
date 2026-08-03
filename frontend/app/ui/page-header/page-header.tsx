@@ -7,6 +7,7 @@ type PageHeaderProps = {
   description?: string;
   eyebrow?: string;
   title: string;
+  titleId?: string;
 };
 
 export function PageHeader({
@@ -14,12 +15,15 @@ export function PageHeader({
   description,
   eyebrow,
   title,
+  titleId,
 }: PageHeaderProps) {
   return (
     <header className={styles.header}>
       <div>
         {eyebrow ? <p className={styles.eyebrow}>{eyebrow}</p> : null}
-        <h1 className={styles.title}>{title}</h1>
+        <h1 className={styles.title} id={titleId}>
+          {title}
+        </h1>
         {description ? (
           <p className={styles.description}>{description}</p>
         ) : null}

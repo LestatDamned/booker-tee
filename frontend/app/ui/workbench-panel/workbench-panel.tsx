@@ -1,4 +1,10 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
 import { Button } from "../button/button";
 import styles from "./workbench-panel.module.css";
@@ -7,6 +13,7 @@ type WorkbenchPanelProps = {
   children: ReactNode;
   description?: string;
   disabled?: boolean;
+  initialFocusRef?: RefObject<HTMLElement | null>;
   onClose: () => void;
   title: string;
 };
@@ -15,6 +22,7 @@ export function WorkbenchPanel({
   children,
   description,
   disabled = false,
+  initialFocusRef,
   onClose,
   title,
 }: WorkbenchPanelProps) {
@@ -29,6 +37,7 @@ export function WorkbenchPanel({
     } else {
       dialog?.setAttribute("open", "");
     }
+    queueMicrotask(() => initialFocusRef?.current?.focus());
 
     return () => {
       if (dialog && typeof dialog.close === "function") {
@@ -38,7 +47,7 @@ export function WorkbenchPanel({
       }
       queueMicrotask(() => trigger?.focus());
     };
-  }, []);
+  }, [initialFocusRef]);
 
   return (
     <dialog

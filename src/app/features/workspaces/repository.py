@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -223,6 +223,41 @@ class WorkspaceRepository:
         )
         return list(result.scalars().all())
 
+    async def list_visible_memberships_for_user(
+        self,
+        user_id: UUID,
+        *,
+        current_workspace_id: UUID,
+    ) -> list[WorkspaceMember]:
+        """List active memberships, including workspaces that are inactive."""
+        result = await self.session.execute(
+            select(WorkspaceMember)
+            .join(Workspace)
+            .options(selectinload(WorkspaceMember.workspace))
+            .where(
+                WorkspaceMember.user_id == user_id,
+                WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+            )
+            .order_by(
+                case((Workspace.id == current_workspace_id, 0), else_=1),
+                case((Workspace.is_active.is_(True), 0), else_=1),
+                func.lower(Workspace.name),
+                Workspace.id,
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_for_owner(self, *, owner_id: UUID, workspace_id: UUID) -> Workspace | None:
+        result = await self.session.execute(
+            select(Workspace)
+            .where(
+                Workspace.id == workspace_id,
+                Workspace.owner_id == owner_id,
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def list_for_owner(self, owner_id: UUID) -> list[Workspace]:
         result = await self.session.execute(
             select(Workspace)
@@ -253,6 +288,7 @@ class WorkspaceRepository:
         name: str,
         workspace_type: WorkspaceType,
         default_currency: str,
+        workspace_id: UUID | None = None,
     ) -> tuple[Workspace, WorkspaceMember]:
         workspace = Workspace(
             owner_id=owner_id,
@@ -260,6 +296,8 @@ class WorkspaceRepository:
             type=workspace_type,
             default_currency=default_currency,
         )
+        if workspace_id is not None:
+            workspace.id = workspace_id
         self.session.add(workspace)
         await self.session.flush()
 

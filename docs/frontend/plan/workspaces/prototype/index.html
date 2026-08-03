@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ru" data-theme="catppuccin-mocha">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Booker Tee — Workspaces Slice 1 prototype</title>
+    <link rel="stylesheet" href="prototype.css" />
+  </head>
+  <body data-state="default">
+    <a class="skip-link" href="#workspace-main">К основному содержимому</a>
+
+    <div class="app-shell" id="app-shell">
+      <aside class="sidebar" aria-label="Основная навигация">
+        <a class="brand" href="#">BOOKER TEE</a>
+
+        <a class="context-card" aria-current="page" href="#workspace-main">
+          <span class="mono-label">Пространство</span>
+          <strong>Дом</strong>
+          <small>Владелец · RUB</small>
+        </a>
+        <div class="no-context-card">
+          <span class="mono-label">Пространство</span>
+          <strong>Нет активного</strong>
+          <small>Нужно создать явно</small>
+        </div>
+
+        <nav>
+          <div class="nav-group">
+            <p class="nav-label">Работа</p>
+            <a class="nav-item" href="#">Обзор</a>
+            <a class="nav-item" href="#">Счета</a>
+            <a class="nav-item" href="#">Операции</a>
+            <a class="nav-item" href="#">Импорт</a>
+            <a class="nav-item" href="#">Отчёты</a>
+          </div>
+          <div class="nav-group">
+            <p class="nav-label">Настройка</p>
+            <a class="nav-item" href="#">Категории</a>
+            <a class="nav-item" href="#">Объекты</a>
+            <a class="nav-item" href="#">Правила</a>
+          </div>
+          <div class="nav-group">
+            <p class="nav-label">Аккаунт</p>
+            <a class="nav-item active" aria-current="page" href="#workspace-main">
+              Пространства
+            </a>
+          </div>
+        </nav>
+
+        <a class="user-card" href="#">
+          <span class="avatar" aria-hidden="true">М</span>
+          <span><strong>Максим</strong><small>max@example.test</small></span>
+          <span aria-hidden="true">›</span>
+        </a>
+      </aside>
+
+      <header class="mobile-header">
+        <a class="brand" href="#">BOOKER TEE</a>
+        <a class="mobile-context" href="#workspace-main">
+          <span class="with-context">Дом · RUB</span>
+          <span class="without-context">Нет пространства</span>
+        </a>
+        <button class="icon-button menu-button" aria-label="Открыть меню" type="button">
+          <span aria-hidden="true"></span>
+        </button>
+      </header>
+
+      <main class="workspace-main" id="workspace-main" tabindex="-1">
+        <section class="page-frame" aria-labelledby="page-title">
+          <section class="workbench" aria-label="Доступные пространства">
+            <header class="workbench-header">
+              <div class="page-header-copy">
+                <p class="eyebrow">Финансовый контекст</p>
+                <h1 id="page-title">Пространства</h1>
+                <p class="page-description">
+                  <span class="with-context">
+                    Сейчас вы работаете в пространстве <strong>«Дом»</strong>.
+                    Переключение изменит данные во всём приложении.
+                  </span>
+                  <span class="without-context">
+                    Создайте первый финансовый контекст, чтобы начать работу.
+                  </span>
+                </p>
+              </div>
+              <a class="button primary" data-open-create href="?state=create">Создать пространство</a>
+            </header>
+
+            <div class="workbench-status" aria-live="polite">
+              <span><strong>3</strong> пространства</span>
+              <span>Текущее: <strong>Дом</strong></span>
+            </div>
+
+            <section class="notice conflict-only" role="alert">
+              <div>
+                <strong>Контекст изменился в другой вкладке</strong>
+                <p>Мы обновили список. Проверьте текущее пространство перед повторным переходом.</p>
+              </div>
+              <a class="button secondary" href="?state=default">Понятно</a>
+            </section>
+
+            <section class="directory default-content" aria-label="Каталог пространств">
+              <div class="desktop-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Пространство</th>
+                      <th scope="col">Тип и валюта</th>
+                      <th scope="col">Ваш доступ</th>
+                      <th scope="col">Состояние</th>
+                      <th scope="col"><span class="visually-hidden">Действие</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="current-row" aria-current="true">
+                      <th scope="row">
+                        <span class="record-name">Дом</span>
+                        <span class="record-hint">Основной личный бюджет</span>
+                      </th>
+                      <td><span class="tag">Личное</span><span class="currency">RUB</span></td>
+                      <td>Владелец</td>
+                      <td><span class="status current">Текущее</span></td>
+                      <td class="action-cell"><span class="current-copy">Сейчас в работе</span></td>
+                    </tr>
+                    <tr>
+                      <th scope="row">
+                        <span class="record-name">Семейный бюджет с очень длинным названием для проверки переноса</span>
+                        <span class="record-hint">Общие семейные расходы</span>
+                      </th>
+                      <td><span class="tag">Общее</span><span class="currency">RUB</span></td>
+                      <td>Редактор</td>
+                      <td><span class="status available">Доступно</span></td>
+                      <td class="action-cell">
+                        <a class="button secondary switch-action" href="?state=pending" aria-label="Перейти в пространство «Семейный бюджет с очень длинным названием для проверки переноса»">
+                          Перейти
+                        </a>
+                      </td>
+                    </tr>
+                    <tr class="inactive-row">
+                      <th scope="row">
+                        <span class="record-name">Архив проекта</span>
+                        <span class="record-hint">История сохранена</span>
+                      </th>
+                      <td><span class="tag">Общее</span><span class="currency">USD</span></td>
+                      <td>Наблюдатель</td>
+                      <td><span class="status inactive">Неактивно</span></td>
+                      <td class="action-cell"><span class="blocked-copy">Выбор недоступен</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <ol class="mobile-records">
+                <li class="record current-record" aria-current="true">
+                  <div class="record-topline">
+                    <div><h2>Дом</h2><p>Основной личный бюджет</p></div>
+                    <span class="status current">Текущее</span>
+                  </div>
+                  <dl class="record-facts">
+                    <div><dt>Тип и валюта</dt><dd><span class="tag">Личное</span> RUB</dd></div>
+                    <div><dt>Ваш доступ</dt><dd>Владелец</dd></div>
+                  </dl>
+                  <p class="current-copy">Сейчас в работе</p>
+                </li>
+                <li class="record">
+                  <div class="record-topline">
+                    <div><h2>Семейный бюджет с очень длинным названием для проверки переноса</h2><p>Общие семейные расходы</p></div>
+                    <span class="status available">Доступно</span>
+                  </div>
+                  <dl class="record-facts">
+                    <div><dt>Тип и валюта</dt><dd><span class="tag">Общее</span> RUB</dd></div>
+                    <div><dt>Ваш доступ</dt><dd>Редактор</dd></div>
+                  </dl>
+                  <a class="button secondary switch-action" href="?state=pending" aria-label="Перейти в пространство «Семейный бюджет с очень длинным названием для проверки переноса»">
+                    Перейти в пространство
+                  </a>
+                </li>
+                <li class="record inactive-record">
+                  <div class="record-topline">
+                    <div><h2>Архив проекта</h2><p>История сохранена</p></div>
+                    <span class="status inactive">Неактивно</span>
+                  </div>
+                  <dl class="record-facts">
+                    <div><dt>Тип и валюта</dt><dd><span class="tag">Общее</span> USD</dd></div>
+                    <div><dt>Ваш доступ</dt><dd>Наблюдатель</dd></div>
+                  </dl>
+                  <p class="blocked-copy">Выбор недоступен</p>
+                </li>
+              </ol>
+            </section>
+
+            <section class="pending-content" aria-live="polite" aria-busy="true">
+              <div class="pending-record">
+                <div>
+                  <strong>Семейный бюджет с очень длинным названием для проверки переноса</strong>
+                  <span>Проверяем доступ и фиксируем новый финансовый контекст.</span>
+                </div>
+                <button class="button secondary" disabled type="button">
+                  <span class="spinner" aria-hidden="true"></span>
+                  Переключаем…
+                </button>
+              </div>
+              <p class="pending-note">До подтверждения сервера текущим остаётся пространство «Дом».</p>
+            </section>
+
+            <section class="loading-content" aria-live="polite" aria-busy="true">
+              <div class="loading-status"><span class="spinner" aria-hidden="true"></span>Загружаем доступные пространства…</div>
+              <div class="loading-row"><span></span><span></span><span></span></div>
+              <div class="loading-row"><span></span><span></span><span></span></div>
+            </section>
+
+            <section class="empty-content">
+              <p class="empty-kicker">Начало работы</p>
+              <h2>У вас пока нет доступного пространства</h2>
+              <p>Создайте пространство явно — мы не будем создавать финансовый контекст незаметно при загрузке страницы.</p>
+              <a class="button primary" data-open-create href="?state=create">Создать пространство</a>
+            </section>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div class="panel-layer" id="create-layer" hidden>
+      <div class="scrim" aria-hidden="true"></div>
+      <section class="create-panel" role="dialog" aria-modal="true" aria-labelledby="create-title">
+        <header class="panel-header">
+          <div>
+            <p class="eyebrow">Новый финансовый контекст</p>
+            <h2 id="create-title">Новое пространство</h2>
+            <p>После создания оно станет текущим во всём приложении.</p>
+          </div>
+          <a class="button ghost" data-close-create href="?state=default">Закрыть</a>
+        </header>
+        <form class="create-form">
+          <div class="field">
+            <label for="workspace-name">Название</label>
+            <input id="workspace-name" name="name" value="Ремонт квартиры" />
+            <p class="field-hint">Понятное название финансового контекста.</p>
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label for="workspace-type">Тип</label>
+              <select id="workspace-type" name="type">
+                <option>Личное</option>
+                <option selected>Общее</option>
+              </select>
+              <p class="field-hint">Тип пока описывает контекст и не меняет полномочия.</p>
+            </div>
+            <div class="field">
+              <label for="workspace-currency">Основная валюта</label>
+              <select id="workspace-currency" name="currency">
+                <option selected>RUB — Российский рубль</option>
+                <option>USD — Доллар США</option>
+                <option>EUR — Евро</option>
+              </select>
+              <p class="field-hint">Она не конвертирует существующую историю.</p>
+            </div>
+          </div>
+          <aside class="context-note">
+            <strong>Что произойдёт</strong>
+            <p>Будет создано новое пространство с вами в роли владельца, затем приложение безопасно переключится в него.</p>
+          </aside>
+          <div class="form-actions">
+            <a class="button secondary" data-close-create href="?state=default">Отмена</a>
+            <button class="button primary" type="button">Создать и перейти</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const allowedStates = new Set(["default", "create", "loading", "empty", "pending", "conflict"]);
+      const state = allowedStates.has(params.get("state")) ? params.get("state") : "default";
+      const theme = params.get("theme") === "latte" ? "catppuccin-latte" : "catppuccin-mocha";
+      document.documentElement.dataset.theme = theme;
+      document.body.dataset.state = state;
+
+      const layer = document.querySelector("#create-layer");
+      const shell = document.querySelector("#app-shell");
+      if (state === "create") {
+        layer.hidden = false;
+        shell.inert = true;
+        requestAnimationFrame(() => document.querySelector("#workspace-name")?.focus());
+      }
+
+      document.addEventListener("keydown", (event) => {
+        if (state === "create" && event.key === "Escape") {
+          event.preventDefault();
+          window.location.search = "?state=default" + (theme === "catppuccin-latte" ? "&theme=latte" : "");
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,11 +1,12 @@
 # Workspaces React migration audit
 
-Статус: `audit and Slice 0 characterization complete; D1–D14 accepted 2026-08-03`.
+Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1 production gate passed 2026-08-03`.
 
-Этот временный child stage готовит Stage 7 Wave C migration для authenticated
-workflow Workspaces. Production runtime-код, маршруты, API и схема БД на этапе
-аудита не изменялись; после принятия решений добавлены только characterization
-tests. D1–D14 приняты без отклонений и зафиксированы в
+Этот временный child stage ведёт Stage 7 Wave C migration authenticated
+workflow Workspaces. На этапе аудита production runtime не менялся. После
+принятия решений реализован и проверен Slice 1: directory, create и explicit
+workspace switch на `/app/workspaces` через versioned JSON API. D1–D14 приняты
+без отклонений и зафиксированы в
 [`ADR-0006`](../../../architecture/decisions/0006-workspace-migration-policy.md).
 Legacy cleanup остаётся запрещён до соответствующих replacement gates.
 
@@ -31,16 +32,21 @@ public invitation link
 `repository.py`, `presentation/`, `src/app/templates/workspaces/`,
 `frontend/app/shell/app-shell.tsx`, `src/app/features/users/router.py`.
 
-Versioned Workspaces API и React Workspaces route отсутствуют: Workspaces не
-зарегистрирован в `src/app/api/v1/router.py` и `frontend/app/routes.ts`.
-Текущий `/api/v1/session` возвращает только активный workspace, membership,
-capabilities и CSRF token (`src/app/api/v1/session/*`).
+Slice 1 зарегистрирован в `src/app/api/v1/router.py` и `frontend/app/routes.ts`:
+`GET/POST /api/v1/workspaces`, `POST /api/v1/workspaces/{id}/select` и
+`/app/workspaces`. `/api/v1/session` остаётся источником активного workspace,
+membership, capabilities и CSRF token (`src/app/api/v1/session/*`). Settings,
+members, invitations и lifecycle по-прежнему обслуживаются legacy workflow.
 
 ## Материалы
 
 - [INVENTORY.md](INVENTORY.md) — routes, redirects, templates, backend,
   transactions, consumers и подтверждённые security findings.
 - [UX_AUDIT.md](UX_AUDIT.md) — существующая геометрия и UI Foundation reuse.
+- [SLICE_01_DESIGN_SPEC.md](SLICE_01_DESIGN_SPEC.md) — принятый contract
+  directory, create panel, switch, responsive и accessibility для Slice 1.
+- [prototype/index.html](prototype/index.html) — standalone Mocha/Latte visual
+  prototype и state variants; не подключён к runtime routes/API.
 - [API_AND_STATE.md](API_AND_STATE.md) — предлагаемые routes, API/DTO/errors,
   state ownership, invalidation и conflicts.
 - [VERTICAL_SLICES.md](VERTICAL_SLICES.md) — последовательность replacement

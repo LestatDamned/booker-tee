@@ -1,11 +1,14 @@
 # Workspaces API and state boundary
 
-Статус: target accepted 2026-08-03 in ADR-0006; not implemented. Current
-factual boundary is called out first.
+Статус: target accepted 2026-08-03 in ADR-0006; Slice 1 directory/create/select
+implemented and production-gated. Later endpoint groups remain proposed.
 
 ## Current boundary
 
-- There is no `/api/v1/workspaces` router.
+- `src/app/api/v1/workspaces/router.py` implements `GET/POST
+  /api/v1/workspaces` and `POST /api/v1/workspaces/{id}/select`.
+- `frontend/app/routes/workspaces.tsx` owns canonical `/app/workspaces` and
+  composes the feature in `frontend/app/features/workspaces/`.
 - `/api/v1/session` returns only current user/workspace/membership/capabilities
   and CSRF token (`api/v1/session/responses.py`).
 - React route loaders independently fetch session and feature snapshots in
@@ -14,7 +17,7 @@ factual boundary is called out first.
   selection is a separate binding and must not be silently changed by web
   switch.
 
-## Proposed application actors
+## Application actors
 
 Do not serialize the Jinja `WorkspacesPageVM` or expose ORM models.
 
@@ -40,11 +43,15 @@ WorkspaceInvitationService
   list / create / revoke / preview_credential / accept_credential
 ```
 
+The first three actors are implemented in
+`src/app/features/workspaces/application/{directory,creation,switching}.py`.
+Settings/member/invitation actors below are proposals for later slices.
+
 Application actors own transaction/locks/audit. Repositories keep visible
 workspace predicates and persistence only. Public invitation preview is a
 separate credential boundary, not an ordinary workspace read.
 
-## Proposed canonical routes
+## Canonical routes
 
 | Browser route | Ownership |
 | --- | --- |
@@ -57,9 +64,12 @@ separate credential boundary, not an ordinary workspace read.
 canonical directory/settings split принят в D2–D3.
 Do not create routes for members/invites until D3 decides sections vs subroutes.
 
-## Proposed versioned JSON endpoints
+## Versioned JSON endpoints
 
 ### Directory and switch
+
+These three endpoints are implemented in Slice 1. Settings, members and
+invitations tables remain proposed contracts.
 
 | Method | Endpoint | Contract |
 | --- | --- | --- |
@@ -116,8 +126,9 @@ items[]:
     canSelect, canUpdate, canManageMembers, canInvite
     canLeave, canDeactivate, canRestore
   blockingReasonCodes[]
-directoryCapabilities: canCreate
+capabilities: canCreate
 workspaceTypeOptions[]
+currencyOptions[]
 ```
 
 Do not expose owner/member emails in directory unless the view needs them. Do

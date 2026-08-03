@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -14,6 +14,9 @@ describe("WorkbenchPanel", () => {
     await user.click(trigger);
 
     expect(screen.getByRole("dialog")).toHaveAccessibleName("Новая операция");
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Описание" })).toHaveFocus(),
+    );
     await user.click(screen.getByRole("button", { name: "Закрыть" }));
 
     await waitFor(() => expect(trigger).toHaveFocus());
@@ -22,12 +25,17 @@ describe("WorkbenchPanel", () => {
 
 function PanelHarness() {
   const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
     <>
       <button onClick={() => setOpen(true)}>Открыть</button>
       {open ? (
-        <WorkbenchPanel onClose={() => setOpen(false)} title="Новая операция">
-          <input aria-label="Описание" />
+        <WorkbenchPanel
+          initialFocusRef={inputRef}
+          onClose={() => setOpen(false)}
+          title="Новая операция"
+        >
+          <input ref={inputRef} aria-label="Описание" />
         </WorkbenchPanel>
       ) : null}
     </>

@@ -7,12 +7,23 @@ from app.api.v1.session.responses import (
     SessionWorkspaceApiResponse,
 )
 from app.features.workspaces.permissions import permission_flags_for
+from app.features.workspaces.service import WorkspaceContext
 
 
 class SessionApiResponseMapper:
     @staticmethod
     def from_context(context: ApiRequestContext) -> SessionApiResponse:
-        workspace_context = context.workspace
+        return SessionApiResponseMapper.from_workspace_context(
+            context.workspace,
+            csrf_token=context.csrf_token,
+        )
+
+    @staticmethod
+    def from_workspace_context(
+        workspace_context: WorkspaceContext,
+        *,
+        csrf_token: str,
+    ) -> SessionApiResponse:
         permission_flags = permission_flags_for(workspace_context.membership)
         return SessionApiResponse(
             user=SessionUserApiResponse(
@@ -37,5 +48,5 @@ class SessionApiResponseMapper:
                 can_manage_members=permission_flags.can_manage_members,
                 can_manage_workspace=permission_flags.can_manage_workspace,
             ),
-            csrf_token=context.csrf_token,
+            csrf_token=csrf_token,
         )

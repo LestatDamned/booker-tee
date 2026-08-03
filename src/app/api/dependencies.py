@@ -25,6 +25,7 @@ SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
 class ApiRequestContext:
     workspace: WorkspaceContext
     csrf_token: str
+    session_token: str | None = None
 
 
 async def get_api_request_context(
@@ -58,7 +59,11 @@ async def get_api_request_context(
         )
 
     csrf_token = csrf_token_for_session(session_token, settings)
-    return ApiRequestContext(workspace=workspace_context, csrf_token=csrf_token)
+    return ApiRequestContext(
+        workspace=workspace_context,
+        csrf_token=csrf_token,
+        session_token=session_token,
+    )
 
 
 def require_api_financial_write_context(

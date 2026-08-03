@@ -60,6 +60,24 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_active_session_by_token_hash_for_update(
+        self,
+        session_token_hash: str,
+        *,
+        user_id: UUID,
+    ) -> UserSession | None:
+        result = await self.session.execute(
+            select(UserSession)
+            .where(
+                UserSession.session_token_hash == session_token_hash,
+                UserSession.user_id == user_id,
+                UserSession.revoked_at.is_(None),
+                UserSession.expires_at > utc_now(),
+            )
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     async def revoke_session(self, user_session: UserSession) -> None:
         user_session.revoked_at = utc_now()
         await self.session.flush()

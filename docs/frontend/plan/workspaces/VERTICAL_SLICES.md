@@ -1,6 +1,7 @@
 # Workspaces vertical slices
 
-Статус: D1–D14 accepted 2026-08-03; Slice 0 complete. Production slices не начаты.
+Статус: D1–D14 accepted 2026-08-03; Slice 0 complete; Slice 1 production gate
+passed. Slice 2 не начат.
 
 ## Ordering rationale
 
@@ -54,6 +55,11 @@ Progress 2026-08-03:
 
 ## Slice 1 — directory, create and boundary switch
 
+Presentation contract and standalone visual prototype accepted 2026-08-03:
+[`SLICE_01_DESIGN_SPEC.md`](SLICE_01_DESIGN_SPEC.md),
+[`prototype/index.html`](prototype/index.html). Production implementation and
+replacement gate are complete.
+
 ```text
 GET/POST /api/v1/workspaces
 POST /api/v1/workspaces/:id/select
@@ -77,6 +83,15 @@ Gate:
 - parallel old/new workspace responses cannot repopulate old UI;
 - refresh/back/deep link and 1440/920/390 pass;
 - legacy `/workspaces` remains operational; no redirect/delete yet.
+
+Result 2026-08-03: all gates above passed. Real browser flow created and
+selected a workspace, verified the committed session identity through Accounts,
+Imports, Manual Ledger, Reports and Transaction Rules, restored the original
+workspace, then passed 1440/920/390 geometry with zero console/page errors,
+horizontal overflow or visible targets below 44 px
+(`scripts/workspaces_slice01_browser.py`). AppShell and historical `/workspaces`
+still point to legacy intentionally so settings/members/invitations are not
+stranded before their replacement slices.
 
 ## Slice 2 — general settings and lifecycle read model
 
