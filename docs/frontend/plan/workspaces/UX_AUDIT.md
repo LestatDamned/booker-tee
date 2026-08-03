@@ -1,9 +1,7 @@
 # Workspaces UX/UI audit
 
-Статус: factual static audit + proposed React composition. Browser screenshots
-не создавались на read-only этапе: существующий `scripts/ui_audit.py` готовит
-realistic state через signup и mutations. Это отмечено как verification blocker,
-а не заменено предположением.
+Статус: factual static audit + complete isolated browser baseline + accepted
+React composition. Rich permission/member/invitation states remain pending.
 
 ## Existing information architecture
 
@@ -81,8 +79,110 @@ Source: `static/css/app.css`, `base.html`, workspace templates.
 - Header becomes a compact two-row mobile composition below 720 px. Navigation
   becomes a two-column expandable grid.
 - Audit widths in project contract are 1440/920/390. Static rules cover those
-  transitions, but no current stored workspace screenshot or measured overflow
-  result exists in the repository.
+  transitions.
+
+## Isolated browser baseline — 2026-08-03
+
+The legacy page was run against a dedicated temporary PostgreSQL database with
+three disposable signup users and no copied application data:
+
+```text
+scripts/ui_audit.py --authenticated --scenario empty --path workspaces
+theme: catppuccin-mocha
+desktop: 1440x1000
+tablet:  920x900
+mobile:  390x844
+```
+
+The report passed all three viewports with HTTP 200, zero horizontal overflow,
+no overflow offenders, console errors, page errors or failed requests. Images
+and `report.json` were written to
+`/tmp/booker-workspaces-baseline-20260803`; they are audit artifacts, not
+committed product assets. The disposable database contained three users and
+three personal workspaces and was dropped after capture.
+
+Visual inspection confirmed:
+
+- desktop keeps the 1120 px workbench and a compact single-row primary nav;
+- tablet wraps primary navigation and expands record actions to full width;
+- mobile collapses navigation, summary metrics, records and audit content to one
+  logical column without clipping; long audit email wraps within its card;
+- text status remains visible independently of color at every width.
+
+Visual/semantic problems confirmed rather than inferred:
+
+1. Native details summaries render the disclosure marker plus both literal
+   strings “Открыть Закрыть”, producing ambiguous visible and announced labels.
+2. Page title “Настройки пространства” does not describe its combined access,
+   directory, switching and creation responsibilities.
+3. Member email and role are concatenated as ordinary text instead of separate
+   role/status primitives; long mobile identity is hard to scan.
+4. Audit metadata uses terse `кто:`, entity and details fragments. On mobile it
+   becomes a tall technical card rather than a readable activity sentence.
+5. The edit workspace action becomes a visually loud full-width green button at
+   tablet/mobile widths even though directory switching/identity should remain
+   the page priority.
+6. The “empty” scenario is actually the minimum reachable state: session signup
+   always creates one personal workspace, owner membership and audit event. A
+   true no-workspace recovery state still has no browser baseline.
+
+The baseline does not prove focus order, disclosure announcements, destructive
+confirmation, expanded create/edit forms, one-time credentials or non-owner
+capabilities; those remain explicit scenarios below.
+
+### Rich owner-state browser finding — 2026-08-03
+
+A second isolated run used one owner, two workspaces, a pending invitation, a
+second member and synthetic long Russian display/workspace names. The same
+1440/920/390 viewport matrix was written to
+`/tmp/booker-workspaces-rich-20260803`. Desktop and tablet passed without
+horizontal overflow or browser errors. Mobile failed the geometry gate with
+`horizontal_overflow_px: 254`; it had no console or page errors.
+
+The report identifies the exact legacy offenders rather than inferring them:
+
+- `.workspace-member-card__topline`, `.workspace-member-card__title` and its
+  `.truncate-label` resolve to 596 px for the long member display name;
+- `.workspace-member-card__meta` also resolves to 596 px for email plus role;
+- the long workspace title resolves to 363 px and contributes a smaller
+  overflow beyond the content column.
+
+The screenshot also confirms that the long member title is visually clipped,
+while its email and role remain concatenated. This is accepted only as a
+characterized legacy defect. The React replacement must satisfy the explicit
+390 px wrapping/no-page-overflow gate; this audit does not authorize a legacy
+CSS fix.
+
+### Server-role browser matrix — 2026-08-03
+
+An isolated shared workspace with owner/admin/editor/viewer memberships was
+audited at 1440/920/390. Reports and screenshots are in:
+
+- `/tmp/booker-workspaces-role-admin-20260803`;
+- `/tmp/booker-workspaces-role-editor-20260803`;
+- `/tmp/booker-workspaces-role-viewer-20260803`.
+
+All nine pages passed with HTTP 200, zero horizontal overflow, console/page
+errors or failed requests. The database contained only synthetic identities,
+memberships and sessions and was dropped after capture.
+
+Visual inspection agrees with the server presenter/policies:
+
+- admin sees invitation creation and role/disable actions for editor/viewer,
+  but not for owner, self or the other admin; workspace edit is absent;
+- editor and viewer see the complete member directory read-only, with no
+  invitation, member-management or workspace-settings actions;
+- workspace creation remains visible to every authenticated role because it
+  creates a new actor-owned workspace rather than mutating the current shared
+  workspace;
+- AppShell primary action is capability-sensitive: editor retains upload,
+  while viewer receives reports instead;
+- role/status remain readable without color, but email and role are still one
+  undifferentiated metadata string.
+
+This proves current presentation behavior only. React/API capabilities still
+must be returned by the server with stable reason codes; the client must not
+reconstruct this matrix from role names.
 
 ### Geometry risks
 
@@ -90,8 +190,9 @@ Source: `static/css/app.css`, `base.html`, workspace templates.
   height for members/invitations/workspaces.
 - The legacy full-width action column can create repeated loud buttons; current
   React `ActionStack orientation="row"` is a better proven compact contract.
-- One-time invitation link/copy correctly collapses from two columns, but long
-  credential text requires `overflow-wrap`/scroll testing at 390 px.
+- One-time invitation link/copy statically collapses from two columns, but long
+  credential text still requires browser `overflow-wrap`/scroll testing at
+  390 px.
 - A long activity list and multiple member edit rows compete with directory
   priority on mobile.
 
@@ -174,7 +275,7 @@ not merely an editable entity.
   links wrap or use an explicitly accessible disclosure.
 - Reduced motion applies to row highlight/panel transitions.
 
-## Required browser baseline before implementation
+## Browser baseline closure before implementation
 
 Before changing presentation, capture current SSR at 1440/920/390 for:
 
@@ -183,8 +284,46 @@ Before changing presentation, capture current SSR at 1440/920/390 for:
 3. create/edit expanded states;
 4. one-time invitation link;
 5. invalid/expired invitation preview;
-6. long names/emails and empty/minimal workspace.
+6. true no-workspace recovery state.
+
+### Form, credential and invitation-state capture — 2026-08-03
+
+Items 3–5 were captured in an isolated database across 1440/920/390. Eight
+states per viewport (24 total) cover expanded create, expanded edit, expanded
+invite, one-time credential, authenticated valid preview, public valid preview,
+expired preview and invalid preview. Screenshots and the measurement report are
+in `/tmp/booker-workspaces-forms-20260803`.
+
+All 24 combinations have zero horizontal overflow, console/page errors or
+failed requests. Browser measurements and visual inspection establish:
+
+- create, edit and invite native `<details>` open through Enter and retain
+  focus on their summary; the native element carries the state, while no
+  explicit `aria-expanded` attribute is rendered;
+- visible name/type/currency/role controls have associated labels; hidden CSRF
+  input correctly has none;
+- form inputs/selects are 40 px high and the broad disclosure summaries are
+  42 px on desktop/tablet, below the accepted 44 px target gate;
+- the opened workspace edit drawer intercepts pointer events over its own
+  summary, so a pointer click cannot close it; keyboard Enter still closes it;
+- the one-time link is readonly and has `aria-label="Ссылка приглашения"`, the
+  disclosure remains open and mobile has no page overflow;
+- after the invitation POST/full reload, focus is `body`; the share panel has
+  neither `aria-live` nor a status role, so the new credential is not
+  proactively announced;
+- authenticated valid preview renders one accept form; public valid preview
+  renders login/signup recovery and only workspace display name, role and
+  expiry;
+- expired and invalid previews expose no workspace metric. Expired uses the
+  specific message “Срок действия приглашения истек.”, while an unknown token
+  uses the generic invalid message.
+
+The minimal owner state and items 1–5 are now captured at all three widths.
+Long names/emails expose the separate 254 px mobile overflow documented above.
+The true no-workspace state cannot be reached through current runtime because
+context resolution silently creates a personal workspace; that behavior is
+already proved by `test_workspace_context_characterization.py` and is itself a
+replacement requirement rather than a missing screenshot.
 
 This capture may use an isolated disposable database. It must not mutate the
 developer’s normal financial workspace.
-

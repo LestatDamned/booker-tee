@@ -1,10 +1,11 @@
 # Workspaces React migration audit
 
-Статус: `audit complete; D1–D14 accepted 2026-08-03; Slice 0 active`.
+Статус: `audit and Slice 0 characterization complete; D1–D14 accepted 2026-08-03`.
 
 Этот временный child stage готовит Stage 7 Wave C migration для authenticated
-workflow Workspaces. Runtime-код, маршруты, API, схема БД и тесты на этапе
-аудита не изменялись. D1–D14 приняты без отклонений и зафиксированы в
+workflow Workspaces. Production runtime-код, маршруты, API и схема БД на этапе
+аудита не изменялись; после принятия решений добавлены только characterization
+tests. D1–D14 приняты без отклонений и зафиксированы в
 [`ADR-0006`](../../../architecture/decisions/0006-workspace-migration-policy.md).
 Legacy cleanup остаётся запрещён до соответствующих replacement gates.
 
@@ -224,7 +225,39 @@ D1–D14 приняты 2026-08-03 без отклонений. Тем самы�
 semantics, включение leave/transfer и deactivate/restore в последовательность
 Wave C, а также первоначальное сохранение public invitation SSR bridge.
 
-До Slice 1 остаются characterization gates: PostgreSQL concurrency evidence для
-invitation consume/revoke и last-owner transitions, route-level CSRF/masking
-matrix, session fallback behavior и точный deactivate impact на Chat,
-integrations и in-flight imports.
+Characterization gates для PostgreSQL invitation consume/revoke и last-owner
+transitions, route-level CSRF/pre-lookup masking, session fallback и точного
+deactivate impact закрыты. Они фиксируют существующие нарушения, а не объявляют
+текущую реализацию безопасной: strict `xfail` станут обычными passing tests при
+реализации locked actors в соответствующих production slices.
+
+Фактический прогресс Slice 0 на 2026-08-03: CSRF и pre-lookup masking matrices,
+session fallback/auto-create side effects, service-level concurrency failures и
+deactivate impact contract зафиксированы. Minimal и rich owner-state browser
+captures выполнены на 1440/920/390; rich mobile state воспроизводит 254 px
+horizontal overflow из-за длинного member identity. Реальные PostgreSQL tests
+доказывают две успешные accept, одновременно успешные accept/revoke и ноль
+активных owners после встречного disable. Implementation-time verification
+принятых контрактов остаётся gate соответствующих production slices.
+
+Admin/editor/viewer browser matrix также завершена: 9 страниц на
+1440/920/390 прошли без overflow и browser errors; фактическая видимость
+invite/member/settings actions совпала с server policies. Из browser baseline
+expanded create/edit, one-time invitation credential и invitation preview/error
+states также завершены: 24 state/viewport комбинации прошли overflow/error gate.
+Зафиксированы 40–42 px controls, pointer-inaccessible закрытие edit drawer и
+сброс focus на `body` без live announcement после создания credential.
+
+Тем самым Slice 0 characterization завершён. Недостижимый true no-workspace
+screen не считается пропущенным screenshot: текущий context resolver создаёт
+personal workspace на read, и это доказано characterization-тестом.
+
+Отдельный repository blocker обнаружен при создании чистой browser БД:
+`alembic upgrade head` падает в
+`migrations/versions/20260722_0017_confirmed_raw_dedupe_guard.py` с PostgreSQL
+`UnsafeNewEnumValueUsageError`, потому что partial index использует новое enum
+значение `confirmed` до commit транзакции, добавившей это значение. Для аудита
+использован schema-only snapshot уже мигрированной тестовой БД; application
+rows не копировались. Миграция не менялась. До заявления о воспроизводимом
+Slice 0 окружении нужен отдельный согласованный migration fix и clean-database
+regression check.

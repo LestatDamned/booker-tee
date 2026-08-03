@@ -1,6 +1,6 @@
 # Workspaces vertical slices
 
-Статус: D1–D14 accepted 2026-08-03; Slice 0 active. Production slices не начаты.
+Статус: D1–D14 accepted 2026-08-03; Slice 0 complete. Production slices не начаты.
 
 ## Ordering rationale
 
@@ -33,9 +33,24 @@ Progress 2026-08-03:
   reproduction as strict `xfail`;
 - existing evidence retained: workspace hard-delete cascade characterization in
   `test_rule_delete_postgres.py`;
-- pending: PostgreSQL invitation and last-owner lock proofs, accept-vs-revoke
-  race, foreign-ID response-indistinguishability, isolated browser geometry and
-  final deactivate impact contract.
+- completed: foreign workspace pre-lookup masking plus foreign/missing
+  member/invitation service outcome characterization;
+- completed: deterministic accept-vs-revoke race reproduction as strict
+  `xfail`;
+- completed: deactivate/restore persistence, session, Chat, integration and
+  in-flight import impact contract in `API_AND_STATE.md`;
+- completed: isolated minimal and rich owner-state browser geometry at
+  1440/920/390; the rich mobile fixture proves a 254 px legacy overflow;
+- completed: real PostgreSQL barriers prove two successful invitation accepts,
+  successful accept plus revoke, and two owner disables leaving zero active
+  owners (`test_workspace_concurrency_postgres.py`, strict `xfail` until fix);
+- completed: admin/editor/viewer browser capability and responsive geometry at
+  1440/920/390, with nine pages free of overflow/browser errors;
+- completed: expanded create/edit/invite, one-time credential and
+  authenticated/public/expired/invalid invitation states across 24
+  state/viewport combinations; exact focus/touch/announcement defects recorded;
+- Slice 0 characterization complete; deactivate behavior remains an
+  implementation-time replacement gate, not missing audit evidence.
 
 ## Slice 1 — directory, create and boundary switch
 

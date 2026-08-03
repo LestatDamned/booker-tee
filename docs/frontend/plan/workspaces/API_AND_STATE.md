@@ -234,3 +234,69 @@ sense in the new boundary.
 - Accept/revoke performs compare-and-consume under lock.
 - Token/hash is absent from logs, audit details, list DTOs, generated labels and
   analytics. The one-time share URL is never cached in loader state.
+
+## Accepted deactivate transaction contract
+
+This is the accepted D12 target, not current runtime behavior. Today there is no
+workspace lifecycle actor or route. The affected persistence fields and readers
+are factual references from `workspaces/models.py`, `users/models.py`,
+`chat_integrations/models.py`, `chat_integrations/use_cases/workspace.py` and
+`imports/documents/commands/upload.py`.
+
+One `WorkspaceLifecycleService.deactivate(...)` transaction must lock the
+workspace first and apply this database state:
+
+| Consumer/state | Deactivate result | Restore result |
+| --- | --- | --- |
+| `Workspace.is_active`, `archived_at` | `false`, committed timestamp | `true`, clear `archived_at` after stale-token check |
+| Pending `WorkspaceInvitation` | transition to `revoked`, set `revoked_at`; credentials never become valid again | remain revoked |
+| `UserSession.current_workspace_id` pointing here | replace with deterministic active-membership fallback; set `NULL` only for an explicit no-workspace recovery outcome | do not switch sessions back automatically |
+| `IntegrationConnection.status` | `disabled` | remain disabled until an explicit reconnect/reactivate action |
+| `ChatConversationBinding.is_active` | `false` | remain disabled until explicitly re-enabled |
+| `ChatIdentityBinding.is_active` | `false` | remain disabled; user explicitly binds/selects again |
+| Unconsumed `ChatConversationState` | set `consumed_at` to lifecycle timestamp; payload retained for audit/debug policy | never reopen |
+| Pending `IntegrationEventDelivery` | mark terminal `failed` with a bounded non-sensitive lifecycle reason before any later retry can send | never retry automatically |
+| Memberships and roles | preserve unchanged | become usable again subject to active status |
+| Accounts, documents/files, parse attempts/raw rows, rules, operations/money entries, categories, properties, audit | preserve unchanged | visible again through normal scoped readers |
+
+The lifecycle response returns the committed fallback session snapshot and
+impact counts only; it does not return member identities, invitation secrets,
+Chat external IDs or integration credentials.
+
+### In-flight boundary
+
+- New authenticated/API/Chat work is denied because active context resolution
+  already joins `Workspace.is_active`; lifecycle implementation must retain this
+  server-side check.
+- Financial, membership, invitation and settings mutations must lock/recheck the
+  workspace immediately before their commit. A request that loses the race to
+  deactivate returns a stable lifecycle conflict and cannot commit its mutation.
+- Statement upload currently commits document metadata and a running parse
+  attempt before synchronous extraction. If deactivate wins after either
+  preservation commit, parsing may finish only the raw/document/attempt
+  preservation path. It must skip confirmation, rules side effects and external
+  notifications; stored files and extracted raw data are not deleted.
+- Chat notification delivery currently performs the external provider call
+  synchronously before its database commit. An already-issued external message
+  cannot be rolled back. Deactivation must prevent new dispatch selection and
+  terminalize persisted pending deliveries, but the product cannot promise
+  recall of a provider call already in progress. This limitation must be named
+  in implementation tests and operational copy rather than hidden behind an
+  impossible atomicity claim.
+
+### Lock order
+
+To avoid cross-feature deadlocks, lifecycle-aware mutations use the same order:
+
+```text
+Workspace row
+-> affected UserSession / WorkspaceMember / WorkspaceInvitation rows
+-> IntegrationConnection / Chat bindings and states
+-> feature aggregate rows
+-> audit event
+-> one commit
+```
+
+Repositories expose bounded lock/update queries; the application actor owns the
+order, transaction and audit. No generic CRUD or event bus is introduced for
+this slice.

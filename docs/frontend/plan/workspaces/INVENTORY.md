@@ -194,11 +194,15 @@ coverage, а не к отсутствию runtime guard (`dependencies.py`, `rou
 
 1. **High — concurrent invitation replay is not serialized.** Token lookup is
    not locked and status is checked before create/commit. Two users can race a
-   pending token; unit tests cover sequential consumption only
-   (`service.accept_invitation`, `test_workspace_invitations.py`).
+   pending token. Real PostgreSQL barriers prove two accepts both commit and
+   create two active memberships; accept and revoke also both commit
+   (`service.accept_invitation`, `service.revoke_invitation`,
+   `test_workspace_concurrency_postgres.py`).
 2. **High — last-owner count-then-write is race-prone.** No workspace/member
    lock surrounds count and disable; two owners could concurrently disable
-   distinct owner memberships if such state exists.
+   distinct owner memberships if such state exists. A real PostgreSQL barrier
+   proves both service calls commit and leave zero active owners
+   (`service.disable_member`, `test_workspace_concurrency_postgres.py`).
 3. **High — hard delete blast radius is real and has no product guard.** FK
    cascades reach workspace-owned data; no delete route currently exists, which
    must remain true until an explicit operational policy.
@@ -218,10 +222,27 @@ coverage, а не к отсутствию runtime guard (`dependencies.py`, `rou
 9. **Low/UX-security — destructive confirmation is unproven.** SSR output uses
    `hx-confirm` without an HTMX request attribute and no browser test asserts a
    dialog for revoke/disable.
-10. **Coverage gap — route-level masking is not proved.** Repository lookups are
-    scoped and routes compare current workspace, but there are no workspace API/
-    SSR integration tests for foreign member/invite/workspace IDs, CSRF matrix,
-    or response indistinguishability.
+10. **Coverage gap — route-level masking is only partly proved.** Slice 0 now
+    proves non-current workspace 404 before member/invitation lookup, scoped
+    foreign/missing service outcomes and missing-CSRF rejection. Database-backed
+    settings/select identity masking and the future JSON API matrix remain open.
+
+## Clean-database migration blocker found during browser isolation
+
+Creating the disposable browser database exposed a repository-wide portability
+defect outside the Workspaces runtime: `alembic upgrade head` from an empty
+PostgreSQL database fails at
+`migrations/versions/20260722_0017_confirmed_raw_dedupe_guard.py` with
+`UnsafeNewEnumValueUsageError`. The partial index predicate uses
+`raw_transaction_status = 'confirmed'` in the same Alembic transaction in which
+an earlier revision added that enum value. PostgreSQL requires the enum change
+to be committed before use.
+
+The browser audit used a schema-only snapshot from an already migrated test
+database; no application rows were copied. This workaround is suitable only for
+the audit. A clean migration-chain fix and regression check are required before
+claiming Slice 0 environment reproducibility; no migration was changed during
+this work.
 
 ## Existing tests and consumers
 

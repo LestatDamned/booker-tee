@@ -1,6 +1,6 @@
 # Workspaces replacement test manifest
 
-Статус: accepted replacement manifest; Slice 0 characterization in progress.
+Статус: accepted replacement manifest; Slice 0 characterization complete.
 
 ## Existing evidence
 
@@ -22,21 +22,31 @@
 | Every authenticated legacy workspace POST rejects a missing form CSRF token before session/service work | `test_workspace_route_security.py` | 9 route cases pass |
 | Current invalid-current fallback commits during context resolution | `test_workspace_context_characterization.py` | characterization passes |
 | Current no-membership read silently creates a personal workspace and audit event | `test_workspace_context_characterization.py` | characterization passes |
-| Two concurrent users can pass the invitation status guard and consume one credential | `test_workspace_invitation_concurrency.py` | deterministic strict `xfail` for D13; PostgreSQL lock proof still pending |
-| Two owners can concurrently pass the service count guard and disable each other | `test_workspace_owner_concurrency.py` | deterministic strict `xfail` for D8; PostgreSQL lock proof still pending |
+| Two concurrent users can pass the invitation status guard and consume one credential | `test_workspace_invitation_concurrency.py`, `test_workspace_concurrency_postgres.py` | service and real PostgreSQL strict `xfail`; PostgreSQL proves 2 commits and 2 memberships |
+| Accept and revoke can both pass independent pending snapshots | `test_workspace_invitation_concurrency.py`, `test_workspace_concurrency_postgres.py` | service and real PostgreSQL strict `xfail`; PostgreSQL proves both commit |
+| Two owners can concurrently pass the service count guard and disable each other | `test_workspace_owner_concurrency.py`, `test_workspace_concurrency_postgres.py` | service and real PostgreSQL strict `xfail`; PostgreSQL proves 2 commits and 0 active owners |
+| Non-current workspace is rejected before member/invitation route lookup | `test_workspace_route_security.py` | 5 route cases pass with identical 404 |
+| Foreign and missing member/invitation IDs use the same scoped service outcome | `test_workspace_isolation_characterization.py` | 4 outcomes pass; current workspace ID asserted |
+| Minimal owner SSR geometry at 1440/920/390 | `scripts/ui_audit.py --authenticated --scenario empty --path workspaces` | 3 pages pass; zero overflow/errors |
+| Rich owner SSR geometry with multiple workspaces/member/pending invite/long labels | isolated `scripts/ui_audit.py --authenticated --path workspaces` fixture | desktop/tablet pass; mobile fails with 254 px overflow from member/title/meta widths; zero browser errors |
+| Admin/editor/viewer SSR capability geometry | isolated shared-role fixture + `scripts/ui_audit.py --authenticated --path workspaces` | 9 pages pass at 1440/920/390; actions match server policies; zero overflow/errors |
+| Expanded create/edit/invite, one-time credential and valid/expired/invalid preview geometry | isolated Playwright interaction capture, `/tmp/booker-workspaces-forms-20260803/report.json` | 24 state/viewport combinations pass overflow/error gate; focus, labels and touch sizes measured |
 
 The strict `xfail` cases state the accepted invariant, reproduce the current
 race deterministically and must be converted to ordinary passing tests when the
-locked application actors are implemented. Both currently use service harnesses
-because the initial database harnesses could block nondeterministically. The
-PostgreSQL lock proofs therefore remain mandatory Slice 0 gates. These tests are
-evidence of known gaps, not waived requirements.
+locked application actors are implemented. Fast service harnesses and real
+PostgreSQL tests now agree. The database tests coordinate immediately after the
+real repository reads, then let ordinary flush/commit behavior run: no fake
+transaction or lock implementation is involved. These tests are evidence of
+known gaps, not waived requirements.
 
-Current gaps: no foreign-ID response-indistinguishability route matrix, no
-versioned Workspaces API, no PostgreSQL accept-vs-revoke race, no React
-state/interaction tests and no dedicated workspace browser scenario. The
-missing-CSRF route matrix and the two primary PostgreSQL races now have Slice 0
-evidence above.
+Current gaps: settings/select same-actor foreign/missing route outcomes still
+need a database-backed matrix; no versioned Workspaces API exists; PostgreSQL
+locking fixes remain future implementation work but their failure mode is no
+longer ambiguous; no React state/interaction tests exist. Browser baseline is
+complete: it proves rich-state mobile overflow, sub-44 px legacy controls,
+pointer-inaccessible edit closure and unannounced one-time credential as
+replacement requirements rather than unmeasured risks.
 
 ## Server/application tests required
 
