@@ -15,6 +15,15 @@ export type AccountMutationResult =
   | { status: "unauthenticated" }
   | { status: "error"; message: string };
 
+export type PasswordChangeResult =
+  | { status: "success"; message: string }
+  | { status: "unauthenticated" }
+  | {
+      status: "error";
+      fieldErrors: Record<string, string>;
+      message: string;
+    };
+
 const accountSchema = z.object({
   id: z.string(),
   email: z.string(),
@@ -66,6 +75,45 @@ export async function logout(csrfToken: string): Promise<{
     };
   }
   return { status: "success" };
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  csrfToken: string,
+): Promise<PasswordChangeResult> {
+  const response = await requestJson("/api/v1/account/password", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  if (response.status === "network_error") {
+    return { status: "error", fieldErrors: {}, message: "Backend недоступен." };
+  }
+  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (!response.ok) {
+    const error = parseApiError(response.body);
+    return {
+      status: "error",
+      fieldErrors: Object.fromEntries(
+        Object.entries(error?.fieldErrors ?? {}).flatMap(([field, messages]) =>
+          messages[0] ? [[field, messages[0]]] : [],
+        ),
+      ),
+      message: error?.message ?? `API вернул статус ${response.httpStatus}.`,
+    };
+  }
+  const parsed = z.object({ message: z.string() }).safeParse(response.body);
+  return parsed.success
+    ? { status: "success", message: parsed.data.message }
+    : {
+        status: "error",
+        fieldErrors: {},
+        message: "API вернул неожиданный ответ.",
+      };
 }
 
 function accountResult(

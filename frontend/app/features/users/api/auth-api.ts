@@ -9,6 +9,10 @@ export type EmailVerificationDraft =
   components["schemas"]["EmailVerificationApiRequest"];
 export type EmailVerificationRequestDraft =
   components["schemas"]["EmailVerificationRequestApiRequest"];
+export type PasswordResetRequestDraft =
+  components["schemas"]["PasswordResetRequestApiRequest"];
+export type PasswordResetDraft =
+  components["schemas"]["PasswordResetApiRequest"];
 
 export type AuthMutationResult =
   | { status: "success"; nextPath: string }
@@ -28,6 +32,15 @@ export type AuthConfigResult =
 
 export type VerificationRequestResult =
   | { status: "success"; message: string; retryAfterSeconds: number }
+  | {
+      status: "error";
+      fieldErrors: Record<string, string>;
+      message: string;
+      retryAfterSeconds?: number;
+    };
+
+export type PasswordResetResult =
+  | { status: "success"; message: string }
   | {
       status: "error";
       fieldErrors: Record<string, string>;
@@ -73,6 +86,44 @@ export function resendEmailVerification(
   draft: EmailVerificationRequestDraft,
 ): Promise<VerificationRequestResult> {
   return requestVerification("/api/v1/auth/email-verification-requests", draft);
+}
+
+export function requestPasswordReset(
+  draft: PasswordResetRequestDraft,
+): Promise<VerificationRequestResult> {
+  return requestVerification("/api/v1/auth/password-reset-requests", draft);
+}
+
+export async function resetPassword(
+  draft: PasswordResetDraft,
+): Promise<PasswordResetResult> {
+  const response = await requestJson("/api/v1/auth/password-resets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(draft),
+  });
+  if (response.status === "network_error") {
+    return { status: "error", fieldErrors: {}, message: "Backend недоступен." };
+  }
+  if (!response.ok) {
+    const error = parseApiError(response.body);
+    return {
+      status: "error",
+      fieldErrors: firstFieldErrors(error?.fieldErrors ?? {}),
+      message: error?.message ?? `API вернул статус ${response.httpStatus}.`,
+      ...(response.httpStatus === 429
+        ? { retryAfterSeconds: retryAfterDetails(error?.details) }
+        : {}),
+    };
+  }
+  const parsed = z.object({ message: z.string() }).safeParse(response.body);
+  return parsed.success
+    ? { status: "success", message: parsed.data.message }
+    : {
+        status: "error",
+        fieldErrors: {},
+        message: "API вернул данные неожиданного формата.",
+      };
 }
 
 export function verifyEmail(

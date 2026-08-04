@@ -26,6 +26,14 @@ class InvalidEmailVerificationTokenError(UserError):
     pass
 
 
+class InvalidPasswordResetTokenError(UserError):
+    pass
+
+
+class CurrentPasswordIncorrectError(UserError):
+    pass
+
+
 class AuthRateLimitedError(UserError):
     def __init__(self, retry_after_seconds: int) -> None:
         super().__init__("Слишком много запросов. Повторите позже.")

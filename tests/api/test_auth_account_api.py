@@ -5,6 +5,7 @@ from api_client import ApiTestClient as TestClient
 from app.api.dependencies import (
     AuthenticatedSessionContext,
     get_authenticated_session_context,
+    get_password_service,
 )
 from app.api.v1.account.dependencies import get_user_service
 from app.api.v1.auth.dependencies import (
@@ -18,6 +19,7 @@ from app.features.users.email_delivery import IdentityEmail
 from app.features.users.email_verification import VerificationRequest
 from app.features.users.errors import InvalidCredentialsError, SignupsClosedError
 from app.features.users.models import User, UserSession
+from app.features.users.passwords import PasswordResetRequest
 from app.main import create_app
 
 SAME_ORIGIN_HEADERS = {"Origin": "http://testserver"}
@@ -63,6 +65,34 @@ class EmailVerificationStub:
         if self.error:
             raise self.error
         return _LoginResult(self.session_token)
+
+
+@dataclass
+class PasswordStub:
+    error: Exception | None = None
+    email: IdentityEmail | None = None
+    changed: tuple[str, str] | None = None
+
+    async def request_reset(self, **_values: object) -> PasswordResetRequest:
+        if self.error:
+            raise self.error
+        return PasswordResetRequest(email=self.email)
+
+    async def reset_password(self, **_values: object) -> None:
+        if self.error:
+            raise self.error
+
+    async def change_password(
+        self,
+        *,
+        current_password: str,
+        new_password: str,
+        **_values: object,
+    ) -> str:
+        if self.error:
+            raise self.error
+        self.changed = (current_password, new_password)
+        return "rotated-session-token"
 
 
 class UserServiceStub:
@@ -203,6 +233,47 @@ def test_email_verification_sets_session_cookie_and_safe_continuation() -> None:
     assert "booker_session=verified-session-token" in response.headers["set-cookie"]
 
 
+def test_password_reset_request_is_generic_and_sends_email_in_background() -> None:
+    app = create_app()
+    sent: list[IdentityEmail] = []
+    message = IdentityEmail(
+        recipient="max@example.test",
+        subject="Восстановление пароля",
+        text="reset link",
+    )
+    app.dependency_overrides[get_password_service] = lambda: PasswordStub(email=message)
+
+    async def capture_email(email: IdentityEmail) -> None:
+        sent.append(email)
+
+    app.dependency_overrides[get_identity_email_sender] = lambda: capture_email
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/auth/password-reset-requests",
+            headers=SAME_ORIGIN_HEADERS,
+            json={"email": "max@example.test"},
+        )
+
+    assert response.status_code == 202
+    assert "Если аккаунт существует" in response.json()["message"]
+    assert sent == [message]
+
+
+def test_password_reset_clears_session_cookie() -> None:
+    app = create_app()
+    app.dependency_overrides[get_password_service] = lambda: PasswordStub()
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/auth/password-resets",
+            headers=SAME_ORIGIN_HEADERS,
+            json={"token": "opaque-token", "newPassword": "new secure phrase"},
+        )
+
+    assert response.status_code == 200
+    assert "Войдите снова" in response.json()["message"]
+    assert "Max-Age=0" in response.headers["set-cookie"]
+
+
 def test_legacy_signup_redirects_to_react_and_preserves_continuation() -> None:
     with TestClient(create_app(), follow_redirects=False) as client:
         response = client.get("/signup?next=/workspaces/invitations/example")
@@ -282,6 +353,26 @@ def test_account_reads_and_updates_without_workspace_context() -> None:
     assert read_response.json()["email"] == "max@example.test"
     assert update_response.status_code == 200
     assert update_response.json()["name"] == "Maxim"
+
+
+def test_change_password_rotates_current_session_cookie() -> None:
+    app = create_app()
+    passwords = PasswordStub()
+    app.dependency_overrides[get_authenticated_session_context] = _account_context
+    app.dependency_overrides[get_password_service] = lambda: passwords
+
+    with TestClient(app) as client:
+        response = client.patch(
+            "/api/v1/account/password",
+            json={
+                "currentPassword": "old secure phrase",
+                "newPassword": "new secure phrase",
+            },
+        )
+
+    assert response.status_code == 200
+    assert passwords.changed == ("old secure phrase", "new secure phrase")
+    assert "booker_session=rotated-session-token" in response.headers["set-cookie"]
 
 
 def test_account_requires_authentication() -> None:

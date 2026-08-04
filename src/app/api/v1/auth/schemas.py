@@ -34,3 +34,16 @@ class EmailVerificationRequestApiRequest(ApiRequestModel):
 class EmailVerificationApiRequest(ApiRequestModel):
     token: str = Field(min_length=1, max_length=1024)
     next_path: str | None = Field(default=None, max_length=2048)
+
+
+class PasswordResetRequestApiRequest(ApiRequestModel):
+    email: str = Field(max_length=320)
+
+
+class PasswordResetApiRequest(ApiRequestModel):
+    token: str = Field(min_length=1, max_length=1024)
+    new_password: str = Field(max_length=1024)
+
+
+class PasswordResetApiResponse(ApiModel):
+    message: str

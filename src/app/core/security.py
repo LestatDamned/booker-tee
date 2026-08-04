@@ -12,6 +12,7 @@ from pwdlib.exceptions import UnknownHashError
 from app.core.settings import Settings
 
 _PASSWORD_HASHER = PasswordHash.recommended()
+_DUMMY_PASSWORD_HASH = _PASSWORD_HASHER.hash("booker-tee-dummy-password")
 SESSION_TOKEN_BYTES = 32
 CSRF_TOKEN_BYTES = 32
 
@@ -25,6 +26,17 @@ def verify_password(password: str, password_hash: str) -> bool:
         return _PASSWORD_HASHER.verify(password, password_hash)
     except UnknownHashError:
         return False
+
+
+def verify_and_update_password(password: str, password_hash: str) -> tuple[bool, str | None]:
+    try:
+        return _PASSWORD_HASHER.verify_and_update(password, password_hash)
+    except UnknownHashError:
+        return False, None
+
+
+def verify_dummy_password(password: str) -> None:
+    _PASSWORD_HASHER.verify(password, _DUMMY_PASSWORD_HASH)
 
 
 def generate_session_token() -> str:

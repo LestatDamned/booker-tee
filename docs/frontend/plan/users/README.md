@@ -1,8 +1,7 @@
 # Stage 07 / Wave C: Users And Authentication
 
-Статус: active. Slice 1, Slice 2.0 Foundations и Slice 2.1
-Verification-first signup завершены 2026-08-04; следующий increment — 2.2
-Password policy, recovery and change.
+Статус: active. Slice 1 и increments 2.0–2.2 завершены 2026-08-04; следующий
+increment — 2.3 Session hardening and management.
 
 Этот child stage переносит оставшийся authenticated профиль и public auth flow
 из Jinja в React и доводит текущую email/password-аутентификацию до полного
@@ -71,7 +70,10 @@ SMTP host/credentials, verified sender/domain и canonical HTTPS
 `PUBLIC_BASE_URL`. Production startup должен отклонять включённую регистрацию
 или recovery, если эти значения отсутствуют.
 
-## Наблюдаемое текущее состояние
+## Исходное состояние перед Slice 2
+
+Этот baseline зафиксирован при планировании. Актуальный результат
+каждого завершённого increment описан в его `Completion record` ниже.
 
 ### Backend
 
@@ -99,7 +101,7 @@ SMTP host/credentials, verified sender/domain и canonical HTTPS
 - Public workspace invitation preview остаётся минимальным SSR bridge и
   использует login/signup continuation.
 
-### Подтверждённые gaps
+### Исходные gaps
 
 - email не подтверждается;
 - recovery и смены пароля/email нет;
@@ -299,7 +301,7 @@ DELETE /api/v1/auth/session
 
 GET    /api/v1/account
 PATCH  /api/v1/account
-POST   /api/v1/account/password-change
+PATCH  /api/v1/account/password
 POST   /api/v1/account/email-change-requests
 POST   /api/v1/account/email-changes
 GET    /api/v1/account/sessions
@@ -594,6 +596,31 @@ Gate 2.2:
   ротируется после authenticated change;
 - generic responses и `429` не раскрывают существование user;
 - forgot/reset/change flows проходят keyboard-only и browser matrix.
+
+Completion record 2026-08-04:
+
+- общий configurable policy применён к signup, reset и authenticated change:
+  `8..1024` Unicode code points, локальный pinned blocklist common/context
+  passwords, без composition rules, trim, запрета paste или календарной смены;
+- login выполняет Argon2id dummy verification для неизвестного email,
+  автоматически обновляет устаревший hash через `verify_and_update` и считает
+  failed account/network attempts в существующих PostgreSQL buckets;
+- generic `POST /password-reset-requests` создаёт hashed single-use token на 30
+  минут только для active verified user; `POST /password-resets` не меняет user
+  до валидного token/password и после успеха отзывает все reset tokens и
+  sessions;
+- `PATCH /account/password` требует current password, отзывает остальные
+  sessions, ротирует current opaque token и заново устанавливает cookie;
+- React добавил `/app/auth/forgot-password`, `/app/auth/reset-password` и
+  `/app/profile/security`; формы используют visible labels, native autocomplete,
+  show/hide, paste/password-manager semantics, inline errors, error summary,
+  focus first invalid field и pending protection;
+- новая миграция не потребовалась: `user_tokens`, token purpose и rate-limit
+  buckets уже добавлены безопасным foundation 2.0;
+- Ruff, ty, OpenAPI contract, full backend (`816 passed, 19 skipped`), full
+  frontend (`85 files, 493 passed`), production build и PostgreSQL identity
+  suite (`4 passed`) прошли; Mocha/Latte browser audit проверил recovery и
+  security pages на `1440x1000`, `920x900`, `390x844` (`18/18` страниц).
 
 ### 2.3 Session hardening and management
 

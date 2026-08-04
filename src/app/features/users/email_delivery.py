@@ -41,6 +41,25 @@ def build_email_verification_message(
     )
 
 
+def build_password_reset_message(
+    *,
+    recipient: str,
+    token: str,
+    base_url: str,
+) -> IdentityEmail:
+    reset_url = f"{base_url.rstrip('/')}/app/auth/reset-password?{urlencode({'token': token})}"
+    return IdentityEmail(
+        recipient=recipient,
+        subject="Восстановление пароля — Booker Tee",
+        text=(
+            "Используйте ссылку, чтобы задать новый пароль Booker Tee.\n\n"
+            f"{reset_url}\n\n"
+            "Ссылка действует 30 минут. Если вы не запрашивали восстановление, "
+            "проигнорируйте письмо."
+        ),
+    )
+
+
 async def send_identity_email(message: IdentityEmail, settings: Settings) -> None:
     await asyncio.to_thread(_send_identity_email, message, settings)
 

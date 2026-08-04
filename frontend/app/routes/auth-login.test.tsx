@@ -19,6 +19,10 @@ describe("LoginRoute", () => {
     expect(email).toHaveAttribute("type", "email");
     expect(email).toHaveAttribute("autocomplete", "email");
     expect(password).toHaveAttribute("autocomplete", "current-password");
+    expect(password).toHaveAttribute("type", "password");
+
+    await user.click(screen.getByRole("button", { name: "Показать" }));
+    expect(password).toHaveAttribute("type", "text");
 
     await user.click(screen.getByRole("button", { name: "Войти" }));
 

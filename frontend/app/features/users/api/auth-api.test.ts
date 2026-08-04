@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   loadAuthConfig,
   login,
+  requestPasswordReset,
+  resetPassword,
   resendEmailVerification,
   signup,
 } from "./auth-api";
@@ -137,6 +139,55 @@ describe("auth API", () => {
       message: "Повторите позже.",
       retryAfterSeconds: 45,
     });
+  });
+
+  it("requests password reset without exposing account state", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          jsonResponse(
+            {
+              message: "Если аккаунт существует, письмо отправлено.",
+              retryAfterSeconds: 60,
+            },
+            202,
+          ),
+        ),
+      ),
+    );
+
+    await expect(
+      requestPasswordReset({ email: "max@example.test" }),
+    ).resolves.toEqual({
+      status: "success",
+      message: "Если аккаунт существует, письмо отправлено.",
+      retryAfterSeconds: 60,
+    });
+  });
+
+  it("resets password through the single-use token endpoint", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(jsonResponse({ message: "Пароль изменён." })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      resetPassword({
+        token: "opaque-token",
+        newPassword: "new secure phrase",
+      }),
+    ).resolves.toEqual({ status: "success", message: "Пароль изменён." });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/auth/password-resets",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          token: "opaque-token",
+          newPassword: "new secure phrase",
+        }),
+      }),
+    );
   });
 });
 

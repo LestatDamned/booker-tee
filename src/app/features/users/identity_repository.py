@@ -74,6 +74,23 @@ class UserTokenRepository:
         await self.session.flush()
         return token
 
+    async def consume_active_for_user(
+        self,
+        *,
+        user_id: UUID,
+        purpose: UserTokenPurpose,
+    ) -> None:
+        await self.session.execute(
+            update(UserToken)
+            .where(
+                UserToken.user_id == user_id,
+                UserToken.purpose == purpose,
+                UserToken.consumed_at.is_(None),
+            )
+            .values(consumed_at=utc_now())
+        )
+        await self.session.flush()
+
 
 class AuthRateLimitRepository:
     def __init__(self, session: AsyncSession) -> None:

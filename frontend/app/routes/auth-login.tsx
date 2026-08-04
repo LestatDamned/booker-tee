@@ -9,6 +9,8 @@ import {
   FormErrorSummary,
   type FormErrorSummaryItem,
 } from "../ui/field/form-error-summary";
+import { InlineNotice } from "../ui/inline-notice/inline-notice";
+import { PasswordInput } from "../ui/password-input/password-input";
 
 export function meta() {
   return [{ title: "Вход — Booker Tee" }];
@@ -61,6 +63,11 @@ export default function LoginRoute() {
           <h1 id="login-title">Вход</h1>
           <p>Вернитесь к своим финансовым данным.</p>
         </header>
+        {searchParams.get("passwordReset") === "1" ? (
+          <InlineNotice tone="success">
+            Пароль изменён. Войдите с новым паролем.
+          </InlineNotice>
+        ) : null}
         <form className={styles.form} noValidate onSubmit={submit}>
           {submitError || summaryErrors.length > 0 ? (
             <FormErrorSummary
@@ -109,7 +116,7 @@ export default function LoginRoute() {
             label="Пароль"
             required
           >
-            <input
+            <PasswordInput
               aria-describedby={
                 fieldErrors.password ? "login-password-error" : undefined
               }
@@ -125,7 +132,6 @@ export default function LoginRoute() {
               }}
               ref={passwordRef}
               required
-              type="password"
               value={password}
             />
           </Field>
@@ -133,6 +139,9 @@ export default function LoginRoute() {
             {pending ? "Входим…" : "Войти"}
           </Button>
         </form>
+        <p className={styles.footer}>
+          <Link to="/auth/forgot-password">Забыли пароль?</Link>
+        </p>
         <p className={styles.footer}>
           Нет аккаунта? <Link to={`/auth/signup?${searchParams}`}>Создать</Link>
         </p>

@@ -11,6 +11,7 @@ import { Button } from "../ui/button/button";
 import { Field } from "../ui/field/field";
 import { FormErrorSummary } from "../ui/field/form-error-summary";
 import { InlineNotice } from "../ui/inline-notice/inline-notice";
+import { PasswordInput } from "../ui/password-input/password-input";
 import type { Route } from "./+types/auth-signup";
 
 export function meta() {
@@ -201,7 +202,7 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
               label="Пароль"
               required
             >
-              <input
+              <PasswordInput
                 aria-describedby={
                   fieldErrors.password
                     ? "signup-password-error"
@@ -220,7 +221,6 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
                 }}
                 ref={passwordRef}
                 required
-                type="password"
                 value={password}
               />
             </Field>

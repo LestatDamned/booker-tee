@@ -8,6 +8,7 @@ import {
   type AuthenticatedRouteFailure,
 } from "../session/authenticated-route-state-page";
 import { Button } from "../ui/button/button";
+import { RouterButtonLink } from "../ui/button/button";
 import { Field } from "../ui/field/field";
 import { FormErrorSummary } from "../ui/field/form-error-summary";
 import { FormActions } from "../ui/field/form-layout";
@@ -150,6 +151,11 @@ function ProfilePage({
               <Button isLoading={pending} tone="primary" type="submit">
                 {pending ? "Сохраняем…" : "Сохранить"}
               </Button>
+            </FormActions>
+            <FormActions>
+              <RouterButtonLink to="/profile/security">
+                Безопасность и пароль
+              </RouterButtonLink>
             </FormActions>
           </form>
           <div className={styles.dangerZone}>

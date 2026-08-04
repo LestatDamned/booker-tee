@@ -115,6 +115,15 @@ def test_password_validation_uses_configured_minimum() -> None:
         raise AssertionError("configured password minimum was ignored")
 
 
+def test_password_validation_rejects_common_password() -> None:
+    try:
+        validate_password("Password123")
+    except UserError as exc:
+        assert "распространён" in str(exc)
+    else:
+        raise AssertionError("common password was accepted")
+
+
 def test_session_token_hash_and_csrf_are_deterministic() -> None:
     settings = Settings(auth_secret_key="test-secret")
     session_token = "session-token"

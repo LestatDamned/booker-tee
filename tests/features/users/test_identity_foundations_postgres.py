@@ -8,7 +8,13 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.core.security import auth_rate_limit_bucket_hash, verify_password
+from app.core.security import (
+    auth_rate_limit_bucket_hash,
+    hash_password,
+    hash_session_token,
+    hash_user_token,
+    verify_password,
+)
 from app.core.settings import Settings
 from app.db.base import utc_now
 from app.features.users.email_verification import EmailVerificationService
@@ -16,6 +22,7 @@ from app.features.users.errors import (
     AuthRateLimitedError,
     InvalidCredentialsError,
     InvalidEmailVerificationTokenError,
+    InvalidPasswordResetTokenError,
 )
 from app.features.users.identity_repository import (
     AuthRateLimitRepository,
@@ -28,6 +35,7 @@ from app.features.users.models import (
     UserToken,
     UserTokenPurpose,
 )
+from app.features.users.passwords import PasswordService
 from app.features.users.service import AuthenticationService
 from app.features.workspaces.models import Workspace, WorkspaceAuditEvent, WorkspaceMember
 
@@ -220,6 +228,18 @@ async def test_verification_first_signup_creates_identity_then_workspace_once() 
             )
     finally:
         async with sessions() as session:
+            rate_limit_hashes = [
+                auth_rate_limit_bucket_hash(scope=scope, key=key, settings=settings)
+                for scope, key in (
+                    ("signup-account", email),
+                    ("signup-network", "unknown"),
+                    ("login-account", email),
+                    ("login-network", "unknown"),
+                )
+            ]
+            await session.execute(
+                delete(AuthRateLimit).where(AuthRateLimit.bucket_hash.in_(rate_limit_hashes))
+            )
             if user_id is not None:
                 await session.execute(delete(UserSession).where(UserSession.user_id == user_id))
                 await session.execute(delete(UserToken).where(UserToken.user_id == user_id))
@@ -281,5 +301,129 @@ async def test_verification_resend_is_generic_and_rate_limited_for_known_and_unk
             await session.execute(
                 delete(AuthRateLimit).where(AuthRateLimit.bucket_hash.in_(bucket_hashes))
             )
+            await session.commit()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_password_change_rotates_current_session_and_reset_revokes_every_session() -> None:
+    assert TEST_DATABASE_URL is not None
+    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    unique = uuid4()
+    email = f"password-{unique}@example.test"
+    current_token = f"current-{unique}"
+    settings = Settings(
+        auth_secret_key="password-lifecycle-test-secret",
+        public_base_url="https://booker.example",
+    )
+    user_id = uuid4()
+    session_ids = [uuid4(), uuid4()]
+    reset_token: str | None = None
+
+    async with sessions() as session:
+        session.add(
+            User(
+                id=user_id,
+                email=email,
+                password_hash=hash_password("old secure phrase"),
+                email_verified_at=utc_now(),
+            )
+        )
+        session.add_all(
+            [
+                UserSession(
+                    id=session_ids[0],
+                    user_id=user_id,
+                    session_token_hash=hash_session_token(current_token),
+                    expires_at=utc_now() + timedelta(days=1),
+                ),
+                UserSession(
+                    id=session_ids[1],
+                    user_id=user_id,
+                    session_token_hash="f" * 64,
+                    expires_at=utc_now() + timedelta(days=1),
+                ),
+            ]
+        )
+        await session.commit()
+
+    try:
+        async with sessions() as session:
+            user = await session.get(User, user_id)
+            assert user is not None
+            rotated_token = await PasswordService(session, settings).change_password(
+                user=user,
+                session_token=current_token,
+                current_password="old secure phrase",
+                new_password="new secure phrase",
+            )
+            assert rotated_token != current_token
+
+        async with sessions() as session:
+            current = await session.get(UserSession, session_ids[0])
+            other = await session.get(UserSession, session_ids[1])
+            user = await session.get(User, user_id)
+            assert current is not None and current.revoked_at is None
+            assert current.session_token_hash == hash_session_token(rotated_token)
+            assert other is not None and other.revoked_at is not None
+            assert user is not None and verify_password("new secure phrase", user.password_hash)
+
+            request = await PasswordService(session, settings).request_reset(
+                email=email,
+                base_url="https://booker.example",
+                network_key=f"network-{unique}",
+            )
+            assert request.email is not None
+            reset_token = parse_qs(urlparse(request.email.text.splitlines()[2]).query)["token"][0]
+
+        async with sessions() as session:
+            await PasswordService(session, settings).reset_password(
+                token=reset_token,
+                new_password="final secure phrase",
+                network_key=f"network-{unique}",
+            )
+
+        async with sessions() as session:
+            user = await session.get(User, user_id)
+            active_session = await session.scalar(
+                select(UserSession.id).where(
+                    UserSession.user_id == user_id,
+                    UserSession.revoked_at.is_(None),
+                )
+            )
+            assert user is not None
+            assert verify_password("final secure phrase", user.password_hash)
+            assert active_session is None
+            with pytest.raises(InvalidPasswordResetTokenError):
+                await PasswordService(session, settings).reset_password(
+                    token=reset_token,
+                    new_password="another secure phrase",
+                    network_key=f"network-{unique}",
+                )
+    finally:
+        async with sessions() as session:
+            rate_limit_hashes = [
+                auth_rate_limit_bucket_hash(scope=scope, key=key, settings=settings)
+                for scope, key in (
+                    ("password-reset-account", email),
+                    ("password-reset-network", f"network-{unique}"),
+                    ("password-reset-attempt-network", f"network-{unique}"),
+                )
+            ]
+            if reset_token is not None:
+                rate_limit_hashes.append(
+                    auth_rate_limit_bucket_hash(
+                        scope="password-reset-token",
+                        key=hash_user_token(reset_token),
+                        settings=settings,
+                    )
+                )
+            await session.execute(
+                delete(AuthRateLimit).where(AuthRateLimit.bucket_hash.in_(rate_limit_hashes))
+            )
+            await session.execute(delete(UserSession).where(UserSession.user_id == user_id))
+            await session.execute(delete(UserToken).where(UserToken.user_id == user_id))
+            await session.execute(delete(User).where(User.id == user_id))
             await session.commit()
         await engine.dispose()

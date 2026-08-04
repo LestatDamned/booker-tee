@@ -13,3 +13,12 @@ class AccountApiResponse(ApiModel):
 
 class UpdateAccountApiRequest(ApiRequestModel):
     name: str | None = Field(default=None, max_length=255)
+
+
+class ChangePasswordApiRequest(ApiRequestModel):
+    current_password: str = Field(max_length=1024)
+    new_password: str = Field(max_length=1024)
+
+
+class ChangePasswordApiResponse(ApiModel):
+    message: str

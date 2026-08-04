@@ -1,24 +1,30 @@
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import NoReturn
+from unicodedata import normalize
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import (
+    auth_rate_limit_bucket_hash,
     generate_session_token,
     hash_password,
     hash_session_token,
-    verify_password,
+    verify_and_update_password,
+    verify_dummy_password,
 )
 from app.core.settings import Settings
 from app.db.base import utc_now
 from app.features.users.errors import (
+    AuthRateLimitedError,
     EmailAlreadyRegisteredError,
     InvalidCredentialsError,
     InvalidEmailError,
     InvalidPasswordError,
     UserError,
 )
+from app.features.users.identity_repository import AuthRateLimitRepository
 from app.features.users.models import User, UserSession
 from app.features.users.repository import UserRepository
 from app.features.workspaces.models import Workspace, WorkspaceAuditEventType, WorkspaceMember
@@ -39,9 +45,36 @@ def clean_user_name(name: str | None) -> str | None:
     return cleaned or None
 
 
+_BLOCKED_PASSWORDS = frozenset(
+    {
+        "12345678",
+        "123456789",
+        "1234567890",
+        "booker-tee",
+        "bookertee",
+        "bookertee123",
+        "iloveyou",
+        "letmein",
+        "password",
+        "password1",
+        "password123",
+        "qwerty123",
+        "qwertyuiop",
+        "welcome1",
+    }
+)
+_LOGIN_FAILURE_WINDOW = timedelta(minutes=5)
+_LOGIN_ACCOUNT_LIMIT = 5
+_LOGIN_NETWORK_LIMIT = 50
+
+
 def validate_password(password: str, *, minimum_length: int = 8) -> str:
     if len(password) < minimum_length:
         raise InvalidPasswordError(f"Пароль должен быть не короче {minimum_length} символов.")
+    if len(password) > 1024:
+        raise InvalidPasswordError("Пароль должен быть не длиннее 1024 символов.")
+    if normalize("NFKC", password).casefold() in _BLOCKED_PASSWORDS:
+        raise InvalidPasswordError("Этот пароль слишком распространён. Выберите другой.")
     return password
 
 
@@ -106,23 +139,62 @@ class AuthenticationService:
         self.settings = settings
         self.users = UserRepository(session)
         self.workspaces = WorkspaceRepository(session)
+        self.rate_limits = AuthRateLimitRepository(session)
 
-    async def login(self, *, email: str, password: str) -> LoginSession:
+    async def login(
+        self,
+        *,
+        email: str,
+        password: str,
+        network_key: str = "unknown",
+    ) -> LoginSession:
         normalized_email = normalize_email(email)
         user = await self.users.get_by_email(normalized_email)
+        if user is None:
+            verify_dummy_password(password)
+            await self._reject_failed_login(normalized_email, network_key)
+
+        password_valid, updated_hash = verify_and_update_password(password, user.password_hash)
         if (
-            user is None
+            not password_valid
             or not user.is_active
             or user.deactivated_at is not None
             or user.email_verified_at is None
         ):
-            raise InvalidCredentialsError("Неверный email или пароль.")
-        if not verify_password(password, user.password_hash):
-            raise InvalidCredentialsError("Неверный email или пароль.")
+            await self._reject_failed_login(normalized_email, network_key)
+
+        if updated_hash is not None:
+            user.password_hash = updated_hash
 
         login_session = await self.create_login_session_for_user(user)
         await self.session.commit()
         return login_session
+
+    async def _reject_failed_login(
+        self,
+        normalized_email: str,
+        network_key: str,
+    ) -> NoReturn:
+        account_count = await self.rate_limits.increment(
+            bucket_hash=auth_rate_limit_bucket_hash(
+                scope="login-account",
+                key=normalized_email,
+                settings=self.settings,
+            ),
+            window=_LOGIN_FAILURE_WINDOW,
+        )
+        network_count = await self.rate_limits.increment(
+            bucket_hash=auth_rate_limit_bucket_hash(
+                scope="login-network",
+                key=network_key,
+                settings=self.settings,
+            ),
+            window=_LOGIN_FAILURE_WINDOW,
+        )
+        await self.session.commit()
+        if account_count > _LOGIN_ACCOUNT_LIMIT or network_count > _LOGIN_NETWORK_LIMIT:
+            raise AuthRateLimitedError(int(_LOGIN_FAILURE_WINDOW.total_seconds()))
+        raise InvalidCredentialsError("Неверный email или пароль.")
 
     async def create_login_session_for_user(self, user: User) -> LoginSession:
         membership = await self.workspaces.get_first_active_membership_for_user(user.id)

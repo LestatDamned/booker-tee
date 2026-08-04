@@ -139,3 +139,26 @@ class UserRepository:
     async def revoke_session(self, user_session: UserSession) -> None:
         user_session.revoked_at = utc_now()
         await self.session.flush()
+
+    async def revoke_all_sessions(self, user_id: UUID) -> None:
+        await self.session.execute(
+            update(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=utc_now())
+        )
+        await self.session.flush()
+
+    async def revoke_other_sessions(self, *, user_id: UUID, current_session_id: UUID) -> None:
+        await self.session.execute(
+            update(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.id != current_session_id,
+                UserSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=utc_now())
+        )
+        await self.session.flush()

@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { loadAccount, logout, updateAccount } from "./account-api";
+import {
+  changePassword,
+  loadAccount,
+  logout,
+  updateAccount,
+} from "./account-api";
 
 const account = {
   id: "7d71f4c7-ea92-45d4-817a-a1d85d509d4c",
@@ -50,6 +55,24 @@ describe("account API", () => {
       "/api/v1/auth/session",
       expect.objectContaining({
         method: "DELETE",
+        headers: expect.objectContaining({ "X-CSRF-Token": "csrf-token" }),
+      }),
+    );
+  });
+
+  it("changes password with CSRF and current credential", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(jsonResponse({ message: "Пароль изменён." })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      changePassword("old secure phrase", "new secure phrase", "csrf-token"),
+    ).resolves.toEqual({ status: "success", message: "Пароль изменён." });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/account/password",
+      expect.objectContaining({
+        method: "PATCH",
         headers: expect.objectContaining({ "X-CSRF-Token": "csrf-token" }),
       }),
     );

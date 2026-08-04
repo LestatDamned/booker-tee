@@ -5,6 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, stat
 from app.api.dependencies import (
     AuthenticatedSessionContext,
     get_authenticated_session_context,
+    get_password_service,
     require_same_origin_public_mutation,
 )
 from app.api.errors import ApiError, api_error_responses
@@ -19,6 +20,9 @@ from app.api.v1.auth.schemas import (
     EmailVerificationApiRequest,
     EmailVerificationRequestApiRequest,
     LoginApiRequest,
+    PasswordResetApiRequest,
+    PasswordResetApiResponse,
+    PasswordResetRequestApiRequest,
     SignupApiRequest,
     VerificationRequestedApiResponse,
 )
@@ -32,14 +36,19 @@ from app.features.users.errors import (
     InvalidEmailError,
     InvalidEmailVerificationTokenError,
     InvalidPasswordError,
+    InvalidPasswordResetTokenError,
     SignupsClosedError,
     UserError,
 )
+from app.features.users.passwords import PasswordService
 from app.features.users.service import AuthenticationService, safe_next_path
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 _VERIFICATION_REQUESTED_MESSAGE = (
     "Если адрес подходит для регистрации, мы отправили письмо с подтверждением."
+)
+_PASSWORD_RESET_REQUESTED_MESSAGE = (
+    "Если аккаунт существует, мы отправили письмо для восстановления пароля."
 )
 
 
@@ -65,6 +74,7 @@ async def read_auth_config(
     responses=api_error_responses(
         status.HTTP_403_FORBIDDEN,
         status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status.HTTP_429_TOO_MANY_REQUESTS,
     ),
 )
 async def signup(
@@ -85,6 +95,7 @@ async def signup(
             name=request.name,
             base_url=_public_base_url(http_request, settings),
             next_path=request.next_path,
+            network_key=http_request.client.host if http_request.client else "unknown",
         )
     except SignupsClosedError as error:
         raise ApiError(
@@ -105,6 +116,14 @@ async def signup(
             code="validation_error",
             message="Проверьте переданные данные.",
             field_errors={"password": [str(error)]},
+        ) from error
+    except AuthRateLimitedError as error:
+        raise ApiError(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            code="auth_rate_limited",
+            message=str(error),
+            details={"retryAfterSeconds": error.retry_after_seconds},
+            headers={"Retry-After": str(error.retry_after_seconds)},
         ) from error
 
     if result.email is not None:
@@ -209,9 +228,11 @@ async def verify_email(
         status.HTTP_401_UNAUTHORIZED,
         status.HTTP_403_FORBIDDEN,
         status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status.HTTP_429_TOO_MANY_REQUESTS,
     ),
 )
 async def login(
+    http_request: Request,
     request: LoginApiRequest,
     response: Response,
     settings: Annotated[Settings, Depends(get_settings)],
@@ -224,7 +245,16 @@ async def login(
         login_session = await authentication.login(
             email=request.email,
             password=request.password,
+            network_key=http_request.client.host if http_request.client else "unknown",
         )
+    except AuthRateLimitedError as error:
+        raise ApiError(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            code="auth_rate_limited",
+            message=str(error),
+            details={"retryAfterSeconds": error.retry_after_seconds},
+            headers={"Retry-After": str(error.retry_after_seconds)},
+        ) from error
     except UserError as error:
         raise ApiError(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -238,6 +268,103 @@ async def login(
         session_token=login_session.session_token,
     )
     return AuthenticatedApiResponse(next_path=safe_next_path(request.next_path))
+
+
+@router.post(
+    "/password-reset-requests",
+    response_model=VerificationRequestedApiResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_same_origin_public_mutation)],
+    responses=api_error_responses(
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status.HTTP_429_TOO_MANY_REQUESTS,
+    ),
+)
+async def request_password_reset(
+    http_request: Request,
+    request: PasswordResetRequestApiRequest,
+    background_tasks: BackgroundTasks,
+    passwords: Annotated[PasswordService, Depends(get_password_service)],
+    email_sender: Annotated[IdentityEmailSender, Depends(get_identity_email_sender)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> VerificationRequestedApiResponse:
+    try:
+        result = await passwords.request_reset(
+            email=request.email,
+            base_url=_public_base_url(http_request, settings),
+            network_key=http_request.client.host if http_request.client else "unknown",
+        )
+    except InvalidEmailError:
+        return VerificationRequestedApiResponse(
+            message=_PASSWORD_RESET_REQUESTED_MESSAGE,
+            retry_after_seconds=60,
+        )
+    except AuthRateLimitedError as error:
+        raise ApiError(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            code="auth_rate_limited",
+            message=str(error),
+            details={"retryAfterSeconds": error.retry_after_seconds},
+            headers={"Retry-After": str(error.retry_after_seconds)},
+        ) from error
+
+    if result.email is not None:
+        background_tasks.add_task(email_sender, result.email)
+    return VerificationRequestedApiResponse(
+        message=_PASSWORD_RESET_REQUESTED_MESSAGE,
+        retry_after_seconds=result.retry_after_seconds,
+    )
+
+
+@router.post(
+    "/password-resets",
+    response_model=PasswordResetApiResponse,
+    dependencies=[Depends(require_same_origin_public_mutation)],
+    responses=api_error_responses(
+        status.HTTP_400_BAD_REQUEST,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status.HTTP_429_TOO_MANY_REQUESTS,
+    ),
+)
+async def reset_password(
+    http_request: Request,
+    request: PasswordResetApiRequest,
+    response: Response,
+    passwords: Annotated[PasswordService, Depends(get_password_service)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> PasswordResetApiResponse:
+    try:
+        await passwords.reset_password(
+            token=request.token,
+            new_password=request.new_password,
+            network_key=http_request.client.host if http_request.client else "unknown",
+        )
+    except InvalidPasswordError as error:
+        raise ApiError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="validation_error",
+            message="Проверьте переданные данные.",
+            field_errors={"newPassword": [str(error)]},
+        ) from error
+    except InvalidPasswordResetTokenError as error:
+        raise ApiError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="invalid_password_reset",
+            message=str(error),
+        ) from error
+    except AuthRateLimitedError as error:
+        raise ApiError(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            code="auth_rate_limited",
+            message=str(error),
+            details={"retryAfterSeconds": error.retry_after_seconds},
+            headers={"Retry-After": str(error.retry_after_seconds)},
+        ) from error
+
+    forget_session(response, settings=settings)
+    return PasswordResetApiResponse(message="Пароль изменён. Войдите снова с новым паролем.")
 
 
 @router.delete(

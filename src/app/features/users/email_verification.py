@@ -39,6 +39,7 @@ from app.features.users.service import (
 VERIFICATION_TOKEN_LIFETIME = timedelta(hours=24)
 RESEND_COOLDOWN = timedelta(seconds=60)
 RESEND_NETWORK_LIMIT = 20
+SIGNUP_ACCOUNT_LIMIT = 3
 
 
 @dataclass(frozen=True)
@@ -64,19 +65,21 @@ class EmailVerificationService:
         name: str | None,
         base_url: str,
         next_path: str | None = None,
+        network_key: str = "unknown",
     ) -> VerificationRequest:
         if not self.settings.allow_signups:
             raise SignupsClosedError("Регистрация временно закрыта.")
 
         normalized_email = normalize_email(email)
-        password_hash = hash_password(
-            validate_password(
-                password,
-                minimum_length=self.settings.password_min_length,
-            )
+        validated_password = validate_password(
+            password,
+            minimum_length=self.settings.password_min_length,
         )
+        await self._enforce_signup_limit(normalized_email, network_key)
         if await self.users.get_by_email(normalized_email) is not None:
+            await self.session.commit()
             return VerificationRequest(email=None)
+        password_hash = hash_password(validated_password)
 
         try:
             async with self.session.begin_nested():
@@ -86,6 +89,7 @@ class EmailVerificationService:
                     name=clean_user_name(name),
                 )
         except IntegrityError:
+            await self.session.commit()
             return VerificationRequest(email=None)
 
         message = await self._replace_token_email(
@@ -190,5 +194,30 @@ class EmailVerificationService:
             window=RESEND_COOLDOWN,
         )
         if account_count > 1 or network_count > RESEND_NETWORK_LIMIT:
+            await self.session.commit()
+            raise AuthRateLimitedError(int(RESEND_COOLDOWN.total_seconds()))
+
+    async def _enforce_signup_limit(
+        self,
+        normalized_email: str,
+        network_key: str,
+    ) -> None:
+        account_count = await self.rate_limits.increment(
+            bucket_hash=auth_rate_limit_bucket_hash(
+                scope="signup-account",
+                key=normalized_email,
+                settings=self.settings,
+            ),
+            window=RESEND_COOLDOWN,
+        )
+        network_count = await self.rate_limits.increment(
+            bucket_hash=auth_rate_limit_bucket_hash(
+                scope="signup-network",
+                key=network_key,
+                settings=self.settings,
+            ),
+            window=RESEND_COOLDOWN,
+        )
+        if account_count > SIGNUP_ACCOUNT_LIMIT or network_count > RESEND_NETWORK_LIMIT:
             await self.session.commit()
             raise AuthRateLimitedError(int(RESEND_COOLDOWN.total_seconds()))

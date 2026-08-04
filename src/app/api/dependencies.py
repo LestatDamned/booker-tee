@@ -15,6 +15,7 @@ from app.core.security import (
 from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.users.models import User, UserSession
+from app.features.users.passwords import PasswordService
 from app.features.users.service import AuthenticationService
 from app.features.workspaces.permissions import can_read_workspace, can_write_financial_data
 from app.features.workspaces.repository import WorkspaceRepository
@@ -22,6 +23,13 @@ from app.features.workspaces.service import WorkspaceContext
 
 API_CSRF_HEADER = "X-CSRF-Token"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
+
+
+def get_password_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> PasswordService:
+    return PasswordService(session, settings)
 
 
 @dataclass(frozen=True)

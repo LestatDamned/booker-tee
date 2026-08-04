@@ -22,6 +22,7 @@ from playwright.sync_api import BrowserContext, Locator, Page, Route, sync_playw
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
+from app import main as app_main  # noqa: F401
 from app.db.base import utc_now
 from app.db.session import session_factory
 from app.features.users.errors import EmailAlreadyRegisteredError
@@ -42,6 +43,11 @@ PAGES: tuple[tuple[str, str], ...] = (
     ("/", "dashboard"),
     ("/app/auth/login", "auth-login"),
     ("/app/auth/signup", "auth-signup"),
+    ("/app/auth/forgot-password", "auth-forgot-password"),
+    (
+        "/app/auth/reset-password?token=visual-audit-reset-token",
+        "auth-reset-password",
+    ),
     ("/app/auth/verify-email", "auth-verify-recovery"),
     (
         "/app/auth/verify-email?token=visual-audit-token&next=/app/profile",
@@ -71,6 +77,8 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/app/foundation", "react-foundation"),
     ("/app/reports", "react-reports"),
     ("/app/accounts", "accounts"),
+    ("/app/profile", "profile"),
+    ("/app/profile/security", "profile-security"),
     ("/ledger/manual", "manual-ledger-redirect"),
     ("/app/imports", "imports"),
     ("/app/imports/upload", "imports-upload"),
@@ -280,15 +288,12 @@ def authenticate_context(
     context: BrowserContext,
     *,
     base_url: str,
-    viewport_name: str,
-    email: str | None,
+    email: str,
     password: str,
 ) -> None:
     page = context.new_page()
-    auth_email = build_auth_email(viewport_name, email)
     try:
-        prepare_verified_audit_user(email=auth_email, password=password)
-        try_login(page, base_url=base_url, email=auth_email, password=password)
+        try_login(page, base_url=base_url, email=email, password=password)
     except (PlaywrightError, RuntimeError) as exc:
         body_text = page.locator("body").inner_text(timeout=1_000)
         raise RuntimeError(f"Could not authenticate UI audit user: {body_text}") from exc
@@ -296,19 +301,20 @@ def authenticate_context(
         page.close()
 
 
-def prepare_verified_audit_user(*, email: str, password: str) -> None:
+def prepare_verified_audit_users(*, emails: list[str], password: str) -> None:
     async def prepare() -> None:
-        async with session_factory() as session:
-            try:
-                user = await UserService(session).create(
-                    email=email,
-                    password=password,
-                    name="UI Audit",
-                )
-            except EmailAlreadyRegisteredError:
-                return
-            user.email_verified_at = utc_now()
-            await session.commit()
+        for email in emails:
+            async with session_factory() as session:
+                try:
+                    user = await UserService(session).create(
+                        email=email,
+                        password=password,
+                        name="UI Audit",
+                    )
+                except EmailAlreadyRegisteredError:
+                    continue
+                user.email_verified_at = utc_now()
+                await session.commit()
 
     asyncio.run(prepare())
 
@@ -897,6 +903,11 @@ def collect_ux_assertions(
             )
         )
 
+    if path in {"/app/auth/forgot-password", "/app/profile/security"} or path.startswith(
+        "/app/auth/reset-password"
+    ):
+        errors.extend(assert_password_form_keyboard(page, path=path))
+
     if path == "/app/reports":
         errors.extend(assert_react_reports(page))
         if scenario == "reports_stress":
@@ -935,6 +946,44 @@ def collect_ux_assertions(
         )
 
     return errors
+
+
+def assert_password_form_keyboard(page: Page, *, path: str) -> list[str]:
+    expected_ids = {
+        "/app/auth/forgot-password": ["forgot-email"],
+        "/app/profile/security": [
+            "current-password",
+            "new-password",
+            "password-confirmation",
+        ],
+    }
+    targets = (
+        ["reset-password", "reset-confirmation"]
+        if path.startswith("/app/auth/reset-password")
+        else expected_ids[path]
+    )
+    reached: list[str] = []
+    page.locator("body").focus()
+    for _ in range(80):
+        page.keyboard.press("Tab")
+        active_id = page.evaluate("document.activeElement?.id || ''")
+        if len(reached) < len(targets) and active_id == targets[len(reached)]:
+            focus_style = page.evaluate(
+                """
+                () => {
+                  const style = getComputedStyle(document.activeElement);
+                  return `${style.outlineStyle}:${style.outlineWidth}`;
+                }
+                """
+            )
+            if focus_style.startswith("none:") or focus_style.endswith(":0px"):
+                return [f"password form control {active_id!r} has no visible focus style"]
+            reached.append(active_id)
+            if reached == targets:
+                return []
+    return [
+        f"password form keyboard order missed controls: expected={targets!r}, reached={reached!r}"
+    ]
 
 
 def assert_transaction_rules_interactions(page: Page) -> list[str]:
@@ -3364,14 +3413,22 @@ def run_audit(
     output_dir.mkdir(parents=True, exist_ok=True)
     results: list[PageAuditResult] = []
     print(f"Auditing {base_url}", flush=True)
+    viewports = (
+        TRANSACTION_RULE_VIEWPORTS if scenario == "transaction_rules_interactions" else VIEWPORTS
+    )
+    auth_emails: dict[str, str] = {}
+    if authenticated:
+        for viewport_name, _width, _height in viewports:
+            email = build_auth_email(viewport_name, auth_email)
+            auth_emails[viewport_name] = email
+        prepare_verified_audit_users(
+            emails=list(auth_emails.values()),
+            password=auth_password,
+        )
+
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         try:
-            viewports = (
-                TRANSACTION_RULE_VIEWPORTS
-                if scenario == "transaction_rules_interactions"
-                else VIEWPORTS
-            )
             for viewport_name, width, height in viewports:
                 print(f"Viewport: {viewport_name} ({width}x{height})", flush=True)
                 context = browser.new_context(
@@ -3383,8 +3440,7 @@ def run_audit(
                         authenticate_context(
                             context,
                             base_url=base_url,
-                            viewport_name=viewport_name,
-                            email=auth_email,
+                            email=auth_emails[viewport_name],
                             password=auth_password,
                         )
 
