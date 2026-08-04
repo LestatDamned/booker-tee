@@ -74,22 +74,7 @@ def test_dashboard_redirects_to_login_without_session(client) -> None:
     response = client.get("/dashboard", follow_redirects=False)
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/login"
-
-
-def test_login_form_keeps_safe_next_path(client) -> None:
-    response = client.get("/login?next=/workspaces/invitations/invite-token")
-
-    assert response.status_code == 200
-    assert 'name="next" value="/workspaces/invitations/invite-token"' in response.text
-
-
-def test_login_form_rejects_external_next_path(client) -> None:
-    response = client.get("/login?next=https://example.com/phishing")
-
-    assert response.status_code == 200
-    assert 'name="next" value="/app/workspaces"' in response.text
-    assert "https://example.com/phishing" not in response.text
+    assert response.headers["location"] == "/app/auth/login"
 
 
 def test_passwords_are_hashed_and_verified() -> None:

@@ -1,7 +1,6 @@
 # Stage 07 / Wave C: Users And Authentication
 
-Статус: active. Slice 1 и increments 2.0–2.4 завершены 2026-08-04; следующий
-increment — 2.5 Replacement gate and cleanup.
+Статус: completed 2026-08-04. Slice 1 и increments 2.0–2.5 завершены.
 
 Этот child stage переносит оставшийся authenticated профиль и public auth flow
 из Jinja в React и доводит текущую email/password-аутентификацию до полного
@@ -758,6 +757,31 @@ Completion record 2026-08-04:
 Gate 2.5: child stage получает `completed` только после выполнения общего Exit
 gate ниже. Если production SMTP/sender ещё не настроен, code complete не равно
 production ready.
+
+#### Результат 2.5
+
+Завершено 2026-08-04:
+
+- canonical navigation ведёт на React; compatibility `GET /login`, `/signup`
+  и `/users` перенаправляют на React, причём auth redirects сохраняют только
+  validated local `next`;
+- legacy mutation routes, users templates, users-only CSS selectors и
+  replacement-only SSR assertions удалены; public home и invitation SSR
+  оставлены именованными consumers и ведут на canonical React auth routes;
+- реальный Chromium lifecycle прошёл через PostgreSQL и versioned API:
+  signup, verification, profile, password/session management, logout/login,
+  recovery, email change и deactivation;
+- Mocha и Latte проверены на `1440x1000`, `920x900`, `390x844`, `320x844`:
+  16 auth-page combinations без horizontal overflow; keyboard focus и
+  reduced-motion также входят в gate;
+- browser fixture подменяла только delivery boundary, поэтому token,
+  cookie, application и database validation оставались production-like.
+- regression gates: backend `828 passed, 22 skipped`, users PostgreSQL suite
+  `27 passed`, frontend `87 files / 501 passed`, Ruff, ty, OpenAPI contract и
+  production build прошли.
+
+Production deployment по-прежнему должен предоставить и проверить SMTP/sender;
+это deployment gate, а не незавершённый код child stage.
 
 ## Test manifest
 

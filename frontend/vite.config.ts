@@ -11,8 +11,6 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": apiTarget,
-      "/login": apiTarget,
-      "/logout": apiTarget,
     },
   },
 });

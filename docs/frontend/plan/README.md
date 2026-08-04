@@ -51,9 +51,8 @@ Child stages:
 - [`Categories`](categories/README.md) — completed 2026-08-01;
 - Transaction Rules — completed 2026-08-02.
 - Workspaces — completed 2026-08-04.
-- [`Users and authentication`](users/README.md) — active; Slice 1 completed,
-  increments 2.0–2.4 completed; next increment is 2.5 Replacement gate and
-  cleanup.
+- [`Users and authentication`](users/README.md) — completed 2026-08-04;
+  React/API lifecycle, replacement gate and legacy users cleanup completed.
 
 ### Workspaces completion record
 

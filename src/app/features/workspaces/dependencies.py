@@ -173,7 +173,7 @@ def raise_login_redirect() -> NoReturn:
     raise HTTPException(
         status_code=status.HTTP_303_SEE_OTHER,
         detail="Требуется вход.",
-        headers={"Location": "/login"},
+        headers={"Location": "/app/auth/login"},
     )
 
 

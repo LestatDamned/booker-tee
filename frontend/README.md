@@ -22,8 +22,8 @@ npm ci
 npm run dev
 ```
 
-Открыть `http://127.0.0.1:5173/app`. Vite проксирует `/api`, `/login` и `/logout`
-в FastAPI, поэтому session cookie остаётся same-origin с точки зрения browser.
+Открыть `http://127.0.0.1:5173/app`. Vite проксирует `/api` в FastAPI, поэтому
+session cookie остаётся same-origin с точки зрения browser.
 
 Временная visual gallery Stage 02 доступна на
 `http://127.0.0.1:5173/app/foundation`. Она показывает один component tree в

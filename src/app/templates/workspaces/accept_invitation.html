@@ -42,8 +42,8 @@
           <strong>Нужно войти</strong>
           <span>После входа Booker Tee вернет вас к этому приглашению.</span>
           <div class="form-actions-inline">
-            <a class="button primary-action" href="/login?next={{ login_next_path | urlencode }}">{{ icon("user") }} войти</a>
-            <a class="button" href="/signup?next={{ login_next_path | urlencode }}">{{ icon("plus") }} регистрация</a>
+            <a class="button primary-action" href="/app/auth/login?next={{ login_next_path | urlencode }}">{{ icon("user") }} войти</a>
+            <a class="button" href="/app/auth/signup?next={{ login_next_path | urlencode }}">{{ icon("plus") }} регистрация</a>
           </div>
         </div>
       {% endif %}

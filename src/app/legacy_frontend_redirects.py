@@ -1,7 +1,10 @@
+from urllib.parse import urlencode
 from uuid import UUID
 
 from fastapi import APIRouter, Request, status
 from fastapi.responses import RedirectResponse
+
+from app.features.users.service import safe_next_path
 
 router = APIRouter(include_in_schema=False)
 
@@ -13,6 +16,31 @@ def redirect_to_react(request: Request, target: str) -> RedirectResponse:
         url=target,
         status_code=status.HTTP_307_TEMPORARY_REDIRECT,
     )
+
+
+def redirect_auth_to_react(request: Request, target: str) -> RedirectResponse:
+    next_path = request.query_params.get("next")
+    if next_path is not None:
+        target = f"{target}?{urlencode({'next': safe_next_path(next_path)})}"
+    return RedirectResponse(
+        url=target,
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+    )
+
+
+@router.get("/login")
+async def historical_login(request: Request) -> RedirectResponse:
+    return redirect_auth_to_react(request, "/app/auth/login")
+
+
+@router.get("/signup")
+async def historical_signup(request: Request) -> RedirectResponse:
+    return redirect_auth_to_react(request, "/app/auth/signup")
+
+
+@router.get("/users")
+async def historical_user_profile(request: Request) -> RedirectResponse:
+    return redirect_to_react(request, "/app/profile")
 
 
 @router.get("/ledger/manual")

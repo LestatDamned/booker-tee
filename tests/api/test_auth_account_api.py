@@ -369,14 +369,6 @@ def test_password_reset_clears_session_cookie() -> None:
     assert "Max-Age=0" in response.headers["set-cookie"]
 
 
-def test_legacy_signup_redirects_to_react_and_preserves_continuation() -> None:
-    with TestClient(create_app(), follow_redirects=False) as client:
-        response = client.get("/signup?next=/workspaces/invitations/example")
-
-    assert response.status_code == 307
-    assert response.headers["location"] == ("/app/auth/signup?next=/workspaces/invitations/example")
-
-
 def test_successful_login_rejects_external_next() -> None:
     app = create_app()
     app.dependency_overrides[get_authentication_service] = lambda: AuthenticationStub()

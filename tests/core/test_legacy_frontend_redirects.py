@@ -13,6 +13,19 @@ CATEGORY_ID = "33333333-3333-3333-3333-333333333333"
     ("historical_url", "react_url"),
     [
         (
+            "/login?next=/workspaces/invitations/invite-token",
+            "/app/auth/login?next=%2Fworkspaces%2Finvitations%2Finvite-token",
+        ),
+        (
+            "/login?next=https://example.com/phishing",
+            "/app/auth/login?next=%2Fapp%2Fworkspaces",
+        ),
+        (
+            "/signup?next=/workspaces/invitations/invite-token",
+            "/app/auth/signup?next=%2Fworkspaces%2Finvitations%2Finvite-token",
+        ),
+        ("/users?section=sessions", "/app/profile?section=sessions"),
+        (
             "/ledger/manual?type=expense&page=2",
             "/app/ledger/manual?type=expense&page=2",
         ),
@@ -83,6 +96,10 @@ def test_historical_frontend_get_redirects_to_react(
 @pytest.mark.parametrize(
     ("historical_url", "expected_status"),
     [
+        ("/login", 405),
+        ("/signup", 405),
+        ("/users", 405),
+        ("/logout", 404),
         ("/accounts", 405),
         (f"/accounts/{ACCOUNT_ID}", 405),
         ("/imports/upload", 405),

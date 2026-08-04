@@ -1781,24 +1781,6 @@ html:not(.entity-target-cleared) .entity-card:target {
   color: var(--accent);
 }
 
-.session-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
-}
-
-.session-actions span {
-  color: var(--muted);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-}
-
 .summary-grid > div > span,
 .metric span {
   color: var(--muted);

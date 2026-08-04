@@ -17,14 +17,15 @@ src/app/features/workspaces/README.md
 - Hash and verify passwords.
 - Create and revoke web sessions.
 - Resolve a session into a user.
-- Later, link external identities such as Telegram.
+- Verify email ownership and manage credential recovery/change tokens.
+- Deactivate identity without deleting financial history.
 
 ## Story
 
 Read this module as the identity part of a request.
 
 ```text
-credentials, session cookie, or external identity
+credentials or session cookie
 -> User
 -> UserSession
 -> hand off to workspaces for membership and current workspace
@@ -91,7 +92,7 @@ Soft limits:
 models.py          can be larger, but only persistence definitions
 repository.py      about 150-220 lines per focused repository
 service.py         about 150-220 lines before extracting use cases
-router.py          about 150-220 lines before splitting route groups
+API router         about 150-220 lines before splitting route groups
 commands.py        small dataclasses/Pydantic command objects
 ```
 
@@ -115,10 +116,10 @@ users/repositories/
   external_identities.py
 ```
 
-When `router.py` grows, split by UI/API surface:
+When the API adapter grows, split by resource/use case:
 
 ```text
-users/routes/
+app/api/v1/
   auth.py
   profile.py
   external_identities.py
@@ -145,7 +146,8 @@ architecture theater.
 - Use `WorkspaceContext` for financial actions.
 - Keep database queries in `repository.py`.
 - Keep business rules in `service.py`.
-- Keep HTTP, forms, redirects, and templates in `router.py`.
+- Keep HTTP schemas and responses in `src/app/api/v1`; canonical user UI lives
+  in `frontend/app/features/users`.
 
 ## Reuse rules
 
@@ -165,10 +167,14 @@ control to `workspaces`.
 
 ## Production readiness checklist
 
-- Registration is atomic with personal workspace creation.
+- Registration creates an unverified identity; verification atomically creates
+  the personal workspace, membership, and first session.
 - Sessions are stored hashed, expire, and can be revoked.
-- Login rejects inactive users.
+- Login rejects inactive or unverified users.
 - Logout revokes the current session.
-- Tests cover signup, login, logout, duplicate email, and inactive users.
-- Telegram identities are linked through a separate model, not by overloading
-  user profile fields.
+- Tests cover signup, verification, login, recovery, credential changes,
+  sessions, deactivation, duplicate email, and inactive users.
+
+Canonical routes are `/app/auth/*` and `/app/profile/*` over `/api/v1`.
+Historical `GET /login`, `/signup`, and `/users` are compatibility redirects;
+legacy users POST routes and Jinja templates no longer exist.

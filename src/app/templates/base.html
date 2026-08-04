@@ -31,7 +31,7 @@
             <a class="site-header__action site-header__action--primary" href="/app/reports">{{ icon("list-check") }} отчеты</a>
           {% endif %}
         {% else %}
-          <a class="site-header__action site-header__action--primary" href="/login">{{ icon("user") }} войти</a>
+          <a class="site-header__action site-header__action--primary" href="/app/auth/login">{{ icon("user") }} войти</a>
         {% endif %}
         <button class="site-header__menu-toggle" type="button" aria-controls="main-navigation" :aria-expanded="navOpen.toString()" @click="navOpen = !navOpen">
           {{ icon("menu") }} меню
@@ -40,7 +40,7 @@
       <nav id="main-navigation" class="shell nav-actions" :class="{ 'nav-actions-open': navOpen }">
         {% if current_user %}
           <a class="nav-link" href="/dashboard">{{ icon("home") }} обзор</a>
-          <a class="nav-link" href="/users">{{ icon("user") }} профиль</a>
+          <a class="nav-link" href="/app/profile">{{ icon("user") }} профиль</a>
           <a class="nav-link" href="/app/workspaces">{{ icon("folder") }} пространства</a>
           <a class="nav-link" href="/app/accounts">{{ icon("wallet") }} счета</a>
           <a class="nav-link" href="/app/ledger/manual">{{ icon("plus") }} операции</a>
@@ -50,8 +50,8 @@
           <a class="nav-link" href="/app/properties">{{ icon("building") }} объекты</a>
           <a class="nav-link" href="/app/rules">{{ icon("settings") }} правила</a>
         {% else %}
-          <a class="nav-link" href="/login">{{ icon("user") }} вход</a>
-          <a class="nav-link" href="/signup">{{ icon("plus") }} регистрация</a>
+          <a class="nav-link" href="/app/auth/login">{{ icon("user") }} вход</a>
+          <a class="nav-link" href="/app/auth/signup">{{ icon("plus") }} регистрация</a>
         {% endif %}
       </nav>
     </header>

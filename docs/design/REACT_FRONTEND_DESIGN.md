@@ -43,7 +43,7 @@ authenticated workflow в legacy stack не добавляется.
 
 Accounts, Reports, Properties, Categories и Transaction Rules полностью
 принадлежат React. Остальные authenticated pages пока SSR и мигрируют Stage 7.
-Public home, login/signup могут оставаться минимальным SSR после financial
+Public home и invitation flow могут оставаться минимальным SSR после financial
 cutover — это отдельное решение.
 
 ## Runtime and deployment
