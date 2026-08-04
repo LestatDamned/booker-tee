@@ -270,12 +270,21 @@
   }
 
   .memberAction {
+    grid-column: 1 / -1;
     grid-row: auto;
     justify-content: stretch;
+    min-width: 0;
     width: 100%;
   }
 
   .memberActionGroup {
+    flex-wrap: wrap;
     justify-content: stretch;
+  }
+
+  .memberActionGroup > button {
+    flex: 1 0 100%;
+    min-width: 0;
+    width: auto;
   }
 }

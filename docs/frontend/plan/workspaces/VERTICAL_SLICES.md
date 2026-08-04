@@ -171,9 +171,16 @@ Implementation increments 2026-08-03:
   member action geometry and transfer→leave at 1440/920/390/mobile-landscape
   with no overflow, undersized visible targets or browser errors;
 - complete regressions pass with 789 backend tests plus 4 invitation-only
-  strict `xfail`, 467 frontend tests and a production build. The extended
-  keyboard-only/screen-reader/200% zoom and full browser role matrix remain
-  before the full Slice 3 replacement gate, so legacy cutover is not approved.
+  strict `xfail`, 467 frontend tests and a production build;
+- the extended production browser gate passes keyboard-only dialog/transfer/
+  leave flow, focus return, 200% text scaling, reduced motion, stale member
+  recovery, forbidden direct mutations and the complete owner/admin/editor/
+  viewer projection at 1440/920/390/mobile-landscape. It also found and fixed
+  the root `rem`-scaled minimum viewport and clipped mobile member actions;
+- Slice 3 replacement gate is complete on 2026-08-04. Manual screen-reader
+  testing is explicitly outside the accepted gate; semantic labels remain
+  covered by component/browser assertions. Legacy member markup is still kept
+  because it shares the invitation runtime required by Slice 4.
 
 ## Slice 4 — invitation administration
 

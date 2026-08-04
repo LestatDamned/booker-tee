@@ -294,6 +294,23 @@ not merely an editable entity.
   links wrap or use an explicitly accessible disclosure.
 - Reduced motion applies to row highlight/panel transitions.
 
+### Slice 3 accessibility/responsive closure — 2026-08-04
+
+- Production browser coverage confirms keyboard-only ownership transfer and
+  leave, destructive-dialog initial focus, Escape and trigger focus return.
+- Owner/admin/editor/viewer render only server-authorized role and lifecycle
+  actions; direct unauthorized mutations are rejected independently of UI.
+- 200% text scaling passes at 1440 and 390 CSS px without page overflow or
+  clipped member actions. The audit replaced the root `20rem` minimum width,
+  which scaled to 640 px, with a 320 px viewport floor and stacks member
+  actions across the full mobile record width.
+- Reduced-motion preference is active in the browser scenario; standard
+  1440/920/390/mobile-landscape captures retain at least 44 px visible targets.
+- A manual screen-reader run is intentionally not part of the accepted Slice 3
+  gate (product decision 2026-08-04). Existing semantic labels, roles and
+  accessible-name assertions remain in place; no accessibility behavior was
+  removed from runtime.
+
 ## Browser baseline closure before implementation
 
 Before changing presentation, capture current SSR at 1440/920/390 for:

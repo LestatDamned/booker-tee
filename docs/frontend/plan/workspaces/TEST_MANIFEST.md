@@ -143,16 +143,19 @@ Current Slice 3 increment evidence:
 - `workspace-members-api.test.ts` and `test_workspaces_api.py` cover CSRF,
   workspace/member/session timestamps, response navigation and fallback
   session projection;
-- `scripts/workspaces_slice03_browser.py` creates a real shared membership via
-  the retained invitation bridge, captures 1440/920/390/mobile-landscape,
-  verifies no overflow/sub-44 px visible target/browser errors, and completes
+- `scripts/workspaces_slice03_browser.py` creates real admin/editor/viewer
+  memberships via the retained invitation bridge; verifies server-projected
+  role actions and forbidden direct mutations; captures
+  1440/920/390/mobile-landscape plus desktop/mobile at 200% text; verifies no
+  overflow, clipped actions, sub-44 px visible targets or browser errors; tests
+  reduced motion and stale conflict recovery; and completes keyboard-only
   ownership transfer followed by former-owner leave and fallback reload;
 - full regressions: 789 backend passed with 4 invitation-only strict `xfail`;
   77 frontend files/467 tests passed; OpenAPI check, format, lint, typecheck,
   style policy and production build passed;
-- extended keyboard-only, screen-reader semantic, 200% zoom and complete
-  owner/admin/editor/viewer browser matrices remain before the replacement
-  gate.
+- the extended gate passed on 2026-08-04. Manual screen-reader testing was
+  removed from the accepted Slice 3 gate by product decision; accessible names
+  and dialog semantics continue to have automated assertions.
 
 ### Invitations
 
@@ -261,7 +264,8 @@ Run in Mocha and Latte at 1440x1000, 920x900 and 390x844:
 10. anonymous login/signup accept, replay/expiry/revoke;
 11. deactivate/fallback/restore if accepted;
 12. long names/emails, empty/minimal and large member/workspace collections;
-13. keyboard-only navigation, Escape, focus return, screen-reader names;
+13. keyboard-only navigation, Escape, focus return and automated accessible
+    names (manual screen-reader run is not required for Slice 3);
 14. no horizontal overflow, console/page/request errors.
 
 ## Replacement mapping

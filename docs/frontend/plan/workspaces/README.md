@@ -1,6 +1,6 @@
 # Workspaces React migration audit
 
-Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1–2 production gates passed; Slice 3 members/ownership implemented and primary browser gate passed; cutover gate pending 2026-08-03`.
+Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1–3 production gates passed 2026-08-04; Slice 4 invitations next`.
 
 Этот временный child stage ведёт Stage 7 Wave C migration authenticated
 workflow Workspaces. На этапе аудита production runtime не менялся. После
@@ -10,6 +10,14 @@ target-scoped general settings и lifecycle impact read model. D1–D14 прин
 без отклонений и зафиксированы в
 [`ADR-0006`](../../../architecture/decisions/0006-workspace-migration-policy.md).
 Legacy cleanup остаётся запрещён до соответствующих replacement gates.
+
+Расширенный Slice 3 browser gate закрыт на production build: keyboard-only
+transfer/leave и dialog focus return, owner/admin/editor/viewer matrix, 200%
+text scaling, reduced motion, stale recovery и прямые запрещённые мутации.
+Ручной прогон со screen reader исключён из gate по продуктовому решению
+2026-08-04; это не отменяет существующие semantic labels и автоматические
+accessibility assertions. Legacy member/invitation surface пока сохраняется,
+поскольку тот же SSR runtime обслуживает ещё не перенесённый Slice 4.
 
 ## Граница аудита
 
