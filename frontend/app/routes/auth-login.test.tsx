@@ -1,0 +1,28 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
+import { describe, expect, it } from "vitest";
+
+import LoginRoute from "./auth-login";
+
+describe("LoginRoute", () => {
+  it("uses native auth semantics and focuses the first invalid field", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/auth/login?next=/app/profile"]}>
+        <LoginRoute />
+      </MemoryRouter>,
+    );
+
+    const email = screen.getByRole("textbox", { name: /Email/ });
+    const password = screen.getByLabelText(/Пароль/);
+    expect(email).toHaveAttribute("type", "email");
+    expect(email).toHaveAttribute("autocomplete", "email");
+    expect(password).toHaveAttribute("autocomplete", "current-password");
+
+    await user.click(screen.getByRole("button", { name: "Войти" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Введите email");
+    expect(email).toHaveFocus();
+  });
+});

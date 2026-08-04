@@ -13,6 +13,7 @@ from app.core.security import (
 )
 from app.core.settings import Settings
 from app.db.session import get_session
+from app.features.users.models import User, UserSession
 from app.features.users.service import AuthenticationService
 from app.features.workspaces.permissions import can_read_workspace, can_write_financial_data
 from app.features.workspaces.repository import WorkspaceRepository
@@ -27,6 +28,39 @@ class ApiRequestContext:
     workspace: WorkspaceContext
     csrf_token: str
     session_token: str | None = None
+
+
+@dataclass(frozen=True)
+class AuthenticatedSessionContext:
+    user: User
+    session: UserSession
+    csrf_token: str
+    session_token: str
+
+
+async def get_authenticated_session_context(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AuthenticatedSessionContext:
+    session_token = session_token_from_request(request, settings)
+    if session_token is None:
+        raise_api_unauthorized()
+    if request.method not in SAFE_METHODS:
+        verify_api_csrf(request, session_token=session_token, settings=settings)
+
+    authenticated = await AuthenticationService(
+        session,
+        settings,
+    ).resolve_authenticated_session(session_token)
+    if authenticated is None:
+        raise_api_unauthorized()
+    return AuthenticatedSessionContext(
+        user=authenticated.user,
+        session=authenticated.session,
+        csrf_token=csrf_token_for_session(session_token, settings),
+        session_token=session_token,
+    )
 
 
 async def get_api_request_context(

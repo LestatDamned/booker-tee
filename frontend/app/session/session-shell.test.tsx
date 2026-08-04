@@ -15,7 +15,7 @@ describe("SessionShell", () => {
     render(<SessionShell result={{ status: "unauthenticated" }} />);
     expect(screen.getByRole("link", { name: "Войти" })).toHaveAttribute(
       "href",
-      "/login?next=%2Fapp",
+      "/app/auth/login?next=%2Fapp",
     );
   });
 
@@ -65,7 +65,7 @@ describe("SessionShell", () => {
       within(sidebar).getByRole("link", {
         name: "Max. Владелец. Открыть профиль",
       }),
-    ).toHaveAttribute("href", "/users");
+    ).toHaveAttribute("href", "/app/profile");
     expect(
       within(screen.getByRole("main")).queryByText("Текущее пространство"),
     ).not.toBeInTheDocument();

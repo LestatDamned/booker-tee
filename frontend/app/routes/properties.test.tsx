@@ -46,7 +46,7 @@ describe("properties route", () => {
 
     expect(screen.getByRole("link", { name: "Войти" })).toHaveAttribute(
       "href",
-      "/login?next=%2Fapp%2Fproperties",
+      "/app/auth/login?next=%2Fapp%2Fproperties",
     );
   });
 });

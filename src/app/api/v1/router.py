@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 
+from app.api.v1.account.router import router as account_router
 from app.api.v1.accounts.router import router as accounts_router
+from app.api.v1.auth.router import router as auth_router
 from app.api.v1.categories.router import router as categories_router
 from app.api.v1.import_review.router import router as import_review_router
 from app.api.v1.imports.router import router as imports_router
@@ -12,7 +14,9 @@ from app.api.v1.transaction_rules.router import router as transaction_rules_rout
 from app.api.v1.workspaces.router import router as workspaces_router
 
 router = APIRouter(prefix="/v1")
+router.include_router(account_router)
 router.include_router(accounts_router)
+router.include_router(auth_router)
 router.include_router(categories_router)
 router.include_router(imports_router)
 router.include_router(import_review_router)

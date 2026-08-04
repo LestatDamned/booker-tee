@@ -6,7 +6,7 @@ type BrowserLocation = Pick<
 type StatusResult = { status: string };
 
 export function loginHref(next: string): string {
-  return `/login?next=${encodeURIComponent(next)}`;
+  return `/app/auth/login?next=${encodeURIComponent(next)}`;
 }
 
 export function loginHrefForLocation(

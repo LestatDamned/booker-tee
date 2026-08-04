@@ -51,6 +51,8 @@ Child stages:
 - [`Categories`](categories/README.md) — completed 2026-08-01;
 - Transaction Rules — completed 2026-08-02.
 - Workspaces — completed 2026-08-04.
+- [`Users and authentication`](users/README.md) — active; Slice 1 completed,
+  Slice 2 planned, next increment is 2.0 Foundations.
 
 ### Workspaces completion record
 

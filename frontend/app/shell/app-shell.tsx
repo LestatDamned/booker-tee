@@ -1,7 +1,8 @@
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router";
 
 import type { SessionDto } from "../api/session";
+import { logout } from "../features/users/api/account-api";
 import { Icon, type IconName } from "../ui/icon/icon";
 import styles from "../styles/shell.module.css";
 
@@ -166,6 +167,21 @@ function ShellContext({
   session,
   userLabel,
 }: ShellContextProps) {
+  const [logoutPending, setLogoutPending] = useState(false);
+  const [logoutError, setLogoutError] = useState(false);
+
+  async function signOut() {
+    setLogoutPending(true);
+    setLogoutError(false);
+    const result = await logout(session.csrfToken);
+    if (result.status === "error") {
+      setLogoutPending(false);
+      setLogoutError(true);
+      return;
+    }
+    window.location.assign("/app/auth/login");
+  }
+
   return (
     <div className={styles.shellContext}>
       <NavLink
@@ -181,23 +197,39 @@ function ShellContext({
 
       <ShellNavigation currentPath={currentPath} onNavigate={onNavigate} />
 
-      <a
-        className={styles.userCard}
-        href="/users"
-        onClick={onNavigate}
-        aria-label={`${userLabel}. ${membershipRoleLabel(session.membership.role)}. Открыть профиль`}
-      >
-        <span aria-hidden="true" className={styles.userAvatar}>
-          {userInitials(userLabel)}
-        </span>
-        <span className={styles.userIdentity}>
-          <strong title={userLabel}>{userLabel}</strong>
-          <small>{membershipRoleLabel(session.membership.role)}</small>
-        </span>
-        <span aria-hidden="true" className={styles.contextArrow}>
-          <Icon name="forward" size={16} />
-        </span>
-      </a>
+      <div className={styles.userActions}>
+        <NavLink
+          aria-label={`${userLabel}. ${membershipRoleLabel(session.membership.role)}. Открыть профиль`}
+          className={styles.userCard ?? ""}
+          to="/profile"
+          {...(onNavigate ? { onClick: onNavigate } : {})}
+        >
+          <span aria-hidden="true" className={styles.userAvatar}>
+            {userInitials(userLabel)}
+          </span>
+          <span className={styles.userIdentity}>
+            <strong title={userLabel}>{userLabel}</strong>
+            <small>{membershipRoleLabel(session.membership.role)}</small>
+          </span>
+          <span aria-hidden="true" className={styles.contextArrow}>
+            <Icon name="forward" size={16} />
+          </span>
+        </NavLink>
+        <button
+          aria-busy={logoutPending || undefined}
+          className={styles.logoutButton}
+          disabled={logoutPending}
+          onClick={signOut}
+          type="button"
+        >
+          {logoutPending ? "Выходим…" : "Выйти из аккаунта"}
+        </button>
+        {logoutError ? (
+          <small className={styles.logoutError} role="status">
+            Не удалось выйти. Повторите попытку.
+          </small>
+        ) : null}
+      </div>
     </div>
   );
 }

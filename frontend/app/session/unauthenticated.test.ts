@@ -9,7 +9,7 @@ import {
 describe("unauthenticated session navigation", () => {
   it("builds an encoded login URL for an explicit destination", () => {
     expect(loginHref("/app/accounts?status=active")).toBe(
-      "/login?next=%2Fapp%2Faccounts%3Fstatus%3Dactive",
+      "/app/auth/login?next=%2Fapp%2Faccounts%3Fstatus%3Dactive",
     );
   });
 
@@ -20,7 +20,9 @@ describe("unauthenticated session navigation", () => {
         search: "?page=2&status=active",
         hash: "#rule-7",
       }),
-    ).toBe("/login?next=%2Fapp%2Frules%3Fpage%3D2%26status%3Dactive%23rule-7");
+    ).toBe(
+      "/app/auth/login?next=%2Fapp%2Frules%3Fpage%3D2%26status%3Dactive%23rule-7",
+    );
   });
 
   it("redirects only unauthenticated results", () => {
@@ -41,7 +43,7 @@ describe("unauthenticated session navigation", () => {
       redirectIfUnauthenticated({ status: "unauthenticated" }, location),
     ).toBe(true);
     expect(assign).toHaveBeenCalledWith(
-      "/login?next=%2Fapp%2Fledger%2Fmanual%3Ftype%3Dexpense%26page%3D2%23operation-3",
+      "/app/auth/login?next=%2Fapp%2Fledger%2Fmanual%3Ftype%3Dexpense%26page%3D2%23operation-3",
     );
   });
 });

@@ -9,7 +9,7 @@ from app.core.security import forget_session, remember_session, session_token_fr
 from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.users.errors import UserError
-from app.features.users.service import AuthenticationService
+from app.features.users.service import AuthenticationService, safe_next_path
 from app.features.workspaces.dependencies import get_current_workspace_context
 from app.features.workspaces.service import WorkspaceContext
 from app.templating import create_templates
@@ -152,11 +152,3 @@ async def logout(
     response = RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
     forget_session(response, settings=settings)
     return response
-
-
-def safe_next_path(next_path: str | None) -> str:
-    if not next_path:
-        return "/app/workspaces"
-    if not next_path.startswith("/") or next_path.startswith("//"):
-        return "/app/workspaces"
-    return next_path

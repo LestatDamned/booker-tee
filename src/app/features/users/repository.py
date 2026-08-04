@@ -42,6 +42,11 @@ class UserRepository:
         await self.session.flush()
         return user_session
 
+    async def update_name(self, *, user: User, name: str | None) -> User:
+        user.name = name
+        await self.session.flush()
+        return user
+
     async def get_active_session_by_token_hash(
         self,
         session_token_hash: str,

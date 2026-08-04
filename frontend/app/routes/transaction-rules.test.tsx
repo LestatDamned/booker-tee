@@ -46,7 +46,7 @@ describe("transaction rules route", () => {
 
     expect(screen.getByRole("link", { name: "Войти" })).toHaveAttribute(
       "href",
-      "/login?next=%2Fapp%2Frules",
+      "/app/auth/login?next=%2Fapp%2Frules",
     );
   });
 });

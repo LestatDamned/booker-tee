@@ -47,7 +47,7 @@ describe("workspaces route", () => {
 
     expect(screen.getByRole("link", { name: "Войти" })).toHaveAttribute(
       "href",
-      "/login?next=%2Fapp%2Fworkspaces",
+      "/app/auth/login?next=%2Fapp%2Fworkspaces",
     );
   });
 });

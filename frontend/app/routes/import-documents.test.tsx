@@ -51,7 +51,7 @@ describe("import documents route", () => {
 
     expect(screen.getByRole("link", { name: "Войти" })).toHaveAttribute(
       "href",
-      "/login?next=%2Fapp%2Fimports",
+      "/app/auth/login?next=%2Fapp%2Fimports",
     );
   });
 });

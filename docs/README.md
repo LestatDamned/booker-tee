@@ -46,10 +46,11 @@
 
 ## Текущий frontend plan
 
-Stages 0–6 и Stage 7 Waves A–B завершены. Следующая активная область — Wave C:
-workspace context, administration и оставшиеся integration surfaces.
+Stages 0–6 и Stage 7 Waves A–B завершены. В Wave C завершены workspaces;
+следующая область — users, authentication и profile.
 
 - [`STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md`](frontend/plan/STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md)
+- [`Users and authentication`](frontend/plan/users/README.md)
 - [`Reports migration`](frontend/plan/reports/README.md)
 - [`Import documents and mapping`](frontend/plan/import-documents-and-mapping/README.md)
 - [`Categories migration`](frontend/plan/categories/README.md)

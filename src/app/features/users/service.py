@@ -12,7 +12,14 @@ from app.core.security import (
 )
 from app.core.settings import Settings
 from app.db.base import utc_now
-from app.features.users.errors import UserError
+from app.features.users.errors import (
+    EmailAlreadyRegisteredError,
+    InvalidCredentialsError,
+    InvalidEmailError,
+    InvalidPasswordError,
+    SignupsClosedError,
+    UserError,
+)
 from app.features.users.models import User, UserSession
 from app.features.users.repository import UserRepository
 from app.features.workspaces.models import Workspace, WorkspaceAuditEventType, WorkspaceMember
@@ -22,7 +29,7 @@ from app.features.workspaces.repository import WorkspaceRepository
 def normalize_email(email: str) -> str:
     normalized = email.strip().lower()
     if not normalized or "@" not in normalized:
-        raise UserError("Некорректный email пользователя.")
+        raise InvalidEmailError("Некорректный email пользователя.")
     return normalized
 
 
@@ -35,8 +42,16 @@ def clean_user_name(name: str | None) -> str | None:
 
 def validate_password(password: str) -> str:
     if len(password) < 8:
-        raise UserError("Пароль должен быть не короче 8 символов.")
+        raise InvalidPasswordError("Пароль должен быть не короче 8 символов.")
     return password
+
+
+def safe_next_path(next_path: str | None) -> str:
+    if not next_path:
+        return "/app/workspaces"
+    if not next_path.startswith("/") or next_path.startswith("//"):
+        return "/app/workspaces"
+    return next_path
 
 
 @dataclass(frozen=True)
@@ -44,6 +59,13 @@ class LoginSession:
     user: User
     workspace: Workspace
     membership: WorkspaceMember
+    session: UserSession
+    session_token: str
+
+
+@dataclass(frozen=True)
+class AuthenticatedSession:
+    user: User
     session: UserSession
     session_token: str
 
@@ -63,13 +85,18 @@ class UserService:
         normalized_email = normalize_email(email)
         existing_user = await self.users.get_by_email(normalized_email)
         if existing_user is not None:
-            raise UserError("Пользователь с таким email уже существует.")
+            raise EmailAlreadyRegisteredError("Пользователь с таким email уже существует.")
 
         user = await self.users.create(
             email=normalized_email,
             password_hash=hash_password(validate_password(password)),
             name=clean_user_name(name),
         )
+        await self.session.commit()
+        return user
+
+    async def update_name(self, *, user: User, name: str | None) -> User:
+        user = await self.users.update_name(user=user, name=clean_user_name(name))
         await self.session.commit()
         return user
 
@@ -89,7 +116,7 @@ class AuthenticationService:
         name: str | None = None,
     ) -> LoginSession:
         if not self.settings.allow_signups:
-            raise UserError("Регистрация временно закрыта.")
+            raise SignupsClosedError("Регистрация временно закрыта.")
 
         user = await self._create_user_for_registration(
             email=email,
@@ -113,9 +140,9 @@ class AuthenticationService:
         normalized_email = normalize_email(email)
         user = await self.users.get_by_email(normalized_email)
         if user is None or not user.is_active:
-            raise UserError("Неверный email или пароль.")
+            raise InvalidCredentialsError("Неверный email или пароль.")
         if not verify_password(password, user.password_hash):
-            raise UserError("Неверный email или пароль.")
+            raise InvalidCredentialsError("Неверный email или пароль.")
 
         membership = await self.workspaces.get_first_active_membership_for_user(user.id)
         if membership is None:
@@ -140,6 +167,23 @@ class AuthenticationService:
         if login_session is not None:
             await self.session.commit()
         return login_session
+
+    async def resolve_authenticated_session(
+        self,
+        session_token: str,
+    ) -> AuthenticatedSession | None:
+        user_session = await self.users.get_active_session_by_token_hash(
+            hash_session_token(session_token)
+        )
+        if user_session is None or not user_session.user.is_active:
+            return None
+        user_session.last_seen_at = utc_now()
+        await self.session.commit()
+        return AuthenticatedSession(
+            user=user_session.user,
+            session=user_session,
+            session_token=session_token,
+        )
 
     async def switch_workspace(self, *, session_token: str, workspace_id: UUID) -> Workspace:
         login_session = await self._resolve_login_session_record(session_token)
@@ -176,7 +220,7 @@ class AuthenticationService:
         normalized_email = normalize_email(email)
         existing_user = await self.users.get_by_email(normalized_email)
         if existing_user is not None:
-            raise UserError("Пользователь с таким email уже существует.")
+            raise EmailAlreadyRegisteredError("Пользователь с таким email уже существует.")
 
         return await self.users.create(
             email=normalized_email,

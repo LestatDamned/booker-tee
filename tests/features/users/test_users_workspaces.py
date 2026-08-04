@@ -222,3 +222,28 @@ async def test_registration_creates_workspace_membership_and_session_once(monkey
     assert len(repository.audit_events) == 1
     assert repository.audit_events[0].event_type == WorkspaceAuditEventType.WORKSPACE_CREATED
     assert repository.audit_events[0].workspace_id == login_session.workspace.id
+
+
+async def test_expired_authenticated_session_is_rejected(monkeypatch) -> None:
+    class FakeSession:
+        commit_count = 0
+
+        async def commit(self) -> None:
+            self.commit_count += 1
+
+    class FakeUserRepository:
+        def __init__(self, _session: FakeSession) -> None:
+            pass
+
+        async def get_active_session_by_token_hash(self, _token_hash: str):
+            return None
+
+    monkeypatch.setattr(users_service, "UserRepository", FakeUserRepository)
+    session = FakeSession()
+    authentication = users_service.AuthenticationService(
+        cast(AsyncSession, session),
+        Settings(auth_secret_key="test-secret"),
+    )
+
+    assert await authentication.resolve_authenticated_session("expired-token") is None
+    assert session.commit_count == 0

@@ -49,7 +49,7 @@ describe("category detail route", () => {
     );
     expect(screen.getByRole("link", { name: "Войти" })).toHaveAttribute(
       "href",
-      "/login?next=%2Fapp%2Fcategories",
+      "/app/auth/login?next=%2Fapp%2Fcategories",
     );
     unmount();
 
