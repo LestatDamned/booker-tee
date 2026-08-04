@@ -7,7 +7,13 @@ import {
   loadWorkspaceSettings,
   updateWorkspaceSettings,
 } from "./api/workspace-settings-api";
-import { session, workspaceSettings } from "./test-support";
+import {
+  leaveWorkspace,
+  transitionWorkspaceMember,
+  transferWorkspaceOwnership,
+  updateWorkspaceMemberRole,
+} from "./api/workspace-members-api";
+import { session, workspaceMembers, workspaceSettings } from "./test-support";
 import { WorkspaceSettingsPage } from "./workspace-settings-page";
 
 vi.mock("./api/workspace-settings-api", async (importOriginal) => {
@@ -20,10 +26,26 @@ vi.mock("./api/workspace-settings-api", async (importOriginal) => {
   };
 });
 
+vi.mock("./api/workspace-members-api", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./api/workspace-members-api")>();
+  return {
+    ...actual,
+    leaveWorkspace: vi.fn(),
+    transitionWorkspaceMember: vi.fn(),
+    transferWorkspaceOwnership: vi.fn(),
+    updateWorkspaceMemberRole: vi.fn(),
+  };
+});
+
 describe("WorkspaceSettingsPage", () => {
   beforeEach(() => {
     vi.mocked(loadWorkspaceSettings).mockReset();
     vi.mocked(updateWorkspaceSettings).mockReset();
+    vi.mocked(transitionWorkspaceMember).mockReset();
+    vi.mocked(transferWorkspaceOwnership).mockReset();
+    vi.mocked(leaveWorkspace).mockReset();
+    vi.mocked(updateWorkspaceMemberRole).mockReset();
   });
 
   it("renders owner form and truthful lifecycle impact", () => {
@@ -189,16 +211,178 @@ describe("WorkspaceSettingsPage", () => {
     expect(screen.queryByLabelText(/Название/)).toBeNull();
     expect(screen.getByText("Только чтение")).toBeVisible();
     expect(screen.getByText("Доступно только владельцу")).toBeVisible();
-    expect(screen.getByText("Наблюдатель", { exact: false })).toBeVisible();
+    expect(
+      screen.getAllByText("Наблюдатель", { exact: false })[0],
+    ).toBeVisible();
+  });
+
+  it("uses server capabilities for inline role changes", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateWorkspaceMemberRole).mockResolvedValue({
+      status: "success",
+      members: {
+        ...workspaceMembers,
+        items: workspaceMembers.items.map((member) =>
+          member.name === "Анна" ? { ...member, role: "viewer" } : member,
+        ),
+      },
+    });
+    renderPage();
+
+    await user.selectOptions(screen.getByLabelText("Роль: Анна"), "viewer");
+
+    expect(updateWorkspaceMemberRole).toHaveBeenCalledWith({
+      csrfToken: "csrf-token",
+      member: workspaceMembers.items[1],
+      role: "viewer",
+      workspaceId: workspaceMembers.workspaceId,
+    });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Роль: Анна")).toHaveValue("viewer"),
+    );
+  });
+
+  it("requires confirmation before disabling access", async () => {
+    const user = userEvent.setup();
+    vi.mocked(transitionWorkspaceMember).mockResolvedValue({
+      status: "success",
+      members: {
+        ...workspaceMembers,
+        items: workspaceMembers.items.map((member) =>
+          member.name === "Анна"
+            ? {
+                ...member,
+                status: "disabled",
+                capabilities: {
+                  ...member.capabilities,
+                  canDisable: false,
+                  canReactivate: true,
+                },
+              }
+            : member,
+        ),
+      },
+    });
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: "Отключить" }));
+    expect(
+      screen.getByRole("dialog", { name: "Отключить участника?" }),
+    ).toBeVisible();
+    expect(transitionWorkspaceMember).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Отмена" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Отключить" })).toHaveFocus(),
+    );
+    await user.click(screen.getByRole("button", { name: "Отключить" }));
+
+    await user.click(screen.getByRole("button", { name: "Отключить доступ" }));
+    expect(transitionWorkspaceMember).toHaveBeenCalledWith({
+      action: "disable",
+      csrfToken: "csrf-token",
+      member: workspaceMembers.items[1],
+      workspaceId: workspaceMembers.workspaceId,
+    });
+    expect(await screen.findByText("Отключён")).toBeVisible();
+  });
+
+  it("requires confirmation and a hard boundary reload for ownership transfer", async () => {
+    const user = userEvent.setup();
+    const boundaryNavigate = vi.fn();
+    vi.mocked(transferWorkspaceOwnership).mockResolvedValue({
+      status: "success",
+      href: `/app/workspaces/${workspaceSettings.workspace.id}/settings`,
+      members: workspaceMembers,
+    });
+    renderPage(workspaceSettings, boundaryNavigate);
+
+    await user.click(
+      screen.getByRole("button", { name: "Передать владение участнику Анна" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Передать владение?" }),
+    ).toBeVisible();
+    expect(transferWorkspaceOwnership).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Передать владение" }));
+
+    expect(transferWorkspaceOwnership).toHaveBeenCalledWith({
+      csrfToken: session.csrfToken,
+      expectedWorkspaceUpdatedAt: workspaceSettings.workspace.updatedAt,
+      member: workspaceMembers.items[1],
+      workspaceId: workspaceMembers.workspaceId,
+    });
+    expect(boundaryNavigate).toHaveBeenCalledWith(
+      `/app/workspaces/${workspaceSettings.workspace.id}/settings`,
+      "Владение пространством передано: Анна.",
+    );
+  });
+
+  it("requires confirmation and reloads the fallback after self-leave", async () => {
+    const user = userEvent.setup();
+    const boundaryNavigate = vi.fn();
+    const leavingMembers: typeof workspaceMembers = {
+      ...workspaceMembers,
+      items: workspaceMembers.items.map((member) =>
+        member.isSelf
+          ? {
+              ...member,
+              role: "admin",
+              capabilities: { ...member.capabilities, canLeave: true },
+              blockingReasonCodes: [],
+            }
+          : {
+              ...member,
+              capabilities: {
+                ...member.capabilities,
+                canTransferOwnership: false,
+              },
+            },
+      ),
+    };
+    vi.mocked(leaveWorkspace).mockResolvedValue({
+      status: "success",
+      href: "/app/workspaces",
+    });
+    renderPage(workspaceSettings, boundaryNavigate, leavingMembers);
+
+    await user.click(screen.getByRole("button", { name: "Выйти" }));
+    expect(
+      screen.getByRole("dialog", { name: "Выйти из пространства?" }),
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Выйти из пространства" }),
+    );
+
+    expect(leaveWorkspace).toHaveBeenCalledWith({
+      csrfToken: session.csrfToken,
+      currentWorkspaceId: session.workspace.id,
+      member: leavingMembers.items[0],
+      workspaceId: leavingMembers.workspaceId,
+    });
+    expect(boundaryNavigate).toHaveBeenCalledWith(
+      "/app/workspaces",
+      "Вы вышли из рабочего пространства.",
+    );
   });
 });
 
-function renderPage(settings = workspaceSettings) {
+function renderPage(
+  settings = workspaceSettings,
+  boundaryNavigate = vi.fn(),
+  members = workspaceMembers,
+) {
   return render(
     <MemoryRouter
       initialEntries={[`/workspaces/${settings.workspace.id}/settings`]}
     >
-      <WorkspaceSettingsPage initialSettings={settings} session={session} />
+      <WorkspaceSettingsPage
+        boundaryNavigate={boundaryNavigate}
+        initialMembers={members}
+        initialSettings={settings}
+        session={session}
+      />
     </MemoryRouter>,
   );
 }

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -89,6 +89,25 @@ class UserRepository:
             )
         )
         return result.scalar_one()
+
+    async def move_active_workspace_sessions(
+        self,
+        *,
+        user_id: UUID,
+        from_workspace_id: UUID,
+        to_workspace_id: UUID | None,
+    ) -> None:
+        await self.session.execute(
+            update(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.current_workspace_id == from_workspace_id,
+                UserSession.revoked_at.is_(None),
+                UserSession.expires_at > utc_now(),
+            )
+            .values(current_workspace_id=to_workspace_id)
+        )
+        await self.session.flush()
 
     async def revoke_session(self, user_session: UserSession) -> None:
         user_session.revoked_at = utc_now()

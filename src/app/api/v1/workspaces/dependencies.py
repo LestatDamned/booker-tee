@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_session
 from app.features.workspaces.application.creation import WorkspaceCreator
 from app.features.workspaces.application.directory import WorkspaceDirectoryReader
+from app.features.workspaces.application.members import WorkspaceMemberService
+from app.features.workspaces.application.ownership import WorkspaceOwnershipService
 from app.features.workspaces.application.settings import WorkspaceSettingsService
 from app.features.workspaces.application.switching import WorkspaceSessionSwitcher
 from app.features.workspaces.repository import WorkspaceRepository
@@ -33,3 +35,15 @@ def get_workspace_settings_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorkspaceSettingsService:
     return WorkspaceSettingsService(session)
+
+
+def get_workspace_member_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> WorkspaceMemberService:
+    return WorkspaceMemberService(session)
+
+
+def get_workspace_ownership_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> WorkspaceOwnershipService:
+    return WorkspaceOwnershipService(session)

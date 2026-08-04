@@ -36,3 +36,29 @@ class CreateWorkspaceInvitationCommand:
 class UpdateWorkspaceMemberRoleCommand:
     member_id: UUID
     role: WorkspaceRole
+
+
+@dataclass(frozen=True)
+class UpdateWorkspaceMemberRoleApiCommand:
+    member_id: UUID
+    role: WorkspaceRole
+    expected_updated_at: datetime
+
+
+@dataclass(frozen=True)
+class TransitionWorkspaceMemberCommand:
+    member_id: UUID
+    expected_updated_at: datetime
+
+
+@dataclass(frozen=True)
+class TransferWorkspaceOwnershipCommand:
+    recipient_member_id: UUID
+    expected_workspace_updated_at: datetime
+    expected_recipient_updated_at: datetime
+
+
+@dataclass(frozen=True)
+class LeaveWorkspaceCommand:
+    expected_member_updated_at: datetime
+    expected_current_workspace_id: UUID

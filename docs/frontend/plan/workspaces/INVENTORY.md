@@ -17,7 +17,7 @@ runtime.
 | `POST /workspaces/{workspace_id}/invitations` | Creates one-time link and rerenders page | Current workspace only; owner/admin; role form; 201 HTML |
 | `POST /workspaces/{workspace_id}/invitations/{invitation_id}/revoke` | Marks pending invite revoked | Current workspace only; owner/admin; 303 `/workspaces` |
 | `POST /workspaces/{workspace_id}/members/{member_id}/role` | Changes non-owner member role | Current workspace only; owner/admin policy; 303 `/workspaces` |
-| `POST /workspaces/{workspace_id}/members/{member_id}/disable` | Sets membership disabled | Current workspace only; self and last-owner guards; 303 |
+| `POST /workspaces/{workspace_id}/members/{member_id}/disable` | Sets non-owner membership disabled | Current workspace only; self/owner guards; workspace, actor and target rows locked; 303 |
 | `POST /workspaces/{workspace_id}/members/{member_id}/reactivate` | Sets membership active | Current workspace only; owner/admin policy; 303 |
 | `GET /workspaces/invitations/{invitation_token}` | Public/optional-auth preview | Token hash lookup; renders valid/error page; no redirect |
 | `POST /workspaces/invitations/{invitation_token}/accept` | Consumes invite, creates/reuses membership, switches session | Auth + CSRF; 303 `/dashboard` |
@@ -176,8 +176,9 @@ Additional facts:
 - Owner role cannot be assigned through invitation or ordinary role edit.
 - User cannot edit own role or disable own access.
 - Admin can manage editor/uploader/analyst/viewer, but not owner/admin.
-- Owner can manage any non-owner. There is a last-active-owner count guard for
-  disable, but role change of owners is already disallowed.
+- Owner can manage any non-owner. Since Slice 3, legacy member mutations lock
+  workspace/actor/target in the same order as the API and owner disable is
+  rejected in favour of explicit ownership transfer.
 - `Workspace.owner_id` is separately checked for settings update.
 
 ## Confirmed security/isolation findings
@@ -198,10 +199,11 @@ coverage, а не к отсутствию runtime guard (`dependencies.py`, `rou
    create two active memberships; accept and revoke also both commit
    (`service.accept_invitation`, `service.revoke_invitation`,
    `test_workspace_concurrency_postgres.py`).
-2. **High — last-owner count-then-write is race-prone.** No workspace/member
-   lock surrounds count and disable; two owners could concurrently disable
-   distinct owner memberships if such state exists. A real PostgreSQL barrier
-   proves both service calls commit and leave zero active owners
+2. **Resolved in Slice 3 — legacy last-owner count-then-write was race-prone.**
+   The audit's PostgreSQL barrier proved both old service calls could commit and
+   leave zero active owners. Production legacy mutations now serialize on the
+   workspace and cannot disable an owner; the new transfer actor locks all
+   memberships and verifies one owner matching `Workspace.owner_id`
    (`service.disable_member`, `test_workspace_concurrency_postgres.py`).
 3. **High — hard delete blast radius is real and has no product guard.** FK
    cascades reach workspace-owned data; no delete route currently exists, which
@@ -209,23 +211,24 @@ coverage, а не к отсутствию runtime guard (`dependencies.py`, `rou
 4. **Medium — read paths commit.** Session resolution and expired invitation
    preview mutate state on GET. This violates current architecture’s
    side-effect-free read target and complicates retry/cache reasoning.
-5. **Medium — no stale protection.** Settings, role/status, revoke and accept
-   are last-write-wins; `updated_at` is not checked.
-6. **Medium — create is not idempotent.** Browser retry/double submit can create
-   multiple workspaces or invitations; no Idempotency-Key/fingerprint exists.
+5. **Partly resolved — invitation transitions have no stale protection.**
+   Settings, member role/status, transfer and leave now validate authoritative
+   timestamps. Legacy invitation revoke/accept remain last-write-wins.
+6. **Partly resolved — invitation create is not idempotent.** React workspace
+   create has `Idempotency-Key`/fingerprint protection; legacy invitation retry
+   can still create multiple invitations.
 7. **Medium — deactivation consequence is undefined.** Model fields exist, but
    there is no atomic policy for sessions, invitations, Chat/integration
    bindings, drafts or in-flight requests.
 8. **Medium — invitation token is present in URL/history and login return.** It
    is high entropy and stored only as hash, but no explicit no-store/referrer
    response contract is present.
-9. **Low/UX-security — destructive confirmation is unproven.** SSR output uses
-   `hx-confirm` without an HTMX request attribute and no browser test asserts a
-   dialog for revoke/disable.
-10. **Coverage gap — route-level masking is only partly proved.** Slice 0 now
-    proves non-current workspace 404 before member/invitation lookup, scoped
-    foreign/missing service outcomes and missing-CSRF rejection. Database-backed
-    settings/select identity masking and the future JSON API matrix remain open.
+9. **Partly resolved UX-security — invitation revoke confirmation is
+   unproven.** React disable/transfer/leave use tested semantic dialogs. The
+   retained SSR revoke still relies on the legacy `hx-confirm` composition.
+10. **Coverage gap — invitation route masking remains.** React settings,
+    members and ownership now have API masking/CSRF contracts; retained public
+    and authenticated invitation routes still need the Slice 4–5 matrix.
 
 ## Clean-database migration blocker found during browser isolation — resolved
 

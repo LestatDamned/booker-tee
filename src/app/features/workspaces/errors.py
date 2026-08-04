@@ -26,3 +26,17 @@ class WorkspaceSettingsForbiddenError(WorkspaceError):
 
 class WorkspaceUpdateConflictError(WorkspaceError):
     pass
+
+
+class WorkspaceMemberConflictError(WorkspaceError):
+    pass
+
+
+class WorkspaceMemberTransitionError(WorkspaceError):
+    def __init__(self, message: str, *, reason_codes: list[str]) -> None:
+        super().__init__(message)
+        self.reason_codes = reason_codes
+
+
+class WorkspaceOwnershipTransferConflictError(WorkspaceError):
+    pass

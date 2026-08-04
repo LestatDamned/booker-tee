@@ -30,7 +30,15 @@ async def test_foreign_and_missing_member_have_same_service_outcome(monkeypatch)
         def __init__(self, session: object) -> None:
             self.session = session
 
-        async def get_member_by_id(
+        async def lock_for_update(self, workspace_id: UUID):
+            return context.workspace if workspace_id == context.workspace.id else None
+
+        async def get_membership_for_update(self, *, user_id: UUID, workspace_id: UUID):
+            if user_id == context.user.id and workspace_id == context.workspace.id:
+                return context.membership
+            return None
+
+        async def get_member_by_id_for_update(
             self,
             *,
             workspace_id: UUID,

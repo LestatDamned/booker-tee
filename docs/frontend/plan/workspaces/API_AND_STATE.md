@@ -1,12 +1,13 @@
 # Workspaces API and state boundary
 
-Статус: target accepted 2026-08-03 in ADR-0006; Slice 1 directory/create/select
-implemented and production-gated. Later endpoint groups remain proposed.
+Статус: target accepted 2026-08-03 in ADR-0006; Slice 1–2 production-gated;
+Slice 3 members/ownership implemented with browser gate pending. Invitation and
+lifecycle endpoint groups remain proposed.
 
 ## Current boundary
 
-- `src/app/api/v1/workspaces/router.py` implements `GET/POST
-  /api/v1/workspaces` and `POST /api/v1/workspaces/{id}/select`.
+- `src/app/api/v1/workspaces/router.py` implements directory/create/select,
+  target settings, members, ownership transfer and self-leave endpoints.
 - `frontend/app/routes/workspaces.tsx` owns canonical `/app/workspaces` and
   composes the feature in `frontend/app/features/workspaces/`.
 - `/api/v1/session` returns only current user/workspace/membership/capabilities
@@ -37,15 +38,18 @@ WorkspaceSettingsReader / WorkspaceSettingsService
   deactivate / restore
 
 WorkspaceMemberService
-  list / change_role / disable / reactivate / leave / transfer_ownership
+  list / change_role / disable / reactivate
+
+WorkspaceOwnershipService
+  leave / transfer_ownership
 
 WorkspaceInvitationService
   list / create / revoke / preview_credential / accept_credential
 ```
 
-The first three actors are implemented in
-`src/app/features/workspaces/application/{directory,creation,switching}.py`.
-Settings/member/invitation actors below are proposals for later slices.
+Directory, creation, switching, settings, member management and ownership/leave
+are implemented in `src/app/features/workspaces/application/`. Invitation and
+lifecycle actors below remain proposals for later slices.
 
 Application actors own transaction/locks/audit. Repositories keep visible
 workspace predicates and persistence only. Public invitation preview is a
@@ -56,7 +60,7 @@ separate credential boundary, not an ordinary workspace read.
 | Browser route | Ownership |
 | --- | --- |
 | `/app/workspaces` | React directory/create/switch |
-| `/app/workspaces/:workspaceId/settings` | React general settings and lifecycle impact read model; members/invites/activity remain later slices |
+| `/app/workspaces/:workspaceId/settings` | React general settings, member management and lifecycle impact read model; invites/activity remain later slices |
 | `/workspaces?...` | Historical query-preserving 307 only after full directory replacement |
 | `/workspaces/invitations/:token` | Kept public bridge initially per D11 |
 
@@ -68,8 +72,8 @@ subroutes from measured content size.
 
 ### Directory and switch
 
-The directory endpoints are implemented in Slice 1. The two settings endpoints
-are implemented in Slice 2. Members, invitations and lifecycle mutation rows
+The directory endpoints are implemented in Slice 1, settings in Slice 2 and all
+member/ownership rows below in Slice 3. Invitations and lifecycle mutation rows
 remain proposed contracts.
 
 | Method | Endpoint | Contract |
@@ -91,12 +95,12 @@ remain proposed contracts.
 
 | Method | Endpoint | Contract |
 | --- | --- | --- |
-| `GET` | `/api/v1/workspaces/{id}/members` | Bounded workspace-scoped member facts/capabilities |
-| `PUT` | `/api/v1/workspaces/{id}/members/{memberId}/role` | Role + expected member timestamp |
-| `POST` | `/api/v1/workspaces/{id}/members/{memberId}/disable` | Locked membership transition |
-| `POST` | `/api/v1/workspaces/{id}/members/{memberId}/reactivate` | Locked membership transition |
-| `POST` | `/api/v1/workspaces/{id}/leave` | Self leave after D9 |
-| `POST` | `/api/v1/workspaces/{id}/transfer-ownership` | Atomic owner transfer after D8 |
+| `GET` | `/api/v1/workspaces/{id}/members` | **Implemented:** bounded workspace-scoped member facts/capabilities |
+| `PUT` | `/api/v1/workspaces/{id}/members/{memberId}/role` | **Implemented:** role + expected member timestamp |
+| `POST` | `/api/v1/workspaces/{id}/members/{memberId}/disable` | **Implemented:** locked transition plus target session/Chat invalidation |
+| `POST` | `/api/v1/workspaces/{id}/members/{memberId}/reactivate` | **Implemented:** locked membership transition; revoked Chat bindings are not silently restored |
+| `POST` | `/api/v1/workspaces/{id}/leave` | **Implemented:** non-owner self-leave, stale member/current-session snapshots, deterministic fallback and hard reload |
+| `POST` | `/api/v1/workspaces/{id}/transfer-ownership` | **Implemented:** workspace/member row locks, exact authoritative-owner invariant, atomic `owner_id` plus two-role transition |
 
 ### Invitations
 

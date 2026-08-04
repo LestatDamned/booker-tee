@@ -46,6 +46,49 @@ class WorkspaceRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_first_active_membership_for_user_excluding(
+        self,
+        *,
+        user_id: UUID,
+        excluded_workspace_id: UUID,
+    ) -> WorkspaceMember | None:
+        result = await self.session.execute(
+            select(WorkspaceMember)
+            .join(Workspace)
+            .options(selectinload(WorkspaceMember.workspace))
+            .where(
+                WorkspaceMember.user_id == user_id,
+                WorkspaceMember.workspace_id != excluded_workspace_id,
+                WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+                Workspace.is_active.is_(True),
+            )
+            .order_by(func.lower(Workspace.name), Workspace.id)
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_first_active_membership_for_user_excluding_for_update(
+        self,
+        *,
+        user_id: UUID,
+        excluded_workspace_id: UUID,
+    ) -> WorkspaceMember | None:
+        result = await self.session.execute(
+            select(WorkspaceMember)
+            .join(Workspace)
+            .options(selectinload(WorkspaceMember.workspace))
+            .where(
+                WorkspaceMember.user_id == user_id,
+                WorkspaceMember.workspace_id != excluded_workspace_id,
+                WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+                Workspace.is_active.is_(True),
+            )
+            .order_by(func.lower(Workspace.name), Workspace.id)
+            .with_for_update(of=WorkspaceMember)
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def get_active_membership(
         self,
         *,
@@ -62,6 +105,27 @@ class WorkspaceRepository:
                 WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
                 Workspace.is_active.is_(True),
             )
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_active_membership_for_update(
+        self,
+        *,
+        user_id: UUID,
+        workspace_id: UUID,
+    ) -> WorkspaceMember | None:
+        result = await self.session.execute(
+            select(WorkspaceMember)
+            .join(Workspace)
+            .options(selectinload(WorkspaceMember.workspace))
+            .where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == user_id,
+                WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+                Workspace.is_active.is_(True),
+            )
+            .with_for_update(of=WorkspaceMember)
             .limit(1)
         )
         return result.scalar_one_or_none()
@@ -139,6 +203,54 @@ class WorkspaceRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_member_by_id_for_update(
+        self,
+        *,
+        workspace_id: UUID,
+        member_id: UUID,
+    ) -> WorkspaceMember | None:
+        result = await self.session.execute(
+            select(WorkspaceMember)
+            .options(selectinload(WorkspaceMember.user))
+            .where(
+                WorkspaceMember.id == member_id,
+                WorkspaceMember.workspace_id == workspace_id,
+            )
+            .with_for_update()
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_members_for_workspace_for_update(
+        self,
+        workspace_id: UUID,
+    ) -> list[WorkspaceMember]:
+        result = await self.session.execute(
+            select(WorkspaceMember)
+            .where(WorkspaceMember.workspace_id == workspace_id)
+            .order_by(WorkspaceMember.id)
+            .with_for_update()
+        )
+        return list(result.scalars().all())
+
+    async def get_membership_for_update(
+        self,
+        *,
+        user_id: UUID,
+        workspace_id: UUID,
+    ) -> WorkspaceMember | None:
+        result = await self.session.execute(
+            select(WorkspaceMember)
+            .where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == user_id,
+                WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+            )
+            .with_for_update()
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def count_active_owners(self, workspace_id: UUID) -> int:
         result = await self.session.execute(
             select(func.count())
@@ -151,13 +263,26 @@ class WorkspaceRepository:
         )
         return result.scalar_one()
 
-    async def list_members_for_workspace(self, workspace_id: UUID) -> list[WorkspaceMember]:
-        result = await self.session.execute(
+    async def list_members_for_workspace(
+        self,
+        workspace_id: UUID,
+        *,
+        limit: int | None = None,
+    ) -> list[WorkspaceMember]:
+        statement = (
             select(WorkspaceMember)
             .options(selectinload(WorkspaceMember.user))
             .where(WorkspaceMember.workspace_id == workspace_id)
-            .order_by(WorkspaceMember.created_at)
+            .order_by(
+                case((WorkspaceMember.role == WorkspaceRole.OWNER, 0), else_=1),
+                case((WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE, 0), else_=1),
+                WorkspaceMember.created_at,
+                WorkspaceMember.id,
+            )
         )
+        if limit is not None:
+            statement = statement.limit(limit)
+        result = await self.session.execute(statement)
         return list(result.scalars().all())
 
     async def list_pending_invitations(

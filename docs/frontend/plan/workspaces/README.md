@@ -1,6 +1,6 @@
 # Workspaces React migration audit
 
-Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1–2 production gates passed 2026-08-03`.
+Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1–2 production gates passed; Slice 3 members/ownership implemented and primary browser gate passed; cutover gate pending 2026-08-03`.
 
 Этот временный child stage ведёт Stage 7 Wave C migration authenticated
 workflow Workspaces. На этапе аудита production runtime не менялся. После
@@ -36,11 +36,15 @@ public invitation link
 Slice 1 зарегистрирован в `src/app/api/v1/router.py` и `frontend/app/routes.ts`:
 `GET/POST /api/v1/workspaces`, `POST /api/v1/workspaces/{id}/select` и
 `/app/workspaces`; Slice 2 добавляет `GET/PUT /api/v1/workspaces/{id}` и
-`/app/workspaces/:workspaceId/settings`. `/api/v1/session` остаётся источником
+`/app/workspaces/:workspaceId/settings`. Первый increment Slice 3 добавил
+bounded member directory, inline role update и disable/reactivate на этой же
+странице через `/api/v1/workspaces/{id}/members/*`. Второй increment реализовал
+atomic ownership transfer и self-leave с committed session snapshot и hard
+boundary reload. `/api/v1/session` остаётся источником
 активного workspace, membership, capabilities и CSRF token
-(`src/app/api/v1/session/*`). Members, invitations и lifecycle mutations
-по-прежнему обслуживаются legacy workflow; React settings показывает только
-read-only lifecycle impact.
+(`src/app/api/v1/session/*`). Invitations и lifecycle mutations по-прежнему
+обслуживаются legacy workflow или отсутствуют; React settings также
+показывает read-only lifecycle impact.
 
 ## Материалы
 
@@ -77,7 +81,8 @@ read-only lifecycle impact.
   `uploader`, `analyst`, `viewer`. Только owner управляет settings; owner/admin
   управляют invitations/members с дополнительными role guards.
 - Lifecycle workspace не реализован: поля `is_active` и `archived_at` есть, но
-  routes/use cases deactivate/archive/restore/leave/transfer/delete отсутствуют.
+  routes/use cases deactivate/archive/restore/delete отсутствуют. Transfer и
+  leave теперь принадлежат `application/ownership.py`, а не lifecycle actor.
 
 ## Принятые решения
 

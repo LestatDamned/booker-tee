@@ -25,7 +25,7 @@ production gates complete.
 | Current no-membership read silently creates a personal workspace and audit event | `test_workspace_context_characterization.py` | characterization passes |
 | Two concurrent users can pass the invitation status guard and consume one credential | `test_workspace_invitation_concurrency.py`, `test_workspace_concurrency_postgres.py` | service and real PostgreSQL strict `xfail`; PostgreSQL proves 2 commits and 2 memberships |
 | Accept and revoke can both pass independent pending snapshots | `test_workspace_invitation_concurrency.py`, `test_workspace_concurrency_postgres.py` | service and real PostgreSQL strict `xfail`; PostgreSQL proves both commit |
-| Two owners can concurrently pass the service count guard and disable each other | `test_workspace_owner_concurrency.py`, `test_workspace_concurrency_postgres.py` | service and real PostgreSQL strict `xfail`; PostgreSQL proves 2 commits and 0 active owners |
+| Two owners could concurrently pass the legacy count guard and disable each other | `test_workspace_owner_concurrency.py`, `test_workspace_concurrency_postgres.py`, `test_workspace_ownership_postgres.py` | **Resolved Slice 3:** owner disable is rejected; transfer uses locked single-owner transition and its PostgreSQL race has one winner |
 | Non-current workspace is rejected before member/invitation route lookup | `test_workspace_route_security.py` | 5 route cases pass with identical 404 |
 | Foreign and missing member/invitation IDs use the same scoped service outcome | `test_workspace_isolation_characterization.py` | 4 outcomes pass; current workspace ID asserted |
 | Minimal owner SSR geometry at 1440/920/390 | `scripts/ui_audit.py --authenticated --scenario empty --path workspaces` | 3 pages pass; zero overflow/errors |
@@ -33,13 +33,11 @@ production gates complete.
 | Admin/editor/viewer SSR capability geometry | isolated shared-role fixture + `scripts/ui_audit.py --authenticated --path workspaces` | 9 pages pass at 1440/920/390; actions match server policies; zero overflow/errors |
 | Expanded create/edit/invite, one-time credential and valid/expired/invalid preview geometry | isolated Playwright interaction capture, `/tmp/booker-workspaces-forms-20260803/report.json` | 24 state/viewport combinations pass overflow/error gate; focus, labels and touch sizes measured |
 
-The strict `xfail` cases state the accepted invariant, reproduce the current
-race deterministically and must be converted to ordinary passing tests when the
-locked application actors are implemented. Fast service harnesses and real
-PostgreSQL tests now agree. The database tests coordinate immediately after the
-real repository reads, then let ordinary flush/commit behavior run: no fake
-transaction or lock implementation is involved. These tests are evidence of
-known gaps, not waived requirements.
+The remaining strict `xfail` cases concern invitation consume/revoke and must be
+converted to ordinary passing tests in Slice 4–5. The former owner-disable
+characterizations are now ordinary passing regression tests, supplemented by a
+real concurrent transfer test. Database tests use ordinary flush/commit and
+real PostgreSQL locking: no fake transaction implementation is involved.
 
 Current gaps after Slice 2: PostgreSQL invitation/last-owner locking fixes
 remain later-slice work but their failure mode is no longer ambiguous. Settings
@@ -125,6 +123,36 @@ Screenshots and the machine-readable browser report are disposable artifacts in
 - ownership transfer atomically updates `owner_id` and memberships;
 - concurrent transfer/disable cannot leave zero/multiple authoritative owners;
 - disabled/removed member loses web and Chat access immediately.
+
+Current Slice 3 increment evidence:
+
+- `tests/features/workspaces/test_workspace_members_application.py` covers
+  foreign masking, server capability projection, stale-before-side-effect and
+  session/Chat invalidation orchestration;
+- `tests/api/test_workspaces_api.py` covers camelCase member DTOs, expected
+  timestamps, stable conflict/reason-code envelopes and masked member IDs;
+- `frontend/app/features/workspaces/workspace-settings-page.test.tsx` covers
+  server-driven inline role changes, disable, ownership-transfer and self-leave
+  confirmations plus hard-boundary navigation;
+- `tests/features/workspaces/test_workspace_ownership_application.py` covers
+  atomic role/owner changes, stale rejection, owner-leave blocking, session
+  fallback and Chat revocation;
+- `tests/features/workspaces/test_workspace_ownership_postgres.py` proves two
+  concurrent transfers have exactly one winner, one audit event and one active
+  owner matching `Workspace.owner_id`;
+- `workspace-members-api.test.ts` and `test_workspaces_api.py` cover CSRF,
+  workspace/member/session timestamps, response navigation and fallback
+  session projection;
+- `scripts/workspaces_slice03_browser.py` creates a real shared membership via
+  the retained invitation bridge, captures 1440/920/390/mobile-landscape,
+  verifies no overflow/sub-44 px visible target/browser errors, and completes
+  ownership transfer followed by former-owner leave and fallback reload;
+- full regressions: 789 backend passed with 4 invitation-only strict `xfail`;
+  77 frontend files/467 tests passed; OpenAPI check, format, lint, typecheck,
+  style policy and production build passed;
+- extended keyboard-only, screen-reader semantic, 200% zoom and complete
+  owner/admin/editor/viewer browser matrices remain before the replacement
+  gate.
 
 ### Invitations
 

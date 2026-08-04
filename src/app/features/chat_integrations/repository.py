@@ -144,6 +144,33 @@ class ChatIntegrationRepository:
         )
         await self.session.flush()
 
+    async def revoke_workspace_access_for_user(
+        self,
+        *,
+        workspace_id: UUID,
+        user_id: UUID,
+        revoked_at: datetime,
+    ) -> None:
+        await self.session.execute(
+            update(ChatIdentityBinding)
+            .where(
+                ChatIdentityBinding.workspace_id == workspace_id,
+                ChatIdentityBinding.user_id == user_id,
+                ChatIdentityBinding.is_active.is_(True),
+            )
+            .values(is_active=False)
+        )
+        await self.session.execute(
+            update(ChatConversationState)
+            .where(
+                ChatConversationState.workspace_id == workspace_id,
+                ChatConversationState.user_id == user_id,
+                ChatConversationState.consumed_at.is_(None),
+            )
+            .values(consumed_at=revoked_at)
+        )
+        await self.session.flush()
+
     async def create_conversation_state(
         self,
         *,

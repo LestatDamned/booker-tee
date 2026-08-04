@@ -3,10 +3,11 @@
 Статус: accepted gate manifest. Nothing listed here may be deleted before its
 explicit replacement gate.
 
-Slice 1–2 result 2026-08-03: **nothing deleted**. Legacy `/workspaces`, its POST
+Slice 1–3 implementation result 2026-08-03: **nothing deleted**. Legacy `/workspaces`, its POST
 handlers, presenters, templates, CSS, AppShell links and public invitation
 bridge are deliberately retained because settings/members/invitations have not
-all passed their replacement gates. The new React directory/settings routes and
+all passed their replacement gates. Slice 3 browser/full-regression gates are
+also pending. The new React directory/settings routes and
 API coexist with them; settings links inside the React directory are canonical,
 while cross-runtime entry links remain legacy until the authenticated workflow
 cutover gate.

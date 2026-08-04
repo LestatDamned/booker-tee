@@ -46,6 +46,125 @@
   margin: 0;
 }
 
+.memberCount {
+  display: grid;
+  min-width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+.memberList {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+}
+
+.memberRow {
+  display: grid;
+  grid-template-columns:
+    2.5rem minmax(10rem, 1fr) minmax(9rem, 0.65fr)
+    auto minmax(15rem, auto);
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+}
+
+.memberRow + .memberRow {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.memberAvatar {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.memberIdentity,
+.memberNameLine {
+  min-width: 0;
+}
+
+.memberIdentity {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.memberIdentity > span,
+.memberNameLine span {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memberNameLine {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.memberNameLine strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memberRole select {
+  width: 100%;
+  min-height: 2.5rem;
+}
+
+.memberRole > span {
+  color: var(--color-text-secondary);
+}
+
+.memberAction {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 15rem;
+}
+
+.memberActionGroup {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.memberActionGroup > button {
+  flex: 1 1 0;
+  width: 100%;
+}
+
+.memberActionPlaceholder {
+  color: var(--color-text-secondary);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
 .sectionHeading h2 {
   font-size: var(--font-size-lg);
 }
@@ -99,6 +218,24 @@
   .impactGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .memberRow {
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  }
+
+  .memberRole {
+    grid-column: 2;
+  }
+
+  .memberRow > :global([class*="statusLabel"]) {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .memberAction {
+    grid-column: 3;
+    grid-row: 2;
+  }
 }
 
 @media (max-width: 35rem) {
@@ -114,5 +251,31 @@
   .facts,
   .impactGrid {
     grid-template-columns: 1fr;
+  }
+
+  .memberRow {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    padding: var(--space-3);
+  }
+
+  .memberRole,
+  .memberAction,
+  .memberRow > :global([class*="statusLabel"]) {
+    grid-column: 2;
+  }
+
+  .memberRow > :global([class*="statusLabel"]) {
+    grid-row: auto;
+    justify-self: start;
+  }
+
+  .memberAction {
+    grid-row: auto;
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .memberActionGroup {
+    justify-content: stretch;
   }
 }

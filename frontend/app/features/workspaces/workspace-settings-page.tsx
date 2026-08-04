@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from "react";
 
 import type { SessionDto } from "../../api/session";
+import type { WorkspaceMembersDto } from "./api/workspace-members-api";
 import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { AppShell } from "../../shell/app-shell";
 import { BackLink } from "../../ui/back-link/back-link";
@@ -27,6 +28,7 @@ import {
   type WorkspaceFieldErrors,
 } from "./workspace-form";
 import { WorkspaceLifecycleImpact } from "./workspace-lifecycle-impact";
+import { WorkspaceMembersSection } from "./workspace-members-section";
 import { workspaceRoleLabel, workspaceTypeLabel } from "./workspace-labels";
 import {
   WorkspaceReadOnlySettings,
@@ -35,11 +37,15 @@ import {
 import styles from "./workspace-settings-page.module.css";
 
 export function WorkspaceSettingsPage({
+  boundaryNavigate = defaultBoundaryNavigate,
   initialSettings,
+  initialMembers,
   navigationPending = false,
   session,
 }: {
+  boundaryNavigate?: (href: string, message?: string) => void;
   initialSettings: WorkspaceSettingsDto;
+  initialMembers: WorkspaceMembersDto;
   navigationPending?: boolean;
   session: SessionDto;
 }) {
@@ -55,6 +61,7 @@ export function WorkspaceSettingsPage({
     tone: "danger" | "warning";
   } | null>(null);
   const [pending, setPending] = useState(false);
+  const [boundaryNotice] = useState(() => takeBoundaryNotice());
   const { dismissToast, showToast, toast } = useToastQueue();
   const workspace = settings.workspace;
   const dirty = workspaceSettingsDraftIsDirty(draft, settings);
@@ -218,6 +225,17 @@ export function WorkspaceSettingsPage({
             </InlineNotice>
           ) : null}
 
+          {boundaryNotice ? (
+            <InlineNotice
+              className={styles.notice}
+              role="status"
+              title="Владение передано"
+              tone="success"
+            >
+              {boundaryNotice}
+            </InlineNotice>
+          ) : null}
+
           <WorkbenchContent
             aria-label="Общие настройки пространства"
             className={styles.content}
@@ -259,6 +277,14 @@ export function WorkspaceSettingsPage({
               )}
             </section>
 
+            <WorkspaceMembersSection
+              boundaryNavigate={boundaryNavigate}
+              csrfToken={session.csrfToken}
+              currentWorkspaceId={session.workspace.id}
+              initialMembers={initialMembers}
+              workspaceUpdatedAt={workspace.updatedAt}
+            />
+
             <WorkspaceLifecycleImpact settings={settings} />
           </WorkbenchContent>
         </WorkbenchSurface>
@@ -266,6 +292,19 @@ export function WorkspaceSettingsPage({
       <ToastViewport onDismiss={dismissToast} toast={toast} />
     </AppShell>
   );
+}
+
+const BOUNDARY_NOTICE_KEY = "booker-tee:workspace-boundary-notice";
+
+function defaultBoundaryNavigate(href: string, message?: string) {
+  if (message) sessionStorage.setItem(BOUNDARY_NOTICE_KEY, message);
+  window.location.assign(href);
+}
+
+function takeBoundaryNotice(): string | null {
+  const message = sessionStorage.getItem(BOUNDARY_NOTICE_KEY);
+  sessionStorage.removeItem(BOUNDARY_NOTICE_KEY);
+  return message;
 }
 
 function settingsDraft(settings: WorkspaceSettingsDto): WorkspaceSettingsDraft {

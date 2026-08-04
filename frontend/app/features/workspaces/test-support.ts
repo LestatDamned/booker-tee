@@ -1,6 +1,7 @@
 import type { SessionDto } from "../../api/session";
 import type { WorkspaceDirectoryDto } from "./api/workspaces-api";
 import type { WorkspaceSettingsDto } from "./api/workspace-settings-api";
+import type { WorkspaceMembersDto } from "./api/workspace-members-api";
 
 export const session: SessionDto = {
   user: {
@@ -176,4 +177,51 @@ export const workspaceSettings: WorkspaceSettingsDto = {
     activeIntegrationConnectionCount: 1,
     activeChatIdentityBindingCount: 2,
   },
+};
+
+export const workspaceMembers: WorkspaceMembersDto = {
+  workspaceId: session.workspace.id,
+  capabilities: { canManageMembers: true },
+  items: [
+    {
+      id: "6db0dc78-6f65-45d8-91d9-ae2575102791",
+      userId: session.user.id,
+      name: session.user.name,
+      email: session.user.email,
+      role: "owner",
+      status: "active",
+      joinedAt: updatedAt,
+      updatedAt,
+      isSelf: true,
+      capabilities: {
+        canUpdateRole: false,
+        canDisable: false,
+        canReactivate: false,
+        canTransferOwnership: false,
+        canLeave: false,
+        assignableRoles: [],
+      },
+      blockingReasonCodes: ["member_self", "member_owner"],
+    },
+    {
+      id: "b8fd3880-aa65-4b2e-9914-8c2036cf76ac",
+      userId: "521c6489-65db-481e-99d6-8a10c0c6f11b",
+      name: "Анна",
+      email: "anna@example.test",
+      role: "editor",
+      status: "active",
+      joinedAt: updatedAt,
+      updatedAt,
+      isSelf: false,
+      capabilities: {
+        canUpdateRole: true,
+        canDisable: true,
+        canReactivate: false,
+        canTransferOwnership: true,
+        canLeave: false,
+        assignableRoles: ["admin", "editor", "viewer", "uploader", "analyst"],
+      },
+      blockingReasonCodes: [],
+    },
+  ],
 };

@@ -30,8 +30,9 @@ Progress 2026-08-03:
 - completed: authenticated legacy POST missing-CSRF matrix;
 - completed: current session fallback/auto-create read-side-effect
   characterization;
-- completed: deterministic service-level invitation replay and last-owner race
-  reproduction as strict `xfail`;
+- completed at audit time: deterministic service-level invitation replay and
+  last-owner race reproduction as strict `xfail`; the last-owner cases became
+  passing locked regressions in Slice 3;
 - existing evidence retained: workspace hard-delete cascade characterization in
   `test_rule_delete_postgres.py`;
 - completed: foreign workspace pre-lookup masking plus foreign/missing
@@ -42,9 +43,11 @@ Progress 2026-08-03:
   in-flight import impact contract in `API_AND_STATE.md`;
 - completed: isolated minimal and rich owner-state browser geometry at
   1440/920/390; the rich mobile fixture proves a 254 px legacy overflow;
-- completed: real PostgreSQL barriers prove two successful invitation accepts,
-  successful accept plus revoke, and two owner disables leaving zero active
-  owners (`test_workspace_concurrency_postgres.py`, strict `xfail` until fix);
+- completed at audit time: real PostgreSQL barriers proved two successful
+  invitation accepts, successful accept plus revoke, and the former owner
+  disable defect. Slice 3 replaced the owner case with passing locked legacy
+  and authoritative transfer regressions; invitation cases remain strict
+  `xfail`;
 - completed: admin/editor/viewer browser capability and responsive geometry at
   1440/920/390, with nine pages free of overflow/browser errors;
 - completed: expanded create/edit/invite, one-time credential and
@@ -136,6 +139,41 @@ Implementation result 2026-08-03:
 
 Gate: full role matrix, self/owner/admin boundaries, foreign IDs, concurrent
 owner transitions, dirty edit/focus/dialog and mobile record geometry pass.
+
+Implementation increments 2026-08-03:
+
+- implemented bounded workspace-scoped member read plus role,
+  disable/reactivate endpoints in `src/app/api/v1/workspaces/router.py` and
+  `application/members.py`;
+- workspace and member rows are locked before mutation; `expectedUpdatedAt`
+  rejects stale writes and every target lookup includes workspace ID;
+- disabling a member moves that user's active sessions away from the workspace,
+  deactivates their Chat identity bindings and consumes their pending
+  workspace/user conversation state in the same application transaction;
+- `/app/workspaces/:workspaceId/settings` now renders the member collection
+  inside the existing Workbench composition. API capabilities control inline
+  role options and actions; disable uses the shared confirmation dialog;
+- atomic transfer now locks workspace, session and all memberships, changes
+  `Workspace.owner_id`, demotes the former owner to admin and promotes exactly
+  one active recipient; a real PostgreSQL race gives one winner and preserves
+  exactly one authoritative owner;
+- non-owner self-leave requires an explicit confirmation, marks membership
+  removed, revokes workspace Chat state and moves affected sessions to a
+  deterministic active fallback. With no fallback the server returns
+  `workspace_fallback_required` instead of silently creating a workspace;
+- React uses server `canTransferOwnership`/`canLeave` capabilities, equal action
+  geometry, shared confirmation dialogs and a hard boundary reload after both
+  authority changes;
+- legacy member mutations now acquire the same workspace/member lock order and
+  cannot disable an owner; no legacy route/template was removed;
+- application/API/React, PostgreSQL concurrency and production browser flows
+  pass. `scripts/workspaces_slice03_browser.py` verifies a real invitee,
+  member action geometry and transfer→leave at 1440/920/390/mobile-landscape
+  with no overflow, undersized visible targets or browser errors;
+- complete regressions pass with 789 backend tests plus 4 invitation-only
+  strict `xfail`, 467 frontend tests and a production build. The extended
+  keyboard-only/screen-reader/200% zoom and full browser role matrix remain
+  before the full Slice 3 replacement gate, so legacy cutover is not approved.
 
 ## Slice 4 — invitation administration
 

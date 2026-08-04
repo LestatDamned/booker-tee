@@ -191,33 +191,11 @@ async def test_postgres_invitation_accept_and_revoke_have_exactly_one_winner(
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=True,
-    reason="PostgreSQL last-owner count and mutations are not serialized yet (ADR-0006/D8).",
-)
-async def test_postgres_concurrent_owner_disable_preserves_one_active_owner(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_postgres_legacy_owner_disable_preserves_all_owners() -> None:
     assert TEST_DATABASE_URL is not None
     engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     seed = await seed_owner_race(sessions)
-    barrier = ReadBarrier()
-    original_count = WorkspaceRepository.count_active_owners
-
-    async def synchronized_count(
-        repository: WorkspaceRepository,
-        workspace_id: UUID,
-    ) -> int:
-        count = await original_count(repository, workspace_id)
-        await barrier.arrive()
-        return count
-
-    monkeypatch.setattr(
-        WorkspaceRepository,
-        "count_active_owners",
-        synchronized_count,
-    )
 
     async def disable_other(actor: ActorIds, target_member_id: UUID) -> WorkspaceMember:
         async with sessions() as session:
@@ -246,9 +224,8 @@ async def test_postgres_concurrent_owner_disable_preserves_one_active_owner(
                 )
             )
 
-        assert successful_disables == 2
-        assert active_owners == 0
-        assert (successful_disables, active_owners) == (1, 1)
+        assert successful_disables == 0
+        assert active_owners == 2
     finally:
         await delete_owner_race(sessions, seed)
         await engine.dispose()

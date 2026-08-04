@@ -41,7 +41,7 @@ async def test_member_role_update_rejects_self(monkeypatch) -> None:
     assert target_member.role == WorkspaceRole.EDITOR
 
 
-async def test_member_disable_rejects_last_active_owner(monkeypatch) -> None:
+async def test_member_disable_requires_ownership_transfer(monkeypatch) -> None:
     target_member = fake_member(role=WorkspaceRole.OWNER)
     session, service = service_with_member(
         monkeypatch,
@@ -55,7 +55,7 @@ async def test_member_disable_rejects_last_active_owner(monkeypatch) -> None:
             member_id=target_member.id,
         )
     except WorkspaceError as exc:
-        assert "последнего владельца" in str(exc)
+        assert "передайте владение" in str(exc)
     else:
         raise AssertionError("last owner was disabled")
 
@@ -65,7 +65,11 @@ async def test_member_disable_rejects_last_active_owner(monkeypatch) -> None:
 
 async def test_admin_cannot_promote_member_to_admin(monkeypatch) -> None:
     target_member = fake_member(role=WorkspaceRole.EDITOR)
-    session, service = service_with_member(monkeypatch, target_member)
+    session, service = service_with_member(
+        monkeypatch,
+        target_member,
+        actor_role=WorkspaceRole.ADMIN,
+    )
 
     try:
         await service.update_member_role(
@@ -105,6 +109,7 @@ def service_with_member(
     target_member: SimpleNamespace,
     *,
     actor_user_id=None,
+    actor_role: WorkspaceRole = WorkspaceRole.OWNER,
     active_owner_count: int = 2,
 ):
     class FakeSession:
@@ -119,7 +124,15 @@ def service_with_member(
             self.session = session
             self.audit_events = []
 
-        async def get_member_by_id(self, *, workspace_id, member_id):
+        async def lock_for_update(self, workspace_id):
+            return SimpleNamespace(id=workspace_id)
+
+        async def get_membership_for_update(self, *, user_id, workspace_id):
+            if target_member.user_id == user_id:
+                return target_member
+            return fake_member(user_id=user_id, role=actor_role)
+
+        async def get_member_by_id_for_update(self, *, workspace_id, member_id):
             if member_id == target_member.id:
                 return target_member
             return None

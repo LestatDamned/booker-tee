@@ -1,15 +1,26 @@
 from uuid import uuid4
 
-from workspaces_support import workspace_settings_app, workspaces_app
+from workspaces_support import (
+    workspace_members_app,
+    workspace_ownership_app,
+    workspace_settings_app,
+    workspaces_app,
+)
 
 from api_client import ApiTestClient as TestClient
 from app.features.workspaces.commands import (
     CreateWorkspaceCommand,
+    LeaveWorkspaceCommand,
+    TransferWorkspaceOwnershipCommand,
+    TransitionWorkspaceMemberCommand,
+    UpdateWorkspaceMemberRoleApiCommand,
     UpdateWorkspaceSettingsCommand,
 )
-from app.features.workspaces.domain.types import WorkspaceType
+from app.features.workspaces.domain.types import WorkspaceRole, WorkspaceType
 from app.features.workspaces.errors import (
     WorkspaceIdempotencyConflictError,
+    WorkspaceMemberConflictError,
+    WorkspaceMemberTransitionError,
     WorkspaceNotFoundError,
     WorkspaceSettingsForbiddenError,
     WorkspaceSwitchConflictError,
@@ -256,3 +267,151 @@ def test_workspace_settings_update_maps_authority_conflict_and_validation() -> N
     assert invalid.json()["error"]["fieldErrors"] == {
         "name": ["Название пространства обязательно."]
     }
+
+
+def test_workspace_members_read_returns_server_capabilities() -> None:
+    app, service, actor_id, workspace_id = workspace_members_app()
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/workspaces/{workspace_id}/members")
+
+    assert response.status_code == 200
+    assert service.read_calls == [(actor_id, workspace_id)]
+    assert response.json()["items"][0]["capabilities"] == {
+        "canUpdateRole": True,
+        "canDisable": True,
+        "canLeave": False,
+        "canReactivate": False,
+        "canTransferOwnership": True,
+        "assignableRoles": ["admin", "editor", "viewer"],
+    }
+
+
+def test_workspace_member_role_dispatches_expected_snapshot_and_maps_stale() -> None:
+    app, service, actor_id, workspace_id = workspace_members_app()
+    member = service.members.items[0]
+    payload = {"role": "viewer", "expectedUpdatedAt": member.updated_at.isoformat()}
+
+    with TestClient(app) as client:
+        response = client.put(
+            f"/api/v1/workspaces/{workspace_id}/members/{member.id}/role",
+            json=payload,
+        )
+        service.error = WorkspaceMemberConflictError("stale")
+        conflict = client.put(
+            f"/api/v1/workspaces/{workspace_id}/members/{member.id}/role",
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert service.role_calls[0] == (
+        actor_id,
+        workspace_id,
+        UpdateWorkspaceMemberRoleApiCommand(
+            member_id=member.id,
+            role=WorkspaceRole.VIEWER,
+            expected_updated_at=member.updated_at,
+        ),
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "member_role_conflict"
+
+
+def test_workspace_member_disable_maps_reason_codes_without_existence_leak() -> None:
+    app, service, actor_id, workspace_id = workspace_members_app()
+    member = service.members.items[0]
+    payload = {"expectedUpdatedAt": member.updated_at.isoformat()}
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/workspaces/{workspace_id}/members/{member.id}/disable",
+            json=payload,
+        )
+        service.error = WorkspaceMemberTransitionError("blocked", reason_codes=["member_owner"])
+        blocked = client.post(
+            f"/api/v1/workspaces/{workspace_id}/members/{member.id}/disable",
+            json=payload,
+        )
+        service.error = WorkspaceNotFoundError("foreign")
+        hidden = client.post(
+            f"/api/v1/workspaces/{workspace_id}/members/{uuid4()}/disable",
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert service.transition_calls[0] == (
+        "disable",
+        actor_id,
+        workspace_id,
+        TransitionWorkspaceMemberCommand(
+            member_id=member.id,
+            expected_updated_at=member.updated_at,
+        ),
+    )
+    assert blocked.status_code == 422
+    assert blocked.json()["error"]["details"] == {"reasonCodes": ["member_owner"]}
+    assert hidden.status_code == 404
+    assert hidden.json()["error"]["code"] == "workspace_not_found"
+
+
+def test_workspace_ownership_transfer_dispatches_both_stale_snapshots() -> None:
+    app, service, actor_id, workspace_id, recipient_id = workspace_ownership_app()
+    updated_at = service.transfer_result.workspace.updated_at
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/workspaces/{workspace_id}/transfer-ownership",
+            json={
+                "recipientMemberId": str(recipient_id),
+                "expectedWorkspaceUpdatedAt": updated_at.isoformat(),
+                "expectedRecipientUpdatedAt": updated_at.isoformat(),
+            },
+        )
+
+    assert response.status_code == 200
+    assert service.transfer_calls == [
+        (
+            actor_id,
+            "workspace-session-token",
+            workspace_id,
+            TransferWorkspaceOwnershipCommand(
+                recipient_member_id=recipient_id,
+                expected_workspace_updated_at=updated_at,
+                expected_recipient_updated_at=updated_at,
+            ),
+        )
+    ]
+    assert response.json()["navigationOutcome"] == {
+        "kind": "workspace_authority_changed",
+        "href": f"/app/workspaces/{workspace_id}/settings",
+        "boundary": "hard_reload",
+    }
+
+
+def test_workspace_leave_dispatches_session_snapshot_and_returns_fallback() -> None:
+    app, service, actor_id, workspace_id, _ = workspace_ownership_app()
+    updated_at = service.transfer_result.workspace.updated_at
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/workspaces/{workspace_id}/leave",
+            json={
+                "expectedMemberUpdatedAt": updated_at.isoformat(),
+                "expectedCurrentWorkspaceId": str(workspace_id),
+            },
+        )
+
+    assert response.status_code == 200
+    assert service.leave_calls == [
+        (
+            actor_id,
+            "workspace-session-token",
+            workspace_id,
+            LeaveWorkspaceCommand(
+                expected_member_updated_at=updated_at,
+                expected_current_workspace_id=workspace_id,
+            ),
+        )
+    ]
+    assert response.json()["session"]["workspace"]["id"] == str(service.leave_result.workspace.id)
+    assert response.json()["navigationOutcome"]["boundary"] == "hard_reload"

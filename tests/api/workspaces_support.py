@@ -8,13 +8,21 @@ from app.api.dependencies import get_api_request_context
 from app.api.v1.workspaces.dependencies import (
     get_workspace_creator,
     get_workspace_directory_reader,
+    get_workspace_member_service,
+    get_workspace_ownership_service,
     get_workspace_session_switcher,
     get_workspace_settings_service,
 )
 from app.features.workspaces.application.creation import WorkspaceCreationResult
+from app.features.workspaces.application.ownership import (
+    WorkspaceLeaveResult,
+    WorkspaceOwnershipTransferResult,
+)
 from app.features.workspaces.application.switching import WorkspaceSessionSwitchResult
 from app.features.workspaces.commands import (
     CreateWorkspaceCommand,
+    TransitionWorkspaceMemberCommand,
+    UpdateWorkspaceMemberRoleApiCommand,
     UpdateWorkspaceSettingsCommand,
 )
 from app.features.workspaces.domain.types import (
@@ -31,6 +39,10 @@ from app.features.workspaces.schemas import (
     WorkspaceDirectoryItemCapabilitiesDto,
     WorkspaceDirectoryItemDto,
     WorkspaceLifecycleImpactDto,
+    WorkspaceMemberCapabilitiesDto,
+    WorkspaceMemberItemDto,
+    WorkspaceMembersCapabilitiesDto,
+    WorkspaceMembersDto,
     WorkspaceMembershipDto,
     WorkspaceOptionDto,
     WorkspaceSettingsCapabilitiesDto,
@@ -132,6 +144,66 @@ class WorkspaceSettingsServiceStub:
         if self.update_error is not None:
             raise self.update_error
         return self.settings
+
+
+class WorkspaceMemberServiceStub:
+    def __init__(self, members: WorkspaceMembersDto) -> None:
+        self.members = members
+        self.read_calls: list[tuple[UUID, UUID]] = []
+        self.role_calls: list[tuple[UUID, UUID, UpdateWorkspaceMemberRoleApiCommand]] = []
+        self.transition_calls: list[tuple[str, UUID, UUID, TransitionWorkspaceMemberCommand]] = []
+        self.error: WorkspaceError | None = None
+
+    async def read(self, *, actor_user_id: UUID, workspace_id: UUID) -> WorkspaceMembersDto:
+        self.read_calls.append((actor_user_id, workspace_id))
+        if self.error:
+            raise self.error
+        return self.members
+
+    async def update_role(
+        self,
+        *,
+        actor_user_id: UUID,
+        workspace_id: UUID,
+        command: UpdateWorkspaceMemberRoleApiCommand,
+    ) -> WorkspaceMembersDto:
+        self.role_calls.append((actor_user_id, workspace_id, command))
+        if self.error:
+            raise self.error
+        return self.members
+
+    async def disable(self, *, actor_user_id, workspace_id, command):
+        self.transition_calls.append(("disable", actor_user_id, workspace_id, command))
+        if self.error:
+            raise self.error
+        return self.members
+
+    async def reactivate(self, *, actor_user_id, workspace_id, command):
+        self.transition_calls.append(("reactivate", actor_user_id, workspace_id, command))
+        if self.error:
+            raise self.error
+        return self.members
+
+
+class WorkspaceOwnershipServiceStub:
+    def __init__(self, transfer_result, leave_result) -> None:
+        self.transfer_result = transfer_result
+        self.leave_result = leave_result
+        self.transfer_calls = []
+        self.leave_calls = []
+        self.error: WorkspaceError | None = None
+
+    async def transfer(self, *, actor, session_token, workspace_id, command):
+        self.transfer_calls.append((actor.id, session_token, workspace_id, command))
+        if self.error:
+            raise self.error
+        return self.transfer_result
+
+    async def leave(self, *, actor, session_token, workspace_id, command):
+        self.leave_calls.append((actor.id, session_token, workspace_id, command))
+        if self.error:
+            raise self.error
+        return self.leave_result
 
 
 def workspaces_app() -> tuple[
@@ -303,3 +375,95 @@ def workspace_settings_app() -> tuple[
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_workspace_settings_service] = lambda: service
     return app, service, context.workspace.user.id, workspace_id
+
+
+def workspace_members_app() -> tuple[FastAPI, WorkspaceMemberServiceStub, UUID, UUID]:
+    context = api_context(role=WorkspaceRole.OWNER)
+    workspace_id = uuid4()
+    target_user_id = uuid4()
+    updated_at = datetime(2026, 8, 3, 11, 30, tzinfo=UTC)
+    target = WorkspaceMemberItemDto(
+        id=uuid4(),
+        user_id=target_user_id,
+        name="Анна",
+        email="anna@example.test",
+        role=WorkspaceRole.EDITOR,
+        status=WorkspaceMemberStatus.ACTIVE,
+        joined_at=updated_at,
+        updated_at=updated_at,
+        is_self=False,
+        capabilities=WorkspaceMemberCapabilitiesDto(
+            can_update_role=True,
+            can_disable=True,
+            can_reactivate=False,
+            can_transfer_ownership=True,
+            can_leave=False,
+            assignable_roles=[WorkspaceRole.ADMIN, WorkspaceRole.EDITOR, WorkspaceRole.VIEWER],
+        ),
+        blocking_reason_codes=[],
+    )
+    service = WorkspaceMemberServiceStub(
+        WorkspaceMembersDto(
+            workspace_id=workspace_id,
+            items=[target],
+            capabilities=WorkspaceMembersCapabilitiesDto(can_manage_members=True),
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: context
+    app.dependency_overrides[get_workspace_member_service] = lambda: service
+    return app, service, context.workspace.user.id, workspace_id
+
+
+def workspace_ownership_app() -> tuple[FastAPI, WorkspaceOwnershipServiceStub, UUID, UUID, UUID]:
+    context = api_context(role=WorkspaceRole.OWNER)
+    context = context.__class__(
+        workspace=context.workspace,
+        csrf_token=context.csrf_token,
+        session_token="workspace-session-token",
+    )
+    workspace = context.workspace.workspace
+    owner_membership = context.workspace.membership
+    recipient_id = uuid4()
+    updated_at = datetime(2026, 8, 3, 12, tzinfo=UTC)
+    workspace.updated_at = updated_at
+    owner_membership.updated_at = updated_at
+    members = WorkspaceMembersDto(
+        workspace_id=workspace.id,
+        items=[],
+        capabilities=WorkspaceMembersCapabilitiesDto(can_manage_members=True),
+    )
+    fallback = Workspace(
+        id=uuid4(),
+        owner_id=context.workspace.user.id,
+        name="Запасное пространство",
+        type=WorkspaceType.PERSONAL,
+        default_currency="RUB",
+        is_active=True,
+        created_at=updated_at,
+        updated_at=updated_at,
+    )
+    fallback_membership = WorkspaceMember(
+        workspace_id=fallback.id,
+        user_id=context.workspace.user.id,
+        role=WorkspaceRole.OWNER,
+        status=WorkspaceMemberStatus.ACTIVE,
+        updated_at=updated_at,
+    )
+    service = WorkspaceOwnershipServiceStub(
+        WorkspaceOwnershipTransferResult(
+            user=context.workspace.user,
+            workspace=workspace,
+            membership=owner_membership,
+            members=members,
+        ),
+        WorkspaceLeaveResult(
+            user=context.workspace.user,
+            workspace=fallback,
+            membership=fallback_membership,
+        ),
+    )
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: context
+    app.dependency_overrides[get_workspace_ownership_service] = lambda: service
+    return app, service, context.workspace.user.id, workspace.id, recipient_id

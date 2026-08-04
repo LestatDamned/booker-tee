@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   session,
+  workspaceMembers,
   workspaceSettings,
 } from "../features/workspaces/test-support";
 import { loadWorkspaceSettingsRoute } from "./workspace-settings-loader";
@@ -22,6 +23,12 @@ describe("workspace settings route", () => {
       ) {
         return Promise.resolve(jsonResponse(workspaceSettings));
       }
+      if (
+        String(input) ===
+        `/api/v1/workspaces/${workspaceSettings.workspace.id}/members`
+      ) {
+        return Promise.resolve(jsonResponse(workspaceMembers));
+      }
       return Promise.resolve(new Response(null, { status: 404 }));
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -35,7 +42,8 @@ describe("workspace settings route", () => {
 
     expect(result.session.status).toBe("authenticated");
     expect(result.settings.status).toBe("success");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.members.status).toBe("success");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("uses one masked not-found state", () => {
@@ -45,6 +53,7 @@ describe("workspace settings route", () => {
           loaderData={{
             session: { status: "authenticated", session },
             settings: { status: "not_found" },
+            members: { status: "not_found" },
           }}
         />
       </MemoryRouter>,

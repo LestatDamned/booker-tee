@@ -12,7 +12,10 @@ from app.features.workspaces.domain.types import (
     WorkspaceRole,
     WorkspaceType,
 )
-from app.features.workspaces.schemas import WorkspaceBlockingReason
+from app.features.workspaces.schemas import (
+    WorkspaceBlockingReason,
+    WorkspaceMemberBlockingReason,
+)
 
 
 class WorkspaceMembershipApiResponse(ApiModel):
@@ -177,5 +180,75 @@ class CreateWorkspaceApiResponse(ApiModel):
 
 
 class SelectWorkspaceApiResponse(ApiModel):
+    session: SessionApiResponse
+    navigation_outcome: WorkspaceNavigationOutcomeApiResponse
+
+
+class WorkspaceMemberCapabilitiesApiResponse(ApiModel):
+    can_update_role: bool
+    can_disable: bool
+    can_reactivate: bool
+    can_transfer_ownership: bool
+    can_leave: bool
+    assignable_roles: list[WorkspaceRole]
+
+
+class WorkspaceMemberItemApiResponse(ApiModel):
+    id: UUID
+    user_id: UUID
+    name: str | None
+    email: str
+    role: WorkspaceRole
+    status: WorkspaceMemberStatus
+    joined_at: datetime | None
+    updated_at: datetime
+    is_self: bool
+    capabilities: WorkspaceMemberCapabilitiesApiResponse
+    blocking_reason_codes: list[WorkspaceMemberBlockingReason]
+
+
+class WorkspaceMembersCapabilitiesApiResponse(ApiModel):
+    can_manage_members: bool
+
+
+class WorkspaceMembersApiResponse(ApiModel):
+    workspace_id: UUID
+    items: list[WorkspaceMemberItemApiResponse]
+    capabilities: WorkspaceMembersCapabilitiesApiResponse
+
+
+class UpdateWorkspaceMemberRoleApiRequest(ApiRequestModel):
+    role: WorkspaceRole
+    expected_updated_at: datetime
+
+
+class TransitionWorkspaceMemberApiRequest(ApiRequestModel):
+    expected_updated_at: datetime
+
+
+class TransferWorkspaceOwnershipApiRequest(ApiRequestModel):
+    recipient_member_id: UUID
+    expected_workspace_updated_at: datetime
+    expected_recipient_updated_at: datetime
+
+
+class LeaveWorkspaceApiRequest(ApiRequestModel):
+    expected_member_updated_at: datetime
+    expected_current_workspace_id: UUID
+
+
+class WorkspaceAuthorityNavigationOutcomeApiResponse(ApiModel):
+    kind: Literal["workspace_authority_changed"] = "workspace_authority_changed"
+    href: str
+    boundary: Literal["hard_reload"] = "hard_reload"
+
+
+class TransferWorkspaceOwnershipApiResponse(ApiModel):
+    members: WorkspaceMembersApiResponse
+    session: SessionApiResponse
+    navigation_outcome: WorkspaceAuthorityNavigationOutcomeApiResponse
+
+
+class LeaveWorkspaceApiResponse(ApiModel):
     session: SessionApiResponse
     navigation_outcome: WorkspaceNavigationOutcomeApiResponse

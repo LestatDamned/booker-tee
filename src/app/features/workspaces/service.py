@@ -235,13 +235,14 @@ class WorkspaceService:
         context: WorkspaceContext,
         command: UpdateWorkspaceMemberRoleCommand,
     ) -> WorkspaceMember:
-        member = await self._get_member_for_management(
+        actor_membership, member = await self._locked_member_management_context(
+            actor_user_id=context.user.id,
             workspace_id=context.workspace.id,
             member_id=command.member_id,
         )
         if member.user_id == context.user.id:
             raise WorkspaceError("Нельзя изменить собственную роль.")
-        if not can_assign_member_role(context.membership, member, command.role):
+        if not can_assign_member_role(actor_membership, member, command.role):
             raise WorkspaceError("Недостаточно прав для изменения роли участника.")
 
         old_role = member.role
@@ -267,16 +268,17 @@ class WorkspaceService:
         context: WorkspaceContext,
         member_id: UUID,
     ) -> WorkspaceMember:
-        member = await self._get_member_for_management(
+        actor_membership, member = await self._locked_member_management_context(
+            actor_user_id=context.user.id,
             workspace_id=context.workspace.id,
             member_id=member_id,
         )
         if member.user_id == context.user.id:
             raise WorkspaceError("Нельзя отключить собственный доступ.")
-        if not can_disable_member(context.membership, member):
+        if not can_disable_member(actor_membership, member):
             raise WorkspaceError("Недостаточно прав для отключения участника.")
-        if await self._is_last_active_owner(context.workspace.id, member):
-            raise WorkspaceError("Нельзя отключить последнего владельца workspace.")
+        if member.role == WorkspaceRole.OWNER:
+            raise WorkspaceError("Сначала передайте владение пространством.")
 
         old_status = member.status
         member.status = WorkspaceMemberStatus.DISABLED
@@ -302,11 +304,12 @@ class WorkspaceService:
         context: WorkspaceContext,
         member_id: UUID,
     ) -> WorkspaceMember:
-        member = await self._get_member_for_management(
+        actor_membership, member = await self._locked_member_management_context(
+            actor_user_id=context.user.id,
             workspace_id=context.workspace.id,
             member_id=member_id,
         )
-        if not can_reactivate_member(context.membership, member):
+        if not can_reactivate_member(actor_membership, member):
             raise WorkspaceError("Недостаточно прав для восстановления участника.")
 
         old_status = member.status
@@ -398,29 +401,27 @@ class WorkspaceService:
             )
         return membership
 
-    async def _get_member_for_management(
+    async def _locked_member_management_context(
         self,
         *,
+        actor_user_id: UUID,
         workspace_id: UUID,
         member_id: UUID,
-    ) -> WorkspaceMember:
-        member = await self.workspaces.get_member_by_id(
+    ) -> tuple[WorkspaceMember, WorkspaceMember]:
+        workspace = await self.workspaces.lock_for_update(workspace_id)
+        if workspace is None:
+            raise WorkspaceError("Участник не найден.")
+        actor_membership = await self.workspaces.get_membership_for_update(
+            user_id=actor_user_id,
+            workspace_id=workspace_id,
+        )
+        member = await self.workspaces.get_member_by_id_for_update(
             workspace_id=workspace_id,
             member_id=member_id,
         )
-        if member is None:
+        if actor_membership is None or member is None:
             raise WorkspaceError("Участник не найден.")
-        return member
-
-    async def _is_last_active_owner(
-        self,
-        workspace_id: UUID,
-        member: WorkspaceMember,
-    ) -> bool:
-        if member.role != WorkspaceRole.OWNER or member.status != WorkspaceMemberStatus.ACTIVE:
-            return False
-        active_owner_count = await self.workspaces.count_active_owners(workspace_id)
-        return active_owner_count <= 1
+        return actor_membership, member
 
     async def _record_audit_event(
         self,
