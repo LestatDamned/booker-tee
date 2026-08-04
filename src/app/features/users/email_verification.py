@@ -124,7 +124,7 @@ class EmailVerificationService:
         await self.session.commit()
         return VerificationRequest(email=message)
 
-    async def verify(self, *, token: str) -> LoginSession:
+    async def verify(self, *, token: str, user_agent: str | None = None) -> LoginSession:
         stored_token = await self.tokens.consume(
             purpose=UserTokenPurpose.VERIFY_EMAIL,
             token_hash=hash_user_token(token),
@@ -146,7 +146,10 @@ class EmailVerificationService:
             )
 
         user.email_verified_at = utc_now()
-        login_session = await self.authentication.create_login_session_for_user(user)
+        login_session = await self.authentication.create_login_session_for_user(
+            user,
+            user_agent=user_agent,
+        )
         await self.session.commit()
         return login_session
 

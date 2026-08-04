@@ -27,6 +27,7 @@ from app.features.users.errors import (
 from app.features.users.identity_repository import AuthRateLimitRepository
 from app.features.users.models import User, UserSession
 from app.features.users.repository import UserRepository
+from app.features.users.sessions import summarize_user_agent
 from app.features.workspaces.models import Workspace, WorkspaceAuditEventType, WorkspaceMember
 from app.features.workspaces.repository import WorkspaceRepository
 
@@ -147,6 +148,7 @@ class AuthenticationService:
         email: str,
         password: str,
         network_key: str = "unknown",
+        user_agent: str | None = None,
     ) -> LoginSession:
         normalized_email = normalize_email(email)
         user = await self.users.get_by_email(normalized_email)
@@ -166,7 +168,7 @@ class AuthenticationService:
         if updated_hash is not None:
             user.password_hash = updated_hash
 
-        login_session = await self.create_login_session_for_user(user)
+        login_session = await self.create_login_session_for_user(user, user_agent=user_agent)
         await self.session.commit()
         return login_session
 
@@ -196,7 +198,12 @@ class AuthenticationService:
             raise AuthRateLimitedError(int(_LOGIN_FAILURE_WINDOW.total_seconds()))
         raise InvalidCredentialsError("Неверный email или пароль.")
 
-    async def create_login_session_for_user(self, user: User) -> LoginSession:
+    async def create_login_session_for_user(
+        self,
+        user: User,
+        *,
+        user_agent: str | None = None,
+    ) -> LoginSession:
         membership = await self.workspaces.get_first_active_membership_for_user(user.id)
         if membership is None:
             (
@@ -211,12 +218,13 @@ class AuthenticationService:
             user=user,
             workspace=workspace,
             membership=membership,
+            user_agent=user_agent,
         )
         return login_session
 
     async def resolve_login_session(self, session_token: str) -> LoginSession | None:
-        login_session = await self._resolve_login_session_record(session_token)
-        if login_session is not None:
+        login_session, changed = await self._resolve_login_session_record(session_token)
+        if changed:
             await self.session.commit()
         return login_session
 
@@ -224,13 +232,11 @@ class AuthenticationService:
         self,
         session_token: str,
     ) -> AuthenticatedSession | None:
-        user_session = await self.users.get_active_session_by_token_hash(
-            hash_session_token(session_token)
-        )
-        if user_session is None or not user_session.user.is_active:
+        user_session, changed = await self._resolve_active_user_session(session_token)
+        if changed:
+            await self.session.commit()
+        if user_session is None:
             return None
-        user_session.last_seen_at = utc_now()
-        await self.session.commit()
         return AuthenticatedSession(
             user=user_session.user,
             session=user_session,
@@ -238,7 +244,7 @@ class AuthenticationService:
         )
 
     async def switch_workspace(self, *, session_token: str, workspace_id: UUID) -> Workspace:
-        login_session = await self._resolve_login_session_record(session_token)
+        login_session, _changed = await self._resolve_login_session_record(session_token)
         if login_session is None:
             raise UserError("Сессия не найдена.")
 
@@ -255,19 +261,20 @@ class AuthenticationService:
         return membership.workspace
 
     async def logout(self, session_token: str) -> None:
-        user_session = await self.users.get_active_session_by_token_hash(
+        user_session = await self.users.get_unrevoked_session_by_token_hash(
             hash_session_token(session_token)
         )
         if user_session is not None:
             await self.users.revoke_session(user_session)
             await self.session.commit()
 
-    async def _resolve_login_session_record(self, session_token: str) -> LoginSession | None:
-        user_session = await self.users.get_active_session_by_token_hash(
-            hash_session_token(session_token)
-        )
-        if user_session is None or not user_session.user.is_active:
-            return None
+    async def _resolve_login_session_record(
+        self,
+        session_token: str,
+    ) -> tuple[LoginSession | None, bool]:
+        user_session, changed = await self._resolve_active_user_session(session_token)
+        if user_session is None:
+            return None, changed
 
         membership = None
         if user_session.current_workspace_id is not None:
@@ -294,17 +301,47 @@ class AuthenticationService:
             else:
                 workspace = membership.workspace
             user_session.current_workspace_id = workspace.id
+            changed = True
         else:
             workspace = membership.workspace
 
-        user_session.last_seen_at = utc_now()
-        return LoginSession(
-            user=user_session.user,
-            workspace=workspace,
-            membership=membership,
-            session=user_session,
-            session_token=session_token,
+        return (
+            LoginSession(
+                user=user_session.user,
+                workspace=workspace,
+                membership=membership,
+                session=user_session,
+                session_token=session_token,
+            ),
+            changed,
         )
+
+    async def _resolve_active_user_session(
+        self,
+        session_token: str,
+    ) -> tuple[UserSession | None, bool]:
+        user_session = await self.users.get_unrevoked_session_by_token_hash(
+            hash_session_token(session_token)
+        )
+        if user_session is None:
+            return None, False
+
+        now = utc_now()
+        idle_timeout = timedelta(seconds=self.settings.session_idle_timeout_seconds)
+        if (
+            not user_session.user.is_active
+            or user_session.user.deactivated_at is not None
+            or user_session.expires_at <= now
+            or user_session.last_seen_at <= now - idle_timeout
+        ):
+            await self.users.revoke_session(user_session)
+            return None, True
+
+        touch_interval = timedelta(seconds=self.settings.session_touch_interval_seconds)
+        if user_session.last_seen_at <= now - touch_interval:
+            user_session.last_seen_at = now
+            return user_session, True
+        return user_session, False
 
     async def _create_login_session_record(
         self,
@@ -312,6 +349,7 @@ class AuthenticationService:
         user: User,
         workspace: Workspace,
         membership: WorkspaceMember,
+        user_agent: str | None = None,
     ) -> LoginSession:
         session_token = generate_session_token()
         expires_at = utc_now() + timedelta(seconds=self.settings.session_max_age_seconds)
@@ -321,6 +359,7 @@ class AuthenticationService:
                 current_workspace_id=workspace.id,
                 session_token_hash=hash_session_token(session_token),
                 expires_at=expires_at,
+                user_agent_summary=summarize_user_agent(user_agent),
             )
         )
         return LoginSession(

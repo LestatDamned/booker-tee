@@ -24,11 +24,34 @@ export type PasswordChangeResult =
       message: string;
     };
 
+export type UserSessionDto = components["schemas"]["UserSessionApiResponse"];
+
+export type UserSessionListResult =
+  | { status: "success"; sessions: UserSessionDto[] }
+  | { status: "unauthenticated" }
+  | { status: "error"; message: string };
+
+export type SessionMutationResult =
+  | { status: "success"; revokedCount?: number }
+  | { status: "unauthenticated" }
+  | { status: "error"; message: string };
+
 const accountSchema = z.object({
   id: z.string(),
   email: z.string(),
   name: z.string().nullable(),
 });
+
+const userSessionSchema = z.object({
+  id: z.string(),
+  isCurrent: z.boolean(),
+  deviceSummary: z.string(),
+  createdAt: z.string(),
+  lastSeenAt: z.string(),
+  expiresAt: z.string(),
+});
+
+const userSessionListSchema = z.object({ items: z.array(userSessionSchema) });
 
 export async function loadAccount(
   signal?: AbortSignal,
@@ -114,6 +137,87 @@ export async function changePassword(
         fieldErrors: {},
         message: "API вернул неожиданный ответ.",
       };
+}
+
+export async function loadUserSessions(
+  signal?: AbortSignal,
+): Promise<UserSessionListResult> {
+  const response = await requestJson("/api/v1/account/sessions", {
+    ...(signal ? { signal } : {}),
+  });
+  if (response.status === "network_error") {
+    return { status: "error", message: "Backend недоступен." };
+  }
+  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (!response.ok) {
+    return {
+      status: "error",
+      message:
+        parseApiError(response.body)?.message ??
+        `API вернул статус ${response.httpStatus}.`,
+    };
+  }
+  const parsed = userSessionListSchema.safeParse(response.body);
+  return parsed.success
+    ? { status: "success", sessions: parsed.data.items }
+    : { status: "error", message: "API вернул неожиданный список сессий." };
+}
+
+export async function revokeUserSession(
+  sessionId: string,
+  csrfToken: string,
+): Promise<SessionMutationResult> {
+  return sessionMutation(`/api/v1/account/sessions/${sessionId}`, csrfToken);
+}
+
+export async function revokeOtherUserSessions(
+  csrfToken: string,
+): Promise<SessionMutationResult> {
+  const response = await requestJson("/api/v1/account/sessions/others", {
+    method: "DELETE",
+    headers: { "X-CSRF-Token": csrfToken },
+  });
+  if (response.status === "network_error") {
+    return { status: "error", message: "Backend недоступен." };
+  }
+  const result = parseSessionMutation(response);
+  if (result.status !== "success") return result;
+  const parsed = z
+    .object({ revokedCount: z.number().int().min(0) })
+    .safeParse(response.body);
+  return parsed.success
+    ? { status: "success", revokedCount: parsed.data.revokedCount }
+    : { status: "error", message: "API вернул неожиданный ответ." };
+}
+
+async function sessionMutation(
+  path: string,
+  csrfToken: string,
+): Promise<SessionMutationResult> {
+  return parseSessionMutation(
+    await requestJson(path, {
+      method: "DELETE",
+      headers: { "X-CSRF-Token": csrfToken },
+    }),
+  );
+}
+
+function parseSessionMutation(
+  response: Awaited<ReturnType<typeof requestJson>>,
+): SessionMutationResult {
+  if (response.status === "network_error") {
+    return { status: "error", message: "Backend недоступен." };
+  }
+  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (!response.ok) {
+    return {
+      status: "error",
+      message:
+        parseApiError(response.body)?.message ??
+        `API вернул статус ${response.httpStatus}.`,
+    };
+  }
+  return { status: "success" };
 }
 
 function accountResult(

@@ -195,6 +195,7 @@ async def request_email_verification(
     ),
 )
 async def verify_email(
+    http_request: Request,
     request: EmailVerificationApiRequest,
     response: Response,
     verification: Annotated[
@@ -204,7 +205,10 @@ async def verify_email(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> AuthenticatedApiResponse:
     try:
-        login_session = await verification.verify(token=request.token)
+        login_session = await verification.verify(
+            token=request.token,
+            user_agent=http_request.headers.get("User-Agent"),
+        )
     except InvalidEmailVerificationTokenError as error:
         raise ApiError(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -246,6 +250,7 @@ async def login(
             email=request.email,
             password=request.password,
             network_key=http_request.client.host if http_request.client else "unknown",
+            user_agent=http_request.headers.get("User-Agent"),
         )
     except AuthRateLimitedError as error:
         raise ApiError(

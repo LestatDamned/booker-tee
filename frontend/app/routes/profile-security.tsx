@@ -140,6 +140,7 @@ function SecurityPage({
           title="Безопасность"
           titleId="security-title"
         />
+        <Link to="/profile/sessions">Управлять активными сессиями</Link>
         <WorkbenchSurface>
           <form className={styles.form} noValidate onSubmit={submit}>
             <div className={styles.sectionHeading}>

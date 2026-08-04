@@ -1,0 +1,81 @@
+.content {
+  display: grid;
+  max-width: 60rem;
+  gap: var(--space-5);
+}
+
+.list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.item:last-child {
+  border-bottom: 0;
+}
+
+.identity {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.titleRow h2 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+}
+
+.facts div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.facts dt {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 40rem) {
+  .item {
+    align-items: stretch;
+    flex-direction: column;
+    padding: var(--space-4);
+  }
+
+  .item > button {
+    width: 100%;
+  }
+
+  .facts {
+    display: grid;
+  }
+}

@@ -156,6 +156,9 @@ function ProfilePage({
               <RouterButtonLink to="/profile/security">
                 Безопасность и пароль
               </RouterButtonLink>
+              <RouterButtonLink to="/profile/sessions">
+                Активные сессии
+              </RouterButtonLink>
             </FormActions>
           </form>
           <div className={styles.dangerZone}>

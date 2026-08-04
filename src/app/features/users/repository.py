@@ -1,6 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -53,7 +54,7 @@ class UserRepository:
         await self.session.flush()
         return user
 
-    async def get_active_session_by_token_hash(
+    async def get_unrevoked_session_by_token_hash(
         self,
         session_token_hash: str,
     ) -> UserSession | None:
@@ -66,10 +67,69 @@ class UserRepository:
             .where(
                 UserSession.session_token_hash == session_token_hash,
                 UserSession.revoked_at.is_(None),
-                UserSession.expires_at > utc_now(),
             )
         )
         return result.scalar_one_or_none()
+
+    async def revoke_expired_sessions_for_user(
+        self,
+        *,
+        user_id: UUID,
+        now: datetime,
+        idle_cutoff: datetime,
+    ) -> int:
+        result = await self.session.execute(
+            update(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.revoked_at.is_(None),
+                or_(
+                    UserSession.expires_at <= now,
+                    UserSession.last_seen_at <= idle_cutoff,
+                ),
+            )
+            .values(revoked_at=now)
+            .returning(UserSession.id)
+        )
+        return len(result.scalars().all())
+
+    async def list_active_sessions_for_user(
+        self,
+        *,
+        user_id: UUID,
+        now: datetime,
+        idle_cutoff: datetime,
+    ) -> list[UserSession]:
+        result = await self.session.execute(
+            select(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.revoked_at.is_(None),
+                UserSession.expires_at > now,
+                UserSession.last_seen_at > idle_cutoff,
+            )
+            .order_by(UserSession.last_seen_at.desc(), UserSession.id)
+        )
+        return list(result.scalars().all())
+
+    async def revoke_owned_session(
+        self,
+        *,
+        user_id: UUID,
+        session_id: UUID,
+        revoked_at: datetime,
+    ) -> bool:
+        result = await self.session.execute(
+            update(UserSession)
+            .where(
+                UserSession.id == session_id,
+                UserSession.user_id == user_id,
+                UserSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=revoked_at)
+            .returning(UserSession.id)
+        )
+        return result.scalar_one_or_none() is not None
 
     async def get_active_session_by_token_hash_for_update(
         self,
@@ -151,8 +211,8 @@ class UserRepository:
         )
         await self.session.flush()
 
-    async def revoke_other_sessions(self, *, user_id: UUID, current_session_id: UUID) -> None:
-        await self.session.execute(
+    async def revoke_other_sessions(self, *, user_id: UUID, current_session_id: UUID) -> int:
+        result = await self.session.execute(
             update(UserSession)
             .where(
                 UserSession.user_id == user_id,
@@ -160,5 +220,7 @@ class UserRepository:
                 UserSession.revoked_at.is_(None),
             )
             .values(revoked_at=utc_now())
+            .returning(UserSession.id)
         )
         await self.session.flush()
+        return len(result.scalars().all())

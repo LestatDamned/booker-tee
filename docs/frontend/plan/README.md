@@ -52,8 +52,8 @@ Child stages:
 - Transaction Rules — completed 2026-08-02.
 - Workspaces — completed 2026-08-04.
 - [`Users and authentication`](users/README.md) — active; Slice 1 completed,
-  increments 2.0–2.2 completed; next increment is 2.3 Session hardening and
-  management.
+  increments 2.0–2.3 completed; next increment is 2.4 Email identity change and
+  account deactivation.
 
 ### Workspaces completion record
 

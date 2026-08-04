@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import Field
@@ -22,3 +23,20 @@ class ChangePasswordApiRequest(ApiRequestModel):
 
 class ChangePasswordApiResponse(ApiModel):
     message: str
+
+
+class UserSessionApiResponse(ApiModel):
+    id: UUID
+    is_current: bool
+    device_summary: str
+    created_at: datetime
+    last_seen_at: datetime
+    expires_at: datetime
+
+
+class UserSessionListApiResponse(ApiModel):
+    items: list[UserSessionApiResponse]
+
+
+class RevokeOtherSessionsApiResponse(ApiModel):
+    revoked_count: int

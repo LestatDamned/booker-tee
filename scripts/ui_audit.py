@@ -79,6 +79,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/app/accounts", "accounts"),
     ("/app/profile", "profile"),
     ("/app/profile/security", "profile-security"),
+    ("/app/profile/sessions", "profile-sessions"),
     ("/ledger/manual", "manual-ledger-redirect"),
     ("/app/imports", "imports"),
     ("/app/imports/upload", "imports-upload"),
@@ -908,6 +909,9 @@ def collect_ux_assertions(
     ):
         errors.extend(assert_password_form_keyboard(page, path=path))
 
+    if path == "/app/profile/sessions":
+        errors.extend(assert_session_management_dialog(page))
+
     if path == "/app/reports":
         errors.extend(assert_react_reports(page))
         if scenario == "reports_stress":
@@ -984,6 +988,28 @@ def assert_password_form_keyboard(page: Page, *, path: str) -> list[str]:
     return [
         f"password form keyboard order missed controls: expected={targets!r}, reached={reached!r}"
     ]
+
+
+def assert_session_management_dialog(page: Page) -> list[str]:
+    trigger = page.get_by_role("button", name="Выйти", exact=True)
+    if trigger.count() != 1:
+        return ["current session logout trigger was not found"]
+    trigger.click(timeout=PAGE_TIMEOUT_MS)
+    dialog = page.get_by_role("dialog", name="Выйти из аккаунта?", exact=True)
+    try:
+        dialog.wait_for(state="visible", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        return [f"session logout confirmation did not open: {short_error(exc)}"]
+    if not dialog.evaluate("element => element.contains(document.activeElement)"):
+        return ["session logout confirmation did not receive focus"]
+    page.keyboard.press("Escape")
+    try:
+        dialog.wait_for(state="hidden", timeout=PAGE_TIMEOUT_MS)
+    except PlaywrightError as exc:
+        return [f"session logout confirmation did not close with Escape: {short_error(exc)}"]
+    if not trigger.evaluate("element => element === document.activeElement"):
+        return ["session logout confirmation did not return focus to its trigger"]
+    return []
 
 
 def assert_transaction_rules_interactions(page: Page) -> list[str]:

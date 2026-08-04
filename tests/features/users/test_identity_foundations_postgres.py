@@ -23,6 +23,7 @@ from app.features.users.errors import (
     InvalidCredentialsError,
     InvalidEmailVerificationTokenError,
     InvalidPasswordResetTokenError,
+    UserSessionNotFoundError,
 )
 from app.features.users.identity_repository import (
     AuthRateLimitRepository,
@@ -37,6 +38,7 @@ from app.features.users.models import (
 )
 from app.features.users.passwords import PasswordService
 from app.features.users.service import AuthenticationService
+from app.features.users.sessions import UserSessionService
 from app.features.workspaces.models import Workspace, WorkspaceAuditEvent, WorkspaceMember
 
 TEST_DATABASE_URL = os.getenv("BOOKER_TEE_TEST_DATABASE_URL")
@@ -131,6 +133,100 @@ async def test_token_replacement_consumption_and_rate_limit_are_concurrency_safe
             )
             await session.execute(delete(UserToken).where(UserToken.user_id == user_id))
             await session.execute(delete(User).where(User.id == user_id))
+            await session.commit()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_session_management_is_user_scoped() -> None:
+    assert TEST_DATABASE_URL is not None
+    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    user_ids = [uuid4(), uuid4()]
+    session_ids = [uuid4(), uuid4(), uuid4()]
+    now = utc_now()
+    settings = Settings(auth_secret_key="session-management-test-secret")
+
+    async with sessions() as session:
+        session.add_all(
+            [
+                User(
+                    id=user_ids[0],
+                    email=f"sessions-{user_ids[0]}@example.test",
+                    password_hash="hash",
+                    email_verified_at=now,
+                ),
+                User(
+                    id=user_ids[1],
+                    email=f"sessions-{user_ids[1]}@example.test",
+                    password_hash="hash",
+                    email_verified_at=now,
+                ),
+            ]
+        )
+        session.add_all(
+            [
+                UserSession(
+                    id=session_ids[0],
+                    user_id=user_ids[0],
+                    session_token_hash=hash_session_token(f"session-{session_ids[0]}"),
+                    last_seen_at=now,
+                    expires_at=now + timedelta(days=1),
+                    user_agent_summary="Chrome · Linux",
+                ),
+                UserSession(
+                    id=session_ids[1],
+                    user_id=user_ids[0],
+                    session_token_hash=hash_session_token(f"session-{session_ids[1]}"),
+                    last_seen_at=now - timedelta(minutes=1),
+                    expires_at=now + timedelta(days=1),
+                    user_agent_summary="Safari · iPhone",
+                ),
+                UserSession(
+                    id=session_ids[2],
+                    user_id=user_ids[1],
+                    session_token_hash=hash_session_token(f"session-{session_ids[2]}"),
+                    last_seen_at=now,
+                    expires_at=now + timedelta(days=1),
+                ),
+            ]
+        )
+        await session.commit()
+
+    try:
+        async with sessions() as session:
+            service = UserSessionService(session, settings)
+            snapshots = await service.list_active(
+                user_id=user_ids[0],
+                current_session_id=session_ids[0],
+            )
+            assert [snapshot.id for snapshot in snapshots] == session_ids[:2]
+            assert snapshots[0].is_current
+            with pytest.raises(UserSessionNotFoundError):
+                await service.revoke(
+                    user_id=user_ids[0],
+                    current_session_id=session_ids[0],
+                    session_id=session_ids[2],
+                )
+
+        async with sessions() as session:
+            foreign_session = await session.get(UserSession, session_ids[2])
+            assert foreign_session is not None and foreign_session.revoked_at is None
+            revoked_count = await UserSessionService(session, settings).revoke_others(
+                user_id=user_ids[0],
+                current_session_id=session_ids[0],
+            )
+            assert revoked_count == 1
+
+        async with sessions() as session:
+            current = await session.get(UserSession, session_ids[0])
+            other = await session.get(UserSession, session_ids[1])
+            assert current is not None and current.revoked_at is None
+            assert other is not None and other.revoked_at is not None
+    finally:
+        async with sessions() as session:
+            await session.execute(delete(UserSession).where(UserSession.user_id.in_(user_ids)))
+            await session.execute(delete(User).where(User.id.in_(user_ids)))
             await session.commit()
         await engine.dispose()
 

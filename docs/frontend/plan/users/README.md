@@ -1,7 +1,7 @@
 # Stage 07 / Wave C: Users And Authentication
 
-Статус: active. Slice 1 и increments 2.0–2.2 завершены 2026-08-04; следующий
-increment — 2.3 Session hardening and management.
+Статус: active. Slice 1 и increments 2.0–2.3 завершены 2026-08-04; следующий
+increment — 2.4 Email identity change and account deactivation.
 
 Этот child stage переносит оставшийся authenticated профиль и public auth flow
 из Jinja в React и доводит текущую email/password-аутентификацию до полного
@@ -653,6 +653,29 @@ Gate 2.3:
 - idle/absolute expiry и bounded touch проверены с controllable clock;
 - list DTO не содержит secrets/private headers;
 - current logout и revoke others доказаны API, React и browser tests.
+
+Completion record 2026-08-04:
+
+- session resolution теперь server-side отзывает absolute-expired и idle
+  sessions; idle timeout по умолчанию `1 hour`, absolute lifetime — `14 days`;
+- `last_seen_at` обновляется не чаще одного раза в `5 minutes`,
+  поэтому обычный authenticated request больше не делает commit;
+- при создании session сохраняется только bounded allowlist summary
+  вида `Chrome · Linux`; full User-Agent, IP, geolocation и fingerprint не
+  сохраняются;
+- `GET /api/v1/account/sessions`, `DELETE /sessions/{session_id}` и
+  `DELETE /sessions/others` работают только в границах authenticated
+  `user_id`; DTO не содержит token/hash, workspace, headers и network data;
+- React route `/app/profile/sessions` показывает current session первой,
+  даёт завершить одну/остальные через confirmation dialog, а для
+  current session использует обычный logout;
+- новая migration не потребовалась: `last_seen_at`, absolute `expires_at` и
+  `user_agent_summary` уже существовали после foundation 2.0;
+- Ruff, ty, OpenAPI contract, full backend (`821 passed, 20 skipped`), full
+  frontend (`86 files, 498 passed`), production build и PostgreSQL identity
+  suite (`5 passed`) прошли; Mocha/Latte browser audit проверил
+  `/app/profile/sessions` на `1440x1000`, `920x900`, `390x844` (`6/6`
+  страниц).
 
 ### 2.4 Email identity change and account deactivation
 

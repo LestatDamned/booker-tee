@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   changePassword,
   loadAccount,
+  loadUserSessions,
   logout,
+  revokeOtherUserSessions,
+  revokeUserSession,
   updateAccount,
 } from "./account-api";
 
@@ -73,6 +76,54 @@ describe("account API", () => {
       "/api/v1/account/password",
       expect.objectContaining({
         method: "PATCH",
+        headers: expect.objectContaining({ "X-CSRF-Token": "csrf-token" }),
+      }),
+    );
+  });
+
+  it("loads and validates active sessions", async () => {
+    const sessions = {
+      items: [
+        {
+          id: "1cb3ec51-2516-43c8-8d33-fad3f1164293",
+          isCurrent: true,
+          deviceSummary: "Chrome · Linux",
+          createdAt: "2026-08-04T10:00:00Z",
+          lastSeenAt: "2026-08-04T12:00:00Z",
+          expiresAt: "2026-08-18T10:00:00Z",
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(jsonResponse(sessions))),
+    );
+
+    await expect(loadUserSessions()).resolves.toEqual({
+      status: "success",
+      sessions: sessions.items,
+    });
+  });
+
+  it("revokes one or all other sessions with CSRF", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(jsonResponse({ revokedCount: 2 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      revokeUserSession("session-id", "csrf-token"),
+    ).resolves.toEqual({ status: "success" });
+    await expect(revokeOtherUserSessions("csrf-token")).resolves.toEqual({
+      status: "success",
+      revokedCount: 2,
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/account/sessions/session-id",
+      expect.objectContaining({
+        method: "DELETE",
         headers: expect.objectContaining({ "X-CSRF-Token": "csrf-token" }),
       }),
     );

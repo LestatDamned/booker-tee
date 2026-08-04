@@ -35,7 +35,18 @@ class Settings(BaseSettings):
     )
     session_max_age_seconds: int = Field(
         default=60 * 60 * 24 * 14,
+        ge=60,
         validation_alias="BOOKER_TEE_SESSION_MAX_AGE_SECONDS",
+    )
+    session_idle_timeout_seconds: int = Field(
+        default=60 * 60,
+        ge=60,
+        validation_alias="BOOKER_TEE_SESSION_IDLE_TIMEOUT_SECONDS",
+    )
+    session_touch_interval_seconds: int = Field(
+        default=5 * 60,
+        ge=1,
+        validation_alias="BOOKER_TEE_SESSION_TOUCH_INTERVAL_SECONDS",
     )
     identity_email_enabled: bool = Field(
         default=False,

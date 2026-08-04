@@ -1,5 +1,6 @@
-from dataclasses import dataclass
-from uuid import uuid4
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+from uuid import UUID, uuid4
 
 from api_client import ApiTestClient as TestClient
 from app.api.dependencies import (
@@ -7,7 +8,7 @@ from app.api.dependencies import (
     get_authenticated_session_context,
     get_password_service,
 )
-from app.api.v1.account.dependencies import get_user_service
+from app.api.v1.account.dependencies import get_user_service, get_user_session_service
 from app.api.v1.auth.dependencies import (
     get_authentication_service,
     get_email_verification_service,
@@ -17,9 +18,15 @@ from app.core.config import get_settings
 from app.core.settings import Settings
 from app.features.users.email_delivery import IdentityEmail
 from app.features.users.email_verification import VerificationRequest
-from app.features.users.errors import InvalidCredentialsError, SignupsClosedError
+from app.features.users.errors import (
+    CurrentSessionCannotBeRevokedError,
+    InvalidCredentialsError,
+    SignupsClosedError,
+    UserSessionNotFoundError,
+)
 from app.features.users.models import User, UserSession
 from app.features.users.passwords import PasswordResetRequest
+from app.features.users.sessions import UserSessionSnapshot
 from app.main import create_app
 
 SAME_ORIGIN_HEADERS = {"Origin": "http://testserver"}
@@ -99,6 +106,47 @@ class UserServiceStub:
     async def update_name(self, *, user: User, name: str | None) -> User:
         user.name = name.strip() if name and name.strip() else None
         return user
+
+
+@dataclass
+class UserSessionServiceStub:
+    error: Exception | None = None
+    revoked: list[tuple[UUID, UUID, UUID]] = field(default_factory=list)
+    revoked_others: tuple[UUID, UUID] | None = None
+
+    async def list_active(
+        self,
+        *,
+        user_id: UUID,
+        current_session_id: UUID,
+    ) -> list[UserSessionSnapshot]:
+        del user_id
+        now = datetime(2026, 8, 4, 12, tzinfo=UTC)
+        return [
+            UserSessionSnapshot(
+                id=current_session_id,
+                is_current=True,
+                device_summary="Chrome · Linux",
+                created_at=now - timedelta(hours=2),
+                last_seen_at=now,
+                expires_at=now + timedelta(days=13),
+            )
+        ]
+
+    async def revoke(
+        self,
+        *,
+        user_id: UUID,
+        current_session_id: UUID,
+        session_id: UUID,
+    ) -> None:
+        if self.error:
+            raise self.error
+        self.revoked.append((user_id, current_session_id, session_id))
+
+    async def revoke_others(self, *, user_id: UUID, current_session_id: UUID) -> int:
+        self.revoked_others = (user_id, current_session_id)
+        return 2
 
 
 def test_auth_config_exposes_signup_availability() -> None:
@@ -373,6 +421,63 @@ def test_change_password_rotates_current_session_cookie() -> None:
     assert response.status_code == 200
     assert passwords.changed == ("old secure phrase", "new secure phrase")
     assert "booker_session=rotated-session-token" in response.headers["set-cookie"]
+
+
+def test_account_lists_sessions_without_secrets() -> None:
+    app = create_app()
+    context = _account_context()
+    app.dependency_overrides[get_authenticated_session_context] = lambda: context
+    app.dependency_overrides[get_user_session_service] = lambda: UserSessionServiceStub()
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/account/sessions")
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["isCurrent"] is True
+    assert response.json()["items"][0]["deviceSummary"] == "Chrome · Linux"
+    assert "sessionToken" not in response.text
+    assert "workspace" not in response.text.lower()
+
+
+def test_account_revokes_other_sessions_and_rejects_current_session() -> None:
+    app = create_app()
+    context = _account_context()
+    sessions = UserSessionServiceStub()
+    app.dependency_overrides[get_authenticated_session_context] = lambda: context
+    app.dependency_overrides[get_user_session_service] = lambda: sessions
+
+    with TestClient(app) as client:
+        others = client.delete("/api/v1/account/sessions/others")
+        session_id = uuid4()
+        single = client.delete(f"/api/v1/account/sessions/{session_id}")
+
+    assert others.status_code == 200
+    assert others.json() == {"revokedCount": 2}
+    assert sessions.revoked_others == (context.user.id, context.session.id)
+    assert single.status_code == 204
+    assert sessions.revoked == [(context.user.id, context.session.id, session_id)]
+
+    app.dependency_overrides[get_user_session_service] = lambda: UserSessionServiceStub(
+        error=CurrentSessionCannotBeRevokedError("use logout")
+    )
+    with TestClient(app) as client:
+        current = client.delete(f"/api/v1/account/sessions/{context.session.id}")
+    assert current.status_code == 409
+    assert current.json()["error"]["code"] == "current_session_requires_logout"
+
+
+def test_account_masks_foreign_session_as_not_found() -> None:
+    app = create_app()
+    app.dependency_overrides[get_authenticated_session_context] = _account_context
+    app.dependency_overrides[get_user_session_service] = lambda: UserSessionServiceStub(
+        error=UserSessionNotFoundError("not found")
+    )
+
+    with TestClient(app) as client:
+        response = client.delete(f"/api/v1/account/sessions/{uuid4()}")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "session_not_found"
 
 
 def test_account_requires_authentication() -> None:

@@ -73,6 +73,7 @@ async def login(
         login_session = await AuthenticationService(session, settings).login(
             email=email,
             password=password,
+            user_agent=request.headers.get("User-Agent"),
         )
     except UserError as exc:
         return templates.TemplateResponse(
