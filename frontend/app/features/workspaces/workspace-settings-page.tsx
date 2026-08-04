@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 
 import type { SessionDto } from "../../api/session";
 import type { WorkspaceMembersDto } from "./api/workspace-members-api";
+import type { WorkspaceInvitationsDto } from "./api/workspace-invitations-api";
 import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { AppShell } from "../../shell/app-shell";
 import { BackLink } from "../../ui/back-link/back-link";
@@ -28,6 +29,7 @@ import {
   type WorkspaceFieldErrors,
 } from "./workspace-form";
 import { WorkspaceLifecycleImpact } from "./workspace-lifecycle-impact";
+import { WorkspaceInvitationsSection } from "./workspace-invitations-section";
 import { WorkspaceMembersSection } from "./workspace-members-section";
 import { workspaceRoleLabel, workspaceTypeLabel } from "./workspace-labels";
 import {
@@ -40,12 +42,14 @@ export function WorkspaceSettingsPage({
   boundaryNavigate = defaultBoundaryNavigate,
   initialSettings,
   initialMembers,
+  initialInvitations,
   navigationPending = false,
   session,
 }: {
   boundaryNavigate?: (href: string, message?: string) => void;
   initialSettings: WorkspaceSettingsDto;
   initialMembers: WorkspaceMembersDto;
+  initialInvitations: WorkspaceInvitationsDto;
   navigationPending?: boolean;
   session: SessionDto;
 }) {
@@ -283,6 +287,11 @@ export function WorkspaceSettingsPage({
               currentWorkspaceId={session.workspace.id}
               initialMembers={initialMembers}
               workspaceUpdatedAt={workspace.updatedAt}
+            />
+
+            <WorkspaceInvitationsSection
+              csrfToken={session.csrfToken}
+              initialInvitations={initialInvitations}
             />
 
             <WorkspaceLifecycleImpact settings={settings} />

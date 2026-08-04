@@ -1,13 +1,14 @@
 # Workspaces API and state boundary
 
-Статус: target accepted 2026-08-03 in ADR-0006; Slice 1–2 production-gated;
-Slice 3 members/ownership implemented with browser gate pending. Invitation and
-lifecycle endpoint groups remain proposed.
+Статус: target accepted 2026-08-03 in ADR-0006; Slice 1–4 production-gated
+2026-08-04. Lifecycle endpoint group remains proposed; public invitation
+preview/accept remains the retained bridge for Slice 5.
 
 ## Current boundary
 
 - `src/app/api/v1/workspaces/router.py` implements directory/create/select,
-  target settings, members, ownership transfer and self-leave endpoints.
+  target settings, members, ownership, self-leave and authenticated invitation
+  administration endpoints.
 - `frontend/app/routes/workspaces.tsx` owns canonical `/app/workspaces` and
   composes the feature in `frontend/app/features/workspaces/`.
 - `/api/v1/session` returns only current user/workspace/membership/capabilities
@@ -44,12 +45,15 @@ WorkspaceOwnershipService
   leave / transfer_ownership
 
 WorkspaceInvitationService
-  list / create / revoke / preview_credential / accept_credential
+  read / create / revoke
+
+WorkspaceService (retained public bridge only)
+  preview_credential / accept_credential
 ```
 
-Directory, creation, switching, settings, member management and ownership/leave
-are implemented in `src/app/features/workspaces/application/`. Invitation and
-lifecycle actors below remain proposals for later slices.
+Directory, creation, switching, settings, member management, ownership/leave
+and invitation administration are implemented in
+`src/app/features/workspaces/application/`. Lifecycle remains proposed.
 
 Application actors own transaction/locks/audit. Repositories keep visible
 workspace predicates and persistence only. Public invitation preview is a
@@ -60,7 +64,7 @@ separate credential boundary, not an ordinary workspace read.
 | Browser route | Ownership |
 | --- | --- |
 | `/app/workspaces` | React directory/create/switch |
-| `/app/workspaces/:workspaceId/settings` | React general settings, member management and lifecycle impact read model; invites/activity remain later slices |
+| `/app/workspaces/:workspaceId/settings` | React general settings, members, invitations and lifecycle impact read model; activity remains later |
 | `/workspaces?...` | Historical query-preserving 307 only after full directory replacement |
 | `/workspaces/invitations/:token` | Kept public bridge initially per D11 |
 
@@ -72,9 +76,9 @@ subroutes from measured content size.
 
 ### Directory and switch
 
-The directory endpoints are implemented in Slice 1, settings in Slice 2 and all
-member/ownership rows below in Slice 3. Invitations and lifecycle mutation rows
-remain proposed contracts.
+The directory endpoints are implemented in Slice 1, settings in Slice 2,
+member/ownership rows in Slice 3 and invitations in Slice 4. Lifecycle mutation
+rows remain proposed contracts.
 
 | Method | Endpoint | Contract |
 | --- | --- | --- |
@@ -106,14 +110,21 @@ remain proposed contracts.
 
 | Method | Endpoint | Contract |
 | --- | --- | --- |
-| `GET` | `/api/v1/workspaces/{id}/invitations` | Pending metadata only; never token/hash |
-| `POST` | `/api/v1/workspaces/{id}/invitations` | Role + Idempotency-Key; returns one transient share URL once |
-| `POST` | `/api/v1/workspaces/{id}/invitations/{invitationId}/revoke` | Expected timestamp/status; locked transition |
+| `GET` | `/api/v1/workspaces/{id}/invitations` | **Implemented Slice 4:** bounded pending metadata and server capabilities; never token/hash |
+| `POST` | `/api/v1/workspaces/{id}/invitations` | **Implemented Slice 4:** role + `Idempotency-Key`; returns transient share URL only in this response (and its safe replay) |
+| `POST` | `/api/v1/workspaces/{id}/invitations/{invitationId}/revoke` | **Implemented Slice 4:** expected timestamp and locked transition |
 | `GET/POST` | public credential boundary TBD | Preview/accept depends on D11 and public routing decision |
 
-Endpoint names and split are proposed. Implementation should combine list
-responses when measured page needs show fewer bounded requests without creating
-a giant all-purpose DTO.
+Create derives the invitation row ID with `uuid5(workspace, actor, key)` and
+the credential with stdlib HMAC over that ID. This makes an ambiguous retry
+return the same credential without storing plaintext or adding a new table.
+Reuse with another role or terminal invitation returns `idempotency_conflict`.
+All invitation responses are `no-store`; list/revoke DTOs never contain the
+credential or its hash.
+
+The three authenticated invitation endpoints above are implemented. Only the
+public credential boundary remains proposed for Slice 5; it stays on the
+hardened legacy adapter meanwhile.
 
 ## Proposed DTO facts
 

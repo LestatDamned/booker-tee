@@ -13,7 +13,12 @@ import {
   transferWorkspaceOwnership,
   updateWorkspaceMemberRole,
 } from "./api/workspace-members-api";
-import { session, workspaceMembers, workspaceSettings } from "./test-support";
+import {
+  session,
+  workspaceInvitations,
+  workspaceMembers,
+  workspaceSettings,
+} from "./test-support";
 import { WorkspaceSettingsPage } from "./workspace-settings-page";
 
 vi.mock("./api/workspace-settings-api", async (importOriginal) => {
@@ -379,6 +384,7 @@ function renderPage(
     >
       <WorkspaceSettingsPage
         boundaryNavigate={boundaryNavigate}
+        initialInvitations={workspaceInvitations}
         initialMembers={members}
         initialSettings={settings}
         session={session}

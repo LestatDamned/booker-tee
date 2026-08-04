@@ -5,6 +5,7 @@ from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.db.base import utc_now
 from app.features.workspaces.models import (
     Workspace,
     WorkspaceAuditEvent,
@@ -288,15 +289,21 @@ class WorkspaceRepository:
     async def list_pending_invitations(
         self,
         workspace_id: UUID,
+        *,
+        limit: int | None = None,
     ) -> list[WorkspaceInvitation]:
-        result = await self.session.execute(
+        statement = (
             select(WorkspaceInvitation)
             .where(
                 WorkspaceInvitation.workspace_id == workspace_id,
                 WorkspaceInvitation.status == WorkspaceInvitationStatus.PENDING,
+                WorkspaceInvitation.expires_at > utc_now(),
             )
-            .order_by(WorkspaceInvitation.created_at)
+            .order_by(WorkspaceInvitation.created_at.desc(), WorkspaceInvitation.id)
         )
+        if limit is not None:
+            statement = statement.limit(limit)
+        result = await self.session.execute(statement)
         return list(result.scalars().all())
 
     async def count_pending_invitations(self, workspace_id: UUID) -> int:
@@ -306,6 +313,7 @@ class WorkspaceRepository:
             .where(
                 WorkspaceInvitation.workspace_id == workspace_id,
                 WorkspaceInvitation.status == WorkspaceInvitationStatus.PENDING,
+                WorkspaceInvitation.expires_at > utc_now(),
             )
         )
         return result.scalar_one()
@@ -345,6 +353,39 @@ class WorkspaceRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_invitation(
+        self,
+        *,
+        workspace_id: UUID,
+        invitation_id: UUID,
+    ) -> WorkspaceInvitation | None:
+        result = await self.session.execute(
+            select(WorkspaceInvitation)
+            .where(
+                WorkspaceInvitation.id == invitation_id,
+                WorkspaceInvitation.workspace_id == workspace_id,
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_invitation_for_update(
+        self,
+        *,
+        workspace_id: UUID,
+        invitation_id: UUID,
+    ) -> WorkspaceInvitation | None:
+        result = await self.session.execute(
+            select(WorkspaceInvitation)
+            .where(
+                WorkspaceInvitation.id == invitation_id,
+                WorkspaceInvitation.workspace_id == workspace_id,
+            )
+            .with_for_update()
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def get_invitation_by_token_hash(
         self,
         token_hash: str,
@@ -353,6 +394,19 @@ class WorkspaceRepository:
             select(WorkspaceInvitation)
             .options(selectinload(WorkspaceInvitation.workspace))
             .where(WorkspaceInvitation.token_hash == token_hash)
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_invitation_by_token_hash_for_update(
+        self,
+        token_hash: str,
+    ) -> WorkspaceInvitation | None:
+        result = await self.session.execute(
+            select(WorkspaceInvitation)
+            .options(selectinload(WorkspaceInvitation.workspace))
+            .where(WorkspaceInvitation.token_hash == token_hash)
+            .with_for_update()
             .limit(1)
         )
         return result.scalar_one_or_none()
@@ -510,6 +564,7 @@ class WorkspaceRepository:
         token_hash: str,
         invited_by_user_id: UUID,
         expires_at: datetime,
+        invitation_id: UUID | None = None,
     ) -> WorkspaceInvitation:
         invitation = WorkspaceInvitation(
             workspace_id=workspace_id,
@@ -518,6 +573,8 @@ class WorkspaceRepository:
             invited_by_user_id=invited_by_user_id,
             expires_at=expires_at,
         )
+        if invitation_id is not None:
+            invitation.id = invitation_id
         self.session.add(invitation)
         await self.session.flush()
         return invitation

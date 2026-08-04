@@ -1,7 +1,7 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, Request, Response, status
 
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.errors import ApiError, api_error_responses
@@ -9,6 +9,7 @@ from app.api.v1.session.mapper import SessionApiResponseMapper
 from app.api.v1.workspaces.dependencies import (
     get_workspace_creator,
     get_workspace_directory_reader,
+    get_workspace_invitation_service,
     get_workspace_member_service,
     get_workspace_ownership_service,
     get_workspace_session_switcher,
@@ -17,8 +18,11 @@ from app.api.v1.workspaces.dependencies import (
 from app.api.v1.workspaces.schemas import (
     CreateWorkspaceApiRequest,
     CreateWorkspaceApiResponse,
+    CreateWorkspaceInvitationApiRequest,
+    CreateWorkspaceInvitationApiResponse,
     LeaveWorkspaceApiRequest,
     LeaveWorkspaceApiResponse,
+    RevokeWorkspaceInvitationApiRequest,
     SelectWorkspaceApiRequest,
     SelectWorkspaceApiResponse,
     TransferWorkspaceOwnershipApiRequest,
@@ -29,6 +33,8 @@ from app.api.v1.workspaces.schemas import (
     WorkspaceAuthorityNavigationOutcomeApiResponse,
     WorkspaceDirectoryApiResponse,
     WorkspaceDirectoryItemApiResponse,
+    WorkspaceInvitationItemApiResponse,
+    WorkspaceInvitationsApiResponse,
     WorkspaceMembersApiResponse,
     WorkspaceNavigationOutcomeApiResponse,
     WorkspaceSettingsApiResponse,
@@ -38,6 +44,7 @@ from app.features.workspaces.application.directory import (
     WorkspaceDirectoryReader,
     workspace_directory_item,
 )
+from app.features.workspaces.application.invitations import WorkspaceInvitationService
 from app.features.workspaces.application.members import WorkspaceMemberService
 from app.features.workspaces.application.ownership import WorkspaceOwnershipService
 from app.features.workspaces.application.settings import WorkspaceSettingsService
@@ -53,6 +60,9 @@ from app.features.workspaces.commands import (
 from app.features.workspaces.errors import (
     WorkspaceError,
     WorkspaceIdempotencyConflictError,
+    WorkspaceInvitationConflictError,
+    WorkspaceInvitationNotFoundError,
+    WorkspaceInvitationTransitionError,
     WorkspaceMemberConflictError,
     WorkspaceMemberTransitionError,
     WorkspaceNotFoundError,
@@ -489,6 +499,145 @@ def _member_transition_blocked(error: WorkspaceMemberTransitionError) -> ApiErro
     return ApiError(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         code="member_transition_blocked",
+        message=str(error),
+        details={"reasonCodes": error.reason_codes},
+    )
+
+
+@router.get(
+    "/{workspace_id}/invitations",
+    response_model=WorkspaceInvitationsApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_404_NOT_FOUND,
+    ),
+)
+async def get_workspace_invitations(
+    workspace_id: UUID,
+    response: Response,
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    service: Annotated[
+        WorkspaceInvitationService,
+        Depends(get_workspace_invitation_service),
+    ],
+) -> WorkspaceInvitationsApiResponse:
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        invitations = await service.read(
+            actor_user_id=context.workspace.user.id,
+            workspace_id=workspace_id,
+        )
+    except WorkspaceNotFoundError as error:
+        raise _workspace_not_found(error) from error
+    return WorkspaceInvitationsApiResponse.model_validate(invitations)
+
+
+@router.post(
+    "/{workspace_id}/invitations",
+    response_model=CreateWorkspaceInvitationApiResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def create_workspace_invitation(
+    workspace_id: UUID,
+    request: CreateWorkspaceInvitationApiRequest,
+    http_request: Request,
+    response: Response,
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    service: Annotated[
+        WorkspaceInvitationService,
+        Depends(get_workspace_invitation_service),
+    ],
+) -> CreateWorkspaceInvitationApiResponse:
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        result = await service.create(
+            actor_user_id=context.workspace.user.id,
+            workspace_id=workspace_id,
+            role=request.role,
+            idempotency_key=idempotency_key,
+        )
+    except WorkspaceNotFoundError as error:
+        raise _workspace_not_found(error) from error
+    except WorkspaceIdempotencyConflictError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="idempotency_conflict",
+            message=str(error),
+        ) from error
+    except WorkspaceInvitationTransitionError as error:
+        raise _invitation_transition_blocked(error) from error
+    return CreateWorkspaceInvitationApiResponse(
+        invitation=WorkspaceInvitationItemApiResponse.model_validate(result.invitation),
+        invitations=WorkspaceInvitationsApiResponse.model_validate(result.invitations),
+        share_url=str(
+            http_request.url_for(
+                "preview_workspace_invitation",
+                invitation_token=result.token,
+            )
+        ),
+        replayed=result.replayed,
+    )
+
+
+@router.post(
+    "/{workspace_id}/invitations/{invitation_id}/revoke",
+    response_model=WorkspaceInvitationsApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def revoke_workspace_invitation(
+    workspace_id: UUID,
+    invitation_id: UUID,
+    request: RevokeWorkspaceInvitationApiRequest,
+    response: Response,
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    service: Annotated[
+        WorkspaceInvitationService,
+        Depends(get_workspace_invitation_service),
+    ],
+) -> WorkspaceInvitationsApiResponse:
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        invitations = await service.revoke(
+            actor_user_id=context.workspace.user.id,
+            workspace_id=workspace_id,
+            invitation_id=invitation_id,
+            expected_updated_at=request.expected_updated_at,
+        )
+    except WorkspaceNotFoundError as error:
+        raise _workspace_not_found(error) from error
+    except WorkspaceInvitationNotFoundError as error:
+        raise ApiError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="invitation_not_found",
+            message="Приглашение не найдено.",
+        ) from error
+    except WorkspaceInvitationConflictError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="invitation_conflict",
+            message=str(error),
+        ) from error
+    except WorkspaceInvitationTransitionError as error:
+        raise _invitation_transition_blocked(error) from error
+    return WorkspaceInvitationsApiResponse.model_validate(invitations)
+
+
+def _invitation_transition_blocked(error: WorkspaceInvitationTransitionError) -> ApiError:
+    return ApiError(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        code="invitation_transition_blocked",
         message=str(error),
         details={"reasonCodes": error.reason_codes},
     )

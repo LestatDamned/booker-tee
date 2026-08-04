@@ -37,11 +37,12 @@ export function WorkspaceSettingsRouteView({
   loaderData: Awaited<ReturnType<typeof loadWorkspaceSettingsRoute>>;
   navigationPending?: boolean;
 }) {
-  const { members, session, settings } = loaderData;
+  const { invitations, members, session, settings } = loaderData;
   if (
     session.status === "unauthenticated" ||
     settings.status === "unauthenticated" ||
-    members.status === "unauthenticated"
+    members.status === "unauthenticated" ||
+    invitations.status === "unauthenticated"
   ) {
     return (
       <WorkspaceSettingsRouteState result={{ status: "unauthenticated" }} />
@@ -56,6 +57,9 @@ export function WorkspaceSettingsRouteView({
   if (members.status !== "success") {
     return <WorkspaceSettingsRouteState result={members} />;
   }
+  if (invitations.status !== "success") {
+    return <WorkspaceSettingsRouteState result={invitations} />;
+  }
   if (session.status !== "authenticated") {
     return (
       <WorkspaceSettingsRouteState
@@ -67,6 +71,7 @@ export function WorkspaceSettingsRouteView({
     <WorkspaceSettingsPage
       initialSettings={settings.settings}
       initialMembers={members.members}
+      initialInvitations={invitations.invitations}
       navigationPending={navigationPending}
       session={session.session}
     />

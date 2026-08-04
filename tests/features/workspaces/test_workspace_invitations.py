@@ -59,6 +59,9 @@ async def test_create_invitation_stores_hash_and_returns_token_once(monkeypatch)
         async def commit(self) -> None:
             self.commit_count += 1
 
+        async def rollback(self) -> None:
+            pass
+
     class FakeWorkspaceRepository:
         def __init__(self, session: FakeSession) -> None:
             self.session = session
@@ -121,6 +124,9 @@ async def test_accept_invitation_creates_membership_and_consumes_token(monkeypat
         async def commit(self) -> None:
             self.commit_count += 1
 
+        async def rollback(self) -> None:
+            pass
+
     class FakeWorkspaceRepository:
         def __init__(self, session: FakeSession) -> None:
             self.session = session
@@ -140,7 +146,7 @@ async def test_accept_invitation_creates_membership_and_consumes_token(monkeypat
             self.created_member = None
             self.audit_events = []
 
-        async def get_invitation_by_token_hash(self, token_hash: str):
+        async def get_invitation_by_token_hash_for_update(self, token_hash: str):
             if token_hash == self.invitation.token_hash:
                 return self.invitation
             return None
@@ -196,7 +202,7 @@ async def test_accept_invitation_creates_membership_and_consumes_token(monkeypat
     assert repository.audit_events[0].target_user_id == user.id
 
 
-async def test_expired_invitation_is_marked_expired(monkeypatch) -> None:
+async def test_expired_invitation_preview_is_side_effect_free(monkeypatch) -> None:
     class FakeSession:
         def __init__(self) -> None:
             self.commit_count = 0
@@ -230,5 +236,5 @@ async def test_expired_invitation_is_marked_expired(monkeypatch) -> None:
     else:
         raise AssertionError("expired invitation was accepted")
 
-    assert session.commit_count == 1
-    assert cast(Any, service.workspaces).invitation.status == WorkspaceInvitationStatus.EXPIRED
+    assert session.commit_count == 0
+    assert cast(Any, service.workspaces).invitation.status == WorkspaceInvitationStatus.PENDING

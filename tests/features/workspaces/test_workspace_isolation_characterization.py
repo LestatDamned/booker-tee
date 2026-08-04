@@ -83,7 +83,7 @@ async def test_foreign_and_missing_invitation_have_same_service_outcome(monkeypa
         def __init__(self, session: object) -> None:
             self.session = session
 
-        async def get_pending_invitation(
+        async def get_invitation_for_update(
             self,
             *,
             workspace_id: UUID,
@@ -127,6 +127,9 @@ class NoCommitSession:
 
     async def commit(self) -> None:
         self.commit_count += 1
+
+    async def rollback(self) -> None:
+        pass
 
 
 def owner_context() -> WorkspaceContext:

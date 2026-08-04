@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from workspaces_support import (
+    workspace_invitations_app,
     workspace_members_app,
     workspace_ownership_app,
     workspace_settings_app,
@@ -19,6 +20,9 @@ from app.features.workspaces.commands import (
 from app.features.workspaces.domain.types import WorkspaceRole, WorkspaceType
 from app.features.workspaces.errors import (
     WorkspaceIdempotencyConflictError,
+    WorkspaceInvitationConflictError,
+    WorkspaceInvitationNotFoundError,
+    WorkspaceInvitationTransitionError,
     WorkspaceMemberConflictError,
     WorkspaceMemberTransitionError,
     WorkspaceNotFoundError,
@@ -352,6 +356,99 @@ def test_workspace_member_disable_maps_reason_codes_without_existence_leak() -> 
     assert blocked.json()["error"]["details"] == {"reasonCodes": ["member_owner"]}
     assert hidden.status_code == 404
     assert hidden.json()["error"]["code"] == "workspace_not_found"
+
+
+def test_workspace_invitations_return_metadata_without_credentials() -> None:
+    app, service, actor_id, workspace_id = workspace_invitations_app()
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/workspaces/{workspace_id}/invitations")
+
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    assert service.read_calls == [(actor_id, workspace_id)]
+    payload = response.json()
+    assert payload["capabilities"]["assignableRoles"] == ["editor", "viewer"]
+    assert "token" not in response.text.lower()
+    assert "hash" not in response.text.lower()
+
+
+def test_workspace_invitation_create_returns_transient_share_url() -> None:
+    app, service, actor_id, workspace_id = workspace_invitations_app()
+    idempotency_key = uuid4()
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/workspaces/{workspace_id}/invitations",
+            headers={"Idempotency-Key": str(idempotency_key)},
+            json={"role": "viewer"},
+        )
+
+    assert response.status_code == 201
+    assert response.headers["Cache-Control"] == "no-store"
+    assert service.create_calls == [(actor_id, workspace_id, WorkspaceRole.VIEWER, idempotency_key)]
+    payload = response.json()
+    assert payload["shareUrl"].endswith("/workspaces/invitations/one-time-invitation-token")
+    assert "shareUrl" not in payload["invitations"]
+
+
+def test_workspace_invitation_revoke_dispatches_stale_snapshot_and_masks_id() -> None:
+    app, service, actor_id, workspace_id = workspace_invitations_app()
+    invitation = service.invitations.items[0]
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/workspaces/{workspace_id}/invitations/{invitation.id}/revoke",
+            json={"expectedUpdatedAt": invitation.updated_at.isoformat()},
+        )
+        service.error = WorkspaceInvitationConflictError("stale")
+        conflict = client.post(
+            f"/api/v1/workspaces/{workspace_id}/invitations/{invitation.id}/revoke",
+            json={"expectedUpdatedAt": invitation.updated_at.isoformat()},
+        )
+        service.error = WorkspaceInvitationNotFoundError("foreign")
+        hidden = client.post(
+            f"/api/v1/workspaces/{workspace_id}/invitations/{uuid4()}/revoke",
+            json={"expectedUpdatedAt": invitation.updated_at.isoformat()},
+        )
+
+    assert response.status_code == 200
+    assert service.revoke_calls[0] == (
+        actor_id,
+        workspace_id,
+        invitation.id,
+        invitation.updated_at,
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "invitation_conflict"
+    assert hidden.status_code == 404
+    assert hidden.json()["error"]["code"] == "invitation_not_found"
+
+
+def test_workspace_invitation_maps_idempotency_and_role_reason() -> None:
+    app, service, _, workspace_id = workspace_invitations_app()
+
+    with TestClient(app) as client:
+        service.error = WorkspaceIdempotencyConflictError("reused")
+        conflict = client.post(
+            f"/api/v1/workspaces/{workspace_id}/invitations",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={"role": "viewer"},
+        )
+        service.error = WorkspaceInvitationTransitionError(
+            "forbidden",
+            reason_codes=["invitation_role_forbidden"],
+        )
+        blocked = client.post(
+            f"/api/v1/workspaces/{workspace_id}/invitations",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={"role": "admin"},
+        )
+
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "idempotency_conflict"
+    assert blocked.status_code == 422
+    assert blocked.json()["error"]["details"] == {"reasonCodes": ["invitation_role_forbidden"]}
 
 
 def test_workspace_ownership_transfer_dispatches_both_stale_snapshots() -> None:

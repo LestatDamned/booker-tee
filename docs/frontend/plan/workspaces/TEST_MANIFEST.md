@@ -1,6 +1,6 @@
 # Workspaces replacement test manifest
 
-Статус: accepted replacement manifest; Slice 0 characterization and Slice 1–2
+Статус: accepted replacement manifest; Slice 0 characterization and Slice 1–4
 production gates complete.
 
 ## Existing evidence
@@ -8,7 +8,7 @@ production gates complete.
 | Area | Existing tests | What they prove |
 | --- | --- | --- |
 | Permission matrix | `tests/features/workspaces/test_workspace_permissions.py` | role capability functions and disabled membership |
-| Invitations | `test_workspace_invitations.py` | token hash, one returned credential, basic accept, expiry mutation |
+| Invitations | `test_workspace_invitations.py` | token hash, one returned credential, basic accept and side-effect-free expired preview |
 | Members | `test_workspace_member_management.py` | self-role, admin escalation, sequential last-owner, owner disable |
 | Legacy UI | `test_workspace_ui_permissions.py` | one base-header viewer assertion |
 | Signup/session helpers | `tests/features/users/test_users_workspaces.py` | atomic signup, local return path, CSRF primitives |
@@ -23,8 +23,8 @@ production gates complete.
 | Every authenticated legacy workspace POST rejects a missing form CSRF token before session/service work | `test_workspace_route_security.py` | 9 route cases pass |
 | Current invalid-current fallback commits during context resolution | `test_workspace_context_characterization.py` | characterization passes |
 | Current no-membership read silently creates a personal workspace and audit event | `test_workspace_context_characterization.py` | characterization passes |
-| Two concurrent users can pass the invitation status guard and consume one credential | `test_workspace_invitation_concurrency.py`, `test_workspace_concurrency_postgres.py` | service and real PostgreSQL strict `xfail`; PostgreSQL proves 2 commits and 2 memberships |
-| Accept and revoke can both pass independent pending snapshots | `test_workspace_invitation_concurrency.py`, `test_workspace_concurrency_postgres.py` | service and real PostgreSQL strict `xfail`; PostgreSQL proves both commit |
+| Two concurrent users can pass the invitation status guard and consume one credential | `test_workspace_concurrency_postgres.py` | **Resolved Slice 4:** locked credential lookup gives one commit and one membership |
+| Accept and revoke can both pass independent pending snapshots | `test_workspace_concurrency_postgres.py` | **Resolved Slice 4:** both paths lock the same invitation row and exactly one transition commits |
 | Two owners could concurrently pass the legacy count guard and disable each other | `test_workspace_owner_concurrency.py`, `test_workspace_concurrency_postgres.py`, `test_workspace_ownership_postgres.py` | **Resolved Slice 3:** owner disable is rejected; transfer uses locked single-owner transition and its PostgreSQL race has one winner |
 | Non-current workspace is rejected before member/invitation route lookup | `test_workspace_route_security.py` | 5 route cases pass with identical 404 |
 | Foreign and missing member/invitation IDs use the same scoped service outcome | `test_workspace_isolation_characterization.py` | 4 outcomes pass; current workspace ID asserted |
@@ -33,17 +33,17 @@ production gates complete.
 | Admin/editor/viewer SSR capability geometry | isolated shared-role fixture + `scripts/ui_audit.py --authenticated --path workspaces` | 9 pages pass at 1440/920/390; actions match server policies; zero overflow/errors |
 | Expanded create/edit/invite, one-time credential and valid/expired/invalid preview geometry | isolated Playwright interaction capture, `/tmp/booker-workspaces-forms-20260803/report.json` | 24 state/viewport combinations pass overflow/error gate; focus, labels and touch sizes measured |
 
-The remaining strict `xfail` cases concern invitation consume/revoke and must be
-converted to ordinary passing tests in Slice 4–5. The former owner-disable
+The invitation consume/revoke strict `xfail` cases were converted to ordinary
+passing PostgreSQL tests in Slice 4. The former owner-disable
 characterizations are now ordinary passing regression tests, supplemented by a
 real concurrent transfer test. Database tests use ordinary flush/commit and
 real PostgreSQL locking: no fake transaction implementation is involved.
 
-Current gaps after Slice 2: PostgreSQL invitation/last-owner locking fixes
-remain later-slice work but their failure mode is no longer ambiguous. Settings
-now has application/API/React evidence plus a real database-backed
-foreign/missing and concurrent-stale matrix. Members, invitations and lifecycle
-mutations still have no replacement evidence.
+Current gaps after Slice 4: public invitation accept still uses the hardened
+SSR bridge pending Slice 5, and lifecycle mutations remain a later replacement
+slice. Directory, settings, members and authenticated invitation administration
+have application/API/React evidence plus PostgreSQL isolation/concurrency and
+production browser gates.
 
 The accepted Slice 1 contract now has a standalone non-runtime visual prototype
 at `docs/frontend/plan/workspaces/prototype/index.html`. Its 2026-08-03 capture
@@ -170,6 +170,24 @@ Current Slice 3 increment evidence:
 - invalid/expired/revoked/replayed public shape does not leak credential state;
 - disabled existing membership cannot be reactivated by invite;
 - accept switches session only after membership commit.
+
+Current Slice 4 evidence:
+
+- `test_workspace_invitation_application.py` covers deterministic idempotency,
+  hash-only persistence, viewer masking, admin role boundaries and foreign ID;
+- `test_workspaces_api.py` covers camelCase metadata, no-store, transient
+  `shareUrl`, idempotency header, stale timestamp, masked ID and reason codes;
+- `test_workspace_concurrency_postgres.py` proves one winner for concurrent
+  accept/accept and accept/revoke on PostgreSQL;
+- `workspace-invitations-api.test.ts` and
+  `workspace-invitations-section.test.tsx` cover runtime validation, CSRF/
+  idempotency payloads, transient dismissal and revoke confirmation;
+- `scripts/workspaces_slice04_browser.py` covers owner/admin/viewer authority,
+  credential absence after reload/list, public no-store/no-referrer, stale
+  recovery, keyboard focus and responsive geometry.
+- full regressions on 2026-08-04: 800 backend tests passed; 79 frontend test
+  files / 472 tests passed; Ruff format/check, `ty`, OpenAPI drift, Prettier,
+  ESLint, style policy, TypeScript and production build passed.
 
 ### Lifecycle
 

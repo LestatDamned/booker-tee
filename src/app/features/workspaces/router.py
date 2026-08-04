@@ -288,7 +288,7 @@ async def preview_workspace_invitation(
     else:
         error = None
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "workspaces/accept_invitation.html",
         {
@@ -301,6 +301,9 @@ async def preview_workspace_invitation(
             "error": error,
         },
     )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 
 @router.post("/invitations/{invitation_token}/accept")

@@ -21,7 +21,6 @@ from app.features.workspaces.models import (
     WorkspaceRole,
     WorkspaceType,
 )
-from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.service import WorkspaceContext, WorkspaceService
 from app.features.workspaces.tokens import hash_invitation_token
 
@@ -33,49 +32,12 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-class ReadBarrier:
-    def __init__(self, parties: int = 2) -> None:
-        self.parties = parties
-        self.arrivals = 0
-        self.ready = asyncio.Event()
-        self.lock = asyncio.Lock()
-
-    async def arrive(self) -> None:
-        async with self.lock:
-            self.arrivals += 1
-            if self.arrivals == self.parties:
-                self.ready.set()
-        await asyncio.wait_for(self.ready.wait(), timeout=2)
-
-
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=True,
-    reason="PostgreSQL invitation consume is not one locked transition yet (ADR-0006/D13).",
-)
-async def test_postgres_concurrent_invitation_accept_has_exactly_one_winner(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_postgres_concurrent_invitation_accept_has_exactly_one_winner() -> None:
     assert TEST_DATABASE_URL is not None
     engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     seed = await seed_invitation_race(sessions, invitee_count=2)
-    barrier = ReadBarrier()
-    original_lookup = WorkspaceRepository.get_invitation_by_token_hash
-
-    async def synchronized_lookup(
-        repository: WorkspaceRepository,
-        token_hash: str,
-    ) -> WorkspaceInvitation | None:
-        invitation = await original_lookup(repository, token_hash)
-        await barrier.arrive()
-        return invitation
-
-    monkeypatch.setattr(
-        WorkspaceRepository,
-        "get_invitation_by_token_hash",
-        synchronized_lookup,
-    )
 
     async def accept_once(invitee: ActorIds) -> WorkspaceMember:
         async with sessions() as session:
@@ -103,8 +65,6 @@ async def test_postgres_concurrent_invitation_accept_has_exactly_one_winner(
                 )
             )
 
-        assert successful_accepts == 2
-        assert accepted_members == 2
         assert (successful_accepts, accepted_members) == (1, 1)
     finally:
         await delete_invitation_race(sessions, seed)
@@ -112,53 +72,11 @@ async def test_postgres_concurrent_invitation_accept_has_exactly_one_winner(
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=True,
-    reason="PostgreSQL invitation accept/revoke is not one locked transition yet (ADR-0006/D13).",
-)
-async def test_postgres_invitation_accept_and_revoke_have_exactly_one_winner(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_postgres_invitation_accept_and_revoke_have_exactly_one_winner() -> None:
     assert TEST_DATABASE_URL is not None
     engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     seed = await seed_invitation_race(sessions, invitee_count=1)
-    barrier = ReadBarrier()
-    original_token_lookup = WorkspaceRepository.get_invitation_by_token_hash
-    original_pending_lookup = WorkspaceRepository.get_pending_invitation
-
-    async def synchronized_token_lookup(
-        repository: WorkspaceRepository,
-        token_hash: str,
-    ) -> WorkspaceInvitation | None:
-        invitation = await original_token_lookup(repository, token_hash)
-        await barrier.arrive()
-        return invitation
-
-    async def synchronized_pending_lookup(
-        repository: WorkspaceRepository,
-        *,
-        workspace_id: UUID,
-        invitation_id: UUID,
-    ) -> WorkspaceInvitation | None:
-        invitation = await original_pending_lookup(
-            repository,
-            workspace_id=workspace_id,
-            invitation_id=invitation_id,
-        )
-        await barrier.arrive()
-        return invitation
-
-    monkeypatch.setattr(
-        WorkspaceRepository,
-        "get_invitation_by_token_hash",
-        synchronized_token_lookup,
-    )
-    monkeypatch.setattr(
-        WorkspaceRepository,
-        "get_pending_invitation",
-        synchronized_pending_lookup,
-    )
 
     async def accept_once() -> WorkspaceMember:
         async with sessions() as session:
@@ -183,7 +101,6 @@ async def test_postgres_invitation_accept_and_revoke_have_exactly_one_winner(
             return_exceptions=True,
         )
         successful_transitions = sum(not isinstance(result, BaseException) for result in results)
-        assert successful_transitions == 2
         assert successful_transitions == 1
     finally:
         await delete_invitation_race(sessions, seed)

@@ -8,12 +8,14 @@ from app.api.dependencies import get_api_request_context
 from app.api.v1.workspaces.dependencies import (
     get_workspace_creator,
     get_workspace_directory_reader,
+    get_workspace_invitation_service,
     get_workspace_member_service,
     get_workspace_ownership_service,
     get_workspace_session_switcher,
     get_workspace_settings_service,
 )
 from app.features.workspaces.application.creation import WorkspaceCreationResult
+from app.features.workspaces.application.invitations import CreatedWorkspaceInvitationResult
 from app.features.workspaces.application.ownership import (
     WorkspaceLeaveResult,
     WorkspaceOwnershipTransferResult,
@@ -26,6 +28,7 @@ from app.features.workspaces.commands import (
     UpdateWorkspaceSettingsCommand,
 )
 from app.features.workspaces.domain.types import (
+    WorkspaceInvitationStatus,
     WorkspaceMemberStatus,
     WorkspaceRole,
     WorkspaceType,
@@ -38,6 +41,10 @@ from app.features.workspaces.schemas import (
     WorkspaceDirectoryDto,
     WorkspaceDirectoryItemCapabilitiesDto,
     WorkspaceDirectoryItemDto,
+    WorkspaceInvitationCapabilitiesDto,
+    WorkspaceInvitationItemDto,
+    WorkspaceInvitationsCapabilitiesDto,
+    WorkspaceInvitationsDto,
     WorkspaceLifecycleImpactDto,
     WorkspaceMemberCapabilitiesDto,
     WorkspaceMemberItemDto,
@@ -204,6 +211,45 @@ class WorkspaceOwnershipServiceStub:
         if self.error:
             raise self.error
         return self.leave_result
+
+
+class WorkspaceInvitationServiceStub:
+    def __init__(self, invitations: WorkspaceInvitationsDto) -> None:
+        self.invitations = invitations
+        self.read_calls = []
+        self.create_calls = []
+        self.revoke_calls = []
+        self.error: WorkspaceError | None = None
+
+    async def read(self, *, actor_user_id, workspace_id):
+        self.read_calls.append((actor_user_id, workspace_id))
+        if self.error:
+            raise self.error
+        return self.invitations
+
+    async def create(self, *, actor_user_id, workspace_id, role, idempotency_key):
+        self.create_calls.append((actor_user_id, workspace_id, role, idempotency_key))
+        if self.error:
+            raise self.error
+        return CreatedWorkspaceInvitationResult(
+            invitation=self.invitations.items[0],
+            invitations=self.invitations,
+            token="one-time-invitation-token",
+            replayed=False,
+        )
+
+    async def revoke(
+        self,
+        *,
+        actor_user_id,
+        workspace_id,
+        invitation_id,
+        expected_updated_at,
+    ):
+        self.revoke_calls.append((actor_user_id, workspace_id, invitation_id, expected_updated_at))
+        if self.error:
+            raise self.error
+        return self.invitations.model_copy(update={"items": []})
 
 
 def workspaces_app() -> tuple[
@@ -412,6 +458,41 @@ def workspace_members_app() -> tuple[FastAPI, WorkspaceMemberServiceStub, UUID, 
     app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_workspace_member_service] = lambda: service
+    return app, service, context.workspace.user.id, workspace_id
+
+
+def workspace_invitations_app() -> tuple[
+    FastAPI,
+    WorkspaceInvitationServiceStub,
+    UUID,
+    UUID,
+]:
+    context = api_context(role=WorkspaceRole.OWNER)
+    workspace_id = uuid4()
+    updated_at = datetime(2026, 8, 4, 9, 30, tzinfo=UTC)
+    item = WorkspaceInvitationItemDto(
+        id=uuid4(),
+        role=WorkspaceRole.VIEWER,
+        status=WorkspaceInvitationStatus.PENDING,
+        expires_at=datetime(2026, 8, 7, 9, 30, tzinfo=UTC),
+        created_at=updated_at,
+        updated_at=updated_at,
+        capabilities=WorkspaceInvitationCapabilitiesDto(can_revoke=True),
+        blocking_reason_codes=[],
+    )
+    service = WorkspaceInvitationServiceStub(
+        WorkspaceInvitationsDto(
+            workspace_id=workspace_id,
+            items=[item],
+            capabilities=WorkspaceInvitationsCapabilitiesDto(
+                can_create=True,
+                assignable_roles=[WorkspaceRole.EDITOR, WorkspaceRole.VIEWER],
+            ),
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: context
+    app.dependency_overrides[get_workspace_invitation_service] = lambda: service
     return app, service, context.workspace.user.id, workspace_id
 
 

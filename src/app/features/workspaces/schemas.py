@@ -3,6 +3,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from app.features.workspaces.domain.types import (
+    WorkspaceInvitationStatus,
     WorkspaceMemberStatus,
     WorkspaceRole,
     WorkspaceType,
@@ -139,3 +140,35 @@ class WorkspaceMembersDto(ApplicationModel):
     workspace_id: UUID
     items: list[WorkspaceMemberItemDto]
     capabilities: WorkspaceMembersCapabilitiesDto
+
+
+class WorkspaceInvitationBlockingReason(StrEnum):
+    WORKSPACE_INACTIVE = "workspace_inactive"
+    FORBIDDEN = "invitation_management_forbidden"
+    ROLE_FORBIDDEN = "invitation_role_forbidden"
+
+
+class WorkspaceInvitationCapabilitiesDto(ApplicationModel):
+    can_revoke: bool
+
+
+class WorkspaceInvitationItemDto(ApplicationModel):
+    id: UUID
+    role: WorkspaceRole
+    status: WorkspaceInvitationStatus
+    expires_at: datetime
+    created_at: datetime
+    updated_at: datetime
+    capabilities: WorkspaceInvitationCapabilitiesDto
+    blocking_reason_codes: list[WorkspaceInvitationBlockingReason]
+
+
+class WorkspaceInvitationsCapabilitiesDto(ApplicationModel):
+    can_create: bool
+    assignable_roles: list[WorkspaceRole]
+
+
+class WorkspaceInvitationsDto(ApplicationModel):
+    workspace_id: UUID
+    items: list[WorkspaceInvitationItemDto]
+    capabilities: WorkspaceInvitationsCapabilitiesDto

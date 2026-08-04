@@ -8,12 +8,14 @@ from pydantic_core import PydanticCustomError
 from app.api.schemas import ApiModel, ApiRequestModel
 from app.api.v1.session.responses import SessionApiResponse
 from app.features.workspaces.domain.types import (
+    WorkspaceInvitationStatus,
     WorkspaceMemberStatus,
     WorkspaceRole,
     WorkspaceType,
 )
 from app.features.workspaces.schemas import (
     WorkspaceBlockingReason,
+    WorkspaceInvitationBlockingReason,
     WorkspaceMemberBlockingReason,
 )
 
@@ -252,3 +254,44 @@ class TransferWorkspaceOwnershipApiResponse(ApiModel):
 class LeaveWorkspaceApiResponse(ApiModel):
     session: SessionApiResponse
     navigation_outcome: WorkspaceNavigationOutcomeApiResponse
+
+
+class WorkspaceInvitationCapabilitiesApiResponse(ApiModel):
+    can_revoke: bool
+
+
+class WorkspaceInvitationItemApiResponse(ApiModel):
+    id: UUID
+    role: WorkspaceRole
+    status: WorkspaceInvitationStatus
+    expires_at: datetime
+    created_at: datetime
+    updated_at: datetime
+    capabilities: WorkspaceInvitationCapabilitiesApiResponse
+    blocking_reason_codes: list[WorkspaceInvitationBlockingReason]
+
+
+class WorkspaceInvitationsCapabilitiesApiResponse(ApiModel):
+    can_create: bool
+    assignable_roles: list[WorkspaceRole]
+
+
+class WorkspaceInvitationsApiResponse(ApiModel):
+    workspace_id: UUID
+    items: list[WorkspaceInvitationItemApiResponse]
+    capabilities: WorkspaceInvitationsCapabilitiesApiResponse
+
+
+class CreateWorkspaceInvitationApiRequest(ApiRequestModel):
+    role: WorkspaceRole
+
+
+class CreateWorkspaceInvitationApiResponse(ApiModel):
+    invitation: WorkspaceInvitationItemApiResponse
+    invitations: WorkspaceInvitationsApiResponse
+    share_url: str
+    replayed: bool
+
+
+class RevokeWorkspaceInvitationApiRequest(ApiRequestModel):
+    expected_updated_at: datetime

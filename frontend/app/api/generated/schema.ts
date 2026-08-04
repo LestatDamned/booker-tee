@@ -851,6 +851,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Workspace Invitations */
+        get: operations["get_workspace_invitations_api_v1_workspaces__workspace_id__invitations_get"];
+        put?: never;
+        /** Create Workspace Invitation */
+        post: operations["create_workspace_invitation_api_v1_workspaces__workspace_id__invitations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/invitations/{invitation_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke Workspace Invitation */
+        post: operations["revoke_workspace_invitation_api_v1_workspaces__workspace_id__invitations__invitation_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}/transfer-ownership": {
         parameters: {
             query?: never;
@@ -1837,6 +1872,19 @@ export interface components {
             workspace: components["schemas"]["WorkspaceDirectoryItemApiResponse"];
             session: components["schemas"]["SessionApiResponse"];
             navigationOutcome: components["schemas"]["WorkspaceNavigationOutcomeApiResponse"];
+            /** Replayed */
+            replayed: boolean;
+        };
+        /** CreateWorkspaceInvitationApiRequest */
+        CreateWorkspaceInvitationApiRequest: {
+            role: components["schemas"]["WorkspaceRole"];
+        };
+        /** CreateWorkspaceInvitationApiResponse */
+        CreateWorkspaceInvitationApiResponse: {
+            invitation: components["schemas"]["WorkspaceInvitationItemApiResponse"];
+            invitations: components["schemas"]["WorkspaceInvitationsApiResponse"];
+            /** Shareurl */
+            shareUrl: string;
             /** Replayed */
             replayed: boolean;
         };
@@ -3672,6 +3720,14 @@ export interface components {
          * @enum {string}
          */
         ReviewClassificationSource: "explicit" | "suggested" | "inferred" | "unknown";
+        /** RevokeWorkspaceInvitationApiRequest */
+        RevokeWorkspaceInvitationApiRequest: {
+            /**
+             * Expectedupdatedat
+             * Format: date-time
+             */
+            expectedUpdatedAt: string;
+        };
         /** SelectWorkspaceApiRequest */
         SelectWorkspaceApiRequest: {
             /**
@@ -4211,6 +4267,67 @@ export interface components {
             capabilities: components["schemas"]["WorkspaceItemCapabilitiesApiResponse"];
             /** Blockingreasoncodes */
             blockingReasonCodes: components["schemas"]["WorkspaceBlockingReason"][];
+        };
+        /**
+         * WorkspaceInvitationBlockingReason
+         * @enum {string}
+         */
+        WorkspaceInvitationBlockingReason: "workspace_inactive" | "invitation_management_forbidden" | "invitation_role_forbidden";
+        /** WorkspaceInvitationCapabilitiesApiResponse */
+        WorkspaceInvitationCapabilitiesApiResponse: {
+            /** Canrevoke */
+            canRevoke: boolean;
+        };
+        /** WorkspaceInvitationItemApiResponse */
+        WorkspaceInvitationItemApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            role: components["schemas"]["WorkspaceRole"];
+            status: components["schemas"]["WorkspaceInvitationStatus"];
+            /**
+             * Expiresat
+             * Format: date-time
+             */
+            expiresAt: string;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            capabilities: components["schemas"]["WorkspaceInvitationCapabilitiesApiResponse"];
+            /** Blockingreasoncodes */
+            blockingReasonCodes: components["schemas"]["WorkspaceInvitationBlockingReason"][];
+        };
+        /**
+         * WorkspaceInvitationStatus
+         * @enum {string}
+         */
+        WorkspaceInvitationStatus: "pending" | "accepted" | "revoked" | "expired";
+        /** WorkspaceInvitationsApiResponse */
+        WorkspaceInvitationsApiResponse: {
+            /**
+             * Workspaceid
+             * Format: uuid
+             */
+            workspaceId: string;
+            /** Items */
+            items: components["schemas"]["WorkspaceInvitationItemApiResponse"][];
+            capabilities: components["schemas"]["WorkspaceInvitationsCapabilitiesApiResponse"];
+        };
+        /** WorkspaceInvitationsCapabilitiesApiResponse */
+        WorkspaceInvitationsCapabilitiesApiResponse: {
+            /** Cancreate */
+            canCreate: boolean;
+            /** Assignableroles */
+            assignableRoles: components["schemas"]["WorkspaceRole"][];
         };
         /** WorkspaceItemCapabilitiesApiResponse */
         WorkspaceItemCapabilitiesApiResponse: {
@@ -8412,6 +8529,182 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceMembersApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_workspace_invitations_api_v1_workspaces__workspace_id__invitations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceInvitationsApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_workspace_invitation_api_v1_workspaces__workspace_id__invitations_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWorkspaceInvitationApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateWorkspaceInvitationApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    revoke_workspace_invitation_api_v1_workspaces__workspace_id__invitations__invitation_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeWorkspaceInvitationApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceInvitationsApiResponse"];
                 };
             };
             /** @description Unauthorized */

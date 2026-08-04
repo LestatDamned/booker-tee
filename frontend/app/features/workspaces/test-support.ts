@@ -2,6 +2,7 @@ import type { SessionDto } from "../../api/session";
 import type { WorkspaceDirectoryDto } from "./api/workspaces-api";
 import type { WorkspaceSettingsDto } from "./api/workspace-settings-api";
 import type { WorkspaceMembersDto } from "./api/workspace-members-api";
+import type { WorkspaceInvitationsDto } from "./api/workspace-invitations-api";
 
 export const session: SessionDto = {
   user: {
@@ -221,6 +222,26 @@ export const workspaceMembers: WorkspaceMembersDto = {
         canLeave: false,
         assignableRoles: ["admin", "editor", "viewer", "uploader", "analyst"],
       },
+      blockingReasonCodes: [],
+    },
+  ],
+};
+
+export const workspaceInvitations: WorkspaceInvitationsDto = {
+  workspaceId: session.workspace.id,
+  capabilities: {
+    canCreate: true,
+    assignableRoles: ["admin", "editor", "viewer", "uploader", "analyst"],
+  },
+  items: [
+    {
+      id: "77893ce6-8de0-46ca-93de-dc0ebc85c755",
+      role: "viewer",
+      status: "pending",
+      createdAt: updatedAt,
+      expiresAt: "2026-08-06T08:30:00Z",
+      updatedAt,
+      capabilities: { canRevoke: true },
       blockingReasonCodes: [],
     },
   ],

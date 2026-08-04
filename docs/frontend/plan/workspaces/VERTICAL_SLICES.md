@@ -1,6 +1,6 @@
 # Workspaces vertical slices
 
-Статус: D1–D14 accepted 2026-08-03; Slice 0 complete; Slice 1–2 production
+Статус: D1–D14 accepted 2026-08-03; Slice 0 complete; Slice 1–4 production
 gates passed.
 
 ## Ordering rationale
@@ -46,8 +46,8 @@ Progress 2026-08-03:
 - completed at audit time: real PostgreSQL barriers proved two successful
   invitation accepts, successful accept plus revoke, and the former owner
   disable defect. Slice 3 replaced the owner case with passing locked legacy
-  and authoritative transfer regressions; invitation cases remain strict
-  `xfail`;
+  and authoritative transfer regressions; Slice 4 converted the invitation
+  cases into ordinary passing locked regressions;
 - completed: admin/editor/viewer browser capability and responsive geometry at
   1440/920/390, with nine pages free of overflow/browser errors;
 - completed: expanded create/edit/invite, one-time credential and
@@ -192,6 +192,26 @@ Implementation increments 2026-08-03:
 
 Gate: role authority, cross-workspace masking, expiry/revoke/accept race,
 one-time credential handling, no-store behavior and accessibility pass.
+
+Implementation result 2026-08-04:
+
+- `WorkspaceInvitationService` owns bounded read, idempotent create and locked
+  revoke; owner/admin assignable roles and per-row revoke capability are
+  server-projected, and admin cannot manage an admin invitation;
+- deterministic `uuid5` plus stdlib HMAC provides safe retry without plaintext
+  token persistence or a schema change. Only create/replay returns `shareUrl`;
+  later reads contain metadata only and every invitation response is no-store;
+- React settings uses one compact role form, transient copy panel, bounded
+  responsive records, shared confirmation dialog and authoritative reload on
+  `404/409`; no generic CRUD or new dependency was introduced;
+- public preview remains SSR but is side-effect free, `no-store` and
+  `Referrer-Policy: no-referrer`; public accept and legacy revoke now lock the
+  invitation row, so accept/accept and accept/revoke PostgreSQL races have one
+  winner;
+- production browser gate passes owner/admin/viewer authority, token privacy
+  after reload/list, public headers, stale revoke recovery, keyboard dialog
+  flow and 1440/920/390/mobile-landscape geometry. Slice 4 replacement gate is
+  complete; no legacy runtime was deleted because public accept is Slice 5.
 
 ## Slice 5 — public/authenticated invitation accept
 

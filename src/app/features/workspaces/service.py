@@ -170,36 +170,43 @@ class WorkspaceService:
         context: WorkspaceContext,
         invitation_token: str,
     ) -> WorkspaceMember:
-        invitation = await self._resolve_usable_invitation(invitation_token)
-        membership = await self.workspaces.get_membership(
-            user_id=context.user.id,
-            workspace_id=invitation.workspace_id,
-        )
-        if membership is not None and membership.status != WorkspaceMemberStatus.ACTIVE:
-            raise WorkspaceError("Доступ к этому пространству отключен.")
-
-        if membership is None:
-            membership = await self.workspaces.create_member(
-                workspace_id=invitation.workspace_id,
-                user_id=context.user.id,
-                role=invitation.role,
-                invited_by_user_id=invitation.invited_by_user_id,
+        try:
+            invitation = await self.workspaces.get_invitation_by_token_hash_for_update(
+                hash_invitation_token(invitation_token)
             )
+            invitation = self._require_usable_invitation(invitation)
+            membership = await self.workspaces.get_membership(
+                user_id=context.user.id,
+                workspace_id=invitation.workspace_id,
+            )
+            if membership is not None and membership.status != WorkspaceMemberStatus.ACTIVE:
+                raise WorkspaceError("Доступ к этому пространству отключен.")
 
-        invitation.status = WorkspaceInvitationStatus.ACCEPTED
-        invitation.accepted_by_user_id = context.user.id
-        invitation.accepted_at = utc_now()
-        await self._record_audit_event(
-            workspace_id=invitation.workspace_id,
-            event_type=WorkspaceAuditEventType.INVITATION_ACCEPTED,
-            actor_user_id=context.user.id,
-            entity_type="workspace_invitation",
-            entity_id=invitation.id,
-            target_user_id=context.user.id,
-            details={"role": invitation.role.value},
-        )
-        await self.session.commit()
-        return membership
+            if membership is None:
+                membership = await self.workspaces.create_member(
+                    workspace_id=invitation.workspace_id,
+                    user_id=context.user.id,
+                    role=invitation.role,
+                    invited_by_user_id=invitation.invited_by_user_id,
+                )
+
+            invitation.status = WorkspaceInvitationStatus.ACCEPTED
+            invitation.accepted_by_user_id = context.user.id
+            invitation.accepted_at = utc_now()
+            await self._record_audit_event(
+                workspace_id=invitation.workspace_id,
+                event_type=WorkspaceAuditEventType.INVITATION_ACCEPTED,
+                actor_user_id=context.user.id,
+                entity_type="workspace_invitation",
+                entity_id=invitation.id,
+                target_user_id=context.user.id,
+                details={"role": invitation.role.value},
+            )
+            await self.session.commit()
+            return membership
+        except Exception:
+            await self.session.rollback()
+            raise
 
     async def revoke_invitation(
         self,
@@ -210,24 +217,28 @@ class WorkspaceService:
         if not can_invite_members(context.membership):
             raise WorkspaceError("Недостаточно прав для отзыва приглашения.")
 
-        invitation = await self.workspaces.get_pending_invitation(
-            workspace_id=context.workspace.id,
-            invitation_id=invitation_id,
-        )
-        if invitation is None:
-            raise WorkspaceError("Приглашение не найдено или уже недействительно.")
+        try:
+            invitation = await self.workspaces.get_invitation_for_update(
+                workspace_id=context.workspace.id,
+                invitation_id=invitation_id,
+            )
+            if invitation is None or invitation.status != WorkspaceInvitationStatus.PENDING:
+                raise WorkspaceError("Приглашение не найдено или уже недействительно.")
 
-        invitation.status = WorkspaceInvitationStatus.REVOKED
-        invitation.revoked_at = utc_now()
-        await self._record_audit_event(
-            workspace_id=context.workspace.id,
-            event_type=WorkspaceAuditEventType.INVITATION_REVOKED,
-            actor_user_id=context.user.id,
-            entity_type="workspace_invitation",
-            entity_id=invitation.id,
-            details={"role": invitation.role.value},
-        )
-        await self.session.commit()
+            invitation.status = WorkspaceInvitationStatus.REVOKED
+            invitation.revoked_at = utc_now()
+            await self._record_audit_event(
+                workspace_id=context.workspace.id,
+                event_type=WorkspaceAuditEventType.INVITATION_REVOKED,
+                actor_user_id=context.user.id,
+                entity_type="workspace_invitation",
+                entity_id=invitation.id,
+                details={"role": invitation.role.value},
+            )
+            await self.session.commit()
+        except Exception:
+            await self.session.rollback()
+            raise
 
     async def update_member_role(
         self,
@@ -448,14 +459,17 @@ class WorkspaceService:
         invitation = await self.workspaces.get_invitation_by_token_hash(
             hash_invitation_token(invitation_token)
         )
+        return self._require_usable_invitation(invitation)
+
+    def _require_usable_invitation(
+        self,
+        invitation: WorkspaceInvitation | None,
+    ) -> WorkspaceInvitation:
         if invitation is None or invitation.status != WorkspaceInvitationStatus.PENDING:
             raise WorkspaceError("Приглашение не найдено или уже недействительно.")
 
         if invitation.expires_at <= utc_now():
-            invitation.status = WorkspaceInvitationStatus.EXPIRED
-            await self.session.commit()
             raise WorkspaceError("Срок действия приглашения истек.")
-
         return invitation
 
 

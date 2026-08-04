@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.db.session import get_session
 from app.features.users.models import User
 from app.features.workspaces.dependencies import require_member_management_context
+from app.features.workspaces.errors import WorkspaceError
 from app.features.workspaces.models import (
     Workspace,
     WorkspaceMember,
@@ -16,7 +17,7 @@ from app.features.workspaces.models import (
     WorkspaceRole,
     WorkspaceType,
 )
-from app.features.workspaces.service import WorkspaceContext
+from app.features.workspaces.service import WorkspaceContext, WorkspaceService
 from app.main import create_app
 
 
@@ -121,3 +122,25 @@ def test_member_management_routes_mask_non_current_workspace_before_resource_loo
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Not Found"}
+
+
+def test_public_invitation_preview_does_not_cache_or_forward_token_referrer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+
+    async def session_override() -> AsyncIterator[Any]:
+        yield object()
+
+    async def invalid_preview(self, invitation_token: str):
+        raise WorkspaceError("Приглашение не найдено или уже недействительно.")
+
+    monkeypatch.setattr(WorkspaceService, "preview_invitation", invalid_preview)
+    app.dependency_overrides[get_session] = session_override
+
+    with TestClient(app) as client:
+        response = client.get("/workspaces/invitations/private-token")
+
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["Referrer-Policy"] == "no-referrer"

@@ -180,6 +180,71 @@
   gap: var(--space-4);
 }
 
+.invitationForm {
+  display: flex;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.invitationForm label,
+.invitationShareField {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.invitationForm select {
+  min-width: 14rem;
+  min-height: var(--control-height);
+}
+
+.invitationShareField input {
+  width: 100%;
+  min-width: 0;
+}
+
+.invitationShareActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.invitationList {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+}
+
+.invitationRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+}
+
+.invitationRow + .invitationRow {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.invitationRow > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.invitationRow > div:first-child span,
+.invitationEmpty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
 .facts,
 .impactGrid {
   display: grid;
@@ -251,6 +316,27 @@
   .facts,
   .impactGrid {
     grid-template-columns: 1fr;
+  }
+
+  .invitationForm,
+  .invitationShareActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .invitationForm select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .invitationRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: var(--space-3);
+  }
+
+  .invitationRow > button {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 
   .memberRow {

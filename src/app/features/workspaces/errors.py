@@ -40,3 +40,17 @@ class WorkspaceMemberTransitionError(WorkspaceError):
 
 class WorkspaceOwnershipTransferConflictError(WorkspaceError):
     pass
+
+
+class WorkspaceInvitationConflictError(WorkspaceError):
+    pass
+
+
+class WorkspaceInvitationNotFoundError(WorkspaceError):
+    pass
+
+
+class WorkspaceInvitationTransitionError(WorkspaceError):
+    def __init__(self, message: str, *, reason_codes: list[str]) -> None:
+        super().__init__(message)
+        self.reason_codes = reason_codes

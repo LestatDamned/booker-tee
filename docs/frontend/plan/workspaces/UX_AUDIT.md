@@ -271,6 +271,24 @@ not merely an editable entity.
   (`scripts/workspaces_slice01_browser.py`,
   `scripts/workspaces_slice02_browser.py`).
 
+### Slice 4 invitation administration — 2026-08-04
+
+- Invitation creation stays inside the existing flat settings surface: one
+  role field and one primary action, without a panel or multi-step form.
+- The share URL is a transient local result with explicit copy and dismiss
+  actions. It disappears after dismissal, navigation or reload and is not
+  reconstructed from the directory response.
+- Pending invitations reuse `ResponsiveRecordCollection`; role, expiry and
+  status keep a stable reading order while revoke uses the shared confirmation
+  dialog and restores focus to its trigger.
+- Owner, admin and viewer screens render server capabilities: owners may issue
+  every supported role, admins only non-admin roles, and viewers receive no
+  invitation records or controls.
+- Production captures at 1440, 920, 390 portrait and mobile landscape pass
+  without horizontal overflow or browser errors. At narrow widths the AppShell
+  hides its redundant workspace label so brand and menu remain legible
+  (`scripts/workspaces_slice04_browser.py`).
+
 ## Accessibility and keyboard contract (proposed gate)
 
 - Route change focuses main heading; AppShell skip link continues to work.

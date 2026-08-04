@@ -1,6 +1,6 @@
 # Workspaces React migration audit
 
-Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1–3 production gates passed 2026-08-04; Slice 4 invitations next`.
+Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1–4 production gates passed 2026-08-04; Slice 5 public invitation accept next`.
 
 Этот временный child stage ведёт Stage 7 Wave C migration authenticated
 workflow Workspaces. На этапе аудита production runtime не менялся. После
@@ -17,7 +17,8 @@ text scaling, reduced motion, stale recovery и прямые запрещённ�
 Ручной прогон со screen reader исключён из gate по продуктовому решению
 2026-08-04; это не отменяет существующие semantic labels и автоматические
 accessibility assertions. Legacy member/invitation surface пока сохраняется,
-поскольку тот же SSR runtime обслуживает ещё не перенесённый Slice 4.
+поскольку тот же SSR runtime обслуживает public accept Slice 5 и другие
+legacy workspace actions.
 
 ## Граница аудита
 
@@ -50,9 +51,11 @@ bounded member directory, inline role update и disable/reactivate на этой
 atomic ownership transfer и self-leave с committed session snapshot и hard
 boundary reload. `/api/v1/session` остаётся источником
 активного workspace, membership, capabilities и CSRF token
-(`src/app/api/v1/session/*`). Invitations и lifecycle mutations по-прежнему
-обслуживаются legacy workflow или отсутствуют; React settings также
-показывает read-only lifecycle impact.
+(`src/app/api/v1/session/*`). Slice 4 добавил authenticated invitation
+administration в React settings: pending metadata, idempotent one-time-link
+create и locked revoke. Public preview/accept остаётся hardened SSR bridge;
+lifecycle mutations отсутствуют. React settings также показывает read-only
+lifecycle impact.
 
 ## Материалы
 
@@ -254,9 +257,10 @@ Wave C, а также первоначальное сохранение public i
 
 Characterization gates для PostgreSQL invitation consume/revoke и last-owner
 transitions, route-level CSRF/pre-lookup masking, session fallback и точного
-deactivate impact закрыты. Они фиксируют существующие нарушения, а не объявляют
-текущую реализацию безопасной: strict `xfail` станут обычными passing tests при
-реализации locked actors в соответствующих production slices.
+deactivate impact закрыты. Найденные invitation races исправлены в Slice 4, а
+last-owner races — в Slice 3; бывшие strict `xfail` теперь являются обычными
+passing PostgreSQL regressions. Lifecycle replacement остаётся отдельным
+последующим slice.
 
 Фактический прогресс Slice 0 на 2026-08-03: CSRF и pre-lookup masking matrices,
 session fallback/auto-create side effects, service-level concurrency failures и

@@ -358,7 +358,7 @@
   }
 }
 
-@container (max-width: 20rem) {
+@container (max-width: 26rem) {
   .mobileHeader {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: clamp(0.25rem, 2vw, var(--space-3));
