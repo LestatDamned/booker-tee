@@ -1,6 +1,6 @@
 # Workspaces vertical slices
 
-Статус: D1–D14 accepted 2026-08-03; Slice 0 complete; Slice 1–4 production
+Статус: D1–D14 accepted 2026-08-03; Slice 0 complete; Slice 1–5 production
 gates passed.
 
 ## Ordering rationale
@@ -228,6 +228,23 @@ outcomes, CSRF on accept, atomic membership/session switch and safe navigation.
 Gate: anonymous/authenticated/new-user/existing/disabled-member/concurrent
 accept flows and token privacy pass. Only then may old invitation template/router
 code be deleted or reduced.
+
+Implementation result 2026-08-04:
+
+- Option A was implemented: the minimal SSR preview/accept adapter remains,
+  while `WorkspaceInvitationService` is the only public invitation authority;
+- preview returns only workspace display name, role and expiry; every unusable
+  credential or membership state shares one privacy-safe message;
+- accept locks workspace, credential and active session, then creates the
+  membership, consumes the credential, records audit and switches
+  `UserSession.current_workspace_id` in one commit;
+- locked repository reads refresh existing ORM identity-map state, preventing
+  a waiter from reusing stale invitation/workspace snapshots;
+- existing safe `next` handling covers login/signup return without a public
+  React shell. Success redirects to canonical `/app/workspaces`;
+- PostgreSQL accept/accept and accept/revoke races have exactly one winner;
+  the browser gate covers login/signup return, replay, privacy-safe outcomes
+  and desktop/mobile geometry. Slice 5 gate is complete.
 
 ## Slice 6 — deactivate/restore and cross-feature consequence
 

@@ -11,6 +11,7 @@ from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.users.errors import UserError
 from app.features.users.service import AuthenticationService
+from app.features.workspaces.application.invitations import WorkspaceInvitationService
 from app.features.workspaces.commands import (
     CreateWorkspaceCommand,
     CreateWorkspaceInvitationCommand,
@@ -23,7 +24,7 @@ from app.features.workspaces.dependencies import (
     require_member_management_context,
     require_workspace_management_context,
 )
-from app.features.workspaces.errors import WorkspaceError
+from app.features.workspaces.errors import WorkspaceError, WorkspaceInvitationNotFoundError
 from app.features.workspaces.models import WorkspaceRole, WorkspaceType
 from app.features.workspaces.permissions import (
     INVITABLE_ROLES,
@@ -281,8 +282,10 @@ async def preview_workspace_invitation(
     ] = None,
 ) -> HTMLResponse:
     try:
-        invitation = await WorkspaceService(session, settings).preview_invitation(invitation_token)
-    except WorkspaceError as exc:
+        invitation = await WorkspaceInvitationService(session, settings).preview(
+            invitation_token=invitation_token
+        )
+    except WorkspaceInvitationNotFoundError as exc:
         invitation = None
         error = str(exc)
     else:
@@ -314,21 +317,24 @@ async def accept_workspace_invitation(
     settings: Annotated[Settings, Depends(get_settings)],
     context: Annotated[WorkspaceContext, Depends(get_current_workspace_context)],
 ) -> Response:
+    session_token = session_token_from_request(request, settings)
+    if session_token is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     try:
-        membership = await WorkspaceService(session, settings).accept_invitation(
-            context=context,
+        await WorkspaceInvitationService(session, settings).accept(
+            actor_user_id=context.user.id,
             invitation_token=invitation_token,
+            session_token=session_token,
         )
-    except WorkspaceError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-    await switch_session_workspace(
-        request=request,
-        session=session,
-        settings=settings,
-        workspace_id=membership.workspace_id,
-    )
-    return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+    except WorkspaceInvitationNotFoundError:
+        return RedirectResponse(
+            url=request.url_for(
+                "preview_workspace_invitation",
+                invitation_token=invitation_token,
+            ).path,
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    return RedirectResponse(url="/app/workspaces", status_code=status.HTTP_303_SEE_OTHER)
 
 
 async def render_workspaces_index(

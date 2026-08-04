@@ -1,6 +1,6 @@
 # Workspaces replacement test manifest
 
-Статус: accepted replacement manifest; Slice 0 characterization and Slice 1–4
+Статус: accepted replacement manifest; Slice 0 characterization and Slice 1–5
 production gates complete.
 
 ## Existing evidence
@@ -39,11 +39,10 @@ characterizations are now ordinary passing regression tests, supplemented by a
 real concurrent transfer test. Database tests use ordinary flush/commit and
 real PostgreSQL locking: no fake transaction implementation is involved.
 
-Current gaps after Slice 4: public invitation accept still uses the hardened
-SSR bridge pending Slice 5, and lifecycle mutations remain a later replacement
-slice. Directory, settings, members and authenticated invitation administration
-have application/API/React evidence plus PostgreSQL isolation/concurrency and
-production browser gates.
+Current gap after Slice 5: lifecycle mutations remain a later replacement
+slice. Directory, settings, members, invitation administration and public
+accept have application/API or minimal-adapter evidence plus PostgreSQL
+isolation/concurrency and production browser gates.
 
 The accepted Slice 1 contract now has a standalone non-runtime visual prototype
 at `docs/frontend/plan/workspaces/prototype/index.html`. Its 2026-08-03 capture
@@ -188,6 +187,22 @@ Current Slice 4 evidence:
 - full regressions on 2026-08-04: 800 backend tests passed; 79 frontend test
   files / 472 tests passed; Ruff format/check, `ty`, OpenAPI drift, Prettier,
   ESLint, style policy, TypeScript and production build passed.
+
+Current Slice 5 evidence:
+
+- `test_workspace_invitation_application.py` covers the public preview DTO,
+  uniform unavailable states, atomic invitation/session mutation and refusal
+  to consume a credential for an existing or disabled membership;
+- `test_workspace_route_security.py` covers public security headers, CSRF and
+  canonical success/privacy-safe failure navigation;
+- `test_workspace_concurrency_postgres.py` proves one committed membership and
+  one switched session for accept/accept, plus one winner for accept/revoke;
+- `scripts/workspaces_slice05_browser.py` covers anonymous preview, existing
+  user login return, new user signup return, replay, revoked/invalid uniformity
+  and 1440/390 geometry.
+- full regressions on 2026-08-04: 808 backend tests passed; 79 frontend test
+  files / 472 tests passed; Ruff, `ty`, OpenAPI drift, frontend lint/style/
+  typecheck and production build passed.
 
 ### Lifecycle
 

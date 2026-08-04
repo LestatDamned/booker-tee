@@ -1,8 +1,8 @@
 # Workspaces API and state boundary
 
-Статус: target accepted 2026-08-03 in ADR-0006; Slice 1–4 production-gated
+Статус: target accepted 2026-08-03 in ADR-0006; Slice 1–5 production-gated
 2026-08-04. Lifecycle endpoint group remains proposed; public invitation
-preview/accept remains the retained bridge for Slice 5.
+preview/accept is the retained minimal SSR bridge over the Slice 5 actor.
 
 ## Current boundary
 
@@ -113,7 +113,8 @@ rows remain proposed contracts.
 | `GET` | `/api/v1/workspaces/{id}/invitations` | **Implemented Slice 4:** bounded pending metadata and server capabilities; never token/hash |
 | `POST` | `/api/v1/workspaces/{id}/invitations` | **Implemented Slice 4:** role + `Idempotency-Key`; returns transient share URL only in this response (and its safe replay) |
 | `POST` | `/api/v1/workspaces/{id}/invitations/{invitationId}/revoke` | **Implemented Slice 4:** expected timestamp and locked transition |
-| `GET/POST` | public credential boundary TBD | Preview/accept depends on D11 and public routing decision |
+| `GET` | `/workspaces/invitations/{token}` | **Implemented Slice 5:** minimal no-store/no-referrer SSR preview with bounded public facts |
+| `POST` | `/workspaces/invitations/{token}/accept` | **Implemented Slice 5:** CSRF-protected atomic membership, invitation, audit and current-session transition |
 
 Create derives the invitation row ID with `uuid5(workspace, actor, key)` and
 the credential with stdlib HMAC over that ID. This makes an ambiguous retry
@@ -122,9 +123,9 @@ Reuse with another role or terminal invitation returns `idempotency_conflict`.
 All invitation responses are `no-store`; list/revoke DTOs never contain the
 credential or its hash.
 
-The three authenticated invitation endpoints above are implemented. Only the
-public credential boundary remains proposed for Slice 5; it stays on the
-hardened legacy adapter meanwhile.
+The authenticated endpoints and minimal public credential boundary are
+implemented. Public presentation intentionally remains SSR per D11; it has no
+independent domain authority and success returns to canonical `/app/workspaces`.
 
 ## Proposed DTO facts
 

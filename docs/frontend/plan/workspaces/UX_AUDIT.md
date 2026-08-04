@@ -289,6 +289,18 @@ not merely an editable entity.
   hides its redundant workspace label so brand and menu remain legible
   (`scripts/workspaces_slice04_browser.py`).
 
+### Slice 5 public invitation bridge — 2026-08-04
+
+- D11's minimal SSR presentation is retained instead of introducing a second
+  public React shell. It exposes only workspace name, role and expiry.
+- Anonymous users have direct login and signup actions with a validated local
+  return path; authenticated users have one primary accept action.
+- Successful accept navigates to canonical `/app/workspaces`; unavailable
+  credentials use one short message without revealing status.
+- The accepted mobile state passes at 390 px without horizontal overflow or
+  sub-44 px controls; the unavailable desktop state remains visually aligned
+  with legacy login/signup (`scripts/workspaces_slice05_browser.py`).
+
 ## Accessibility and keyboard contract (proposed gate)
 
 - Route change focuses main heading; AppShell skip link continues to work.

@@ -1,6 +1,6 @@
 # Workspaces React migration audit
 
-Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1–4 production gates passed 2026-08-04; Slice 5 public invitation accept next`.
+Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1–5 production gates passed 2026-08-04; Slice 6 lifecycle next`.
 
 Этот временный child stage ведёт Stage 7 Wave C migration authenticated
 workflow Workspaces. На этапе аудита production runtime не менялся. После
@@ -53,8 +53,11 @@ boundary reload. `/api/v1/session` остаётся источником
 активного workspace, membership, capabilities и CSRF token
 (`src/app/api/v1/session/*`). Slice 4 добавил authenticated invitation
 administration в React settings: pending metadata, idempotent one-time-link
-create и locked revoke. Public preview/accept остаётся hardened SSR bridge;
-lifecycle mutations отсутствуют. React settings также показывает read-only
+create и locked revoke. Slice 5 сохранил public SSR bridge по D11, но перевёл
+preview/accept authority на `WorkspaceInvitationService`. Accept теперь одной
+транзакцией создаёт membership, поглощает credential, пишет audit event и
+переключает текущую `UserSession`; success ведёт на `/app/workspaces`.
+Lifecycle mutations отсутствуют. React settings также показывает read-only
 lifecycle impact.
 
 ## Материалы

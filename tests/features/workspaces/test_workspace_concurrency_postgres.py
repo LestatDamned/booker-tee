@@ -9,9 +9,14 @@ import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.core.security import hash_session_token
 from app.core.settings import Settings
 from app.db.base import utc_now
-from app.features.users.models import User
+from app.features.users.models import User, UserSession
+from app.features.workspaces.application.invitations import (
+    AcceptedWorkspaceInvitation,
+    WorkspaceInvitationService,
+)
 from app.features.workspaces.models import (
     Workspace,
     WorkspaceInvitation,
@@ -39,12 +44,13 @@ async def test_postgres_concurrent_invitation_accept_has_exactly_one_winner() ->
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     seed = await seed_invitation_race(sessions, invitee_count=2)
 
-    async def accept_once(invitee: ActorIds) -> WorkspaceMember:
+    async def accept_once(invitee: ActorIds) -> AcceptedWorkspaceInvitation:
         async with sessions() as session:
-            context = await load_context(session, invitee)
-            return await WorkspaceService(session, workspace_test_settings()).accept_invitation(
-                context=context,
+            assert invitee.session_token is not None
+            return await WorkspaceInvitationService(session, workspace_test_settings()).accept(
+                actor_user_id=invitee.user_id,
                 invitation_token=seed.token,
+                session_token=invitee.session_token,
             )
 
     try:
@@ -64,8 +70,16 @@ async def test_postgres_concurrent_invitation_accept_has_exactly_one_winner() ->
                     WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
                 )
             )
+            switched_sessions = await session.scalar(
+                select(func.count())
+                .select_from(UserSession)
+                .where(
+                    UserSession.user_id.in_([invitee.user_id for invitee in seed.invitees]),
+                    UserSession.current_workspace_id == seed.target_workspace_id,
+                )
+            )
 
-        assert (successful_accepts, accepted_members) == (1, 1)
+        assert (successful_accepts, accepted_members, switched_sessions) == (1, 1, 1)
     finally:
         await delete_invitation_race(sessions, seed)
         await engine.dispose()
@@ -78,12 +92,14 @@ async def test_postgres_invitation_accept_and_revoke_have_exactly_one_winner() -
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     seed = await seed_invitation_race(sessions, invitee_count=1)
 
-    async def accept_once() -> WorkspaceMember:
+    async def accept_once() -> AcceptedWorkspaceInvitation:
         async with sessions() as session:
-            context = await load_context(session, seed.invitees[0])
-            return await WorkspaceService(session, workspace_test_settings()).accept_invitation(
-                context=context,
+            invitee = seed.invitees[0]
+            assert invitee.session_token is not None
+            return await WorkspaceInvitationService(session, workspace_test_settings()).accept(
+                actor_user_id=invitee.user_id,
                 invitation_token=seed.token,
+                session_token=invitee.session_token,
             )
 
     async def revoke_once() -> None:
@@ -153,6 +169,7 @@ class ActorIds:
     user_id: UUID
     workspace_id: UUID
     member_id: UUID
+    session_token: str | None = None
 
 
 @dataclass(frozen=True)
@@ -193,6 +210,7 @@ async def seed_invitation_race(
     invitation_id = uuid4()
     token = f"postgres-invitation-{invitation_id}"
     invitees: list[ActorIds] = []
+    user_sessions: list[UserSession] = []
     users = [
         User(
             id=owner_user_id,
@@ -224,6 +242,7 @@ async def seed_invitation_race(
         user_id = uuid4()
         workspace_id = uuid4()
         member_id = uuid4()
+        session_token = f"postgres-session-{user_id}"
         users.append(
             User(
                 id=user_id,
@@ -255,11 +274,20 @@ async def seed_invitation_race(
                 user_id=user_id,
                 workspace_id=workspace_id,
                 member_id=member_id,
+                session_token=session_token,
+            )
+        )
+        user_sessions.append(
+            UserSession(
+                user_id=user_id,
+                current_workspace_id=workspace_id,
+                session_token_hash=hash_session_token(session_token),
+                expires_at=utc_now() + timedelta(hours=1),
             )
         )
 
     async with sessions() as session:
-        session.add_all([*users, *workspaces, *members])
+        session.add_all([*users, *workspaces, *members, *user_sessions])
         session.add(
             WorkspaceInvitation(
                 id=invitation_id,

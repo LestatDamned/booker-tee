@@ -3,10 +3,11 @@
 Статус: accepted gate manifest. Nothing listed here may be deleted before its
 explicit replacement gate.
 
-Slice 1–4 implementation result 2026-08-04: **runtime nothing deleted**. Legacy `/workspaces`, its POST
+Slice 1–5 implementation result 2026-08-04: Legacy `/workspaces`, its POST
 handlers, presenters, templates, CSS, AppShell links and public invitation
-bridge are deliberately retained because public invitation accept remains
-Slice 5 and the SSR index combines all authenticated controls in one runtime.
+bridge are deliberately retained because the SSR index still combines
+authenticated controls and public presentation remains the accepted minimal
+bridge.
 The new React directory/settings routes and
 API coexist with them; settings links inside the React directory are canonical,
 while cross-runtime entry links remain legacy until the authenticated workflow
@@ -32,6 +33,11 @@ Keep initially per D11:
 - `GET/POST /workspaces/invitations/{invitation_token}...` adapter;
 - `templates/workspaces/accept_invitation.html`;
 - login/signup safe return integration.
+
+Slice 5 result: keep these presentation consumers. The bridge now calls
+`WorkspaceInvitationService`; obsolete `WorkspaceService.preview_invitation`,
+`accept_invitation` and their private resolver were removed after the
+application/PostgreSQL/browser gate. No public route or template was deleted.
 
 Delete them only if a public React/auth route passes anonymous, authenticated,
 login/signup return, CSRF, privacy and replay replacement gates. If retained,

@@ -9,7 +9,7 @@
         <p class="eyebrow">приглашение в пространство</p>
         <h1>Приглашение</h1>
       </div>
-      <a class="button" href="/workspaces">{{ icon("folder") }} пространства</a>
+      <a class="button" href="/app/workspaces">{{ icon("folder") }} пространства</a>
     </div>
 
     {% if error %}
@@ -18,7 +18,7 @@
       <div class="summary-grid">
         <div class="metric">
           <span>пространство</span>
-          <strong class="truncate-label" title="{{ invitation.workspace.name }}">{{ invitation.workspace.name }}</strong>
+          <strong class="truncate-label" title="{{ invitation.workspace_name }}">{{ invitation.workspace_name }}</strong>
         </div>
         <div class="metric">
           <span>роль</span>

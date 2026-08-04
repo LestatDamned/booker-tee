@@ -25,7 +25,10 @@ class WorkspaceRepository:
 
     async def lock_for_update(self, workspace_id: UUID) -> Workspace | None:
         result = await self.session.execute(
-            select(Workspace).where(Workspace.id == workspace_id).with_for_update()
+            select(Workspace)
+            .where(Workspace.id == workspace_id)
+            .execution_options(populate_existing=True)
+            .with_for_update()
         )
         return result.scalar_one_or_none()
 
@@ -406,6 +409,7 @@ class WorkspaceRepository:
             select(WorkspaceInvitation)
             .options(selectinload(WorkspaceInvitation.workspace))
             .where(WorkspaceInvitation.token_hash == token_hash)
+            .execution_options(populate_existing=True)
             .with_for_update()
             .limit(1)
         )

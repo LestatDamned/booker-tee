@@ -1,3 +1,4 @@
+from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock
@@ -8,7 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
 from app.db.base import utc_now
-from app.features.workspaces.application.invitations import WorkspaceInvitationService
+from app.features.workspaces.application.invitations import (
+    PUBLIC_INVITATION_UNAVAILABLE,
+    WorkspaceInvitationService,
+)
 from app.features.workspaces.domain.types import (
     WorkspaceInvitationStatus,
     WorkspaceMemberStatus,
@@ -55,6 +59,11 @@ def invitation(workspace_id, actor_user_id, role=WorkspaceRole.VIEWER):
             created_at=now,
             updated_at=now,
             revoked_at=None,
+            workspace=SimpleNamespace(
+                id=workspace_id,
+                name="Family",
+                is_active=True,
+            ),
         ),
     )
 
@@ -78,13 +87,19 @@ def service_with_repo():
         create_invitation=AsyncMock(),
         create_audit_event=AsyncMock(),
         list_pending_invitations=AsyncMock(),
+        get_invitation_by_token_hash=AsyncMock(),
+        get_invitation_by_token_hash_for_update=AsyncMock(),
+        get_membership=AsyncMock(),
+        create_member=AsyncMock(),
     )
+    users = SimpleNamespace(get_active_session_by_token_hash_for_update=AsyncMock())
     service._workspaces = cast(Any, repository)
-    return service, session, repository
+    service._users = cast(Any, users)
+    return service, session, repository, users
 
 
 async def test_create_is_idempotent_and_returns_only_hashed_persistence() -> None:
-    service, session, repository = service_with_repo()
+    service, session, repository, _users = service_with_repo()
     workspace, actor = actor_context()
     created = invitation(workspace.id, actor.user_id)
     repository.lock_for_update.return_value = workspace
@@ -117,7 +132,7 @@ async def test_create_is_idempotent_and_returns_only_hashed_persistence() -> Non
 
 
 async def test_viewer_sees_no_invitation_identity_or_capabilities() -> None:
-    service, _session, repository = service_with_repo()
+    service, _session, repository, _users = service_with_repo()
     workspace, actor = actor_context(WorkspaceRole.VIEWER)
     repository.get_visible_membership_for_user.return_value = actor
 
@@ -130,7 +145,7 @@ async def test_viewer_sees_no_invitation_identity_or_capabilities() -> None:
 
 
 async def test_admin_cannot_create_or_revoke_admin_invitation() -> None:
-    service, session, repository = service_with_repo()
+    service, session, repository, _users = service_with_repo()
     workspace, actor = actor_context(WorkspaceRole.ADMIN)
     repository.lock_for_update.return_value = workspace
     repository.get_membership_for_update.return_value = actor
@@ -157,7 +172,7 @@ async def test_admin_cannot_create_or_revoke_admin_invitation() -> None:
 
 
 async def test_foreign_invitation_id_is_masked() -> None:
-    service, _session, repository = service_with_repo()
+    service, _session, repository, _users = service_with_repo()
     workspace, actor = actor_context()
     repository.lock_for_update.return_value = workspace
     repository.get_membership_for_update.return_value = actor
@@ -170,3 +185,98 @@ async def test_foreign_invitation_id_is_masked() -> None:
             invitation_id=uuid4(),
             expected_updated_at=utc_now(),
         )
+
+
+async def test_public_preview_has_one_safe_unavailable_outcome() -> None:
+    service, _session, repository, _users = service_with_repo()
+    target = invitation(uuid4(), uuid4())
+    repository.get_invitation_by_token_hash.side_effect = [target, None]
+
+    preview = await service.preview(invitation_token="usable-token")
+
+    assert preview.workspace_name == "Family"
+    assert preview.role == WorkspaceRole.VIEWER
+    with pytest.raises(WorkspaceInvitationNotFoundError) as error:
+        await service.preview(invitation_token="invalid-token")
+    assert str(error.value) == PUBLIC_INVITATION_UNAVAILABLE
+
+
+@pytest.mark.parametrize(
+    ("status", "expires_in", "workspace_active", "role"),
+    [
+        (WorkspaceInvitationStatus.ACCEPTED, timedelta(hours=1), True, WorkspaceRole.VIEWER),
+        (WorkspaceInvitationStatus.REVOKED, timedelta(hours=1), True, WorkspaceRole.VIEWER),
+        (WorkspaceInvitationStatus.PENDING, timedelta(seconds=-1), True, WorkspaceRole.VIEWER),
+        (WorkspaceInvitationStatus.PENDING, timedelta(hours=1), False, WorkspaceRole.VIEWER),
+        (WorkspaceInvitationStatus.PENDING, timedelta(hours=1), True, WorkspaceRole.OWNER),
+    ],
+)
+async def test_public_preview_masks_every_unusable_credential_state(
+    status: WorkspaceInvitationStatus,
+    expires_in: timedelta,
+    workspace_active: bool,
+    role: WorkspaceRole,
+) -> None:
+    service, _session, repository, _users = service_with_repo()
+    target = invitation(uuid4(), uuid4(), role)
+    target.status = status
+    target.expires_at = utc_now() + expires_in
+    target.workspace.is_active = workspace_active
+    repository.get_invitation_by_token_hash.return_value = target
+
+    with pytest.raises(WorkspaceInvitationNotFoundError) as error:
+        await service.preview(invitation_token="private-token")
+
+    assert str(error.value) == PUBLIC_INVITATION_UNAVAILABLE
+
+
+async def test_accept_consumes_invitation_and_switches_session_atomically() -> None:
+    service, session, repository, users = service_with_repo()
+    target = invitation(uuid4(), uuid4(), WorkspaceRole.EDITOR)
+    user_id = uuid4()
+    user_session = SimpleNamespace(current_workspace_id=uuid4(), last_seen_at=utc_now())
+    repository.get_invitation_by_token_hash.return_value = target
+    repository.lock_for_update.return_value = target.workspace
+    repository.get_invitation_by_token_hash_for_update.return_value = target
+    repository.get_membership.return_value = None
+    repository.create_member.return_value = SimpleNamespace(id=uuid4())
+    users.get_active_session_by_token_hash_for_update.return_value = user_session
+
+    result = await service.accept(
+        actor_user_id=user_id,
+        invitation_token="usable-token",
+        session_token="session-token",
+    )
+
+    assert result.workspace_id == target.workspace_id
+    assert target.status == WorkspaceInvitationStatus.ACCEPTED
+    assert target.accepted_by_user_id == user_id
+    assert user_session.current_workspace_id == target.workspace_id
+    repository.create_member.assert_awaited_once()
+    session.commit.assert_awaited_once()
+    session.rollback.assert_not_awaited()
+
+
+async def test_accept_does_not_consume_invitation_for_existing_membership() -> None:
+    service, session, repository, users = service_with_repo()
+    target = invitation(uuid4(), uuid4())
+    user_session = SimpleNamespace(current_workspace_id=uuid4(), last_seen_at=utc_now())
+    repository.get_invitation_by_token_hash.return_value = target
+    repository.lock_for_update.return_value = target.workspace
+    repository.get_invitation_by_token_hash_for_update.return_value = target
+    repository.get_membership.return_value = SimpleNamespace(status=WorkspaceMemberStatus.DISABLED)
+    users.get_active_session_by_token_hash_for_update.return_value = user_session
+
+    with pytest.raises(WorkspaceInvitationNotFoundError) as error:
+        await service.accept(
+            actor_user_id=uuid4(),
+            invitation_token="usable-token",
+            session_token="session-token",
+        )
+
+    assert str(error.value) == PUBLIC_INVITATION_UNAVAILABLE
+    assert target.status == WorkspaceInvitationStatus.PENDING
+    assert user_session.current_workspace_id != target.workspace_id
+    repository.create_member.assert_not_awaited()
+    session.commit.assert_not_awaited()
+    session.rollback.assert_awaited_once()
