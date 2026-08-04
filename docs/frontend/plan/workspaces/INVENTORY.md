@@ -217,9 +217,10 @@ coverage, а не к отсутствию runtime guard (`dependencies.py`, `rou
 6. **Partly resolved — invitation create is not idempotent.** React workspace
    create has `Idempotency-Key`/fingerprint protection; legacy invitation retry
    can still create multiple invitations.
-7. **Medium — deactivation consequence is undefined.** Model fields exist, but
-   there is no atomic policy for sessions, invitations, Chat/integration
-   bindings, drafts or in-flight requests.
+7. **Resolved Slice 6 — deactivation consequence was undefined.**
+   `WorkspaceLifecycleService` now owns the locked session/invitation/
+   integration/Chat transaction; unsafe request and import completion boundaries
+   recheck the active workspace. Restore does not resurrect revoked runtime.
 8. **Medium — invitation token is present in URL/history and login return.** It
    is high entropy and stored only as hash, but no explicit no-store/referrer
    response contract is present.

@@ -90,6 +90,22 @@ class UserRepository:
         )
         return result.scalar_one()
 
+    async def list_active_sessions_for_workspace_for_update(
+        self,
+        workspace_id: UUID,
+    ) -> list[UserSession]:
+        result = await self.session.execute(
+            select(UserSession)
+            .where(
+                UserSession.current_workspace_id == workspace_id,
+                UserSession.revoked_at.is_(None),
+                UserSession.expires_at > utc_now(),
+            )
+            .order_by(UserSession.user_id, UserSession.id)
+            .with_for_update()
+        )
+        return list(result.scalars().all())
+
     async def move_active_workspace_sessions(
         self,
         *,

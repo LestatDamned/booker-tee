@@ -3,7 +3,7 @@
 Статус: accepted gate manifest. Nothing listed here may be deleted before its
 explicit replacement gate.
 
-Slice 1–5 implementation result 2026-08-04: Legacy `/workspaces`, its POST
+Slice 1–6 implementation result 2026-08-04: Legacy `/workspaces`, its POST
 handlers, presenters, templates, CSS, AppShell links and public invitation
 bridge are deliberately retained because the SSR index still combines
 authenticated controls and public presentation remains the accepted minimal

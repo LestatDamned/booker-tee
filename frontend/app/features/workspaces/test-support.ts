@@ -164,7 +164,7 @@ export const workspaceSettings: WorkspaceSettingsDto = {
       canUpdate: true,
       canManageMembers: true,
       canInvite: true,
-      canDeactivate: false,
+      canDeactivate: true,
       canRestore: false,
     },
     blockingReasonCodes: [],

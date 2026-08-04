@@ -36,6 +36,9 @@ async def test_chat_identity_binder_rejects_user_without_workspace_membership(
         def __init__(self, session: FakeSession) -> None:
             self.session = session
 
+        async def lock_for_update(self, workspace_id):
+            return SimpleNamespace(id=workspace_id, is_active=True)
+
         async def get_active_membership(self, **_kwargs):
             return None
 
@@ -86,6 +89,9 @@ async def test_chat_identity_binder_creates_binding_for_active_workspace_member(
     class FakeWorkspaceRepository:
         def __init__(self, session: FakeSession) -> None:
             self.session = session
+
+        async def lock_for_update(self, requested_workspace_id):
+            return SimpleNamespace(id=requested_workspace_id, is_active=True)
 
         async def get_active_membership(self, **_kwargs):
             return SimpleNamespace(id=uuid4(), workspace_id=workspace_id, user_id=user_id)
@@ -180,6 +186,10 @@ async def test_workspace_chat_resolver_returns_workspace_context_for_bound_ident
     class FakeWorkspaceRepository:
         def __init__(self, _session) -> None:
             pass
+
+        async def lock_for_update(self, requested_workspace_id):
+            assert requested_workspace_id == workspace_id
+            return SimpleNamespace(id=workspace_id, is_active=True)
 
         async def get_active_membership(self, **kwargs):
             assert kwargs == {"user_id": user_id, "workspace_id": workspace_id}

@@ -13,6 +13,7 @@ from app.features.workspaces.commands import (
     CreateWorkspaceCommand,
     LeaveWorkspaceCommand,
     TransferWorkspaceOwnershipCommand,
+    TransitionWorkspaceLifecycleCommand,
     TransitionWorkspaceMemberCommand,
     UpdateWorkspaceMemberRoleApiCommand,
     UpdateWorkspaceSettingsCommand,
@@ -23,6 +24,8 @@ from app.features.workspaces.errors import (
     WorkspaceInvitationConflictError,
     WorkspaceInvitationNotFoundError,
     WorkspaceInvitationTransitionError,
+    WorkspaceLifecycleConflictError,
+    WorkspaceLifecycleTransitionError,
     WorkspaceMemberConflictError,
     WorkspaceMemberTransitionError,
     WorkspaceNotFoundError,
@@ -179,7 +182,7 @@ def test_workspace_select_masks_missing_and_reports_stale_current() -> None:
 
 
 def test_workspace_settings_read_is_target_scoped_and_returns_impact() -> None:
-    app, service, actor_id, workspace_id = workspace_settings_app()
+    app, service, _, actor_id, workspace_id = workspace_settings_app()
 
     with TestClient(app) as client:
         response = client.get(f"/api/v1/workspaces/{workspace_id}")
@@ -199,7 +202,7 @@ def test_workspace_settings_read_is_target_scoped_and_returns_impact() -> None:
 
 
 def test_workspace_settings_masks_missing_and_foreign_identically() -> None:
-    app, service, _, workspace_id = workspace_settings_app()
+    app, service, _, _, workspace_id = workspace_settings_app()
     service.read_error = WorkspaceNotFoundError("foreign")
 
     with TestClient(app) as client:
@@ -213,7 +216,7 @@ def test_workspace_settings_masks_missing_and_foreign_identically() -> None:
 
 
 def test_workspace_settings_update_dispatches_expected_snapshot() -> None:
-    app, service, actor_id, workspace_id = workspace_settings_app()
+    app, service, _, actor_id, workspace_id = workspace_settings_app()
     expected = service.settings.workspace.updated_at
 
     with TestClient(app) as client:
@@ -243,7 +246,7 @@ def test_workspace_settings_update_dispatches_expected_snapshot() -> None:
 
 
 def test_workspace_settings_update_maps_authority_conflict_and_validation() -> None:
-    app, service, _, workspace_id = workspace_settings_app()
+    app, service, _, _, workspace_id = workspace_settings_app()
     payload = {
         "name": "Дом",
         "workspaceType": "personal",
@@ -270,6 +273,79 @@ def test_workspace_settings_update_maps_authority_conflict_and_validation() -> N
     assert invalid.json()["error"]["code"] == "workspace_validation_error"
     assert invalid.json()["error"]["fieldErrors"] == {
         "name": ["Название пространства обязательно."]
+    }
+
+
+def test_workspace_deactivate_dispatches_snapshot_and_returns_boundary_impact() -> None:
+    app, settings, lifecycle_service, actor_id, workspace_id = workspace_settings_app()
+    expected_current_id = lifecycle_service.result.workspace.id
+    expected_updated_at = settings.settings.workspace.updated_at
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/workspaces/{workspace_id}/deactivate",
+            json={
+                "expectedCurrentWorkspaceId": str(expected_current_id),
+                "expectedWorkspaceUpdatedAt": expected_updated_at.isoformat(),
+            },
+        )
+
+    assert response.status_code == 200
+    assert lifecycle_service.calls == [
+        (
+            "deactivate",
+            actor_id,
+            "workspace-session-token",
+            workspace_id,
+            TransitionWorkspaceLifecycleCommand(
+                expected_workspace_updated_at=expected_updated_at,
+                expected_current_workspace_id=expected_current_id,
+            ),
+        )
+    ]
+    assert response.json()["impact"] == {
+        "movedSessionCount": 2,
+        "revokedInvitationCount": 1,
+        "disabledIntegrationConnectionCount": 1,
+        "disabledChatConversationBindingCount": 1,
+        "disabledChatIdentityBindingCount": 2,
+        "consumedChatConversationStateCount": 1,
+        "failedIntegrationDeliveryCount": 1,
+    }
+    assert response.json()["navigationOutcome"] == {
+        "kind": "workspace_changed",
+        "href": "/app/workspaces",
+        "boundary": "hard_reload",
+    }
+
+
+def test_workspace_lifecycle_masks_target_and_maps_stale_and_blocking_reasons() -> None:
+    app, settings, lifecycle_service, _, workspace_id = workspace_settings_app()
+    payload = {
+        "expectedCurrentWorkspaceId": str(lifecycle_service.result.workspace.id),
+        "expectedWorkspaceUpdatedAt": settings.settings.workspace.updated_at.isoformat(),
+    }
+
+    with TestClient(app) as client:
+        lifecycle_service.error = WorkspaceNotFoundError("foreign")
+        missing = client.post(f"/api/v1/workspaces/{workspace_id}/restore", json=payload)
+        lifecycle_service.error = WorkspaceLifecycleConflictError("stale")
+        conflict = client.post(f"/api/v1/workspaces/{workspace_id}/restore", json=payload)
+        lifecycle_service.error = WorkspaceLifecycleTransitionError(
+            "fallback",
+            reason_codes=["workspace_fallback_required"],
+        )
+        blocked = client.post(f"/api/v1/workspaces/{workspace_id}/deactivate", json=payload)
+
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "workspace_not_found"
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "workspace_lifecycle_conflict"
+    assert blocked.status_code == 422
+    assert blocked.json()["error"] == {
+        "code": "workspace_lifecycle_blocked",
+        "message": "fallback",
+        "details": {"reasonCodes": ["workspace_fallback_required"]},
     }
 
 

@@ -14,6 +14,9 @@ class ChatIdentityBinder:
         self.workspaces = WorkspaceRepository(session)
 
     async def bind_chat_identity(self, command: BindChatIdentityCommand) -> ChatIdentityBinding:
+        workspace = await self.workspaces.lock_for_update(command.workspace_id)
+        if workspace is None or not workspace.is_active:
+            raise ChatIdentityBindingError("User is not an active member of this workspace.")
         membership = await self.workspaces.get_active_membership(
             user_id=command.user_id,
             workspace_id=command.workspace_id,

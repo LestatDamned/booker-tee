@@ -9,6 +9,7 @@ from app.db.session import get_session
 from app.features.workspaces.application.creation import WorkspaceCreator
 from app.features.workspaces.application.directory import WorkspaceDirectoryReader
 from app.features.workspaces.application.invitations import WorkspaceInvitationService
+from app.features.workspaces.application.lifecycle import WorkspaceLifecycleService
 from app.features.workspaces.application.members import WorkspaceMemberService
 from app.features.workspaces.application.ownership import WorkspaceOwnershipService
 from app.features.workspaces.application.settings import WorkspaceSettingsService
@@ -51,6 +52,12 @@ def get_workspace_invitation_service(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> WorkspaceInvitationService:
     return WorkspaceInvitationService(session, settings)
+
+
+def get_workspace_lifecycle_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> WorkspaceLifecycleService:
+    return WorkspaceLifecycleService(session)
 
 
 def get_workspace_ownership_service(

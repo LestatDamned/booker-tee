@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { workspaceSettings } from "../test-support";
+import { session, workspaceSettings } from "../test-support";
 import {
   loadWorkspaceSettings,
+  transitionWorkspaceLifecycle,
   updateWorkspaceSettings,
 } from "./workspace-settings-api";
 
@@ -102,6 +103,83 @@ describe("workspace settings API", () => {
     });
 
     expect(result.status).toBe(expectedStatus);
+  });
+
+  it("sends the lifecycle snapshots and validates the boundary", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        session,
+        impact: {
+          movedSessionCount: 2,
+          revokedInvitationCount: 1,
+          disabledIntegrationConnectionCount: 1,
+          disabledChatConversationBindingCount: 1,
+          disabledChatIdentityBindingCount: 2,
+          consumedChatConversationStateCount: 1,
+          failedIntegrationDeliveryCount: 1,
+        },
+        navigationOutcome: {
+          kind: "workspace_changed",
+          href: "/app/workspaces",
+          boundary: "hard_reload",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await transitionWorkspaceLifecycle({
+      action: "deactivate",
+      csrfToken: session.csrfToken,
+      expectedCurrentWorkspaceId: session.workspace.id,
+      expectedWorkspaceUpdatedAt: workspaceSettings.workspace.updatedAt,
+      workspaceId: workspaceSettings.workspace.id,
+    });
+
+    expect(result).toEqual({ status: "success", href: "/app/workspaces" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/workspaces/${workspaceSettings.workspace.id}/deactivate`,
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "X-CSRF-Token": session.csrfToken }),
+      }),
+    );
+    const options = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(JSON.parse(String(options.body))).toEqual({
+      expectedCurrentWorkspaceId: session.workspace.id,
+      expectedWorkspaceUpdatedAt: workspaceSettings.workspace.updatedAt,
+    });
+  });
+
+  it("returns server-owned lifecycle blocking reasons", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse(
+          {
+            error: {
+              code: "workspace_lifecycle_blocked",
+              message: "Нужно другое пространство.",
+              details: { reasonCodes: ["workspace_fallback_required"] },
+            },
+          },
+          422,
+        ),
+      ),
+    );
+
+    const result = await transitionWorkspaceLifecycle({
+      action: "deactivate",
+      csrfToken: session.csrfToken,
+      expectedCurrentWorkspaceId: session.workspace.id,
+      expectedWorkspaceUpdatedAt: workspaceSettings.workspace.updatedAt,
+      workspaceId: workspaceSettings.workspace.id,
+    });
+
+    expect(result).toEqual({
+      status: "blocked",
+      message: "Нужно другое пространство.",
+      reasonCodes: ["workspace_fallback_required"],
+    });
   });
 });
 

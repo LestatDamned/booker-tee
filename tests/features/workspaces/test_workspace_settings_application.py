@@ -173,6 +173,9 @@ def settings_harness(
         async def count_pending_invitations(self, workspace_id):
             return 1
 
+        async def get_first_active_membership_for_user_excluding(self, **_kwargs):
+            return SimpleNamespace(workspace_id=uuid4())
+
         async def create_audit_event(self, **values):
             self.audit_events.append(values)
             return SimpleNamespace(**values)

@@ -15,6 +15,7 @@ from app.features.chat_integrations.providers.base import ChatProvider
 from app.features.chat_integrations.repository import ChatIntegrationRepository
 from app.features.chat_integrations.schemas import ChatConversation, ChatProviderCode
 from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.service import WorkspaceContext
 
 IMPORT_DOCUMENT_UPLOADED_EVENT = "import.document_uploaded"
@@ -48,6 +49,7 @@ class ChatSharedFeedNotificationService:
         self.settings = settings
         self.provider_registry = provider_registry
         self.chat_integrations = ChatIntegrationRepository(session)
+        self.workspaces = WorkspaceRepository(session)
 
     async def notify_import_document_uploaded(
         self,
@@ -56,6 +58,9 @@ class ChatSharedFeedNotificationService:
         document_id: UUID,
         document_status: UploadedDocumentStatus,
     ) -> ChatNotificationDeliverySummary:
+        workspace = await self.workspaces.lock_for_update(context.workspace.id)
+        if workspace is None or not workspace.is_active:
+            return ChatNotificationDeliverySummary(0, 0, 0, 1)
         bindings = await self.chat_integrations.list_active_shared_feed_bindings(
             workspace_id=context.workspace.id
         )

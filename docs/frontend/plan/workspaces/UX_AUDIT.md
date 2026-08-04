@@ -341,6 +341,21 @@ not merely an editable entity.
   accessible-name assertions remain in place; no accessibility behavior was
   removed from runtime.
 
+### Slice 6 lifecycle closure — 2026-08-04
+
+- Lifecycle remains the final section of the existing settings workbench; no
+  visually separate admin application or generic danger page was introduced.
+- Owner sees one server-capability-driven deactivate/restore action. Both use
+  the shared modal confirmation, initial cancel focus, Escape and trigger focus
+  return. Viewer sees neither action.
+- Copy distinguishes preserved financial history from revoked invitations and
+  disabled integrations/Chat, and explicitly says restore will not resurrect
+  them. A missing fallback is shown as a blocking notice before mutation.
+- Production captures at 1440×1000 and 390×844 preserve the established
+  typography, section rhythm, record geometry and semantic color tokens. The
+  browser measurement reports zero horizontal overflow, clipped buttons,
+  undersized visible targets, console errors or page errors.
+
 ## Browser baseline closure before implementation
 
 Before changing presentation, capture current SSR at 1440/920/390 for:

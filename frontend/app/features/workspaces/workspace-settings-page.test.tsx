@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   loadWorkspaceSettings,
+  transitionWorkspaceLifecycle,
   updateWorkspaceSettings,
 } from "./api/workspace-settings-api";
 import {
@@ -27,6 +28,7 @@ vi.mock("./api/workspace-settings-api", async (importOriginal) => {
   return {
     ...actual,
     loadWorkspaceSettings: vi.fn(),
+    transitionWorkspaceLifecycle: vi.fn(),
     updateWorkspaceSettings: vi.fn(),
   };
 });
@@ -46,6 +48,7 @@ vi.mock("./api/workspace-members-api", async (importOriginal) => {
 describe("WorkspaceSettingsPage", () => {
   beforeEach(() => {
     vi.mocked(loadWorkspaceSettings).mockReset();
+    vi.mocked(transitionWorkspaceLifecycle).mockReset();
     vi.mocked(updateWorkspaceSettings).mockReset();
     vi.mocked(transitionWorkspaceMember).mockReset();
     vi.mocked(transferWorkspaceOwnership).mockReset();
@@ -370,6 +373,97 @@ describe("WorkspaceSettingsPage", () => {
       "/app/workspaces",
       "Вы вышли из рабочего пространства.",
     );
+  });
+
+  it("explains deactivation and crosses a hard workspace boundary", async () => {
+    const user = userEvent.setup();
+    const boundaryNavigate = vi.fn();
+    vi.mocked(transitionWorkspaceLifecycle).mockResolvedValue({
+      status: "success",
+      href: "/app/workspaces",
+    });
+    renderPage(workspaceSettings, boundaryNavigate);
+
+    await user.click(screen.getByRole("button", { name: "Деактивировать" }));
+    expect(
+      screen.getByRole("dialog", { name: "Деактивировать пространство?" }),
+    ).toBeVisible();
+    expect(screen.getByText(/Приглашения будут отозваны/)).toBeVisible();
+    expect(transitionWorkspaceLifecycle).not.toHaveBeenCalled();
+
+    await user.click(
+      screen.getByRole("button", { name: "Да, деактивировать" }),
+    );
+
+    expect(transitionWorkspaceLifecycle).toHaveBeenCalledWith({
+      action: "deactivate",
+      csrfToken: session.csrfToken,
+      expectedCurrentWorkspaceId: session.workspace.id,
+      expectedWorkspaceUpdatedAt: workspaceSettings.workspace.updatedAt,
+      workspaceId: workspaceSettings.workspace.id,
+    });
+    expect(boundaryNavigate).toHaveBeenCalledWith(
+      "/app/workspaces",
+      "Рабочее пространство деактивировано.",
+    );
+  });
+
+  it("restores without promising to resurrect invitations or integrations", async () => {
+    const user = userEvent.setup();
+    const boundaryNavigate = vi.fn();
+    const inactiveSettings = {
+      ...workspaceSettings,
+      workspace: {
+        ...workspaceSettings.workspace,
+        isActive: false,
+        archivedAt: workspaceSettings.workspace.updatedAt,
+        capabilities: {
+          ...workspaceSettings.workspace.capabilities,
+          canUpdate: false,
+          canDeactivate: false,
+          canRestore: true,
+        },
+        blockingReasonCodes: ["workspace_inactive" as const],
+      },
+    };
+    vi.mocked(transitionWorkspaceLifecycle).mockResolvedValue({
+      status: "success",
+      href: "/app/workspaces",
+    });
+    renderPage(inactiveSettings, boundaryNavigate);
+
+    await user.click(screen.getByRole("button", { name: "Восстановить" }));
+    expect(screen.getByText(/останутся отключёнными/)).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Восстановить пространство" }),
+    );
+
+    expect(transitionWorkspaceLifecycle).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "restore" }),
+    );
+    expect(boundaryNavigate).toHaveBeenCalledWith(
+      "/app/workspaces",
+      "Рабочее пространство восстановлено.",
+    );
+  });
+
+  it("shows the server fallback gate instead of a destructive control", () => {
+    renderPage({
+      ...workspaceSettings,
+      workspace: {
+        ...workspaceSettings.workspace,
+        capabilities: {
+          ...workspaceSettings.workspace.capabilities,
+          canDeactivate: false,
+        },
+        blockingReasonCodes: ["workspace_fallback_required"],
+      },
+    });
+
+    expect(
+      screen.getByText("Нужно другое активное пространство"),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Деактивировать" })).toBeNull();
   });
 });
 

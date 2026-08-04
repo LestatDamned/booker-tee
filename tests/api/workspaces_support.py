@@ -9,6 +9,7 @@ from app.api.v1.workspaces.dependencies import (
     get_workspace_creator,
     get_workspace_directory_reader,
     get_workspace_invitation_service,
+    get_workspace_lifecycle_service,
     get_workspace_member_service,
     get_workspace_ownership_service,
     get_workspace_session_switcher,
@@ -16,6 +17,7 @@ from app.api.v1.workspaces.dependencies import (
 )
 from app.features.workspaces.application.creation import WorkspaceCreationResult
 from app.features.workspaces.application.invitations import CreatedWorkspaceInvitationResult
+from app.features.workspaces.application.lifecycle import WorkspaceLifecycleResult
 from app.features.workspaces.application.ownership import (
     WorkspaceLeaveResult,
     WorkspaceOwnershipTransferResult,
@@ -23,6 +25,7 @@ from app.features.workspaces.application.ownership import (
 from app.features.workspaces.application.switching import WorkspaceSessionSwitchResult
 from app.features.workspaces.commands import (
     CreateWorkspaceCommand,
+    TransitionWorkspaceLifecycleCommand,
     TransitionWorkspaceMemberCommand,
     UpdateWorkspaceMemberRoleApiCommand,
     UpdateWorkspaceSettingsCommand,
@@ -46,6 +49,7 @@ from app.features.workspaces.schemas import (
     WorkspaceInvitationsCapabilitiesDto,
     WorkspaceInvitationsDto,
     WorkspaceLifecycleImpactDto,
+    WorkspaceLifecycleMutationImpactDto,
     WorkspaceMemberCapabilitiesDto,
     WorkspaceMemberItemDto,
     WorkspaceMembersCapabilitiesDto,
@@ -151,6 +155,25 @@ class WorkspaceSettingsServiceStub:
         if self.update_error is not None:
             raise self.update_error
         return self.settings
+
+
+class WorkspaceLifecycleServiceStub:
+    def __init__(self, result: WorkspaceLifecycleResult) -> None:
+        self.result = result
+        self.calls: list[tuple[str, UUID, str, UUID, TransitionWorkspaceLifecycleCommand]] = []
+        self.error: WorkspaceError | None = None
+
+    async def deactivate(self, *, actor, session_token, workspace_id, command):
+        return await self._transition("deactivate", actor, session_token, workspace_id, command)
+
+    async def restore(self, *, actor, session_token, workspace_id, command):
+        return await self._transition("restore", actor, session_token, workspace_id, command)
+
+    async def _transition(self, action, actor, session_token, workspace_id, command):
+        self.calls.append((action, actor.id, session_token, workspace_id, command))
+        if self.error is not None:
+            raise self.error
+        return self.result
 
 
 class WorkspaceMemberServiceStub:
@@ -371,10 +394,16 @@ def workspace_item(
 def workspace_settings_app() -> tuple[
     FastAPI,
     WorkspaceSettingsServiceStub,
+    WorkspaceLifecycleServiceStub,
     UUID,
     UUID,
 ]:
     context = api_context(role=WorkspaceRole.OWNER)
+    context = context.__class__(
+        workspace=context.workspace,
+        csrf_token=context.csrf_token,
+        session_token="workspace-session-token",
+    )
     workspace_id = uuid4()
     updated_at = datetime(2026, 8, 3, 9, 30, tzinfo=UTC)
     settings = WorkspaceSettingsDto(
@@ -417,10 +446,27 @@ def workspace_settings_app() -> tuple[
         ),
     )
     service = WorkspaceSettingsServiceStub(settings)
+    lifecycle_service = WorkspaceLifecycleServiceStub(
+        WorkspaceLifecycleResult(
+            user=context.workspace.user,
+            workspace=context.workspace.workspace,
+            membership=context.workspace.membership,
+            impact=WorkspaceLifecycleMutationImpactDto(
+                moved_session_count=2,
+                revoked_invitation_count=1,
+                disabled_integration_connection_count=1,
+                disabled_chat_conversation_binding_count=1,
+                disabled_chat_identity_binding_count=2,
+                consumed_chat_conversation_state_count=1,
+                failed_integration_delivery_count=1,
+            ),
+        )
+    )
     app = create_app()
     app.dependency_overrides[get_api_request_context] = lambda: context
     app.dependency_overrides[get_workspace_settings_service] = lambda: service
-    return app, service, context.workspace.user.id, workspace_id
+    app.dependency_overrides[get_workspace_lifecycle_service] = lambda: lifecycle_service
+    return app, service, lifecycle_service, context.workspace.user.id, workspace_id
 
 
 def workspace_members_app() -> tuple[FastAPI, WorkspaceMemberServiceStub, UUID, UUID]:

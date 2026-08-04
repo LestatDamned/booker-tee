@@ -48,6 +48,26 @@ class StatementParseCompletionService:
         self.mappings = mappings
         self.parser_registry = parser_registry
 
+    async def preserve_inactive_workspace_attempt(
+        self,
+        document: UploadedDocument,
+        attempt: ParseAttempt,
+        extracted: ExtractedStatement,
+    ) -> None:
+        attempt.finished_at = utc_now()
+        await self.documents.mark_attempt_success(
+            attempt,
+            raw_text_by_page_json=extracted.text_by_page,
+            raw_tables_json=_raw_tables_from_extracted(extracted),
+            metadata=extracted.metadata,
+        )
+        await mark_attempt_requires_review(
+            self.documents,
+            document,
+            attempt,
+            "Workspace was deactivated during parsing; extracted data was preserved.",
+        )
+
     async def complete_successful_attempt(
         self,
         document: UploadedDocument,

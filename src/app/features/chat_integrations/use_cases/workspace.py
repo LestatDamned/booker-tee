@@ -67,6 +67,9 @@ class WorkspaceChatResolver:
             raise ChatWorkspaceResolutionError("Chat identity is linked to multiple workspaces.")
 
         binding = bindings[0]
+        workspace = await self.workspaces.lock_for_update(binding.workspace_id)
+        if workspace is None or not workspace.is_active:
+            raise ChatWorkspaceResolutionError("Linked workspace membership is not active.")
         user = await self.users.get_active(binding.user_id)
         if user is None:
             raise ChatWorkspaceResolutionError("Linked Booker Tee user is not active.")
@@ -153,6 +156,9 @@ class ChatWorkspaceSwitcher:
             state.state_payload,
             selection.workspace_index,
         )
+        target_workspace = await self.workspaces.lock_for_update(workspace_id)
+        if target_workspace is None or not target_workspace.is_active:
+            raise ChatWorkspaceSwitchError("Это рабочее пространство больше недоступно.")
         membership = await self.workspaces.get_active_membership(
             user_id=bound_workspace.context.user.id,
             workspace_id=workspace_id,

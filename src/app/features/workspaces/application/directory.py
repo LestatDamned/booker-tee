@@ -39,12 +39,16 @@ class WorkspaceDirectoryReader:
             user_id,
             current_workspace_id=current_workspace_id,
         )
+        active_workspace_ids = {
+            membership.workspace.id for membership in memberships if membership.workspace.is_active
+        }
         return WorkspaceDirectoryDto(
             current_workspace_id=current_workspace_id,
             items=[
                 workspace_directory_item(
                     membership,
                     current_workspace_id=current_workspace_id,
+                    has_active_fallback=bool(active_workspace_ids - {membership.workspace.id}),
                 )
                 for membership in memberships
             ],
@@ -80,6 +84,7 @@ def workspace_directory_item(
     membership: WorkspaceMember,
     *,
     current_workspace_id: UUID,
+    has_active_fallback: bool,
 ) -> WorkspaceDirectoryItemDto:
     workspace = membership.workspace
     is_current = workspace.id == current_workspace_id
@@ -91,6 +96,8 @@ def workspace_directory_item(
         reasons.append(WorkspaceBlockingReason.CURRENT)
     if not is_active:
         reasons.append(WorkspaceBlockingReason.INACTIVE)
+    if is_active and is_owner and not has_active_fallback:
+        reasons.append(WorkspaceBlockingReason.FALLBACK_REQUIRED)
     return WorkspaceDirectoryItemDto(
         id=workspace.id,
         name=workspace.name,
@@ -111,7 +118,7 @@ def workspace_directory_item(
             can_manage_members=can_manage,
             can_invite=is_active and can_invite_members(membership),
             can_leave=is_active and not is_owner,
-            can_deactivate=is_active and is_owner,
+            can_deactivate=is_active and is_owner and has_active_fallback,
             can_restore=not is_active and is_owner,
         ),
         blocking_reason_codes=reasons,

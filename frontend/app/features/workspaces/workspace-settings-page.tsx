@@ -294,7 +294,13 @@ export function WorkspaceSettingsPage({
               initialInvitations={initialInvitations}
             />
 
-            <WorkspaceLifecycleImpact settings={settings} />
+            <WorkspaceLifecycleImpact
+              boundaryNavigate={boundaryNavigate}
+              csrfToken={session.csrfToken}
+              currentWorkspaceId={session.workspace.id}
+              onConflict={reloadAfterConflict}
+              settings={settings}
+            />
           </WorkbenchContent>
         </WorkbenchSurface>
       </PageFrame>

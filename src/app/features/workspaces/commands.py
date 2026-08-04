@@ -62,3 +62,9 @@ class TransferWorkspaceOwnershipCommand:
 class LeaveWorkspaceCommand:
     expected_member_updated_at: datetime
     expected_current_workspace_id: UUID
+
+
+@dataclass(frozen=True)
+class TransitionWorkspaceLifecycleCommand:
+    expected_workspace_updated_at: datetime
+    expected_current_workspace_id: UUID

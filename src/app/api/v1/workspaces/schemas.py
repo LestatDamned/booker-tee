@@ -295,3 +295,24 @@ class CreateWorkspaceInvitationApiResponse(ApiModel):
 
 class RevokeWorkspaceInvitationApiRequest(ApiRequestModel):
     expected_updated_at: datetime
+
+
+class TransitionWorkspaceLifecycleApiRequest(ApiRequestModel):
+    expected_workspace_updated_at: datetime
+    expected_current_workspace_id: UUID
+
+
+class WorkspaceLifecycleMutationImpactApiResponse(ApiModel):
+    moved_session_count: int
+    revoked_invitation_count: int
+    disabled_integration_connection_count: int
+    disabled_chat_conversation_binding_count: int
+    disabled_chat_identity_binding_count: int
+    consumed_chat_conversation_state_count: int
+    failed_integration_delivery_count: int
+
+
+class WorkspaceLifecycleApiResponse(ApiModel):
+    session: SessionApiResponse
+    impact: WorkspaceLifecycleMutationImpactApiResponse
+    navigation_outcome: WorkspaceNavigationOutcomeApiResponse

@@ -27,7 +27,11 @@ from app.features.imports.documents.storage import (
     sanitize_upload_filename,
 )
 from app.features.imports.documents.types import UploadedDocumentStatus
-from app.features.imports.models import RawTransaction
+from app.features.imports.models import ParseAttempt, RawTransaction, UploadedDocument
+from app.features.imports.parsers.extractors.dto import (
+    ExtractedStatement,
+    ExtractedStatementPageTables,
+)
 from app.features.imports.parsers.extractors.pdf import (
     PdfPlumberStatementExtractor,
 )
@@ -39,6 +43,7 @@ from app.features.imports.parsers.support.normalization import (
     parse_bank_date,
 )
 from app.features.imports.statements.deduplication import possible_duplicate_fingerprint
+from app.features.imports.statements.process import StatementParseCompletionService
 from app.features.imports.statements.types import RawTransactionStatus
 
 
@@ -202,6 +207,63 @@ def test_validate_statement_upload_rejects_unknown_extension() -> None:
 
     with pytest.raises(UploadValidationError):
         validate_statement_upload(upload)
+
+
+@pytest.mark.asyncio
+async def test_inactive_workspace_preserves_extracted_import_without_mapping_rows() -> None:
+    document = SimpleNamespace(status=UploadedDocumentStatus.PARSING)
+    attempt = SimpleNamespace(finished_at=None)
+
+    class Documents:
+        def __init__(self) -> None:
+            self.raw_payload = None
+            self.review_message = None
+
+        async def mark_attempt_success(self, _attempt, **values):
+            self.raw_payload = values
+
+        async def mark_attempt_requires_review(self, _attempt, *, message, **_kwargs):
+            self.review_message = message
+
+        async def mark_document_status(self, target, status):
+            target.status = status
+
+    documents = Documents()
+    service = StatementParseCompletionService(
+        session=cast(Any, object()),
+        documents=cast(Any, documents),
+        statements=cast(Any, object()),
+        mappings=cast(Any, object()),
+        parser_registry=cast(Any, object()),
+    )
+    extracted = ExtractedStatement(
+        text_by_page=["raw financial text"],
+        tables_by_page=[
+            ExtractedStatementPageTables(
+                page_number=1,
+                tables=[[["Дата", "Сумма"], ["2026-08-04", "-10.00"]]],
+            )
+        ],
+        metadata={"source_format": "pdf"},
+    )
+
+    await service.preserve_inactive_workspace_attempt(
+        cast(UploadedDocument, document),
+        cast(ParseAttempt, attempt),
+        extracted,
+    )
+
+    assert attempt.finished_at is not None
+    assert documents.raw_payload == {
+        "raw_text_by_page_json": ["raw financial text"],
+        "raw_tables_json": [
+            {"page_number": 1, "tables": [[["Дата", "Сумма"], ["2026-08-04", "-10.00"]]]}
+        ],
+        "metadata": {"source_format": "pdf"},
+    }
+    assert document.status == UploadedDocumentStatus.REQUIRES_REVIEW
+    assert documents.review_message is not None
+    assert "deactivated during parsing" in documents.review_message
 
 
 def test_pdfplumber_extractor_preserves_raw_pages() -> None:

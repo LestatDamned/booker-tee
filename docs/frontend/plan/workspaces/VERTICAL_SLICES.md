@@ -1,6 +1,6 @@
 # Workspaces vertical slices
 
-Статус: D1–D14 accepted 2026-08-03; Slice 0 complete; Slice 1–5 production
+Статус: D1–D14 accepted 2026-08-03; Slice 0 complete; Slice 1–6 production
 gates passed.
 
 ## Ordering rationale
@@ -248,7 +248,7 @@ Implementation result 2026-08-04:
 
 ## Slice 6 — deactivate/restore and cross-feature consequence
 
-Only if D7/D12 accepted in this child stage:
+Completed 2026-08-04 under accepted D7/D10/D12/D14:
 
 - Locked deactivate/restore application use cases.
 - Revoke pending invites; disable integrations/Chat bindings; invalidate pending
@@ -259,6 +259,17 @@ Only if D7/D12 accepted in this child stage:
 
 Gate: cross-feature server tests plus browser/session/Chat flows prove immediate
 loss of access, no data loss, safe restore and no old workspace drafts/cache.
+
+Result: `WorkspaceLifecycleService` owns one locked transaction and stable
+impact DTO. Deactivate is blocked with `workspace_fallback_required` if any
+affected active session has no valid fallback; this is the minimal safe outcome
+until an explicit no-workspace session exists. Unsafe API/legacy/Chat writes
+lock and recheck the active workspace. Synchronous import extraction preserves
+document/file/attempt/raw extraction but skips normalization/rules/notification
+work if deactivation wins. React uses the existing settings page and
+`ConfirmationDialog`; no lifecycle page, generic CRUD layer, dependency or DB
+migration was added. PostgreSQL and browser gates pass; legacy deletion remains
+for Slice 7.
 
 ## Slice 7 — canonical cutover and cleanup
 

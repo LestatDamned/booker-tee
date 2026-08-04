@@ -103,10 +103,23 @@ async def test_shared_feed_notification_service_sends_safe_import_notification(
             delivery.status = "failed"
             delivery.error_message = kwargs["error_message"]
 
+    class FakeWorkspaceRepository:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def lock_for_update(self, requested_workspace_id):
+            assert requested_workspace_id == workspace_id
+            return SimpleNamespace(id=workspace_id, is_active=True)
+
     monkeypatch.setattr(
         notification_dispatcher,
         "ChatIntegrationRepository",
         FakeChatIntegrationRepository,
+    )
+    monkeypatch.setattr(
+        notification_dispatcher,
+        "WorkspaceRepository",
+        FakeWorkspaceRepository,
     )
 
     summary = await ChatSharedFeedNotificationService(

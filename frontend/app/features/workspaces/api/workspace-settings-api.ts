@@ -14,6 +14,7 @@ import {
   type ApiUnauthenticatedFailure,
 } from "../../../api/failures";
 import type { components } from "../../../api/generated/schema";
+import { sessionSchema } from "../../../api/session-schema";
 import { parseApiError, requestJson } from "../../../api/transport";
 import { workspaceRoleSchema, workspaceTypeSchema } from "./workspaces-api";
 
@@ -48,7 +49,11 @@ export const workspaceSettingsSchema: z.ZodType<WorkspaceSettingsDto> =
         canRestore: z.boolean(),
       }),
       blockingReasonCodes: z.array(
-        z.enum(["workspace_current", "workspace_inactive"]),
+        z.enum([
+          "workspace_current",
+          "workspace_inactive",
+          "workspace_fallback_required",
+        ]),
       ),
     }),
     workspaceTypeOptions: z.array(
@@ -81,6 +86,32 @@ export type WorkspaceSettingsUpdateResult =
   | { status: "not_found"; message: string }
   | { status: "conflict"; message: string }
   | ApiMutationError;
+
+export type WorkspaceLifecycleMutationResult =
+  | { status: "success"; href: "/app/workspaces" }
+  | ApiUnauthenticatedFailure
+  | { status: "not_found"; message: string }
+  | { status: "conflict"; message: string }
+  | { status: "blocked"; message: string; reasonCodes: string[] }
+  | ApiMutationError;
+
+const workspaceLifecycleResponseSchema = z.object({
+  session: sessionSchema,
+  impact: z.object({
+    movedSessionCount: z.number().int().nonnegative(),
+    revokedInvitationCount: z.number().int().nonnegative(),
+    disabledIntegrationConnectionCount: z.number().int().nonnegative(),
+    disabledChatConversationBindingCount: z.number().int().nonnegative(),
+    disabledChatIdentityBindingCount: z.number().int().nonnegative(),
+    consumedChatConversationStateCount: z.number().int().nonnegative(),
+    failedIntegrationDeliveryCount: z.number().int().nonnegative(),
+  }),
+  navigationOutcome: z.object({
+    kind: z.literal("workspace_changed"),
+    href: z.literal("/app/workspaces"),
+    boundary: z.literal("hard_reload"),
+  }),
+});
 
 export async function loadWorkspaceSettings(
   workspaceId: string,
@@ -150,4 +181,73 @@ export async function updateWorkspaceSettings({
     });
   }
   return { status: "success", settings: parsed.data };
+}
+
+export async function transitionWorkspaceLifecycle({
+  action,
+  csrfToken,
+  expectedCurrentWorkspaceId,
+  expectedWorkspaceUpdatedAt,
+  workspaceId,
+}: {
+  action: "deactivate" | "restore";
+  csrfToken: string;
+  expectedCurrentWorkspaceId: string;
+  expectedWorkspaceUpdatedAt: string;
+  workspaceId: string;
+}): Promise<WorkspaceLifecycleMutationResult> {
+  const response = await requestJson(
+    `/api/v1/workspaces/${workspaceId}/${action}`,
+    {
+      body: JSON.stringify({
+        expectedCurrentWorkspaceId,
+        expectedWorkspaceUpdatedAt,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
+      method: "POST",
+    },
+  );
+  if (response.status === "network_error") return apiMutationNetworkError();
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
+  const error = parseApiError(response.body);
+  if (response.httpStatus === 404) {
+    return {
+      status: "not_found",
+      message: error?.message ?? "Пространство не найдено.",
+    };
+  }
+  if (response.httpStatus === 409) {
+    return {
+      status: "conflict",
+      message: error?.message ?? "Состояние пространства уже изменилось.",
+    };
+  }
+  if (
+    response.httpStatus === 422 &&
+    error?.code === "workspace_lifecycle_blocked"
+  ) {
+    const reasonCodes = Array.isArray(error.details?.reasonCodes)
+      ? error.details.reasonCodes.filter(
+          (value): value is string => typeof value === "string",
+        )
+      : [];
+    return { status: "blocked", message: error.message, reasonCodes };
+  }
+  if (!response.ok) {
+    return apiMutationError(error, {
+      fallbackCode: "workspace_lifecycle_failed",
+      fallbackMessage: "Не удалось изменить состояние пространства.",
+    });
+  }
+  const parsed = workspaceLifecycleResponseSchema.safeParse(response.body);
+  if (!parsed.success) {
+    return apiMutationError(null, {
+      fallbackCode: "invalid_workspace_lifecycle_response",
+      fallbackMessage: "API вернул результат неожиданного формата.",
+    });
+  }
+  return { status: "success", href: parsed.data.navigationOutcome.href };
 }

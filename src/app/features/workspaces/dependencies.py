@@ -20,6 +20,7 @@ from app.features.workspaces.permissions import (
     can_read_workspace,
     can_write_financial_data,
 )
+from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.service import WorkspaceContext
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
@@ -42,6 +43,14 @@ async def get_current_workspace_context(
     )
     if login_session is None:
         raise_login_redirect()
+
+    if request.method not in SAFE_METHODS:
+        workspace = await WorkspaceRepository(session).lock_for_update(login_session.workspace.id)
+        if workspace is None or not workspace.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Пространство было деактивировано. Обновите страницу.",
+            )
 
     request.state.login_session = login_session
     request.state.csrf_token = csrf_token_for_session(session_token, settings)

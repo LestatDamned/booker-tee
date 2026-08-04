@@ -1,7 +1,9 @@
 from datetime import datetime
+from typing import cast
 from uuid import UUID
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -320,6 +322,29 @@ class WorkspaceRepository:
             )
         )
         return result.scalar_one()
+
+    async def revoke_pending_invitations(
+        self,
+        workspace_id: UUID,
+        *,
+        revoked_at: datetime,
+    ) -> int:
+        result = cast(
+            CursorResult,
+            await self.session.execute(
+                update(WorkspaceInvitation)
+                .where(
+                    WorkspaceInvitation.workspace_id == workspace_id,
+                    WorkspaceInvitation.status == WorkspaceInvitationStatus.PENDING,
+                )
+                .values(
+                    status=WorkspaceInvitationStatus.REVOKED,
+                    revoked_at=revoked_at,
+                )
+            ),
+        )
+        await self.session.flush()
+        return result.rowcount
 
     async def list_recent_audit_events(
         self,

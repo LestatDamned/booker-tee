@@ -1,14 +1,14 @@
 # Workspaces API and state boundary
 
-Статус: target accepted 2026-08-03 in ADR-0006; Slice 1–5 production-gated
-2026-08-04. Lifecycle endpoint group remains proposed; public invitation
-preview/accept is the retained minimal SSR bridge over the Slice 5 actor.
+Статус: target accepted 2026-08-03 in ADR-0006; Slice 1–6 production-gated
+2026-08-04. Public invitation preview/accept remains the minimal SSR bridge;
+authenticated canonical cutover is next.
 
 ## Current boundary
 
 - `src/app/api/v1/workspaces/router.py` implements directory/create/select,
-  target settings, members, ownership, self-leave and authenticated invitation
-  administration endpoints.
+  target settings, members, ownership, self-leave, authenticated invitation
+  administration and lifecycle endpoints.
 - `frontend/app/routes/workspaces.tsx` owns canonical `/app/workspaces` and
   composes the feature in `frontend/app/features/workspaces/`.
 - `/api/v1/session` returns only current user/workspace/membership/capabilities
@@ -77,8 +77,8 @@ subroutes from measured content size.
 ### Directory and switch
 
 The directory endpoints are implemented in Slice 1, settings in Slice 2,
-member/ownership rows in Slice 3 and invitations in Slice 4. Lifecycle mutation
-rows remain proposed contracts.
+member/ownership rows in Slice 3, invitations in Slice 4 and lifecycle rows in
+Slice 6.
 
 | Method | Endpoint | Contract |
 | --- | --- | --- |
@@ -92,8 +92,8 @@ rows remain proposed contracts.
 | --- | --- | --- |
 | `GET` | `/api/v1/workspaces/{id}` | **Implemented Slice 2:** mask absent/foreign workspace; identity, actor membership, capabilities, options and owner-only lifecycle counts |
 | `PUT` | `/api/v1/workspaces/{id}` | **Implemented Slice 2:** owner-only name/type/currency + `expectedUpdatedAt`; committed settings snapshot |
-| `POST` | `/api/v1/workspaces/{id}/deactivate` | Locked impact command, explicit confirmation payload |
-| `POST` | `/api/v1/workspaces/{id}/restore` | Owner-only restore with stale token |
+| `POST` | `/api/v1/workspaces/{id}/deactivate` | **Implemented Slice 6:** authoritative owner, workspace/current-session optimistic snapshots, locked impact transaction and committed fallback session |
+| `POST` | `/api/v1/workspaces/{id}/restore` | **Implemented Slice 6:** authoritative owner restore with stale snapshot; never resurrect invitations/integrations/Chat/session |
 
 ### Members/ownership
 
@@ -188,7 +188,7 @@ workspace_validation_error             422 + fieldErrors
 workspace_update_conflict              409
 workspace_switch_conflict              409
 workspace_lifecycle_conflict           409
-workspace_deactivation_blocked         422 + reasonCodes
+workspace_lifecycle_blocked            422 + reasonCodes
 member_not_found                       404 (same for foreign)
 member_role_conflict                    409
 member_transition_blocked              422 + reasonCodes
@@ -268,10 +268,11 @@ sense in the new boundary.
 
 ## Accepted deactivate transaction contract
 
-This is the accepted D12 target, not current runtime behavior. Today there is no
-workspace lifecycle actor or route. The affected persistence fields and readers
-are factual references from `workspaces/models.py`, `users/models.py`,
-`chat_integrations/models.py`, `chat_integrations/use_cases/workspace.py` and
+This accepted D12 contract is implemented by
+`workspaces/application/lifecycle.py`, the versioned Workspaces router,
+`ChatIntegrationRepository.deactivate_workspace_runtime` and the import upload
+recheck. The fields and consumers remain defined in `workspaces/models.py`,
+`users/models.py`, `chat_integrations/models.py`, Chat use cases and
 `imports/documents/commands/upload.py`.
 
 One `WorkspaceLifecycleService.deactivate(...)` transaction must lock the
@@ -281,7 +282,7 @@ workspace first and apply this database state:
 | --- | --- | --- |
 | `Workspace.is_active`, `archived_at` | `false`, committed timestamp | `true`, clear `archived_at` after stale-token check |
 | Pending `WorkspaceInvitation` | transition to `revoked`, set `revoked_at`; credentials never become valid again | remain revoked |
-| `UserSession.current_workspace_id` pointing here | replace with deterministic active-membership fallback; set `NULL` only for an explicit no-workspace recovery outcome | do not switch sessions back automatically |
+| `UserSession.current_workspace_id` pointing here | replace with deterministic active-membership fallback; block with `workspace_fallback_required` when none exists | do not switch sessions back automatically |
 | `IntegrationConnection.status` | `disabled` | remain disabled until an explicit reconnect/reactivate action |
 | `ChatConversationBinding.is_active` | `false` | remain disabled until explicitly re-enabled |
 | `ChatIdentityBinding.is_active` | `false` | remain disabled; user explicitly binds/selects again |

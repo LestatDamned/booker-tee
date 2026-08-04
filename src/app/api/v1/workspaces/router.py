@@ -10,6 +10,7 @@ from app.api.v1.workspaces.dependencies import (
     get_workspace_creator,
     get_workspace_directory_reader,
     get_workspace_invitation_service,
+    get_workspace_lifecycle_service,
     get_workspace_member_service,
     get_workspace_ownership_service,
     get_workspace_session_switcher,
@@ -27,6 +28,7 @@ from app.api.v1.workspaces.schemas import (
     SelectWorkspaceApiResponse,
     TransferWorkspaceOwnershipApiRequest,
     TransferWorkspaceOwnershipApiResponse,
+    TransitionWorkspaceLifecycleApiRequest,
     TransitionWorkspaceMemberApiRequest,
     UpdateWorkspaceMemberRoleApiRequest,
     UpdateWorkspaceSettingsApiRequest,
@@ -35,6 +37,8 @@ from app.api.v1.workspaces.schemas import (
     WorkspaceDirectoryItemApiResponse,
     WorkspaceInvitationItemApiResponse,
     WorkspaceInvitationsApiResponse,
+    WorkspaceLifecycleApiResponse,
+    WorkspaceLifecycleMutationImpactApiResponse,
     WorkspaceMembersApiResponse,
     WorkspaceNavigationOutcomeApiResponse,
     WorkspaceSettingsApiResponse,
@@ -45,6 +49,7 @@ from app.features.workspaces.application.directory import (
     workspace_directory_item,
 )
 from app.features.workspaces.application.invitations import WorkspaceInvitationService
+from app.features.workspaces.application.lifecycle import WorkspaceLifecycleService
 from app.features.workspaces.application.members import WorkspaceMemberService
 from app.features.workspaces.application.ownership import WorkspaceOwnershipService
 from app.features.workspaces.application.settings import WorkspaceSettingsService
@@ -53,6 +58,7 @@ from app.features.workspaces.commands import (
     CreateWorkspaceCommand,
     LeaveWorkspaceCommand,
     TransferWorkspaceOwnershipCommand,
+    TransitionWorkspaceLifecycleCommand,
     TransitionWorkspaceMemberCommand,
     UpdateWorkspaceMemberRoleApiCommand,
     UpdateWorkspaceSettingsCommand,
@@ -63,6 +69,8 @@ from app.features.workspaces.errors import (
     WorkspaceInvitationConflictError,
     WorkspaceInvitationNotFoundError,
     WorkspaceInvitationTransitionError,
+    WorkspaceLifecycleConflictError,
+    WorkspaceLifecycleTransitionError,
     WorkspaceMemberConflictError,
     WorkspaceMemberTransitionError,
     WorkspaceNotFoundError,
@@ -152,6 +160,7 @@ async def create_workspace(
             workspace_directory_item(
                 result.membership,
                 current_workspace_id=result.workspace.id,
+                has_active_fallback=True,
             )
         ),
         session=SessionApiResponseMapper.from_workspace_context(
@@ -306,6 +315,133 @@ async def update_workspace_settings(
             field_errors=field_errors,
         ) from error
     return WorkspaceSettingsApiResponse.model_validate(settings)
+
+
+@router.post(
+    "/{workspace_id}/deactivate",
+    response_model=WorkspaceLifecycleApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def deactivate_workspace(
+    workspace_id: UUID,
+    request: TransitionWorkspaceLifecycleApiRequest,
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    service: Annotated[
+        WorkspaceLifecycleService,
+        Depends(get_workspace_lifecycle_service),
+    ],
+) -> WorkspaceLifecycleApiResponse:
+    return await _transition_workspace_lifecycle(
+        action="deactivate",
+        workspace_id=workspace_id,
+        request=request,
+        context=context,
+        service=service,
+    )
+
+
+@router.post(
+    "/{workspace_id}/restore",
+    response_model=WorkspaceLifecycleApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ),
+)
+async def restore_workspace(
+    workspace_id: UUID,
+    request: TransitionWorkspaceLifecycleApiRequest,
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    service: Annotated[
+        WorkspaceLifecycleService,
+        Depends(get_workspace_lifecycle_service),
+    ],
+) -> WorkspaceLifecycleApiResponse:
+    return await _transition_workspace_lifecycle(
+        action="restore",
+        workspace_id=workspace_id,
+        request=request,
+        context=context,
+        service=service,
+    )
+
+
+async def _transition_workspace_lifecycle(
+    *,
+    action: Literal["deactivate", "restore"],
+    workspace_id: UUID,
+    request: TransitionWorkspaceLifecycleApiRequest,
+    context: ApiRequestContext,
+    service: WorkspaceLifecycleService,
+) -> WorkspaceLifecycleApiResponse:
+    command = TransitionWorkspaceLifecycleCommand(
+        expected_workspace_updated_at=request.expected_workspace_updated_at,
+        expected_current_workspace_id=request.expected_current_workspace_id,
+    )
+    try:
+        result = (
+            await service.deactivate(
+                actor=context.workspace.user,
+                session_token=_session_token(context),
+                workspace_id=workspace_id,
+                command=command,
+            )
+            if action == "deactivate"
+            else await service.restore(
+                actor=context.workspace.user,
+                session_token=_session_token(context),
+                workspace_id=workspace_id,
+                command=command,
+            )
+        )
+    except WorkspaceNotFoundError as error:
+        raise _workspace_not_found(error) from error
+    except WorkspaceSessionNotFoundError as error:
+        raise ApiError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="unauthorized",
+            message="Требуется вход.",
+        ) from error
+    except WorkspaceSwitchConflictError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="workspace_switch_conflict",
+            message=str(error),
+            details={"currentWorkspaceId": str(error.current_workspace_id)},
+        ) from error
+    except WorkspaceLifecycleConflictError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="workspace_lifecycle_conflict",
+            message=str(error),
+        ) from error
+    except WorkspaceLifecycleTransitionError as error:
+        raise ApiError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="workspace_lifecycle_blocked",
+            message=str(error),
+            details={"reasonCodes": error.reason_codes},
+        ) from error
+    workspace_context = WorkspaceContext(
+        user=result.user,
+        workspace=result.workspace,
+        membership=result.membership,
+    )
+    return WorkspaceLifecycleApiResponse(
+        session=SessionApiResponseMapper.from_workspace_context(
+            workspace_context,
+            csrf_token=context.csrf_token,
+        ),
+        impact=WorkspaceLifecycleMutationImpactApiResponse.model_validate(result.impact),
+        navigation_outcome=WorkspaceNavigationOutcomeApiResponse(),
+    )
 
 
 def _session_token(context: ApiRequestContext) -> str:

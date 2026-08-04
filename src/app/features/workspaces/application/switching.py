@@ -48,6 +48,9 @@ class WorkspaceSessionSwitcher:
                 raise WorkspaceSwitchConflictError(
                     current_workspace_id=user_session.current_workspace_id
                 )
+            target_workspace = await self._workspaces.lock_for_update(target_workspace_id)
+            if target_workspace is None or not target_workspace.is_active:
+                raise WorkspaceNotFoundError("Workspace не найден.")
             membership = await self._workspaces.get_active_membership(
                 user_id=actor.id,
                 workspace_id=target_workspace_id,

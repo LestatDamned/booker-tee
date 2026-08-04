@@ -35,6 +35,7 @@ from app.features.imports.parsers.extractors.resolver import (
 from app.features.imports.parsers.registry import StatementParserRegistry
 from app.features.imports.statements.process import StatementParseCompletionService
 from app.features.imports.statements.repository import StatementRepository
+from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.service import WorkspaceContext
 from app.shared.schemas import ApplicationModel
 
@@ -63,6 +64,7 @@ class StatementUploadUseCase:
             mappings=self.mappings,
             parser_registry=StatementParserRegistry.with_default_parsers(),
         )
+        self.workspaces = WorkspaceRepository(session)
 
     async def upload_statement(
         self,
@@ -150,12 +152,20 @@ class StatementUploadUseCase:
         except PARSER_EXCEPTIONS as exc:
             await record_failed_parse_attempt(self.documents, document, attempt, exc)
         else:
-            await self.parse_completion.complete_successful_attempt(
-                document,
-                attempt,
-                extracted,
-                currency=selected_currency,
-            )
+            workspace = await self.workspaces.lock_for_update(context.workspace.id)
+            if workspace is None or not workspace.is_active:
+                await self.parse_completion.preserve_inactive_workspace_attempt(
+                    document,
+                    attempt,
+                    extracted,
+                )
+            else:
+                await self.parse_completion.complete_successful_attempt(
+                    document,
+                    attempt,
+                    extracted,
+                    currency=selected_currency,
+                )
 
         await self.session.commit()
         return self._upload_result(document, replayed=False)

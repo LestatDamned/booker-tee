@@ -62,7 +62,11 @@ const workspaceItemSchema: z.ZodType<WorkspaceDirectoryItemDto> = z.object({
     canRestore: z.boolean(),
   }),
   blockingReasonCodes: z.array(
-    z.enum(["workspace_current", "workspace_inactive"]),
+    z.enum([
+      "workspace_current",
+      "workspace_inactive",
+      "workspace_fallback_required",
+    ]),
   ),
 });
 

@@ -109,8 +109,18 @@ class WorkspaceSettingsService:
 
     async def _settings(self, membership: WorkspaceMember) -> WorkspaceSettingsDto:
         workspace = membership.workspace
-        is_owner = membership.role == WorkspaceRole.OWNER
+        is_owner = (
+            membership.role == WorkspaceRole.OWNER and workspace.owner_id == membership.user_id
+        )
         can_update = workspace.is_active and is_owner
+        fallback = (
+            await self._workspaces.get_first_active_membership_for_user_excluding(
+                user_id=membership.user_id,
+                excluded_workspace_id=workspace.id,
+            )
+            if workspace.is_active and is_owner
+            else None
+        )
         lifecycle_impact = None
         if is_owner:
             lifecycle_impact = WorkspaceLifecycleImpactDto(
@@ -129,6 +139,8 @@ class WorkspaceSettingsService:
                 ),
             )
         reasons = [WorkspaceBlockingReason.INACTIVE] if not workspace.is_active else []
+        if workspace.is_active and is_owner and fallback is None:
+            reasons.append(WorkspaceBlockingReason.FALLBACK_REQUIRED)
         return WorkspaceSettingsDto(
             workspace=WorkspaceSettingsItemDto(
                 id=workspace.id,
@@ -147,8 +159,8 @@ class WorkspaceSettingsService:
                     can_update=can_update,
                     can_manage_members=workspace.is_active and can_manage_members(membership),
                     can_invite=workspace.is_active and can_invite_members(membership),
-                    can_deactivate=False,
-                    can_restore=False,
+                    can_deactivate=workspace.is_active and is_owner and fallback is not None,
+                    can_restore=not workspace.is_active and is_owner,
                 ),
                 blocking_reason_codes=reasons,
             ),

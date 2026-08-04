@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from typing import cast
 from uuid import UUID
@@ -19,6 +20,15 @@ from app.features.chat_integrations.models import (
     IntegrationEventDelivery,
 )
 from app.features.chat_integrations.schemas import ChatProviderCode
+
+
+@dataclass(frozen=True)
+class WorkspaceRuntimeDeactivationCounts:
+    connection_count: int
+    conversation_binding_count: int
+    identity_binding_count: int
+    conversation_state_count: int
+    delivery_count: int
 
 
 class ChatIntegrationRepository:
@@ -49,6 +59,68 @@ class ChatIntegrationRepository:
             )
         )
         return result.scalar_one()
+
+    async def deactivate_workspace_runtime(
+        self,
+        workspace_id: UUID,
+        *,
+        deactivated_at: datetime,
+    ) -> WorkspaceRuntimeDeactivationCounts:
+        connection_count = await self._update_count(
+            update(IntegrationConnection)
+            .where(
+                IntegrationConnection.workspace_id == workspace_id,
+                IntegrationConnection.status == IntegrationConnectionStatus.ACTIVE,
+            )
+            .values(status=IntegrationConnectionStatus.DISABLED)
+        )
+        conversation_binding_count = await self._update_count(
+            update(ChatConversationBinding)
+            .where(
+                ChatConversationBinding.workspace_id == workspace_id,
+                ChatConversationBinding.is_active.is_(True),
+            )
+            .values(is_active=False)
+        )
+        identity_binding_count = await self._update_count(
+            update(ChatIdentityBinding)
+            .where(
+                ChatIdentityBinding.workspace_id == workspace_id,
+                ChatIdentityBinding.is_active.is_(True),
+            )
+            .values(is_active=False)
+        )
+        conversation_state_count = await self._update_count(
+            update(ChatConversationState)
+            .where(
+                ChatConversationState.workspace_id == workspace_id,
+                ChatConversationState.consumed_at.is_(None),
+            )
+            .values(consumed_at=deactivated_at)
+        )
+        delivery_count = await self._update_count(
+            update(IntegrationEventDelivery)
+            .where(
+                IntegrationEventDelivery.workspace_id == workspace_id,
+                IntegrationEventDelivery.status == IntegrationDeliveryStatus.PENDING,
+            )
+            .values(
+                status=IntegrationDeliveryStatus.FAILED,
+                error_message="Workspace was deactivated before delivery.",
+            )
+        )
+        await self.session.flush()
+        return WorkspaceRuntimeDeactivationCounts(
+            connection_count=connection_count,
+            conversation_binding_count=conversation_binding_count,
+            identity_binding_count=identity_binding_count,
+            conversation_state_count=conversation_state_count,
+            delivery_count=delivery_count,
+        )
+
+    async def _update_count(self, statement) -> int:
+        result = cast(CursorResult, await self.session.execute(statement))
+        return result.rowcount
 
     async def get_active_identity_binding(
         self,

@@ -15,6 +15,7 @@ from app.core.settings import Settings
 from app.db.session import get_session
 from app.features.users.service import AuthenticationService
 from app.features.workspaces.permissions import can_read_workspace, can_write_financial_data
+from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.service import WorkspaceContext
 
 API_CSRF_HEADER = "X-CSRF-Token"
@@ -45,6 +46,15 @@ async def get_api_request_context(
     )
     if login_session is None:
         raise_api_unauthorized()
+
+    if request.method not in SAFE_METHODS:
+        workspace = await WorkspaceRepository(session).lock_for_update(login_session.workspace.id)
+        if workspace is None or not workspace.is_active:
+            raise ApiError(
+                status_code=status.HTTP_409_CONFLICT,
+                code="workspace_inactive",
+                message="Пространство было деактивировано. Обновите страницу.",
+            )
 
     workspace_context = WorkspaceContext(
         user=login_session.user,

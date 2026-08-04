@@ -11,6 +11,7 @@ from app.features.workspaces.domain.types import (
     WorkspaceRole,
     WorkspaceType,
 )
+from app.features.workspaces.schemas import WorkspaceBlockingReason
 
 
 async def test_directory_lists_only_source_memberships_without_writes() -> None:
@@ -57,7 +58,8 @@ async def test_directory_lists_only_source_memberships_without_writes() -> None:
     assert [item.name for item in directory.items] == ["Дом", "Архив проекта"]
     assert directory.items[0].is_current is True
     assert directory.items[0].capabilities.can_select is False
-    assert directory.items[0].capabilities.can_deactivate is True
+    assert directory.items[0].capabilities.can_deactivate is False
+    assert WorkspaceBlockingReason.FALLBACK_REQUIRED in directory.items[0].blocking_reason_codes
     assert directory.items[1].is_active is False
     assert directory.items[1].capabilities.can_select is False
     assert directory.items[1].capabilities.can_restore is False

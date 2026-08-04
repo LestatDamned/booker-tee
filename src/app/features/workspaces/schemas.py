@@ -14,6 +14,7 @@ from app.shared.schemas import ApplicationModel
 class WorkspaceBlockingReason(StrEnum):
     CURRENT = "workspace_current"
     INACTIVE = "workspace_inactive"
+    FALLBACK_REQUIRED = "workspace_fallback_required"
 
 
 class WorkspaceMembershipDto(ApplicationModel):
@@ -97,6 +98,23 @@ class WorkspaceSettingsDto(ApplicationModel):
     workspace_type_options: list[WorkspaceOptionDto]
     currency_options: list[WorkspaceOptionDto]
     lifecycle_impact: WorkspaceLifecycleImpactDto | None
+
+
+class WorkspaceLifecycleBlockingReason(StrEnum):
+    FORBIDDEN = "workspace_lifecycle_forbidden"
+    FALLBACK_REQUIRED = "workspace_fallback_required"
+    ALREADY_ACTIVE = "workspace_already_active"
+    ALREADY_INACTIVE = "workspace_already_inactive"
+
+
+class WorkspaceLifecycleMutationImpactDto(ApplicationModel):
+    moved_session_count: int
+    revoked_invitation_count: int
+    disabled_integration_connection_count: int
+    disabled_chat_conversation_binding_count: int
+    disabled_chat_identity_binding_count: int
+    consumed_chat_conversation_state_count: int
+    failed_integration_delivery_count: int
 
 
 class WorkspaceMemberBlockingReason(StrEnum):

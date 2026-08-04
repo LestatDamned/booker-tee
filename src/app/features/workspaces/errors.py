@@ -54,3 +54,13 @@ class WorkspaceInvitationTransitionError(WorkspaceError):
     def __init__(self, message: str, *, reason_codes: list[str]) -> None:
         super().__init__(message)
         self.reason_codes = reason_codes
+
+
+class WorkspaceLifecycleConflictError(WorkspaceError):
+    pass
+
+
+class WorkspaceLifecycleTransitionError(WorkspaceError):
+    def __init__(self, message: str, *, reason_codes: list[str]) -> None:
+        super().__init__(message)
+        self.reason_codes = reason_codes

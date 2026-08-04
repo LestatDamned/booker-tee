@@ -1,6 +1,6 @@
 # Workspaces replacement test manifest
 
-Статус: accepted replacement manifest; Slice 0 characterization and Slice 1–5
+Статус: accepted replacement manifest; Slice 0 characterization and Slice 1–6
 production gates complete.
 
 ## Existing evidence
@@ -39,10 +39,10 @@ characterizations are now ordinary passing regression tests, supplemented by a
 real concurrent transfer test. Database tests use ordinary flush/commit and
 real PostgreSQL locking: no fake transaction implementation is involved.
 
-Current gap after Slice 5: lifecycle mutations remain a later replacement
-slice. Directory, settings, members, invitation administration and public
-accept have application/API or minimal-adapter evidence plus PostgreSQL
-isolation/concurrency and production browser gates.
+Current gap after Slice 6: authenticated canonical cutover and exact legacy
+cleanup remain. Directory, settings, members, invitations, public accept and
+lifecycle have application/API or minimal-adapter evidence plus PostgreSQL and
+production browser gates.
 
 The accepted Slice 1 contract now has a standalone non-runtime visual prototype
 at `docs/frontend/plan/workspaces/prototype/index.html`. Its 2026-08-03 capture
@@ -215,6 +215,30 @@ Current Slice 5 evidence:
   properties remain persisted and unchanged;
 - inactive workspace blocks every API/Chat read/write;
 - concurrent in-flight write cannot commit after lifecycle guard.
+
+Current Slice 6 evidence:
+
+- `test_workspace_lifecycle_application.py` covers owner authority snapshots,
+  fallback-before-side-effect, impact orchestration, rollback and restore-only
+  behavior;
+- `test_workspace_lifecycle_postgres.py` proves session move, invitation
+  revocation, integrations/Chat shutdown and preserved financial category in
+  one real transaction, then proves restore resurrects none of that runtime;
+- `test_imports.py -k inactive_workspace` proves extracted text/tables/metadata
+  remain while normalization/rule work is skipped;
+- `test_workspaces_api.py`, `workspace-settings-api.test.ts` and
+  `workspace-settings-page.test.tsx` cover CSRF/snapshots, masked target,
+  conflict/reason codes, runtime DTO validation, explicit dialogs and hard
+  boundary reload;
+- `scripts/workspaces_slice06_browser.py` covers owner/viewer capability,
+  two-session fallback, stale recovery, invitation revocation, restore without
+  session switch-back, keyboard dialog focus and 1440/390 geometry with no
+  overflow, undersized targets or browser errors.
+- full regressions on 2026-08-04: 800 backend tests passed with 15
+  environment-gated PostgreSQL skips; the focused lifecycle PostgreSQL test
+  passed separately on `booker_tee_reparse_test`; 79 frontend files / 477
+  tests plus format, lint, style policy, OpenAPI drift, TypeScript and
+  production build passed.
 
 ## API contract tests required
 

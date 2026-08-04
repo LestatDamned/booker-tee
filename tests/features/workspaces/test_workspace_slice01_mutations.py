@@ -38,6 +38,7 @@ async def test_workspace_switch_locks_session_checks_expected_current_and_commit
     )
 
     assert repositories.users.lock_calls == [(actor.id, "session-token")]
+    assert repositories.workspaces.workspace_lock_calls == [target_id]
     assert repositories.workspaces.membership_calls == [(actor.id, target_id)]
     assert user_session.current_workspace_id == target_id
     assert result.workspace.id == membership.workspace.id
@@ -175,7 +176,7 @@ class FakeSession:
 def switch_harness(monkeypatch, *, current_id: UUID, target_id: UUID):
     actor = SimpleNamespace(id=uuid4())
     user_session = SimpleNamespace(current_workspace_id=current_id, last_seen_at=None)
-    workspace = SimpleNamespace(id=target_id)
+    workspace = SimpleNamespace(id=target_id, is_active=True)
     membership = SimpleNamespace(workspace_id=target_id, workspace=workspace)
 
     class Users:
@@ -195,6 +196,11 @@ def switch_harness(monkeypatch, *, current_id: UUID, target_id: UUID):
         def __init__(self, session) -> None:
             self.membership = membership
             self.membership_calls = []
+            self.workspace_lock_calls = []
+
+        async def lock_for_update(self, workspace_id):
+            self.workspace_lock_calls.append(workspace_id)
+            return workspace
 
         async def get_active_membership(self, *, user_id, workspace_id):
             self.membership_calls.append((user_id, workspace_id))

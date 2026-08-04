@@ -1,6 +1,6 @@
 # Workspaces React migration audit
 
-Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1–5 production gates passed 2026-08-04; Slice 6 lifecycle next`.
+Статус: `audit/Slice 0 complete; D1–D14 accepted; Slice 1–6 production gates passed 2026-08-04; Slice 7 cutover next`.
 
 Этот временный child stage ведёт Stage 7 Wave C migration authenticated
 workflow Workspaces. На этапе аудита production runtime не менялся. После
@@ -57,8 +57,11 @@ create и locked revoke. Slice 5 сохранил public SSR bridge по D11, н
 preview/accept authority на `WorkspaceInvitationService`. Accept теперь одной
 транзакцией создаёт membership, поглощает credential, пишет audit event и
 переключает текущую `UserSession`; success ведёт на `/app/workspaces`.
-Lifecycle mutations отсутствуют. React settings также показывает read-only
-lifecycle impact.
+Slice 6 добавил owner-only deactivate/restore с optimistic snapshot,
+детерминированным session fallback и hard boundary reload. Одна locked
+транзакция отзывает pending invitations и отключает integrations/Chat runtime;
+restore возвращает только workspace в active state. React settings показывает
+impact, server capability/fallback gate и explicit confirmation.
 
 ## Материалы
 
@@ -94,9 +97,10 @@ lifecycle impact.
 - Permission matrix server-owned и включает `owner`, `admin`, `editor`,
   `uploader`, `analyst`, `viewer`. Только owner управляет settings; owner/admin
   управляют invitations/members с дополнительными role guards.
-- Lifecycle workspace не реализован: поля `is_active` и `archived_at` есть, но
-  routes/use cases deactivate/archive/restore/delete отсутствуют. Transfer и
-  leave теперь принадлежат `application/ownership.py`, а не lifecycle actor.
+- Lifecycle реализован в `application/lifecycle.py` и versioned API как soft
+  deactivate/restore; hard-delete application route по-прежнему отсутствует.
+  Transfer и leave принадлежат `application/ownership.py`, а lifecycle actor
+  владеет session/invitation/integration/Chat consequence transaction.
 
 ## Принятые решения
 
