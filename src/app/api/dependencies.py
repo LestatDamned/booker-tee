@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Annotated, NoReturn
+from urllib.parse import urlsplit
 
 from fastapi import Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,6 +37,22 @@ class AuthenticatedSessionContext:
     session: UserSession
     csrf_token: str
     session_token: str
+
+
+def require_same_origin_public_mutation(
+    request: Request,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> None:
+    fetch_site = request.headers.get("Sec-Fetch-Site", "").lower()
+    if fetch_site == "cross-site":
+        raise_invalid_origin()
+    if fetch_site == "same-origin":
+        return
+
+    provided_origin = request.headers.get("Origin")
+    expected_origin = _origin(settings.public_base_url or str(request.base_url))
+    if provided_origin is None or _origin(provided_origin) != expected_origin:
+        raise_invalid_origin()
 
 
 async def get_authenticated_session_context(
@@ -147,3 +164,18 @@ def raise_api_unauthorized() -> NoReturn:
         code="unauthorized",
         message="Требуется вход.",
     )
+
+
+def raise_invalid_origin() -> NoReturn:
+    raise ApiError(
+        status_code=status.HTTP_403_FORBIDDEN,
+        code="invalid_origin",
+        message="Источник запроса не разрешён.",
+    )
+
+
+def _origin(value: str) -> str | None:
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"

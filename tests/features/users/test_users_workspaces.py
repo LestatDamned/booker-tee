@@ -1,5 +1,4 @@
-from types import SimpleNamespace
-from typing import Any, cast
+from typing import cast
 from uuid import uuid4
 
 from fastapi import Request
@@ -18,12 +17,6 @@ from app.features.users.errors import UserError
 from app.features.users.service import clean_user_name, normalize_email, validate_password
 from app.features.workspaces.dependencies import parse_uuid_cookie
 from app.features.workspaces.errors import WorkspaceError
-from app.features.workspaces.models import (
-    WorkspaceAuditEventType,
-    WorkspaceMemberStatus,
-    WorkspaceRole,
-    WorkspaceType,
-)
 from app.features.workspaces.service import clean_workspace_name, normalize_currency
 
 
@@ -113,6 +106,15 @@ def test_password_validation_rejects_short_password() -> None:
         raise AssertionError("short password was accepted")
 
 
+def test_password_validation_uses_configured_minimum() -> None:
+    try:
+        validate_password("eight888", minimum_length=12)
+    except UserError as exc:
+        assert "12" in str(exc)
+    else:
+        raise AssertionError("configured password minimum was ignored")
+
+
 def test_session_token_hash_and_csrf_are_deterministic() -> None:
     settings = Settings(auth_secret_key="test-secret")
     session_token = "session-token"
@@ -131,97 +133,6 @@ def test_session_token_hash_and_csrf_are_deterministic() -> None:
         session_token=session_token,
         settings=settings,
     )
-
-
-async def test_registration_creates_workspace_membership_and_session_once(monkeypatch) -> None:
-    class FakeSession:
-        def __init__(self) -> None:
-            self.commit_count = 0
-            self.created_user = None
-            self.created_session = None
-
-        async def commit(self) -> None:
-            self.commit_count += 1
-
-    class FakeUserRepository:
-        def __init__(self, session: FakeSession) -> None:
-            self.session = session
-
-        async def get_by_email(self, email: str):
-            return None
-
-        async def create(self, *, email: str, password_hash: str, name: str | None = None):
-            user = SimpleNamespace(
-                id=uuid4(),
-                email=email,
-                password_hash=password_hash,
-                name=name,
-                is_active=True,
-            )
-            self.session.created_user = user
-            return user
-
-        async def create_session(self, user_session):
-            self.session.created_session = user_session
-            return user_session
-
-    class FakeWorkspaceRepository:
-        def __init__(self, session: FakeSession) -> None:
-            self.session = session
-            self.audit_events = []
-
-        async def create_personal_workspace_with_owner_membership(self, user_id):
-            workspace = SimpleNamespace(
-                id=uuid4(),
-                owner_id=user_id,
-                name="Personal",
-                type=WorkspaceType.PERSONAL,
-                default_currency="RUB",
-                is_active=True,
-            )
-            membership = SimpleNamespace(
-                id=uuid4(),
-                workspace_id=workspace.id,
-                user_id=user_id,
-                role=WorkspaceRole.OWNER,
-                status=WorkspaceMemberStatus.ACTIVE,
-                workspace=workspace,
-            )
-            return workspace, membership
-
-        async def create_audit_event(self, **values):
-            event = SimpleNamespace(id=uuid4(), **values)
-            self.audit_events.append(event)
-            return event
-
-    monkeypatch.setattr(users_service, "UserRepository", FakeUserRepository)
-    monkeypatch.setattr(users_service, "WorkspaceRepository", FakeWorkspaceRepository)
-
-    session = FakeSession()
-    auth = users_service.AuthenticationService(
-        cast(AsyncSession, session),
-        Settings(auth_secret_key="test-secret"),
-    )
-
-    login_session = await auth.register(
-        email="  MAX@example.COM ",
-        password="correct horse battery staple",
-        name="  Max  ",
-    )
-
-    assert session.commit_count == 1
-    assert login_session.user.email == "max@example.com"
-    assert login_session.user.name == "Max"
-    assert login_session.workspace.owner_id == login_session.user.id
-    assert login_session.membership.user_id == login_session.user.id
-    assert login_session.membership.workspace_id == login_session.workspace.id
-    assert login_session.session.current_workspace_id == login_session.workspace.id
-    assert login_session.session.user_id == login_session.user.id
-    assert session.created_session is login_session.session
-    repository = cast(Any, auth.workspaces)
-    assert len(repository.audit_events) == 1
-    assert repository.audit_events[0].event_type == WorkspaceAuditEventType.WORKSPACE_CREATED
-    assert repository.audit_events[0].workspace_id == login_session.workspace.id
 
 
 async def test_expired_authenticated_session_is_rejected(monkeypatch) -> None:

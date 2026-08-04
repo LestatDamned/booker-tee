@@ -35,6 +35,22 @@ def hash_session_token(session_token: str) -> str:
     return sha256(session_token.encode("utf-8")).hexdigest()
 
 
+def generate_user_token() -> str:
+    return token_urlsafe(SESSION_TOKEN_BYTES)
+
+
+def hash_user_token(user_token: str) -> str:
+    return sha256(user_token.encode("utf-8")).hexdigest()
+
+
+def auth_rate_limit_bucket_hash(*, scope: str, key: str, settings: Settings) -> str:
+    return new(
+        settings.auth_secret_key.encode("utf-8"),
+        f"{scope}\0{key}".encode(),
+        sha256,
+    ).hexdigest()
+
+
 def csrf_token_for_session(session_token: str, settings: Settings) -> str:
     digest = new(
         settings.auth_secret_key.encode("utf-8"),

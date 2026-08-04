@@ -1,6 +1,7 @@
 from sqlalchemy.orm import configure_mappers
 
 from app.features.imports.models import ParseAttempt, UploadedDocument
+from app.features.users.models import AuthRateLimit, User, UserSession, UserToken
 
 
 def test_sqlalchemy_mappers_are_configured() -> None:
@@ -18,3 +19,10 @@ def test_uploaded_document_children_are_deleted_with_document() -> None:
     assert parse_attempts.passive_deletes is True
     assert raw_transactions.passive_deletes is True
     assert attempt_raw_transactions.passive_deletes is True
+
+
+def test_user_identity_foundation_schema_is_registered() -> None:
+    assert {"email_verified_at", "deactivated_at"} <= set(User.__table__.columns.keys())
+    assert "user_agent_summary" in UserSession.__table__.columns
+    assert UserToken.__tablename__ == "user_tokens"
+    assert AuthRateLimit.__tablename__ == "auth_rate_limits"

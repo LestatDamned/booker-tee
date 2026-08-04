@@ -1,7 +1,8 @@
 # Stage 07 / Wave C: Users And Authentication
 
-Статус: active. Slice 1 завершён 2026-08-04. Slice 2 спланирован 2026-08-04;
-реализация начинается с 2.0 Foundations.
+Статус: active. Slice 1, Slice 2.0 Foundations и Slice 2.1
+Verification-first signup завершены 2026-08-04; следующий increment — 2.2
+Password policy, recovery and change.
 
 Этот child stage переносит оставшийся authenticated профиль и public auth flow
 из Jinja в React и доводит текущую email/password-аутентификацию до полного
@@ -248,7 +249,8 @@ valid single-use token
 
 ## Password policy
 
-- минимум `15` символов для нового password-only credential;
+- configurable минимум для нового password-only credential: стартовое значение
+  `8`, меняется через `BOOKER_TEE_PASSWORD_MIN_LENGTH` без изменения кода;
 - существующие hash продолжают приниматься при корректном login;
 - разрешены длинные passphrases, Unicode, whitespace, paste и password
   managers;
@@ -462,6 +464,26 @@ Gate 2.0:
 - production settings fail fast без canonical HTTPS URL и SMTP configuration;
 - старые verified users продолжают login без изменения workspace/session.
 
+Completion record 2026-08-04:
+
+- migration `20260804_0022` добавляет identity timestamps, bounded session
+  summary, hashed single-use tokens и HMAC-keyed throttle buckets;
+- existing active users backfilled как verified; upgrade, downgrade и repeat
+  upgrade проверены на отдельной PostgreSQL database;
+- token replacement/consume использует row locks, throttle increment — atomic
+  PostgreSQL upsert; concurrency test доказал одного token winner и отсутствие
+  lost updates;
+- login/signup JSON API отклоняет missing/cross-site Origin и принимает
+  same-origin Fetch Metadata;
+- identity email boundary использует Python stdlib SMTP, STARTTLS и
+  `asyncio.to_thread`; secrets отсутствуют в `repr`, token hashes и rate-limit
+  keys не раскрывают исходные значения;
+- production fail-fast включается вместе с
+  `BOOKER_TEE_IDENTITY_EMAIL_ENABLED`; flag остаётся выключенным до cutover 2.1,
+  поэтому действующий signup не обещает email, который пока не отправляется;
+- OpenAPI/generated TypeScript contracts обновлены; relevant backend,
+  PostgreSQL и frontend tests, а также production build прошли.
+
 ### 2.1 Verification-first signup
 
 Server:
@@ -500,12 +522,46 @@ Gate 2.1:
 - browser flow `signup -> captured email -> verify -> workspace` проходит вместе
   с invitation continuation.
 
+Completion record 2026-08-04:
+
+- signup теперь создаёт только unverified user и hashed 24-hour token; workspace,
+  membership и session появляются одной transaction только после verification;
+- existing email и database unique race дают тот же generic `202`, не меняют
+  password/name и не раскрывают состояние аккаунта;
+- resend использует generic response, заменяет active token только для
+  подходящего unverified user и ограничен account/network PostgreSQL buckets с
+  `Retry-After` и стабильным `auth_rate_limited`;
+- email отправляется после commit через FastAPI background task и узкий
+  delivery callable; production signup требует включённый identity email,
+  canonical HTTPS URL, sender и SMTP configuration;
+- `POST /email-verifications` consume token под row lock, отмечает email
+  verified, создаёт один personal workspace, owner membership, audit event и
+  opaque session cookie; concurrent signup/verification проверены на
+  PostgreSQL;
+- React signup показывает generic accepted state и resend cooldown;
+  `/app/auth/verify-email` удаляет token из visible URL до явного POST, а
+  invalid/expired/consumed state ведёт к generic resend recovery;
+- invitation continuation кодируется в email link только после
+  `safe_next_path()` и повторно проверяется server-side при verification;
+- исторический `GET/POST /signup` больше не обходит verification и переводит в
+  canonical React signup с сохранением `next`; legacy login остаётся до общего
+  cleanup gate;
+- API/OpenAPI, application, React и PostgreSQL tests прошли; Playwright audit
+  проверил signup, ready verification и recovery verification на
+  `1440x1000`, `920x900`, `390x844` в Mocha и Latte (`18/18` страниц).
+
+Deployment note: локальный/test no-op sender остаётся только при явно
+выключенном `BOOKER_TEE_IDENTITY_EMAIL_ENABLED`; для реального пользовательского
+journey флаг, HTTPS base URL и SMTP должны быть настроены. Это rollout input, а
+не скрытый fallback или логирование raw token.
+
 ### 2.2 Password policy, recovery and change
 
 Server:
 
-1. Применять password policy `15..1024` Unicode code points без composition
-   rules, trim, запрета whitespace/paste или календарной смены.
+1. Применять configurable password policy `8..1024` Unicode code points;
+   минимум брать из auth config, без composition rules, trim, запрета
+   whitespace/paste или календарной смены.
 2. Сравнивать весь новый password с локальным pinned blocklist распространённых
    значений и контекстных вариантов Booker Tee. Не вызывать внешний breach API
    из credential flow.

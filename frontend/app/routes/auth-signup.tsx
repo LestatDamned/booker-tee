@@ -1,7 +1,11 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 
-import { loadAuthConfig, signup } from "../features/users/api/auth-api";
+import {
+  loadAuthConfig,
+  resendEmailVerification,
+  signup,
+} from "../features/users/api/auth-api";
 import styles from "../features/users/auth/auth-page.module.css";
 import { Button } from "../ui/button/button";
 import { Field } from "../ui/field/field";
@@ -27,12 +31,28 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [acceptedMessage, setAcceptedMessage] = useState<string | null>(null);
+  const [resendStatus, setResendStatus] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+  const passwordMinLength =
+    loaderData.status === "success" ? loaderData.passwordMinLength : 8;
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = window.setInterval(
+      () => setCooldown((seconds) => Math.max(0, seconds - 1)),
+      1000,
+    );
+    return () => window.clearInterval(timer);
+  }, [cooldown]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const errors = {
       ...(!email.trim() ? { email: "Введите email." } : {}),
-      ...(password.length < 8 ? { password: "Минимум 8 символов." } : {}),
+      ...(password.length < passwordMinLength
+        ? { password: `Минимум ${passwordMinLength} символов.` }
+        : {}),
     };
     setFieldErrors(errors);
     setSubmitError(null);
@@ -50,13 +70,29 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
     });
     setPending(false);
     if (result.status === "success") {
-      window.location.assign(result.nextPath);
+      setAcceptedMessage(result.message);
+      setCooldown(result.retryAfterSeconds);
       return;
     }
     setFieldErrors(result.fieldErrors);
     setSubmitError(result.message);
     if (result.fieldErrors.email) emailRef.current?.focus();
     else if (result.fieldErrors.password) passwordRef.current?.focus();
+  }
+
+  async function resend() {
+    if (pending || cooldown > 0) return;
+    setPending(true);
+    setResendStatus(null);
+    const result = await resendEmailVerification({ email });
+    setPending(false);
+    if (result.status === "success") {
+      setResendStatus("Письмо запрошено повторно. Проверьте входящие и спам.");
+      setCooldown(result.retryAfterSeconds);
+      return;
+    }
+    setResendStatus(result.message);
+    if (result.retryAfterSeconds) setCooldown(result.retryAfterSeconds);
   }
 
   const registrationClosed =
@@ -76,7 +112,34 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
             {loaderData.message}
           </InlineNotice>
         ) : null}
-        {registrationClosed ? (
+        {acceptedMessage ? (
+          <div className={styles.accepted}>
+            <InlineNotice title="Проверьте почту" tone="success">
+              {acceptedMessage} Ссылка действует 24 часа.
+            </InlineNotice>
+            <p>
+              Письмо отправлено на <strong>{email}</strong>. Workspace появится
+              только после подтверждения адреса.
+            </p>
+            <div className={styles.actions}>
+              <Button
+                disabled={cooldown > 0}
+                isLoading={pending}
+                onClick={resend}
+                tone="secondary"
+                type="button"
+              >
+                {cooldown > 0
+                  ? `Отправить повторно через ${cooldown} сек.`
+                  : "Отправить письмо повторно"}
+              </Button>
+              <Link to={`/auth/login?${searchParams}`}>Перейти ко входу</Link>
+            </div>
+            <p aria-live="polite" className={styles.status}>
+              {resendStatus}
+            </p>
+          </div>
+        ) : registrationClosed ? (
           <InlineNotice title="Регистрация закрыта" tone="information">
             Новые аккаунты временно не создаются. Если аккаунт уже есть,
             войдите.
@@ -133,7 +196,7 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
             <Field
               error={fieldErrors.password}
               errorId="signup-password-error"
-              hint="Не менее 8 символов. Можно вставить из password manager."
+              hint={`Не менее ${passwordMinLength} символов. Можно вставить из password manager.`}
               htmlFor="signup-password"
               label="Пароль"
               required
@@ -148,7 +211,7 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
                 autoComplete="new-password"
                 disabled={pending}
                 id="signup-password"
-                minLength={8}
+                minLength={passwordMinLength}
                 name="password"
                 onChange={(event) => {
                   setPassword(event.target.value);
@@ -166,10 +229,12 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
             </Button>
           </form>
         )}
-        <p className={styles.footer}>
-          Уже есть аккаунт?{" "}
-          <Link to={`/auth/login?${searchParams}`}>Войти</Link>
-        </p>
+        {!acceptedMessage ? (
+          <p className={styles.footer}>
+            Уже есть аккаунт?{" "}
+            <Link to={`/auth/login?${searchParams}`}>Войти</Link>
+          </p>
+        ) : null}
       </section>
     </main>
   );

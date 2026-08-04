@@ -1,4 +1,5 @@
 from typing import Annotated
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -21,54 +22,24 @@ templates = create_templates()
 @router.get("/signup", response_class=HTMLResponse)
 async def signup_form(
     request: Request,
-    settings: Annotated[Settings, Depends(get_settings)],
-    next_path: Annotated[str | None, Query(alias="next")] = None,
-) -> HTMLResponse:
-    return templates.TemplateResponse(
-        request,
-        "users/signup.html",
-        {
-            "allow_signups": settings.allow_signups,
-            "app_name": settings.app_name,
-            "error": None,
-            "next_path": safe_next_path(next_path) if next_path else None,
-        },
+    _next_path: Annotated[str | None, Query(alias="next")] = None,
+) -> RedirectResponse:
+    target = "/app/auth/signup"
+    if request.url.query:
+        target = f"{target}?{request.url.query}"
+    return RedirectResponse(
+        url=target,
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
     )
 
 
 @router.post("/signup")
 async def signup(
-    request: Request,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    settings: Annotated[Settings, Depends(get_settings)],
-    email: Annotated[str, Form()],
-    password: Annotated[str, Form()],
-    name: Annotated[str | None, Form()] = None,
     next_path: Annotated[str | None, Form(alias="next")] = None,
 ) -> Response:
-    redirect_path = safe_next_path(next_path)
-    try:
-        login_session = await AuthenticationService(session, settings).register(
-            email=email,
-            password=password,
-            name=name,
-        )
-    except UserError as exc:
-        return templates.TemplateResponse(
-            request,
-            "users/signup.html",
-            {
-                "allow_signups": settings.allow_signups,
-                "app_name": settings.app_name,
-                "error": str(exc),
-                "next_path": redirect_path,
-            },
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
-
-    response = RedirectResponse(url=redirect_path, status_code=status.HTTP_303_SEE_OTHER)
-    remember_session(response, settings=settings, session_token=login_session.session_token)
-    return response
+    query = urlencode({"next": next_path}) if next_path else ""
+    target = f"/app/auth/signup?{query}" if query else "/app/auth/signup"
+    return RedirectResponse(url=target, status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/login", response_class=HTMLResponse)

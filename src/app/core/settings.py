@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     )
     debug: bool = Field(default=False, validation_alias="BOOKER_TEE_DEBUG")
     allow_signups: bool = Field(default=True, validation_alias="BOOKER_TEE_ALLOW_SIGNUPS")
+    password_min_length: int = Field(
+        default=8,
+        ge=8,
+        le=1024,
+        validation_alias="BOOKER_TEE_PASSWORD_MIN_LENGTH",
+    )
     auth_secret_key: str = Field(
         default=LOCAL_AUTH_SECRET,
         validation_alias="BOOKER_TEE_AUTH_SECRET_KEY",
@@ -30,6 +36,28 @@ class Settings(BaseSettings):
     session_max_age_seconds: int = Field(
         default=60 * 60 * 24 * 14,
         validation_alias="BOOKER_TEE_SESSION_MAX_AGE_SECONDS",
+    )
+    identity_email_enabled: bool = Field(
+        default=False,
+        validation_alias="BOOKER_TEE_IDENTITY_EMAIL_ENABLED",
+    )
+    identity_email_from: str | None = Field(
+        default=None,
+        validation_alias="BOOKER_TEE_IDENTITY_EMAIL_FROM",
+    )
+    smtp_host: str | None = Field(default=None, validation_alias="BOOKER_TEE_SMTP_HOST")
+    smtp_port: int = Field(default=587, validation_alias="BOOKER_TEE_SMTP_PORT")
+    smtp_username: str | None = Field(
+        default=None,
+        validation_alias="BOOKER_TEE_SMTP_USERNAME",
+    )
+    smtp_password: str | None = Field(
+        default=None,
+        validation_alias="BOOKER_TEE_SMTP_PASSWORD",
+    )
+    smtp_starttls: bool = Field(
+        default=True,
+        validation_alias="BOOKER_TEE_SMTP_STARTTLS",
     )
     allowed_hosts: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["127.0.0.1", "localhost", "testserver"],
@@ -95,6 +123,10 @@ class Settings(BaseSettings):
         "telegram_bot_token",
         "telegram_webhook_secret",
         "public_base_url",
+        "identity_email_from",
+        "smtp_host",
+        "smtp_username",
+        "smtp_password",
         mode="before",
     )
     @classmethod
@@ -118,6 +150,25 @@ class Settings(BaseSettings):
             errors.append("BOOKER_TEE_SESSION_COOKIE_SECURE must be true in production.")
         if not self.allowed_hosts or "*" in self.allowed_hosts:
             errors.append("BOOKER_TEE_ALLOWED_HOSTS must list explicit production hosts.")
+        if self.allow_signups and not self.identity_email_enabled:
+            errors.append(
+                "BOOKER_TEE_IDENTITY_EMAIL_ENABLED must be true when production signups run."
+            )
+        if self.identity_email_enabled:
+            if self.public_base_url is None or not self.public_base_url.startswith("https://"):
+                errors.append(
+                    "BOOKER_TEE_PUBLIC_BASE_URL must be an HTTPS URL when identity email runs."
+                )
+            if self.identity_email_from is None:
+                errors.append(
+                    "BOOKER_TEE_IDENTITY_EMAIL_FROM must be set when identity email runs."
+                )
+            if self.smtp_host is None:
+                errors.append("BOOKER_TEE_SMTP_HOST must be set when identity email runs.")
+            if (self.smtp_username is None) != (self.smtp_password is None):
+                errors.append(
+                    "BOOKER_TEE_SMTP_USERNAME and BOOKER_TEE_SMTP_PASSWORD must be set together."
+                )
         if self.chat_integrations_enabled and self.telegram_bot_token is None:
             errors.append("BOOKER_TEE_TELEGRAM_BOT_TOKEN must be set when chat integrations run.")
         if self.chat_integrations_enabled and self.telegram_mode == "webhook":

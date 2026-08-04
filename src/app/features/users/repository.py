@@ -16,6 +16,12 @@ class UserRepository:
         result = await self.session.execute(select(User).where(User.email == email.lower()))
         return result.scalar_one_or_none()
 
+    async def get_for_update(self, user_id: UUID) -> User | None:
+        result = await self.session.execute(
+            select(User).where(User.id == user_id).with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     async def get_active(self, user_id: UUID) -> User | None:
         result = await self.session.execute(
             select(User).where(

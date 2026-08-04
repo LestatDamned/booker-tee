@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { loadAuthConfig, login, signup } from "./auth-api";
+import {
+  loadAuthConfig,
+  login,
+  resendEmailVerification,
+  signup,
+} from "./auth-api";
 
 describe("auth API", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -8,12 +13,17 @@ describe("auth API", () => {
   it("loads signup availability", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(() => Promise.resolve(jsonResponse({ allowSignups: false }))),
+      vi.fn(() =>
+        Promise.resolve(
+          jsonResponse({ allowSignups: false, passwordMinLength: 12 }),
+        ),
+      ),
     );
 
     await expect(loadAuthConfig()).resolves.toEqual({
       status: "success",
       allowSignups: false,
+      passwordMinLength: 12,
     });
   });
 
@@ -69,6 +79,63 @@ describe("auth API", () => {
       status: "error",
       fieldErrors: { password: "Пароль слишком короткий." },
       message: "Проверьте переданные данные.",
+    });
+  });
+
+  it("returns the generic signup accepted state", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          jsonResponse(
+            {
+              message: "Если адрес подходит, письмо отправлено.",
+              retryAfterSeconds: 60,
+            },
+            202,
+          ),
+        ),
+      ),
+    );
+
+    await expect(
+      signup({
+        email: "max@example.test",
+        password: "correct horse battery staple",
+      }),
+    ).resolves.toEqual({
+      status: "success",
+      message: "Если адрес подходит, письмо отправлено.",
+      retryAfterSeconds: 60,
+    });
+  });
+
+  it("preserves verification resend cooldown after throttling", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          jsonResponse(
+            {
+              error: {
+                code: "auth_rate_limited",
+                message: "Повторите позже.",
+                details: { retryAfterSeconds: 45 },
+              },
+            },
+            429,
+          ),
+        ),
+      ),
+    );
+
+    await expect(
+      resendEmailVerification({ email: "max@example.test" }),
+    ).resolves.toEqual({
+      status: "error",
+      fieldErrors: {},
+      message: "Повторите позже.",
+      retryAfterSeconds: 45,
     });
   });
 });

@@ -51,6 +51,28 @@
   gap: var(--space-4);
 }
 
+.accepted,
+.actions {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.accepted p,
+.status {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.actions a {
+  min-height: 2.75rem;
+  align-content: center;
+  text-align: center;
+}
+
+.status:empty {
+  display: none;
+}
+
 .form button {
   width: 100%;
 }

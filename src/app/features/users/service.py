@@ -17,7 +17,6 @@ from app.features.users.errors import (
     InvalidCredentialsError,
     InvalidEmailError,
     InvalidPasswordError,
-    SignupsClosedError,
     UserError,
 )
 from app.features.users.models import User, UserSession
@@ -40,9 +39,9 @@ def clean_user_name(name: str | None) -> str | None:
     return cleaned or None
 
 
-def validate_password(password: str) -> str:
-    if len(password) < 8:
-        raise InvalidPasswordError("Пароль должен быть не короче 8 символов.")
+def validate_password(password: str, *, minimum_length: int = 8) -> str:
+    if len(password) < minimum_length:
+        raise InvalidPasswordError(f"Пароль должен быть не короче {minimum_length} символов.")
     return password
 
 
@@ -108,42 +107,24 @@ class AuthenticationService:
         self.users = UserRepository(session)
         self.workspaces = WorkspaceRepository(session)
 
-    async def register(
-        self,
-        *,
-        email: str,
-        password: str,
-        name: str | None = None,
-    ) -> LoginSession:
-        if not self.settings.allow_signups:
-            raise SignupsClosedError("Регистрация временно закрыта.")
-
-        user = await self._create_user_for_registration(
-            email=email,
-            password=password,
-            name=name,
-        )
-        (
-            workspace,
-            membership,
-        ) = await self.workspaces.create_personal_workspace_with_owner_membership(user.id)
-        await self._record_personal_workspace_created(user_id=user.id, workspace=workspace)
-        login_session = await self._create_login_session_record(
-            user=user,
-            workspace=workspace,
-            membership=membership,
-        )
-        await self.session.commit()
-        return login_session
-
     async def login(self, *, email: str, password: str) -> LoginSession:
         normalized_email = normalize_email(email)
         user = await self.users.get_by_email(normalized_email)
-        if user is None or not user.is_active:
+        if (
+            user is None
+            or not user.is_active
+            or user.deactivated_at is not None
+            or user.email_verified_at is None
+        ):
             raise InvalidCredentialsError("Неверный email или пароль.")
         if not verify_password(password, user.password_hash):
             raise InvalidCredentialsError("Неверный email или пароль.")
 
+        login_session = await self.create_login_session_for_user(user)
+        await self.session.commit()
+        return login_session
+
+    async def create_login_session_for_user(self, user: User) -> LoginSession:
         membership = await self.workspaces.get_first_active_membership_for_user(user.id)
         if membership is None:
             (
@@ -159,7 +140,6 @@ class AuthenticationService:
             workspace=workspace,
             membership=membership,
         )
-        await self.session.commit()
         return login_session
 
     async def resolve_login_session(self, session_token: str) -> LoginSession | None:
@@ -209,24 +189,6 @@ class AuthenticationService:
         if user_session is not None:
             await self.users.revoke_session(user_session)
             await self.session.commit()
-
-    async def _create_user_for_registration(
-        self,
-        *,
-        email: str,
-        password: str,
-        name: str | None,
-    ) -> User:
-        normalized_email = normalize_email(email)
-        existing_user = await self.users.get_by_email(normalized_email)
-        if existing_user is not None:
-            raise EmailAlreadyRegisteredError("Пользователь с таким email уже существует.")
-
-        return await self.users.create(
-            email=normalized_email,
-            password_hash=hash_password(validate_password(password)),
-            name=clean_user_name(name),
-        )
 
     async def _resolve_login_session_record(self, session_token: str) -> LoginSession | None:
         user_session = await self.users.get_active_session_by_token_hash(

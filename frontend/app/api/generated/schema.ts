@@ -143,6 +143,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/email-verification-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Email Verification */
+        post: operations["request_email_verification_api_v1_auth_email_verification_requests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/email-verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Email */
+        post: operations["verify_email_api_v1_auth_email_verifications_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -1502,6 +1536,8 @@ export interface components {
         AuthConfigApiResponse: {
             /** Allowsignups */
             allowSignups: boolean;
+            /** Passwordminlength */
+            passwordMinLength: number;
         };
         /** AuthenticatedApiResponse */
         AuthenticatedApiResponse: {
@@ -1519,12 +1555,6 @@ export interface components {
         };
         /** Body_signup_signup_post */
         Body_signup_signup_post: {
-            /** Email */
-            email: string;
-            /** Password */
-            password: string;
-            /** Name */
-            name?: string | null;
             /** Next */
             next?: string | null;
         };
@@ -1858,6 +1888,18 @@ export interface components {
             shareUrl: string;
             /** Replayed */
             replayed: boolean;
+        };
+        /** EmailVerificationApiRequest */
+        EmailVerificationApiRequest: {
+            /** Token */
+            token: string;
+            /** Nextpath */
+            nextPath?: string | null;
+        };
+        /** EmailVerificationRequestApiRequest */
+        EmailVerificationRequestApiRequest: {
+            /** Email */
+            email: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -4187,6 +4229,13 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** VerificationRequestedApiResponse */
+        VerificationRequestedApiResponse: {
+            /** Message */
+            message: string;
+            /** Retryafterseconds */
+            retryAfterSeconds: number;
+        };
         /** WorkspaceAuthorityNavigationOutcomeApiResponse */
         WorkspaceAuthorityNavigationOutcomeApiResponse: {
             /**
@@ -5134,12 +5183,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            201: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthenticatedApiResponse"];
+                    "application/json": components["schemas"]["VerificationRequestedApiResponse"];
                 };
             };
             /** @description Forbidden */
@@ -5151,8 +5200,101 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description Conflict */
-            409: {
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    request_email_verification_api_v1_auth_email_verification_requests_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailVerificationRequestApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationRequestedApiResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    verify_email_api_v1_auth_email_verifications_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailVerificationApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthenticatedApiResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5195,6 +5337,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9436,7 +9587,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/x-www-form-urlencoded": components["schemas"]["Body_signup_signup_post"];
             };

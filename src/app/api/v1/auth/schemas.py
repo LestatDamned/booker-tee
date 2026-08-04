@@ -5,6 +5,7 @@ from app.api.schemas import ApiModel, ApiRequestModel
 
 class AuthConfigApiResponse(ApiModel):
     allow_signups: bool
+    password_min_length: int
 
 
 class LoginApiRequest(ApiRequestModel):
@@ -19,3 +20,17 @@ class SignupApiRequest(LoginApiRequest):
 
 class AuthenticatedApiResponse(ApiModel):
     next_path: str
+
+
+class VerificationRequestedApiResponse(ApiModel):
+    message: str
+    retry_after_seconds: int
+
+
+class EmailVerificationRequestApiRequest(ApiRequestModel):
+    email: str = Field(max_length=320)
+
+
+class EmailVerificationApiRequest(ApiRequestModel):
+    token: str = Field(min_length=1, max_length=1024)
+    next_path: str | None = Field(default=None, max_length=2048)

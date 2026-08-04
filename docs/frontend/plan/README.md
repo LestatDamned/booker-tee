@@ -52,7 +52,8 @@ Child stages:
 - Transaction Rules — completed 2026-08-02.
 - Workspaces — completed 2026-08-04.
 - [`Users and authentication`](users/README.md) — active; Slice 1 completed,
-  Slice 2 planned, next increment is 2.0 Foundations.
+  Slice 2.0 Foundations and Slice 2.1 Verification-first signup completed; next
+  increment is 2.2 Password policy, recovery and change.
 
 ### Workspaces completion record
 

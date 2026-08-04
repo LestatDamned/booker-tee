@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import re
 import socket
@@ -21,6 +22,11 @@ from playwright.sync_api import BrowserContext, Locator, Page, Route, sync_playw
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
+from app.db.base import utc_now
+from app.db.session import session_factory
+from app.features.users.errors import EmailAlreadyRegisteredError
+from app.features.users.service import UserService
+
 DEFAULT_OUTPUT_DIR = Path("/tmp/booker-ui-audit")
 DEFAULT_AUTH_OUTPUT_DIR = Path("/tmp/booker-ui-audit-auth")
 DEFAULT_REALISTIC_OUTPUT_DIR = Path("/tmp/booker-ui-audit-realistic")
@@ -34,6 +40,13 @@ MAX_CLICK_TARGETS_PER_PAGE = 60
 
 PAGES: tuple[tuple[str, str], ...] = (
     ("/", "dashboard"),
+    ("/app/auth/login", "auth-login"),
+    ("/app/auth/signup", "auth-signup"),
+    ("/app/auth/verify-email", "auth-verify-recovery"),
+    (
+        "/app/auth/verify-email?token=visual-audit-token&next=/app/profile",
+        "auth-verify-ready",
+    ),
     ("/app/accounts", "accounts"),
     ("/ledger/manual", "manual-ledger-redirect"),
     ("/app/imports", "imports"),
@@ -142,7 +155,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--authenticated",
         action="store_true",
-        help="Register a temporary user in the browser and audit authenticated pages.",
+        help="Prepare a verified fixture user and audit authenticated pages.",
     )
     parser.add_argument(
         "--auth-email",
@@ -274,34 +287,30 @@ def authenticate_context(
     page = context.new_page()
     auth_email = build_auth_email(viewport_name, email)
     try:
-        try_register(page, base_url=base_url, email=auth_email, password=password)
-    except PlaywrightError as exc:
-        if email is not None:
-            try:
-                try_login(page, base_url=base_url, email=auth_email, password=password)
-                return
-            except PlaywrightError:
-                pass
+        prepare_verified_audit_user(email=auth_email, password=password)
+        try_login(page, base_url=base_url, email=auth_email, password=password)
+    except (PlaywrightError, RuntimeError) as exc:
         body_text = page.locator("body").inner_text(timeout=1_000)
         raise RuntimeError(f"Could not authenticate UI audit user: {body_text}") from exc
     finally:
         page.close()
 
 
-def try_register(page: Page, *, base_url: str, email: str, password: str) -> None:
-    response = page.goto(
-        build_url(base_url, "/signup"),
-        wait_until="domcontentloaded",
-        timeout=PAGE_TIMEOUT_MS,
-    )
-    if response is not None and response.status >= 400:
-        raise RuntimeError(f"Could not open signup page: HTTP {response.status}")
+def prepare_verified_audit_user(*, email: str, password: str) -> None:
+    async def prepare() -> None:
+        async with session_factory() as session:
+            try:
+                user = await UserService(session).create(
+                    email=email,
+                    password=password,
+                    name="UI Audit",
+                )
+            except EmailAlreadyRegisteredError:
+                return
+            user.email_verified_at = utc_now()
+            await session.commit()
 
-    page.locator('input[name="email"]').fill(email)
-    page.locator('input[name="name"]').fill("UI Audit")
-    page.locator('input[name="password"]').fill(password)
-    page.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-    page.wait_for_url("**/app/workspaces", timeout=PAGE_TIMEOUT_MS)
+    asyncio.run(prepare())
 
 
 def try_login(page: Page, *, base_url: str, email: str, password: str) -> None:
