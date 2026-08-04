@@ -99,3 +99,8 @@ async def historical_category_detail(
 @router.get("/rules")
 async def historical_transaction_rules(request: Request) -> RedirectResponse:
     return redirect_to_react(request, "/app/rules")
+
+
+@router.get("/workspaces")
+async def historical_workspaces(request: Request) -> RedirectResponse:
+    return redirect_to_react(request, "/app/workspaces")

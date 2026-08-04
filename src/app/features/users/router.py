@@ -156,7 +156,7 @@ async def logout(
 
 def safe_next_path(next_path: str | None) -> str:
     if not next_path:
-        return "/workspaces"
+        return "/app/workspaces"
     if not next_path.startswith("/") or next_path.startswith("//"):
-        return "/workspaces"
+        return "/app/workspaces"
     return next_path

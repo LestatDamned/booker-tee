@@ -30,7 +30,7 @@ workflows вертикальными slices и удалить второй по�
 
 ### Wave C: context and administration
 
-1. workspaces/members/invitations;
+1. workspaces/members/invitations — completed 2026-08-04;
 2. profile;
 3. remaining authenticated pages and integrations surfaces.
 

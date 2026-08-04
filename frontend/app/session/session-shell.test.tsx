@@ -22,7 +22,7 @@ describe("SessionShell", () => {
   it("renders workspace navigation and closes the mobile menu with Escape", async () => {
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
+      <MemoryRouter basename="/app" initialEntries={["/app"]}>
         <SessionShell
           result={{
             status: "authenticated",
@@ -60,7 +60,7 @@ describe("SessionShell", () => {
       within(sidebar).getByRole("link", {
         name: "Текущее пространство: Personal ledger. Открыть рабочие пространства",
       }),
-    ).toHaveAttribute("href", "/workspaces");
+    ).toHaveAttribute("href", "/app/workspaces");
     expect(
       within(sidebar).getByRole("link", {
         name: "Max. Владелец. Открыть профиль",
@@ -75,26 +75,26 @@ describe("SessionShell", () => {
     });
     expect(
       within(desktopNavigation).getByRole("link", { name: "Счета" }),
-    ).toHaveAttribute("href", "/accounts");
+    ).toHaveAttribute("href", "/app/accounts");
     expect(
       within(desktopNavigation).getByRole("link", { name: "Отчёты" }),
-    ).toHaveAttribute("href", "/reports");
+    ).toHaveAttribute("href", "/app/reports");
     expect(
       within(desktopNavigation).getByRole("link", { name: "Категории" }),
-    ).toHaveAttribute("href", "/categories");
+    ).toHaveAttribute("href", "/app/categories");
     expect(
       within(desktopNavigation).getByRole("link", { name: "Объекты" }),
-    ).toHaveAttribute("href", "/properties");
+    ).toHaveAttribute("href", "/app/properties");
     expect(
       within(desktopNavigation).getByRole("link", { name: "Правила" }),
-    ).toHaveAttribute("href", "/rules");
+    ).toHaveAttribute("href", "/app/rules");
 
     const mobileNavigation = screen.getByRole("navigation", {
       name: "Мобильная навигация",
     });
     expect(
       within(mobileNavigation).getByRole("link", { name: "Ручные операции" }),
-    ).toHaveAttribute("href", "/ledger/manual");
+    ).toHaveAttribute("href", "/app/ledger/manual");
 
     const menuSummary = screen.getByText("Меню").closest("summary");
     const mobileMenu = menuSummary?.closest("details");

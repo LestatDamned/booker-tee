@@ -1106,49 +1106,6 @@ html:not(.entity-target-cleared) .entity-card:target {
   color: var(--muted);
 }
 
-.invitation-share-panel {
-  display: grid;
-  gap: 12px;
-  border: 1px solid color-mix(in srgb, var(--green) 56%, var(--border));
-  border-left: 3px solid var(--green);
-  background: color-mix(in srgb, var(--green) 8%, var(--surface));
-  padding: 14px;
-}
-
-.invitation-share-copy {
-  display: grid;
-  gap: 6px;
-}
-
-.invitation-share-copy strong {
-  color: var(--green);
-  font-size: 1rem;
-}
-
-.invitation-share-copy span {
-  color: var(--muted);
-  line-height: 1.45;
-}
-
-.copy-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(160px, auto);
-  gap: 10px;
-  align-items: stretch;
-}
-
-.copy-input {
-  min-width: 0;
-  min-height: 44px;
-  border: 1px solid color-mix(in srgb, var(--accent) 52%, var(--border));
-  background: color-mix(in srgb, var(--surface-strong) 72%, transparent);
-  padding: 0 12px;
-  color: var(--text);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.82rem;
-}
-
 .meta-link {
   display: inline-flex;
   align-items: center;
@@ -1358,36 +1315,6 @@ html:not(.entity-target-cleared) .entity-card:target {
   gap: 12px;
   align-items: center;
   justify-content: space-between;
-}
-
-.workspace-section {
-  margin-top: 4px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  padding-top: 20px;
-}
-
-.workspace-section-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 14px;
-  align-items: end;
-  justify-content: space-between;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
-  padding-bottom: 10px;
-}
-
-.workspace-section-header > div {
-  min-width: 0;
-}
-
-.workspace-section-header .eyebrow {
-  display: block;
-  margin-bottom: 4px;
-  color: color-mix(in srgb, var(--accent) 72%, var(--muted));
-}
-
-.workspace-section-header h2 {
-  margin: 0;
 }
 
 .section-context {
@@ -2404,277 +2331,6 @@ pre {
   overflow-wrap: anywhere;
 }
 
-.workspace-create-details,
-.workspace-invitation-details {
-  border-color: color-mix(in srgb, var(--border) 76%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-strong) 36%, transparent);
-}
-
-.workspace-create-details > summary,
-.workspace-invitation-details > summary {
-  grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 42px;
-}
-
-.workspace-create-details > summary::after,
-.workspace-create-details[open] > summary::after,
-.workspace-invitation-details > summary::after,
-.workspace-invitation-details[open] > summary::after {
-  content: none;
-}
-
-.workspace-create-form {
-  border-color: color-mix(in srgb, var(--border) 52%, transparent);
-  padding-top: 14px;
-}
-
-.workspace-create-form__field--name {
-  grid-column: span 6;
-}
-
-.workspace-create-form__field--type {
-  grid-column: span 3;
-}
-
-.workspace-create-form__field--currency {
-  grid-column: span 3;
-}
-
-.workspace-create-form__actions {
-  grid-column: 1 / -1;
-  justify-content: flex-end;
-  border-top: 1px solid color-mix(in srgb, var(--border) 46%, transparent);
-  padding-top: 10px;
-}
-
-.workspace-create-form__actions .button {
-  width: auto;
-  min-width: 210px;
-}
-
-.workspace-card__main {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-
-.workspace-card__topline {
-  grid-template-columns: minmax(0, 1fr) max-content;
-}
-
-.workspace-card__title strong {
-  font-size: 1.02rem;
-  overflow-wrap: anywhere;
-}
-
-.workspace-card--current .workspace-card__title strong {
-  color: color-mix(in srgb, var(--text) 84%, var(--lavender));
-}
-
-.workspace-card--current .workspace-card__status {
-  color: var(--lavender);
-  border-color: color-mix(in srgb, var(--lavender) 78%, var(--border));
-  background: color-mix(in srgb, var(--lavender) 14%, var(--surface-strong));
-}
-
-.workspace-card__status {
-  min-height: 34px;
-  justify-self: end;
-  justify-content: center;
-  border-color: color-mix(in srgb, currentcolor 72%, var(--border));
-  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
-  padding-inline: 12px;
-}
-
-.workspace-card__actions {
-  min-width: 0;
-}
-
-.workspace-card__edit {
-  grid-column: 1 / -1;
-  width: 100%;
-  min-width: 0;
-}
-
-.workspace-card__edit-summary {
-  position: absolute;
-  width: 1px !important;
-  height: 1px;
-  min-height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  border: 0;
-  padding: 0;
-  white-space: nowrap;
-  list-style: none;
-}
-
-.workspace-card__edit > summary::after,
-.workspace-card__edit[open] > summary::after {
-  content: none;
-}
-
-.workspace-card__edit-panel {
-  display: grid;
-  gap: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  padding-top: 12px;
-}
-
-.workspace-form--drawer {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 10px 12px;
-}
-
-.workspace-form__field--name {
-  grid-column: span 6;
-}
-
-.workspace-form__field--type {
-  grid-column: span 3;
-}
-
-.workspace-form__field--currency {
-  grid-column: span 3;
-}
-
-.workspace-member-card__main {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-
-.workspace-member-card__topline {
-  grid-template-columns: minmax(0, 1fr) max-content;
-}
-
-.workspace-member-card__title strong {
-  font-size: 1.02rem;
-  overflow-wrap: anywhere;
-}
-
-.workspace-member-card__status {
-  min-height: 34px;
-  justify-self: end;
-  justify-content: center;
-  border-color: color-mix(in srgb, currentcolor 72%, var(--border));
-  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
-  padding-inline: 12px;
-}
-
-.workspace-member-card__actions {
-  min-width: 0;
-}
-
-.workspace-member-card__edit {
-  grid-column: 1 / -1;
-  width: 100%;
-  min-width: 0;
-}
-
-.workspace-member-card__edit-summary {
-  position: absolute;
-  width: 1px !important;
-  height: 1px;
-  min-height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  border: 0;
-  padding: 0;
-  white-space: nowrap;
-  list-style: none;
-}
-
-.workspace-member-card__edit > summary::after,
-.workspace-member-card__edit[open] > summary::after {
-  content: none;
-}
-
-.workspace-member-card__edit-panel {
-  display: grid;
-  gap: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  padding-top: 12px;
-}
-
-.workspace-member-form--drawer {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 10px 12px;
-}
-
-.workspace-member-form__field--role {
-  grid-column: span 6;
-}
-
-.workspace-invitation-form {
-  align-items: end;
-  border-color: color-mix(in srgb, var(--border) 52%, transparent);
-  padding-top: 14px;
-}
-
-.workspace-invitation-form__field--role {
-  grid-column: span 6;
-}
-
-.workspace-invitation-form__actions {
-  grid-column: span 6;
-  justify-content: flex-end;
-}
-
-.workspace-invitation-form__actions .button {
-  width: 100%;
-}
-
-.workspace-invitation-card__main {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-
-.workspace-invitation-card__topline {
-  grid-template-columns: minmax(0, 1fr) max-content;
-}
-
-.workspace-invitation-card__title strong {
-  font-size: 1.02rem;
-  overflow-wrap: anywhere;
-}
-
-.workspace-invitation-card__status {
-  min-height: 34px;
-  justify-self: end;
-  justify-content: center;
-  border-color: color-mix(in srgb, currentcolor 72%, var(--border));
-  background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
-  padding-inline: 12px;
-}
-
-.workspace-invitation-card__actions {
-  min-width: 0;
-}
-
-.workspace-audit-card {
-  grid-template-columns: 1fr;
-  border-color: color-mix(in srgb, var(--border) 72%, transparent);
-  background: color-mix(in srgb, var(--surface) 76%, transparent);
-}
-
-.workspace-audit-card__main {
-  gap: 10px;
-}
-
-.workspace-audit-card__title strong {
-  color: color-mix(in srgb, var(--text) 88%, var(--muted));
-  font-size: 1rem;
-}
-
-.workspace-audit-card__details span {
-  color: color-mix(in srgb, var(--muted) 88%, var(--text));
-}
-
 .entry-description {
   color: var(--text);
   overflow-wrap: anywhere;
@@ -2739,10 +2395,6 @@ pre {
 
   .entity-card-actions {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  }
-
-  .copy-row {
-    grid-template-columns: 1fr;
   }
 
   .entity-card-side {
@@ -2990,8 +2642,6 @@ pre {
   }
 
   .operation-form__fields,
-  .workspace-form--drawer,
-  .workspace-member-form--drawer,
   .operation-form__footer {
     grid-template-columns: 1fr;
   }
@@ -3000,16 +2650,6 @@ pre {
   .operation-form__field--date,
   .operation-form__field--amount,
   .operation-form__field--status,
-  .workspace-create-form__field--name,
-  .workspace-create-form__field--type,
-  .workspace-create-form__field--currency,
-  .workspace-create-form__actions,
-  .workspace-form__field--name,
-  .workspace-form__field--type,
-  .workspace-form__field--currency,
-  .workspace-member-form__field--role,
-  .workspace-invitation-form__field--role,
-  .workspace-invitation-form__actions,
   .operation-form__fields--classification .operation-form__field,
   .operation-form__field--description,
   .operation-form__submit,

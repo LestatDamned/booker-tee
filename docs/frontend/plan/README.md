@@ -50,6 +50,26 @@ Child stages:
 - [`Properties`](properties/README.md) — completed 2026-08-01;
 - [`Categories`](categories/README.md) — completed 2026-08-01;
 - Transaction Rules — completed 2026-08-02.
+- Workspaces — completed 2026-08-04.
+
+### Workspaces completion record
+
+Completed: 2026-08-04
+
+Implemented: canonical React directory/settings with create/switch, members,
+invitations, ownership, leave, deactivate/restore and versioned JSON API;
+server-owned capabilities, idempotency, optimistic concurrency and workspace
+boundary reloads. Public invitation preview/accept remains a minimal named SSR
+bridge.
+
+Cleanup performed: historical GET now query-preserving redirects to React;
+authenticated legacy form routes, presenter/ViewModels, index/card templates,
+workspace-only global CSS and generated HTML operations were removed. AppShell
+and remaining SSR entry points use the canonical route.
+
+Checks run: Ruff, ty, full backend (`792 passed, 15 PostgreSQL-only skipped`),
+full frontend (`79 files, 477 passed`) with format/lint/styles/OpenAPI/type/build,
+and six Mocha canonical/historical browser checks at 1440/920/390.
 
 ### Transaction Rules completion record
 

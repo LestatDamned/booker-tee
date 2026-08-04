@@ -9,9 +9,10 @@ SSR/Jinja/HTMX на React. Workspace является строгой грани�
 а его переключение, membership и lifecycle влияют на session, Chat,
 integrations и все workspace-owned aggregates.
 
-Аудит и фактический inventory находятся в
-[`frontend/plan/workspaces`](../../frontend/plan/workspaces/README.md). Решения
-D1–D14 приняты владельцем проекта 2026-08-03 без отклонений.
+Решения D1–D14 приняты владельцем проекта 2026-08-03 без отклонений. Временный
+аудит удалён после production cutover; актуальный runtime contract находится в
+[`features/workspaces/README.md`](../../../src/app/features/workspaces/README.md),
+API schemas и тестах.
 
 ## Decision
 
@@ -88,8 +89,5 @@ D1–D14 приняты владельцем проекта 2026-08-03 без о
 
 ## References
 
-- [`workspaces/README.md`](../../frontend/plan/workspaces/README.md)
-- [`API_AND_STATE.md`](../../frontend/plan/workspaces/API_AND_STATE.md)
-- [`VERTICAL_SLICES.md`](../../frontend/plan/workspaces/VERTICAL_SLICES.md)
-- [`TEST_MANIFEST.md`](../../frontend/plan/workspaces/TEST_MANIFEST.md)
-- [`DELETE_MANIFEST.md`](../../frontend/plan/workspaces/DELETE_MANIFEST.md)
+- [`features/workspaces/README.md`](../../../src/app/features/workspaces/README.md)
+- [`frontend plan completion record`](../../frontend/plan/README.md#workspaces-completion-record)

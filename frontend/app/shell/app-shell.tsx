@@ -115,13 +115,13 @@ export function AppShell({ children, session }: AppShellProps) {
         <NavLink className={styles.brand ?? ""} end to="/">
           Booker Tee
         </NavLink>
-        <a
-          className={styles.mobileWorkspace}
-          href="/workspaces"
+        <NavLink
+          className={styles.mobileWorkspace ?? ""}
+          to="/workspaces"
           title={session.workspace.name}
         >
           {session.workspace.name}
-        </a>
+        </NavLink>
         <details
           className={styles.mobileMenu}
           onKeyDown={(event) => {
@@ -168,16 +168,16 @@ function ShellContext({
 }: ShellContextProps) {
   return (
     <div className={styles.shellContext}>
-      <a
+      <NavLink
         aria-label={`Текущее пространство: ${session.workspace.name}. Открыть рабочие пространства`}
-        className={styles.workspaceCard}
-        href="/workspaces"
-        onClick={onNavigate}
+        className={styles.workspaceCard ?? ""}
+        to="/workspaces"
+        {...(onNavigate ? { onClick: onNavigate } : {})}
       >
         <span className={styles.contextEyebrow}>Текущее пространство</span>
         <strong title={session.workspace.name}>{session.workspace.name}</strong>
         <small>Рабочие пространства</small>
-      </a>
+      </NavLink>
 
       <ShellNavigation currentPath={currentPath} onNavigate={onNavigate} />
 

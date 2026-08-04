@@ -61,6 +61,10 @@ CATEGORY_ID = "33333333-3333-3333-3333-333333333333"
             f"/rules?q=ozon&category_id={CATEGORY_ID}&status=disabled&page=2",
             f"/app/rules?q=ozon&category_id={CATEGORY_ID}&status=disabled&page=2",
         ),
+        (
+            "/workspaces?source=profile&view=inactive",
+            "/app/workspaces?source=profile&view=inactive",
+        ),
     ],
 )
 def test_historical_frontend_get_redirects_to_react(
@@ -101,6 +105,11 @@ def test_historical_frontend_get_redirects_to_react(
         (f"/rules/{CATEGORY_ID}/toggle", 404),
         (f"/rules/{CATEGORY_ID}/delete", 404),
         ("/rules/seed-defaults", 404),
+        ("/workspaces", 405),
+        (f"/workspaces/{ACCOUNT_ID}", 404),
+        (f"/workspaces/{ACCOUNT_ID}/select", 404),
+        (f"/workspaces/{ACCOUNT_ID}/members/{CATEGORY_ID}/disable", 404),
+        (f"/workspaces/{ACCOUNT_ID}/invitations", 404),
     ],
 )
 def test_historical_frontend_mutations_are_not_redirected(

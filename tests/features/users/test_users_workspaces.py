@@ -24,7 +24,6 @@ from app.features.workspaces.models import (
     WorkspaceRole,
     WorkspaceType,
 )
-from app.features.workspaces.router import safe_workspace_return_path
 from app.features.workspaces.service import clean_workspace_name, normalize_currency
 
 
@@ -93,17 +92,8 @@ def test_login_form_rejects_external_next_path(client) -> None:
     response = client.get("/login?next=https://example.com/phishing")
 
     assert response.status_code == 200
-    assert 'name="next" value="/workspaces"' in response.text
+    assert 'name="next" value="/app/workspaces"' in response.text
     assert "https://example.com/phishing" not in response.text
-
-
-def test_workspace_selection_return_path_must_be_local() -> None:
-    assert safe_workspace_return_path("/imports?status=needs_review") == (
-        "/imports?status=needs_review"
-    )
-    assert safe_workspace_return_path("https://example.com/phishing") == "/workspaces"
-    assert safe_workspace_return_path("//example.com/phishing") == "/workspaces"
-    assert safe_workspace_return_path(None) == "/workspaces"
 
 
 def test_passwords_are_hashed_and_verified() -> None:

@@ -15,7 +15,7 @@
         <a class="brand" href="{% if current_user %}/dashboard{% else %}/{% endif %}">{{ app_name }}</a>
         {% if current_user %}
           <div class="context-strip">
-            <a class="context-item" href="/workspaces">
+            <a class="context-item" href="/app/workspaces">
               <span>пространство</span>
               <strong class="truncate-label" title="{{ current_workspace.name if current_workspace else 'не выбрано' }}">{{ current_workspace.name if current_workspace else "не выбрано" }}</strong>
               {% if current_membership %}
@@ -41,7 +41,7 @@
         {% if current_user %}
           <a class="nav-link" href="/dashboard">{{ icon("home") }} обзор</a>
           <a class="nav-link" href="/users">{{ icon("user") }} профиль</a>
-          <a class="nav-link" href="/workspaces">{{ icon("folder") }} пространства</a>
+          <a class="nav-link" href="/app/workspaces">{{ icon("folder") }} пространства</a>
           <a class="nav-link" href="/app/accounts">{{ icon("wallet") }} счета</a>
           <a class="nav-link" href="/app/ledger/manual">{{ icon("plus") }} операции</a>
           <a class="nav-link" href="/app/imports">{{ icon("import") }} импорт</a>

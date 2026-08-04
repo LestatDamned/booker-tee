@@ -13,7 +13,9 @@
 }
 
 .gridItem {
+  display: grid;
   min-width: 0;
+  gap: var(--space-3);
 }
 
 .gridItem[data-span="full"] {

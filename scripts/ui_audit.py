@@ -48,7 +48,7 @@ PAGES: tuple[tuple[str, str], ...] = (
     ("/properties", "properties-redirect"),
     ("/app/properties", "react-properties"),
     ("/users", "users"),
-    ("/workspaces", "workspaces"),
+    ("/workspaces", "workspaces-redirect"),
     ("/app/workspaces", "react-workspaces"),
 )
 
@@ -72,7 +72,7 @@ AUTHENTICATED_PAGES: tuple[tuple[str, str], ...] = (
     ("/properties", "properties-redirect"),
     ("/app/properties", "react-properties"),
     ("/users", "users"),
-    ("/workspaces", "workspaces"),
+    ("/workspaces", "workspaces-redirect"),
     ("/app/workspaces", "react-workspaces"),
 )
 
@@ -301,7 +301,7 @@ def try_register(page: Page, *, base_url: str, email: str, password: str) -> Non
     page.locator('input[name="name"]').fill("UI Audit")
     page.locator('input[name="password"]').fill(password)
     page.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-    page.wait_for_url("**/workspaces", timeout=PAGE_TIMEOUT_MS)
+    page.wait_for_url("**/app/workspaces", timeout=PAGE_TIMEOUT_MS)
 
 
 def try_login(page: Page, *, base_url: str, email: str, password: str) -> None:
@@ -316,7 +316,7 @@ def try_login(page: Page, *, base_url: str, email: str, password: str) -> None:
     page.locator('input[name="email"]').fill(email)
     page.locator('input[name="password"]').fill(password)
     page.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-    page.wait_for_url("**/workspaces", timeout=PAGE_TIMEOUT_MS)
+    page.wait_for_url("**/app/workspaces", timeout=PAGE_TIMEOUT_MS)
 
 
 def assert_transaction_rule_form_geometry(form: Locator, *, context: str) -> None:
@@ -681,13 +681,21 @@ def prepare_realistic_scenario(
             exact=True,
         ).wait_for(timeout=PAGE_TIMEOUT_MS)
 
-        page.goto(build_url(base_url, "/workspaces"), wait_until="domcontentloaded")
-        page.locator("#workspace-invitation-create > summary").click(timeout=PAGE_TIMEOUT_MS)
-        invitation_form = page.locator('form[action$="/invitations"]').first
-        invitation_form.locator('select[name="role"]').select_option("viewer")
-        invitation_form.locator('button[type="submit"]').click(timeout=PAGE_TIMEOUT_MS)
-        page.get_by_text("Ссылка-приглашение создана", exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
-        page.get_by_text("Ожидающие приглашения", exact=True).wait_for(timeout=PAGE_TIMEOUT_MS)
+        workspace_id = page.evaluate(
+            "async () => (await (await fetch('/api/v1/session')).json()).workspace.id"
+        )
+        page.goto(
+            build_url(base_url, f"/app/workspaces/{workspace_id}/settings"),
+            wait_until="domcontentloaded",
+        )
+        invitation_section = page.get_by_role("heading", name="Приглашения", exact=True).locator(
+            "xpath=ancestor::section[1]"
+        )
+        invitation_section.locator("select").select_option("viewer")
+        invitation_section.get_by_role("button", name="Создать ссылку").click(
+            timeout=PAGE_TIMEOUT_MS
+        )
+        invitation_section.get_by_label("Ссылка приглашения").wait_for(timeout=PAGE_TIMEOUT_MS)
 
         page.goto(build_url(base_url, "/app/imports/upload"), wait_until="domcontentloaded")
         page.locator('select[name="accountId"]').select_option(index=1)
@@ -890,15 +898,6 @@ def collect_ux_assertions(
 
     if scenario == "realistic" and path == scenario_state.get("account_detail_path"):
         errors.extend(assert_react_account_management(page))
-
-    if (
-        scenario == "realistic"
-        and path == "/workspaces"
-        and scenario_state.get("workspace_pending_invitation")
-    ):
-        body_text = page.locator("body").inner_text(timeout=PAGE_TIMEOUT_MS)
-        if "Ожидающие приглашения" not in body_text:
-            errors.append("workspaces page does not show seeded pending invitation")
 
     if scenario == "review_interactions" and path == scenario_state.get("historical_review_path"):
         if "/app/imports/documents/" not in page.url:

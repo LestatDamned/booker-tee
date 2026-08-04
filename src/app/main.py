@@ -19,7 +19,9 @@ from app.features.chat_integrations.router import router as chat_integrations_ro
 from app.features.dashboard.router import router as dashboard_router
 from app.features.users.router import router as users_router
 from app.features.users.service import AuthenticationService
-from app.features.workspaces.router import router as workspaces_router
+from app.features.workspaces.public_invitations_router import (
+    router as workspace_invitations_router,
+)
 from app.legacy_frontend_redirects import router as legacy_frontend_redirects_router
 from app.react_frontend import install_react_frontend
 from app.templating import create_templates
@@ -45,7 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_integrations_router)
     app.include_router(dashboard_router)
     app.include_router(users_router)
-    app.include_router(workspaces_router)
+    app.include_router(workspace_invitations_router)
 
     @app.get("/", response_class=HTMLResponse)
     async def home(
