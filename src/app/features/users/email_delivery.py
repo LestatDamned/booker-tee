@@ -60,6 +60,47 @@ def build_password_reset_message(
     )
 
 
+def build_email_change_messages(
+    *,
+    current_email: str,
+    target_email: str,
+    token: str,
+    base_url: str,
+) -> tuple[IdentityEmail, IdentityEmail]:
+    confirmation_url = f"{base_url.rstrip('/')}/app/profile/account?{urlencode({'token': token})}"
+    return (
+        IdentityEmail(
+            recipient=current_email,
+            subject="Запрошена смена email — Booker Tee",
+            text=(
+                "Для вашего аккаунта Booker Tee запрошена смена email.\n\n"
+                "Текущий email останется прежним, пока новый адрес не будет подтверждён. "
+                "Если это были не вы, смените пароль и завершите другие сессии."
+            ),
+        ),
+        IdentityEmail(
+            recipient=target_email,
+            subject="Подтвердите новый email — Booker Tee",
+            text=(
+                "Подтвердите новый email для аккаунта Booker Tee.\n\n"
+                f"{confirmation_url}\n\n"
+                "Ссылка действует 30 минут и может быть использована один раз."
+            ),
+        ),
+    )
+
+
+def build_email_changed_message(*, recipient: str) -> IdentityEmail:
+    return IdentityEmail(
+        recipient=recipient,
+        subject="Email аккаунта изменён — Booker Tee",
+        text=(
+            "Email вашего аккаунта Booker Tee был изменён. "
+            "Если это были не вы, обратитесь к администратору сервиса."
+        ),
+    )
+
+
 async def send_identity_email(message: IdentityEmail, settings: Settings) -> None:
     await asyncio.to_thread(_send_identity_email, message, settings)
 

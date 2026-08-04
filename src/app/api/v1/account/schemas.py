@@ -40,3 +40,38 @@ class UserSessionListApiResponse(ApiModel):
 
 class RevokeOtherSessionsApiResponse(ApiModel):
     revoked_count: int
+
+
+class RequestEmailChangeApiRequest(ApiRequestModel):
+    target_email: str = Field(min_length=3, max_length=320)
+    current_password: str = Field(max_length=1024)
+
+
+class ConfirmEmailChangeApiRequest(ApiRequestModel):
+    token: str = Field(min_length=1, max_length=1024)
+
+
+class EmailChangeApiResponse(ApiModel):
+    message: str
+    email: str | None = None
+
+
+class DeactivationBlockerApiResponse(ApiModel):
+    workspace_id: UUID
+    workspace_name: str
+    active_other_member_count: int
+
+
+class AccountDeactivationImpactApiResponse(ApiModel):
+    can_deactivate: bool
+    blockers: list[DeactivationBlockerApiResponse]
+    auto_deactivated_workspace_count: int
+
+
+class DeactivateAccountApiRequest(ApiRequestModel):
+    current_password: str = Field(max_length=1024)
+    confirmation: str = Field(max_length=64)
+
+
+class DeactivateAccountApiResponse(ApiModel):
+    message: str

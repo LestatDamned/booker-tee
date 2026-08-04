@@ -243,6 +243,30 @@ class ChatIntegrationRepository:
         )
         await self.session.flush()
 
+    async def revoke_all_access_for_user(
+        self,
+        *,
+        user_id: UUID,
+        revoked_at: datetime,
+    ) -> None:
+        await self.session.execute(
+            update(ChatIdentityBinding)
+            .where(
+                ChatIdentityBinding.user_id == user_id,
+                ChatIdentityBinding.is_active.is_(True),
+            )
+            .values(is_active=False)
+        )
+        await self.session.execute(
+            update(ChatConversationState)
+            .where(
+                ChatConversationState.user_id == user_id,
+                ChatConversationState.consumed_at.is_(None),
+            )
+            .values(consumed_at=revoked_at)
+        )
+        await self.session.flush()
+
     async def create_conversation_state(
         self,
         *,

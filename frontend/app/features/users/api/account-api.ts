@@ -25,6 +25,8 @@ export type PasswordChangeResult =
     };
 
 export type UserSessionDto = components["schemas"]["UserSessionApiResponse"];
+export type DeactivationImpactDto =
+  components["schemas"]["AccountDeactivationImpactApiResponse"];
 
 export type UserSessionListResult =
   | { status: "success"; sessions: UserSessionDto[] }
@@ -33,6 +35,20 @@ export type UserSessionListResult =
 
 export type SessionMutationResult =
   | { status: "success"; revokedCount?: number }
+  | { status: "unauthenticated" }
+  | { status: "error"; message: string };
+
+export type AccountActionResult =
+  | { status: "success"; message: string }
+  | { status: "unauthenticated" }
+  | {
+      status: "error";
+      fieldErrors: Record<string, string>;
+      message: string;
+    };
+
+export type DeactivationImpactResult =
+  | { status: "success"; impact: DeactivationImpactDto }
   | { status: "unauthenticated" }
   | { status: "error"; message: string };
 
@@ -52,6 +68,17 @@ const userSessionSchema = z.object({
 });
 
 const userSessionListSchema = z.object({ items: z.array(userSessionSchema) });
+const deactivationImpactSchema = z.object({
+  canDeactivate: z.boolean(),
+  blockers: z.array(
+    z.object({
+      workspaceId: z.string(),
+      workspaceName: z.string(),
+      activeOtherMemberCount: z.number().int().min(1),
+    }),
+  ),
+  autoDeactivatedWorkspaceCount: z.number().int().min(0),
+});
 
 export async function loadAccount(
   signal?: AbortSignal,
@@ -139,6 +166,61 @@ export async function changePassword(
       };
 }
 
+export async function requestEmailChange(
+  targetEmail: string,
+  currentPassword: string,
+  csrfToken: string,
+): Promise<AccountActionResult> {
+  return accountAction(
+    "/api/v1/account/email-change-requests",
+    { targetEmail, currentPassword },
+    csrfToken,
+  );
+}
+
+export async function confirmEmailChange(
+  token: string,
+  csrfToken: string,
+): Promise<AccountActionResult> {
+  return accountAction("/api/v1/account/email-changes", { token }, csrfToken);
+}
+
+export async function loadDeactivationImpact(
+  signal?: AbortSignal,
+): Promise<DeactivationImpactResult> {
+  const response = await requestJson("/api/v1/account/deactivation-impact", {
+    ...(signal ? { signal } : {}),
+  });
+  if (response.status === "network_error") {
+    return { status: "error", message: "Backend недоступен." };
+  }
+  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (!response.ok) {
+    return {
+      status: "error",
+      message:
+        parseApiError(response.body)?.message ??
+        `API вернул статус ${response.httpStatus}.`,
+    };
+  }
+  const parsed = deactivationImpactSchema.safeParse(response.body);
+  return parsed.success
+    ? { status: "success", impact: parsed.data }
+    : { status: "error", message: "API вернул неожиданные последствия." };
+}
+
+export async function deactivateAccount(
+  currentPassword: string,
+  confirmation: string,
+  csrfToken: string,
+): Promise<AccountActionResult> {
+  return accountAction(
+    "/api/v1/account/deactivation",
+    { currentPassword, confirmation },
+    csrfToken,
+  );
+}
+
 export async function loadUserSessions(
   signal?: AbortSignal,
 ): Promise<UserSessionListResult> {
@@ -218,6 +300,45 @@ function parseSessionMutation(
     };
   }
   return { status: "success" };
+}
+
+async function accountAction(
+  path: string,
+  body: Record<string, string>,
+  csrfToken: string,
+): Promise<AccountActionResult> {
+  const response = await requestJson(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    },
+    body: JSON.stringify(body),
+  });
+  if (response.status === "network_error") {
+    return { status: "error", fieldErrors: {}, message: "Backend недоступен." };
+  }
+  if (response.httpStatus === 401) return { status: "unauthenticated" };
+  if (!response.ok) {
+    const error = parseApiError(response.body);
+    return {
+      status: "error",
+      fieldErrors: Object.fromEntries(
+        Object.entries(error?.fieldErrors ?? {}).flatMap(([field, messages]) =>
+          messages[0] ? [[field, messages[0]]] : [],
+        ),
+      ),
+      message: error?.message ?? `API вернул статус ${response.httpStatus}.`,
+    };
+  }
+  const parsed = z.object({ message: z.string() }).safeParse(response.body);
+  return parsed.success
+    ? { status: "success", message: parsed.data.message }
+    : {
+        status: "error",
+        fieldErrors: {},
+        message: "API вернул неожиданный ответ.",
+      };
 }
 
 function accountResult(

@@ -8,7 +8,12 @@ from app.api.dependencies import (
     get_authenticated_session_context,
     get_password_service,
 )
-from app.api.v1.account.dependencies import get_user_service, get_user_session_service
+from app.api.v1.account.dependencies import (
+    get_account_deactivation_service,
+    get_email_change_service,
+    get_user_service,
+    get_user_session_service,
+)
 from app.api.v1.auth.dependencies import (
     get_authentication_service,
     get_email_verification_service,
@@ -16,6 +21,11 @@ from app.api.v1.auth.dependencies import (
 )
 from app.core.config import get_settings
 from app.core.settings import Settings
+from app.features.users.account_deactivation import (
+    AccountDeactivationImpact,
+    DeactivationBlocker,
+)
+from app.features.users.email_change import EmailChangeRequest, EmailChangeResult
 from app.features.users.email_delivery import IdentityEmail
 from app.features.users.email_verification import VerificationRequest
 from app.features.users.errors import (
@@ -147,6 +157,43 @@ class UserSessionServiceStub:
     async def revoke_others(self, *, user_id: UUID, current_session_id: UUID) -> int:
         self.revoked_others = (user_id, current_session_id)
         return 2
+
+
+@dataclass
+class EmailChangeStub:
+    messages: tuple[IdentityEmail, IdentityEmail]
+    requested: tuple[str, str] | None = None
+    confirmed_token: str | None = None
+
+    async def request_change(
+        self,
+        *,
+        target_email: str,
+        current_password: str,
+        **_values: object,
+    ) -> EmailChangeRequest:
+        self.requested = (target_email, current_password)
+        return EmailChangeRequest(messages=self.messages)
+
+    async def confirm_change(self, *, token: str, **_values: object) -> EmailChangeResult:
+        self.confirmed_token = token
+        return EmailChangeResult(
+            email="new@example.test",
+            session_token="rotated-email-session",
+            notification=self.messages[0],
+        )
+
+
+@dataclass
+class AccountDeactivationStub:
+    impact_result: AccountDeactivationImpact
+    deactivated_password: str | None = None
+
+    async def impact(self, **_values: object) -> AccountDeactivationImpact:
+        return self.impact_result
+
+    async def deactivate(self, *, current_password: str, **_values: object) -> None:
+        self.deactivated_password = current_password
 
 
 def test_auth_config_exposes_signup_availability() -> None:
@@ -486,6 +533,71 @@ def test_account_requires_authentication() -> None:
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
+
+
+def test_email_change_request_notifies_both_addresses_and_confirmation_rotates_cookie() -> None:
+    app = create_app()
+    old_notice = IdentityEmail("max@example.test", "Запрос", "Без ссылки")
+    new_confirmation = IdentityEmail("new@example.test", "Подтверждение", "secret link")
+    changes = EmailChangeStub((old_notice, new_confirmation))
+    sent: list[IdentityEmail] = []
+
+    async def capture(message: IdentityEmail) -> None:
+        sent.append(message)
+
+    app.dependency_overrides[get_authenticated_session_context] = _account_context
+    app.dependency_overrides[get_email_change_service] = lambda: changes
+    app.dependency_overrides[get_identity_email_sender] = lambda: capture
+    with TestClient(app) as client:
+        requested = client.post(
+            "/api/v1/account/email-change-requests",
+            json={"targetEmail": "new@example.test", "currentPassword": "current password"},
+        )
+        confirmed = client.post(
+            "/api/v1/account/email-changes",
+            json={"token": "single-use-token"},
+        )
+
+    assert requested.status_code == 202
+    assert changes.requested == ("new@example.test", "current password")
+    assert changes.confirmed_token == "single-use-token"
+    assert sent == [old_notice, new_confirmation, old_notice]
+    assert "booker_session=rotated-email-session" in confirmed.headers["set-cookie"]
+
+
+def test_account_deactivation_exposes_safe_blockers_and_requires_exact_confirmation() -> None:
+    app = create_app()
+    workspace_id = uuid4()
+    deactivation = AccountDeactivationStub(
+        AccountDeactivationImpact(
+            blockers=[DeactivationBlocker(workspace_id, "Семья", 2)],
+            auto_deactivated_workspace_count=1,
+        )
+    )
+    app.dependency_overrides[get_authenticated_session_context] = _account_context
+    app.dependency_overrides[get_account_deactivation_service] = lambda: deactivation
+    with TestClient(app) as client:
+        impact = client.get("/api/v1/account/deactivation-impact")
+        rejected = client.post(
+            "/api/v1/account/deactivation",
+            json={"currentPassword": "current password", "confirmation": "да"},
+        )
+
+    assert impact.status_code == 200
+    assert impact.json() == {
+        "canDeactivate": False,
+        "blockers": [
+            {
+                "workspaceId": str(workspace_id),
+                "workspaceName": "Семья",
+                "activeOtherMemberCount": 2,
+            }
+        ],
+        "autoDeactivatedWorkspaceCount": 1,
+    }
+    assert "финанс" not in impact.text.lower()
+    assert rejected.status_code == 422
+    assert deactivation.deactivated_password is None
 
 
 def test_logout_revokes_server_session_and_clears_cookie() -> None:

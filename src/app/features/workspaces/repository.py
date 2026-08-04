@@ -524,6 +524,57 @@ class WorkspaceRepository:
         )
         return list(result.scalars().all())
 
+    async def list_active_for_owner_for_update(self, owner_id: UUID) -> list[Workspace]:
+        result = await self.session.execute(
+            select(Workspace)
+            .where(
+                Workspace.owner_id == owner_id,
+                Workspace.is_active.is_(True),
+            )
+            .order_by(Workspace.created_at, Workspace.id)
+            .with_for_update()
+        )
+        return list(result.scalars().all())
+
+    async def count_active_members(self, workspace_id: UUID) -> int:
+        result = await self.session.execute(
+            select(func.count())
+            .select_from(WorkspaceMember)
+            .where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+            )
+        )
+        return result.scalar_one()
+
+    async def count_active_members_excluding(
+        self,
+        *,
+        workspace_id: UUID,
+        user_id: UUID,
+    ) -> int:
+        result = await self.session.execute(
+            select(func.count())
+            .select_from(WorkspaceMember)
+            .where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id != user_id,
+                WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+            )
+        )
+        return result.scalar_one()
+
+    async def disable_active_memberships_for_user(self, user_id: UUID) -> None:
+        await self.session.execute(
+            update(WorkspaceMember)
+            .where(
+                WorkspaceMember.user_id == user_id,
+                WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+            )
+            .values(status=WorkspaceMemberStatus.DISABLED)
+        )
+        await self.session.flush()
+
     async def create_personal_workspace_with_owner_membership(
         self,
         user_id: UUID,

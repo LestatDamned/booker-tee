@@ -1,7 +1,7 @@
 # Stage 07 / Wave C: Users And Authentication
 
-Статус: active. Slice 1 и increments 2.0–2.3 завершены 2026-08-04; следующий
-increment — 2.4 Email identity change and account deactivation.
+Статус: active. Slice 1 и increments 2.0–2.4 завершены 2026-08-04; следующий
+increment — 2.5 Replacement gate and cleanup.
 
 Этот child stage переносит оставшийся authenticated профиль и public auth flow
 из Jinja в React и доводит текущую email/password-аутентификацию до полного
@@ -711,6 +711,33 @@ Gate 2.4:
 - account deactivation не оставляет active shared workspace без владельца;
 - ни одна финансовая запись не удаляется, все sessions становятся invalid;
 - blockers ведут в существующие React workspace ownership actions.
+
+Completion record 2026-08-04:
+
+- authenticated account API получил request/confirm flow смены email на
+  существующих hashed single-use `change_email` tokens: current password,
+  normalized свободный target, повторная проверка коллизии при confirm,
+  verified timestamp, ротация current session и отзыв остальных;
+- старый адрес получает уведомление при запросе и после успеха, новый — только
+  confirmation link на canonical React route; canonical `users.email` до
+  подтверждения не меняется, token и credential не попадают в DTO или логи;
+- impact/deactivation API блокирует active owned workspace с другими active
+  members, возвращая только безопасный workspace identity snapshot. React
+  строит recovery links на существующие ownership/settings actions;
+- sole-member owned workspaces деактивируются в account transaction с отзывом
+  pending invitations и integration runtime; memberships, user chat access,
+  tokens и все sessions отключаются, `is_active=false` и `deactivated_at`
+  записываются без hard delete финансовых данных;
+- `/app/profile/account` использует существующие form/notice/password/dialog
+  primitives, отдельное повторное подтверждение паролем и контрольной фразой,
+  visible blockers и явный текст о сохранении финансовой истории;
+- новая migration и новые dependencies не потребовались: foundation 2.0 уже
+  добавил нужные user/token поля, а реализация переиспользует current session,
+  workspace lifecycle repositories и stdlib SMTP adapter;
+- Ruff, ty, OpenAPI contract, full backend (`823 passed, 22 skipped`), full
+  frontend (`87 files, 501 passed`) и production build прошли; отдельный
+  PostgreSQL lifecycle suite (`2 passed`) доказал stale collision, session
+  rotation, ownership blocker и сохранность confirmed ledger operation.
 
 ### 2.5 Replacement gate and cleanup
 

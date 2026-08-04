@@ -137,7 +137,7 @@ function ProfilePage({
             <Field
               htmlFor="profile-email"
               label="Email"
-              hint="Изменение email появится на следующем этапе."
+              hint="Адрес для входа и уведомлений безопасности."
             >
               <input
                 className={styles.readOnly}
@@ -153,6 +153,9 @@ function ProfilePage({
               </Button>
             </FormActions>
             <FormActions>
+              <RouterButtonLink to="/profile/account">
+                Email и деактивация
+              </RouterButtonLink>
               <RouterButtonLink to="/profile/security">
                 Безопасность и пароль
               </RouterButtonLink>

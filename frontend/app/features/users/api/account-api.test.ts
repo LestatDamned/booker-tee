@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   changePassword,
+  confirmEmailChange,
+  deactivateAccount,
   loadAccount,
+  loadDeactivationImpact,
   loadUserSessions,
   logout,
+  requestEmailChange,
   revokeOtherUserSessions,
   revokeUserSession,
   updateAccount,
@@ -126,6 +130,72 @@ describe("account API", () => {
         method: "DELETE",
         headers: expect.objectContaining({ "X-CSRF-Token": "csrf-token" }),
       }),
+    );
+  });
+
+  it("requests and confirms an email change with authenticated CSRF", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ message: "Письмо отправлено." }, 202),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ message: "Email изменён.", email: "new@example.test" }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      requestEmailChange("new@example.test", "current password", "csrf-token"),
+    ).resolves.toEqual({ status: "success", message: "Письмо отправлено." });
+    await expect(
+      confirmEmailChange("single-use-token", "csrf-token"),
+    ).resolves.toEqual({ status: "success", message: "Email изменён." });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/account/email-change-requests",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/account/email-changes",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("loads deactivation blockers and sends explicit confirmation", async () => {
+    const impact = {
+      canDeactivate: false,
+      blockers: [
+        {
+          workspaceId: "7d71f4c7-ea92-45d4-817a-a1d85d509d4c",
+          workspaceName: "Семья",
+          activeOtherMemberCount: 2,
+        },
+      ],
+      autoDeactivatedWorkspaceCount: 1,
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(impact))
+      .mockResolvedValueOnce(
+        jsonResponse({ message: "Аккаунт деактивирован." }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(loadDeactivationImpact()).resolves.toEqual({
+      status: "success",
+      impact,
+    });
+    await expect(
+      deactivateAccount("current password", "ДЕАКТИВИРОВАТЬ", "csrf-token"),
+    ).resolves.toEqual({
+      status: "success",
+      message: "Аккаунт деактивирован.",
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/account/deactivation",
+      expect.objectContaining({ method: "POST" }),
     );
   });
 });

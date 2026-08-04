@@ -20,6 +20,7 @@ export default [
   route("ledger/manual", "routes/manual-ledger.tsx"),
   route("properties", "routes/properties.tsx"),
   route("profile", "routes/profile.tsx"),
+  route("profile/account", "routes/profile-account.tsx"),
   route("profile/security", "routes/profile-security.tsx"),
   route("profile/sessions", "routes/profile-sessions.tsx"),
   route("reports", "routes/reports.tsx"),

@@ -39,6 +39,74 @@ export interface paths {
         patch: operations["change_password_api_v1_account_password_patch"];
         trace?: never;
     };
+    "/api/v1/account/email-change-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Email Change */
+        post: operations["request_email_change_api_v1_account_email_change_requests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/email-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Email Change */
+        post: operations["confirm_email_change_api_v1_account_email_changes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/deactivation-impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Deactivation Impact */
+        get: operations["read_deactivation_impact_api_v1_account_deactivation_impact_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/deactivation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate Account */
+        post: operations["deactivate_account_api_v1_account_deactivation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/account/sessions": {
         parameters: {
             query?: never;
@@ -1421,6 +1489,15 @@ export interface components {
          * @enum {string}
          */
         AccountBalanceDirection: "positive" | "negative" | "zero";
+        /** AccountDeactivationImpactApiResponse */
+        AccountDeactivationImpactApiResponse: {
+            /** Candeactivate */
+            canDeactivate: boolean;
+            /** Blockers */
+            blockers: components["schemas"]["DeactivationBlockerApiResponse"][];
+            /** Autodeactivatedworkspacecount */
+            autoDeactivatedWorkspaceCount: number;
+        };
         /** AccountDetailAccountApiResponse */
         AccountDetailAccountApiResponse: {
             /**
@@ -1941,6 +2018,11 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** ConfirmEmailChangeApiRequest */
+        ConfirmEmailChangeApiRequest: {
+            /** Token */
+            token: string;
+        };
         /** CreateAccountApiRequest */
         CreateAccountApiRequest: {
             /** Name */
@@ -2002,6 +2084,37 @@ export interface components {
             shareUrl: string;
             /** Replayed */
             replayed: boolean;
+        };
+        /** DeactivateAccountApiRequest */
+        DeactivateAccountApiRequest: {
+            /** Currentpassword */
+            currentPassword: string;
+            /** Confirmation */
+            confirmation: string;
+        };
+        /** DeactivateAccountApiResponse */
+        DeactivateAccountApiResponse: {
+            /** Message */
+            message: string;
+        };
+        /** DeactivationBlockerApiResponse */
+        DeactivationBlockerApiResponse: {
+            /**
+             * Workspaceid
+             * Format: uuid
+             */
+            workspaceId: string;
+            /** Workspacename */
+            workspaceName: string;
+            /** Activeothermembercount */
+            activeOtherMemberCount: number;
+        };
+        /** EmailChangeApiResponse */
+        EmailChangeApiResponse: {
+            /** Message */
+            message: string;
+            /** Email */
+            email?: string | null;
         };
         /** EmailVerificationApiRequest */
         EmailVerificationApiRequest: {
@@ -3863,6 +3976,13 @@ export interface components {
             /** Hasnext */
             hasNext: boolean;
         };
+        /** RequestEmailChangeApiRequest */
+        RequestEmailChangeApiRequest: {
+            /** Targetemail */
+            targetEmail: string;
+            /** Currentpassword */
+            currentPassword: string;
+        };
         /**
          * ReviewBlockingReasonCode
          * @enum {string}
@@ -4898,6 +5018,215 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    request_email_change_api_v1_account_email_change_requests_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestEmailChangeApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailChangeApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    confirm_email_change_api_v1_account_email_changes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmEmailChangeApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailChangeApiResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_deactivation_impact_api_v1_account_deactivation_impact_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDeactivationImpactApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deactivate_account_api_v1_account_deactivation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeactivateAccountApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeactivateAccountApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

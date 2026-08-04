@@ -26,6 +26,16 @@ class InvalidEmailVerificationTokenError(UserError):
     pass
 
 
+class InvalidEmailChangeTokenError(UserError):
+    pass
+
+
+class AccountDeactivationBlockedError(UserError):
+    def __init__(self, blockers: list[object]) -> None:
+        super().__init__("Сначала устраните препятствия для деактивации аккаунта.")
+        self.blockers = blockers
+
+
 class InvalidPasswordResetTokenError(UserError):
     pass
 

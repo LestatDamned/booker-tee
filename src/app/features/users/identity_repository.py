@@ -74,6 +74,32 @@ class UserTokenRepository:
         await self.session.flush()
         return token
 
+    async def consume_for_user(
+        self,
+        *,
+        user_id: UUID,
+        purpose: UserTokenPurpose,
+        token_hash: str,
+    ) -> UserToken | None:
+        now = utc_now()
+        result = await self.session.execute(
+            select(UserToken)
+            .where(
+                UserToken.user_id == user_id,
+                UserToken.purpose == purpose,
+                UserToken.token_hash == token_hash,
+                UserToken.consumed_at.is_(None),
+                UserToken.expires_at > now,
+            )
+            .with_for_update()
+        )
+        token = result.scalar_one_or_none()
+        if token is None:
+            return None
+        token.consumed_at = now
+        await self.session.flush()
+        return token
+
     async def consume_active_for_user(
         self,
         *,
@@ -85,6 +111,17 @@ class UserTokenRepository:
             .where(
                 UserToken.user_id == user_id,
                 UserToken.purpose == purpose,
+                UserToken.consumed_at.is_(None),
+            )
+            .values(consumed_at=utc_now())
+        )
+        await self.session.flush()
+
+    async def consume_all_active_for_user(self, *, user_id: UUID) -> None:
+        await self.session.execute(
+            update(UserToken)
+            .where(
+                UserToken.user_id == user_id,
                 UserToken.consumed_at.is_(None),
             )
             .values(consumed_at=utc_now())
