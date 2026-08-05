@@ -3,7 +3,7 @@ from app.core.settings import Settings
 from app.main import create_app
 
 
-def test_home_redirects_authenticated_user_to_dashboard(client: TestClient, monkeypatch) -> None:
+def test_home_redirects_authenticated_user_to_react_app(client: TestClient, monkeypatch) -> None:
     class FakeAuthenticationService:
         def __init__(self, *args, **kwargs) -> None:
             pass
@@ -22,7 +22,7 @@ def test_home_redirects_authenticated_user_to_dashboard(client: TestClient, monk
     )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/dashboard"
+    assert response.headers["location"] == "/app"
 
 
 def test_healthcheck_returns_ok(client: TestClient) -> None:

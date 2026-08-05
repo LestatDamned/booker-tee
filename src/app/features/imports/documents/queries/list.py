@@ -88,7 +88,7 @@ class ImportDocumentListReader:
         return ImportDocumentListReadModel(
             workspace_id=workspace_id,
             workspace_name=workspace_name,
-            items=tuple(self._item(row, can_upload=can_upload) for row in rows),
+            items=tuple(import_document_item_from_row(row, can_upload=can_upload) for row in rows),
             pagination=ImportDocumentListPageDto(
                 page=normalized_pagination.page,
                 per_page=normalized_pagination.per_page,
@@ -109,64 +109,64 @@ class ImportDocumentListReader:
             ),
         )
 
-    @staticmethod
-    def _item(
-        row: ImportDocumentListRow,
-        *,
-        can_upload: bool,
-    ) -> ImportDocumentListItemDto:
-        needs_mapping = (
-            row.status is UploadedDocumentStatus.REQUIRES_REVIEW
-            and row.latest_parse_attempt_status is ParseAttemptStatus.REQUIRES_REVIEW
-            and row.total_row_count == 0
-        )
-        can_map = can_upload and needs_mapping
-        can_review = row.total_row_count > 0 or row.status is UploadedDocumentStatus.IMPORTED
-        capabilities = ImportDocumentListItemCapabilitiesDto(
-            can_open_detail=True,
-            can_map=can_map,
-            can_review=can_review,
-        )
-        if can_map:
-            next_step = ImportDocumentNextStepKind.MAPPING
-        elif can_review:
-            next_step = ImportDocumentNextStepKind.REVIEW
-        else:
-            next_step = ImportDocumentNextStepKind.DETAIL
-        return ImportDocumentListItemDto(
-            id=row.id,
-            filename=row.filename,
-            status=row.status,
-            created_at=row.created_at,
-            file_size_bytes=row.file_size_bytes,
-            detected_bank_name=row.detected_bank_name,
-            statement_period=(
-                ImportDocumentStatementPeriodDto(
-                    start=row.statement_period_start,
-                    end=row.statement_period_end,
-                )
-                if (row.statement_period_start is not None and row.statement_period_end is not None)
-                else None
-            ),
-            account=(
-                ImportDocumentAccountDto(
-                    id=row.account_id,
-                    name=row.account_name,
-                    currency=row.account_currency,
-                    bank_name=row.account_bank_name,
-                )
-                if (
-                    row.account_id is not None
-                    and row.account_name is not None
-                    and row.account_currency is not None
-                )
-                else None
-            ),
-            total_row_count=row.total_row_count,
-            reviewable_row_count=row.reviewable_row_count,
-            capabilities=capabilities,
-            next_step_kind=next_step,
-        )
+
+def import_document_item_from_row(
+    row: ImportDocumentListRow,
+    *,
+    can_upload: bool,
+) -> ImportDocumentListItemDto:
+    needs_mapping = (
+        row.status is UploadedDocumentStatus.REQUIRES_REVIEW
+        and row.latest_parse_attempt_status is ParseAttemptStatus.REQUIRES_REVIEW
+        and row.total_row_count == 0
+    )
+    can_map = can_upload and needs_mapping
+    can_review = row.total_row_count > 0 or row.status is UploadedDocumentStatus.IMPORTED
+    capabilities = ImportDocumentListItemCapabilitiesDto(
+        can_open_detail=True,
+        can_map=can_map,
+        can_review=can_review,
+    )
+    if can_map:
+        next_step = ImportDocumentNextStepKind.MAPPING
+    elif can_review:
+        next_step = ImportDocumentNextStepKind.REVIEW
+    else:
+        next_step = ImportDocumentNextStepKind.DETAIL
+    return ImportDocumentListItemDto(
+        id=row.id,
+        filename=row.filename,
+        status=row.status,
+        created_at=row.created_at,
+        file_size_bytes=row.file_size_bytes,
+        detected_bank_name=row.detected_bank_name,
+        statement_period=(
+            ImportDocumentStatementPeriodDto(
+                start=row.statement_period_start,
+                end=row.statement_period_end,
+            )
+            if (row.statement_period_start is not None and row.statement_period_end is not None)
+            else None
+        ),
+        account=(
+            ImportDocumentAccountDto(
+                id=row.account_id,
+                name=row.account_name,
+                currency=row.account_currency,
+                bank_name=row.account_bank_name,
+            )
+            if (
+                row.account_id is not None
+                and row.account_name is not None
+                and row.account_currency is not None
+            )
+            else None
+        ),
+        total_row_count=row.total_row_count,
+        reviewable_row_count=row.reviewable_row_count,
+        capabilities=capabilities,
+        next_step_kind=next_step,
+    )
 
 
 def normalize_import_document_pagination(

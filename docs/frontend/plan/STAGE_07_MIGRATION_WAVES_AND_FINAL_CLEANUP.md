@@ -31,8 +31,9 @@ workflows вертикальными slices и удалить второй по�
 ### Wave C: context and administration
 
 1. workspaces/members/invitations — completed 2026-08-04;
-2. [users, authentication and profile](users/README.md) — next;
-3. remaining authenticated pages and integrations surfaces.
+2. [users, authentication and profile](users/README.md) — completed 2026-08-04;
+3. Dashboard — completed 2026-08-05;
+4. final authenticated SSR consumer audit and cleanup — active.
 
 Before each workflow begins, create a focused child stage with:
 

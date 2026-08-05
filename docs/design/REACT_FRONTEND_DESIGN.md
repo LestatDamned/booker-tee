@@ -19,13 +19,14 @@ React route
   -> domain/repository
 ```
 
-Legacy Jinja/HTMX остаётся только у ещё не мигрированных workflows. Новый
+Legacy Jinja остаётся только у явно публичных маршрутов. Новый
 authenticated workflow в legacy stack не добавляется.
 
 ## Current state
 
 Каноничны в React:
 
+- `/app` (Dashboard);
 - `/app/ledger/manual`;
 - `/app/accounts`;
 - `/app/accounts/:accountId`;
@@ -39,12 +40,14 @@ authenticated workflow в legacy stack не добавляется.
 - `/app/categories`;
 - `/app/categories/:categoryId`;
 - `/app/rules`;
+- `/app/workspaces`;
+- `/app/profile` и `/app/profile/sessions`;
+- `/app/auth/login` и `/app/auth/signup`;
 - shared shell/foundation/themes.
 
-Accounts, Reports, Properties, Categories и Transaction Rules полностью
-принадлежат React. Остальные authenticated pages пока SSR и мигрируют Stage 7.
-Public home и invitation flow могут оставаться минимальным SSR после financial
-cutover — это отдельное решение.
+Authenticated product pages, включая Dashboard, каноничны в React.
+Public home и invitation preview/accept остаются минимальным SSR;
+локальная chat integration page остаётся development-only surface.
 
 ## Runtime and deployment
 

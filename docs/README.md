@@ -46,8 +46,9 @@
 
 ## Текущий frontend plan
 
-Stages 0–6 и Stage 7 Waves A–B завершены. В Wave C завершены workspaces;
-следующая область — users, authentication и profile.
+Stages 0–6 и feature waves Stage 7 завершены. Workspaces,
+users/authentication/profile и Dashboard каноничны в React; активен
+финальный аудит authenticated SSR consumers и cleanup.
 
 - [`STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md`](frontend/plan/STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md)
 - [`Users and authentication`](frontend/plan/users/README.md)

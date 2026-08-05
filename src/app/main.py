@@ -16,7 +16,6 @@ from app.core.security import session_token_from_request
 from app.core.settings import Settings
 from app.db.session import get_session, session_factory
 from app.features.chat_integrations.router import router as chat_integrations_router
-from app.features.dashboard.router import router as dashboard_router
 from app.features.users.service import AuthenticationService
 from app.features.workspaces.public_invitations_router import (
     router as workspace_invitations_router,
@@ -44,7 +43,6 @@ def create_app() -> FastAPI:
     app.include_router(api_router)
     app.include_router(legacy_frontend_redirects_router)
     app.include_router(chat_integrations_router)
-    app.include_router(dashboard_router)
     app.include_router(workspace_invitations_router)
 
     @app.get("/", response_class=HTMLResponse)
@@ -59,7 +57,7 @@ def create_app() -> FastAPI:
                 session_token
             )
             if login_session is not None:
-                return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+                return RedirectResponse(url="/app", status_code=status.HTTP_303_SEE_OTHER)
 
         return templates.TemplateResponse(
             request,

@@ -43,6 +43,16 @@ async def historical_user_profile(request: Request) -> RedirectResponse:
     return redirect_to_react(request, "/app/profile")
 
 
+@router.get("/dashboard")
+async def historical_dashboard(request: Request) -> RedirectResponse:
+    return redirect_to_react(request, "/app")
+
+
+@router.get("/dashboard/summary")
+async def historical_dashboard_summary(request: Request) -> RedirectResponse:
+    return redirect_to_react(request, "/app")
+
+
 @router.get("/ledger/manual")
 async def historical_manual_ledger(request: Request) -> RedirectResponse:
     return redirect_to_react(request, "/app/ledger/manual")

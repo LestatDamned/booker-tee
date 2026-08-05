@@ -25,6 +25,8 @@ CATEGORY_ID = "33333333-3333-3333-3333-333333333333"
             "/app/auth/signup?next=%2Fworkspaces%2Finvitations%2Finvite-token",
         ),
         ("/users?section=sessions", "/app/profile?section=sessions"),
+        ("/dashboard?source=bookmark", "/app?source=bookmark"),
+        ("/dashboard/summary", "/app"),
         (
             "/ledger/manual?type=expense&page=2",
             "/app/ledger/manual?type=expense&page=2",
@@ -99,6 +101,8 @@ def test_historical_frontend_get_redirects_to_react(
         ("/login", 405),
         ("/signup", 405),
         ("/users", 405),
+        ("/dashboard", 405),
+        ("/dashboard/summary", 405),
         ("/logout", 404),
         ("/accounts", 405),
         (f"/accounts/{ACCOUNT_ID}", 405),

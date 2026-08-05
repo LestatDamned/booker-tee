@@ -12,7 +12,7 @@
   <body>
     <header class="site-header" x-data="{ navOpen: false }" @keydown.escape.window="navOpen = false">
       <div class="shell header-grid {% if not current_user %}header-grid-public{% endif %}">
-        <a class="brand" href="{% if current_user %}/dashboard{% else %}/{% endif %}">{{ app_name }}</a>
+        <a class="brand" href="{% if current_user %}/app{% else %}/{% endif %}">{{ app_name }}</a>
         {% if current_user %}
           <div class="context-strip">
             <a class="context-item" href="/app/workspaces">
@@ -39,7 +39,7 @@
       </div>
       <nav id="main-navigation" class="shell nav-actions" :class="{ 'nav-actions-open': navOpen }">
         {% if current_user %}
-          <a class="nav-link" href="/dashboard">{{ icon("home") }} обзор</a>
+          <a class="nav-link" href="/app">{{ icon("home") }} обзор</a>
           <a class="nav-link" href="/app/profile">{{ icon("user") }} профиль</a>
           <a class="nav-link" href="/app/workspaces">{{ icon("folder") }} пространства</a>
           <a class="nav-link" href="/app/accounts">{{ icon("wallet") }} счета</a>

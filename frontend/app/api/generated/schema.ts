@@ -452,6 +452,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dashboard Overview */
+        get: operations["get_dashboard_overview_api_v1_dashboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/imports/documents/{document_id}/mapping": {
         parameters: {
             query?: never;
@@ -1279,40 +1296,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/dashboard": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Dashboard Index */
-        get: operations["dashboard_index_dashboard_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dashboard/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Dashboard Summary */
-        get: operations["dashboard_summary_dashboard_summary_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/workspaces/invitations/{invitation_token}": {
         parameters: {
             query?: never;
@@ -2000,6 +1983,122 @@ export interface components {
             shareUrl: string;
             /** Replayed */
             replayed: boolean;
+        };
+        /** DashboardAccountApiResponse */
+        DashboardAccountApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+            /** Balance */
+            balance: string;
+        };
+        /** DashboardAttentionApiResponse */
+        DashboardAttentionApiResponse: {
+            /** Total */
+            total: number;
+            /** Items */
+            items: components["schemas"]["DashboardDocumentApiResponse"][];
+        };
+        /** DashboardCapabilitiesApiResponse */
+        DashboardCapabilitiesApiResponse: {
+            /** Canupload */
+            canUpload: boolean;
+            /** Canwritefinancialdata */
+            canWriteFinancialData: boolean;
+            /**
+             * Primaryaction
+             * @enum {string}
+             */
+            primaryAction: "upload" | "manual_operation" | "reports";
+        };
+        /** DashboardDocumentAccountApiResponse */
+        DashboardDocumentAccountApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+        };
+        /** DashboardDocumentApiResponse */
+        DashboardDocumentApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Filename */
+            filename: string;
+            status: components["schemas"]["UploadedDocumentStatus"];
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            account: components["schemas"]["DashboardDocumentAccountApiResponse"] | null;
+            /** Reviewablerowcount */
+            reviewableRowCount: number;
+            nextStepKind: components["schemas"]["ImportDocumentNextStepKind"];
+        };
+        /** DashboardMoneySummaryApiResponse */
+        DashboardMoneySummaryApiResponse: {
+            /** Currency */
+            currency: string;
+            /** Income */
+            income: string;
+            /** Expense */
+            expense: string;
+            /** Profit */
+            profit: string;
+        };
+        /** DashboardOnboardingApiResponse */
+        DashboardOnboardingApiResponse: {
+            /** Hasaccounts */
+            hasAccounts: boolean;
+            /** Hasdocuments */
+            hasDocuments: boolean;
+            /** Hasconfirmedactivity */
+            hasConfirmedActivity: boolean;
+            /** Iscomplete */
+            isComplete: boolean;
+        };
+        /** DashboardOverviewApiResponse */
+        DashboardOverviewApiResponse: {
+            /** Workspacename */
+            workspaceName: string;
+            period: components["schemas"]["DashboardPeriodApiResponse"];
+            summary: components["schemas"]["DashboardMoneySummaryApiResponse"];
+            /** Accounts */
+            accounts: components["schemas"]["DashboardAccountApiResponse"][];
+            /** Activeaccountcount */
+            activeAccountCount: number;
+            attention: components["schemas"]["DashboardAttentionApiResponse"];
+            /** Recentdocuments */
+            recentDocuments: components["schemas"]["DashboardDocumentApiResponse"][];
+            onboarding: components["schemas"]["DashboardOnboardingApiResponse"];
+            capabilities: components["schemas"]["DashboardCapabilitiesApiResponse"];
+        };
+        /** DashboardPeriodApiResponse */
+        DashboardPeriodApiResponse: {
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
         };
         /** DeactivateAccountApiRequest */
         DeactivateAccountApiRequest: {
@@ -6590,6 +6689,44 @@ export interface operations {
             };
         };
     };
+    get_dashboard_overview_api_v1_dashboard_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardOverviewApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     get_unknown_statement_mapping_api_v1_imports_documents__document_id__mapping_get: {
         parameters: {
             query?: never;
@@ -10230,46 +10367,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    dashboard_index_dashboard_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-        };
-    };
-    dashboard_summary_dashboard_summary_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
                 };
             };
         };

@@ -70,11 +70,11 @@ def test_parse_uuid_cookie_ignores_missing_or_invalid_values() -> None:
     assert parse_uuid_cookie(request, "missing") is None
 
 
-def test_dashboard_redirects_to_login_without_session(client) -> None:
+def test_historical_dashboard_redirects_to_react_app(client) -> None:
     response = client.get("/dashboard", follow_redirects=False)
 
-    assert response.status_code == 303
-    assert response.headers["location"] == "/app/auth/login"
+    assert response.status_code == 307
+    assert response.headers["location"] == "/app"
 
 
 def test_passwords_are_hashed_and_verified() -> None:

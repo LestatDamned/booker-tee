@@ -15,6 +15,7 @@ Imports completed
 Accounts and account ledger completed
 Reports completed; canonical UI is React
 Properties, Categories and Transaction Rules completed; canonical UI is React
+Workspaces, users/authentication/profile and Dashboard completed; canonical UI is React
 ```
 
 ## Completed outcomes
@@ -53,6 +54,30 @@ Child stages:
 - Workspaces — completed 2026-08-04.
 - [`Users and authentication`](users/README.md) — completed 2026-08-04;
   React/API lifecycle, replacement gate and legacy users cleanup completed.
+
+### Dashboard completion record
+
+Completed: 2026-08-05
+
+Implemented: canonical React overview at `/app` with an attention-first queue,
+confirmed current-month result, currency-safe account balances, recent import
+provenance and a compact first-cycle checklist. A workspace-scoped
+`GET /api/v1/dashboard` read model composes existing report, account and import
+repositories; permissions select the primary action and import destination.
+
+Cleanup performed: authenticated `/` and canonical navigation now enter React;
+historical Dashboard GETs redirect to `/app`; the legacy Dashboard router,
+service, Jinja templates, macros, replacement-only tests and orphaned React
+session placeholder were removed.
+
+Checks run: Ruff, ty, focused backend Dashboard/cutover/import regressions,
+full backend (`834 passed, 22 PostgreSQL-only skipped`), frontend
+format/lint/styles/OpenAPI/type checks, full Vitest (`90 files, 507 passed`) and
+production build.
+
+Intentional deviations: charts, category rankings, configurable widgets and a
+new dashboard abstraction layer were omitted. Reports remain the exploration
+surface; Dashboard remains a bounded triage and orientation surface.
 
 ### Workspaces completion record
 

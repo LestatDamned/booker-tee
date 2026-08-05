@@ -1396,59 +1396,6 @@ html:not(.entity-target-cleared) .entity-card:target {
   color: var(--muted);
 }
 
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.dashboard-summary {
-  grid-column: 1 / -1;
-}
-
-.next-step-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-  border: 1px solid color-mix(in srgb, var(--help) 36%, var(--border));
-  border-left: 4px solid var(--help);
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--help) 12%, var(--surface-strong)),
-    color-mix(in srgb, var(--surface-strong) 70%, transparent)
-  );
-  padding: 14px;
-}
-
-.next-step-copy {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.next-step-copy strong {
-  color: color-mix(in srgb, var(--text) 88%, var(--help));
-  font-size: 1rem;
-}
-
-.next-step-copy span {
-  color: color-mix(in srgb, var(--text) 74%, var(--help));
-  line-height: 1.45;
-}
-
-.next-step-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.next-step-actions .button {
-  min-height: 44px;
-  white-space: normal;
-}
-
 .inline-hint {
   max-width: 100%;
   border: 1px solid color-mix(in srgb, var(--help) 30%, var(--border));
@@ -1569,80 +1516,6 @@ html:not(.entity-target-cleared) .entity-card:target {
   font-size: 0.78rem;
 }
 
-.dashboard-guide {
-  grid-column: 1 / -1;
-}
-
-.onboarding-checklist {
-  grid-column: 1 / -1;
-}
-
-.onboarding-list {
-  display: grid;
-  gap: 1px;
-  border: 1px solid var(--border);
-  background: var(--border);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.onboarding-item {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 10px;
-  background: var(--surface-strong);
-  padding: 10px;
-}
-
-.onboarding-index {
-  width: 30px;
-  height: 30px;
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid currentcolor;
-  color: var(--muted);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.8rem;
-}
-
-.onboarding-copy {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.onboarding-copy strong {
-  color: var(--text);
-}
-
-.onboarding-copy span {
-  color: var(--muted);
-  line-height: 1.45;
-}
-
-.onboarding-item-done .onboarding-index {
-  color: var(--green);
-}
-
-.onboarding-item-current {
-  background: var(--surface);
-}
-
-.onboarding-item-current .onboarding-index {
-  color: var(--accent);
-}
-
-.onboarding-item-pending {
-  opacity: 0.74;
-}
-
-.dashboard-card {
-  min-width: 0;
-}
-
 .entity-list {
   display: grid;
   border: 1px solid var(--border);
@@ -1664,15 +1537,6 @@ html:not(.entity-target-cleared) .entity-card:target {
 .entity-row > span:first-child {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-.document-name-compact {
-  flex: 1 1 220px;
-  min-width: 0;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  line-height: 1.35;
 }
 
 .entity-row .badge {
@@ -1769,18 +1633,6 @@ html:not(.entity-target-cleared) .entity-card:target {
   text-transform: uppercase;
 }
 
-.metric-review-action {
-  border-top: 3px solid var(--accent);
-}
-
-.metric-review-action:hover {
-  background: color-mix(in srgb, var(--surface-strong) 84%, var(--accent));
-}
-
-.metric-review-action strong {
-  color: var(--accent);
-}
-
 .summary-grid > div > span,
 .metric span {
   color: var(--muted);
@@ -1793,46 +1645,6 @@ html:not(.entity-target-cleared) .entity-card:target {
   font-family:
     "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 1rem;
-}
-
-.summary-grid > div .money-value,
-.metric .money-value {
-  font-size: clamp(1.25rem, 2.4vw, 1.75rem);
-}
-
-.money-value {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  color: var(--text);
-  font-family:
-    "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: clamp(1.25rem, 3vw, 2rem);
-  font-weight: 800;
-  line-height: 1.05;
-  white-space: nowrap;
-}
-
-.money-value small {
-  color: var(--muted);
-  font-size: 0.62em;
-  font-weight: 700;
-}
-
-.money-income {
-  color: var(--green);
-}
-
-.money-expense {
-  color: var(--danger);
-}
-
-.money-transfer {
-  color: var(--accent);
-}
-
-.money-profit {
-  color: var(--warning);
 }
 
 .metric-income {
@@ -2353,8 +2165,7 @@ pre {
 }
 
 @media (max-width: 920px) {
-  .header-grid,
-  .dashboard-grid {
+  .header-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2572,17 +2383,14 @@ pre {
     grid-template-columns: 1fr;
   }
 
-  .next-step-panel,
   .empty-state,
-  .next-step-actions,
   .empty-state-actions {
     display: grid;
     grid-template-columns: 1fr;
     justify-content: stretch;
   }
 
-  .empty-state-actions .button,
-  .next-step-actions .button {
+  .empty-state-actions .button {
     width: 100%;
   }
 
@@ -2599,16 +2407,6 @@ pre {
   .action-hint-actions form,
   .action-hint-actions .button {
     width: 100%;
-  }
-
-  .onboarding-item {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .onboarding-item .badge,
-  .onboarding-item .meta-link {
-    grid-column: 2;
-    justify-self: start;
   }
 
   .summary-grid {
