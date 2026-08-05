@@ -46,9 +46,9 @@
 
 ## Текущий frontend plan
 
-Stages 0–6 и feature waves Stage 7 завершены. Workspaces,
-users/authentication/profile и Dashboard каноничны в React; активен
-финальный аудит authenticated SSR consumers и cleanup.
+Stages 0–7 завершены. Все browser workflows каноничны в React; Jinja/HTMX/
+Alpine presentation stack удалён. Отдельным будущим решением остаётся только
+routing cutover временного `/app` prefix.
 
 - [`STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md`](frontend/plan/STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md)
 - [`Users and authentication`](frontend/plan/users/README.md)

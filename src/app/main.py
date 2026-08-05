@@ -1,30 +1,18 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Annotated
 
-from fastapi import Depends, FastAPI, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import install_api_exception_handlers
 from app.api.router import router as api_router
 from app.core.config import get_settings
 from app.core.middleware import install_security_middleware
-from app.core.security import session_token_from_request
-from app.core.settings import Settings
-from app.db.session import get_session, session_factory
+from app.db.session import session_factory
 from app.features.chat_integrations.router import router as chat_integrations_router
-from app.features.users.service import AuthenticationService
-from app.features.workspaces.public_invitations_router import (
-    router as workspace_invitations_router,
-)
 from app.legacy_frontend_redirects import router as legacy_frontend_redirects_router
 from app.react_frontend import install_react_frontend
-from app.templating import create_templates
-
-templates = create_templates()
 
 
 @asynccontextmanager
@@ -39,30 +27,15 @@ def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
     install_security_middleware(app, settings)
     install_api_exception_handlers(app)
-    app.mount("/static", StaticFiles(directory="src/app/static"), name="static")
     app.include_router(api_router)
     app.include_router(legacy_frontend_redirects_router)
     app.include_router(chat_integrations_router)
-    app.include_router(workspace_invitations_router)
 
-    @app.get("/", response_class=HTMLResponse)
-    async def home(
-        request: Request,
-        session: Annotated[AsyncSession, Depends(get_session)],
-        settings: Annotated[Settings, Depends(get_settings)],
-    ) -> Response:
-        session_token = session_token_from_request(request, settings)
-        if session_token:
-            login_session = await AuthenticationService(session, settings).resolve_login_session(
-                session_token
-            )
-            if login_session is not None:
-                return RedirectResponse(url="/app", status_code=status.HTTP_303_SEE_OTHER)
-
-        return templates.TemplateResponse(
-            request,
-            "home.html",
-            {"app_name": settings.app_name},
+    @app.get("/", include_in_schema=False)
+    async def home() -> RedirectResponse:
+        return RedirectResponse(
+            url="/app",
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         )
 
     @app.get("/health")

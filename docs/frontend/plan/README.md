@@ -1,6 +1,6 @@
 # React Frontend Implementation Plan
 
-Статус: active execution index.
+Статус: completed migration index.
 
 Этот каталог содержит только текущую миграцию. Детальные completed stage plans
 удалены; их результат зафиксирован ниже, а implementation history остаётся в
@@ -9,13 +9,13 @@ Git и коде.
 ## Current position
 
 ```text
-Stages 0–6 completed
-Stage 7 active
+Stages 0–7 completed
 Imports completed
 Accounts and account ledger completed
 Reports completed; canonical UI is React
 Properties, Categories and Transaction Rules completed; canonical UI is React
 Workspaces, users/authentication/profile and Dashboard completed; canonical UI is React
+Public invitations and local integration tools completed; canonical UI is React
 ```
 
 ## Completed outcomes
@@ -36,11 +36,20 @@ Workspaces, users/authentication/profile and Dashboard completed; canonical UI i
 - `frontend/app/features/transaction-rules/README.md`;
 - server application/domain tests.
 
-## Current stage
+## Completed stage
 
 [`STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md`](STAGE_07_MIGRATION_WAVES_AND_FINAL_CLEANUP.md)
-мигрирует остальные authenticated workflows и удаляет второй presentation
-stack.
+завершил миграцию browser workflows и удалил второй presentation stack.
+
+Final cleanup completed 2026-08-05: `/` redirects to the React SPA; public
+workspace invitation preview/accept and Telegram dev-link use React routes and
+versioned JSON API. Jinja, HTMX, Alpine, legacy global CSS/JS and the Jinja2
+dependency were deleted. Historical GET redirects remain until a separate
+decision removes the `/app` prefix.
+
+Final checks: Ruff, ty, full backend (`834 passed, 22 PostgreSQL-only skipped`),
+frontend format/lint/styles/OpenAPI/type checks, full Vitest (`92 files, 514
+passed`) and production build.
 
 Child stages:
 
@@ -87,13 +96,12 @@ Completed: 2026-08-04
 Implemented: canonical React directory/settings with create/switch, members,
 invitations, ownership, leave, deactivate/restore and versioned JSON API;
 server-owned capabilities, idempotency, optimistic concurrency and workspace
-boundary reloads. Public invitation preview/accept remains a minimal named SSR
-bridge.
+boundary reloads. Public invitation preview/accept was subsequently migrated to
+the canonical React/API flow during final Stage 7 cleanup.
 
 Cleanup performed: historical GET now query-preserving redirects to React;
 authenticated legacy form routes, presenter/ViewModels, index/card templates,
-workspace-only global CSS and generated HTML operations were removed. AppShell
-and remaining SSR entry points use the canonical route.
+workspace-only global CSS and generated HTML operations were removed.
 
 Checks run: Ruff, ty, full backend (`792 passed, 15 PostgreSQL-only skipped`),
 full frontend (`79 files, 477 passed`) with format/lint/styles/OpenAPI/type/build,

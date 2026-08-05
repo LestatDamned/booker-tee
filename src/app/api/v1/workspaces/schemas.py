@@ -174,6 +174,16 @@ class WorkspaceNavigationOutcomeApiResponse(ApiModel):
     boundary: Literal["hard_reload"] = "hard_reload"
 
 
+class PublicWorkspaceInvitationApiResponse(ApiModel):
+    workspace_name: str
+    role: WorkspaceRole
+    expires_at: datetime
+
+
+class AcceptWorkspaceInvitationApiResponse(ApiModel):
+    navigation_outcome: WorkspaceNavigationOutcomeApiResponse
+
+
 class CreateWorkspaceApiResponse(ApiModel):
     workspace: WorkspaceDirectoryItemApiResponse
     session: SessionApiResponse

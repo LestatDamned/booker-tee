@@ -34,7 +34,7 @@ describe("WorkspaceInvitationsSection", () => {
       status: "success",
       invitation: workspaceInvitations.items[0]!,
       invitations: workspaceInvitations,
-      shareUrl: "https://example.test/workspaces/invitations/secret",
+      shareUrl: "https://example.test/app/workspaces/invitations/secret",
       replayed: false,
     });
     render(
@@ -54,7 +54,7 @@ describe("WorkspaceInvitationsSection", () => {
       workspaceId: workspaceInvitations.workspaceId,
     });
     expect(screen.getByLabelText("Ссылка приглашения")).toHaveValue(
-      "https://example.test/workspaces/invitations/secret",
+      "https://example.test/app/workspaces/invitations/secret",
     );
 
     await user.click(screen.getByRole("button", { name: "Закрыть" }));

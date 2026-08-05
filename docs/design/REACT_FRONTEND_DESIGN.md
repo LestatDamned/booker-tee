@@ -8,8 +8,8 @@
 
 ## Решение
 
-Booker Tee использует один React SPA для authenticated financial application и
-FastAPI как единственный backend.
+Booker Tee использует один React SPA для всего browser frontend и FastAPI как
+единственный backend.
 
 ```text
 React route
@@ -19,8 +19,7 @@ React route
   -> domain/repository
 ```
 
-Legacy Jinja остаётся только у явно публичных маршрутов. Новый
-authenticated workflow в legacy stack не добавляется.
+Jinja/HTMX/Alpine presentation stack удалён и не должен восстанавливаться.
 
 ## Current state
 
@@ -41,13 +40,14 @@ authenticated workflow в legacy stack не добавляется.
 - `/app/categories/:categoryId`;
 - `/app/rules`;
 - `/app/workspaces`;
+- `/app/workspaces/invitations/:invitationToken`;
+- `/app/chat-integrations/telegram/dev-link` в local/test окружении;
 - `/app/profile` и `/app/profile/sessions`;
 - `/app/auth/login` и `/app/auth/signup`;
 - shared shell/foundation/themes.
 
-Authenticated product pages, включая Dashboard, каноничны в React.
-Public home и invitation preview/accept остаются минимальным SSR;
-локальная chat integration page остаётся development-only surface.
+Все product, public invitation и auth pages каноничны в React. `/` направляет в
+React SPA; локальная chat integration page остаётся development-only surface.
 
 ## Runtime and deployment
 
@@ -55,7 +55,8 @@ Public home и invitation preview/accept остаются минимальным
 /app/*    React SPA fallback
 /assets/* immutable React build assets
 /api/v1/* FastAPI JSON
-/...      public/auth + remaining legacy routes
+/         redirect to React SPA
+/...      historical GET redirects + provider webhooks
 ```
 
 - `react_frontend.py` раздаёт SPA и assets;
@@ -67,9 +68,8 @@ Public home и invitation preview/accept остаются минимальным
 - Security middleware проверяет host/origin/session.
 - CORS не открывается широко.
 
-После полной authenticated migration `/app` prefix можно удалить отдельным
-routing cutover. До этого historical product GET routes используют
-query-preserving redirects только после replacement gate.
+`/app` prefix осознанно сохранён. Его можно удалить отдельным routing cutover;
+до этого historical product GET routes используют query-preserving redirects.
 
 ## Frontend structure
 
@@ -296,11 +296,12 @@ posting, lifecycle и authoritative reconciliation.
   разрешён только disabled и directly unreferenced rule;
 - create открывается справа, edit раскрывается под выбранной записью.
 
-### Remaining workflows
+### Public and integration workflows
 
-Wave C context/administration workflows — workspaces, members, invitations,
-profile и оставшиеся authenticated/integration surfaces — получают собственный
-inventory/API/state/delete manifest до production implementation.
+Workspace invitation preview/accept использует privacy-safe public read API и
+authenticated CSRF-protected accept API. Telegram dev-link доступен только в
+local/test; production API возвращает `404`. Provider webhook остаётся FastAPI
+integration adapter, а не browser page.
 
 ## Vertical migration
 
@@ -350,10 +351,10 @@ Browser:
 
 ## Final definition of done
 
-- React — единственный authenticated financial frontend.
+- React — единственный browser frontend.
 - FastAPI — единственный backend.
-- Legacy authenticated Jinja/HTMX/Alpine и CSS удалены.
-- Public/auth presentation имеет явное решение.
-- `/app` routing cutover выполнен или осознанно отложен.
+- Jinja/HTMX/Alpine и legacy CSS удалены.
+- Public/auth presentation работает в том же React SPA.
+- `/app` routing cutover осознанно отложен.
 - Financial/security rules остались server-owned.
 - Документация описывает текущий код, а завершённые migration journals удалены.

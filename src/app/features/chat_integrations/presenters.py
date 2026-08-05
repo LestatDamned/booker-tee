@@ -112,7 +112,7 @@ class TelegramMainMenuPresenter:
                 "\n\n"
                 f"Telegram ID для привязки: {actor.external_user_id}\n"
                 "Открой Booker Tee в браузере и перейди на:\n"
-                f"/chat-integrations/telegram/dev-link?external_user_id={actor.external_user_id}"
+                f"/app/chat-integrations/telegram/dev-link?external_user_id={actor.external_user_id}"
             )
 
         return OutboundChatMessage(

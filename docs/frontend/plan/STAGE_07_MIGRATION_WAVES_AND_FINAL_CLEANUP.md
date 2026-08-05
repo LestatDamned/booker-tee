@@ -1,6 +1,6 @@
 # Stage 07: Migration Waves And Final Cleanup
 
-Status: active.
+Status: completed 2026-08-05.
 
 ## Goal
 
@@ -33,7 +33,8 @@ workflows вертикальными slices и удалить второй по�
 1. workspaces/members/invitations — completed 2026-08-04;
 2. [users, authentication and profile](users/README.md) — completed 2026-08-04;
 3. Dashboard — completed 2026-08-05;
-4. final authenticated SSR consumer audit and cleanup — active.
+4. final authenticated/public SSR consumer audit and cleanup — completed
+   2026-08-05.
 
 Before each workflow begins, create a focused child stage with:
 
@@ -73,8 +74,8 @@ After the last authenticated workflow:
 - delete legacy global CSS after its last consumer;
 - simplify `scripts/ui_audit.py` to current frontend scenarios;
 - keep superseded SSR design documents out of the active repository;
-- remove transitional `/app` prefix if canonical routing decision requires it;
-- decide separately whether public/login/signup remain minimal SSR or migrate.
+- retain transitional `/app` prefix until its separate routing decision;
+- migrate public invitation and development-only browser surfaces to React.
 
 ## Final Checks
 
@@ -97,3 +98,13 @@ After the last authenticated workflow:
 - owner can understand and extend the TypeScript/React code through project
   learning artifacts;
 - old presentation code is removed rather than indefinitely maintained.
+
+Completion: public `/` now redirects to the React SPA; invitation preview/
+accept and local Telegram dev-link use versioned JSON APIs and React routes.
+Jinja templates, templating helpers, HTMX, Alpine, legacy CSS/JS and the Jinja2
+dependency were removed. Historical GET redirects remain compatibility
+adapters, not a second presentation stack.
+
+Checks: Ruff, ty, full backend (`834 passed, 22 PostgreSQL-only skipped`),
+frontend format/lint/styles/OpenAPI/type checks, full Vitest (`92 files, 514
+passed`) and production build.

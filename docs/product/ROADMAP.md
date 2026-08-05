@@ -8,19 +8,14 @@
 
 ## Сейчас
 
-### 1. Завершить React migration
+### 1. Развивать единый React frontend
 
-Stage 7 мигрирует оставшийся authenticated SSR вертикальными slices:
-
-1. reports;
-2. properties, categories и transaction rules;
-3. workspaces, profile и остальные authenticated surfaces.
-
-На каждом cutover:
+Stage 7 завершён: browser workflows, public invitations и local Telegram
+dev-link используют один React SPA. При следующих изменениях:
 
 - backend остаётся владельцем financial/security rules;
-- historical GET может временно redirect в React;
-- legacy mutation routes/templates/presenters удаляются;
+- historical GET может временно redirect в React до routing cutover;
+- второй browser presentation stack не возвращается;
 - browser flow проходит на desktop, tablet и mobile.
 
 Текущая позиция и следующий workflow зафиксированы во
@@ -43,10 +38,9 @@ Stage 7 мигрирует оставшийся authenticated SSR вертика
 
 ## Следом
 
-После полного authenticated cutover:
+После полного frontend cutover:
 
 - единый routing cutover без временного `/app` prefix;
-- финальная очистка Jinja/HTMX/Alpine и legacy global CSS;
 - улучшение account/report flows на основе реального использования;
 - измерение производительности больших imports и reports;
 - более ясная correction/audit UX для confirmed operations;
@@ -87,8 +81,7 @@ Stage 7 мигрирует оставшийся authenticated SSR вертика
 
 - upload пока выполняется синхронно;
 - upload и mapping import требуют явных retry/idempotency contracts;
-- часть authenticated UI ещё работает через SSR/HTMX;
-- legacy HTMX reads могут иметь stale-response race до их React cutover;
+- временный `/app` prefix и historical redirects увеличивают routing surface;
 - большие raw tables и review queues требуют bounded rendering/payloads.
 
 Риск переносится в отдельную задачу только если подтверждён кодом или

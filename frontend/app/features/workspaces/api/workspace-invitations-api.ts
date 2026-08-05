@@ -18,6 +18,8 @@ import { workspaceRoleSchema } from "./workspaces-api";
 export type WorkspaceInvitationsDto =
   components["schemas"]["WorkspaceInvitationsApiResponse"];
 export type WorkspaceInvitationDto = WorkspaceInvitationsDto["items"][number];
+export type PublicWorkspaceInvitationDto =
+  components["schemas"]["PublicWorkspaceInvitationApiResponse"];
 
 const invitationSchema: z.ZodType<WorkspaceInvitationDto> = z.object({
   id: z.uuid(),
@@ -52,6 +54,32 @@ const createdInvitationSchema = z.object({
   replayed: z.boolean(),
 });
 
+const publicInvitationSchema: z.ZodType<PublicWorkspaceInvitationDto> =
+  z.object({
+    workspaceName: z.string(),
+    role: workspaceRoleSchema,
+    expiresAt: z.iso.datetime({ offset: true }),
+  });
+
+const acceptedInvitationSchema = z.object({
+  navigationOutcome: z.object({
+    kind: z.literal("workspace_changed"),
+    href: z.literal("/app/workspaces"),
+    boundary: z.literal("hard_reload"),
+  }),
+});
+
+export type PublicWorkspaceInvitationLoadResult =
+  | { status: "success"; invitation: PublicWorkspaceInvitationDto }
+  | { status: "not_found" }
+  | ApiLoadError;
+
+export type AcceptPublicWorkspaceInvitationResult =
+  | { status: "success"; href: "/app/workspaces" }
+  | ApiUnauthenticatedFailure
+  | { status: "not_found"; message: string }
+  | ApiMutationError;
+
 export type WorkspaceInvitationsLoadResult =
   | { status: "success"; invitations: WorkspaceInvitationsDto }
   | ApiUnauthenticatedFailure
@@ -81,6 +109,61 @@ export async function loadWorkspaceInvitations(
   return parsed.success
     ? { status: "success", invitations: parsed.data }
     : apiLoadError("API вернул приглашения неожиданного формата.");
+}
+
+export async function loadPublicWorkspaceInvitation(
+  invitationToken: string,
+  signal?: AbortSignal,
+): Promise<PublicWorkspaceInvitationLoadResult> {
+  const response = await requestJson(
+    `/api/v1/workspaces/invitations/${encodeURIComponent(invitationToken)}`,
+    signal ? { signal } : undefined,
+  );
+  if (response.status === "network_error") return apiLoadNetworkError();
+  if (response.httpStatus === 404) return { status: "not_found" };
+  if (!response.ok) return apiUnexpectedStatusError(response.httpStatus);
+  const parsed = publicInvitationSchema.safeParse(response.body);
+  return parsed.success
+    ? { status: "success", invitation: parsed.data }
+    : apiLoadError("API вернул приглашение неожиданного формата.");
+}
+
+export async function acceptPublicWorkspaceInvitation({
+  csrfToken,
+  invitationToken,
+}: {
+  csrfToken: string;
+  invitationToken: string;
+}): Promise<AcceptPublicWorkspaceInvitationResult> {
+  const response = await requestJson(
+    `/api/v1/workspaces/invitations/${encodeURIComponent(invitationToken)}/accept`,
+    {
+      headers: { "X-CSRF-Token": csrfToken },
+      method: "POST",
+    },
+  );
+  if (response.status === "network_error") return apiMutationNetworkError();
+  if (response.httpStatus === 401) return apiUnauthenticatedFailure();
+  const error = parseApiError(response.body);
+  if (response.httpStatus === 404) {
+    return {
+      status: "not_found",
+      message: error?.message ?? "Приглашение уже недействительно.",
+    };
+  }
+  if (!response.ok) {
+    return apiMutationError(error, {
+      fallbackCode: "workspace_invitation_accept_failed",
+      fallbackMessage: "Не удалось принять приглашение.",
+    });
+  }
+  const parsed = acceptedInvitationSchema.safeParse(response.body);
+  return parsed.success
+    ? { status: "success", href: parsed.data.navigationOutcome.href }
+    : apiMutationError(null, {
+        fallbackCode: "invalid_workspace_invitation_accept_response",
+        fallbackMessage: "API вернул неожиданный результат принятия.",
+      });
 }
 
 export async function createWorkspaceInvitation({

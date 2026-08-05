@@ -10,28 +10,26 @@
 - React 19, TypeScript strict, React Router Framework Mode в SPA mode;
 - versioned same-origin JSON API;
 - semantic CSS tokens, themes и CSS Modules;
-- Jinja2/HTMX/Alpine только для ещё не мигрированных authenticated screens и
-  минимальных public/auth pages;
 - local PDF/XLSX extraction;
 - uv, Ruff, ty, pytest, npm, ESLint, Prettier, Vitest, Playwright.
 
 Нельзя добавлять новый framework/backend/storage/queue/AI stack без отдельного
 решения.
 
-## Runtime во время миграции
+## Runtime
 
 ```text
 /app/*    -> React SPA
 /api/v1/* -> FastAPI JSON API
-/...      -> public/auth и оставшийся legacy SSR
+/         -> redirect to React SPA
+/...      -> historical GET redirects and provider webhooks
 ```
 
 FastAPI остаётся единственным business backend и session owner. Production
 same-origin: permissive CORS не используется как замена правильному deployment.
 
-React сейчас каноничен для Manual Ledger и Import Review. Остальные
-authenticated routes мигрируют по
-[`frontend plan`](../frontend/plan/README.md).
+React каноничен для всех browser workflows. Временный `/app` prefix сохранён до
+отдельного routing cutover; исторические GET URL перенаправляют в React.
 
 ## Repository boundaries
 
@@ -45,7 +43,7 @@ frontend/
 
 src/app/
   api/v1/           JSON presentation adapter
-  features/         application/domain/persistence + remaining SSR adapters
+  features/         application/domain/persistence + integration adapters
   core/             settings, middleware, security
   db/               database foundation
   shared/           narrow stable server concepts
@@ -87,7 +85,7 @@ feature/
 - HTTP schemas, dependencies, auth/permission, status codes;
 - перевод request в application command;
 - перевод application DTO в response;
-- без SQL, financial calculations и Jinja ViewModel reuse.
+- без SQL и financial calculations.
 
 ### Application
 
@@ -114,7 +112,7 @@ feature/
 
 ### Presentation
 
-- React или временный Jinja adapter;
+- React;
 - labels, formatting, layout, focus и local draft;
 - не определяет permission, transfer semantics, dedupe или confirmability.
 
@@ -128,11 +126,10 @@ feature/
 
 ```text
 React -> API router -> application -> repository/domain -> database
-SSR   -> HTML router -> application -> presenter -> Jinja
 chat  -> provider adapter -> application -> same domain/repositories
 ```
 
-SSR и chat не являются альтернативными ledger implementations.
+Chat не является альтернативной ledger implementation.
 
 ## Transactions
 
@@ -241,9 +238,8 @@ inventory
   -> delete legacy adapter
 ```
 
-До replacement gate legacy остаётся рабочим, но не получает новые shared
-abstractions. После gate старые mutation routes/templates/presenters удаляются;
-GET compatibility redirect может временно остаться.
+После replacement gate старые mutation routes/templates/presenters удалены;
+GET compatibility redirects временно остаются до общего routing cutover.
 
 ## Testing
 

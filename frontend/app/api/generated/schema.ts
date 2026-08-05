@@ -452,6 +452,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chat-integrations/telegram/dev-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Telegram Dev Link Config */
+        get: operations["read_telegram_dev_link_config_api_v1_chat_integrations_telegram_dev_link_get"];
+        put?: never;
+        /** Bind Telegram Dev Link */
+        post: operations["bind_telegram_dev_link_api_v1_chat_integrations_telegram_dev_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard": {
         parameters: {
             query?: never;
@@ -1037,6 +1055,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/invitations/{invitation_token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview Workspace Invitation */
+        get: operations["preview_workspace_invitation_api_v1_workspaces_invitations__invitation_token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/invitations/{invitation_token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept Workspace Invitation */
+        post: operations["accept_workspace_invitation_api_v1_workspaces_invitations__invitation_token__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces": {
         parameters: {
             query?: never;
@@ -1278,75 +1330,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/chat-integrations/telegram/dev-link": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Telegram Dev Link Form */
-        get: operations["telegram_dev_link_form_chat_integrations_telegram_dev_link_get"];
-        put?: never;
-        /** Telegram Dev Link Submit */
-        post: operations["telegram_dev_link_submit_chat_integrations_telegram_dev_link_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/workspaces/invitations/{invitation_token}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Preview Workspace Invitation */
-        get: operations["preview_workspace_invitation_workspaces_invitations__invitation_token__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/workspaces/invitations/{invitation_token}/accept": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Accept Workspace Invitation */
-        post: operations["accept_workspace_invitation_workspaces_invitations__invitation_token__accept_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Home */
-        get: operations["home__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/health": {
         parameters: {
             query?: never;
@@ -1385,6 +1368,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AcceptWorkspaceInvitationApiResponse */
+        AcceptWorkspaceInvitationApiResponse: {
+            navigationOutcome: components["schemas"]["WorkspaceNavigationOutcomeApiResponse"];
+        };
         /** AccountApiResponse */
         AccountApiResponse: {
             /**
@@ -1636,12 +1623,21 @@ export interface components {
             /** Nextpath */
             nextPath: string;
         };
-        /** Body_telegram_dev_link_submit_chat_integrations_telegram_dev_link_post */
-        Body_telegram_dev_link_submit_chat_integrations_telegram_dev_link_post: {
-            /** External User Id */
-            external_user_id: string;
-            /** Display Name */
-            display_name?: string | null;
+        /** BindTelegramDevLinkApiRequest */
+        BindTelegramDevLinkApiRequest: {
+            /** Externaluserid */
+            externalUserId: string;
+            /** Displayname */
+            displayName?: string | null;
+        };
+        /** BindTelegramDevLinkApiResponse */
+        BindTelegramDevLinkApiResponse: {
+            /**
+             * Bound
+             * @default true
+             * @constant
+             */
+            bound: true;
         };
         /** Body_upload_import_document_api_v1_imports_documents_post */
         Body_upload_import_document_api_v1_imports_documents_post: {
@@ -3788,6 +3784,17 @@ export interface components {
             /** Canrestore */
             canRestore: boolean;
         };
+        /** PublicWorkspaceInvitationApiResponse */
+        PublicWorkspaceInvitationApiResponse: {
+            /** Workspacename */
+            workspaceName: string;
+            role: components["schemas"]["WorkspaceRole"];
+            /**
+             * Expiresat
+             * Format: date-time
+             */
+            expiresAt: string;
+        };
         /**
          * RawTransactionStatus
          * @enum {string}
@@ -4105,6 +4112,15 @@ export interface components {
          * @enum {string}
          */
         StatementValidationStatus: "valid" | "mismatch" | "unavailable" | "needs_review";
+        /** TelegramDevLinkConfigApiResponse */
+        TelegramDevLinkConfigApiResponse: {
+            /**
+             * Enabled
+             * @default true
+             * @constant
+             */
+            enabled: true;
+        };
         /**
          * TransactionRuleApplicationMode
          * @enum {string}
@@ -6674,6 +6690,95 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    read_telegram_dev_link_config_api_v1_chat_integrations_telegram_dev_link_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramDevLinkConfigApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    bind_telegram_dev_link_api_v1_chat_integrations_telegram_dev_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BindTelegramDevLinkApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BindTelegramDevLinkApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9317,6 +9422,95 @@ export interface operations {
             };
         };
     };
+    preview_workspace_invitation_api_v1_workspaces_invitations__invitation_token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicWorkspaceInvitationApiResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_workspace_invitation_api_v1_workspaces_invitations__invitation_token__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptWorkspaceInvitationApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_workspaces_api_v1_workspaces_get: {
         parameters: {
             query?: never;
@@ -10305,153 +10499,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    telegram_dev_link_form_chat_integrations_telegram_dev_link_get: {
-        parameters: {
-            query?: {
-                external_user_id?: string | null;
-                display_name?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    telegram_dev_link_submit_chat_integrations_telegram_dev_link_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_telegram_dev_link_submit_chat_integrations_telegram_dev_link_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    preview_workspace_invitation_workspaces_invitations__invitation_token__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                invitation_token: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    accept_workspace_invitation_workspaces_invitations__invitation_token__accept_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                invitation_token: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    home__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/html": string;
                 };
             };
         };

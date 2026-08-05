@@ -3,25 +3,13 @@ from app.core.settings import Settings
 from app.main import create_app
 
 
-def test_home_redirects_authenticated_user_to_react_app(client: TestClient, monkeypatch) -> None:
-    class FakeAuthenticationService:
-        def __init__(self, *args, **kwargs) -> None:
-            pass
-
-        async def resolve_login_session(self, session_token: str) -> object | None:
-            if session_token == "valid-session":
-                return object()
-            return None
-
-    monkeypatch.setattr("app.main.AuthenticationService", FakeAuthenticationService)
-    client.cookies.set("booker_session", "valid-session")
-
+def test_home_redirects_to_react_app(client: TestClient) -> None:
     response = client.get(
         "/",
         follow_redirects=False,
     )
 
-    assert response.status_code == 303
+    assert response.status_code == 307
     assert response.headers["location"] == "/app"
 
 
@@ -112,11 +100,3 @@ def test_production_settings_reject_wildcard_hosts() -> None:
         assert "BOOKER_TEE_ALLOWED_HOSTS" in str(exc)
     else:
         raise AssertionError("production settings accepted wildcard hosts")
-
-
-def test_home_page_renders_foundation_shell(client: TestClient) -> None:
-    response = client.get("/")
-
-    assert response.status_code == 200
-    assert "финансовый рабочий стол" in response.text
-    assert "Загрузить выписку" in response.text

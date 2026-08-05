@@ -18,8 +18,7 @@ import, review, and ledger correctness.
 
 The original parser-first MVP has been completed and exceeded. The current
 product challenge is to keep the financial core trustworthy while improving
-maintainability, migrating the authenticated frontend, and clarifying user
-workflows.
+maintainability and clarifying user workflows in the canonical React frontend.
 
 Core flow:
 
@@ -70,7 +69,6 @@ Use the repository's current stack unless a task explicitly changes it:
 - React with React Router Framework Mode in SPA mode
 - semantic CSS tokens, theme files, and component CSS Modules
 - versioned FastAPI JSON API for the React application
-- Jinja2, HTMX, Alpine.js, and project CSS only for legacy SSR during migration
 - pdfplumber and file extractors for statement import
 - uv
 - Ruff
@@ -186,26 +184,24 @@ feature/
 Layer responsibilities:
 
 - Routers are presentation adapters. JSON API routers handle HTTP schemas,
-  dependencies and responses; legacy SSR routers may handle forms, redirects,
-  templates and HTMX responses until their workflow is migrated.
+  dependencies and responses; historical browser routes may only redirect to
+  canonical React routes.
 - Application/use-case code owns workflows, orchestration, and transactions.
 - Domain code owns pure policies, calculations, validators, and status
   resolvers.
-- Legacy presenters/ViewModels prepare UI data for Jinja and must not mutate
-  financial data. React builds feature view state from versioned API DTOs.
+- React builds feature view state from versioned API DTOs.
 - Repositories contain database queries only.
 - Models define persistence only.
 - Infrastructure adapters handle files, extraction, external services, and
   provider clients.
-- Templates and React components render prepared data and must not contain
-  financial or authorization rules.
+- React components render prepared data and must not contain financial or
+  authorization rules.
 
 Default flow:
 
 ```text
 Router -> Service / Application Use Case -> Repository -> Model
 React -> API Router -> Service / Application Use Case -> Repository -> Model
-Legacy SSR Router -> Service / Use Case -> Presenter / ViewModel -> Jinja
 ```
 
 Keep files readable. If one file starts telling several stories, split by reason
@@ -382,8 +378,8 @@ Rules:
 
 ## 11. Frontend/UI Rules
 
-React is the target authenticated frontend. Existing Jinja2/HTMX pages remain
-operational only until their vertical React replacement passes cutover gates.
+React is the only browser frontend. Do not restore Jinja2/HTMX/Alpine pages or
+introduce a second presentation stack.
 
 Current visual direction:
 
@@ -397,9 +393,8 @@ trustworthy
 with restrained rebellious creativity
 ```
 
-React components and legacy templates should render prepared data. They must not
-compute financial state, permission, duplicate policy, transfer direction or
-confirmation readiness.
+React components render prepared data. They must not compute financial state,
+permission, duplicate policy, transfer direction or confirmation readiness.
 
 Target flow for complex screens:
 

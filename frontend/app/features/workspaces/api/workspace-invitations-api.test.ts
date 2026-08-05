@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { workspaceInvitations } from "../test-support";
 import {
   createWorkspaceInvitation,
+  acceptPublicWorkspaceInvitation,
+  loadPublicWorkspaceInvitation,
   loadWorkspaceInvitations,
   revokeWorkspaceInvitation,
 } from "./workspace-invitations-api";
@@ -30,7 +32,7 @@ describe("workspace invitations API", () => {
     const payload = {
       invitation: workspaceInvitations.items[0],
       invitations: workspaceInvitations,
-      shareUrl: "https://example.test/workspaces/invitations/secret",
+      shareUrl: "https://example.test/app/workspaces/invitations/secret",
       replayed: false,
     };
     const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(payload, 201)));
@@ -74,6 +76,47 @@ describe("workspace invitations API", () => {
       `/api/v1/workspaces/${workspaceInvitations.workspaceId}/invitations/${invitation.id}/revoke`,
       expect.objectContaining({
         body: JSON.stringify({ expectedUpdatedAt: invitation.updatedAt }),
+        headers: expect.objectContaining({ "X-CSRF-Token": "csrf" }),
+        method: "POST",
+      }),
+    );
+  });
+
+  it("loads and accepts a public invitation without exposing its token", async () => {
+    const invitation = {
+      workspaceName: "Семейный бюджет",
+      role: "viewer" as const,
+      expiresAt: "2026-08-08T12:00:00Z",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(invitation))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          navigationOutcome: {
+            kind: "workspace_changed",
+            href: "/app/workspaces",
+            boundary: "hard_reload",
+          },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      loadPublicWorkspaceInvitation("private/token"),
+    ).resolves.toEqual({
+      status: "success",
+      invitation,
+    });
+    await expect(
+      acceptPublicWorkspaceInvitation({
+        csrfToken: "csrf",
+        invitationToken: "private/token",
+      }),
+    ).resolves.toEqual({ status: "success", href: "/app/workspaces" });
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/workspaces/invitations/private%2Ftoken/accept",
+      expect.objectContaining({
         headers: expect.objectContaining({ "X-CSRF-Token": "csrf" }),
         method: "POST",
       }),

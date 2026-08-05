@@ -80,6 +80,14 @@ CATEGORY_ID = "33333333-3333-3333-3333-333333333333"
             "/workspaces?source=profile&view=inactive",
             "/app/workspaces?source=profile&view=inactive",
         ),
+        (
+            "/workspaces/invitations/invite-token",
+            "/app/workspaces/invitations/invite-token",
+        ),
+        (
+            "/chat-integrations/telegram/dev-link?external_user_id=42",
+            "/app/chat-integrations/telegram/dev-link?external_user_id=42",
+        ),
     ],
 )
 def test_historical_frontend_get_redirects_to_react(
@@ -131,6 +139,8 @@ def test_historical_frontend_get_redirects_to_react(
         (f"/workspaces/{ACCOUNT_ID}/select", 404),
         (f"/workspaces/{ACCOUNT_ID}/members/{CATEGORY_ID}/disable", 404),
         (f"/workspaces/{ACCOUNT_ID}/invitations", 404),
+        ("/workspaces/invitations/invite-token/accept", 404),
+        ("/chat-integrations/telegram/dev-link", 405),
     ],
 )
 def test_historical_frontend_mutations_are_not_redirected(

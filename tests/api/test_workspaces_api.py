@@ -464,7 +464,7 @@ def test_workspace_invitation_create_returns_transient_share_url() -> None:
     assert response.headers["Cache-Control"] == "no-store"
     assert service.create_calls == [(actor_id, workspace_id, WorkspaceRole.VIEWER, idempotency_key)]
     payload = response.json()
-    assert payload["shareUrl"].endswith("/workspaces/invitations/one-time-invitation-token")
+    assert payload["shareUrl"].endswith("/app/workspaces/invitations/one-time-invitation-token")
     assert "shareUrl" not in payload["invitations"]
 
 

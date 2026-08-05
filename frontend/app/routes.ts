@@ -11,6 +11,7 @@ export default [
   route("accounts/:accountId", "routes/account-detail.tsx"),
   route("categories", "routes/categories.tsx"),
   route("categories/:categoryId", "routes/category-detail.tsx"),
+  route("chat-integrations/telegram/dev-link", "routes/telegram-dev-link.tsx"),
   route("foundation", "routes/foundation.tsx"),
   route("imports", "routes/import-documents.tsx"),
   route("imports/upload", "routes/import-upload.tsx"),
@@ -26,5 +27,9 @@ export default [
   route("reports", "routes/reports.tsx"),
   route("rules", "routes/transaction-rules.tsx"),
   route("workspaces", "routes/workspaces.tsx"),
+  route(
+    "workspaces/invitations/:invitationToken",
+    "routes/workspace-invitation.tsx",
+  ),
   route("workspaces/:workspaceId/settings", "routes/workspace-settings.tsx"),
 ] satisfies RouteConfig;

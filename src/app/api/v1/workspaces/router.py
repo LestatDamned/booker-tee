@@ -3,7 +3,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Request, Response, status
 
-from app.api.dependencies import ApiRequestContext, get_api_request_context
+from app.api.dependencies import (
+    ApiRequestContext,
+    AuthenticatedSessionContext,
+    get_api_request_context,
+    get_authenticated_session_context,
+)
 from app.api.errors import ApiError, api_error_responses
 from app.api.v1.session.mapper import SessionApiResponseMapper
 from app.api.v1.workspaces.dependencies import (
@@ -17,12 +22,14 @@ from app.api.v1.workspaces.dependencies import (
     get_workspace_settings_service,
 )
 from app.api.v1.workspaces.schemas import (
+    AcceptWorkspaceInvitationApiResponse,
     CreateWorkspaceApiRequest,
     CreateWorkspaceApiResponse,
     CreateWorkspaceInvitationApiRequest,
     CreateWorkspaceInvitationApiResponse,
     LeaveWorkspaceApiRequest,
     LeaveWorkspaceApiResponse,
+    PublicWorkspaceInvitationApiResponse,
     RevokeWorkspaceInvitationApiRequest,
     SelectWorkspaceApiRequest,
     SelectWorkspaceApiResponse,
@@ -83,6 +90,75 @@ from app.features.workspaces.errors import (
 from app.features.workspaces.service import WorkspaceContext
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
+
+
+@router.get(
+    "/invitations/{invitation_token}",
+    response_model=PublicWorkspaceInvitationApiResponse,
+    responses=api_error_responses(status.HTTP_404_NOT_FOUND),
+)
+async def preview_workspace_invitation(
+    invitation_token: str,
+    response: Response,
+    service: Annotated[
+        WorkspaceInvitationService,
+        Depends(get_workspace_invitation_service),
+    ],
+) -> PublicWorkspaceInvitationApiResponse:
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    try:
+        invitation = await service.preview(invitation_token=invitation_token)
+    except WorkspaceInvitationNotFoundError as error:
+        raise ApiError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="invitation_not_found",
+            message="Приглашение не найдено или уже недействительно.",
+            headers={
+                "Cache-Control": "no-store",
+                "Referrer-Policy": "no-referrer",
+            },
+        ) from error
+    return PublicWorkspaceInvitationApiResponse.model_validate(invitation)
+
+
+@router.post(
+    "/invitations/{invitation_token}/accept",
+    response_model=AcceptWorkspaceInvitationApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_404_NOT_FOUND,
+    ),
+)
+async def accept_workspace_invitation(
+    invitation_token: str,
+    response: Response,
+    context: Annotated[
+        AuthenticatedSessionContext,
+        Depends(get_authenticated_session_context),
+    ],
+    service: Annotated[
+        WorkspaceInvitationService,
+        Depends(get_workspace_invitation_service),
+    ],
+) -> AcceptWorkspaceInvitationApiResponse:
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        await service.accept(
+            actor_user_id=context.user.id,
+            invitation_token=invitation_token,
+            session_token=context.session_token,
+        )
+    except WorkspaceInvitationNotFoundError as error:
+        raise ApiError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="invitation_not_found",
+            message="Приглашение не найдено или уже недействительно.",
+            headers={"Cache-Control": "no-store"},
+        ) from error
+    return AcceptWorkspaceInvitationApiResponse(
+        navigation_outcome=WorkspaceNavigationOutcomeApiResponse(),
+    )
 
 
 @router.get(
@@ -714,8 +790,8 @@ async def create_workspace_invitation(
         invitations=WorkspaceInvitationsApiResponse.model_validate(result.invitations),
         share_url=str(
             http_request.url_for(
-                "preview_workspace_invitation",
-                invitation_token=result.token,
+                "react_spa_path",
+                client_path=f"workspaces/invitations/{result.token}",
             )
         ),
         replayed=result.replayed,

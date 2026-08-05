@@ -24,16 +24,29 @@ def install_react_frontend(
                 "React frontend is not built. Run the frontend development server.",
                 status_code=503,
             )
-        return FileResponse(index_path)
+        return FileResponse(
+            index_path,
+            headers={
+                "Cache-Control": "no-store",
+                "Referrer-Policy": "no-referrer",
+            },
+        )
 
     async def spa_fallback(client_path: str) -> Response:
         del client_path
         return await spa_index()
 
-    app.add_api_route("/app", spa_index, methods=["GET"], include_in_schema=False)
+    app.add_api_route(
+        "/app",
+        spa_index,
+        methods=["GET"],
+        include_in_schema=False,
+        name="react_spa_index",
+    )
     app.add_api_route(
         "/app/{client_path:path}",
         spa_fallback,
         methods=["GET"],
         include_in_schema=False,
+        name="react_spa_path",
     )

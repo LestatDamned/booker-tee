@@ -48,7 +48,7 @@ def test_unlinked_account_notice_includes_telegram_id_and_dev_link() -> None:
     response = TelegramMainMenuPresenter.show_unlinked_account_notice(conversation, actor)
 
     assert "Telegram ID для привязки: 42" in response.text
-    assert "/chat-integrations/telegram/dev-link?external_user_id=42" in response.text
+    assert "/app/chat-integrations/telegram/dev-link?external_user_id=42" in response.text
 
 
 @pytest.mark.asyncio

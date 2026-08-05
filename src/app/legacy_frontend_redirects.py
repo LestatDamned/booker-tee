@@ -142,3 +142,22 @@ async def historical_transaction_rules(request: Request) -> RedirectResponse:
 @router.get("/workspaces")
 async def historical_workspaces(request: Request) -> RedirectResponse:
     return redirect_to_react(request, "/app/workspaces")
+
+
+@router.get("/workspaces/invitations/{invitation_token}")
+async def historical_workspace_invitation(
+    request: Request,
+    invitation_token: str,
+) -> RedirectResponse:
+    return redirect_to_react(
+        request,
+        f"/app/workspaces/invitations/{invitation_token}",
+    )
+
+
+@router.get("/chat-integrations/telegram/dev-link")
+async def historical_telegram_dev_link(request: Request) -> RedirectResponse:
+    return redirect_to_react(
+        request,
+        "/app/chat-integrations/telegram/dev-link",
+    )

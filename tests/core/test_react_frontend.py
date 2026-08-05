@@ -24,6 +24,8 @@ def test_react_frontend_serves_index_for_direct_navigation(tmp_path: Path) -> No
     assert root_response.status_code == 200
     assert nested_response.status_code == 200
     assert "React shell" in nested_response.text
+    assert nested_response.headers["Cache-Control"] == "no-store"
+    assert nested_response.headers["Referrer-Policy"] == "no-referrer"
     assert asset_response.status_code == 200
 
 
