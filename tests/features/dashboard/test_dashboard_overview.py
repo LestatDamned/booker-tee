@@ -106,26 +106,29 @@ async def test_dashboard_reader_builds_bounded_workspace_overview() -> None:
         today=date(2026, 8, 5),
     )
 
-    assert overview.period_start == date(2026, 8, 1)
-    assert overview.period_end == date(2026, 8, 5)
+    assert overview.period_start == date(2026, 7, 1)
+    assert overview.period_end == date(2026, 7, 31)
+    assert overview.current_period_start == date(2026, 8, 1)
+    assert overview.current_period_end == date(2026, 8, 5)
     assert reports.calls == [
         (
             workspace_id,
             ReportingFilters(
-                date_from=date(2026, 8, 1),
-                date_to=date(2026, 8, 5),
+                date_from=date(2026, 7, 1),
+                date_to=date(2026, 7, 31),
                 currency="RUB",
             ),
         )
     ]
     assert accounts.calls == [workspace_id]
-    assert len(overview.accounts) == 6
+    assert len(overview.accounts) == 4
     assert overview.active_account_count == 7
     assert overview.accounts[0].balance == Decimal("110.00")
     assert overview.attention_document_count == 1
     assert overview.attention_documents[0].next_step_kind is ImportDocumentNextStepKind.MAPPING
     assert overview.recent_documents[0].next_step_kind is ImportDocumentNextStepKind.REVIEW
-    assert [call[2].per_page for call in documents.calls] == [3, 5]
+    assert overview.recent_documents[0].statement_period_end == date(2026, 8, 5)
+    assert [call[2].per_page for call in documents.calls] == [3, 1]
     assert all(call[0] == workspace_id for call in documents.calls)
     assert overview.onboarding.has_confirmed_activity is True
     assert overview.onboarding.is_complete is False

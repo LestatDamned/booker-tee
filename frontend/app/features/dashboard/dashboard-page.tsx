@@ -8,8 +8,7 @@ import {
 } from "../../shared/money/format-money";
 import { AppShell } from "../../shell/app-shell";
 import { RouterButtonLink } from "../../ui/button/button";
-import { Icon } from "../../ui/icon/icon";
-import { InlineNotice } from "../../ui/inline-notice/inline-notice";
+import { Icon, type IconName } from "../../ui/icon/icon";
 import { MoneyValue, type MoneyTone } from "../../ui/money-value/money-value";
 import { PageFrame } from "../../ui/page-frame/page-frame";
 import { PageHeader } from "../../ui/page-header/page-header";
@@ -50,26 +49,32 @@ export function DashboardPage({
         <div className={styles.page}>
           <PageHeader
             actions={
-              <PrimaryAction action={dashboard.capabilities.primaryAction} />
+              <PrimaryAction
+                action={dashboard.capabilities.primaryAction}
+                period={dashboard.period}
+              />
             }
-            description="Проверенные данные, текущий результат и следующий шаг без лишней аналитики."
-            eyebrow={formatPeriod(dashboard.period.start, dashboard.period.end)}
             title="Обзор"
             titleId="dashboard-title"
           />
 
-          <AttentionSection attention={dashboard.attention} />
+          <AttentionStatus attention={dashboard.attention} />
 
-          {!dashboard.onboarding.isComplete ? (
-            <OnboardingSection dashboard={dashboard} />
+          {dashboard.attention.total === 0 &&
+          !dashboard.onboarding.isComplete ? (
+            <NextStep dashboard={dashboard} />
           ) : null}
 
-          <MoneySummary summary={dashboard.summary} />
-
-          <div className={styles.columns}>
+          <div className={styles.primaryGrid}>
+            <MoneySummary
+              currentPeriod={dashboard.currentPeriod}
+              period={dashboard.period}
+              summary={dashboard.summary}
+            />
             <AccountsSection dashboard={dashboard} />
-            <RecentDocumentsSection documents={dashboard.recentDocuments} />
           </div>
+
+          <LatestDocumentSection document={dashboard.recentDocuments[0]} />
         </div>
       </PageFrame>
     </AppShell>
@@ -78,8 +83,10 @@ export function DashboardPage({
 
 function PrimaryAction({
   action,
+  period,
 }: {
   action: DashboardOverviewDto["capabilities"]["primaryAction"];
+  period: DashboardOverviewDto["period"];
 }) {
   if (action === "upload") {
     return (
@@ -96,63 +103,85 @@ function PrimaryAction({
     );
   }
   return (
-    <RouterButtonLink icon="reports" to="/reports" tone="primary">
+    <RouterButtonLink icon="reports" to={reportHref(period)} tone="primary">
       Открыть отчёт
     </RouterButtonLink>
   );
 }
 
-function AttentionSection({
+function AttentionStatus({
   attention,
 }: {
   attention: DashboardOverviewDto["attention"];
 }) {
   if (attention.total === 0) {
     return (
-      <InlineNotice title="Нет данных, требующих решения" tone="success">
-        Импорты не содержат открытых ошибок или очередей проверки.
-      </InlineNotice>
+      <div className={styles.statusStrip} data-tone="success" role="status">
+        <Icon name="check" size={20} weight="fill" />
+        <strong>Нет открытых импортов на проверке</strong>
+      </div>
     );
   }
+  const firstDocument = attention.items[0];
   return (
-    <section aria-labelledby="attention-title" className={styles.attentionCard}>
-      <SectionHeading
-        action={
-          <RouterButtonLink icon="imports" to="/imports?state=attention">
-            Вся очередь
-          </RouterButtonLink>
+    <section
+      aria-labelledby="attention-title"
+      className={styles.attentionStrip}
+    >
+      <Icon name="warning" size={22} weight="fill" />
+      <div>
+        <h2 id="attention-title">Требует внимания</h2>
+        <p>Документов в очереди: {attention.total}</p>
+      </div>
+      <RouterButtonLink
+        icon="imports"
+        to={
+          attention.total === 1 && firstDocument
+            ? documentHref(firstDocument)
+            : "/imports?state=attention"
         }
-        eyebrow={`${attention.total} требуют действия`}
-        title="Требует внимания"
-        titleId="attention-title"
-      />
-      <ul className={styles.documentList}>
-        {attention.items.map((document) => (
-          <DocumentRow document={document} key={document.id} />
-        ))}
-      </ul>
+      >
+        Проверить
+      </RouterButtonLink>
     </section>
   );
 }
 
 function MoneySummary({
+  currentPeriod,
+  period,
   summary,
 }: {
+  currentPeriod: DashboardOverviewDto["currentPeriod"];
+  period: DashboardOverviewDto["period"];
   summary: DashboardOverviewDto["summary"];
 }) {
   const resultSign = decimalSign(summary.profit);
   return (
-    <section aria-labelledby="month-result-title">
-      <div className={styles.sectionTitleLine}>
-        <div>
-          <p className={styles.eyebrow}>Только подтверждённые операции</p>
-          <h2 id="month-result-title">Результат месяца</h2>
-        </div>
-        <Link className={styles.textLink} to="/reports">
-          Подробный отчёт
-        </Link>
+    <section aria-labelledby="month-result-title" className={styles.moneyCard}>
+      <SectionHeading
+        action={
+          <RouterButtonLink icon="reports" to={reportHref(period)}>
+            Открыть отчёт
+          </RouterButtonLink>
+        }
+        eyebrow={`${formatMonth(period.start)} · полный месяц`}
+        title="Финансовый итог"
+        titleId="month-result-title"
+      />
+      <div className={styles.resultValue}>
+        <span>Результат</span>
+        <MoneyValue
+          amount={formatMoneyAmount(
+            summary.profit,
+            resultSign === 1 ? "income" : resultSign === -1 ? "expense" : null,
+          )}
+          currency={summary.currency}
+          size="prominent"
+          tone={resultSign === -1 ? "expense" : "profit"}
+        />
       </div>
-      <div className={styles.moneyGrid}>
+      <div className={styles.moneyFacts}>
         <MoneyMetric
           amount={formatMoneyAmount(summary.income, "income")}
           currency={summary.currency}
@@ -165,19 +194,13 @@ function MoneySummary({
           label="Расходы"
           tone="expense"
         />
-        <MoneyMetric
-          amount={formatMoneyAmount(
-            summary.profit,
-            resultSign === 1 ? "income" : resultSign === -1 ? "expense" : null,
-          )}
-          currency={summary.currency}
-          label="Результат"
-          tone={resultSign === -1 ? "expense" : "profit"}
-        />
       </div>
-      <p className={styles.transferNote}>
-        Внутренние переводы не входят в доходы, расходы и результат.
-      </p>
+      <footer className={styles.moneyFooter}>
+        <span>Подтверждённые операции · без внутренних переводов</span>
+        <Link className={styles.textLink} to={reportHref(currentPeriod)}>
+          {formatMonth(currentPeriod.start)} на сегодня
+        </Link>
+      </footer>
     </section>
   );
 }
@@ -194,15 +217,15 @@ function MoneyMetric({
   tone: MoneyTone;
 }) {
   return (
-    <article className={styles.moneyMetric}>
+    <div className={styles.moneyMetric}>
       <span>{label}</span>
       <MoneyValue
         amount={amount}
         currency={currency}
-        size="prominent"
+        size="compact"
         tone={tone}
       />
-    </article>
+    </div>
   );
 }
 
@@ -259,139 +282,55 @@ function AccountsSection({ dashboard }: { dashboard: DashboardOverviewDto }) {
   );
 }
 
-function RecentDocumentsSection({
-  documents,
+function LatestDocumentSection({
+  document,
 }: {
-  documents: DashboardDocumentDto[];
+  document: DashboardDocumentDto | undefined;
 }) {
+  if (!document) return null;
+  const status = documentStatuses[document.status];
   return (
     <section
-      aria-labelledby="recent-documents-title"
-      className={styles.surfaceCard}
+      aria-labelledby="latest-document-title"
+      className={styles.latestDocument}
     >
-      <SectionHeading
-        action={
-          <RouterButtonLink icon="imports" to="/imports">
-            Все импорты
-          </RouterButtonLink>
-        }
-        eyebrow="Происхождение данных"
-        title="Последние документы"
-        titleId="recent-documents-title"
-      />
-      {documents.length === 0 ? (
-        <EmptySection
-          actionHref="/imports/upload"
-          actionLabel="Загрузить выписку"
-          icon="imports"
-          text="После загрузки здесь появится статус обработки документа."
-        />
-      ) : (
-        <ul className={styles.documentList}>
-          {documents.map((document) => (
-            <DocumentRow document={document} key={document.id} />
-          ))}
-        </ul>
-      )}
+      <Icon name="source" size={22} />
+      <div className={styles.latestDocumentIdentity}>
+        <p className={styles.eyebrow} id="latest-document-title">
+          Последний импорт
+        </p>
+        <Link to={documentHref(document)}>{document.filename}</Link>
+        <small>
+          {document.account?.name ?? "Счёт не указан"} ·{" "}
+          {formatUploadDate(document.createdAt)}
+          {document.statementPeriodEnd
+            ? ` · выписка по ${formatIsoDate(document.statementPeriodEnd)}`
+            : null}
+        </small>
+      </div>
+      <StatusLabel tone={status.tone} variant="soft">
+        {status.label}
+      </StatusLabel>
+      <RouterButtonLink icon="imports" to="/imports">
+        Все импорты
+      </RouterButtonLink>
     </section>
   );
 }
 
-function DocumentRow({ document }: { document: DashboardDocumentDto }) {
-  const status = documentStatuses[document.status];
+function NextStep({ dashboard }: { dashboard: DashboardOverviewDto }) {
+  const step = nextStep(dashboard);
+  if (!step) return null;
   return (
-    <li>
-      <Link className={styles.documentRow} to={documentHref(document)}>
-        <span className={styles.documentIdentity}>
-          <strong title={document.filename}>{document.filename}</strong>
-          <small>
-            {document.account?.name ?? "Счёт не указан"} ·{" "}
-            {formatUploadDate(document.createdAt)}
-          </small>
-        </span>
-        <span className={styles.documentState}>
-          <StatusLabel tone={status.tone} variant="soft">
-            {status.label}
-          </StatusLabel>
-          {document.reviewableRowCount > 0 ? (
-            <small>{document.reviewableRowCount} строк ждут</small>
-          ) : null}
-        </span>
-        <Icon className={styles.rowArrow} name="forward" size={18} />
-      </Link>
-    </li>
-  );
-}
-
-function OnboardingSection({ dashboard }: { dashboard: DashboardOverviewDto }) {
-  const { onboarding } = dashboard;
-  const steps = [
-    { done: true, href: "/workspaces", label: "Рабочее пространство" },
-    { done: onboarding.hasAccounts, href: "/accounts", label: "Добавьте счёт" },
-    {
-      done: onboarding.hasDocuments,
-      href: "/imports/upload",
-      label: "Загрузите выписку",
-    },
-    {
-      done: onboarding.hasDocuments && dashboard.attention.total === 0,
-      href:
-        dashboard.attention.items[0] === undefined
-          ? "/imports"
-          : documentHref(dashboard.attention.items[0]),
-      label: "Проверьте строки",
-    },
-    {
-      done: onboarding.hasConfirmedActivity,
-      href: "/reports",
-      label: "Откройте отчёт",
-    },
-  ];
-  const currentIndex = steps.findIndex((step) => !step.done);
-  return (
-    <section
-      aria-labelledby="onboarding-title"
-      className={styles.onboardingCard}
-    >
-      <SectionHeading
-        eyebrow="Первый цикл учёта"
-        title="Первые шаги"
-        titleId="onboarding-title"
-      />
-      <ol className={styles.onboardingList}>
-        {steps.map((step, index) => {
-          const state = step.done
-            ? "done"
-            : index === currentIndex
-              ? "current"
-              : "pending";
-          return (
-            <li data-state={state} key={step.label}>
-              <span className={styles.stepIndex}>
-                {step.done ? <Icon name="check" /> : index + 1}
-              </span>
-              <Link to={step.href}>{step.label}</Link>
-              <StatusLabel
-                showIcon={false}
-                tone={
-                  step.done
-                    ? "success"
-                    : state === "current"
-                      ? "warning"
-                      : "neutral"
-                }
-                variant="soft"
-              >
-                {step.done
-                  ? "Готово"
-                  : state === "current"
-                    ? "Сейчас"
-                    : "Позже"}
-              </StatusLabel>
-            </li>
-          );
-        })}
-      </ol>
+    <section aria-labelledby="next-step-title" className={styles.nextStep}>
+      <Icon name={step.icon} size={22} />
+      <div>
+        <p className={styles.eyebrow}>Следующий шаг</p>
+        <h2 id="next-step-title">{step.title}</h2>
+      </div>
+      <RouterButtonLink icon={step.icon} to={step.href}>
+        {step.action}
+      </RouterButtonLink>
     </section>
   );
 }
@@ -446,14 +385,57 @@ export function documentHref(document: DashboardDocumentDto): string {
   return `/imports/documents/${document.id}${suffix}`;
 }
 
-function formatPeriod(start: string, end: string): string {
-  const startDate = new Date(`${start}T00:00:00Z`);
-  const month = new Intl.DateTimeFormat("ru-RU", {
+function nextStep(
+  dashboard: DashboardOverviewDto,
+): { action: string; href: string; icon: IconName; title: string } | null {
+  if (
+    !dashboard.onboarding.hasAccounts &&
+    dashboard.capabilities.canWriteFinancialData
+  ) {
+    return {
+      action: "Добавить счёт",
+      href: "/accounts",
+      icon: "accounts",
+      title: "Добавьте первый счёт",
+    };
+  }
+  if (!dashboard.onboarding.hasDocuments && dashboard.capabilities.canUpload) {
+    return {
+      action: "Загрузить",
+      href: "/imports/upload",
+      icon: "imports",
+      title: "Загрузите первую выписку",
+    };
+  }
+  if (
+    !dashboard.onboarding.hasConfirmedActivity &&
+    dashboard.capabilities.canWriteFinancialData
+  ) {
+    const document = dashboard.recentDocuments[0];
+    return {
+      action: "Продолжить",
+      href: document ? documentHref(document) : "/ledger/manual",
+      icon: document ? "imports" : "plus",
+      title: "Подтвердите первые операции",
+    };
+  }
+  return null;
+}
+
+function reportHref(period: DashboardOverviewDto["period"]): string {
+  const search = new URLSearchParams({
+    date_from: period.start,
+    date_to: period.end,
+  });
+  return `/reports?${search.toString()}`;
+}
+
+function formatMonth(value: string): string {
+  return new Intl.DateTimeFormat("ru-RU", {
     month: "long",
     timeZone: "UTC",
     year: "numeric",
-  }).format(startDate);
-  return `${month} · по ${formatIsoDate(end)}`;
+  }).format(new Date(`${value}T00:00:00Z`));
 }
 
 function formatUploadDate(value: string): string {

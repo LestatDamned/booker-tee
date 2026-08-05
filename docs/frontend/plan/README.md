@@ -59,9 +59,10 @@ Child stages:
 
 Completed: 2026-08-05
 
-Implemented: canonical React overview at `/app` with an attention-first queue,
-confirmed current-month result, currency-safe account balances, recent import
-provenance and a compact first-cycle checklist. A workspace-scoped
+Implemented: canonical React overview at `/app` with a compact attention queue,
+confirmed result for the last full calendar month, an explicit current-month
+drill-down, currency-safe account balances, latest import provenance and one
+next setup action. A workspace-scoped
 `GET /api/v1/dashboard` read model composes existing report, account and import
 repositories; permissions select the primary action and import destination.
 
@@ -71,8 +72,8 @@ service, Jinja templates, macros, replacement-only tests and orphaned React
 session placeholder were removed.
 
 Checks run: Ruff, ty, focused backend Dashboard/cutover/import regressions,
-full backend (`834 passed, 22 PostgreSQL-only skipped`), frontend
-format/lint/styles/OpenAPI/type checks, full Vitest (`90 files, 507 passed`) and
+full backend (`835 passed, 22 PostgreSQL-only skipped`), frontend
+format/lint/styles/OpenAPI/type checks, full Vitest (`90 files, 509 passed`) and
 production build.
 
 Intentional deviations: charts, category rankings, configurable widgets and a

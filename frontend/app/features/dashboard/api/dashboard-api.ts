@@ -41,12 +41,14 @@ const dashboardDocumentSchema: z.ZodType<DashboardDocumentDto> = z.object({
     .nullable(),
   reviewableRowCount: z.number().int().nonnegative(),
   nextStepKind: z.enum(["detail", "mapping", "review"]),
+  statementPeriodEnd: z.iso.date().nullable(),
 });
 
 export const dashboardOverviewSchema: z.ZodType<DashboardOverviewDto> =
   z.object({
     workspaceName: z.string(),
     period: z.object({ start: z.iso.date(), end: z.iso.date() }),
+    currentPeriod: z.object({ start: z.iso.date(), end: z.iso.date() }),
     summary: z.object({
       currency: z.string(),
       income: z.string(),

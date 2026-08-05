@@ -2048,6 +2048,8 @@ export interface components {
             /** Reviewablerowcount */
             reviewableRowCount: number;
             nextStepKind: components["schemas"]["ImportDocumentNextStepKind"];
+            /** Statementperiodend */
+            statementPeriodEnd: string | null;
         };
         /** DashboardMoneySummaryApiResponse */
         DashboardMoneySummaryApiResponse: {
@@ -2076,6 +2078,7 @@ export interface components {
             /** Workspacename */
             workspaceName: string;
             period: components["schemas"]["DashboardPeriodApiResponse"];
+            currentPeriod: components["schemas"]["DashboardPeriodApiResponse"];
             summary: components["schemas"]["DashboardMoneySummaryApiResponse"];
             /** Accounts */
             accounts: components["schemas"]["DashboardAccountApiResponse"][];

@@ -65,6 +65,10 @@ async def get_dashboard_overview(
             start=overview.period_start,
             end=overview.period_end,
         ),
+        current_period=DashboardPeriodApiResponse(
+            start=overview.current_period_start,
+            end=overview.current_period_end,
+        ),
         summary=DashboardMoneySummaryApiResponse(
             currency=overview.summary.currency,
             income=decimal_string(overview.summary.income),
@@ -120,6 +124,7 @@ def document_response(document: DashboardDocument) -> DashboardDocumentApiRespon
         ),
         reviewable_row_count=document.reviewable_row_count,
         next_step_kind=document.next_step_kind,
+        statement_period_end=document.statement_period_end,
     )
 
 

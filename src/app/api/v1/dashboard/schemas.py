@@ -40,6 +40,7 @@ class DashboardDocumentApiResponse(ApiModel):
     account: DashboardDocumentAccountApiResponse | None
     reviewable_row_count: int
     next_step_kind: ImportDocumentNextStepKind
+    statement_period_end: date | None
 
 
 class DashboardAttentionApiResponse(ApiModel):
@@ -63,6 +64,7 @@ class DashboardCapabilitiesApiResponse(ApiModel):
 class DashboardOverviewApiResponse(ApiModel):
     workspace_name: str
     period: DashboardPeriodApiResponse
+    current_period: DashboardPeriodApiResponse
     summary: DashboardMoneySummaryApiResponse
     accounts: list[DashboardAccountApiResponse]
     active_account_count: int

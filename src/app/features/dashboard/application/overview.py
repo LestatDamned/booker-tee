@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
@@ -19,9 +19,9 @@ from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.reports.application.overview import ReportingFilters
 from app.features.reports.repository import ReportMoneySummaryRow
 
-DASHBOARD_ACCOUNT_LIMIT = 6
+DASHBOARD_ACCOUNT_LIMIT = 4
 DASHBOARD_ATTENTION_LIMIT = 3
-DASHBOARD_RECENT_DOCUMENT_LIMIT = 5
+DASHBOARD_RECENT_DOCUMENT_LIMIT = 1
 
 
 @dataclass(frozen=True)
@@ -41,6 +41,7 @@ class DashboardDocument:
     account: ImportDocumentAccountDto | None
     reviewable_row_count: int
     next_step_kind: ImportDocumentNextStepKind
+    statement_period_end: date | None
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,8 @@ class DashboardOnboarding:
 class DashboardOverview:
     period_start: date
     period_end: date
+    current_period_start: date
+    current_period_end: date
     summary: ReportMoneySummaryRow
     accounts: list[DashboardAccount]
     active_account_count: int
@@ -113,10 +116,12 @@ class DashboardOverviewReader:
         today: date | None = None,
     ) -> DashboardOverview:
         current_day = today or date.today()
-        period_start = current_day.replace(day=1)
+        current_period_start = current_day.replace(day=1)
+        period_end = current_period_start - timedelta(days=1)
+        period_start = period_end.replace(day=1)
         filters = ReportingFilters(
             date_from=period_start,
-            date_to=current_day,
+            date_to=period_end,
             currency=default_currency.upper(),
         )
         summary = await self._reports.read_money_summary(
@@ -156,7 +161,9 @@ class DashboardOverviewReader:
         )
         return DashboardOverview(
             period_start=period_start,
-            period_end=current_day,
+            period_end=period_end,
+            current_period_start=current_period_start,
+            current_period_end=current_day,
             summary=summary,
             accounts=[dashboard_account(row) for row in active_accounts[:DASHBOARD_ACCOUNT_LIMIT]],
             active_account_count=len(active_accounts),
@@ -194,4 +201,5 @@ def dashboard_document(
         account=item.account,
         reviewable_row_count=item.reviewable_row_count,
         next_step_kind=item.next_step_kind,
+        statement_period_end=item.statement_period.end if item.statement_period else None,
     )

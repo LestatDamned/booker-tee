@@ -41,8 +41,10 @@ class DashboardReaderStub:
         self.default_currency = default_currency
         assert can_upload is False
         return DashboardOverview(
-            period_start=date(2026, 8, 1),
-            period_end=date(2026, 8, 5),
+            period_start=date(2026, 7, 1),
+            period_end=date(2026, 7, 31),
+            current_period_start=date(2026, 8, 1),
+            current_period_end=date(2026, 8, 5),
             summary=ReportMoneySummaryRow(
                 currency="RUB",
                 income=Decimal("125000.00"),
@@ -82,6 +84,7 @@ class DashboardReaderStub:
             ),
             reviewable_row_count=4,
             next_step_kind=ImportDocumentNextStepKind.REVIEW,
+            statement_period_end=date(2026, 7, 31),
         )
 
 
@@ -108,7 +111,8 @@ def test_dashboard_api_returns_workspace_scoped_decimal_string_contract() -> Non
     assert response.status_code == 200
     payload = response.json()
     assert payload["workspaceName"] == "Личные финансы"
-    assert payload["period"] == {"start": "2026-08-01", "end": "2026-08-05"}
+    assert payload["period"] == {"start": "2026-07-01", "end": "2026-07-31"}
+    assert payload["currentPeriod"] == {"start": "2026-08-01", "end": "2026-08-05"}
     assert payload["summary"] == {
         "currency": "RUB",
         "income": "125000.00",
@@ -117,6 +121,7 @@ def test_dashboard_api_returns_workspace_scoped_decimal_string_contract() -> Non
     }
     assert payload["accounts"][0]["balance"] == "9118.88"
     assert payload["attention"]["items"][0]["nextStepKind"] == "review"
+    assert payload["recentDocuments"][0]["statementPeriodEnd"] == "2026-07-31"
     assert payload["capabilities"] == {
         "canUpload": False,
         "canWriteFinancialData": False,

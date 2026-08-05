@@ -2,7 +2,8 @@ import type { DashboardOverviewDto } from "./api/dashboard-api";
 
 export const dashboardPayload: DashboardOverviewDto = {
   workspaceName: "Дом",
-  period: { start: "2026-08-01", end: "2026-08-05" },
+  period: { start: "2026-07-01", end: "2026-07-31" },
+  currentPeriod: { start: "2026-08-01", end: "2026-08-05" },
   summary: {
     currency: "RUB",
     income: "125000.00",
@@ -39,10 +40,26 @@ export const dashboardPayload: DashboardOverviewDto = {
         },
         reviewableRowCount: 4,
         nextStepKind: "review",
+        statementPeriodEnd: "2026-07-31",
       },
     ],
   },
-  recentDocuments: [],
+  recentDocuments: [
+    {
+      id: "70252f6b-705e-42f6-9b7c-eaabefb52d42",
+      filename: "july-statement.pdf",
+      status: "imported",
+      createdAt: "2026-08-02T12:00:00Z",
+      account: {
+        id: "285c18d8-78bb-46d7-b6cd-d6fc897ab8a2",
+        name: "Основной",
+        currency: "RUB",
+      },
+      reviewableRowCount: 0,
+      nextStepKind: "review",
+      statementPeriodEnd: "2026-07-31",
+    },
+  ],
   onboarding: {
     hasAccounts: true,
     hasDocuments: true,

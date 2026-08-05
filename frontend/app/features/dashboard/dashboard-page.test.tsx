@@ -8,22 +8,27 @@ import { DashboardPage, documentHref } from "./dashboard-page";
 import { dashboardPayload } from "./test-support";
 
 describe("DashboardPage", () => {
-  it("puts attention before truthful monthly money and keeps currencies separate", () => {
+  it("shows compact attention and the last full month without mixing currencies", () => {
     renderPage(dashboardPayload);
 
     expect(
       screen.getByRole("heading", { name: "Требует внимания" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Результат месяца" }),
+      screen.getByRole("heading", { name: "Финансовый итог" }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/июль 2026.*полный месяц/)).toBeInTheDocument();
     expect(screen.getByLabelText(/\+125.*000,00 RUB/)).toBeInTheDocument();
     expect(screen.getByLabelText(/−65.*000,00 RUB/)).toBeInTheDocument();
     expect(screen.getByLabelText(/9.*118,88 RUB/)).toBeInTheDocument();
     expect(screen.getByLabelText(/2.*300,00 USD/)).toBeInTheDocument();
+    expect(screen.getByText(/без внутренних переводов/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Внутренние переводы не входят/),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: /август 2026.*на сегодня/ }),
+    ).toHaveAttribute(
+      "href",
+      "/reports?date_from=2026-08-01&date_to=2026-08-05",
+    );
   });
 
   it("uses the server-selected primary action and document next step", () => {
@@ -35,14 +40,13 @@ describe("DashboardPage", () => {
     expect(
       uploadActions.find((link) => link.dataset.tone === "primary"),
     ).toHaveAttribute("href", "/imports/upload");
-    expect(screen.getByRole("link", { name: /statement.pdf/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Проверить" })).toHaveAttribute(
       "href",
       "/imports/documents/d56b94b3-eb88-4db2-9b89-db5b7dce683f/review",
     );
-    expect(
-      screen.getByRole("heading", { name: "Первые шаги" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Сейчас")).toBeInTheDocument();
+    expect(screen.queryByText("Следующий шаг")).not.toBeInTheDocument();
+    expect(screen.getByText("july-statement.pdf")).toBeInTheDocument();
+    expect(screen.getByText(/выписка по 31\.07\.2026/)).toBeInTheDocument();
   });
 
   it("shows a calm healthy state and hides completed onboarding", () => {
@@ -58,11 +62,52 @@ describe("DashboardPage", () => {
     });
 
     expect(
-      screen.getByText("Нет данных, требующих решения"),
+      screen.getByText("Нет открытых импортов на проверке"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Следующий шаг")).not.toBeInTheDocument();
+  });
+
+  it("shows only the next onboarding action", () => {
+    renderPage({
+      ...dashboardPayload,
+      accounts: [],
+      activeAccountCount: 0,
+      attention: { total: 0, items: [] },
+      onboarding: {
+        hasAccounts: false,
+        hasDocuments: false,
+        hasConfirmedActivity: false,
+        isComplete: false,
+      },
+      recentDocuments: [],
+    });
+
+    expect(screen.getByText("Следующий шаг")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Добавьте первый счёт" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "Первые шаги" }),
+      screen.queryByText("Загрузите первую выписку"),
     ).not.toBeInTheDocument();
+  });
+
+  it("opens the last full month when reports are the primary action", () => {
+    renderPage({
+      ...dashboardPayload,
+      capabilities: {
+        canUpload: false,
+        canWriteFinancialData: false,
+        primaryAction: "reports",
+      },
+    });
+
+    const primary = screen
+      .getAllByRole("link", { name: "Открыть отчёт" })
+      .find((link) => link.dataset.tone === "primary");
+    expect(primary).toHaveAttribute(
+      "href",
+      "/reports?date_from=2026-07-01&date_to=2026-07-31",
+    );
   });
 
   it("builds only canonical React document routes", () => {
