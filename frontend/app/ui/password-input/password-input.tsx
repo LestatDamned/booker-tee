@@ -14,6 +14,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
           aria-controls={props.id}
           aria-pressed={visible}
           className={styles.toggle}
+          disabled={props.disabled}
           onClick={() => setVisible((current) => !current)}
           type="button"
         >

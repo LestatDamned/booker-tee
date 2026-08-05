@@ -59,9 +59,4 @@
   .dangerZone {
     padding: var(--space-4);
   }
-
-  .form button,
-  .dangerZone button {
-    width: 100%;
-  }
 }

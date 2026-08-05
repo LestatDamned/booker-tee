@@ -73,7 +73,7 @@
   display: none;
 }
 
-.form button {
+.form > button {
   width: 100%;
 }
 
