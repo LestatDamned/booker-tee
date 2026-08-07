@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, cast
@@ -20,7 +20,10 @@ from app.features.import_review.schemas.commands import (
     ConfirmImportReviewItemCommand,
     ImportReviewConfirmationResult,
 )
-from app.features.imports.documents.types import UploadedDocumentStatus
+from app.features.imports.documents.types import (
+    ParseAttemptStatus,
+    UploadedDocumentStatus,
+)
 from app.features.imports.models import RawTransaction
 from app.features.imports.statements.types import RawTransactionStatus
 from app.features.ledger.domain.types import OperationStatus, OperationType
@@ -52,6 +55,19 @@ class ImportRepositoryStub:
 
     async def mark_document_status(self, document: object, status: object) -> None:
         cast(Any, document).status = status
+
+    async def store_attempt_validation(
+        self,
+        attempt: object,
+        *,
+        control_totals: object,
+        validation_report: object,
+    ) -> None:
+        cast(Any, attempt).control_totals_json = control_totals
+        cast(Any, attempt).validation_report_json = validation_report
+
+    async def mark_attempt_status(self, attempt: object, status: object) -> None:
+        cast(Any, attempt).status = status
 
     async def has_confirmed_raw_transaction_with_dedupe_hash(
         self,
@@ -144,6 +160,34 @@ async def test_confirmation_posts_once_with_server_checked_references() -> None:
     assert cast(Any, posting.calls[0]["category"]).id == command.category_id
     assert row.status is RawTransactionStatus.CONFIRMED
     assert row.linked_operation_id == operation_id
+    assert session.commits == 1
+
+
+@pytest.mark.asyncio
+async def test_confirmation_refreshes_validation_without_regressing_document_status() -> None:
+    row = confirmable_row()
+    document = row.uploaded_document
+    attempt = SimpleNamespace(
+        started_at=datetime(2026, 7, 21, tzinfo=UTC),
+        status=ParseAttemptStatus.REQUIRES_REVIEW,
+        control_totals_json={
+            "currency": "RUB",
+            "total_inflow": "0.00",
+            "total_outflow": "1250.50",
+        },
+        validation_report_json={},
+    )
+    document.parse_attempts = [attempt]
+    session = SessionStub()
+    service = confirmation_service(session, row)
+
+    await service.execute(
+        context=workspace_context(),
+        command=confirmation_command(row),
+    )
+
+    assert attempt.status is ParseAttemptStatus.SUCCESS
+    assert document.status is UploadedDocumentStatus.IMPORTED
     assert session.commits == 1
 
 

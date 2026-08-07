@@ -60,6 +60,24 @@ class StatementValidationService:
         control_totals: StatementControlTotals | None,
         report: StatementValidationReport,
     ) -> None:
+        target_status = await self._store_attempt_result(
+            attempt,
+            control_totals=control_totals,
+            report=report,
+        )
+        await transition_document_status(
+            self._documents,
+            document,
+            target_status,
+        )
+
+    async def _store_attempt_result(
+        self,
+        attempt: ParseAttempt,
+        *,
+        control_totals: StatementControlTotals | None,
+        report: StatementValidationReport,
+    ) -> UploadedDocumentStatus:
         await self._documents.store_attempt_validation(
             attempt,
             control_totals=(control_totals.model_dump(mode="json") if control_totals else None),
@@ -67,26 +85,16 @@ class StatementValidationService:
         )
         if report.status == StatementValidationStatus.VALID:
             await self._documents.mark_attempt_status(attempt, ParseAttemptStatus.SUCCESS)
-            await transition_document_status(
-                self._documents,
-                document,
-                UploadedDocumentStatus.PARSED,
-            )
-            return
+            return UploadedDocumentStatus.PARSED
 
         await self._documents.mark_attempt_status(attempt, ParseAttemptStatus.REQUIRES_REVIEW)
-        await transition_document_status(
-            self._documents,
-            document,
-            UploadedDocumentStatus.REQUIRES_REVIEW,
-        )
+        return UploadedDocumentStatus.REQUIRES_REVIEW
 
     async def refresh_for_document(self, document: UploadedDocument) -> None:
         validation = self.calculate_for_document(document)
         if validation is None:
             return
-        await self.store_result(
-            document,
+        await self._store_attempt_result(
             validation.attempt,
             control_totals=validation.control_totals,
             report=validation.report,
