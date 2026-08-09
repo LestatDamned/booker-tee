@@ -21,6 +21,7 @@ class OperationSource(StrEnum):
     MANUAL = "manual"
     BANK_PDF = "bank_pdf"
     SYSTEM = "system"
+    DEBT = "debt"
 
 
 @dataclass(frozen=True)

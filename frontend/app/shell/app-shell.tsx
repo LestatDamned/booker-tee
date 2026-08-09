@@ -35,6 +35,12 @@ const navigationGroups: ReadonlyArray<NavigationGroup> = [
         reactRoute: true,
       },
       {
+        href: "/debts",
+        icon: "debts",
+        label: "Долги",
+        reactRoute: true,
+      },
+      {
         href: "/ledger/manual",
         icon: "operations",
         label: "Ручные операции",

@@ -890,7 +890,7 @@ async def test_manual_update_replaces_existing_money_entry() -> None:
     use_case.references = cast(
         Any,
         SimpleNamespace(
-            get_account=AsyncMock(return_value=account),
+            get_income_expense_account=AsyncMock(return_value=account),
             get_category_or_uncategorized=AsyncMock(
                 return_value=SimpleNamespace(id=uuid4()),
             ),

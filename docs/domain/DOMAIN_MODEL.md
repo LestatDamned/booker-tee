@@ -11,6 +11,7 @@
 Workspace
   ├─ Users через WorkspaceMember
   ├─ Accounts
+  │    └─ Debts
   ├─ UploadedDocuments
   │    ├─ ParseAttempts
   │    └─ RawTransactions
@@ -33,12 +34,36 @@ state. Доступ задают membership, role и status; invitations и audi
 
 ### Account
 
-Место хранения денег: `cash`, `card`, `deposit`, `checking`, `other`.
+Место хранения денег: `cash`, `card`, `deposit`, `checking`, `other`. Значение
+`debt` зарезервировано для технического счёта сущности `Debt`.
 
 - имеет currency и initial balance;
 - может быть archived;
 - баланс выводится из initial balance и confirmed `MoneyEntry`;
 - masked account/card data не заменяет workspace authorization.
+
+Debt account не создаётся, не редактируется и не архивируется через общий
+Accounts workflow.
+
+### Debt и DebtPayment
+
+`Debt` — workspace-owned расширение одного account типа `debt`. Вид долга:
+выданный заём, полученный заём, кредитная карта или ипотека. Текущий principal
+равен `Account.initial_balance + confirmed MoneyEntry`:
+
+- положительный баланс — должны пользователю;
+- отрицательный баланс — должен пользователь;
+- нулевой баланс — principal погашен.
+
+`DebtPayment` атомарно связывает до двух операций одного платежа: principal
+transfer и interest income/expense. Principal всегда проводится как
+`transfer`, имеет `affects_profit=false` и не попадает в profit, category totals
+или property ROI. Interest проводится отдельно и влияет на profit.
+
+Generic manual/import workflow не меняет principal. Исключение: расход по
+кредитной карте может использовать её debt account. Loan и mortgage accounts в
+общие формы не попадают. Полный контракт находится в
+[`docs/features/debts/DOMAIN_MODEL.md`](../features/debts/DOMAIN_MODEL.md).
 
 ### Operation
 
@@ -47,7 +72,7 @@ state. Доступ задают membership, role и status; invitations и audi
 ```text
 type: income | expense | transfer | adjustment
 status: draft | needs_review | confirmed | ignored | duplicate
-source: manual | bank_pdf | system
+source: manual | bank_pdf | debt | system
 ```
 
 Operation имеет optimistic `version`, optional category/property, даты,
@@ -228,6 +253,7 @@ Reports используют confirmed operations и entries:
 - account balance считается по account entries, поэтому обе стороны transfer
   видны на соответствующих accounts;
 - currency нельзя молча смешивать или конвертировать без явной policy.
+- debt interest входит в profit, debt principal transfer исключается.
 
 ## Non-negotiable invariants
 
@@ -241,3 +267,5 @@ Reports используют confirmed operations и entries:
 8. Financial commands атомарны.
 9. Browser, templates и integrations не владеют financial policy.
 10. Приватные payloads не логируются и не отправляются наружу.
+11. Debt principal изменяется только debts workflow; generic исключение
+    разрешено только для расхода кредитной карты.

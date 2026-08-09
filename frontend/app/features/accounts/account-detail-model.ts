@@ -14,6 +14,7 @@ export const accountTypeLabels = {
   card: "Карта",
   deposit: "Вклад",
   checking: "Расчётный",
+  debt: "Долг",
   other: "Другой",
 } as const;
 
@@ -44,6 +45,7 @@ export const operationSources: {
 }[] = [
   { label: "Вручную", value: "manual" },
   { label: "Импорт", value: "bank_pdf" },
+  { label: "Долги", value: "debt" },
   { label: "Система", value: "system" },
 ];
 

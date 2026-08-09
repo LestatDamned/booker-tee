@@ -62,7 +62,11 @@ class ManualOperationWriter:
             return replay
         if command.operation_type not in {OperationType.INCOME, OperationType.EXPENSE}:
             raise LedgerPostingError("Manual operation must be income or expense.")
-        account = await self.references.get_account(context.workspace.id, command.account_id)
+        account = await self.references.get_income_expense_account(
+            context.workspace.id,
+            command.account_id,
+            command.operation_type,
+        )
         signed_amount = manual_income_expense_amount(
             command.operation_type,
             command.amount,
@@ -126,11 +130,11 @@ class ManualOperationWriter:
         )
         if replay is not None:
             return replay
-        source_account = await self.references.get_account(
+        source_account = await self.references.get_transfer_account(
             context.workspace.id,
             command.source_account_id,
         )
-        destination_account = await self.references.get_account(
+        destination_account = await self.references.get_transfer_account(
             context.workspace.id,
             command.destination_account_id,
         )
@@ -326,8 +330,11 @@ class ManualOperationWriter:
         destination_account_id: UUID,
         amount: Decimal,
     ) -> None:
-        source_account = await self.references.get_account(context.workspace.id, source_account_id)
-        destination_account = await self.references.get_account(
+        source_account = await self.references.get_transfer_account(
+            context.workspace.id,
+            source_account_id,
+        )
+        destination_account = await self.references.get_transfer_account(
             context.workspace.id,
             destination_account_id,
         )
@@ -373,7 +380,11 @@ class ManualOperationWriter:
     ) -> None:
         if operation_type not in {OperationType.INCOME, OperationType.EXPENSE}:
             raise LedgerPostingError("Manual operation must be income, expense, or transfer.")
-        account = await self.references.get_account(context.workspace.id, account_id)
+        account = await self.references.get_income_expense_account(
+            context.workspace.id,
+            account_id,
+            operation_type,
+        )
         category = await self.references.get_category_or_uncategorized(
             context.workspace.id,
             category_id,

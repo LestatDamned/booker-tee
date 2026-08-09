@@ -49,6 +49,8 @@ class AccountService:
         currency: str,
         initial_balance: Decimal,
     ) -> Account:
+        if not account_type.is_user_managed():
+            raise AccountError("Долговой счёт создаётся только через раздел долгов.")
         cleaned_name = clean_required_text(name, "Название счета обязательно.")
         account = await self.accounts.create(
             Account(
@@ -73,9 +75,9 @@ class AccountService:
         initial_balance: Decimal,
         expected_updated_at: datetime | None = None,
     ) -> Account:
-        account = await self.accounts.get_for_workspace(workspace_id, account_id)
-        if account is None:
-            raise AccountNotFoundError("Счет не найден в этом workspace.")
+        if not account_type.is_user_managed():
+            raise AccountError("Долговой счёт изменяется только через раздел долгов.")
+        account = await self._get_user_managed_account(workspace_id, account_id)
         if expected_updated_at is not None and account.updated_at != expected_updated_at:
             raise AccountUpdateConflictError("Счёт уже изменился в другом окне.")
         normalized_currency = normalize_currency(currency)
@@ -102,9 +104,7 @@ class AccountService:
         expected_active: bool | None = None,
         expected_updated_at: datetime | None = None,
     ) -> Account:
-        account = await self.accounts.get_for_workspace(workspace_id, account_id)
-        if account is None:
-            raise AccountNotFoundError("Счет не найден в этом workspace.")
+        account = await self._get_user_managed_account(workspace_id, account_id)
         if expected_active is not None and account.is_active is not expected_active:
             raise AccountLifecycleConflictError("Состояние счета уже изменилось.")
         if expected_updated_at is not None and account.updated_at != expected_updated_at:
@@ -113,6 +113,18 @@ class AccountService:
         account.archived_at = None if is_active else utc_now()
         await self.session.commit()
         await self.session.refresh(account)
+        return account
+
+    async def _get_user_managed_account(
+        self,
+        workspace_id: UUID,
+        account_id: UUID,
+    ) -> Account:
+        account = await self.accounts.get_for_workspace(workspace_id, account_id)
+        if account is None:
+            raise AccountNotFoundError("Счет не найден в этом workspace.")
+        if account.type is AccountType.DEBT:
+            raise AccountError("Долговой счёт изменяется только через раздел долгов.")
         return account
 
 

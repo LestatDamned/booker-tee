@@ -56,6 +56,9 @@ def test_manual_ledger_returns_decimal_money_and_explicit_semantics() -> None:
                 "id": str(reference_reader.references.accounts[0].id),
                 "name": "Основной счёт",
                 "currency": "RUB",
+                "canRecordIncome": True,
+                "canRecordExpense": True,
+                "canTransfer": True,
             }
         ],
         "categories": [

@@ -8,6 +8,7 @@ import { ManualOperationCreate } from "./manual-operation-create";
 
 const accountId = "3d0ba2b5-a853-47b8-b76b-42ea6b30ce8f";
 const destinationAccountId = "2b78e790-f82f-46e7-814a-d22f9d7455c2";
+const creditCardId = "40dfb587-8080-44d8-ac21-89cc74fbbb21";
 const categoryId = "9e74db13-c89a-4e00-9d23-8a61e0e61cc0";
 const propertyId = "de28f72f-aad9-4a54-abf9-b3c8972d950c";
 const operationId = "61f1e242-9b4a-43e8-b9f8-4fb0627f771a";
@@ -36,6 +37,22 @@ describe("manual operation creation", () => {
     expect(
       screen.getByRole("button", { name: "Создать расход" }),
     ).toBeEnabled();
+  });
+
+  it("offers a credit card only for an expense", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+
+    await user.click(screen.getByRole("button", { name: "Добавить операцию" }));
+    await user.click(screen.getByRole("radio", { name: "Расход" }));
+    await user.selectOptions(screen.getByLabelText("Счёт *"), creditCardId);
+    expect(screen.getByLabelText("Счёт *")).toHaveValue(creditCardId);
+
+    await user.click(screen.getByRole("radio", { name: "Перевод" }));
+    expect(screen.getByLabelText("Счёт списания *")).toHaveValue("");
+    expect(
+      screen.queryByRole("option", { name: "Кредитная карта" }),
+    ).not.toBeInTheDocument();
   });
 
   it("sends decimal-string JSON with CSRF and navigates to the server result", async () => {
@@ -306,11 +323,29 @@ function renderCreate({ canCreate = true }: { canCreate?: boolean } = {}) {
         csrfToken="csrf-token"
         options={{
           accounts: [
-            { id: accountId, name: "Основной счёт", currency: "RUB" },
+            {
+              id: accountId,
+              name: "Основной счёт",
+              currency: "RUB",
+              canRecordIncome: true,
+              canRecordExpense: true,
+              canTransfer: true,
+            },
             {
               id: destinationAccountId,
               name: "Накопительный счёт",
               currency: "RUB",
+              canRecordIncome: true,
+              canRecordExpense: true,
+              canTransfer: true,
+            },
+            {
+              id: creditCardId,
+              name: "Кредитная карта",
+              currency: "RUB",
+              canRecordIncome: false,
+              canRecordExpense: true,
+              canTransfer: false,
             },
           ],
           categories: [{ id: categoryId, name: "Проценты" }],

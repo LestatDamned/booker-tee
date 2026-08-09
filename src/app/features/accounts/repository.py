@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.accounts.models import Account, AccountType
@@ -31,7 +31,10 @@ class AccountRepository:
     async def list_for_workspace(self, workspace_id: UUID) -> list[Account]:
         result = await self.session.execute(
             select(Account)
-            .where(Account.workspace_id == workspace_id)
+            .where(
+                Account.workspace_id == workspace_id,
+                Account.type != AccountType.DEBT,
+            )
             .order_by(Account.is_active.desc(), Account.created_at)
         )
         return list(result.scalars().all())
@@ -73,7 +76,10 @@ class AccountRepository:
                     Operation.workspace_id == workspace_id,
                 ),
             )
-            .where(Account.workspace_id == workspace_id)
+            .where(
+                Account.workspace_id == workspace_id,
+                Account.type != AccountType.DEBT,
+            )
             .group_by(Account.id)
             .order_by(Account.is_active.desc(), Account.created_at)
         )
@@ -95,7 +101,11 @@ class AccountRepository:
     async def list_active_for_workspace(self, workspace_id: UUID) -> list[Account]:
         result = await self.session.execute(
             select(Account)
-            .where(Account.workspace_id == workspace_id, Account.is_active.is_(True))
+            .where(
+                Account.workspace_id == workspace_id,
+                Account.is_active.is_(True),
+                Account.type != AccountType.DEBT,
+            )
             .order_by(Account.created_at)
         )
         return list(result.scalars().all())
@@ -131,7 +141,33 @@ class AccountRepository:
         result = await self.session.execute(select(related_ids.c.id).limit(1))
         return result.scalar_one_or_none() is not None
 
+    async def has_import_history(self, workspace_id: UUID, account_id: UUID) -> bool:
+        related_ids = (
+            select(UploadedDocument.id.label("id"))
+            .where(
+                UploadedDocument.workspace_id == workspace_id,
+                UploadedDocument.account_id == account_id,
+            )
+            .union_all(
+                select(RawTransaction.id.label("id")).where(
+                    RawTransaction.workspace_id == workspace_id,
+                    RawTransaction.account_id == account_id,
+                )
+            )
+            .subquery()
+        )
+        result = await self.session.execute(select(related_ids.c.id).limit(1))
+        return result.scalar_one_or_none() is not None
+
     async def create(self, account: Account) -> Account:
         self.session.add(account)
         await self.session.flush()
         return account
+
+    async def delete(self, account: Account) -> None:
+        await self.session.execute(
+            delete(Account).where(
+                Account.id == account.id,
+                Account.workspace_id == account.workspace_id,
+            )
+        )

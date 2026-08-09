@@ -8,11 +8,14 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+from app.features.accounts.models import AccountType
 from app.features.categories.service import CategoryService
+from app.features.debts.domain import DebtKind
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.manual_idempotency import ManualOperationFingerprint
 from app.features.ledger.domain.types import OperationType
+from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.schemas.manual import (
     CreateManualIncomeExpenseCommand,
 )
@@ -40,6 +43,66 @@ async def test_ledger_reference_resolver_uses_non_committing_category_lookups() 
     assert await resolver.get_transfer_category(workspace_id) is transfer
     categories.ensure_uncategorized.assert_awaited_once_with(workspace_id)
     categories.ensure_system.assert_awaited_once_with(workspace_id, "transfer")
+
+
+@pytest.mark.asyncio
+async def test_debt_accounts_cannot_bypass_manual_principal_transfer() -> None:
+    workspace_id = uuid4()
+    debt_account = SimpleNamespace(id=uuid4(), type=AccountType.DEBT, is_active=True)
+    resolver = LedgerReferenceResolver(cast(Any, object()))
+    resolver.accounts = cast(
+        Any,
+        SimpleNamespace(get_for_workspace=AsyncMock(return_value=debt_account)),
+    )
+
+    with pytest.raises(LedgerPostingError, match="principal transfers"):
+        await resolver.get_transfer_account(workspace_id, debt_account.id)
+
+
+@pytest.mark.asyncio
+async def test_only_credit_card_expense_uses_debt_account_generically() -> None:
+    workspace_id = uuid4()
+    debt_account = SimpleNamespace(id=uuid4(), type=AccountType.DEBT, is_active=True)
+    resolver = LedgerReferenceResolver(cast(Any, object()))
+    resolver.accounts = cast(
+        Any,
+        SimpleNamespace(get_for_workspace=AsyncMock(return_value=debt_account)),
+    )
+    resolver.debts = cast(
+        Any,
+        SimpleNamespace(
+            get_for_workspace=AsyncMock(return_value=SimpleNamespace(kind=DebtKind.CREDIT_CARD))
+        ),
+    )
+
+    assert (
+        await resolver.get_income_expense_account(
+            workspace_id,
+            debt_account.id,
+            OperationType.EXPENSE,
+        )
+        is debt_account
+    )
+    with pytest.raises(LedgerPostingError, match="only record an expense"):
+        await resolver.get_income_expense_account(
+            workspace_id,
+            debt_account.id,
+            OperationType.INCOME,
+        )
+    resolver.debts.get_for_workspace.return_value = SimpleNamespace(kind=DebtKind.MORTGAGE)
+    with pytest.raises(LedgerPostingError, match="Loan and mortgage"):
+        await resolver.get_income_expense_account(
+            workspace_id,
+            debt_account.id,
+            OperationType.EXPENSE,
+        )
+    debt_account.is_active = False
+    with pytest.raises(LedgerPostingError, match="archived debt"):
+        await resolver.get_income_expense_account(
+            workspace_id,
+            debt_account.id,
+            OperationType.EXPENSE,
+        )
 
 
 @pytest.mark.asyncio
@@ -122,7 +185,7 @@ async def test_idempotency_race_rolls_back_only_savepoint() -> None:
         ),
     )
     references = SimpleNamespace(
-        get_account=AsyncMock(
+        get_income_expense_account=AsyncMock(
             return_value=SimpleNamespace(id=command.account_id, currency="RUB"),
         ),
         get_category_or_uncategorized=AsyncMock(

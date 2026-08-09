@@ -25,11 +25,11 @@ def test_upload_reference_returns_active_accounts_and_limits(monkeypatch) -> Non
     context = api_context(WorkspaceRole.OWNER)
     account_id = uuid4()
 
-    class FakeAccountService:
+    class FakeAccountResolver:
         def __init__(self, _session) -> None:
             pass
 
-        async def list_active_accounts(self, workspace_id):
+        async def list_manual_accounts(self, workspace_id):
             assert workspace_id == context.workspace.workspace.id
             return [
                 SimpleNamespace(
@@ -40,7 +40,11 @@ def test_upload_reference_returns_active_accounts_and_limits(monkeypatch) -> Non
                 )
             ]
 
-    monkeypatch.setattr(imports_router_module, "AccountService", FakeAccountService)
+    monkeypatch.setattr(
+        imports_router_module,
+        "LedgerReferenceResolver",
+        FakeAccountResolver,
+    )
     app = upload_app(context)
 
     with TestClient(app) as client:

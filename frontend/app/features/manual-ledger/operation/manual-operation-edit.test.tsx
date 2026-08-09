@@ -306,7 +306,7 @@ function editSnapshot({
       },
     },
     filterOptions: {
-      accounts: [{ id: accountId, name: "Основной счёт", currency: "RUB" }],
+      accounts: [accountOption(accountId, "Основной счёт")],
       categories: [],
       properties: [],
       perPage: [25, 50],
@@ -340,14 +340,21 @@ function transferEditSnapshot() {
     filterOptions: {
       ...snapshot.filterOptions,
       accounts: [
-        { id: accountId, name: "Основной счёт", currency: "RUB" },
-        {
-          id: destinationAccountId,
-          name: "Накопительный счёт",
-          currency: "RUB",
-        },
+        accountOption(accountId, "Основной счёт"),
+        accountOption(destinationAccountId, "Накопительный счёт"),
       ],
     },
+  };
+}
+
+function accountOption(id: string, name: string) {
+  return {
+    id,
+    name,
+    currency: "RUB",
+    canRecordIncome: true,
+    canRecordExpense: true,
+    canTransfer: true,
   };
 }
 

@@ -6,7 +6,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
-from app.features.accounts.repository import AccountRepository
 from app.features.imports.documents.attempts import (
     PARSER_EXCEPTIONS,
     create_running_parse_attempt,
@@ -35,6 +34,8 @@ from app.features.imports.parsers.extractors.resolver import (
 from app.features.imports.parsers.registry import StatementParserRegistry
 from app.features.imports.statements.process import StatementParseCompletionService
 from app.features.imports.statements.repository import StatementRepository
+from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
+from app.features.ledger.errors import LedgerPostingError
 from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.service import WorkspaceContext
 from app.shared.schemas import ApplicationModel
@@ -51,7 +52,7 @@ class StatementUploadUseCase:
     def __init__(self, session: AsyncSession, settings: Settings) -> None:
         self.session = session
         self.settings = settings
-        self.accounts = AccountRepository(session)
+        self.accounts = LedgerReferenceResolver(session)
         self.documents = DocumentRepository(session)
         self.mappings = MappingRepository(session)
         self.statements = StatementRepository(session)
@@ -75,9 +76,12 @@ class StatementUploadUseCase:
         idempotency_key: UUID | None = None,
     ) -> StatementUploadResult:
         validate_statement_upload(upload_file)
-        account = await self.accounts.get_for_workspace(context.workspace.id, account_id)
-        if account is None:
-            raise UploadAccountNotFoundError("Выбранный счёт недоступен в текущем пространстве.")
+        try:
+            account = await self.accounts.get_import_account(context.workspace.id, account_id)
+        except LedgerPostingError as error:
+            raise UploadAccountNotFoundError(
+                "Выбранный счёт недоступен в текущем пространстве."
+            ) from error
 
         document_id = (
             uuid5(context.workspace.id, f"statement-upload:{idempotency_key}")

@@ -125,16 +125,20 @@ class ImportReviewConfirmationActor:
                 "A confirmed raw transaction already uses this dedupe hash."
             )
 
-        account = await self._references.get_account(
+        account_id = require_raw_transaction_account_id(row)
+        account = await self._references.get_account(context.workspace.id, account_id)
+        plan = prepare_income_expense_posting(row, account)
+        await self._references.ensure_income_expense_account(
             context.workspace.id,
-            require_raw_transaction_account_id(row),
+            account,
+            plan.operation_type,
         )
         operation = await self._posting.post_imported_income_expense(
             context=context,
             document_id=command.document_id,
             raw_transaction_id=row.id,
             account=account,
-            plan=prepare_income_expense_posting(row, account),
+            plan=plan,
             category=category,
             property_=property_,
             idempotency_key=command.idempotency_key,

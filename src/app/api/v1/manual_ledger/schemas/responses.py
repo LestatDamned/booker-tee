@@ -12,6 +12,9 @@ class ManualLedgerNamedReferenceApiResponse(ApiModel):
 
 class ManualLedgerAccountReferenceApiResponse(ManualLedgerNamedReferenceApiResponse):
     currency: str
+    can_record_income: bool
+    can_record_expense: bool
+    can_transfer: bool
 
 
 class ManualLedgerFilterOptionsApiResponse(ApiModel):

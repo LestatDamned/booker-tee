@@ -4,8 +4,8 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
-from app.features.accounts.service import AccountService
 from app.features.categories.service import CategoryService
+from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.application.manual_operations import (
     ManualLedgerReferenceReader,
     ManualOperationService,
@@ -23,7 +23,7 @@ def get_manual_ledger_reference_reader(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ManualLedgerReferenceReader:
     return ManualLedgerReferenceReader(
-        accounts=AccountService(session),
+        accounts=LedgerReferenceResolver(session),
         categories=CategoryService(session),
         properties=PropertyService(session),
     )

@@ -106,6 +106,14 @@ class ReferenceResolverStub:
         self.account_ids.append(account_id)
         return self.account
 
+    async def ensure_income_expense_account(
+        self,
+        workspace_id: UUID,
+        account: object,
+        operation_type: object,
+    ) -> None:
+        return None
+
     async def get_category_or_uncategorized(
         self,
         workspace_id: UUID,

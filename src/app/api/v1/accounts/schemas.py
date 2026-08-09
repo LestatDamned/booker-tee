@@ -132,9 +132,10 @@ class AccountDetailCapabilitiesApiResponse(ApiModel):
 
 
 class AccountMovementSourceTargetApiResponse(ApiModel):
-    kind: Literal["manual", "import", "system"]
+    kind: Literal["manual", "import", "debt", "system"]
     uploaded_document_id: UUID | None = None
     raw_transaction_id: UUID | None = None
+    debt_account_id: UUID | None = None
 
 
 class AccountMovementCapabilitiesApiResponse(ApiModel):

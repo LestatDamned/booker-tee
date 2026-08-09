@@ -122,6 +122,41 @@ class LedgerRecordFactory:
         )
 
     @staticmethod
+    def build_debt_transfer_operation(
+        *,
+        context: WorkspaceContext,
+        operation_date: date,
+        description: str | None,
+        transfer_category: Category,
+    ) -> Operation:
+        return _build_confirmed_operation(
+            context=context,
+            operation_type=OperationType.TRANSFER,
+            source=OperationSource.DEBT,
+            category_id=transfer_category.id,
+            description=clean_description(description),
+            operation_date=operation_date,
+        )
+
+    @staticmethod
+    def build_debt_interest_operation(
+        *,
+        context: WorkspaceContext,
+        operation_type: OperationType,
+        operation_date: date,
+        description: str | None,
+        category: Category,
+    ) -> Operation:
+        return _build_confirmed_operation(
+            context=context,
+            operation_type=operation_type,
+            source=OperationSource.DEBT,
+            category_id=category.id,
+            description=clean_description(description),
+            operation_date=operation_date,
+        )
+
+    @staticmethod
     def build_money_entry(
         *,
         context: WorkspaceContext,

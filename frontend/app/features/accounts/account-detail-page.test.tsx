@@ -55,6 +55,30 @@ describe("AccountDetailPage", () => {
     ).toHaveAttribute("href", expect.stringContaining("/app/ledger/manual"));
   });
 
+  it("links debt movements back to the debt workflow", () => {
+    const debtAccountId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+    renderPage({
+      ...detail,
+      items: [
+        {
+          ...detail.items[0]!,
+          source: "debt",
+          sourceTarget: {
+            kind: "debt",
+            uploadedDocumentId: null,
+            rawTransactionId: null,
+            debtAccountId,
+          },
+        },
+      ],
+    });
+
+    expect(screen.getByRole("link", { name: "Открыть долг" })).toHaveAttribute(
+      "href",
+      `/debts/${debtAccountId}`,
+    );
+  });
+
   it("returns to the exact report context and keeps it while resetting filters", async () => {
     const user = userEvent.setup();
     const returnTo =

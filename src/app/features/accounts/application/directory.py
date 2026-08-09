@@ -77,7 +77,7 @@ class AccountDirectoryService:
         rows = await self._accounts.list_directory_rows(workspace_id)
         return AccountDirectoryDto(
             items=[account_summary_from_row(row) for row in rows],
-            account_types=list(AccountType),
+            account_types=AccountType.user_managed(),
             capabilities=AccountDirectoryCapabilitiesDto(
                 can_create=can_create,
                 readonly_reason_code=(

@@ -29,6 +29,8 @@ Jinja/HTMX/Alpine presentation stack удалён и не должен восс�
 - `/app/ledger/manual`;
 - `/app/accounts`;
 - `/app/accounts/:accountId`;
+- `/app/debts`;
+- `/app/debts/:debtId`;
 - `/app/imports`;
 - `/app/imports/upload`;
 - `/app/imports/documents/:documentId`;

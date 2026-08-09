@@ -495,7 +495,11 @@ class TransferReferenceResolverStub:
         self.source_account = source_account
         self.destination_account = destination_account
 
-    async def get_account(self, _workspace_id: UUID, account_id: UUID) -> Account:
+    async def get_transfer_account(
+        self,
+        _workspace_id: UUID,
+        account_id: UUID,
+    ) -> Account:
         if account_id == self.destination_account.id:
             return self.destination_account
         assert account_id == self.source_account.id

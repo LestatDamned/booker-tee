@@ -10,11 +10,13 @@ from app.features.accounts.models import Account
 from app.features.categories.models import Category
 from app.features.ledger.domain.money import (
     LedgerPostingPlan,
+    TransferAmounts,
     ensure_balanced_transfer,
     ensure_distinct_accounts,
     ensure_income_expense_posting,
     ensure_same_currency,
 )
+from app.features.ledger.domain.types import OperationType
 from app.features.ledger.mapping.records import LedgerRecordFactory
 from app.features.ledger.models import Operation
 from app.features.ledger.repository import LedgerRepository
@@ -116,6 +118,92 @@ class LedgerPostingService:
                 amount=counterparty_amount,
                 entry_order=2,
                 balance_after=counterparty_balance_after,
+            )
+        )
+        return operation
+
+    async def post_debt_transfer(
+        self,
+        *,
+        context: WorkspaceContext,
+        source_account: Account,
+        destination_account: Account,
+        amount: Decimal,
+        operation_date: date,
+        description: str | None,
+        transfer_category: Category,
+    ) -> Operation:
+        amounts = TransferAmounts.for_manual_transfer(
+            source_account_id=source_account.id,
+            destination_account_id=destination_account.id,
+            amount=amount,
+        )
+        ensure_same_currency(source_account, destination_account)
+        operation = await self.ledger.create_operation(
+            LedgerRecordFactory.build_debt_transfer_operation(
+                context=context,
+                operation_date=operation_date,
+                description=description,
+                transfer_category=transfer_category,
+            )
+        )
+        await self.ledger.create_money_entry(
+            LedgerRecordFactory.build_money_entry(
+                context=context,
+                operation=operation,
+                account=source_account,
+                amount=amounts.source_amount,
+                entry_order=1,
+            )
+        )
+        await self.ledger.create_money_entry(
+            LedgerRecordFactory.build_money_entry(
+                context=context,
+                operation=operation,
+                account=destination_account,
+                amount=amounts.destination_amount,
+                entry_order=2,
+            )
+        )
+        return operation
+
+    async def post_debt_interest(
+        self,
+        *,
+        context: WorkspaceContext,
+        account: Account,
+        amount: Decimal,
+        operation_type: OperationType,
+        operation_date: date,
+        description: str | None,
+        category: Category,
+    ) -> Operation:
+        plan = LedgerPostingPlan(
+            operation_type=operation_type,
+            amount=amount,
+            currency=account.currency,
+            operation_date=operation_date,
+            posting_date=None,
+            description=description,
+            balance_after=None,
+        )
+        ensure_income_expense_posting(plan, account)
+        operation = await self.ledger.create_operation(
+            LedgerRecordFactory.build_debt_interest_operation(
+                context=context,
+                operation_type=operation_type,
+                operation_date=operation_date,
+                description=description,
+                category=category,
+            )
+        )
+        await self.ledger.create_money_entry(
+            LedgerRecordFactory.build_money_entry(
+                context=context,
+                operation=operation,
+                account=account,
+                amount=amount,
+                entry_order=1,
             )
         )
         return operation

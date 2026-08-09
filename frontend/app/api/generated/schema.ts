@@ -487,6 +487,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/debts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Debts */
+        get: operations["list_debts_api_v1_debts_get"];
+        put?: never;
+        /** Create Debt */
+        post: operations["create_debt_api_v1_debts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debts/{debt_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Debt */
+        get: operations["get_debt_api_v1_debts__debt_id__get"];
+        /** Update Debt */
+        put: operations["update_debt_api_v1_debts__debt_id__put"];
+        post?: never;
+        /** Delete Debt */
+        delete: operations["delete_debt_api_v1_debts__debt_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debts/{debt_id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Debt Payment */
+        post: operations["record_debt_payment_api_v1_debts__debt_id__payments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debts/{debt_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Debt */
+        post: operations["archive_debt_api_v1_debts__debt_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debts/{debt_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Debt */
+        post: operations["restore_debt_api_v1_debts__debt_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/debt-payments/{payment_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo Debt Payment */
+        post: operations["undo_debt_payment_api_v1_debt_payments__payment_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/imports/documents/{document_id}/mapping": {
         parameters: {
             query?: never;
@@ -1546,11 +1651,13 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "manual" | "import" | "system";
+            kind: "manual" | "import" | "debt" | "system";
             /** Uploadeddocumentid */
             uploadedDocumentId?: string | null;
             /** Rawtransactionid */
             rawTransactionId?: string | null;
+            /** Debtaccountid */
+            debtAccountId?: string | null;
         };
         /** AccountSummaryApiResponse */
         AccountSummaryApiResponse: {
@@ -1591,7 +1698,34 @@ export interface components {
          * AccountType
          * @enum {string}
          */
-        AccountType: "cash" | "card" | "deposit" | "checking" | "other";
+        AccountType: "cash" | "card" | "deposit" | "checking" | "other" | "debt";
+        /** AddExistingDebtApiRequest */
+        AddExistingDebtApiRequest: {
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+            /** Openedon */
+            openedOn?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action: "add_existing";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "loan_receivable" | "loan_payable" | "mortgage";
+            /** Openingbalance */
+            openingBalance: string;
+            /** Originalprincipal */
+            originalPrincipal: string;
+            /** Maturitydate */
+            maturityDate?: string | null;
+        };
         /** ApiErrorDetails */
         ApiErrorDetails: {
             /** Code */
@@ -2123,6 +2257,205 @@ export interface components {
             /** Activeothermembercount */
             activeOtherMemberCount: number;
         };
+        /** DebtCapabilitiesApiResponse */
+        DebtCapabilitiesApiResponse: {
+            /** Canrecordpayment */
+            canRecordPayment: boolean;
+            /** Canarchive */
+            canArchive: boolean;
+            /** Canrestore */
+            canRestore: boolean;
+            /** Canupdate */
+            canUpdate: boolean;
+            /** Candelete */
+            canDelete: boolean;
+            paymentBlockedReason: components["schemas"]["DebtPaymentBlockedReason"] | null;
+            deleteBlockedReason: components["schemas"]["DebtDeleteBlockedReason"] | null;
+        };
+        /** DebtCurrencyTotalsApiResponse */
+        DebtCurrencyTotalsApiResponse: {
+            /** Currency */
+            currency: string;
+            /** Receivable */
+            receivable: string;
+            /** Payable */
+            payable: string;
+            /** Netposition */
+            netPosition: string;
+        };
+        /**
+         * DebtDeleteBlockedReason
+         * @enum {string}
+         */
+        DebtDeleteBlockedReason: "financial_write_forbidden" | "financial_history";
+        /** DebtDetailApiResponse */
+        DebtDetailApiResponse: {
+            debt: components["schemas"]["DebtSummaryApiResponse"];
+            /** Notes */
+            notes: string | null;
+            paymentTotals: components["schemas"]["DebtPaymentTotalsApiResponse"];
+            payments: components["schemas"]["DebtPaymentHistoryPageApiResponse"];
+        };
+        /**
+         * DebtKind
+         * @enum {string}
+         */
+        DebtKind: "loan_receivable" | "loan_payable" | "credit_card" | "mortgage";
+        /** DebtLifecycleApiRequest */
+        DebtLifecycleApiRequest: {
+            /** Expectedactive */
+            expectedActive: boolean;
+            /**
+             * Expectedupdatedat
+             * Format: date-time
+             */
+            expectedUpdatedAt: string;
+        };
+        /**
+         * DebtPaymentBlockedReason
+         * @enum {string}
+         */
+        DebtPaymentBlockedReason: "financial_write_forbidden" | "debt_archived" | "debt_settled" | "no_payment_account";
+        /** DebtPaymentHistoryItemApiResponse */
+        DebtPaymentHistoryItemApiResponse: {
+            /**
+             * Paymentid
+             * Format: uuid
+             */
+            paymentId: string;
+            principal: components["schemas"]["DebtPaymentOperationApiResponse"] | null;
+            interest: components["schemas"]["DebtPaymentOperationApiResponse"] | null;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /** Reversedat */
+            reversedAt: string | null;
+            /** Canundo */
+            canUndo: boolean;
+        };
+        /** DebtPaymentHistoryPageApiResponse */
+        DebtPaymentHistoryPageApiResponse: {
+            /** Items */
+            items: components["schemas"]["DebtPaymentHistoryItemApiResponse"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+            /** Totalpages */
+            totalPages: number;
+            /** Hasprevious */
+            hasPrevious: boolean;
+            /** Hasnext */
+            hasNext: boolean;
+        };
+        /** DebtPaymentOperationApiResponse */
+        DebtPaymentOperationApiResponse: {
+            /**
+             * Operationid
+             * Format: uuid
+             */
+            operationId: string;
+            /** Version */
+            version: number;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            operationType: components["schemas"]["OperationType"];
+            status: components["schemas"]["OperationStatus"];
+            /** Description */
+            description: string | null;
+            /** Amount */
+            amount: string;
+        };
+        /** DebtPaymentTotalsApiResponse */
+        DebtPaymentTotalsApiResponse: {
+            /** Principal */
+            principal: string;
+            /** Interest */
+            interest: string;
+        };
+        /** DebtPortfolioApiResponse */
+        DebtPortfolioApiResponse: {
+            /** Items */
+            items: components["schemas"]["DebtSummaryApiResponse"][];
+            /** Totals */
+            totals: components["schemas"]["DebtCurrencyTotalsApiResponse"][];
+            capabilities: components["schemas"]["DebtPortfolioCapabilitiesApiResponse"];
+        };
+        /** DebtPortfolioCapabilitiesApiResponse */
+        DebtPortfolioCapabilitiesApiResponse: {
+            /** Cancreate */
+            canCreate: boolean;
+            /** Readonlyreasoncode */
+            readonlyReasonCode: "financial_write_forbidden" | null;
+        };
+        /**
+         * DebtStatus
+         * @enum {string}
+         */
+        DebtStatus: "active" | "settled" | "no_debt" | "archived";
+        /** DebtSummaryApiResponse */
+        DebtSummaryApiResponse: {
+            /**
+             * Accountid
+             * Format: uuid
+             */
+            accountId: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["DebtKind"];
+            /** Currency */
+            currency: string;
+            /** Balance */
+            balance: string;
+            /** Outstanding */
+            outstanding: string;
+            status: components["schemas"]["DebtStatus"];
+            /** Openedon */
+            openedOn: string | null;
+            /** Originalprincipal */
+            originalPrincipal: string | null;
+            /** Maturitydate */
+            maturityDate: string | null;
+            /** Creditlimit */
+            creditLimit: string | null;
+            /** Availablecredit */
+            availableCredit: string | null;
+            /** Isactive */
+            isActive: boolean;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            capabilities: components["schemas"]["DebtCapabilitiesApiResponse"];
+        };
+        /** DeleteDebtApiRequest */
+        DeleteDebtApiRequest: {
+            /**
+             * Expectedupdatedat
+             * Format: date-time
+             */
+            expectedUpdatedAt: string;
+        };
+        /** DeleteDebtApiResponse */
+        DeleteDebtApiResponse: {
+            /**
+             * Deletedid
+             * Format: uuid
+             */
+            deletedId: string;
+            /** Name */
+            name: string;
+        };
         /** EmailChangeApiResponse */
         EmailChangeApiResponse: {
             /** Message */
@@ -2141,6 +2474,38 @@ export interface components {
         EmailVerificationRequestApiRequest: {
             /** Email */
             email: string;
+        };
+        /** GiveLoanApiRequest */
+        GiveLoanApiRequest: {
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+            /** Openedon */
+            openedOn?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action: "give_loan";
+            /** Amount */
+            amount: string;
+            /**
+             * Fundingaccountid
+             * Format: uuid
+             */
+            fundingAccountId: string;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /** Maturitydate */
+            maturityDate?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -3141,6 +3506,12 @@ export interface components {
             name: string;
             /** Currency */
             currency: string;
+            /** Canrecordincome */
+            canRecordIncome: boolean;
+            /** Canrecordexpense */
+            canRecordExpense: boolean;
+            /** Cantransfer */
+            canTransfer: boolean;
         };
         /** ManualLedgerCapabilitiesApiResponse */
         ManualLedgerCapabilitiesApiResponse: {
@@ -3669,11 +4040,34 @@ export interface components {
          */
         MoneyDirection: "inflow" | "outflow" | "any";
         MoneyString: string;
+        /** OpenCreditCardApiRequest */
+        OpenCreditCardApiRequest: {
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+            /** Openedon */
+            openedOn?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action: "open_credit_card";
+            /** Creditlimit */
+            creditLimit: string;
+            /**
+             * Openingdebt
+             * @default 0.00
+             */
+            openingDebt: string;
+        };
         /**
          * OperationSource
          * @enum {string}
          */
-        OperationSource: "manual" | "bank_pdf" | "system";
+        OperationSource: "manual" | "bank_pdf" | "system" | "debt";
         /**
          * OperationStatus
          * @enum {string}
@@ -3800,6 +4194,35 @@ export interface components {
          * @enum {string}
          */
         RawTransactionStatus: "extracted" | "normalized" | "suggested" | "needs_review" | "matched" | "ignored" | "duplicate" | "possible_duplicate" | "failed" | "confirmed";
+        /** RecordDebtPaymentApiRequest */
+        RecordDebtPaymentApiRequest: {
+            /**
+             * Settlementaccountid
+             * Format: uuid
+             */
+            settlementAccountId: string;
+            /**
+             * Principalamount
+             * @default 0.00
+             */
+            principalAmount: string;
+            /**
+             * Interestamount
+             * @default 0.00
+             */
+            interestAmount: string;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /** Interestcategoryid */
+            interestCategoryId?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
         /** ReportAccountBalanceApiResponse */
         ReportAccountBalanceApiResponse: {
             /**
@@ -4112,6 +4535,43 @@ export interface components {
          * @enum {string}
          */
         StatementValidationStatus: "valid" | "mismatch" | "unavailable" | "needs_review";
+        /** TakeLoanApiRequest */
+        TakeLoanApiRequest: {
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+            /** Openedon */
+            openedOn?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action: "take_loan";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "loan_payable" | "mortgage";
+            /** Amount */
+            amount: string;
+            /**
+             * Receivingaccountid
+             * Format: uuid
+             */
+            receivingAccountId: string;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /** Maturitydate */
+            maturityDate?: string | null;
+            /** Description */
+            description?: string | null;
+        };
         /** TelegramDevLinkConfigApiResponse */
         TelegramDevLinkConfigApiResponse: {
             /**
@@ -4436,6 +4896,13 @@ export interface components {
              */
             expectedUpdatedAt: string;
         };
+        /** UndoDebtPaymentApiRequest */
+        UndoDebtPaymentApiRequest: {
+            /** Expectedprincipaloperationversion */
+            expectedPrincipalOperationVersion?: number | null;
+            /** Expectedinterestoperationversion */
+            expectedInterestOperationVersion?: number | null;
+        };
         /**
          * UnsignedAmountDirection
          * @enum {string}
@@ -4446,6 +4913,24 @@ export interface components {
             /** Name */
             name: string;
             kind: components["schemas"]["CategoryKind"];
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Expectedupdatedat
+             * Format: date-time
+             */
+            expectedUpdatedAt: string;
+        };
+        /** UpdateDebtApiRequest */
+        UpdateDebtApiRequest: {
+            /** Name */
+            name: string;
+            /** Openedon */
+            openedOn?: string | null;
+            /** Maturitydate */
+            maturityDate?: string | null;
+            /** Creditlimit */
+            creditLimit?: string | null;
             /** Notes */
             notes?: string | null;
             /**
@@ -6826,6 +7311,595 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_debts_api_v1_debts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DebtPortfolioApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    create_debt_api_v1_debts_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddExistingDebtApiRequest"] | components["schemas"]["GiveLoanApiRequest"] | components["schemas"]["TakeLoanApiRequest"] | components["schemas"]["OpenCreditCardApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DebtDetailApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_debt_api_v1_debts__debt_id__get: {
+        parameters: {
+            query?: {
+                paymentsPage?: number;
+                paymentsPageSize?: number;
+            };
+            header?: never;
+            path: {
+                debt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DebtDetailApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    update_debt_api_v1_debts__debt_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                debt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDebtApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DebtDetailApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    delete_debt_api_v1_debts__debt_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                debt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteDebtApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteDebtApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_debt_payment_api_v1_debts__debt_id__payments_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                debt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordDebtPaymentApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DebtDetailApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    archive_debt_api_v1_debts__debt_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                debt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DebtLifecycleApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DebtDetailApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    restore_debt_api_v1_debts__debt_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                debt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DebtLifecycleApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DebtDetailApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    undo_debt_payment_api_v1_debt_payments__payment_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UndoDebtPaymentApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DebtDetailApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

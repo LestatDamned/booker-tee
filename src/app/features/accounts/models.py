@@ -25,6 +25,14 @@ class AccountType(StrEnum):
     DEPOSIT = "deposit"
     CHECKING = "checking"
     OTHER = "other"
+    DEBT = "debt"
+
+    @classmethod
+    def user_managed(cls) -> list[AccountType]:
+        return [account_type for account_type in cls if account_type is not cls.DEBT]
+
+    def is_user_managed(self) -> bool:
+        return self is not self.DEBT
 
 
 class Account(Base):

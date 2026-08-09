@@ -158,7 +158,7 @@ class ImportReviewTransferActor:
             matched_raw_transaction_id=matched_raw_transaction_id,
         )
         ensure_raw_transaction_can_post_as_transfer(raw_transaction)
-        source_account = await self._references.get_account(
+        source_account = await self._references.get_transfer_account(
             context.workspace.id,
             require_raw_transaction_account_id(raw_transaction),
         )
@@ -295,7 +295,7 @@ class ImportReviewTransferActor:
             ensure_raw_transaction_can_post_as_transfer(matched_raw_transaction)
             ensure_matched_transfer_account(matched_raw_transaction, counterparty_account_id)
             return TransferCounterparty(
-                account=await self._references.get_account(
+                account=await self._references.get_transfer_account(
                     workspace_id,
                     require_raw_transaction_account_id(matched_raw_transaction),
                 ),
@@ -305,7 +305,7 @@ class ImportReviewTransferActor:
         if counterparty_account_id is None:
             raise LedgerPostingError("Transfer account is required.")
         return TransferCounterparty(
-            account=await self._references.get_account(
+            account=await self._references.get_transfer_account(
                 workspace_id,
                 counterparty_account_id,
             ),

@@ -6,6 +6,7 @@ from app.api.v1.auth.router import router as auth_router
 from app.api.v1.categories.router import router as categories_router
 from app.api.v1.chat_integrations.router import router as chat_integrations_router
 from app.api.v1.dashboard.router import router as dashboard_router
+from app.api.v1.debts.router import router as debts_router
 from app.api.v1.import_review.router import router as import_review_router
 from app.api.v1.imports.router import router as imports_router
 from app.api.v1.manual_ledger.router import router as manual_ledger_router
@@ -22,6 +23,7 @@ router.include_router(auth_router)
 router.include_router(categories_router)
 router.include_router(chat_integrations_router)
 router.include_router(dashboard_router)
+router.include_router(debts_router)
 router.include_router(imports_router)
 router.include_router(import_review_router)
 router.include_router(manual_ledger_router)

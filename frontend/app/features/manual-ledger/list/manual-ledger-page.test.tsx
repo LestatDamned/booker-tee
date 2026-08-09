@@ -321,7 +321,14 @@ function ledger(): ManualLedgerDto {
     },
     filterOptions: {
       accounts: [
-        { id: crypto.randomUUID(), name: "Основной счёт", currency: "RUB" },
+        {
+          id: crypto.randomUUID(),
+          name: "Основной счёт",
+          currency: "RUB",
+          canRecordIncome: true,
+          canRecordExpense: true,
+          canTransfer: true,
+        },
       ],
       categories: [],
       properties: [],

@@ -27,7 +27,6 @@ from app.api.v1.imports.schemas import (
 from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
-from app.features.accounts.service import AccountService
 from app.features.imports.documents.commands.manage import (
     ImportDocumentManagementUseCase,
 )
@@ -44,6 +43,7 @@ from app.features.imports.documents.queries.detail import (
 )
 from app.features.imports.documents.queries.list import ImportDocumentListReader
 from app.features.imports.documents.repository import DocumentRepository
+from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.workspaces.permissions import can_manage_imports, permission_flags_for
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -63,7 +63,9 @@ async def get_import_upload_reference(
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ImportUploadReferenceApiResponse:
-    accounts = await AccountService(session).list_active_accounts(context.workspace.workspace.id)
+    accounts = await LedgerReferenceResolver(session).list_manual_accounts(
+        context.workspace.workspace.id
+    )
     return ImportUploadReferenceApiResponse(
         accounts=[
             ImportUploadReferenceAccountApiResponse(

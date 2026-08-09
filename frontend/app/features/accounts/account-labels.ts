@@ -5,6 +5,7 @@ export const accountTypeLabels: Record<AccountType, string> = {
   card: "Карта",
   deposit: "Вклад",
   checking: "Расчётный",
+  debt: "Долг",
   other: "Другой",
 };
 

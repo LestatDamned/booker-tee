@@ -33,6 +33,7 @@
 | Исполнение          | [`frontend/plan/README.md`](frontend/plan/README.md)                                     | Текущий migration stage                         |
 | Рефакторинг imports | [`refactoring/imports/README.md`](refactoring/imports/README.md)                         | Активный план границ, этапов и тестов           |
 | Рефакторинг ledger  | [`refactoring/ledger/TARGET_ARCHITECTURE.md`](refactoring/ledger/TARGET_ARCHITECTURE.md) | Transaction, DTO и module boundaries            |
+| Долги               | [`features/debts/README.md`](features/debts/README.md)                                 | Модель долгов и пошаговая реализация             |
 
 ## Операционные документы
 

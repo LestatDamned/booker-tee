@@ -85,6 +85,9 @@ class ManualLedgerAccountOptionDto(ApplicationModel):
     id: UUID
     name: str
     currency: str
+    can_record_income: bool
+    can_record_expense: bool
+    can_transfer: bool
 
 
 class ManualLedgerNamedOptionDto(ApplicationModel):

@@ -16,7 +16,7 @@ class AccountServiceStub:
         self.workspace_ids: list[UUID] = []
         self.records = records or []
 
-    async def list_active_accounts(self, workspace_id: UUID) -> list[Account]:
+    async def list_manual_accounts(self, workspace_id: UUID) -> list[Account]:
         self.workspace_ids.append(workspace_id)
         return self.records
 
@@ -67,6 +67,7 @@ async def test_reference_reader_uses_read_only_workspace_scoped_services() -> No
 async def test_reference_reader_returns_narrow_immutable_options() -> None:
     workspace_id = uuid4()
     account_id = uuid4()
+    credit_card_id = uuid4()
     category_id = uuid4()
     property_id = uuid4()
     reader = ManualLedgerReferenceReader(
@@ -79,7 +80,15 @@ async def test_reference_reader_returns_narrow_immutable_options() -> None:
                     type=AccountType.CHECKING,
                     currency="RUB",
                     initial_balance=Decimal("0.00"),
-                )
+                ),
+                Account(
+                    id=credit_card_id,
+                    workspace_id=workspace_id,
+                    name="Кредитная карта",
+                    type=AccountType.DEBT,
+                    currency="RUB",
+                    initial_balance=Decimal("0.00"),
+                ),
             ]
         ),
         categories=CategoryServiceStub(
@@ -109,5 +118,12 @@ async def test_reference_reader_returns_narrow_immutable_options() -> None:
 
     assert references.accounts[0].id == account_id
     assert references.accounts[0].currency == "RUB"
+    assert references.accounts[0].can_record_income is True
+    assert references.accounts[0].can_record_expense is True
+    assert references.accounts[0].can_transfer is True
+    assert references.accounts[1].id == credit_card_id
+    assert references.accounts[1].can_record_income is False
+    assert references.accounts[1].can_record_expense is True
+    assert references.accounts[1].can_transfer is False
     assert references.categories[0].id == category_id
     assert references.properties[0].id == property_id

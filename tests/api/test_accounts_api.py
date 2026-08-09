@@ -1,15 +1,26 @@
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import uuid4
 
 from accounts_support import account_correction_app, account_detail_app, accounts_app
 
 from api_client import ApiTestClient as TestClient
+from app.api.v1.accounts.detail_mapping import AccountDetailResponseMapper
 from app.features.accounts.models import AccountType
 from app.features.accounts.schemas import CreateAccountCommand, UpdateAccountCommand
+from app.features.ledger.application.account_ledger import (
+    AccountView,
+    OperationRefMoneyEntryView,
+    OperationRefView,
+)
 from app.features.ledger.application.imported_operations import (
     UpdateImportedOperationReviewFieldsCommand,
 )
-from app.features.ledger.domain.types import OperationStatus, OperationType
+from app.features.ledger.domain.types import (
+    OperationSource,
+    OperationStatus,
+    OperationType,
+)
 from app.features.ledger.errors import OperationVersionConflictError
 from app.features.workspaces.domain.types import WorkspaceRole
 from app.main import create_app
@@ -54,6 +65,7 @@ def test_account_detail_returns_account_relative_transfer_and_source_target() ->
         "kind": "manual",
         "uploadedDocumentId": None,
         "rawTransactionId": None,
+        "debtAccountId": None,
     }
     assert payload["items"][0]["capabilities"] == {
         "canEditReviewFields": False,
@@ -76,6 +88,43 @@ def test_account_detail_returns_workspace_scoped_not_found() -> None:
     assert response.json()["error"]["code"] == "account_not_found"
     assert len(ledger.calls) == 1
     assert references.workspace_ids == []
+
+
+def test_account_detail_links_debt_operation_to_debt_workflow() -> None:
+    debt_account_id = uuid4()
+    debt_account = AccountView(
+        id=debt_account_id,
+        name="Ипотека",
+        type=AccountType.DEBT,
+        currency="RUB",
+        is_active=True,
+        initial_balance=Decimal("-100000.00"),
+        updated_at=datetime(2026, 8, 9, tzinfo=UTC),
+    )
+    operation = OperationRefView(
+        id=uuid4(),
+        version=1,
+        type=OperationType.TRANSFER,
+        status=OperationStatus.CONFIRMED,
+        source=OperationSource.DEBT,
+        operation_date=date(2026, 8, 9),
+        description="Платёж",
+        category=None,
+        property=None,
+        money_entries=[
+            OperationRefMoneyEntryView(
+                account_id=debt_account_id,
+                account=debt_account,
+                amount=Decimal("1000.00"),
+            )
+        ],
+        raw_transactions=[],
+    )
+
+    target = AccountDetailResponseMapper._source_target(operation)
+
+    assert target.kind == "debt"
+    assert target.debt_account_id == debt_account_id
 
 
 def test_account_detail_hides_mutations_from_viewer() -> None:

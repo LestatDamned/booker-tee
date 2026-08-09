@@ -18,6 +18,7 @@ import {
   FileText,
   Funnel,
   FunnelSimple,
+  HandCoins,
   House,
   Info,
   Lightning,
@@ -44,6 +45,7 @@ export type IconName =
   | "close"
   | "copy"
   | "delete"
+  | "debts"
   | "edit"
   | "expand"
   | "filter"
@@ -80,6 +82,7 @@ const icons: Record<IconName, PhosphorIcon> = {
   close: X,
   copy: Copy,
   delete: Trash,
+  debts: HandCoins,
   edit: PencilSimple,
   error: XCircle,
   expand: CaretDown,

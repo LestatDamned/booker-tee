@@ -226,6 +226,9 @@ def filter_references() -> ManualLedgerReferenceOptionsDto:
                 id=uuid4(),
                 name="Основной счёт",
                 currency="RUB",
+                can_record_income=True,
+                can_record_expense=True,
+                can_transfer=True,
             )
         ],
         categories=[

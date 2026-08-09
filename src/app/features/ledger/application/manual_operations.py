@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.accounts.models import AccountType
 from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.types import OperationSource, manual_operation_actions
 from app.features.ledger.errors import (
@@ -40,10 +41,11 @@ class NamedReferenceRecord(Protocol):
 
 class AccountReferenceRecord(NamedReferenceRecord, Protocol):
     currency: str
+    type: AccountType
 
 
 class AccountReferenceSource(Protocol):
-    async def list_active_accounts(
+    async def list_manual_accounts(
         self,
         workspace_id: UUID,
     ) -> Sequence[AccountReferenceRecord]: ...
@@ -70,11 +72,21 @@ class ManualLedgerReferenceReader:
         self._properties = properties
 
     async def read(self, workspace_id: UUID) -> ManualLedgerReferenceOptionsDto:
-        accounts = await self._accounts.list_active_accounts(workspace_id)
+        accounts = await self._accounts.list_manual_accounts(workspace_id)
         categories = await self._categories.list_active(workspace_id)
         properties = await self._properties.list_active(workspace_id)
         return ManualLedgerReferenceOptionsDto(
-            accounts=[ManualLedgerAccountOptionDto.model_validate(account) for account in accounts],
+            accounts=[
+                ManualLedgerAccountOptionDto(
+                    id=account.id,
+                    name=account.name,
+                    currency=account.currency,
+                    can_record_income=account.type is not AccountType.DEBT,
+                    can_record_expense=True,
+                    can_transfer=account.type is not AccountType.DEBT,
+                )
+                for account in accounts
+            ],
             categories=[
                 ManualLedgerNamedOptionDto.model_validate(category) for category in categories
             ],

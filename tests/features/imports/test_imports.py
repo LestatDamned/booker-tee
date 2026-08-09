@@ -122,7 +122,7 @@ async def test_statement_upload_replays_same_idempotent_payload(tmp_path: Path) 
     )
 
     class Accounts:
-        async def get_for_workspace(self, requested_workspace_id, account_id):
+        async def get_import_account(self, requested_workspace_id, account_id):
             assert requested_workspace_id == workspace_id
             assert account_id == account.id
             return account
@@ -169,7 +169,7 @@ async def test_statement_upload_rejects_changed_idempotent_payload(tmp_path: Pat
     )
 
     class Accounts:
-        async def get_for_workspace(self, *_args):
+        async def get_import_account(self, *_args):
             return account
 
     class Imports:

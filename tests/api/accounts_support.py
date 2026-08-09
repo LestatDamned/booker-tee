@@ -395,7 +395,7 @@ def account_directory(*, can_create: bool = True) -> AccountDirectoryDto:
                 updated_at=datetime(2026, 7, 30, 12, 0, tzinfo=UTC),
             )
         ],
-        account_types=list(AccountType),
+        account_types=AccountType.user_managed(),
         capabilities=AccountDirectoryCapabilitiesDto(
             can_create=can_create,
             readonly_reason_code=(

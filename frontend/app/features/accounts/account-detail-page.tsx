@@ -477,6 +477,14 @@ function movementSourceTarget(movement: AccountDetailDto["items"][number]): {
   if (movement.sourceTarget.kind === "import") {
     return { label: "Найти импорт", url: "/app/imports" };
   }
+  if (movement.sourceTarget.kind === "debt") {
+    return {
+      label: "Открыть долг",
+      url: movement.sourceTarget.debtAccountId
+        ? `/debts/${movement.sourceTarget.debtAccountId}`
+        : "/debts",
+    };
+  }
   return { label: "Системная операция", url: null };
 }
 

@@ -35,6 +35,9 @@ const filterOptionsSchema = z.object({
   accounts: z.array(
     namedReferenceSchema.extend({
       currency: z.string(),
+      canRecordIncome: z.boolean(),
+      canRecordExpense: z.boolean(),
+      canTransfer: z.boolean(),
     }),
   ),
   categories: z.array(namedReferenceSchema),

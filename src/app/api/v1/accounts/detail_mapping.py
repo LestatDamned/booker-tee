@@ -11,6 +11,7 @@ from app.api.v1.accounts.schemas import (
     AccountMovementCapabilitiesApiResponse,
     AccountMovementSourceTargetApiResponse,
 )
+from app.features.accounts.models import AccountType
 from app.features.ledger.application.account_ledger import (
     AccountLedgerDetailView,
     AccountLedgerEntryView,
@@ -135,6 +136,19 @@ class AccountDetailResponseMapper:
                 kind="import",
                 uploaded_document_id=raw.uploaded_document_id if raw else None,
                 raw_transaction_id=raw.id if raw else None,
+            )
+        if operation.source == OperationSource.DEBT:
+            debt_entry = next(
+                (
+                    item
+                    for item in operation.money_entries
+                    if item.account is not None and item.account.type is AccountType.DEBT
+                ),
+                None,
+            )
+            return AccountMovementSourceTargetApiResponse(
+                kind="debt",
+                debt_account_id=debt_entry.account_id if debt_entry else None,
             )
         return AccountMovementSourceTargetApiResponse(kind="system")
 

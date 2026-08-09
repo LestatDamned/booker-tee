@@ -31,6 +31,44 @@ def test_decimal_initial_balance_can_be_quantized_without_float() -> None:
 
 
 @pytest.mark.asyncio
+async def test_generic_account_service_rejects_debt_account_creation() -> None:
+    service = account_service(existing_account(), has_entries=False)
+
+    with pytest.raises(AccountError):
+        await service.create(
+            workspace_id=uuid4(),
+            name="Ипотека",
+            account_type=AccountType.DEBT,
+            currency="RUB",
+            initial_balance=Decimal("-100.00"),
+        )
+
+
+@pytest.mark.asyncio
+async def test_generic_account_service_rejects_debt_account_changes() -> None:
+    account = existing_account()
+    account.type = AccountType.DEBT
+    service = account_service(account, has_entries=False)
+
+    with pytest.raises(AccountError):
+        await service.update(
+            workspace_id=account.workspace_id,
+            account_id=account.id,
+            name="Ипотека",
+            account_type=AccountType.CARD,
+            currency=account.currency,
+            initial_balance=account.initial_balance,
+        )
+
+    with pytest.raises(AccountError):
+        await service.set_active(
+            workspace_id=account.workspace_id,
+            account_id=account.id,
+            is_active=False,
+        )
+
+
+@pytest.mark.asyncio
 async def test_update_rejects_currency_change_when_account_has_entries() -> None:
     account = existing_account()
     service = account_service(account, has_entries=True)

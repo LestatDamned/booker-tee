@@ -30,6 +30,9 @@ export function ManualOperationFields({
 }: ManualOperationFieldsProps) {
   const categoryRef = useRef<HTMLInputElement>(null);
   const isTransfer = draft.operationType === "transfer";
+  const accountOptions = options.accounts.filter((account) =>
+    accountSupports(account, draft.operationType),
+  );
   const selectedCurrency = options.accounts.find(
     (account) => account.id === draft.accountId,
   )?.currency;
@@ -57,14 +60,22 @@ export function ManualOperationFields({
                   checked={draft.operationType === option.value}
                   id={id}
                   name={`${idPrefix}-operation-type`}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    const operationType = parseManualOperationType(
+                      event.currentTarget.value,
+                    );
+                    const account = options.accounts.find(
+                      (item) => item.id === draft.accountId,
+                    );
                     onChange({
                       ...draft,
-                      operationType: parseManualOperationType(
-                        event.currentTarget.value,
-                      ),
-                    })
-                  }
+                      operationType,
+                      accountId:
+                        account && accountSupports(account, operationType)
+                          ? draft.accountId
+                          : "",
+                    });
+                  }}
                   required
                   type="radio"
                   value={option.value}
@@ -94,7 +105,7 @@ export function ManualOperationFields({
                   : draft.destinationAccountId,
             })
           }
-          options={options.accounts}
+          options={accountOptions}
           value={draft.accountId}
         />
         {isTransfer ? (
@@ -106,7 +117,7 @@ export function ManualOperationFields({
             onChange={(destinationAccountId) =>
               onChange({ ...draft, destinationAccountId })
             }
-            options={options.accounts.filter(
+            options={accountOptions.filter(
               (account) => account.id !== draft.accountId,
             )}
             value={draft.destinationAccountId}
@@ -205,6 +216,15 @@ export function ManualOperationFields({
       </div>
     </div>
   );
+}
+
+function accountSupports(
+  account: ManualLedgerDto["filterOptions"]["accounts"][number],
+  operationType: ManualOperationDraft["operationType"],
+): boolean {
+  if (operationType === "transfer") return account.canTransfer;
+  if (operationType === "income") return account.canRecordIncome;
+  return account.canRecordExpense;
 }
 
 type CategorySelectProps = {
