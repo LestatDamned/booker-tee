@@ -19,6 +19,12 @@ class ReportParameters:
     pagination: ReportingPagination
 
 
+@dataclass(frozen=True)
+class MonthlyReportParameters:
+    month: str
+    currency: str
+
+
 def parse_report_parameters(
     date_from: Annotated[str | None, Query()] = None,
     date_to: Annotated[str | None, Query()] = None,
@@ -51,6 +57,24 @@ def parse_report_parameters(
             ),
         ),
     )
+
+
+def parse_monthly_report_parameters(
+    month: Annotated[str, Query()],
+    currency: Annotated[str, Query()],
+) -> MonthlyReportParameters:
+    normalized_currency = currency.strip().upper()
+    if (
+        len(normalized_currency) != 3
+        or not normalized_currency.isascii()
+        or not normalized_currency.isalpha()
+    ):
+        raise ApiError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="invalid_report_currency",
+            message="Параметр currency должен быть трёхбуквенным кодом валюты.",
+        )
+    return MonthlyReportParameters(month=month.strip(), currency=normalized_currency)
 
 
 def parse_date(value: str | None, field: str) -> date | None:

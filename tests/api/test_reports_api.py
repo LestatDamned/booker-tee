@@ -1,15 +1,25 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
+from io import BytesIO
 from uuid import UUID, uuid4
 
 import pytest
 from manual_ledger_support import api_context
+from openpyxl import load_workbook
 
 from api_client import ApiTestClient as TestClient
 from app.api.dependencies import get_api_request_context
-from app.api.v1.reports.dependencies import get_reporting_overview_reader
+from app.api.v1.reports.dependencies import (
+    get_monthly_report_reader,
+    get_reporting_overview_reader,
+)
 from app.api.v1.reports.router import uncategorized_operation
 from app.features.ledger.domain.types import OperationSource, OperationType
+from app.features.reports.application.monthly_export import (
+    InvalidReportMonthError,
+    MonthlyExportTooLargeError,
+    MonthlyReportData,
+)
 from app.features.reports.application.overview import (
     ReportBalanceSummary,
     ReportingFilterError,
@@ -137,12 +147,125 @@ class ReportingReaderStub:
         )
 
 
+class MonthlyReaderStub:
+    def __init__(self, *, failure: str | None = None) -> None:
+        self.failure = failure
+        self.calls: list[tuple[UUID, str, str, str, str]] = []
+
+    async def read(
+        self,
+        *,
+        workspace_id: UUID,
+        workspace_name: str,
+        default_currency: str,
+        month: str,
+        currency: str,
+    ) -> MonthlyReportData:
+        self.calls.append((workspace_id, workspace_name, default_currency, month, currency))
+        if self.failure == "month":
+            raise InvalidReportMonthError
+        if self.failure == "limit":
+            raise MonthlyExportTooLargeError
+        overview = await ReportingReaderStub().read(
+            workspace_id=workspace_id,
+            default_currency=default_currency,
+            filters=ReportingFilters(
+                date_from=date(2026, 7, 1),
+                date_to=date(2026, 7, 31),
+                currency=currency,
+            ),
+        )
+        return MonthlyReportData(
+            workspace_name=workspace_name,
+            month=month,
+            generated_at=datetime(2026, 8, 1, tzinfo=UTC),
+            overview=overview,
+            entries=[],
+        )
+
+
 def test_reports_api_requires_authentication() -> None:
     with TestClient(create_app()) as client:
         response = client.get("/api/v1/reports")
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
+
+
+def test_monthly_report_export_requires_authentication() -> None:
+    with TestClient(create_app()) as client:
+        response = client.get("/api/v1/reports/export.xlsx?month=2026-07&currency=RUB")
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "unauthorized"
+
+
+def test_monthly_report_export_returns_private_workbook_for_viewer() -> None:
+    app = create_app()
+    context = api_context(role=WorkspaceRole.VIEWER)
+    context.workspace.workspace.name = "Личные финансы"
+    reader = MonthlyReaderStub()
+    app.dependency_overrides[get_api_request_context] = lambda: context
+    app.dependency_overrides[get_monthly_report_reader] = lambda: reader
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/reports/export.xlsx?month=2026-07&currency=rub")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="booker-tee_2026-07_RUB.xlsx"'
+    )
+    assert response.headers["cache-control"] == "private, no-store"
+    assert load_workbook(BytesIO(response.content)).sheetnames == [
+        "Итоги",
+        "Счета",
+        "Категории",
+        "Объекты",
+        "Операции",
+    ]
+    assert reader.calls[0][3:] == ("2026-07", "RUB")
+
+
+@pytest.mark.parametrize(
+    ("failure", "expected_status", "expected_code"),
+    [
+        ("month", 400, "invalid_report_month"),
+        ("limit", 422, "monthly_export_too_large"),
+    ],
+)
+def test_monthly_report_export_maps_bounded_errors(
+    failure: str,
+    expected_status: int,
+    expected_code: str,
+) -> None:
+    app = create_app()
+    context = api_context(role=WorkspaceRole.OWNER)
+    app.dependency_overrides[get_api_request_context] = lambda: context
+    app.dependency_overrides[get_monthly_report_reader] = lambda: MonthlyReaderStub(failure=failure)
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/reports/export.xlsx?month=2026-07&currency=RUB")
+
+    assert response.status_code == expected_status
+    assert response.json()["error"]["code"] == expected_code
+
+
+def test_monthly_report_export_rejects_unsafe_currency_before_reads() -> None:
+    app = create_app()
+    context = api_context(role=WorkspaceRole.OWNER)
+    reader = MonthlyReaderStub()
+    app.dependency_overrides[get_api_request_context] = lambda: context
+    app.dependency_overrides[get_monthly_report_reader] = lambda: reader
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/reports/export.xlsx?month=2026-07&currency=R1B")
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_report_currency"
+    assert reader.calls == []
 
 
 def test_reports_api_returns_currency_safe_decimal_string_contract() -> None:

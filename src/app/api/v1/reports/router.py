@@ -1,12 +1,21 @@
+import asyncio
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.errors import ApiError, api_error_responses
-from app.api.v1.reports.dependencies import get_reporting_overview_reader
-from app.api.v1.reports.parameters import ReportParameters, parse_report_parameters
+from app.api.v1.reports.dependencies import (
+    get_monthly_report_reader,
+    get_reporting_overview_reader,
+)
+from app.api.v1.reports.parameters import (
+    MonthlyReportParameters,
+    ReportParameters,
+    parse_monthly_report_parameters,
+    parse_report_parameters,
+)
 from app.api.v1.reports.schemas import (
     ReportAccountBalanceApiResponse,
     ReportAccountOptionApiResponse,
@@ -23,10 +32,16 @@ from app.api.v1.reports.schemas import (
     ReportUncategorizedPageApiResponse,
 )
 from app.features.ledger.domain.types import OperationSource
+from app.features.reports.application.monthly_export import (
+    InvalidReportMonthError,
+    MonthlyExportTooLargeError,
+    MonthlyReportReader,
+)
 from app.features.reports.application.overview import (
     ReportingFilterError,
     ReportingOverviewReader,
 )
+from app.features.reports.monthly_report_xlsx import build_monthly_report_xlsx
 from app.features.reports.repository import (
     ReportMoneySummaryRow,
     ReportUncategorizedOperationRow,
@@ -34,6 +49,68 @@ from app.features.reports.repository import (
 from app.features.workspaces.permissions import can_write_financial_data
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@router.get(
+    "/export.xlsx",
+    response_class=Response,
+    responses={
+        200: {"content": {XLSX_MEDIA_TYPE: {}}},
+        **api_error_responses(
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+        ),
+    },
+)
+async def export_monthly_report(
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    parameters: Annotated[
+        MonthlyReportParameters,
+        Depends(parse_monthly_report_parameters),
+    ],
+    reader: Annotated[MonthlyReportReader, Depends(get_monthly_report_reader)],
+) -> Response:
+    workspace = context.workspace.workspace
+    try:
+        report = await reader.read(
+            workspace_id=workspace.id,
+            workspace_name=workspace.name,
+            default_currency=workspace.default_currency,
+            month=parameters.month,
+            currency=parameters.currency,
+        )
+    except InvalidReportMonthError as error:
+        raise ApiError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="invalid_report_month",
+            message="Параметр month должен быть календарным месяцем YYYY-MM.",
+        ) from error
+    except ReportingFilterError as error:
+        raise ApiError(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code=error.code,
+            message=str(error),
+        ) from error
+    except MonthlyExportTooLargeError as error:
+        raise ApiError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="monthly_export_too_large",
+            message="В выбранном месяце больше 10 000 движений.",
+        ) from error
+
+    payload = await asyncio.to_thread(build_monthly_report_xlsx, report)
+    filename = f"booker-tee_{report.month}_{report.overview.summary.currency}.xlsx"
+    return Response(
+        content=payload,
+        media_type=XLSX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "private, no-store",
+        },
+    )
 
 
 @router.get(

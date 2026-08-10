@@ -9,6 +9,7 @@ import {
   reportCurrentMonthRange,
   reportCurrentMonthSearch,
   reportFilterSearch,
+  reportMonthlyExportHref,
   reportMonthSearch,
 } from "./report-filter-query";
 
@@ -92,6 +93,21 @@ describe("report filter query", () => {
     );
     expect(search).not.toContain("date_from");
     expect(search).toContain(`account_id=${accountId}`);
+  });
+
+  it("builds a bounded export URL only for a full calendar month", () => {
+    expect(reportMonthlyExportHref(reportOverview)).toBe(
+      "/api/v1/reports/export.xlsx?month=2026-07&currency=RUB",
+    );
+    expect(
+      reportMonthlyExportHref({
+        ...reportOverview,
+        appliedFilters: {
+          ...reportOverview.appliedFilters,
+          dateTo: "2026-07-30",
+        },
+      }),
+    ).toBeNull();
   });
 
   it("drops superseded presentation state and resets bounded pages", () => {

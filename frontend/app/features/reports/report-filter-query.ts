@@ -149,6 +149,19 @@ export function reportAllTimeSearch(
   return reportFilterSearch(filters, currentSearch);
 }
 
+export function reportMonthlyExportHref(
+  overview: ReportOverviewDto,
+): string | null {
+  const { currency, dateFrom, dateTo } = overview.appliedFilters;
+  if (!dateFrom || !dateTo || !dateFrom.endsWith("-01")) return null;
+  if (dateTo !== monthEnd(dateFrom)) return null;
+  const search = new URLSearchParams({
+    month: dateFrom.slice(0, 7),
+    currency,
+  });
+  return `/api/v1/reports/export.xlsx?${search.toString()}`;
+}
+
 export function reportAppliedFilters(overview: ReportOverviewDto): string[] {
   const filters = overview.appliedFilters;
   const labels = [`Валюта: ${filters.currency}`];

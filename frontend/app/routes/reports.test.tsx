@@ -420,6 +420,23 @@ describe("reports route", () => {
     expect(
       screen.getByRole("link", { name: "Этот месяц" }),
     ).not.toHaveAttribute("aria-current");
+    expect(
+      screen.getByRole("button", { name: "Скачать отчёт" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("group", {
+        name: "Выберите полный месяц, чтобы скачать отчёт",
+      }),
+    ).toHaveAttribute("title", "Выберите полный месяц, чтобы скачать отчёт");
+  });
+
+  it("downloads the selected full month without client-side report data", () => {
+    renderReports();
+
+    expect(screen.getByRole("link", { name: "Скачать отчёт" })).toHaveAttribute(
+      "href",
+      "/api/v1/reports/export.xlsx?month=2026-07&currency=RUB",
+    );
   });
 
   it("shows one clear matrix empty state when the category structure is empty", () => {

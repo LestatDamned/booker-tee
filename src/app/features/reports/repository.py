@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.accounts.models import Account
 from app.features.categories.models import Category
 from app.features.imports.documents.types import UploadedDocumentStatus
-from app.features.imports.models import UploadedDocument
+from app.features.imports.models import RawTransaction, UploadedDocument
 from app.features.ledger.domain.types import (
     OperationSource,
     OperationStatus,
@@ -102,6 +102,25 @@ class ReportUncategorizedOperationRow:
     signed_amount: Decimal
     currency: str
     account_id: UUID | None
+
+
+@dataclass(frozen=True)
+class ReportOperationEntryRow:
+    operation_id: UUID
+    entry_order: int
+    operation_date: date
+    posting_date: date | None
+    operation_type: OperationType
+    source: OperationSource
+    account_name: str
+    amount: Decimal
+    currency: str
+    affects_profit: bool
+    category_name: str | None
+    property_name: str | None
+    description: str
+    import_documents: str | None
+    import_rows: str | None
 
 
 @dataclass(frozen=True)
@@ -452,6 +471,146 @@ class ReportsRepository:
             .limit(1)
         )
         return result.scalar_one_or_none()
+
+    async def list_operation_entries(
+        self,
+        *,
+        workspace_id: UUID,
+        filters: "ReportingFilters",
+        limit: int,
+    ) -> list[ReportOperationEntryRow]:
+        category_name = case(
+            (Category.system_key == "uncategorized", "Без категории"),
+            else_=Category.name,
+        )
+        result = await self.session.execute(
+            select(
+                Operation.id,
+                MoneyEntry.entry_order,
+                Operation.operation_date,
+                Operation.posting_date,
+                Operation.type,
+                Operation.source,
+                Account.name,
+                MoneyEntry.amount,
+                MoneyEntry.currency,
+                Operation.affects_profit,
+                category_name,
+                Property.name,
+                Operation.description,
+            )
+            .select_from(MoneyEntry)
+            .join(Operation, Operation.id == MoneyEntry.operation_id)
+            .join(
+                Account,
+                and_(
+                    Account.id == MoneyEntry.account_id,
+                    Account.workspace_id == workspace_id,
+                ),
+            )
+            .outerjoin(
+                Category,
+                and_(
+                    Category.id == Operation.category_id,
+                    Category.workspace_id == workspace_id,
+                ),
+            )
+            .outerjoin(
+                Property,
+                and_(
+                    Property.id == Operation.property_id,
+                    Property.workspace_id == workspace_id,
+                ),
+            )
+            .where(
+                MoneyEntry.workspace_id == workspace_id,
+                MoneyEntry.currency == filters.currency,
+                Operation.workspace_id == workspace_id,
+                Operation.status == OperationStatus.CONFIRMED,
+                Operation.operation_date >= filters.date_from,
+                Operation.operation_date <= filters.date_to,
+            )
+            .order_by(
+                Operation.operation_date,
+                Operation.created_at,
+                Operation.id,
+                MoneyEntry.entry_order,
+                MoneyEntry.id,
+            )
+            .limit(limit)
+        )
+        entry_rows = result.all()
+        operation_ids = {row[0] for row in entry_rows}
+        provenance: dict[UUID, tuple[list[str], list[str]]] = {}
+        if operation_ids:
+            provenance_result = await self.session.execute(
+                select(
+                    RawTransaction.linked_operation_id,
+                    UploadedDocument.original_filename,
+                    RawTransaction.row_index,
+                )
+                .join(
+                    UploadedDocument,
+                    and_(
+                        UploadedDocument.id == RawTransaction.uploaded_document_id,
+                        UploadedDocument.workspace_id == workspace_id,
+                    ),
+                )
+                .where(
+                    RawTransaction.workspace_id == workspace_id,
+                    RawTransaction.linked_operation_id.in_(operation_ids),
+                )
+                .order_by(
+                    RawTransaction.linked_operation_id,
+                    UploadedDocument.original_filename,
+                    RawTransaction.row_index,
+                    RawTransaction.id,
+                )
+            )
+            for operation_id, filename, row_index in provenance_result.all():
+                if operation_id is None:
+                    continue
+                documents, row_indexes = provenance.setdefault(operation_id, ([], []))
+                if filename not in documents:
+                    documents.append(filename)
+                row_label = str(row_index)
+                if row_label not in row_indexes:
+                    row_indexes.append(row_label)
+
+        return [
+            ReportOperationEntryRow(
+                operation_id=operation_id,
+                entry_order=entry_order,
+                operation_date=operation_date,
+                posting_date=posting_date,
+                operation_type=operation_type,
+                source=source,
+                account_name=account_name,
+                amount=_money(amount),
+                currency=currency,
+                affects_profit=affects_profit,
+                category_name=row_category_name,
+                property_name=property_name,
+                description=description or "Без описания",
+                import_documents="; ".join(provenance.get(operation_id, ([], []))[0]) or None,
+                import_rows="; ".join(provenance.get(operation_id, ([], []))[1]) or None,
+            )
+            for (
+                operation_id,
+                entry_order,
+                operation_date,
+                posting_date,
+                operation_type,
+                source,
+                account_name,
+                amount,
+                currency,
+                affects_profit,
+                row_category_name,
+                property_name,
+                description,
+            ) in entry_rows
+        ]
 
     @staticmethod
     def _apply_profit_filters(

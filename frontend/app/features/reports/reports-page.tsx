@@ -17,6 +17,7 @@ import {
   reportAppliedFilters,
   reportCurrentMonthSearch,
   reportCurrentMonthRange,
+  reportMonthlyExportHref,
   reportMonthSearch,
 } from "./report-filter-query";
 import { ReportFilters } from "./report-filters";
@@ -54,6 +55,7 @@ export function ReportsPage({
   );
   const currentMonthSelected = isCurrentMonth(overview);
   const allTimeSelected = isAllTime(overview);
+  const exportHref = reportMonthlyExportHref(overview);
 
   return (
     <AppShell session={session}>
@@ -124,6 +126,19 @@ export function ReportsPage({
               >
                 Всё время
               </RouterButtonLink>
+              {exportHref ? (
+                <ButtonLink href={exportHref}>Скачать отчёт</ButtonLink>
+              ) : (
+                <span
+                  aria-label="Выберите полный месяц, чтобы скачать отчёт"
+                  className={styles.exportDisabled}
+                  role="group"
+                  tabIndex={0}
+                  title="Выберите полный месяц, чтобы скачать отчёт"
+                >
+                  <Button disabled>Скачать отчёт</Button>
+                </span>
+              )}
               <Button
                 aria-controls="report-filter-region"
                 aria-expanded={filtersOpen}
