@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+
 import { formatIsoDate } from "../../shared/date/format-date";
 import type { ImportReviewDto } from "./api/import-review-api";
 import styles from "./duplicate-comparison.module.css";
@@ -6,7 +8,13 @@ type ReviewItemDto = ImportReviewDto["items"][number];
 
 export function DuplicateComparison({ item }: { item: ReviewItemDto }) {
   const evidence = item.duplicateEvidence;
-  if (item.status !== "possible_duplicate" || evidence === null) return null;
+  if (
+    (item.status !== "duplicate" && item.status !== "possible_duplicate") ||
+    evidence === null
+  ) {
+    return null;
+  }
+  const exact = evidence.reasonCode === "same_dedupe_hash";
 
   const currentDate = item.normalized.operationDate ?? item.raw.operationDate;
   const currentAmount = item.normalized.amount ?? item.raw.amount;
@@ -20,8 +28,10 @@ export function DuplicateComparison({ item }: { item: ReviewItemDto }) {
     >
       <header>
         <div>
-          <span>Проверка совпадения</span>
-          <h3 id={`duplicate-comparison-${item.id}`}>Возможный дубль</h3>
+          <span>{exact ? "Повторный импорт" : "Проверка совпадения"}</span>
+          <h3 id={`duplicate-comparison-${item.id}`}>
+            {exact ? "Уже импортировано" : "Возможный дубль"}
+          </h3>
         </div>
         <p>{duplicateReason(evidence)}</p>
       </header>
@@ -35,24 +45,24 @@ export function DuplicateComparison({ item }: { item: ReviewItemDto }) {
             item.raw.description ??
             "Без описания"
           }
-          label="Текущая строка"
+          label={exact ? "Повторная строка" : "Текущая строка"}
         />
         <DuplicateFacts
           amount={candidate.amount}
           currency={candidate.currency}
           date={candidate.operationDate}
           description={candidate.description ?? "Без описания"}
-          label="Найденный кандидат"
+          label={exact ? "Импортировано ранее" : "Найденный кандидат"}
         >
-          <a href={`/app/imports/documents/${candidate.documentId}`}>
+          <Link to={`/imports/documents/${candidate.documentId}`}>
             {candidate.documentFilename}
-          </a>
+          </Link>
           {candidate.operationId ? (
-            <a
-              href={`/app/ledger/manual?operation_id=${candidate.operationId}#operation-${candidate.operationId}`}
+            <Link
+              to={`/imports/documents/${candidate.documentId}/review#raw-${candidate.itemId}`}
             >
               Открыть проведённую операцию
-            </a>
+            </Link>
           ) : null}
         </DuplicateFacts>
       </div>
@@ -103,6 +113,9 @@ function DuplicateFacts({
 function duplicateReason(
   evidence: NonNullable<ReviewItemDto["duplicateEvidence"]>,
 ): string {
+  if (evidence.reasonCode === "same_dedupe_hash") {
+    return "Эта банковская строка уже присутствует в другом документе.";
+  }
   if (evidence.reasonCode !== "same_account_date_amount_currency") {
     return "Backend отметил строки как возможное совпадение.";
   }

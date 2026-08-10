@@ -11,6 +11,7 @@ export type TransactionRuleListQuery = {
   page: number;
   pageSize: number;
   q: string;
+  ruleId: string;
   status: TransactionRuleDirectoryStatus;
 };
 
@@ -22,6 +23,7 @@ export function transactionRuleListQuery(
   return {
     q: normalizeSearch(params.get("q") ?? ""),
     categoryId: validUuid(params.get("category_id")),
+    ruleId: validUuid(params.get("rule_id")),
     status: status === "active" || status === "disabled" ? status : "all",
     page: positiveInteger(params.get("page"), 1),
     pageSize: validPageSize(params.get("page_size")),
@@ -34,6 +36,7 @@ export function transactionRuleListSearch(
   const params = new URLSearchParams();
   if (query.q) params.set("q", normalizeSearch(query.q));
   if (query.categoryId) params.set("category_id", query.categoryId);
+  if (query.ruleId) params.set("rule_id", query.ruleId);
   if (query.status !== "all") params.set("status", query.status);
   if (query.page !== 1) params.set("page", String(query.page));
   if (query.pageSize !== defaultPageSize) {
@@ -52,7 +55,7 @@ export function transactionRuleStatusUrl(
   status: TransactionRuleDirectoryStatus,
 ): string {
   const query = transactionRuleListQuery(currentSearch);
-  return transactionRuleListSearch({ ...query, page: 1, status });
+  return transactionRuleListSearch({ ...query, page: 1, ruleId: "", status });
 }
 
 export function transactionRulePageUrl(
@@ -60,7 +63,11 @@ export function transactionRulePageUrl(
   page: number,
 ): string {
   const query = transactionRuleListQuery(currentSearch);
-  return transactionRuleListSearch({ ...query, page: Math.max(1, page) });
+  return transactionRuleListSearch({
+    ...query,
+    page: Math.max(1, page),
+    ruleId: "",
+  });
 }
 
 export function transactionRuleSearchUrl(
@@ -72,6 +79,7 @@ export function transactionRuleSearchUrl(
     ...query,
     page: 1,
     q: normalizeSearch(q),
+    ruleId: "",
   });
 }
 
@@ -80,7 +88,12 @@ export function transactionRuleFilterUrl(
   categoryId: string,
 ): string {
   const query = transactionRuleListQuery(currentSearch);
-  return transactionRuleListSearch({ ...query, categoryId, page: 1 });
+  return transactionRuleListSearch({
+    ...query,
+    categoryId,
+    page: 1,
+    ruleId: "",
+  });
 }
 
 export function transactionRulePageSizeUrl(
@@ -94,6 +107,7 @@ export function transactionRulePageSizeUrl(
     pageSize: pageSizes.includes(pageSize as (typeof pageSizes)[number])
       ? pageSize
       : defaultPageSize,
+    ruleId: "",
   });
 }
 

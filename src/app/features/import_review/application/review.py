@@ -8,6 +8,9 @@ from app.features.import_review.application.classification import (
     ImportReviewReferenceReader,
     build_import_review_draft_evaluation,
 )
+from app.features.import_review.application.operation_candidates import (
+    ExistingOperationCandidateReader,
+)
 from app.features.import_review.domain.lifecycle import (
     import_review_lifecycle_snapshot,
 )
@@ -27,6 +30,7 @@ from app.features.import_review.schemas.review import (
     ImportReviewDuplicateEvidenceDto,
     ImportReviewDuplicateMatchingField,
     ImportReviewDuplicateMatchReasonCode,
+    ImportReviewExistingOperationCandidateDto,
     ImportReviewItemDto,
     ImportReviewNormalizedSourceDto,
     ImportReviewPostingDto,
@@ -82,6 +86,14 @@ class ImportReviewDuplicateEvidenceSource(Protocol):
 
 
 class ImportReviewDuplicateSource(Protocol):
+    async def list_exact_duplicate_candidates(
+        self,
+        *,
+        workspace_id: UUID,
+        dedupe_hashes: set[str],
+        exclude_document_id: UUID,
+    ) -> list[RawTransaction]: ...
+
     async def list_possible_duplicate_candidates(
         self,
         *,
@@ -104,11 +116,34 @@ class ImportReviewDuplicateReader:
         targets = [
             row
             for row in document.raw_transactions
-            if row.status is RawTransactionStatus.POSSIBLE_DUPLICATE
+            if row.status
+            in {RawTransactionStatus.DUPLICATE, RawTransactionStatus.POSSIBLE_DUPLICATE}
+        ]
+        exact_targets = [
+            row
+            for row in targets
+            if row.status is RawTransactionStatus.DUPLICATE and row.dedupe_hash is not None
+        ]
+        exact_hashes = {row.dedupe_hash for row in exact_targets if row.dedupe_hash}
+        exact_candidates = (
+            await self._source.list_exact_duplicate_candidates(
+                workspace_id=workspace_id,
+                dedupe_hashes=exact_hashes,
+                exclude_document_id=document.id,
+            )
+            if exact_hashes
+            else []
+        )
+        exact_by_hash: dict[str, RawTransaction] = {}
+        for candidate in exact_candidates:
+            if candidate.dedupe_hash is not None:
+                exact_by_hash.setdefault(candidate.dedupe_hash, candidate)
+        possible_targets = [
+            row for row in targets if row.status is RawTransactionStatus.POSSIBLE_DUPLICATE
         ]
         target_fingerprints = {
             fingerprint
-            for row in targets
+            for row in possible_targets
             if (fingerprint := possible_duplicate_fingerprint(row)) is not None
         }
         candidates = await self._source.list_possible_duplicate_candidates(
@@ -124,8 +159,13 @@ class ImportReviewDuplicateReader:
 
         evidence: dict[UUID, ImportReviewDuplicateEvidenceDto] = {}
         for target in targets:
-            fingerprint = possible_duplicate_fingerprint(target)
-            candidate = candidates_by_fingerprint.get(fingerprint) if fingerprint else None
+            if target.status is RawTransactionStatus.DUPLICATE:
+                candidate = exact_by_hash.get(target.dedupe_hash)
+                reason_code = ImportReviewDuplicateMatchReasonCode.SAME_DEDUPE_HASH
+            else:
+                fingerprint = possible_duplicate_fingerprint(target)
+                candidate = candidates_by_fingerprint.get(fingerprint) if fingerprint else None
+                reason_code = ImportReviewDuplicateMatchReasonCode.SAME_ACCOUNT_DATE_AMOUNT_CURRENCY
             if candidate is None:
                 continue
             candidate_document = candidate.uploaded_document
@@ -136,9 +176,7 @@ class ImportReviewDuplicateReader:
             ):
                 continue
             evidence[target.id] = ImportReviewDuplicateEvidenceDto(
-                reason_code=(
-                    ImportReviewDuplicateMatchReasonCode.SAME_ACCOUNT_DATE_AMOUNT_CURRENCY
-                ),
+                reason_code=reason_code,
                 matching_fields=(
                     ImportReviewDuplicateMatchingField.ACCOUNT,
                     ImportReviewDuplicateMatchingField.OPERATION_DATE,
@@ -166,11 +204,13 @@ class ImportReviewReader:
         references: ImportReviewReferenceReader,
         transfers: ImportReviewTransferSource,
         duplicates: ImportReviewDuplicateEvidenceSource,
+        existing_operations: ExistingOperationCandidateReader | None = None,
     ) -> None:
         self._documents = documents
         self._references = references
         self._transfers = transfers
         self._duplicates = duplicates
+        self._existing_operations = existing_operations
 
     async def read(
         self,
@@ -191,12 +231,21 @@ class ImportReviewReader:
             workspace_id=workspace_id,
             document=document,
         )
+        existing_operations = (
+            await self._existing_operations.read_for_document(
+                workspace_id=workspace_id,
+                document=document,
+            )
+            if self._existing_operations is not None
+            else {}
+        )
         return build_import_review_read_model(
             document,
             references=references,
             can_write=can_write,
             transfers=transfers,
             duplicates=duplicates,
+            existing_operations=existing_operations,
         )
 
 
@@ -207,6 +256,7 @@ def build_import_review_read_model(
     can_write: bool,
     transfers: dict[UUID, ImportReviewTransferOptionsDto],
     duplicates: dict[UUID, ImportReviewDuplicateEvidenceDto],
+    existing_operations: dict[UUID, tuple[ImportReviewExistingOperationCandidateDto, ...]],
 ) -> ImportReviewReadModel:
     queue = review_queue_snapshot(document.raw_transactions)
     rows_by_id = {row.id: row for row in document.raw_transactions}
@@ -251,6 +301,7 @@ def build_import_review_read_model(
                 property_id=property_id,
                 transfer=transfers.get(row.id, EMPTY_TRANSFER_OPTIONS),
                 duplicate_evidence=duplicates.get(row.id),
+                existing_operation_candidates=existing_operations.get(row.id, ()),
             )
         )
     return ImportReviewReadModel(
@@ -284,6 +335,7 @@ def _item_dto(
     property_id: UUID | None,
     transfer: ImportReviewTransferOptionsDto,
     duplicate_evidence: ImportReviewDuplicateEvidenceDto | None,
+    existing_operation_candidates: tuple[ImportReviewExistingOperationCandidateDto, ...],
 ) -> ImportReviewItemDto:
     status = row.status
     draft: ImportReviewDraftEvaluationDto = build_import_review_draft_evaluation(
@@ -329,6 +381,7 @@ def _item_dto(
             linked_operation_id=row.linked_operation_id,
         ),
         duplicate_evidence=duplicate_evidence,
+        existing_operation_candidates=existing_operation_candidates,
     )
 
 

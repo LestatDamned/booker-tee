@@ -166,8 +166,6 @@
 
 .table [data-targeted="true"],
 [data-responsive-record][data-targeted="true"] {
-  background: var(--color-bg-interactive);
-  box-shadow: inset 3px 0 0 var(--color-interactive-active);
   scroll-margin-block: var(--space-8);
 }
 

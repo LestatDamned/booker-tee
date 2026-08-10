@@ -53,6 +53,35 @@ summary {
   outline-offset: 3px;
 }
 
+[data-hash-target-arrival] {
+  animation: hash-target-arrival 4s linear both;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+}
+
+[data-hash-target-focus]:focus {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+@keyframes hash-target-arrival {
+  0%,
+  93.75% {
+    box-shadow:
+      inset 3px 0 0 var(--color-selection),
+      inset 0 0 0 100vmax
+        color-mix(in srgb, var(--color-selection) 12%, transparent);
+    outline-color: var(--color-selection);
+  }
+
+  100% {
+    box-shadow:
+      inset 3px 0 0 transparent,
+      inset 0 0 0 100vmax transparent;
+    outline-color: transparent;
+  }
+}
+
 h1,
 h2,
 h3,
@@ -80,5 +109,14 @@ p {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+
+  [data-hash-target-arrival] {
+    animation: none;
+    box-shadow:
+      inset 3px 0 0 var(--color-selection),
+      inset 0 0 0 100vmax
+        color-mix(in srgb, var(--color-selection) 12%, transparent);
+    outline-color: var(--color-selection);
   }
 }

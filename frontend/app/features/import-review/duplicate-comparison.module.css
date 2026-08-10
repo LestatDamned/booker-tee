@@ -88,6 +88,47 @@
   font-size: var(--font-size-sm);
 }
 
+.candidateList {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.candidateChoice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border-default);
+  background: color-mix(in srgb, var(--color-bg-canvas) 60%, transparent);
+  padding: var(--space-3);
+  cursor: pointer;
+}
+
+.candidateChoice:has(input:checked) {
+  border-color: var(--color-action-primary);
+}
+
+.candidateChoice input {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0;
+}
+
+.candidateChoice > span {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.candidateChoice small,
+.candidateChoice > span > span {
+  color: var(--color-text-secondary);
+}
+
+.candidateChoice strong {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 57.5rem) {
   .duplicateComparison > header {
     display: grid;

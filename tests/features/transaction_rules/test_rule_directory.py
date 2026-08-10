@@ -32,6 +32,8 @@ class TransactionRuleDirectorySourceStub:
         self.properties: list[Property] = []
         self.category_calls: list[tuple[UUID, set[UUID]]] = []
         self.property_calls: list[tuple[UUID, set[UUID]]] = []
+        self.target_rule: TransactionRule | None = None
+        self.target_suggestion_count = 0
 
     async def read_directory(self, **kwargs: object) -> TransactionRuleDirectoryResult:
         self.calls.append(kwargs)
@@ -54,6 +56,28 @@ class TransactionRuleDirectorySourceStub:
     ) -> list[Property]:
         self.property_calls.append((workspace_id, current_ids))
         return self.properties
+
+    async def get_for_workspace(
+        self,
+        workspace_id: UUID,
+        rule_id: UUID,
+    ) -> TransactionRule | None:
+        if self.target_rule is None or self.target_rule.workspace_id != workspace_id:
+            return None
+        return self.target_rule if self.target_rule.id == rule_id else None
+
+    async def count_direct_raw_suggestions(
+        self,
+        *,
+        workspace_id: UUID,
+        rule_id: UUID,
+    ) -> int:
+        assert self.target_rule is not None
+        assert (workspace_id, rule_id) == (
+            self.target_rule.workspace_id,
+            self.target_rule.id,
+        )
+        return self.target_suggestion_count
 
 
 @pytest.mark.asyncio
@@ -162,6 +186,41 @@ async def test_viewer_directory_is_read_only_and_read_has_no_mutation_dependency
     assert not capabilities.can_enable
     assert not capabilities.can_disable
     assert not capabilities.can_delete
+
+
+@pytest.mark.asyncio
+async def test_directory_returns_a_target_outside_the_current_page() -> None:
+    workspace_id = uuid4()
+    page_rule = transaction_rule(workspace_id)
+    target_rule = transaction_rule(workspace_id)
+    source = TransactionRuleDirectorySourceStub(
+        TransactionRuleDirectoryResult(
+            rows=[TransactionRuleDirectoryRow(rule=page_rule, direct_raw_suggestion_count=0)],
+            page=1,
+            total=2,
+            all_count=2,
+            active_count=0,
+            disabled_count=2,
+        )
+    )
+    source.target_rule = target_rule
+    source.target_suggestion_count = 3
+
+    directory = await TransactionRuleDirectoryReader(source).read(
+        workspace_id=workspace_id,
+        can_write=True,
+        search=None,
+        category_id=None,
+        status=TransactionRuleDirectoryStatus.ALL,
+        page=1,
+        page_size=1,
+        target_rule_id=target_rule.id,
+    )
+
+    assert [item.id for item in directory.items] == [page_rule.id]
+    assert directory.target_item is not None
+    assert directory.target_item.id == target_rule.id
+    assert directory.target_item.usage.direct_raw_suggestion_count == 3
 
 
 def transaction_rule(workspace_id: UUID, *, is_active: bool = False) -> TransactionRule:

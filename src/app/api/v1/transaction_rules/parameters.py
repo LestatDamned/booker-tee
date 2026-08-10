@@ -18,6 +18,7 @@ class TransactionRuleDirectoryParameters:
     status: TransactionRuleDirectoryStatus
     page: int
     page_size: int
+    rule_id: UUID | None
 
 
 def parse_transaction_rule_directory_parameters(
@@ -26,10 +27,11 @@ def parse_transaction_rule_directory_parameters(
     status_: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[str | None, Query()] = None,
     page_size: Annotated[str | None, Query()] = None,
+    rule_id: Annotated[str | None, Query()] = None,
 ) -> TransactionRuleDirectoryParameters:
     return TransactionRuleDirectoryParameters(
         search=parse_search(q),
-        category_id=parse_uuid(category_id),
+        category_id=parse_uuid(category_id, "category_id"),
         status=parse_status(status_),
         page=parse_positive_int(page, "page", default=1),
         page_size=parse_positive_int(
@@ -38,6 +40,7 @@ def parse_transaction_rule_directory_parameters(
             default=DEFAULT_TRANSACTION_RULE_PAGE_SIZE,
             maximum=MAX_TRANSACTION_RULE_PAGE_SIZE,
         ),
+        rule_id=parse_uuid(rule_id, "rule_id"),
     )
 
 
@@ -48,13 +51,13 @@ def parse_search(value: str | None) -> str | None:
     return normalized or None
 
 
-def parse_uuid(value: str | None) -> UUID | None:
+def parse_uuid(value: str | None, field: str) -> UUID | None:
     if not value:
         return None
     try:
         return UUID(value)
     except ValueError as error:
-        raise invalid_transaction_rule_filter("category_id", "UUID") from error
+        raise invalid_transaction_rule_filter(field, "UUID") from error
 
 
 def parse_status(value: str | None) -> TransactionRuleDirectoryStatus:

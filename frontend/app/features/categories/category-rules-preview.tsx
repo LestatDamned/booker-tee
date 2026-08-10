@@ -28,7 +28,9 @@ export function CategoryRulesPreview({
           {detail.rules.items.map((rule) => (
             <li key={rule.id}>
               <div>
-                <Link to={`/rules#rule-${rule.id}`}>{rule.name}</Link>
+                <Link to={`/rules?rule_id=${rule.id}#rule-${rule.id}`}>
+                  {rule.name}
+                </Link>
                 <code>{rule.pattern}</code>
               </div>
               <StatusLabel tone={rule.isActive ? "success" : "neutral"}>

@@ -78,3 +78,4 @@ class ManualLedgerListApiResponse(ApiModel):
     filter_options: ManualLedgerFilterOptionsApiResponse
     capabilities: ManualLedgerCapabilitiesApiResponse
     target_operation_id: UUID | None = None
+    target_operation: ManualOperationApiResponse | None = None

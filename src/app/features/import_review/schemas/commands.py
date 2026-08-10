@@ -41,6 +41,20 @@ class ImportReviewLifecycleResult(ApplicationModel):
     replayed: bool
 
 
+class LinkImportReviewExistingOperationCommand(ApplicationModel):
+    document_id: UUID
+    item_id: UUID
+    operation_id: UUID
+    expected_status: RawTransactionStatus
+
+
+class ImportReviewExistingOperationLinkResult(ApplicationModel):
+    item_id: UUID
+    document_id: UUID
+    operation_id: UUID
+    replayed: bool
+
+
 class ImportReviewRuleApplicationResult(ApplicationModel):
     checked_count: int
     suggested_count: int

@@ -85,16 +85,23 @@ export function ManualLedgerPage({
     location.search,
     ledger.filterOptions,
   );
+  const displayedItems =
+    ledger.targetOperation &&
+    !ledger.items.some(
+      (operation) => operation.id === ledger.targetOperation?.id,
+    )
+      ? [ledger.targetOperation, ...ledger.items]
+      : ledger.items;
   const reconciledLocalChanges = reconcileManualLedgerLocalChanges(
     localChanges,
-    ledger.items,
+    displayedItems,
   );
   const deletedItemsOnPage = ledger.items.filter(
     (operation) => reconciledLocalChanges.deleted[operation.id],
   ).length;
   const visibleTotal = ledger.pagination.total - deletedItemsOnPage;
   const rows = visibleManualOperations(
-    ledger.items,
+    displayedItems,
     reconciledLocalChanges,
   ).map(toManualOperationRowModel);
   const showPageSize = ledger.filterOptions.perPage.some(
@@ -261,7 +268,6 @@ export function ManualLedgerPage({
                     <ManualOperationRow
                       csrfToken={session.csrfToken}
                       isEditing={editingOperationId === operation.id}
-                      isTargeted={ledger.targetOperationId === operation.id}
                       isWorking={workingOperationId === operation.id}
                       onDeleted={operationDeleted}
                       onEdit={openEdit}

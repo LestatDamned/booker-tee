@@ -102,4 +102,5 @@ export const directory: TransactionRuleDirectoryDto = {
     canSeedDefaults: true,
     readonlyReasonCode: null,
   },
+  targetItem: null,
 };

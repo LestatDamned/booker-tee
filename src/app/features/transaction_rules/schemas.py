@@ -121,3 +121,4 @@ class TransactionRuleDirectoryDto(ApplicationModel):
     applied_filters: TransactionRuleAppliedFiltersDto
     references: TransactionRuleReferencesDto
     capabilities: TransactionRuleDirectoryCapabilitiesDto
+    target_item: TransactionRuleSummaryDto | None = None

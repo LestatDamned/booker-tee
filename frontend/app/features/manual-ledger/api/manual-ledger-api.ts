@@ -82,6 +82,7 @@ export const manualLedgerSchema: z.ZodType<ManualLedgerDto> = z.object({
     readonlyReason: z.string().nullable(),
   }),
   targetOperationId: z.uuid().nullable(),
+  targetOperation: manualOperationSchema.nullable().optional().default(null),
 });
 
 const manualOperationEditSchema: z.ZodType<ManualOperationEditDto> = z.object({

@@ -49,6 +49,11 @@ class ImportReviewLifecycleApiRequest(ApiRequestModel):
     expected_status: RawTransactionStatus
 
 
+class ImportReviewExistingOperationLinkApiRequest(ApiRequestModel):
+    operation_id: UUID
+    expected_status: RawTransactionStatus
+
+
 class ImportReviewConfirmationApiRequest(ApiRequestModel):
     operation_type: OperationType
     category_id: UUID

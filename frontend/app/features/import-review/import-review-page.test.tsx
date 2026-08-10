@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -45,6 +45,18 @@ describe("import review page", () => {
     expect(
       screen.getByRole("link", { name: "Открыть правила" }),
     ).toHaveAttribute("href", "/rules");
+  });
+
+  it("focuses a bank row named by the URL hash after rendering", async () => {
+    const review = importReviewPayload();
+    renderPage(
+      review,
+      `/imports/documents/${review.document.id}/review#raw-${remainingItemId}`,
+    );
+
+    await waitFor(() =>
+      expect(document.getElementById(`raw-${remainingItemId}`)).toHaveFocus(),
+    );
   });
 
   it("opens all rows first and preserves filter counts and pressed state", async () => {
@@ -1537,7 +1549,7 @@ describe("import review page", () => {
       within(comparison).getByRole("link", { name: "previous-statement.xlsx" }),
     ).toHaveAttribute(
       "href",
-      "/app/imports/documents/2aecac73-98a3-468b-bd75-ac89445f908e",
+      "/imports/documents/2aecac73-98a3-468b-bd75-ac89445f908e",
     );
     expect(
       within(row).getByRole("button", { name: "Это новая операция" }),
@@ -1548,6 +1560,102 @@ describe("import review page", () => {
     expect(
       within(row).queryByLabelText("Что мешает подтверждению"),
     ).not.toBeInTheDocument();
+  });
+
+  it("explains an exact duplicate as an already imported bank row", async () => {
+    const user = userEvent.setup();
+    const review = possibleDuplicateReview();
+    const item = review.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!item) throw new Error("remaining fixture item is required");
+    item.status = "duplicate";
+    item.isTerminal = true;
+    item.isReviewable = false;
+    item.duplicateEvidence!.reasonCode = "same_dedupe_hash";
+    item.duplicateEvidence!.candidate.operationId = confirmedOperationId;
+    review.queue.completed = 2;
+    review.queue.remaining = 0;
+    review.queue.firstRemainingItemId = null;
+
+    renderPage(review);
+    await user.click(screen.getByRole("button", { name: "Завершённые 2" }));
+
+    const row = document.getElementById(`raw-${remainingItemId}`);
+    if (!row) throw new Error("remaining row is required");
+    const comparison = within(row).getByRole("region", {
+      name: "Уже импортировано",
+    });
+    expect(comparison).toHaveTextContent(
+      "Эта банковская строка уже присутствует в другом документе.",
+    );
+    expect(comparison).toHaveTextContent("Импортировано ранее");
+    expect(comparison).toHaveTextContent("previous-statement.xlsx");
+    expect(
+      within(comparison).getByRole("link", {
+        name: "Открыть проведённую операцию",
+      }),
+    ).toHaveAttribute(
+      "href",
+      "/imports/documents/2aecac73-98a3-468b-bd75-ac89445f908e/review#raw-32f1f811-6a21-4c9c-a12a-fc1bb72b782d",
+    );
+  });
+
+  it("links a bank row to a selected existing manual operation", async () => {
+    const user = userEvent.setup();
+    const review = existingOperationReview();
+    const updated = existingOperationReview();
+    const updatedItem = updated.items.find(
+      (candidate) => candidate.id === remainingItemId,
+    );
+    if (!updatedItem) throw new Error("remaining fixture item is required");
+    updatedItem.status = "confirmed";
+    updatedItem.isTerminal = true;
+    updatedItem.isReviewable = false;
+    updatedItem.posting.operationId = confirmedOperationId;
+    updatedItem.existingOperationCandidates = [];
+    updated.queue.completed = 2;
+    updated.queue.remaining = 0;
+    updated.queue.firstRemainingItemId = null;
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            itemId: remainingItemId,
+            documentId: updated.document.id,
+            replayed: false,
+            review: updated,
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage(review);
+
+    const comparison = screen.getByRole("region", {
+      name: "Возможно, операция уже учтена",
+    });
+    expect(comparison).toHaveTextContent("Существующая ручная операция");
+    expect(comparison).toHaveTextContent("Ремонт автомобиля");
+    await user.click(
+      screen.getByRole("button", { name: "Связать с существующей операцией" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Строка выписки связана с существующей операцией.",
+      ),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/existing-operation-link"),
+      expect.objectContaining({
+        body: JSON.stringify({
+          operationId: confirmedOperationId,
+          expectedStatus: "matched",
+        }),
+      }),
+    );
   });
 
   it("offers retry after a lifecycle network error", async () => {
@@ -1842,6 +1950,26 @@ function possibleDuplicateReview() {
       currency: "RUB",
     },
   };
+  return review;
+}
+
+function existingOperationReview() {
+  const review = importReviewPayload();
+  const item = review.items.find(
+    (candidate) => candidate.id === remainingItemId,
+  );
+  if (!item) throw new Error("remaining fixture item is required");
+  item.existingOperationCandidates = [
+    {
+      operationId: confirmedOperationId,
+      operationDate: "2026-07-20",
+      description: "Ремонт автомобиля",
+      amount: "-1250.50",
+      currency: "RUB",
+      categoryName: "Автомобиль",
+      dayDistance: 0,
+    },
+  ];
   return review;
 }
 

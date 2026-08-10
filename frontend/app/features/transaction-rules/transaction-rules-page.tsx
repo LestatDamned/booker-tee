@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
+import { revealHashTarget } from "../../shared/navigation/hash-target";
 import { AppShell } from "../../shell/app-shell";
 import { AppliedFilterSummary } from "../../ui/applied-filter-summary/applied-filter-summary";
 import { Badge } from "../../ui/badge/badge";
@@ -71,9 +72,14 @@ export function TransactionRulesPage({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const createTriggerRef = useRef<HTMLButtonElement>(null);
   const seedTriggerRef = useRef<HTMLButtonElement>(null);
+  const presentedDirectory =
+    directory.targetItem &&
+    !directory.items.some((item) => item.id === directory.targetItem?.id)
+      ? { ...directory, items: [directory.targetItem, ...directory.items] }
+      : directory;
   const mutations = useTransactionRuleMutations({
     csrfToken: session.csrfToken,
-    directory,
+    directory: presentedDirectory,
     navigate,
     ...(onReload ? { onReload } : {}),
     pathname: location.pathname,
@@ -143,8 +149,7 @@ export function TransactionRulesPage({
     );
     const mobile = window.matchMedia?.("(max-width: 64rem)").matches ?? false;
     const target = mobile ? records.at(-1) : records[0];
-    target?.scrollIntoView?.({ block: "center" });
-    target?.focus({ preventScroll: true });
+    if (target) revealHashTarget(target);
   }, [targetFound, targetId]);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
@@ -169,6 +174,7 @@ export function TransactionRulesPage({
     categoryId: "",
     page: 1,
     q: "",
+    ruleId: "",
   });
 
   return (

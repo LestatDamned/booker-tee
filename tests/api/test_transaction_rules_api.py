@@ -33,6 +33,7 @@ def test_transaction_rule_directory_requires_authentication() -> None:
 def test_transaction_rule_directory_dispatches_normalized_workspace_filters() -> None:
     app, reader, workspace_id = transaction_rules_app()
     category_id = uuid4()
+    rule_id = uuid4()
 
     with TestClient(app) as client:
         response = client.get(
@@ -43,6 +44,7 @@ def test_transaction_rule_directory_dispatches_normalized_workspace_filters() ->
                 "status": "disabled",
                 "page": "2",
                 "page_size": "25",
+                "rule_id": str(rule_id),
             },
         )
 
@@ -61,6 +63,7 @@ def test_transaction_rule_directory_dispatches_normalized_workspace_filters() ->
             "status": TransactionRuleDirectoryStatus.DISABLED,
             "page": 2,
             "page_size": 25,
+            "target_rule_id": rule_id,
         }
     ]
 

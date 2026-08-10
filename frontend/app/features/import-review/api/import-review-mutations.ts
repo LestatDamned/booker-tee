@@ -25,6 +25,8 @@ export type ImportReviewLifecycleRequest =
   components["schemas"]["ImportReviewLifecycleApiRequest"];
 export type ImportReviewLifecycleMutationDto =
   components["schemas"]["ImportReviewLifecycleMutationApiResponse"];
+export type ImportReviewExistingOperationLinkRequest =
+  components["schemas"]["ImportReviewExistingOperationLinkApiRequest"];
 export type ImportReviewConfirmationRequest =
   components["schemas"]["ImportReviewConfirmationApiRequest"];
 export type ImportReviewUndoRequest =
@@ -180,6 +182,20 @@ export async function updateImportReviewLifecycle(
 ): Promise<ImportReviewMutationResult<ImportReviewLifecycleMutationDto>> {
   return sendMutation(
     `/api/v1/import-review/${documentId}/items/${itemId}/lifecycle`,
+    request,
+    csrfToken,
+    lifecycleMutationSchema,
+  );
+}
+
+export async function linkImportReviewExistingOperation(
+  documentId: string,
+  itemId: string,
+  request: ImportReviewExistingOperationLinkRequest,
+  csrfToken: string,
+): Promise<ImportReviewMutationResult<ImportReviewLifecycleMutationDto>> {
+  return sendMutation(
+    `/api/v1/import-review/${documentId}/items/${itemId}/existing-operation-link`,
     request,
     csrfToken,
     lifecycleMutationSchema,

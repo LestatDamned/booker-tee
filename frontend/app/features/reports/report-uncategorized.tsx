@@ -1,4 +1,4 @@
-import { ButtonLink } from "../../ui/button/button";
+import { RouterButtonLink } from "../../ui/button/button";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import type { ReportOverviewDto } from "./api/reports-api";
 
@@ -18,9 +18,9 @@ export function ReportUncategorizedNotice({
     <InlineNotice
       action={
         href ? (
-          <ButtonLink href={href} icon="edit" tone="secondary">
+          <RouterButtonLink to={href} icon="edit" tone="secondary">
             Разобрать
-          </ButtonLink>
+          </RouterButtonLink>
         ) : undefined
       }
       title={`${page.total} ${operationCountLabel(page.total)} без категории`}
@@ -44,7 +44,7 @@ export function reportUncategorizedCorrectionHref(
 function correctionHref(operation: Operation): string | null {
   if (!operation.capabilities.canCorrect) return null;
   if (operation.source === "manual") {
-    return `/app/ledger/manual?operation_id=${operation.operationId}#operation-${operation.operationId}`;
+    return `/ledger/manual?operation_id=${operation.operationId}#operation-${operation.operationId}`;
   }
   if (operation.source === "bank_pdf" && operation.accountId) {
     return `/app/accounts/${operation.accountId}`;

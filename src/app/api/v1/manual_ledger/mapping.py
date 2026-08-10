@@ -96,7 +96,7 @@ class ManualLedgerResponseMapper:
         page: LedgerPage,
         references: ManualLedgerReferenceOptionsDto,
         can_write: bool,
-        target_operation_id: UUID | None,
+        target_operation: ManualOperationReadDto | None,
     ) -> ManualLedgerListApiResponse:
         return ManualLedgerListApiResponse(
             items=[
@@ -112,7 +112,15 @@ class ManualLedgerResponseMapper:
                 can_create=can_write,
                 readonly_reason=None if can_write else READONLY_REASON,
             ),
-            target_operation_id=target_operation_id,
+            target_operation_id=target_operation.id if target_operation else None,
+            target_operation=(
+                ManualLedgerResponseMapper.operation_response(
+                    target_operation,
+                    can_write=can_write,
+                )
+                if target_operation
+                else None
+            ),
         )
 
     @staticmethod

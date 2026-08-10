@@ -288,6 +288,35 @@ class ImportReviewRepository:
             in fingerprints
         ]
 
+    async def list_exact_duplicate_candidates(
+        self,
+        *,
+        workspace_id: UUID,
+        dedupe_hashes: set[str],
+        exclude_document_id: UUID,
+    ) -> list[RawTransaction]:
+        if not dedupe_hashes:
+            return []
+        result = await self.session.execute(
+            select(RawTransaction)
+            .join(UploadedDocument)
+            .options(selectinload(RawTransaction.uploaded_document))
+            .where(
+                RawTransaction.workspace_id == workspace_id,
+                RawTransaction.uploaded_document_id != exclude_document_id,
+                RawTransaction.dedupe_hash.in_(dedupe_hashes),
+                RawTransaction.status.not_in(
+                    [
+                        RawTransactionStatus.DUPLICATE,
+                        RawTransactionStatus.IGNORED,
+                        RawTransactionStatus.FAILED,
+                    ]
+                ),
+            )
+            .order_by(UploadedDocument.created_at, RawTransaction.row_index)
+        )
+        return list(result.scalars().all())
+
     async def has_confirmed_raw_transaction_with_dedupe_hash(
         self,
         *,
@@ -622,6 +651,62 @@ class ImportReviewRepository:
                 MoneyEntry.account_id.in_(source_account_ids),
                 MoneyEntry.amount.in_(amounts),
                 MoneyEntry.currency.in_(currencies),
+            )
+            .order_by(Operation.operation_date, Operation.created_at)
+        )
+        return list(result.unique().scalars().all())
+
+    async def list_manual_income_expense_candidates_for_raw_transactions(
+        self,
+        *,
+        workspace_id: UUID,
+        raw_transactions: list[RawTransaction],
+        day_window: int = 3,
+    ) -> list[Operation]:
+        eligible = [
+            row
+            for row in raw_transactions
+            if row.linked_operation_id is None
+            and row.status in REVIEW_QUEUE_STATUSES
+            and row.status is not RawTransactionStatus.FAILED
+            and row.amount is not None
+            and row.currency is not None
+            and row.operation_date is not None
+            and raw_transaction_effective_account_id(row) is not None
+        ]
+        if not eligible:
+            return []
+        dates = [row.operation_date for row in eligible if row.operation_date is not None]
+        result = await self.session.execute(
+            select(Operation)
+            .join(MoneyEntry)
+            .options(
+                selectinload(Operation.category),
+                selectinload(Operation.raw_transactions).selectinload(
+                    RawTransaction.uploaded_document
+                ),
+                selectinload(Operation.money_entries).selectinload(MoneyEntry.account),
+            )
+            .where(
+                Operation.workspace_id == workspace_id,
+                Operation.source == OperationSource.MANUAL,
+                Operation.type.in_([OperationType.INCOME, OperationType.EXPENSE]),
+                Operation.status == OperationStatus.CONFIRMED,
+                Operation.operation_date.between(
+                    min(dates) - timedelta(days=day_window),
+                    max(dates) + timedelta(days=day_window),
+                ),
+                MoneyEntry.account_id.in_(
+                    {
+                        account_id
+                        for row in eligible
+                        if (account_id := raw_transaction_effective_account_id(row)) is not None
+                    }
+                ),
+                MoneyEntry.amount.in_({row.amount for row in eligible if row.amount is not None}),
+                MoneyEntry.currency.in_(
+                    {row.currency for row in eligible if row.currency is not None}
+                ),
             )
             .order_by(Operation.operation_date, Operation.created_at)
         )

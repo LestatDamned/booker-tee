@@ -440,7 +440,7 @@ describe("reports route", () => {
     expect(screen.getByText("12 операций без категории")).toBeVisible();
     expect(screen.getByRole("link", { name: "Разобрать" })).toHaveAttribute(
       "href",
-      `/app/ledger/manual?operation_id=${reportOverview.uncategorized.items[0]!.operationId}#operation-${reportOverview.uncategorized.items[0]!.operationId}`,
+      `/ledger/manual?operation_id=${reportOverview.uncategorized.items[0]!.operationId}#operation-${reportOverview.uncategorized.items[0]!.operationId}`,
     );
     expect(
       screen.queryByRole("table", { name: "Операции без категории" }),

@@ -30,6 +30,7 @@ type LifecycleActionsProps = {
   onReviewReconciled: (review: ImportReviewDto) => void;
   onSuccess: (message: string) => void;
   readonly: boolean;
+  toneOverride?: "secondary";
 };
 
 export function LifecycleActions({
@@ -41,6 +42,7 @@ export function LifecycleActions({
   onReviewReconciled,
   onSuccess,
   readonly,
+  toneOverride,
 }: LifecycleActionsProps) {
   const [pending, setPending] = useState<LifecycleAction | "refresh" | null>(
     null,
@@ -120,7 +122,7 @@ export function LifecycleActions({
             isLoading={pending === action}
             key={action}
             onClick={() => requestAction(action)}
-            tone={lifecycleActionTone(action)}
+            tone={toneOverride ?? lifecycleActionTone(action)}
           >
             {lifecycleActionLabel(action, item.status)}
           </Button>

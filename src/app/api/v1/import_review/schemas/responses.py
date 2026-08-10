@@ -156,6 +156,16 @@ class ImportReviewDuplicateEvidenceApiResponse(ApiModel):
     candidate: ImportReviewDuplicateCandidateApiResponse
 
 
+class ImportReviewExistingOperationCandidateApiResponse(ApiModel):
+    operation_id: UUID
+    operation_date: date
+    description: str | None
+    amount: MoneyString
+    currency: str
+    category_name: str | None
+    day_distance: int
+
+
 class ImportReviewItemApiResponse(ApiModel):
     id: UUID
     row_index: int
@@ -173,6 +183,7 @@ class ImportReviewItemApiResponse(ApiModel):
     transfer: ImportReviewTransferOptionsApiResponse
     lifecycle: ImportReviewLifecycleApiResponse
     duplicate_evidence: ImportReviewDuplicateEvidenceApiResponse | None
+    existing_operation_candidates: list[ImportReviewExistingOperationCandidateApiResponse]
 
 
 class ImportReviewCategoryReferenceApiResponse(ApiModel):

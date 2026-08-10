@@ -122,6 +122,22 @@ describe("TransactionRulesPage", () => {
     ).toBeVisible();
   });
 
+  it("renders a deep-linked rule outside the current page", () => {
+    const target = {
+      ...directory.items[0]!,
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "Целевое правило",
+    };
+
+    renderPage(`/rules?rule_id=${target.id}#rule-${target.id}`, {
+      ...directory,
+      targetItem: target,
+    });
+
+    expect(screen.getAllByText("Целевое правило")).toHaveLength(2);
+    expect(document.querySelectorAll('[data-targeted="true"]')).toHaveLength(2);
+  });
+
   it("shows explicit viewer read-only copy and no controls", () => {
     renderPage("/rules", {
       ...directory,

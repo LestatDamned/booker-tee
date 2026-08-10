@@ -11,6 +11,10 @@ import type { ImportReviewDto } from "./api/import-review-api";
 import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
 import { ClassificationPanel } from "./classification-panel";
 import { DuplicateComparison } from "./duplicate-comparison";
+import {
+  ExistingOperationComparison,
+  ExistingOperationLinkAction,
+} from "./existing-operation-match";
 import styles from "./review-item.module.css";
 import { LifecycleActions } from "./lifecycle-actions";
 import { ConfirmPostingAction, UndoPostingAction } from "./posting-actions";
@@ -63,6 +67,9 @@ export function ReviewItem({
   const [actionsOpen, setActionsOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
+  const [selectedOperationId, setSelectedOperationId] = useState(
+    item.existingOperationCandidates[0]?.operationId ?? "",
+  );
   const reviewButtonRef = useRef<HTMLButtonElement>(null);
   const sourceButtonRef = useRef<HTMLButtonElement>(null);
   const panelId = `review-panel-${item.id}`;
@@ -86,6 +93,11 @@ export function ReviewItem({
     properties,
   });
   const blockingReason = reviewBlockingReason(item);
+  const existingOperationId = item.existingOperationCandidates.some(
+    (candidate) => candidate.operationId === selectedOperationId,
+  )
+    ? selectedOperationId
+    : (item.existingOperationCandidates[0]?.operationId ?? "");
 
   function closePanel() {
     setPanelOpen(false);
@@ -164,7 +176,16 @@ export function ReviewItem({
         </>
       }
       primary={
-        readonly ? undefined : primaryLifecycle.length ? (
+        readonly ? undefined : existingOperationId ? (
+          <ExistingOperationLinkAction
+            csrfToken={csrfToken}
+            documentId={documentId}
+            item={item}
+            onReviewReconciled={onReviewReconciled}
+            onSuccess={onSuccess}
+            operationId={existingOperationId}
+          />
+        ) : primaryLifecycle.length ? (
           <LifecycleActions
             actions={primaryLifecycle}
             csrfToken={csrfToken}
@@ -205,7 +226,29 @@ export function ReviewItem({
         ) : undefined
       }
       secondary={
-        !readonly && secondaryLifecycle.length ? (
+        !readonly && existingOperationId && primaryLifecycle.length ? (
+          <LifecycleActions
+            actions={primaryLifecycle}
+            csrfToken={csrfToken}
+            documentId={documentId}
+            item={item}
+            onReviewReconciled={onReviewReconciled}
+            onSuccess={onSuccess}
+            readonly={readonly}
+            toneOverride="secondary"
+          />
+        ) : !readonly && existingOperationId && hasReviewPanel ? (
+          <Button
+            aria-controls={panelId}
+            aria-expanded={panelOpen}
+            onClick={toggleReviewPanel}
+            ref={reviewButtonRef}
+            tone="secondary"
+            icon="edit"
+          >
+            Это отдельная операция
+          </Button>
+        ) : !readonly && secondaryLifecycle.length ? (
           <LifecycleActions
             actions={secondaryLifecycle}
             csrfToken={csrfToken}
@@ -301,9 +344,17 @@ export function ReviewItem({
         />
       }
       signals={
-        item.duplicateEvidence || blockingReason || problems.length > 0 ? (
+        item.duplicateEvidence ||
+        item.existingOperationCandidates.length > 0 ||
+        blockingReason ||
+        problems.length > 0 ? (
           <>
             <DuplicateComparison item={item} />
+            <ExistingOperationComparison
+              item={item}
+              onSelect={setSelectedOperationId}
+              selectedOperationId={existingOperationId}
+            />
             {blockingReason && item.duplicateEvidence === null ? (
               <ReviewBlockingReason reason={blockingReason} />
             ) : null}

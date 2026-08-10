@@ -71,6 +71,7 @@ class ImportReviewDraftEvaluationDto(ApplicationModel):
 
 
 class ImportReviewDuplicateMatchReasonCode(StrEnum):
+    SAME_DEDUPE_HASH = "same_dedupe_hash"
     SAME_ACCOUNT_DATE_AMOUNT_CURRENCY = "same_account_date_amount_currency"
 
 
@@ -96,6 +97,16 @@ class ImportReviewDuplicateEvidenceDto(ApplicationModel):
     reason_code: ImportReviewDuplicateMatchReasonCode
     matching_fields: tuple[ImportReviewDuplicateMatchingField, ...]
     candidate: ImportReviewDuplicateCandidateDto
+
+
+class ImportReviewExistingOperationCandidateDto(ApplicationModel):
+    operation_id: UUID
+    operation_date: date
+    description: str | None
+    amount: Decimal
+    currency: str
+    category_name: str | None
+    day_distance: int
 
 
 class ImportReviewAccountDto(ApplicationModel):
@@ -269,6 +280,7 @@ class ImportReviewItemDto(ApplicationModel):
     transfer: ImportReviewTransferOptionsDto = EMPTY_TRANSFER_OPTIONS
     lifecycle: ImportReviewLifecycleSnapshot = ImportReviewLifecycleSnapshot(allowed_actions=())
     duplicate_evidence: ImportReviewDuplicateEvidenceDto | None = None
+    existing_operation_candidates: tuple[ImportReviewExistingOperationCandidateDto, ...] = ()
 
 
 class ImportReviewDocumentDto(ApplicationModel):

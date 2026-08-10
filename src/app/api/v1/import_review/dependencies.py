@@ -19,6 +19,12 @@ from app.features.import_review.application.confirmation import (
 from app.features.import_review.application.lifecycle import (
     ImportReviewLifecycleService,
 )
+from app.features.import_review.application.operation_candidates import (
+    ExistingOperationCandidateReader,
+)
+from app.features.import_review.application.operation_linking import (
+    ExistingOperationLinkService,
+)
 from app.features.import_review.application.review import (
     ImportReviewDuplicateReader,
     ImportReviewReader,
@@ -52,6 +58,7 @@ def get_import_review_reader(
             TransferSuggestionUseCase(session),
         ),
         ImportReviewDuplicateReader(review_repository),
+        ExistingOperationCandidateReader(review_repository),
     )
 
 
@@ -65,6 +72,12 @@ def get_import_review_lifecycle_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ImportReviewLifecycleService:
     return ImportReviewLifecycleService(session)
+
+
+def get_existing_operation_link_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ExistingOperationLinkService:
+    return ExistingOperationLinkService(session)
 
 
 def get_import_review_confirmation_service(

@@ -159,7 +159,7 @@ describe("ManualLedgerPage", () => {
     );
   });
 
-  it("marks the operation selected by a deep link as the target row", () => {
+  it("renders the operation selected by a deep link without a permanent state", () => {
     const page = ledger();
     render(
       <MemoryRouter initialEntries={["/app/ledger/manual"]}>
@@ -169,8 +169,33 @@ describe("ManualLedgerPage", () => {
 
     expect(
       document.getElementById(`operation-${page.targetOperationId}`),
-    ).toHaveAttribute("data-state", "target");
+    ).toHaveAttribute("data-state", "default");
     expect(screen.queryByText("Текущая строка")).not.toBeInTheDocument();
+  });
+
+  it("renders a targeted operation outside the current page", () => {
+    const page = ledger();
+    const target = {
+      ...required(page.items[0], "fixture operation"),
+      id: crypto.randomUUID(),
+      description: "Старая целевая операция",
+    };
+    page.targetOperationId = target.id;
+    page.targetOperation = target;
+
+    render(
+      <MemoryRouter
+        initialEntries={[`/app/ledger/manual#operation-${target.id}`]}
+      >
+        <ManualLedgerPage ledger={page} session={session} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Старая целевая операция")).toBeInTheDocument();
+    expect(document.getElementById(`operation-${target.id}`)).toHaveAttribute(
+      "data-state",
+      "default",
+    );
   });
 
   it("moves the working state to the row whose action the user chooses", async () => {
@@ -212,7 +237,7 @@ describe("ManualLedgerPage", () => {
     await user.click(
       screen.getByRole("button", { name: "Удалить окончательно" }),
     );
-    expect(firstRow).toHaveAttribute("data-state", "target");
+    expect(firstRow).toHaveAttribute("data-state", "default");
     expect(secondRow).toHaveAttribute("data-state", "working");
   });
 

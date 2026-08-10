@@ -200,7 +200,10 @@ export const importReviewSchema: z.ZodType<ImportReviewDto> = z.object({
       }),
       duplicateEvidence: z
         .object({
-          reasonCode: z.literal("same_account_date_amount_currency"),
+          reasonCode: z.enum([
+            "same_dedupe_hash",
+            "same_account_date_amount_currency",
+          ]),
           matchingFields: z.array(
             z.enum(["account", "operation_date", "amount", "currency"]),
           ),
@@ -216,6 +219,17 @@ export const importReviewSchema: z.ZodType<ImportReviewDto> = z.object({
           }),
         })
         .nullable(),
+      existingOperationCandidates: z.array(
+        z.object({
+          operationId: z.uuid(),
+          operationDate: z.iso.date(),
+          description: z.string().nullable(),
+          amount: z.string(),
+          currency: z.string(),
+          categoryName: z.string().nullable(),
+          dayDistance: z.number().int().nonnegative(),
+        }),
+      ),
     }),
   ),
   references: z.object({

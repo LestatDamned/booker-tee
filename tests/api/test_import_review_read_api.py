@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from api_client import ApiTestClient as TestClient
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.v1.import_review.dependencies import (
+    get_existing_operation_link_service,
     get_import_review_confirmation_service,
     get_import_review_lifecycle_service,
     get_import_review_reader,
@@ -29,10 +30,12 @@ from app.features.import_review.errors import (
 from app.features.import_review.schemas.commands import (
     ConfirmImportReviewItemCommand,
     ImportReviewConfirmationResult,
+    ImportReviewExistingOperationLinkResult,
     ImportReviewLifecycleResult,
     ImportReviewRuleApplicationResult,
     ImportReviewTransferResult,
     ImportReviewUndoResult,
+    LinkImportReviewExistingOperationCommand,
     MatchImportReviewRawRowCommand,
     UndoImportReviewPostingCommand,
 )
@@ -535,6 +538,36 @@ def test_lifecycle_requires_write_permission() -> None:
         )
 
     assert forbidden.status_code == 403
+
+
+def test_existing_operation_link_returns_authoritative_review() -> None:
+    review = review_model()
+    item = review.items[0]
+    operation_id = uuid4()
+    service = LifecycleServiceStub(
+        result=ImportReviewExistingOperationLinkResult(
+            document_id=review.document.id,
+            item_id=item.id,
+            operation_id=operation_id,
+            replayed=False,
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: api_context(WorkspaceRole.OWNER)
+    app.dependency_overrides[get_existing_operation_link_service] = lambda: service
+    app.dependency_overrides[get_import_review_reader] = lambda: MultiReviewReaderStub([review])
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/import-review/{review.document.id}/items/{item.id}/existing-operation-link",
+            json={"operationId": str(operation_id), "expectedStatus": "matched"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["review"]["document"]["id"] == str(review.document.id)
+    assert isinstance(service.command, LinkImportReviewExistingOperationCommand)
+    assert service.command.operation_id == operation_id
+    assert service.command.expected_status is RawTransactionStatus.MATCHED
 
 
 def test_confirmation_returns_authoritative_review_and_typed_result() -> None:

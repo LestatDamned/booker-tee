@@ -217,7 +217,6 @@ def build_vtb_card_draft(
         row_index=parsed_row.raw_row.source_row_index,
         operation_date_raw=parsed_row.operation_date_raw,
         operation_time_raw=parsed_row.operation_time_raw,
-        statement_period=context.statement_period,
     )
     dedupe_hash = build_dedupe_hash(
         account_id=context.account_id,
@@ -309,12 +308,10 @@ def stable_card_source_row_id(
     row_index: int,
     operation_date_raw: str | None,
     operation_time_raw: str | None,
-    statement_period: tuple[str, str] | None,
 ) -> str:
-    period_key = "-".join(statement_period) if statement_period is not None else "unknown-period"
     date_key = operation_date_raw or "unknown-date"
     time_key = operation_time_raw or "unknown-time"
-    return f"vtb-card:{period_key}:{date_key}:{time_key}:{row_index}"
+    return f"vtb-card:{date_key}:{time_key}:{row_index}"
 
 
 def extract_card_hint(text: str) -> str | None:

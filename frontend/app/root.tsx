@@ -1,3 +1,4 @@
+import { useLayoutEffect } from "react";
 import {
   Links,
   Meta,
@@ -5,9 +6,11 @@ import {
   Scripts,
   ScrollRestoration,
   isRouteErrorResponse,
+  useLocation,
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import { navigateToHashTarget } from "./shared/navigation/hash-target";
 import stylesheet from "./styles/app.css?url";
 import { RouteLoadingPage } from "./ui/route-state-page/route-loading-page";
 import { RouteStatePage } from "./ui/route-state-page/route-state-page";
@@ -27,12 +30,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         {children}
+        <HashTargetNavigation />
         <ScrollRestoration />
         <Scripts />
       </body>
     </html>
   );
 }
+
+function HashTargetNavigation() {
+  const location = useLocation();
+
+  useLayoutEffect(() => {
+    navigateToHashTarget(location.hash);
+  }, [location.hash, location.key]);
+
+  return null;
+}
+
+export { navigateToHashTarget } from "./shared/navigation/hash-target";
 
 export default function App() {
   return <Outlet />;

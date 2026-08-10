@@ -178,5 +178,6 @@ function importReviewItem(
           : [],
     },
     duplicateEvidence: null,
+    existingOperationCandidates: [],
   };
 }

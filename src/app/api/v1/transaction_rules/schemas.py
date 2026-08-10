@@ -107,6 +107,7 @@ class TransactionRuleDirectoryApiResponse(ApiModel):
     applied_filters: TransactionRuleAppliedFiltersApiResponse
     references: TransactionRuleReferencesApiResponse
     capabilities: TransactionRuleDirectoryCapabilitiesApiResponse
+    target_item: TransactionRuleSummaryApiResponse | None = None
 
 
 class TransactionRuleCreateApiRequest(ApiModel):

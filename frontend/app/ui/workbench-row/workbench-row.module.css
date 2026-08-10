@@ -213,8 +213,7 @@
   );
 }
 
-.target,
-.row:target {
+.target {
   --row-state-overlay: color-mix(
     in srgb,
     var(--color-selection) 25%,

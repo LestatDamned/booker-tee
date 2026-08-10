@@ -79,6 +79,14 @@ async def list_manual_operations(
         filters=parameters.filters,
         pagination=parameters.pagination,
     )
+    target_operation = (
+        await manual_operations.get(
+            workspace_id=context.workspace.workspace.id,
+            operation_id=parameters.operation_id,
+        )
+        if parameters.operation_id
+        else None
+    )
     references = await reference_reader.read(context.workspace.workspace.id)
     can_write = permission_flags_for(context.workspace.membership).can_write_financial_data
     return ManualLedgerResponseMapper.list_response(
@@ -86,7 +94,7 @@ async def list_manual_operations(
         page=page,
         references=references,
         can_write=can_write,
-        target_operation_id=parameters.operation_id,
+        target_operation=target_operation,
     )
 
 

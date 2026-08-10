@@ -849,6 +849,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/import-review/{document_id}/items/{item_id}/existing-operation-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Link Import Review Existing Operation */
+        post: operations["link_import_review_existing_operation_api_v1_import_review__document_id__items__item_id__existing_operation_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/import-review/{document_id}/items/{item_id}/lifecycle": {
         parameters: {
             query?: never;
@@ -2998,12 +3015,43 @@ export interface components {
          * ImportReviewDuplicateMatchReasonCode
          * @enum {string}
          */
-        ImportReviewDuplicateMatchReasonCode: "same_account_date_amount_currency";
+        ImportReviewDuplicateMatchReasonCode: "same_dedupe_hash" | "same_account_date_amount_currency";
         /**
          * ImportReviewDuplicateMatchingField
          * @enum {string}
          */
         ImportReviewDuplicateMatchingField: "account" | "operation_date" | "amount" | "currency";
+        /** ImportReviewExistingOperationCandidateApiResponse */
+        ImportReviewExistingOperationCandidateApiResponse: {
+            /**
+             * Operationid
+             * Format: uuid
+             */
+            operationId: string;
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /** Description */
+            description: string | null;
+            amount: components["schemas"]["MoneyString"];
+            /** Currency */
+            currency: string;
+            /** Categoryname */
+            categoryName: string | null;
+            /** Daydistance */
+            dayDistance: number;
+        };
+        /** ImportReviewExistingOperationLinkApiRequest */
+        ImportReviewExistingOperationLinkApiRequest: {
+            /**
+             * Operationid
+             * Format: uuid
+             */
+            operationId: string;
+            expectedStatus: components["schemas"]["RawTransactionStatus"];
+        };
         /** ImportReviewExistingTransferCandidateApiResponse */
         ImportReviewExistingTransferCandidateApiResponse: {
             /**
@@ -3063,6 +3111,8 @@ export interface components {
             transfer: components["schemas"]["ImportReviewTransferOptionsApiResponse"];
             lifecycle: components["schemas"]["ImportReviewLifecycleApiResponse"];
             duplicateEvidence: components["schemas"]["ImportReviewDuplicateEvidenceApiResponse"] | null;
+            /** Existingoperationcandidates */
+            existingOperationCandidates: components["schemas"]["ImportReviewExistingOperationCandidateApiResponse"][];
         };
         /**
          * ImportReviewLifecycleAction
@@ -3540,6 +3590,7 @@ export interface components {
             capabilities: components["schemas"]["ManualLedgerCapabilitiesApiResponse"];
             /** Targetoperationid */
             targetOperationId?: string | null;
+            targetOperation?: components["schemas"]["ManualOperationApiResponse"] | null;
         };
         /** ManualLedgerMoneyApiResponse */
         ManualLedgerMoneyApiResponse: {
@@ -4674,6 +4725,7 @@ export interface components {
             appliedFilters: components["schemas"]["TransactionRuleAppliedFiltersApiResponse"];
             references: components["schemas"]["TransactionRuleReferencesApiResponse"];
             capabilities: components["schemas"]["TransactionRuleDirectoryCapabilitiesApiResponse"];
+            targetItem?: components["schemas"]["TransactionRuleSummaryApiResponse"] | null;
         };
         /** TransactionRuleDirectoryCapabilitiesApiResponse */
         TransactionRuleDirectoryCapabilitiesApiResponse: {
@@ -9027,6 +9079,78 @@ export interface operations {
             };
         };
     };
+    link_import_review_existing_operation_api_v1_import_review__document_id__items__item_id__existing_operation_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportReviewExistingOperationLinkApiRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportReviewLifecycleMutationApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_import_review_lifecycle_api_v1_import_review__document_id__items__item_id__lifecycle_post: {
         parameters: {
             query?: never;
@@ -9991,6 +10115,7 @@ export interface operations {
                 status?: string | null;
                 page?: string | null;
                 page_size?: string | null;
+                rule_id?: string | null;
             };
             header?: never;
             path?: never;

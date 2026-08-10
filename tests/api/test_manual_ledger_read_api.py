@@ -50,6 +50,7 @@ def test_manual_ledger_returns_decimal_money_and_explicit_semantics() -> None:
         },
     }
     assert payload["targetOperationId"] == str(operation.id)
+    assert payload["targetOperation"]["id"] == str(operation.id)
     assert payload["filterOptions"] == {
         "accounts": [
             {
@@ -76,7 +77,7 @@ def test_manual_ledger_returns_decimal_money_and_explicit_semantics() -> None:
         "perPage": [25, 50, 100, 200],
     }
     assert payload["pagination"]["page"] == 2
-    assert service.workspace_ids == [workspace_id]
+    assert service.workspace_ids == [workspace_id, workspace_id]
     assert reference_reader.workspace_ids == [workspace_id]
     assert service.filters[0].operation_type is OperationType.EXPENSE
     assert service.filters[0].status is OperationStatus.CONFIRMED

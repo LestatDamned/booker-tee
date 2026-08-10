@@ -67,6 +67,17 @@ class DuplicateSourceStub:
         self.workspace_ids: list[UUID] = []
         self.exclude_document_ids: list[UUID] = []
 
+    async def list_exact_duplicate_candidates(
+        self,
+        *,
+        workspace_id: UUID,
+        dedupe_hashes: object,
+        exclude_document_id: UUID,
+    ) -> list[object]:
+        self.workspace_ids.append(workspace_id)
+        self.exclude_document_ids.append(exclude_document_id)
+        return self.candidates
+
     async def list_possible_duplicate_candidates(
         self,
         *,
@@ -212,6 +223,50 @@ async def test_possible_duplicate_evidence_is_built_from_workspace_scoped_candid
 
 
 @pytest.mark.asyncio
+async def test_exact_duplicate_evidence_points_to_original_import() -> None:
+    from app.features.import_review.application.review import ImportReviewDuplicateReader
+
+    workspace_id = uuid4()
+    document_id = uuid4()
+    candidate_document_id = uuid4()
+    target = row(uuid4(), 1, RawTransactionStatus.DUPLICATE)
+    target.dedupe_hash = "same-bank-row"
+    candidate = row(uuid4(), 4, RawTransactionStatus.CONFIRMED)
+    candidate.dedupe_hash = target.dedupe_hash
+    candidate.uploaded_document_id = candidate_document_id
+    candidate.uploaded_document = SimpleNamespace(
+        id=candidate_document_id,
+        original_filename="sberbank-1-10-may.pdf",
+    )
+    document = SimpleNamespace(
+        id=document_id,
+        original_filename="sberbank-may.pdf",
+        status=UploadedDocumentStatus.REQUIRES_REVIEW,
+        account=None,
+        account_id=None,
+        raw_transactions=[target],
+    )
+
+    result = await ImportReviewReader(
+        cast(Any, DocumentSourceStub(document)),
+        cast(Any, ReferenceReaderStub()),
+        EmptyTransferReaderStub(),
+        duplicates=ImportReviewDuplicateReader(cast(Any, DuplicateSourceStub([candidate]))),
+    ).read(
+        workspace_id=workspace_id,
+        document_id=document_id,
+        can_write=True,
+    )
+
+    assert result is not None
+    evidence = result.items[0].duplicate_evidence
+    assert evidence is not None
+    assert evidence.reason_code.value == "same_dedupe_hash"
+    assert evidence.candidate.document_filename == "sberbank-1-10-may.pdf"
+    assert evidence.candidate.operation_id == candidate.linked_operation_id
+
+
+@pytest.mark.asyncio
 async def test_confirmed_row_uses_linked_operation_instead_of_rule_suggestion() -> None:
     workspace_id = uuid4()
     document_id = uuid4()
@@ -276,6 +331,7 @@ def row(row_id: UUID, row_index: int, status: RawTransactionStatus) -> SimpleNam
         suggested_by_rule_id=None,
         normalization_error=None,
         raw_payload={},
+        dedupe_hash=None,
         linked_operation_id=operation_id,
         linked_operation=(
             SimpleNamespace(

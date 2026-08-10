@@ -8,7 +8,7 @@ import { ActionStack } from "../../ui/action-stack/action-stack";
 import { AppliedFilterSummary } from "../../ui/applied-filter-summary/applied-filter-summary";
 import { BackLink } from "../../ui/back-link/back-link";
 import { Badge } from "../../ui/badge/badge";
-import { Button, ButtonLink, RouterButtonLink } from "../../ui/button/button";
+import { Button, RouterButtonLink } from "../../ui/button/button";
 import { ExpansionPanel } from "../../ui/expansion-panel/expansion-panel";
 import { Field } from "../../ui/field/field";
 import { FormActions } from "../../ui/field/form-layout";
@@ -370,20 +370,20 @@ function AccountMovementRow({
                   {isEditing ? "Закрыть" : "Исправить"}
                 </Button>
               ) : (
-                <ButtonLink href={sourceTarget.url} icon="source">
+                <RouterButtonLink to={sourceTarget.url} icon="source">
                   {sourceTarget.label}
-                </ButtonLink>
+                </RouterButtonLink>
               )
             }
             secondary={
               movement.capabilities.canEditReviewFields ? (
-                <ButtonLink
-                  href={sourceTarget.url}
+                <RouterButtonLink
+                  to={sourceTarget.url}
                   icon="source"
                   tone="secondary"
                 >
                   {sourceTarget.label}
-                </ButtonLink>
+                </RouterButtonLink>
               ) : undefined
             }
           />
@@ -461,7 +461,7 @@ function movementSourceTarget(movement: AccountDetailDto["items"][number]): {
   if (movement.sourceTarget.kind === "manual") {
     return {
       label: "Открыть операцию",
-      url: `/app/ledger/manual?operation_id=${movement.operationId}#operation-${movement.operationId}`,
+      url: `/ledger/manual?operation_id=${movement.operationId}#operation-${movement.operationId}`,
     };
   }
   if (
@@ -471,7 +471,7 @@ function movementSourceTarget(movement: AccountDetailDto["items"][number]): {
   ) {
     return {
       label: "Открыть импорт",
-      url: `/app/imports/documents/${movement.sourceTarget.uploadedDocumentId}/review#raw-${movement.sourceTarget.rawTransactionId}`,
+      url: `/imports/documents/${movement.sourceTarget.uploadedDocumentId}/review#raw-${movement.sourceTarget.rawTransactionId}`,
     };
   }
   if (movement.sourceTarget.kind === "import") {

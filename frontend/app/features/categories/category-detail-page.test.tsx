@@ -28,7 +28,7 @@ describe("CategoryDetailPage", () => {
     ).toBeVisible();
     expect(screen.getByRole("link", { name: "Супермаркеты" })).toHaveAttribute(
       "href",
-      `/rules#rule-${detail.rules.items[0]!.id}`,
+      `/rules?rule_id=${detail.rules.items[0]!.id}#rule-${detail.rules.items[0]!.id}`,
     );
   });
 

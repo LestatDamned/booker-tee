@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Header, status
 from app.api.dependencies import ApiRequestContext, get_api_request_context
 from app.api.errors import ApiError, api_error_responses
 from app.api.v1.import_review.dependencies import (
+    get_existing_operation_link_service,
     get_import_review_category_creator,
     get_import_review_draft_evaluator,
     get_import_review_lifecycle_service,
@@ -18,6 +19,7 @@ from app.api.v1.import_review.posting_router import router as posting_router
 from app.api.v1.import_review.schemas.requests import (
     ImportReviewCategoryCreateApiRequest,
     ImportReviewDraftEvaluationApiRequest,
+    ImportReviewExistingOperationLinkApiRequest,
     ImportReviewExistingTransferLinkApiRequest,
     ImportReviewLifecycleApiRequest,
     ImportReviewNewTransferApiRequest,
@@ -38,6 +40,7 @@ from app.features.import_review.application.classification import (
     ImportReviewDraftEvaluator,
 )
 from app.features.import_review.application.lifecycle import ImportReviewLifecycleService
+from app.features.import_review.application.operation_linking import ExistingOperationLinkService
 from app.features.import_review.application.review import ImportReviewReader
 from app.features.import_review.application.rules import (
     ImportReviewRuleApplicationService,
@@ -53,6 +56,7 @@ from app.features.import_review.errors import (
 from app.features.import_review.schemas.commands import (
     CreateImportReviewTransferCommand,
     ImportReviewLifecycleCommand,
+    LinkImportReviewExistingOperationCommand,
     LinkImportReviewExistingTransferCommand,
     MatchImportReviewRawRowCommand,
 )
@@ -300,6 +304,64 @@ async def post_import_review_transfer(
         updated_item_ids=sorted(result.updated_item_ids, key=str),
         validation_document_ids=sorted(result.affected_document_ids, key=str),
         reviews=reviews,
+    )
+
+
+@router.post(
+    "/{document_id}/items/{item_id}/existing-operation-link",
+    response_model=ImportReviewLifecycleMutationApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_409_CONFLICT,
+    ),
+)
+async def link_import_review_existing_operation(
+    document_id: UUID,
+    item_id: UUID,
+    request: ImportReviewExistingOperationLinkApiRequest,
+    context: Annotated[
+        ApiRequestContext,
+        Depends(require_import_review_write_context),
+    ],
+    linker: Annotated[
+        ExistingOperationLinkService,
+        Depends(get_existing_operation_link_service),
+    ],
+    reader: Annotated[ImportReviewReader, Depends(get_import_review_reader)],
+) -> ImportReviewLifecycleMutationApiResponse:
+    try:
+        result = await linker.execute(
+            workspace_id=context.workspace.workspace.id,
+            command=LinkImportReviewExistingOperationCommand(
+                document_id=document_id,
+                item_id=item_id,
+                operation_id=request.operation_id,
+                expected_status=request.expected_status,
+            ),
+        )
+    except RawTransactionReviewError as exc:
+        raise _review_item_not_found() from exc
+    except LedgerPostingError as exc:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="import_review_existing_operation_stale",
+            message="Ручная операция больше не подходит. Обновите данные.",
+        ) from exc
+
+    review = await reader.read(
+        workspace_id=context.workspace.workspace.id,
+        document_id=document_id,
+        can_write=True,
+    )
+    if review is None:
+        raise RuntimeError("Import review disappeared after operation link commit.")
+    return ImportReviewLifecycleMutationApiResponse(
+        item_id=result.item_id,
+        document_id=result.document_id,
+        replayed=result.replayed,
+        review=ImportReviewApiResponse.model_validate(review),
     )
 
 

@@ -230,10 +230,7 @@ def build_vtb_draft(
     amount = signed_vtb_amount(parsed_row.inflow_raw, parsed_row.outflow_raw, normalization_errors)
     row_currency = normalize_currency(parsed_row.operation_currency_raw, context.currency)
     description = normalize_description(parsed_row.description_raw)
-    source_row_id = stable_source_row_id(
-        parsed_row.raw_row.source_line_index,
-        context.statement_period,
-    )
+    source_row_id = stable_source_row_id(parsed_row.raw_row.source_line_index)
     dedupe_hash = build_dedupe_hash(
         account_id=context.account_id,
         operation_date=operation_date,
@@ -362,12 +359,8 @@ def raw_payload(
     return payload
 
 
-def stable_source_row_id(
-    source_line_index: int,
-    statement_period: tuple[str, str] | None,
-) -> str:
-    period_key = "-".join(statement_period) if statement_period is not None else "unknown-period"
-    return f"vtb-deposit:{period_key}:{source_line_index}"
+def stable_source_row_id(source_line_index: int) -> str:
+    return f"vtb-deposit:{source_line_index}"
 
 
 def extract_account_hint(text: str) -> tuple[str | None, str | None]:

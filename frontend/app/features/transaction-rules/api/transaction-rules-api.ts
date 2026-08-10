@@ -109,6 +109,7 @@ const directorySchema: z.ZodType<TransactionRuleDirectoryDto> = z.object({
     canSeedDefaults: z.boolean(),
     readonlyReasonCode: z.enum(["financial_write_forbidden"]).nullable(),
   }),
+  targetItem: summarySchema.nullable().optional().default(null),
 });
 
 const createResponseSchema = z.object({

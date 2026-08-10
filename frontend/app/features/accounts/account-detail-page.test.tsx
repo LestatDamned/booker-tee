@@ -52,7 +52,7 @@ describe("AccountDetailPage", () => {
     expect(screen.getByText("Не влияет на прибыль")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Открыть операцию" }),
-    ).toHaveAttribute("href", expect.stringContaining("/app/ledger/manual"));
+    ).toHaveAttribute("href", expect.stringContaining("/ledger/manual"));
   });
 
   it("links debt movements back to the debt workflow", () => {

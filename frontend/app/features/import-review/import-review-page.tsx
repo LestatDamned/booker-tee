@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
 
 import type { SessionDto } from "../../api/session";
+import { revealHashTarget } from "../../shared/navigation/hash-target";
 import { AppShell } from "../../shell/app-shell";
 import { Button, RouterButtonLink } from "../../ui/button/button";
 import { Icon } from "../../ui/icon/icon";
@@ -40,6 +41,7 @@ export function ImportReviewPage({ review, session }: ImportReviewPageProps) {
 }
 
 function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
+  const location = useLocation();
   const [currentReview, setCurrentReview] = useState(review);
   const readonly = !currentReview.capabilities.canWrite;
   const [categories, setCategories] = useState(review.references.categories);
@@ -54,6 +56,35 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
   );
   const { dismissToast, showToast, toast } = useToastQueue();
   const visibleItemKey = visibleItems.map((item) => item.id).join("|");
+
+  useEffect(() => {
+    if (!location.hash.startsWith("#raw-")) return;
+    const itemId = location.hash.slice(5);
+    const targetIndex = filteredItems(currentReview, filter).findIndex(
+      (item) => item.id === itemId,
+    );
+    if (targetIndex < 0) return;
+    if (targetIndex >= visibleRowCount) {
+      const nextSearchParams = new URLSearchParams(searchParams);
+      nextSearchParams.set(
+        "rows",
+        String(
+          Math.ceil((targetIndex + 1) / VISIBLE_ROW_STEP) * VISIBLE_ROW_STEP,
+        ),
+      );
+      setSearchParams(nextSearchParams, { preventScrollReset: true });
+      return;
+    }
+    const target = document.getElementById(`raw-${itemId}`);
+    if (target instanceof HTMLElement) revealHashTarget(target);
+  }, [
+    currentReview,
+    filter,
+    location.hash,
+    searchParams,
+    setSearchParams,
+    visibleRowCount,
+  ]);
 
   useEffect(() => {
     let animationFrame = 0;

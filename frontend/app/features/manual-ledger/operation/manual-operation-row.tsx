@@ -16,7 +16,6 @@ import { ManualOperationLifecycle } from "./manual-operation-lifecycle";
 type ManualOperationRowProps = {
   csrfToken: string;
   isEditing: boolean;
-  isTargeted: boolean;
   isWorking: boolean;
   onDeleted?: (operationId: string) => void;
   onEdit: (operationId: string) => void;
@@ -31,7 +30,6 @@ type ManualOperationRowProps = {
 export function ManualOperationRow({
   csrfToken,
   isEditing,
-  isTargeted,
   isWorking,
   onDeleted,
   onEdit,
@@ -154,7 +152,7 @@ export function ManualOperationRow({
       }
       meta={<OperationMeta operation={operation} />}
       onAction={onWorkStarted}
-      state={isWorking ? "working" : isTargeted ? "target" : "default"}
+      state={isWorking ? "working" : "default"}
       value={
         operation.money ? (
           <MoneyValue

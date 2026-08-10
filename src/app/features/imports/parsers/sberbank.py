@@ -255,7 +255,6 @@ def build_sberbank_draft(
     source_row_id = stable_source_row_id(
         auth_code=parsed_row.auth_code,
         source_line_index=parsed_row.source_line_index,
-        statement_period=context.statement_period,
     )
     dedupe_hash = build_dedupe_hash(
         account_id=context.account_id,
@@ -401,11 +400,10 @@ def stable_source_row_id(
     *,
     auth_code: str | None,
     source_line_index: int,
-    statement_period: tuple[str, str] | None,
 ) -> str:
-    period_key = "-".join(statement_period) if statement_period is not None else "unknown-period"
-    row_key = auth_code or str(source_line_index)
-    return f"sberbank-card:{period_key}:{row_key}"
+    if auth_code:
+        return f"sberbank-card:auth:{auth_code}"
+    return f"sberbank-card:line:{source_line_index}"
 
 
 def extract_statement_period(text: str) -> tuple[str, str] | None:

@@ -7,6 +7,7 @@ from app.features.properties.models import Property, PropertyStatus
 from app.features.transaction_rules.models import TransactionRule
 from app.features.transaction_rules.repository import (
     TransactionRuleDirectoryResult,
+    TransactionRuleDirectoryRow,
     TransactionRuleRepository,
 )
 from app.features.transaction_rules.schemas import (
@@ -55,6 +56,19 @@ class TransactionRuleDirectorySource(Protocol):
         current_ids: set[UUID],
     ) -> Sequence[Property]: ...
 
+    async def get_for_workspace(
+        self,
+        workspace_id: UUID,
+        rule_id: UUID,
+    ) -> TransactionRule | None: ...
+
+    async def count_direct_raw_suggestions(
+        self,
+        *,
+        workspace_id: UUID,
+        rule_id: UUID,
+    ) -> int: ...
+
 
 class TransactionRuleDirectoryReader:
     def __init__(self, source: TransactionRuleDirectorySource) -> None:
@@ -70,6 +84,7 @@ class TransactionRuleDirectoryReader:
         status: TransactionRuleDirectoryStatus,
         page: int,
         page_size: int,
+        target_rule_id: UUID | None = None,
     ) -> TransactionRuleDirectoryDto:
         result = await self._source.read_directory(
             workspace_id=workspace_id,
@@ -79,12 +94,33 @@ class TransactionRuleDirectoryReader:
             page=page,
             page_size=page_size,
         )
+        target_row = next(
+            (row for row in result.rows if row.rule.id == target_rule_id),
+            None,
+        )
+        if target_row is None and target_rule_id is not None:
+            target_rule = await self._source.get_for_workspace(workspace_id, target_rule_id)
+            if target_rule is not None:
+                target_row = TransactionRuleDirectoryRow(
+                    rule=target_rule,
+                    direct_raw_suggestion_count=(
+                        await self._source.count_direct_raw_suggestions(
+                            workspace_id=workspace_id,
+                            rule_id=target_rule.id,
+                        )
+                    ),
+                )
         category_ids = {
             row.rule.category_id for row in result.rows if row.rule.category_id is not None
         }
         property_ids = {
             row.rule.property_id for row in result.rows if row.rule.property_id is not None
         }
+        if target_row is not None:
+            if target_row.rule.category_id is not None:
+                category_ids.add(target_row.rule.category_id)
+            if target_row.rule.property_id is not None:
+                property_ids.add(target_row.rule.property_id)
         categories = await self._source.list_directory_categories(
             workspace_id=workspace_id,
             current_ids=category_ids,
@@ -133,6 +169,15 @@ class TransactionRuleDirectoryReader:
                     if can_write
                     else TransactionRuleDirectoryReadonlyReason.FINANCIAL_WRITE_FORBIDDEN
                 ),
+            ),
+            target_item=(
+                transaction_rule_summary(
+                    target_row.rule,
+                    direct_raw_suggestion_count=target_row.direct_raw_suggestion_count,
+                    can_write=can_write,
+                )
+                if target_row is not None
+                else None
             ),
         )
 

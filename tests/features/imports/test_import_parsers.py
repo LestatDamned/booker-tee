@@ -1,3 +1,4 @@
+from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
 
@@ -12,15 +13,28 @@ from app.features.imports.parsers.extractors.pdf import (
 )
 from app.features.imports.parsers.ozon_bank import OzonBankCardStatementParser
 from app.features.imports.parsers.registry import StatementParserRegistry
-from app.features.imports.parsers.sberbank import SberbankCardStatementParser
+from app.features.imports.parsers.sberbank import (
+    SberbankCardStatementParser,
+)
+from app.features.imports.parsers.sberbank import (
+    stable_source_row_id as sberbank_source_row_id,
+)
 from app.features.imports.parsers.support.normalization import (
     normalize_description,
     parse_bank_date,
     parse_money_amount,
 )
 from app.features.imports.parsers.tbank import TbankCardStatementParser
-from app.features.imports.parsers.vtb.card import VtbCardStatementParser
-from app.features.imports.parsers.vtb.deposit import VtbDepositStatementParser
+from app.features.imports.parsers.vtb.card import (
+    VtbCardStatementParser,
+    stable_card_source_row_id,
+)
+from app.features.imports.parsers.vtb.deposit import (
+    VtbDepositStatementParser,
+)
+from app.features.imports.parsers.vtb.deposit import (
+    stable_source_row_id as vtb_deposit_source_row_id,
+)
 from app.features.imports.statements.types import RawTransactionStatus
 
 
@@ -225,6 +239,75 @@ def test_sberbank_card_parser_creates_raw_transactions_from_fixture() -> None:
     assert control_totals.total_inflow == Decimal("159568.08")
     assert control_totals.total_outflow == Decimal("191629.00")
     assert control_totals.closing_balance == Decimal("27520.46")
+
+
+def test_sberbank_auth_code_identity_survives_overlapping_statement_periods() -> None:
+    partial = sberbank_source_row_id(
+        auth_code="ABC123",
+        source_line_index=10,
+    )
+    full = sberbank_source_row_id(
+        auth_code="ABC123",
+        source_line_index=42,
+    )
+
+    assert partial == full == "sberbank-card:auth:ABC123"
+
+
+def test_positional_bank_row_identities_do_not_include_statement_period() -> None:
+    assert sberbank_source_row_id(auth_code=None, source_line_index=10) == ("sberbank-card:line:10")
+    assert (
+        stable_card_source_row_id(
+            row_index=7,
+            operation_date_raw="10.05.2026",
+            operation_time_raw="12:30:15",
+        )
+        == "vtb-card:10.05.2026:12:30:15:7"
+    )
+    assert vtb_deposit_source_row_id(12) == "vtb-deposit:12"
+
+
+def test_overlapping_statement_period_does_not_change_bank_row_hashes() -> None:
+    cases = (
+        (
+            "tests/fixtures/sberbank_statement.pdf",
+            SberbankCardStatementParser(),
+            "За период 01.04.2026 — 30.04.2026",
+            "За период 01.04.2026 — 31.05.2026",
+        ),
+        (
+            "tests/fixtures/vtb_card_statement.pdf",
+            VtbCardStatementParser(),
+            "Период выписки 01.05.2026 - 31.05.2026",
+            "Период выписки 01.05.2026 - 10.05.2026",
+        ),
+        (
+            "tests/fixtures/VTB_statement_june.pdf",
+            VtbDepositStatementParser(),
+            "Период выписки 01.05.2026 - 31.05.2026",
+            "Период выписки 01.05.2026 - 10.05.2026",
+        ),
+    )
+    extractor = PdfPlumberStatementExtractor()
+
+    for fixture, parser, full_period, partial_period in cases:
+        extracted = extractor.extract(Path(fixture))
+        overlapping = replace(
+            extracted,
+            text_by_page=[
+                page.replace(full_period, partial_period) for page in extracted.text_by_page
+            ],
+        )
+        full_rows = parser.parse_transaction_drafts(extracted, account_id=None, currency="RUB")
+        overlapping_rows = parser.parse_transaction_drafts(
+            overlapping,
+            account_id=None,
+            currency="RUB",
+        )
+
+        assert [row.dedupe_hash for row in full_rows] == [
+            row.dedupe_hash for row in overlapping_rows
+        ]
 
 
 def test_vtb_card_parser_creates_raw_transactions_from_fixture() -> None:

@@ -92,6 +92,18 @@ class ManualOperationServiceStub:
             self.income_commands.append(command)
         return self.operations[-1]
 
+    async def get(
+        self,
+        *,
+        workspace_id: UUID,
+        operation_id: UUID,
+    ) -> ManualOperationReadDto | None:
+        self.workspace_ids.append(workspace_id)
+        return next(
+            (operation for operation in self.operations if operation.id == operation_id),
+            None,
+        )
+
     async def get_for_edit(
         self,
         *,

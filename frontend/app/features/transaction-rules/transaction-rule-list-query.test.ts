@@ -25,10 +25,18 @@ describe("transaction rule URL state", () => {
     expect(query).toEqual({
       q: "ozon",
       categoryId,
+      ruleId: "",
       status: "disabled",
       page: 2,
       pageSize: 25,
     });
+  });
+
+  it("preserves a deep-link target for loading and clears it on list navigation", () => {
+    const current = `?rule_id=${categoryId}`;
+
+    expect(transactionRuleApiSearch(current)).toBe(`?rule_id=${categoryId}`);
+    expect(transactionRulePageUrl(current, 2)).toBe("?page=2");
   });
 
   it("resets page when search or status changes and preserves it for pagination", () => {

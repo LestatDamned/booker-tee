@@ -76,6 +76,7 @@ async def list_transaction_rules(
         status=parameters.status,
         page=parameters.page,
         page_size=parameters.page_size,
+        target_rule_id=parameters.rule_id,
     )
     return TransactionRuleDirectoryApiResponse.model_validate(directory)
 
