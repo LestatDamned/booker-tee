@@ -279,18 +279,27 @@ def test_mapping_preview_api_returns_stable_field_errors() -> None:
     }
 
 
-def test_mapping_api_requires_management_and_masks_other_workspace() -> None:
+def test_mapping_api_allows_readonly_viewer_and_masks_analyst_and_other_workspace() -> None:
     mapping = mapping_read_model()
     viewer_context = api_context(WorkspaceRole.VIEWER)
     viewer_reader = MappingReaderStub(mapping)
     viewer_app = mapping_app(viewer_context, viewer_reader)
 
     with TestClient(viewer_app) as client:
+        visible = client.get(f"/api/v1/imports/documents/{mapping.document_id}/mapping")
+
+    assert visible.status_code == 200
+    assert len(viewer_reader.read_calls) == 1
+
+    analyst_context = api_context(WorkspaceRole.ANALYST)
+    analyst_reader = MappingReaderStub(mapping)
+    analyst_app = mapping_app(analyst_context, analyst_reader)
+    with TestClient(analyst_app) as client:
         forbidden = client.get(f"/api/v1/imports/documents/{mapping.document_id}/mapping")
 
     assert forbidden.status_code == 403
-    assert forbidden.json()["error"]["code"] == "import_management_forbidden"
-    assert viewer_reader.read_calls == []
+    assert forbidden.json()["error"]["code"] == "raw_import_read_forbidden"
+    assert analyst_reader.read_calls == []
 
     owner_context = api_context(WorkspaceRole.OWNER)
     missing_app = mapping_app(owner_context, MappingReaderStub(None))

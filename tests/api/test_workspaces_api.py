@@ -9,6 +9,8 @@ from workspaces_support import (
 )
 
 from api_client import ApiTestClient as TestClient
+from app.api.v1.auth.dependencies import get_identity_email_sender
+from app.features.users.email_delivery import IdentityEmail
 from app.features.workspaces.commands import (
     CreateWorkspaceCommand,
     LeaveWorkspaceCommand,
@@ -449,23 +451,62 @@ def test_workspace_invitations_return_metadata_without_credentials() -> None:
     assert "hash" not in response.text.lower()
 
 
+def test_workspace_team_directories_are_forbidden_outside_owner_and_admin() -> None:
+    members_app, members, _, members_workspace_id = workspace_members_app(WorkspaceRole.EDITOR)
+    invitations_app, invitations, _, invitations_workspace_id = workspace_invitations_app(
+        WorkspaceRole.EDITOR
+    )
+
+    with TestClient(members_app) as client:
+        members_response = client.get(f"/api/v1/workspaces/{members_workspace_id}/members")
+    with TestClient(invitations_app) as client:
+        invitations_response = client.get(
+            f"/api/v1/workspaces/{invitations_workspace_id}/invitations"
+        )
+
+    assert members_response.status_code == 403
+    assert invitations_response.status_code == 403
+    assert members_response.json()["error"]["code"] == "member_directory_forbidden"
+    assert invitations_response.json()["error"]["code"] == "member_directory_forbidden"
+    assert members.read_calls == []
+    assert invitations.read_calls == []
+
+
 def test_workspace_invitation_create_returns_transient_share_url() -> None:
     app, service, actor_id, workspace_id = workspace_invitations_app()
     idempotency_key = uuid4()
+    sent: list[IdentityEmail] = []
+
+    async def capture_email(message: IdentityEmail) -> None:
+        sent.append(message)
+
+    app.dependency_overrides[get_identity_email_sender] = lambda: capture_email
 
     with TestClient(app) as client:
         response = client.post(
             f"/api/v1/workspaces/{workspace_id}/invitations",
             headers={"Idempotency-Key": str(idempotency_key)},
-            json={"role": "viewer"},
+            json={"email": "invitee@example.test", "role": "viewer"},
         )
 
     assert response.status_code == 201
     assert response.headers["Cache-Control"] == "no-store"
-    assert service.create_calls == [(actor_id, workspace_id, WorkspaceRole.VIEWER, idempotency_key)]
+    assert service.create_calls == [
+        (
+            actor_id,
+            workspace_id,
+            "invitee@example.test",
+            WorkspaceRole.VIEWER,
+            idempotency_key,
+        )
+    ]
     payload = response.json()
     assert payload["shareUrl"].endswith("/app/workspaces/invitations/one-time-invitation-token")
+    assert payload["invitation"]["inviteeEmail"] == "invitee@example.test"
     assert "shareUrl" not in payload["invitations"]
+    assert len(sent) == 1
+    assert sent[0].recipient == "invitee@example.test"
+    assert payload["shareUrl"] in sent[0].text
 
 
 def test_workspace_invitation_revoke_dispatches_stale_snapshot_and_masks_id() -> None:
@@ -509,7 +550,7 @@ def test_workspace_invitation_maps_idempotency_and_role_reason() -> None:
         conflict = client.post(
             f"/api/v1/workspaces/{workspace_id}/invitations",
             headers={"Idempotency-Key": str(uuid4())},
-            json={"role": "viewer"},
+            json={"email": "invitee@example.test", "role": "viewer"},
         )
         service.error = WorkspaceInvitationTransitionError(
             "forbidden",
@@ -518,7 +559,7 @@ def test_workspace_invitation_maps_idempotency_and_role_reason() -> None:
         blocked = client.post(
             f"/api/v1/workspaces/{workspace_id}/invitations",
             headers={"Idempotency-Key": str(uuid4())},
-            json={"role": "admin"},
+            json={"email": "invitee@example.test", "role": "admin"},
         )
 
     assert conflict.status_code == 409

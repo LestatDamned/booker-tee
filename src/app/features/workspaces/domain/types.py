@@ -36,9 +36,13 @@ class WorkspaceInvitationStatus(StrEnum):
 class WorkspaceAuditEventType(StrEnum):
     WORKSPACE_CREATED = "workspace_created"
     WORKSPACE_UPDATED = "workspace_updated"
+    WORKSPACE_DEACTIVATED = "workspace_deactivated"
+    WORKSPACE_RESTORED = "workspace_restored"
+    OWNERSHIP_TRANSFERRED = "ownership_transferred"
     INVITATION_CREATED = "invitation_created"
     INVITATION_ACCEPTED = "invitation_accepted"
     INVITATION_REVOKED = "invitation_revoked"
     MEMBER_ROLE_CHANGED = "member_role_changed"
     MEMBER_DISABLED = "member_disabled"
     MEMBER_REACTIVATED = "member_reactivated"
+    MEMBER_LEFT = "member_left"

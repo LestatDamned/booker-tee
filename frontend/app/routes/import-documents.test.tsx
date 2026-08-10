@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { SessionDto } from "../api/session";
 import { ImportDocumentsRouteView } from "./import-documents";
 import { loadImportDocumentsRoute } from "./import-documents-loader";
 
@@ -54,6 +55,28 @@ describe("import documents route", () => {
       "/app/auth/login?next=%2Fapp%2Fimports",
     );
   });
+
+  it("renders a safe forbidden state for a stale raw-import link", () => {
+    render(
+      <MemoryRouter>
+        <ImportDocumentsRouteView
+          loaderData={{
+            session: { status: "authenticated", session: sessionPayload },
+            documents: {
+              status: "forbidden",
+              message: "Просмотр исходных документов недоступен.",
+            },
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Нет доступа" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "На главную" })).toHaveAttribute(
+      "href",
+      "/app",
+    );
+  });
 });
 
 function jsonResponse(payload: unknown): Response {
@@ -80,11 +103,14 @@ const sessionPayload = {
     canReadWorkspace: true,
     canWriteFinancialData: true,
     canManageImports: true,
+    canViewRawImportData: true,
+    canViewMemberDirectory: true,
     canManageMembers: true,
+    canViewWorkspaceActivity: true,
     canManageWorkspace: true,
   },
   csrfToken: "csrf-token",
-};
+} satisfies SessionDto;
 
 const documentsPayload = {
   workspaceId: "c12c9ac8-6851-4467-b87a-da7fc70586c8",

@@ -1,4 +1,5 @@
 import type { SessionDto } from "../../api/session";
+import type { WorkspaceActivityDto } from "./api/workspace-activity-api";
 import type { WorkspaceDirectoryDto } from "./api/workspaces-api";
 import type { WorkspaceSettingsDto } from "./api/workspace-settings-api";
 import type { WorkspaceMembersDto } from "./api/workspace-members-api";
@@ -21,7 +22,10 @@ export const session: SessionDto = {
     canReadWorkspace: true,
     canWriteFinancialData: true,
     canManageImports: true,
+    canViewRawImportData: true,
+    canViewMemberDirectory: true,
     canManageMembers: true,
+    canViewWorkspaceActivity: true,
     canManageWorkspace: true,
   },
   csrfToken: "csrf-token",
@@ -162,6 +166,8 @@ export const workspaceSettings: WorkspaceSettingsDto = {
     membership: { role: "owner", status: "active", updatedAt },
     capabilities: {
       canUpdate: true,
+      canViewMemberDirectory: true,
+      canViewWorkspaceActivity: true,
       canManageMembers: true,
       canInvite: true,
       canDeactivate: true,
@@ -236,6 +242,7 @@ export const workspaceInvitations: WorkspaceInvitationsDto = {
   items: [
     {
       id: "77893ce6-8de0-46ca-93de-dc0ebc85c755",
+      inviteeEmail: "invitee@example.test",
       role: "viewer",
       status: "pending",
       createdAt: updatedAt,
@@ -245,4 +252,38 @@ export const workspaceInvitations: WorkspaceInvitationsDto = {
       blockingReasonCodes: [],
     },
   ],
+};
+
+export const workspaceActivity: WorkspaceActivityDto = {
+  workspaceId: session.workspace.id,
+  items: [
+    {
+      id: "d37da8b5-6a8e-4e51-bcea-e97822bf5212",
+      eventType: "member_role_changed",
+      actor: { id: session.user.id, displayName: "Max" },
+      target: {
+        id: "521c6489-65db-481e-99d6-8a10c0c6f11b",
+        displayName: "Анна",
+      },
+      summaryCode: "member_role_changed",
+      details: {
+        role: null,
+        inviteeEmail: null,
+        oldRole: "viewer",
+        newRole: "editor",
+        oldStatus: null,
+        newStatus: null,
+        oldName: null,
+        newName: null,
+        oldType: null,
+        newType: null,
+        oldDefaultCurrency: null,
+        newDefaultCurrency: null,
+        movedSessionCount: null,
+        revokedInvitationCount: null,
+      },
+      createdAt: updatedAt,
+    },
+  ],
+  nextCursor: null,
 };

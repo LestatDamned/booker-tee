@@ -291,7 +291,11 @@ class WorkspaceLifecycleService:
     ) -> None:
         await self._workspaces.create_audit_event(
             workspace_id=workspace.id,
-            event_type=WorkspaceAuditEventType.WORKSPACE_UPDATED,
+            event_type=(
+                WorkspaceAuditEventType.WORKSPACE_DEACTIVATED
+                if action == "workspace_deactivated"
+                else WorkspaceAuditEventType.WORKSPACE_RESTORED
+            ),
             actor_user_id=actor_user_id,
             entity_type="workspace",
             entity_id=workspace.id,

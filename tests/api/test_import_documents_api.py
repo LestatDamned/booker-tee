@@ -179,6 +179,17 @@ def test_import_documents_is_readonly_for_viewer_without_hiding_data() -> None:
     assert payload["items"][0]["nextStepKind"] == "detail"
 
 
+def test_import_documents_hide_raw_data_from_analyst() -> None:
+    app, source, _ = import_documents_app([document_row()], role=WorkspaceRole.ANALYST)
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/imports/documents")
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "raw_import_read_forbidden"
+    assert source.workspace_ids == []
+
+
 def test_import_documents_returns_empty_workspace() -> None:
     app, source, workspace_id = import_documents_app([])
 

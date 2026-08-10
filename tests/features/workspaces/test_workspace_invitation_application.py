@@ -21,6 +21,7 @@ from app.features.workspaces.domain.types import (
 from app.features.workspaces.errors import (
     WorkspaceInvitationNotFoundError,
     WorkspaceInvitationTransitionError,
+    WorkspaceMemberDirectoryForbiddenError,
 )
 from app.features.workspaces.models import Workspace, WorkspaceInvitation, WorkspaceMember
 from app.features.workspaces.tokens import hash_invitation_token
@@ -44,13 +45,19 @@ def actor_context(role: WorkspaceRole = WorkspaceRole.OWNER):
     return workspace, actor
 
 
-def invitation(workspace_id, actor_user_id, role=WorkspaceRole.VIEWER):
+def invitation(
+    workspace_id,
+    actor_user_id,
+    role=WorkspaceRole.VIEWER,
+    invitee_email="invitee@example.test",
+):
     now = utc_now()
     return cast(
         WorkspaceInvitation,
         SimpleNamespace(
             id=uuid4(),
             workspace_id=workspace_id,
+            invitee_email=invitee_email,
             invited_by_user_id=actor_user_id,
             role=role,
             status=WorkspaceInvitationStatus.PENDING,
@@ -82,17 +89,25 @@ def service_with_repo():
         lock_for_update=AsyncMock(),
         get_membership_for_update=AsyncMock(),
         get_visible_membership_for_user=AsyncMock(),
-        get_invitation=AsyncMock(),
+        get_invitation=AsyncMock(return_value=None),
         get_invitation_for_update=AsyncMock(),
         create_invitation=AsyncMock(),
         create_audit_event=AsyncMock(),
         list_pending_invitations=AsyncMock(),
         get_invitation_by_token_hash=AsyncMock(),
         get_invitation_by_token_hash_for_update=AsyncMock(),
-        get_membership=AsyncMock(),
+        get_any_membership_for_update=AsyncMock(return_value=None),
+        get_member_by_email=AsyncMock(return_value=None),
+        get_pending_invitation_for_email=AsyncMock(return_value=None),
+        expire_pending_invitations_for_email=AsyncMock(),
+        count_supported_members=AsyncMock(return_value=1),
+        count_pending_invitations=AsyncMock(return_value=0),
         create_member=AsyncMock(),
     )
-    users = SimpleNamespace(get_active_session_by_token_hash_for_update=AsyncMock())
+    users = SimpleNamespace(
+        get_active_session_by_token_hash_for_update=AsyncMock(),
+        get_for_update=AsyncMock(),
+    )
     service._workspaces = cast(Any, repository)
     service._users = cast(Any, users)
     return service, session, repository, users
@@ -112,6 +127,7 @@ async def test_create_is_idempotent_and_returns_only_hashed_persistence() -> Non
     first = await service.create(
         actor_user_id=actor.user_id,
         workspace_id=workspace.id,
+        email="Invitee@Example.Test",
         role=WorkspaceRole.VIEWER,
         idempotency_key=key,
     )
@@ -119,6 +135,7 @@ async def test_create_is_idempotent_and_returns_only_hashed_persistence() -> Non
     second = await service.create(
         actor_user_id=actor.user_id,
         workspace_id=workspace.id,
+        email="invitee@example.test",
         role=WorkspaceRole.VIEWER,
         idempotency_key=key,
     )
@@ -131,16 +148,14 @@ async def test_create_is_idempotent_and_returns_only_hashed_persistence() -> Non
     assert session.commit.await_count == 2
 
 
-async def test_viewer_sees_no_invitation_identity_or_capabilities() -> None:
+async def test_viewer_cannot_read_invitation_directory() -> None:
     service, _session, repository, _users = service_with_repo()
     workspace, actor = actor_context(WorkspaceRole.VIEWER)
     repository.get_visible_membership_for_user.return_value = actor
 
-    result = await service.read(actor_user_id=actor.user_id, workspace_id=workspace.id)
+    with pytest.raises(WorkspaceMemberDirectoryForbiddenError):
+        await service.read(actor_user_id=actor.user_id, workspace_id=workspace.id)
 
-    assert result.items == []
-    assert result.capabilities.can_create is False
-    assert result.capabilities.assignable_roles == []
     repository.list_pending_invitations.assert_not_awaited()
 
 
@@ -154,6 +169,7 @@ async def test_admin_cannot_create_or_revoke_admin_invitation() -> None:
         await service.create(
             actor_user_id=actor.user_id,
             workspace_id=workspace.id,
+            email="invitee@example.test",
             role=WorkspaceRole.ADMIN,
             idempotency_key=uuid4(),
         )
@@ -234,13 +250,21 @@ async def test_accept_consumes_invitation_and_switches_session_atomically() -> N
     service, session, repository, users = service_with_repo()
     target = invitation(uuid4(), uuid4(), WorkspaceRole.EDITOR)
     user_id = uuid4()
+    actor = SimpleNamespace(
+        id=user_id,
+        email=target.invitee_email,
+        email_verified_at=utc_now(),
+        is_active=True,
+        deactivated_at=None,
+    )
     user_session = SimpleNamespace(current_workspace_id=uuid4(), last_seen_at=utc_now())
     repository.get_invitation_by_token_hash.return_value = target
     repository.lock_for_update.return_value = target.workspace
     repository.get_invitation_by_token_hash_for_update.return_value = target
-    repository.get_membership.return_value = None
+    repository.get_any_membership_for_update.return_value = None
     repository.create_member.return_value = SimpleNamespace(id=uuid4())
     users.get_active_session_by_token_hash_for_update.return_value = user_session
+    users.get_for_update.return_value = actor
 
     result = await service.accept(
         actor_user_id=user_id,
@@ -260,23 +284,122 @@ async def test_accept_consumes_invitation_and_switches_session_atomically() -> N
 async def test_accept_does_not_consume_invitation_for_existing_membership() -> None:
     service, session, repository, users = service_with_repo()
     target = invitation(uuid4(), uuid4())
+    actor_id = uuid4()
+    actor = SimpleNamespace(
+        id=actor_id,
+        email=target.invitee_email,
+        email_verified_at=utc_now(),
+        is_active=True,
+        deactivated_at=None,
+    )
     user_session = SimpleNamespace(current_workspace_id=uuid4(), last_seen_at=utc_now())
     repository.get_invitation_by_token_hash.return_value = target
     repository.lock_for_update.return_value = target.workspace
     repository.get_invitation_by_token_hash_for_update.return_value = target
-    repository.get_membership.return_value = SimpleNamespace(status=WorkspaceMemberStatus.DISABLED)
+    repository.get_any_membership_for_update.return_value = SimpleNamespace(
+        status=WorkspaceMemberStatus.DISABLED
+    )
     users.get_active_session_by_token_hash_for_update.return_value = user_session
+    users.get_for_update.return_value = actor
 
-    with pytest.raises(WorkspaceInvitationNotFoundError) as error:
+    with pytest.raises(WorkspaceInvitationTransitionError) as error:
         await service.accept(
-            actor_user_id=uuid4(),
+            actor_user_id=actor_id,
             invitation_token="usable-token",
             session_token="session-token",
         )
 
-    assert str(error.value) == PUBLIC_INVITATION_UNAVAILABLE
+    assert error.value.reason_codes == ["member_disabled"]
     assert target.status == WorkspaceInvitationStatus.PENDING
     assert user_session.current_workspace_id != target.workspace_id
     repository.create_member.assert_not_awaited()
     session.commit.assert_not_awaited()
+    session.rollback.assert_awaited_once()
+
+
+async def test_accept_rejects_a_different_verified_email() -> None:
+    service, session, repository, users = service_with_repo()
+    target = invitation(uuid4(), uuid4())
+    actor_id = uuid4()
+    repository.get_invitation_by_token_hash.return_value = target
+    repository.lock_for_update.return_value = target.workspace
+    repository.get_invitation_by_token_hash_for_update.return_value = target
+    users.get_active_session_by_token_hash_for_update.return_value = SimpleNamespace()
+    users.get_for_update.return_value = SimpleNamespace(
+        id=actor_id,
+        email="other@example.test",
+        email_verified_at=utc_now(),
+        is_active=True,
+        deactivated_at=None,
+    )
+
+    with pytest.raises(WorkspaceInvitationTransitionError) as error:
+        await service.accept(
+            actor_user_id=actor_id,
+            invitation_token="usable-token",
+            session_token="session-token",
+        )
+
+    assert error.value.reason_codes == ["invitation_email_mismatch"]
+    repository.create_member.assert_not_awaited()
+    session.rollback.assert_awaited_once()
+
+
+async def test_accept_recovers_removed_membership() -> None:
+    service, session, repository, users = service_with_repo()
+    target = invitation(uuid4(), uuid4(), WorkspaceRole.EDITOR)
+    actor_id = uuid4()
+    removed = SimpleNamespace(
+        status=WorkspaceMemberStatus.REMOVED,
+        role=WorkspaceRole.VIEWER,
+        invited_by_user_id=None,
+        joined_at=None,
+    )
+    user_session = SimpleNamespace(current_workspace_id=uuid4(), last_seen_at=utc_now())
+    repository.get_invitation_by_token_hash.return_value = target
+    repository.lock_for_update.return_value = target.workspace
+    repository.get_invitation_by_token_hash_for_update.return_value = target
+    repository.get_any_membership_for_update.return_value = removed
+    users.get_active_session_by_token_hash_for_update.return_value = user_session
+    users.get_for_update.return_value = SimpleNamespace(
+        id=actor_id,
+        email=target.invitee_email,
+        email_verified_at=utc_now(),
+        is_active=True,
+        deactivated_at=None,
+    )
+
+    await service.accept(
+        actor_user_id=actor_id,
+        invitation_token="usable-token",
+        session_token="session-token",
+    )
+
+    assert removed.status == WorkspaceMemberStatus.ACTIVE
+    assert removed.role == WorkspaceRole.EDITOR
+    assert removed.invited_by_user_id == target.invited_by_user_id
+    repository.create_member.assert_not_awaited()
+    session.commit.assert_awaited_once()
+
+
+async def test_create_rejects_existing_pending_email() -> None:
+    service, session, repository, _users = service_with_repo()
+    workspace, actor = actor_context()
+    repository.lock_for_update.return_value = workspace
+    repository.get_membership_for_update.return_value = actor
+    repository.get_pending_invitation_for_email.return_value = invitation(
+        workspace.id, actor.user_id
+    )
+
+    with pytest.raises(WorkspaceInvitationTransitionError) as error:
+        await service.create(
+            actor_user_id=actor.user_id,
+            workspace_id=workspace.id,
+            email="invitee@example.test",
+            role=WorkspaceRole.VIEWER,
+            idempotency_key=uuid4(),
+        )
+
+    assert error.value.reason_codes == ["pending_invitation_exists"]
+    repository.create_invitation.assert_not_awaited()
     session.rollback.assert_awaited_once()

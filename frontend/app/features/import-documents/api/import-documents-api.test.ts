@@ -54,12 +54,36 @@ describe("loadImportDocuments", () => {
       message: "Backend недоступен.",
     });
   });
+
+  it("preserves a forbidden raw-import boundary", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          jsonResponse(
+            {
+              error: {
+                code: "raw_import_read_forbidden",
+                message: "Просмотр исходных документов недоступен.",
+              },
+            },
+            403,
+          ),
+        ),
+      ),
+    );
+
+    await expect(loadImportDocuments()).resolves.toEqual({
+      status: "forbidden",
+      message: "Просмотр исходных документов недоступен.",
+    });
+  });
 });
 
-function jsonResponse(payload: unknown): Response {
+function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     headers: { "Content-Type": "application/json" },
-    status: 200,
+    status,
   });
 }
 

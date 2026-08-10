@@ -14,6 +14,7 @@ from app.api.v1.properties.router import router as properties_router
 from app.api.v1.reports.router import router as reports_router
 from app.api.v1.session.router import router as session_router
 from app.api.v1.transaction_rules.router import router as transaction_rules_router
+from app.api.v1.workspaces.activity_router import router as workspace_activity_router
 from app.api.v1.workspaces.router import router as workspaces_router
 
 router = APIRouter(prefix="/v1")
@@ -32,3 +33,4 @@ router.include_router(reports_router)
 router.include_router(session_router)
 router.include_router(transaction_rules_router)
 router.include_router(workspaces_router)
+router.include_router(workspace_activity_router)

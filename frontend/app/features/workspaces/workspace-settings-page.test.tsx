@@ -478,6 +478,7 @@ function renderPage(
     >
       <WorkspaceSettingsPage
         boundaryNavigate={boundaryNavigate}
+        initialActivity={null}
         initialInvitations={workspaceInvitations}
         initialMembers={members}
         initialSettings={settings}

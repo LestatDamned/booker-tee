@@ -2,12 +2,13 @@ from datetime import datetime
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import case, func, select, update
+from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.base import utc_now
+from app.features.users.models import User
 from app.features.workspaces.models import (
     Workspace,
     WorkspaceAuditEvent,
@@ -257,6 +258,40 @@ class WorkspaceRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_any_membership_for_update(
+        self,
+        *,
+        user_id: UUID,
+        workspace_id: UUID,
+    ) -> WorkspaceMember | None:
+        result = await self.session.execute(
+            select(WorkspaceMember)
+            .where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == user_id,
+            )
+            .with_for_update()
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_member_by_email(
+        self,
+        *,
+        workspace_id: UUID,
+        email: str,
+    ) -> WorkspaceMember | None:
+        result = await self.session.execute(
+            select(WorkspaceMember)
+            .join(User, User.id == WorkspaceMember.user_id)
+            .where(
+                WorkspaceMember.workspace_id == workspace_id,
+                User.email == email,
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def count_active_owners(self, workspace_id: UUID) -> int:
         result = await self.session.execute(
             select(func.count())
@@ -323,6 +358,59 @@ class WorkspaceRepository:
         )
         return result.scalar_one()
 
+    async def count_supported_members(self, workspace_id: UUID) -> int:
+        result = await self.session.execute(
+            select(func.count())
+            .select_from(WorkspaceMember)
+            .where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.status.in_(
+                    [WorkspaceMemberStatus.ACTIVE, WorkspaceMemberStatus.DISABLED]
+                ),
+            )
+        )
+        return result.scalar_one()
+
+    async def expire_pending_invitations_for_email(
+        self,
+        *,
+        workspace_id: UUID,
+        invitee_email: str,
+        expired_at: datetime,
+    ) -> None:
+        await self.session.execute(
+            update(WorkspaceInvitation)
+            .where(
+                WorkspaceInvitation.workspace_id == workspace_id,
+                WorkspaceInvitation.invitee_email == invitee_email,
+                WorkspaceInvitation.status == WorkspaceInvitationStatus.PENDING,
+                WorkspaceInvitation.expires_at <= expired_at,
+            )
+            .values(
+                status=WorkspaceInvitationStatus.EXPIRED,
+                updated_at=expired_at,
+            )
+        )
+        await self.session.flush()
+
+    async def get_pending_invitation_for_email(
+        self,
+        *,
+        workspace_id: UUID,
+        invitee_email: str,
+    ) -> WorkspaceInvitation | None:
+        result = await self.session.execute(
+            select(WorkspaceInvitation)
+            .where(
+                WorkspaceInvitation.workspace_id == workspace_id,
+                WorkspaceInvitation.invitee_email == invitee_email,
+                WorkspaceInvitation.status == WorkspaceInvitationStatus.PENDING,
+                WorkspaceInvitation.expires_at > utc_now(),
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def revoke_pending_invitations(
         self,
         workspace_id: UUID,
@@ -351,17 +439,33 @@ class WorkspaceRepository:
         workspace_id: UUID,
         *,
         limit: int = 20,
+        before_created_at: datetime | None = None,
+        before_id: UUID | None = None,
     ) -> list[WorkspaceAuditEvent]:
-        result = await self.session.execute(
+        statement = (
             select(WorkspaceAuditEvent)
             .options(
                 selectinload(WorkspaceAuditEvent.actor),
                 selectinload(WorkspaceAuditEvent.target_user),
             )
             .where(WorkspaceAuditEvent.workspace_id == workspace_id)
-            .order_by(WorkspaceAuditEvent.created_at.desc())
+            .order_by(
+                WorkspaceAuditEvent.created_at.desc(),
+                WorkspaceAuditEvent.id.desc(),
+            )
             .limit(limit)
         )
+        if before_created_at is not None and before_id is not None:
+            statement = statement.where(
+                or_(
+                    WorkspaceAuditEvent.created_at < before_created_at,
+                    and_(
+                        WorkspaceAuditEvent.created_at == before_created_at,
+                        WorkspaceAuditEvent.id < before_id,
+                    ),
+                )
+            )
+        result = await self.session.execute(statement)
         return list(result.scalars().all())
 
     async def get_pending_invitation(
@@ -640,6 +744,7 @@ class WorkspaceRepository:
         self,
         *,
         workspace_id: UUID,
+        invitee_email: str,
         role: WorkspaceRole,
         token_hash: str,
         invited_by_user_id: UUID,
@@ -648,6 +753,7 @@ class WorkspaceRepository:
     ) -> WorkspaceInvitation:
         invitation = WorkspaceInvitation(
             workspace_id=workspace_id,
+            invitee_email=invitee_email,
             role=role,
             token_hash=token_hash,
             invited_by_user_id=invited_by_user_id,

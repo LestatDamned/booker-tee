@@ -3,6 +3,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from app.features.workspaces.domain.types import (
+    WorkspaceAuditEventType,
     WorkspaceInvitationStatus,
     WorkspaceMemberStatus,
     WorkspaceRole,
@@ -66,6 +67,8 @@ class WorkspaceDirectoryDto(ApplicationModel):
 
 class WorkspaceSettingsCapabilitiesDto(ApplicationModel):
     can_update: bool
+    can_view_member_directory: bool
+    can_view_workspace_activity: bool
     can_manage_members: bool
     can_invite: bool
     can_deactivate: bool
@@ -164,6 +167,12 @@ class WorkspaceInvitationBlockingReason(StrEnum):
     WORKSPACE_INACTIVE = "workspace_inactive"
     FORBIDDEN = "invitation_management_forbidden"
     ROLE_FORBIDDEN = "invitation_role_forbidden"
+    PENDING_EXISTS = "pending_invitation_exists"
+    ALREADY_MEMBER = "already_member"
+    MEMBER_DISABLED = "member_disabled"
+    MEMBER_LIMIT_REACHED = "member_limit_reached"
+    PENDING_LIMIT_REACHED = "pending_invitation_limit_reached"
+    EMAIL_MISMATCH = "invitation_email_mismatch"
 
 
 class WorkspaceInvitationCapabilitiesDto(ApplicationModel):
@@ -172,6 +181,7 @@ class WorkspaceInvitationCapabilitiesDto(ApplicationModel):
 
 class WorkspaceInvitationItemDto(ApplicationModel):
     id: UUID
+    invitee_email: str
     role: WorkspaceRole
     status: WorkspaceInvitationStatus
     expires_at: datetime
@@ -190,3 +200,61 @@ class WorkspaceInvitationsDto(ApplicationModel):
     workspace_id: UUID
     items: list[WorkspaceInvitationItemDto]
     capabilities: WorkspaceInvitationsCapabilitiesDto
+
+
+class WorkspaceActivitySummaryCode(StrEnum):
+    WORKSPACE_CREATED = "workspace_created"
+    WORKSPACE_UPDATED = "workspace_updated"
+    WORKSPACE_DEACTIVATED = "workspace_deactivated"
+    WORKSPACE_RESTORED = "workspace_restored"
+    INVITATION_CREATED = "invitation_created"
+    INVITATION_ACCEPTED = "invitation_accepted"
+    INVITATION_REVOKED = "invitation_revoked"
+    MEMBER_ROLE_CHANGED = "member_role_changed"
+    MEMBER_DISABLED = "member_disabled"
+    MEMBER_REACTIVATED = "member_reactivated"
+    MEMBER_LEFT = "member_left"
+    OWNERSHIP_TRANSFERRED = "ownership_transferred"
+
+
+class WorkspaceActivityActorDto(ApplicationModel):
+    id: UUID
+    display_name: str
+
+
+class WorkspaceActivityDetailsDto(ApplicationModel):
+    role: WorkspaceRole | None = None
+    invitee_email: str | None = None
+    old_role: WorkspaceRole | None = None
+    new_role: WorkspaceRole | None = None
+    old_status: WorkspaceMemberStatus | None = None
+    new_status: WorkspaceMemberStatus | None = None
+    old_name: str | None = None
+    new_name: str | None = None
+    old_type: WorkspaceType | None = None
+    new_type: WorkspaceType | None = None
+    old_default_currency: str | None = None
+    new_default_currency: str | None = None
+    moved_session_count: int | None = None
+    revoked_invitation_count: int | None = None
+
+
+class WorkspaceActivityItemDto(ApplicationModel):
+    id: UUID
+    event_type: WorkspaceAuditEventType
+    actor: WorkspaceActivityActorDto | None
+    target: WorkspaceActivityActorDto | None
+    summary_code: WorkspaceActivitySummaryCode
+    details: WorkspaceActivityDetailsDto
+    created_at: datetime
+
+
+class WorkspaceActivityCursorDto(ApplicationModel):
+    before_created_at: datetime
+    before_id: UUID
+
+
+class WorkspaceActivityDto(ApplicationModel):
+    workspace_id: UUID
+    items: list[WorkspaceActivityItemDto]
+    next_cursor: WorkspaceActivityCursorDto | None

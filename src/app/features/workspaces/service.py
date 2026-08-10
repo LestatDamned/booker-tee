@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import timedelta
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +9,6 @@ from app.features.users.models import User
 from app.features.users.repository import UserRepository
 from app.features.workspaces.commands import (
     CreateWorkspaceCommand,
-    CreateWorkspaceInvitationCommand,
     UpdateWorkspaceCommand,
     UpdateWorkspaceMemberRoleCommand,
 )
@@ -30,12 +28,8 @@ from app.features.workspaces.permissions import (
     can_disable_member,
     can_invite_members,
     can_reactivate_member,
-    ensure_invitable_role,
 )
 from app.features.workspaces.repository import WorkspaceRepository
-from app.features.workspaces.tokens import generate_invitation_token, hash_invitation_token
-
-INVITATION_TTL = timedelta(hours=72)
 
 
 @dataclass(frozen=True)
@@ -43,12 +37,6 @@ class WorkspaceContext:
     user: User
     workspace: Workspace
     membership: WorkspaceMember
-
-
-@dataclass(frozen=True)
-class CreatedWorkspaceInvitation:
-    invitation: WorkspaceInvitation
-    token: str
 
 
 class WorkspaceService:
@@ -127,39 +115,6 @@ class WorkspaceService:
         )
         await self.session.commit()
         return workspace
-
-    async def create_invitation(
-        self,
-        *,
-        context: WorkspaceContext,
-        command: CreateWorkspaceInvitationCommand,
-    ) -> CreatedWorkspaceInvitation:
-        if not can_invite_members(context.membership):
-            raise WorkspaceError("Недостаточно прав для приглашения участников.")
-
-        try:
-            role = ensure_invitable_role(command.role)
-        except ValueError as exc:
-            raise WorkspaceError(str(exc)) from exc
-
-        token = generate_invitation_token()
-        invitation = await self.workspaces.create_invitation(
-            workspace_id=context.workspace.id,
-            role=role,
-            token_hash=hash_invitation_token(token),
-            invited_by_user_id=context.user.id,
-            expires_at=utc_now() + INVITATION_TTL,
-        )
-        await self._record_audit_event(
-            workspace_id=context.workspace.id,
-            event_type=WorkspaceAuditEventType.INVITATION_CREATED,
-            actor_user_id=context.user.id,
-            entity_type="workspace_invitation",
-            entity_id=invitation.id,
-            details={"role": role.value},
-        )
-        await self.session.commit()
-        return CreatedWorkspaceInvitation(invitation=invitation, token=token)
 
     async def revoke_invitation(
         self,

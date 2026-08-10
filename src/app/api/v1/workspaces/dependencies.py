@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.settings import Settings
 from app.db.session import get_session
+from app.features.workspaces.application.activity import WorkspaceActivityService
 from app.features.workspaces.application.creation import WorkspaceCreator
 from app.features.workspaces.application.directory import WorkspaceDirectoryReader
 from app.features.workspaces.application.invitations import WorkspaceInvitationService
@@ -21,6 +22,12 @@ def get_workspace_directory_reader(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorkspaceDirectoryReader:
     return WorkspaceDirectoryReader(WorkspaceRepository(session))
+
+
+def get_workspace_activity_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> WorkspaceActivityService:
+    return WorkspaceActivityService(session)
 
 
 def get_workspace_creator(

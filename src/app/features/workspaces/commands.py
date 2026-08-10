@@ -28,11 +28,6 @@ class UpdateWorkspaceSettingsCommand:
 
 
 @dataclass(frozen=True)
-class CreateWorkspaceInvitationCommand:
-    role: WorkspaceRole
-
-
-@dataclass(frozen=True)
 class UpdateWorkspaceMemberRoleCommand:
     member_id: UUID
     role: WorkspaceRole

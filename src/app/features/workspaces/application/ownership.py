@@ -108,7 +108,7 @@ class WorkspaceOwnershipService:
             await self._session.flush()
             await self._workspaces.create_audit_event(
                 workspace_id=workspace.id,
-                event_type=WorkspaceAuditEventType.WORKSPACE_UPDATED,
+                event_type=WorkspaceAuditEventType.OWNERSHIP_TRANSFERRED,
                 actor_user_id=actor.id,
                 target_user_id=recipient.user_id,
                 entity_type="workspace",
@@ -206,7 +206,7 @@ class WorkspaceOwnershipService:
             )
             await self._workspaces.create_audit_event(
                 workspace_id=workspace.id,
-                event_type=WorkspaceAuditEventType.MEMBER_DISABLED,
+                event_type=WorkspaceAuditEventType.MEMBER_LEFT,
                 actor_user_id=actor.id,
                 target_user_id=actor.id,
                 entity_type="workspace_member",

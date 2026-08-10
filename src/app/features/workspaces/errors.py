@@ -32,6 +32,14 @@ class WorkspaceMemberConflictError(WorkspaceError):
     pass
 
 
+class WorkspaceMemberDirectoryForbiddenError(WorkspaceError):
+    pass
+
+
+class WorkspaceActivityForbiddenError(WorkspaceError):
+    pass
+
+
 class WorkspaceMemberTransitionError(WorkspaceError):
     def __init__(self, message: str, *, reason_codes: list[str]) -> None:
         super().__init__(message)

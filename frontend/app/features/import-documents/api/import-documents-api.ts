@@ -1,15 +1,17 @@
 import { z } from "zod";
 
 import {
+  apiForbiddenFailure,
   apiLoadError,
   apiLoadNetworkError,
   apiUnauthenticatedFailure,
   apiUnexpectedStatusError,
   type ApiLoadError,
+  type ApiForbiddenFailure,
   type ApiUnauthenticatedFailure,
 } from "../../../api/failures";
 import type { components } from "../../../api/generated/schema";
-import { requestJson } from "../../../api/transport";
+import { parseApiError, requestJson } from "../../../api/transport";
 
 export type ImportDocumentListDto =
   components["schemas"]["ImportDocumentListApiResponse"];
@@ -95,6 +97,7 @@ export const importDocumentListSchema: z.ZodType<ImportDocumentListDto> =
 export type ImportDocumentListLoadResult =
   | { status: "success"; documents: ImportDocumentListDto }
   | ApiUnauthenticatedFailure
+  | ApiForbiddenFailure
   | ApiLoadError;
 
 export async function loadImportDocuments(
@@ -109,6 +112,12 @@ export async function loadImportDocuments(
   }
   if (response.httpStatus === 401) {
     return apiUnauthenticatedFailure();
+  }
+  if (response.httpStatus === 403) {
+    return apiForbiddenFailure(
+      parseApiError(response.body),
+      "Ваша роль не позволяет просматривать исходные документы.",
+    );
   }
   if (!response.ok) {
     return apiUnexpectedStatusError(response.httpStatus);

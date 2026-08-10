@@ -249,6 +249,7 @@ async def seed_invitation_race(
                 email=f"workspace-invitee-{index}-{user_id}@example.test",
                 password_hash="hash",
                 name=f"Invitee {index}",
+                email_verified_at=utc_now(),
             )
         )
         workspaces.append(
@@ -292,6 +293,7 @@ async def seed_invitation_race(
             WorkspaceInvitation(
                 id=invitation_id,
                 workspace_id=target_workspace_id,
+                invitee_email=users[1].email,
                 role=WorkspaceRole.VIEWER,
                 status=WorkspaceInvitationStatus.PENDING,
                 token_hash=hash_invitation_token(token),

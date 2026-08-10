@@ -6,7 +6,10 @@ import type { DebtDetailDto, DebtPortfolioDto } from "./api/debts-api";
 export const session: SessionDto = {
   capabilities: {
     canManageImports: true,
+    canViewRawImportData: true,
+    canViewMemberDirectory: true,
     canManageMembers: true,
+    canViewWorkspaceActivity: true,
     canManageWorkspace: true,
     canReadWorkspace: true,
     canWriteFinancialData: true,

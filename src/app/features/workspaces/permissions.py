@@ -22,6 +22,13 @@ IMPORT_MANAGERS = {
     WorkspaceRole.EDITOR,
     WorkspaceRole.UPLOADER,
 }
+RAW_IMPORT_READERS = {
+    WorkspaceRole.OWNER,
+    WorkspaceRole.ADMIN,
+    WorkspaceRole.EDITOR,
+    WorkspaceRole.UPLOADER,
+    WorkspaceRole.VIEWER,
+}
 INVITABLE_ROLES = (
     WorkspaceRole.ADMIN,
     WorkspaceRole.EDITOR,
@@ -41,6 +48,7 @@ INVITATION_MANAGERS = {
     WorkspaceRole.OWNER,
     WorkspaceRole.ADMIN,
 }
+MEMBER_DIRECTORY_READERS = INVITATION_MANAGERS
 WORKSPACE_MANAGERS = {
     WorkspaceRole.OWNER,
 }
@@ -52,7 +60,10 @@ class WorkspacePermissionFlags:
     can_read_workspace: bool
     can_write_financial_data: bool
     can_manage_imports: bool
+    can_view_raw_import_data: bool
+    can_view_member_directory: bool
     can_manage_members: bool
+    can_view_workspace_activity: bool
     can_manage_workspace: bool
 
 
@@ -62,7 +73,10 @@ def permission_flags_for(membership: WorkspaceMember) -> WorkspacePermissionFlag
         can_read_workspace=can_read_workspace(membership),
         can_write_financial_data=can_write_financial_data(membership),
         can_manage_imports=can_manage_imports(membership),
+        can_view_raw_import_data=can_view_raw_import_data(membership),
+        can_view_member_directory=can_view_member_directory(membership),
         can_manage_members=can_manage_members(membership),
+        can_view_workspace_activity=can_view_workspace_activity(membership),
         can_manage_workspace=can_manage_workspace(membership),
     )
 
@@ -83,8 +97,20 @@ def can_manage_imports(membership: WorkspaceMember) -> bool:
     return has_active_role(membership, IMPORT_MANAGERS)
 
 
+def can_view_raw_import_data(membership: WorkspaceMember) -> bool:
+    return has_active_role(membership, RAW_IMPORT_READERS)
+
+
+def can_view_member_directory(membership: WorkspaceMember) -> bool:
+    return has_active_role(membership, MEMBER_DIRECTORY_READERS)
+
+
 def can_manage_members(membership: WorkspaceMember) -> bool:
     return has_active_role(membership, INVITATION_MANAGERS)
+
+
+def can_view_workspace_activity(membership: WorkspaceMember) -> bool:
+    return can_view_member_directory(membership)
 
 
 def can_manage_workspace(membership: WorkspaceMember) -> bool:

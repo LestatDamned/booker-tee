@@ -61,6 +61,33 @@ describe("Workspace invitation page", () => {
     });
     expect(navigate).toHaveBeenCalledWith("/app/workspaces");
   });
+
+  it("blocks retry when the invitation belongs to another account", async () => {
+    vi.spyOn(
+      invitationApi,
+      "acceptPublicWorkspaceInvitation",
+    ).mockResolvedValue({
+      status: "wrong_account",
+      message: "Приглашение предназначено для другого аккаунта.",
+    });
+    render(
+      <WorkspaceInvitationPage
+        invitation={invitation}
+        invitationToken="private-token"
+        session={session}
+      />,
+    );
+
+    const button = screen.getByRole("button", {
+      name: "Принять приглашение",
+    });
+    await userEvent.click(button);
+
+    expect(
+      screen.getByText("Приглашение предназначено для другого аккаунта."),
+    ).toBeVisible();
+    expect(button).toBeDisabled();
+  });
 });
 
 const session: SessionDto = {
@@ -80,7 +107,10 @@ const session: SessionDto = {
     canReadWorkspace: true,
     canWriteFinancialData: true,
     canManageImports: true,
+    canViewRawImportData: true,
+    canViewMemberDirectory: true,
     canManageMembers: true,
+    canViewWorkspaceActivity: true,
     canManageWorkspace: true,
   },
   csrfToken: "csrf-token",

@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from typing import cast
 from uuid import uuid4
 
+import pytest
 from fastapi import HTTPException
 
 from app.features.users.models import User
@@ -17,6 +18,9 @@ from app.features.workspaces.permissions import (
     can_manage_members,
     can_manage_workspace,
     can_read_workspace,
+    can_view_member_directory,
+    can_view_raw_import_data,
+    can_view_workspace_activity,
     can_write_financial_data,
 )
 from app.features.workspaces.service import WorkspaceContext
@@ -27,49 +31,87 @@ def test_workspace_permission_matrix_is_explicit() -> None:
         "read": True,
         "write": False,
         "imports": False,
+        "raw_imports": True,
+        "member_directory": False,
         "members": False,
+        "activity": False,
+        "workspace": False,
+    }
+    assert role_permissions(WorkspaceRole.ANALYST) == {
+        "read": True,
+        "write": False,
+        "imports": False,
+        "raw_imports": False,
+        "member_directory": False,
+        "members": False,
+        "activity": False,
         "workspace": False,
     }
     assert role_permissions(WorkspaceRole.UPLOADER) == {
         "read": True,
         "write": False,
         "imports": True,
+        "raw_imports": True,
+        "member_directory": False,
         "members": False,
+        "activity": False,
         "workspace": False,
     }
     assert role_permissions(WorkspaceRole.EDITOR) == {
         "read": True,
         "write": True,
         "imports": True,
+        "raw_imports": True,
+        "member_directory": False,
         "members": False,
+        "activity": False,
         "workspace": False,
     }
     assert role_permissions(WorkspaceRole.ADMIN) == {
         "read": True,
         "write": True,
         "imports": True,
+        "raw_imports": True,
+        "member_directory": True,
         "members": True,
+        "activity": True,
         "workspace": False,
     }
     assert role_permissions(WorkspaceRole.OWNER) == {
         "read": True,
         "write": True,
         "imports": True,
+        "raw_imports": True,
+        "member_directory": True,
         "members": True,
+        "activity": True,
         "workspace": True,
     }
 
 
-def test_disabled_membership_has_no_permissions() -> None:
+@pytest.mark.parametrize(
+    "membership_status",
+    [
+        WorkspaceMemberStatus.PENDING,
+        WorkspaceMemberStatus.DISABLED,
+        WorkspaceMemberStatus.REMOVED,
+    ],
+)
+def test_inactive_membership_has_no_permissions(
+    membership_status: WorkspaceMemberStatus,
+) -> None:
     membership = fake_membership(
         role=WorkspaceRole.OWNER,
-        status=WorkspaceMemberStatus.DISABLED,
+        status=membership_status,
     )
 
     assert not can_read_workspace(membership)
     assert not can_write_financial_data(membership)
     assert not can_manage_imports(membership)
+    assert not can_view_raw_import_data(membership)
+    assert not can_view_member_directory(membership)
     assert not can_manage_members(membership)
+    assert not can_view_workspace_activity(membership)
     assert not can_manage_workspace(membership)
 
 
@@ -97,7 +139,10 @@ def role_permissions(role: WorkspaceRole) -> dict[str, bool]:
         "read": can_read_workspace(membership),
         "write": can_write_financial_data(membership),
         "imports": can_manage_imports(membership),
+        "raw_imports": can_view_raw_import_data(membership),
+        "member_directory": can_view_member_directory(membership),
         "members": can_manage_members(membership),
+        "activity": can_view_workspace_activity(membership),
         "workspace": can_manage_workspace(membership),
     }
 

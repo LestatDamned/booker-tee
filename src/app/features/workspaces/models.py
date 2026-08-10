@@ -119,6 +119,12 @@ class WorkspaceInvitation(Base):
     __table_args__ = (
         Index("ix_workspace_invitations_token_hash", "token_hash", unique=True),
         Index("ix_workspace_invitations_workspace_status", "workspace_id", "status"),
+        Index(
+            "ix_workspace_invitations_workspace_email_status",
+            "workspace_id",
+            "invitee_email",
+            "status",
+        ),
         Index("ix_workspace_invitations_expires_at", "expires_at"),
     )
 
@@ -127,6 +133,7 @@ class WorkspaceInvitation(Base):
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         index=True,
     )
+    invitee_email: Mapped[str | None] = mapped_column(String(320))
     role: Mapped[WorkspaceRole] = mapped_column(
         Enum(WorkspaceRole, values_callable=enum_values, name="workspace_role"),
         default=WorkspaceRole.VIEWER,
@@ -160,7 +167,12 @@ class WorkspaceInvitation(Base):
 class WorkspaceAuditEvent(Base):
     __tablename__ = "workspace_audit_events"
     __table_args__ = (
-        Index("ix_workspace_audit_events_workspace_created", "workspace_id", "created_at"),
+        Index(
+            "ix_workspace_audit_events_workspace_created",
+            "workspace_id",
+            "created_at",
+            "id",
+        ),
         Index("ix_workspace_audit_events_actor_created", "actor_user_id", "created_at"),
         Index("ix_workspace_audit_events_event_type", "event_type"),
     )

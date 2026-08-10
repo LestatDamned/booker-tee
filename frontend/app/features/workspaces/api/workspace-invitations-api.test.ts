@@ -40,6 +40,7 @@ describe("workspace invitations API", () => {
 
     const result = await createWorkspaceInvitation({
       csrfToken: "csrf",
+      email: "invitee@example.test",
       idempotencyKey: "f495db09-e1fe-466a-adcb-c9951356367d",
       role: "viewer",
       workspaceId: workspaceInvitations.workspaceId,
@@ -49,7 +50,10 @@ describe("workspace invitations API", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       `/api/v1/workspaces/${workspaceInvitations.workspaceId}/invitations`,
       expect.objectContaining({
-        body: JSON.stringify({ role: "viewer" }),
+        body: JSON.stringify({
+          email: "invitee@example.test",
+          role: "viewer",
+        }),
         headers: expect.objectContaining({
           "Idempotency-Key": "f495db09-e1fe-466a-adcb-c9951356367d",
           "X-CSRF-Token": "csrf",
@@ -121,6 +125,35 @@ describe("workspace invitations API", () => {
         method: "POST",
       }),
     );
+  });
+
+  it("keeps an email mismatch distinct from an invalid invitation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          jsonResponse(
+            {
+              error: {
+                code: "invitation_email_mismatch",
+                message: "Приглашение предназначено для другого аккаунта.",
+              },
+            },
+            403,
+          ),
+        ),
+      ),
+    );
+
+    await expect(
+      acceptPublicWorkspaceInvitation({
+        csrfToken: "csrf",
+        invitationToken: "private-token",
+      }),
+    ).resolves.toEqual({
+      status: "wrong_account",
+      message: "Приглашение предназначено для другого аккаунта.",
+    });
   });
 });
 

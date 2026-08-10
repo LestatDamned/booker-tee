@@ -250,8 +250,8 @@ class WorkspaceInvitationServiceStub:
             raise self.error
         return self.invitations
 
-    async def create(self, *, actor_user_id, workspace_id, role, idempotency_key):
-        self.create_calls.append((actor_user_id, workspace_id, role, idempotency_key))
+    async def create(self, *, actor_user_id, workspace_id, email, role, idempotency_key):
+        self.create_calls.append((actor_user_id, workspace_id, email, role, idempotency_key))
         if self.error:
             raise self.error
         return CreatedWorkspaceInvitationResult(
@@ -421,6 +421,8 @@ def workspace_settings_app() -> tuple[
                 updated_at=updated_at,
             ),
             capabilities=WorkspaceSettingsCapabilitiesDto(
+                can_view_member_directory=True,
+                can_view_workspace_activity=True,
                 can_update=True,
                 can_manage_members=True,
                 can_invite=True,
@@ -469,8 +471,10 @@ def workspace_settings_app() -> tuple[
     return app, service, lifecycle_service, context.workspace.user.id, workspace_id
 
 
-def workspace_members_app() -> tuple[FastAPI, WorkspaceMemberServiceStub, UUID, UUID]:
-    context = api_context(role=WorkspaceRole.OWNER)
+def workspace_members_app(
+    role: WorkspaceRole = WorkspaceRole.OWNER,
+) -> tuple[FastAPI, WorkspaceMemberServiceStub, UUID, UUID]:
+    context = api_context(role=role)
     workspace_id = uuid4()
     target_user_id = uuid4()
     updated_at = datetime(2026, 8, 3, 11, 30, tzinfo=UTC)
@@ -507,17 +511,20 @@ def workspace_members_app() -> tuple[FastAPI, WorkspaceMemberServiceStub, UUID, 
     return app, service, context.workspace.user.id, workspace_id
 
 
-def workspace_invitations_app() -> tuple[
+def workspace_invitations_app(
+    role: WorkspaceRole = WorkspaceRole.OWNER,
+) -> tuple[
     FastAPI,
     WorkspaceInvitationServiceStub,
     UUID,
     UUID,
 ]:
-    context = api_context(role=WorkspaceRole.OWNER)
+    context = api_context(role=role)
     workspace_id = uuid4()
     updated_at = datetime(2026, 8, 4, 9, 30, tzinfo=UTC)
     item = WorkspaceInvitationItemDto(
         id=uuid4(),
+        invitee_email="invitee@example.test",
         role=WorkspaceRole.VIEWER,
         status=WorkspaceInvitationStatus.PENDING,
         expires_at=datetime(2026, 8, 7, 9, 30, tzinfo=UTC),

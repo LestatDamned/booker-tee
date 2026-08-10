@@ -1,15 +1,17 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Request, Response, status
 
 from app.api.dependencies import (
     ApiRequestContext,
     AuthenticatedSessionContext,
     get_api_request_context,
     get_authenticated_session_context,
+    require_api_member_directory_context,
 )
 from app.api.errors import ApiError, api_error_responses
+from app.api.v1.auth.dependencies import get_identity_email_sender
 from app.api.v1.session.mapper import SessionApiResponseMapper
 from app.api.v1.workspaces.dependencies import (
     get_workspace_creator,
@@ -50,6 +52,11 @@ from app.api.v1.workspaces.schemas import (
     WorkspaceNavigationOutcomeApiResponse,
     WorkspaceSettingsApiResponse,
 )
+from app.features.users.email_delivery import (
+    IdentityEmailSender,
+    build_workspace_invitation_message,
+)
+from app.features.users.errors import InvalidEmailError
 from app.features.workspaces.application.creation import WorkspaceCreator
 from app.features.workspaces.application.directory import (
     WorkspaceDirectoryReader,
@@ -79,6 +86,7 @@ from app.features.workspaces.errors import (
     WorkspaceLifecycleConflictError,
     WorkspaceLifecycleTransitionError,
     WorkspaceMemberConflictError,
+    WorkspaceMemberDirectoryForbiddenError,
     WorkspaceMemberTransitionError,
     WorkspaceNotFoundError,
     WorkspaceOwnershipTransferConflictError,
@@ -128,6 +136,7 @@ async def preview_workspace_invitation(
     responses=api_error_responses(
         status.HTTP_401_UNAUTHORIZED,
         status.HTTP_404_NOT_FOUND,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
     ),
 )
 async def accept_workspace_invitation(
@@ -156,6 +165,8 @@ async def accept_workspace_invitation(
             message="Приглашение не найдено или уже недействительно.",
             headers={"Cache-Control": "no-store"},
         ) from error
+    except WorkspaceInvitationTransitionError as error:
+        raise _invitation_transition_error(error) from error
     return AcceptWorkspaceInvitationApiResponse(
         navigation_outcome=WorkspaceNavigationOutcomeApiResponse(),
     )
@@ -398,6 +409,7 @@ async def update_workspace_settings(
     response_model=WorkspaceLifecycleApiResponse,
     responses=api_error_responses(
         status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
         status.HTTP_404_NOT_FOUND,
         status.HTTP_409_CONFLICT,
         status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -538,17 +550,26 @@ def _workspace_not_found(error: WorkspaceNotFoundError) -> ApiError:
     )
 
 
+def _member_directory_forbidden(error: WorkspaceMemberDirectoryForbiddenError) -> ApiError:
+    return ApiError(
+        status_code=status.HTTP_403_FORBIDDEN,
+        code="member_directory_forbidden",
+        message=str(error),
+    )
+
+
 @router.get(
     "/{workspace_id}/members",
     response_model=WorkspaceMembersApiResponse,
     responses=api_error_responses(
         status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
         status.HTTP_404_NOT_FOUND,
     ),
 )
 async def get_workspace_members(
     workspace_id: UUID,
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_member_directory_context)],
     member_service: Annotated[
         WorkspaceMemberService,
         Depends(get_workspace_member_service),
@@ -561,6 +582,8 @@ async def get_workspace_members(
         )
     except WorkspaceNotFoundError as error:
         raise _workspace_not_found(error) from error
+    except WorkspaceMemberDirectoryForbiddenError as error:
+        raise _member_directory_forbidden(error) from error
     return WorkspaceMembersApiResponse.model_validate(members)
 
 
@@ -721,13 +744,14 @@ def _member_transition_blocked(error: WorkspaceMemberTransitionError) -> ApiErro
     response_model=WorkspaceInvitationsApiResponse,
     responses=api_error_responses(
         status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
         status.HTTP_404_NOT_FOUND,
     ),
 )
 async def get_workspace_invitations(
     workspace_id: UUID,
     response: Response,
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_member_directory_context)],
     service: Annotated[
         WorkspaceInvitationService,
         Depends(get_workspace_invitation_service),
@@ -741,6 +765,8 @@ async def get_workspace_invitations(
         )
     except WorkspaceNotFoundError as error:
         raise _workspace_not_found(error) from error
+    except WorkspaceMemberDirectoryForbiddenError as error:
+        raise _member_directory_forbidden(error) from error
     return WorkspaceInvitationsApiResponse.model_validate(invitations)
 
 
@@ -759,6 +785,7 @@ async def create_workspace_invitation(
     workspace_id: UUID,
     request: CreateWorkspaceInvitationApiRequest,
     http_request: Request,
+    background_tasks: BackgroundTasks,
     response: Response,
     idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
     context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
@@ -766,12 +793,14 @@ async def create_workspace_invitation(
         WorkspaceInvitationService,
         Depends(get_workspace_invitation_service),
     ],
+    email_sender: Annotated[IdentityEmailSender, Depends(get_identity_email_sender)],
 ) -> CreateWorkspaceInvitationApiResponse:
     response.headers["Cache-Control"] = "no-store"
     try:
         result = await service.create(
             actor_user_id=context.workspace.user.id,
             workspace_id=workspace_id,
+            email=request.email,
             role=request.role,
             idempotency_key=idempotency_key,
         )
@@ -783,17 +812,36 @@ async def create_workspace_invitation(
             code="idempotency_conflict",
             message=str(error),
         ) from error
+    except InvalidEmailError as error:
+        raise ApiError(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="validation_error",
+            message="Проверьте переданные данные.",
+            field_errors={"email": [str(error)]},
+        ) from error
     except WorkspaceInvitationTransitionError as error:
-        raise _invitation_transition_blocked(error) from error
+        raise _invitation_transition_error(error) from error
+    share_url = str(
+        http_request.url_for(
+            "react_spa_path",
+            client_path=f"workspaces/invitations/{result.token}",
+        )
+    )
+    background_tasks.add_task(
+        email_sender,
+        build_workspace_invitation_message(
+            recipient=result.invitation.invitee_email,
+            workspace_name=context.workspace.workspace.name,
+            inviter_name=context.workspace.user.name or context.workspace.user.email,
+            role=result.invitation.role.value,
+            invitation_url=share_url,
+            expires_at=result.invitation.expires_at,
+        ),
+    )
     return CreateWorkspaceInvitationApiResponse(
         invitation=WorkspaceInvitationItemApiResponse.model_validate(result.invitation),
         invitations=WorkspaceInvitationsApiResponse.model_validate(result.invitations),
-        share_url=str(
-            http_request.url_for(
-                "react_spa_path",
-                client_path=f"workspaces/invitations/{result.token}",
-            )
-        ),
+        share_url=share_url,
         replayed=result.replayed,
     )
 
@@ -850,6 +898,30 @@ def _invitation_transition_blocked(error: WorkspaceInvitationTransitionError) ->
     return ApiError(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         code="invitation_transition_blocked",
+        message=str(error),
+        details={"reasonCodes": error.reason_codes},
+    )
+
+
+def _invitation_transition_error(error: WorkspaceInvitationTransitionError) -> ApiError:
+    reason = error.reason_codes[0] if error.reason_codes else "invitation_transition_blocked"
+    if reason == "pending_invitation_exists":
+        return ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code=reason,
+            message=str(error),
+            details={"reasonCodes": error.reason_codes},
+        )
+    if reason == "invitation_email_mismatch":
+        return ApiError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code=reason,
+            message=str(error),
+            details={"reasonCodes": error.reason_codes},
+        )
+    return ApiError(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        code=reason,
         message=str(error),
         details={"reasonCodes": error.reason_codes},
     )

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, status
 
-from app.api.dependencies import ApiRequestContext, get_api_request_context
+from app.api.dependencies import ApiRequestContext, require_api_raw_import_read_context
 from app.api.errors import ApiError, api_error_responses
 from app.api.v1.import_review.dependencies import (
     get_existing_operation_link_service,
@@ -78,7 +78,7 @@ router.include_router(posting_router)
 )
 async def get_import_review(
     document_id: UUID,
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_raw_import_read_context)],
     reader: Annotated[ImportReviewReader, Depends(get_import_review_reader)],
 ) -> ImportReviewApiResponse:
     permissions = permission_flags_for(context.workspace.membership)

@@ -17,7 +17,10 @@ from app.features.workspaces.application.invitations import (
     PublicWorkspaceInvitation,
 )
 from app.features.workspaces.domain.types import WorkspaceRole
-from app.features.workspaces.errors import WorkspaceInvitationNotFoundError
+from app.features.workspaces.errors import (
+    WorkspaceInvitationNotFoundError,
+    WorkspaceInvitationTransitionError,
+)
 from app.main import create_app
 
 
@@ -25,6 +28,7 @@ class InvitationServiceStub:
     def __init__(self, *, available: bool = True) -> None:
         self.available = available
         self.accepted: dict[str, Any] = {}
+        self.accept_error: WorkspaceInvitationTransitionError | None = None
 
     async def preview(self, *, invitation_token: str) -> PublicWorkspaceInvitation:
         if not self.available:
@@ -43,6 +47,8 @@ class InvitationServiceStub:
             raise WorkspaceInvitationNotFoundError(
                 "Приглашение не найдено или уже недействительно."
             )
+        if self.accept_error is not None:
+            raise self.accept_error
         return AcceptedWorkspaceInvitation(workspace_id=uuid4())
 
 
@@ -124,3 +130,36 @@ def test_invitation_accept_uses_actor_and_returns_safe_navigation(available: boo
         }
     else:
         assert response.json()["error"]["code"] == "invitation_not_found"
+
+
+def test_invitation_accept_rejects_wrong_account_without_leaking_email() -> None:
+    app = create_app()
+    service = InvitationServiceStub()
+    service.accept_error = WorkspaceInvitationTransitionError(
+        "Приглашение предназначено для другого аккаунта.",
+        reason_codes=["invitation_email_mismatch"],
+    )
+    user = User(
+        id=uuid4(),
+        email="wrong@example.test",
+        password_hash="hash",
+        name="Wrong account",
+    )
+    app.dependency_overrides[get_workspace_invitation_service] = lambda: service
+    app.dependency_overrides[get_authenticated_session_context] = lambda: SimpleNamespace(
+        user=user,
+        session_token="session-token",
+    )
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/workspaces/invitations/private-token/accept",
+        )
+
+    assert response.status_code == 403
+    assert response.json()["error"] == {
+        "code": "invitation_email_mismatch",
+        "message": "Приглашение предназначено для другого аккаунта.",
+        "details": {"reasonCodes": ["invitation_email_mismatch"]},
+    }
+    assert "invitee" not in response.text

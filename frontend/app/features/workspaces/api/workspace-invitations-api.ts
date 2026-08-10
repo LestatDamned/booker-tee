@@ -23,6 +23,7 @@ export type PublicWorkspaceInvitationDto =
 
 const invitationSchema: z.ZodType<WorkspaceInvitationDto> = z.object({
   id: z.uuid(),
+  inviteeEmail: z.string().min(3).max(320),
   role: workspaceRoleSchema,
   status: z.enum(["pending", "accepted", "expired", "revoked"]),
   expiresAt: z.iso.datetime({ offset: true }),
@@ -34,6 +35,12 @@ const invitationSchema: z.ZodType<WorkspaceInvitationDto> = z.object({
       "workspace_inactive",
       "invitation_management_forbidden",
       "invitation_role_forbidden",
+      "pending_invitation_exists",
+      "already_member",
+      "member_disabled",
+      "member_limit_reached",
+      "pending_invitation_limit_reached",
+      "invitation_email_mismatch",
     ]),
   ),
 });
@@ -77,6 +84,7 @@ export type PublicWorkspaceInvitationLoadResult =
 export type AcceptPublicWorkspaceInvitationResult =
   | { status: "success"; href: "/app/workspaces" }
   | ApiUnauthenticatedFailure
+  | { status: "wrong_account"; message: string }
   | { status: "not_found"; message: string }
   | ApiMutationError;
 
@@ -151,6 +159,15 @@ export async function acceptPublicWorkspaceInvitation({
       message: error?.message ?? "Приглашение уже недействительно.",
     };
   }
+  if (
+    response.httpStatus === 403 &&
+    error?.code === "invitation_email_mismatch"
+  ) {
+    return {
+      status: "wrong_account",
+      message: error.message,
+    };
+  }
   if (!response.ok) {
     return apiMutationError(error, {
       fallbackCode: "workspace_invitation_accept_failed",
@@ -168,11 +185,13 @@ export async function acceptPublicWorkspaceInvitation({
 
 export async function createWorkspaceInvitation({
   csrfToken,
+  email,
   idempotencyKey,
   role,
   workspaceId,
 }: {
   csrfToken: string;
+  email: string;
   idempotencyKey: string;
   role: WorkspaceInvitationDto["role"];
   workspaceId: string;
@@ -180,7 +199,7 @@ export async function createWorkspaceInvitation({
   const response = await requestJson(
     `/api/v1/workspaces/${workspaceId}/invitations`,
     {
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({ email, role }),
       headers: {
         "Content-Type": "application/json",
         "Idempotency-Key": idempotencyKey,

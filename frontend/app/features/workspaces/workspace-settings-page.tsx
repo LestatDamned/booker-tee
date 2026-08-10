@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from "react";
 
 import type { SessionDto } from "../../api/session";
+import type { WorkspaceActivityLoadResult } from "./api/workspace-activity-api";
 import type { WorkspaceMembersDto } from "./api/workspace-members-api";
 import type { WorkspaceInvitationsDto } from "./api/workspace-invitations-api";
 import { redirectIfUnauthenticated } from "../../session/unauthenticated";
@@ -29,6 +30,7 @@ import {
   type WorkspaceFieldErrors,
 } from "./workspace-form";
 import { WorkspaceLifecycleImpact } from "./workspace-lifecycle-impact";
+import { WorkspaceActivitySection } from "./workspace-activity-section";
 import { WorkspaceInvitationsSection } from "./workspace-invitations-section";
 import { WorkspaceMembersSection } from "./workspace-members-section";
 import { workspaceRoleLabel, workspaceTypeLabel } from "./workspace-labels";
@@ -40,6 +42,7 @@ import styles from "./workspace-settings-page.module.css";
 
 export function WorkspaceSettingsPage({
   boundaryNavigate = defaultBoundaryNavigate,
+  initialActivity,
   initialSettings,
   initialMembers,
   initialInvitations,
@@ -47,9 +50,10 @@ export function WorkspaceSettingsPage({
   session,
 }: {
   boundaryNavigate?: (href: string, message?: string) => void;
+  initialActivity: WorkspaceActivityLoadResult | null;
   initialSettings: WorkspaceSettingsDto;
-  initialMembers: WorkspaceMembersDto;
-  initialInvitations: WorkspaceInvitationsDto;
+  initialMembers: WorkspaceMembersDto | null;
+  initialInvitations: WorkspaceInvitationsDto | null;
   navigationPending?: boolean;
   session: SessionDto;
 }) {
@@ -65,6 +69,7 @@ export function WorkspaceSettingsPage({
     tone: "danger" | "warning";
   } | null>(null);
   const [pending, setPending] = useState(false);
+  const [activityRefreshToken, setActivityRefreshToken] = useState(0);
   const [boundaryNotice] = useState(() => takeBoundaryNotice());
   const { dismissToast, showToast, toast } = useToastQueue();
   const workspace = settings.workspace;
@@ -117,6 +122,7 @@ export function WorkspaceSettingsPage({
       setDraft(settingsDraft(result.settings));
       setFieldErrors({});
       showToast({ message: "Настройки пространства сохранены." });
+      setActivityRefreshToken((current) => current + 1);
       return;
     }
     if (redirectIfUnauthenticated(result)) return;
@@ -281,18 +287,36 @@ export function WorkspaceSettingsPage({
               )}
             </section>
 
-            <WorkspaceMembersSection
-              boundaryNavigate={boundaryNavigate}
-              csrfToken={session.csrfToken}
-              currentWorkspaceId={session.workspace.id}
-              initialMembers={initialMembers}
-              workspaceUpdatedAt={workspace.updatedAt}
-            />
+            {initialMembers && initialInvitations ? (
+              <>
+                <WorkspaceMembersSection
+                  boundaryNavigate={boundaryNavigate}
+                  csrfToken={session.csrfToken}
+                  currentWorkspaceId={session.workspace.id}
+                  initialMembers={initialMembers}
+                  onCommittedMutation={() =>
+                    setActivityRefreshToken((current) => current + 1)
+                  }
+                  workspaceUpdatedAt={workspace.updatedAt}
+                />
 
-            <WorkspaceInvitationsSection
-              csrfToken={session.csrfToken}
-              initialInvitations={initialInvitations}
-            />
+                <WorkspaceInvitationsSection
+                  csrfToken={session.csrfToken}
+                  initialInvitations={initialInvitations}
+                  onCommittedMutation={() =>
+                    setActivityRefreshToken((current) => current + 1)
+                  }
+                />
+              </>
+            ) : null}
+
+            {initialActivity ? (
+              <WorkspaceActivitySection
+                initialResult={initialActivity}
+                refreshToken={activityRefreshToken}
+                workspaceId={workspace.id}
+              />
+            ) : null}
 
             <WorkspaceLifecycleImpact
               boundaryNavigate={boundaryNavigate}

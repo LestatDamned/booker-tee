@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import ApiRequestContext, get_api_request_context
+from app.api.dependencies import ApiRequestContext, require_api_raw_import_read_context
 from app.api.errors import ApiError
 from app.db.session import get_session
 from app.features.accounts.service import AccountService
@@ -118,7 +118,10 @@ def get_import_review_category_creator(
 
 
 def require_import_review_write_context(
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[
+        ApiRequestContext,
+        Depends(require_api_raw_import_read_context),
+    ],
 ) -> ApiRequestContext:
     permissions = permission_flags_for(context.workspace.membership)
     if not (permissions.can_manage_imports and permissions.can_write_financial_data):

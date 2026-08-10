@@ -50,6 +50,9 @@ export function ImportDocumentsRouteView({
   if (documents.status === "error") {
     return <ImportDocumentsRouteState result={documents} />;
   }
+  if (documents.status === "forbidden") {
+    return <ImportDocumentsRouteState result={documents} />;
+  }
   if (session.status !== "authenticated") {
     return (
       <ImportDocumentsRouteState

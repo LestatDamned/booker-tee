@@ -14,7 +14,10 @@ import {
   type WorkspaceMemberDto,
   type WorkspaceMembersDto,
 } from "./api/workspace-members-api";
-import { workspaceRoleLabel } from "./workspace-labels";
+import {
+  workspaceRoleLabel,
+  workspaceRoleOptionLabel,
+} from "./workspace-labels";
 import styles from "./workspace-settings-page.module.css";
 
 export function WorkspaceMembersSection({
@@ -22,12 +25,14 @@ export function WorkspaceMembersSection({
   csrfToken,
   currentWorkspaceId,
   initialMembers,
+  onCommittedMutation,
   workspaceUpdatedAt,
 }: {
   boundaryNavigate: (href: string, message?: string) => void;
   csrfToken: string;
   currentWorkspaceId: string;
   initialMembers: WorkspaceMembersDto;
+  onCommittedMutation?: () => void;
   workspaceUpdatedAt: string;
 }) {
   const [members, setMembers] = useState(initialMembers);
@@ -136,6 +141,7 @@ export function WorkspaceMembersSection({
   ) {
     if (result.status === "success") {
       setMembers(result.members);
+      onCommittedMutation?.();
       return;
     }
     if (redirectIfUnauthenticated(result)) return;
@@ -250,7 +256,7 @@ export function WorkspaceMembersSection({
                   >
                     {member.capabilities.assignableRoles.map((role) => (
                       <option key={role} value={role}>
-                        {workspaceRoleLabel(role)}
+                        {workspaceRoleOptionLabel(role)}
                       </option>
                     ))}
                   </select>

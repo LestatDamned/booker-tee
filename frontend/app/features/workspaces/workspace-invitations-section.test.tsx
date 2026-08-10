@@ -44,11 +44,13 @@ describe("WorkspaceInvitationsSection", () => {
       />,
     );
 
+    await user.type(screen.getByLabelText(/Email/), "invitee@example.test");
     await user.selectOptions(screen.getByLabelText("Роль"), "editor");
-    await user.click(screen.getByRole("button", { name: "Создать ссылку" }));
+    await user.click(screen.getByRole("button", { name: "Пригласить" }));
 
     expect(createWorkspaceInvitation).toHaveBeenCalledWith({
       csrfToken: "csrf",
+      email: "invitee@example.test",
       idempotencyKey: expect.any(String),
       role: "editor",
       workspaceId: workspaceInvitations.workspaceId,
@@ -56,6 +58,7 @@ describe("WorkspaceInvitationsSection", () => {
     expect(screen.getByLabelText("Ссылка приглашения")).toHaveValue(
       "https://example.test/app/workspaces/invitations/secret",
     );
+    expect(screen.getByLabelText(/Email/)).toHaveValue("");
 
     await user.click(screen.getByRole("button", { name: "Закрыть" }));
     expect(screen.queryByLabelText("Ссылка приглашения")).toBeNull();

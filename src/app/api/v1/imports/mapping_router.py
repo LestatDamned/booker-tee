@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, status
 
-from app.api.dependencies import ApiRequestContext, get_api_request_context
+from app.api.dependencies import ApiRequestContext, require_api_raw_import_read_context
 from app.api.errors import ApiError, api_error_responses
 from app.api.v1.imports.dependencies import (
     get_statement_mapping_importer,
@@ -57,13 +57,12 @@ router = APIRouter()
 )
 async def get_unknown_statement_mapping(
     document_id: UUID,
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_raw_import_read_context)],
     reader: Annotated[
         StatementMappingOverviewReader,
         Depends(get_statement_mapping_overview_reader),
     ],
 ) -> MappingReadApiResponse:
-    _require_import_management(context)
     mapping = await reader.read(
         workspace_id=context.workspace.workspace.id,
         document_id=document_id,
@@ -87,7 +86,7 @@ async def get_unknown_statement_mapping_source_rows(
     document_id: UUID,
     page_number: int,
     table_index: int,
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_raw_import_read_context)],
     reader: Annotated[
         StatementMappingSourceRowsReader,
         Depends(get_statement_mapping_source_rows_reader),
@@ -95,7 +94,6 @@ async def get_unknown_statement_mapping_source_rows(
     start_row_number: Annotated[int, Query(ge=1, alias="startRowNumber")] = 1,
     row_limit: Annotated[int, Query(ge=1, le=50, alias="rowLimit")] = 30,
 ) -> MappingSourceRowsApiResponse:
-    _require_import_management(context)
     rows = await reader.read(
         workspace_id=context.workspace.workspace.id,
         document_id=document_id,
@@ -123,13 +121,12 @@ async def get_unknown_statement_mapping_source_rows(
 async def preview_unknown_statement_mapping(
     document_id: UUID,
     request: MappingPreviewApiRequest,
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_raw_import_read_context)],
     reader: Annotated[
         StatementMappingPreviewReader,
         Depends(get_statement_mapping_preview_reader),
     ],
 ) -> MappingPreviewApiResponse:
-    _require_import_management(context)
     try:
         preview = await reader.read(
             workspace_id=context.workspace.workspace.id,
@@ -164,7 +161,7 @@ async def preview_unknown_statement_mapping(
 async def import_unknown_statement_mapping(
     document_id: UUID,
     request: MappingImportApiRequest,
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_raw_import_read_context)],
     importer: Annotated[
         StatementMappingImportService,
         Depends(get_statement_mapping_importer),

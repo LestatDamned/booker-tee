@@ -17,6 +17,7 @@ from app.features.workspaces.domain.types import (
 )
 from app.features.workspaces.errors import (
     WorkspaceMemberConflictError,
+    WorkspaceMemberDirectoryForbiddenError,
     WorkspaceMemberTransitionError,
     WorkspaceNotFoundError,
 )
@@ -28,6 +29,7 @@ from app.features.workspaces.permissions import (
     can_disable_member,
     can_manage_members,
     can_reactivate_member,
+    can_view_member_directory,
 )
 from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.schemas import (
@@ -60,6 +62,10 @@ class WorkspaceMemberService:
         )
         if actor is None:
             raise WorkspaceNotFoundError("Workspace не найден.")
+        if not can_view_member_directory(actor):
+            raise WorkspaceMemberDirectoryForbiddenError(
+                "Просмотр участников workspace недоступен."
+            )
         return await self._directory(actor=actor, workspace=actor.workspace)
 
     async def update_role(

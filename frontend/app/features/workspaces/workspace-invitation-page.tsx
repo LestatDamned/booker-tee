@@ -45,7 +45,9 @@ export function WorkspaceInvitationPage({
       navigate(loginHref(returnTo));
       return;
     }
-    if (result.status === "not_found") setUnavailable(true);
+    if (result.status === "not_found" || result.status === "wrong_account") {
+      setUnavailable(true);
+    }
     setError(result.message);
   }
 

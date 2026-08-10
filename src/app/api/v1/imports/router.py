@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, Header, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import ApiRequestContext, get_api_request_context
+from app.api.dependencies import ApiRequestContext, require_api_raw_import_read_context
 from app.api.errors import ApiError, api_error_responses
 from app.api.v1.imports.dependencies import (
     get_import_document_detail_reader,
@@ -59,7 +59,7 @@ router.include_router(mapping_router)
     ),
 )
 async def get_import_upload_reference(
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_raw_import_read_context)],
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ImportUploadReferenceApiResponse:
@@ -101,7 +101,7 @@ async def get_import_upload_reference(
     ),
 )
 async def upload_import_document(
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_raw_import_read_context)],
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
     statement: Annotated[UploadFile, File()],
@@ -168,7 +168,7 @@ async def upload_import_document(
     ),
 )
 async def list_import_documents(
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_raw_import_read_context)],
     parameters: Annotated[
         ImportDocumentListParameters,
         Depends(parse_import_document_list_parameters),
@@ -210,7 +210,7 @@ async def list_import_documents(
 )
 async def get_import_document(
     document_id: UUID,
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_raw_import_read_context)],
     reader: Annotated[
         ImportDocumentDetailReader,
         Depends(get_import_document_detail_reader),
@@ -243,7 +243,7 @@ async def get_import_document(
 async def ignore_import_document(
     document_id: UUID,
     request: ImportDocumentMutationApiRequest,
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_raw_import_read_context)],
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ImportDocumentDetailApiResponse:
@@ -276,7 +276,7 @@ async def ignore_import_document(
 async def delete_import_document(
     document_id: UUID,
     request: ImportDocumentMutationApiRequest,
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+    context: Annotated[ApiRequestContext, Depends(require_api_raw_import_read_context)],
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ImportDocumentDeleteApiResponse:

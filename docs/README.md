@@ -19,22 +19,23 @@
 
 ## Источники истины
 
-| Область             | Документ                                                                                 | Когда читать                                    |
-| ------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| Продукт             | [`PROJECT_VISION.md`](product/PROJECT_VISION.md)                                         | Scope, пользователи, продуктовые принципы       |
-| Приоритеты          | [`ROADMAP.md`](product/ROADMAP.md)                                                       | Что делать после текущей задачи                 |
-| Финансы             | [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md)                                              | Сущности, статусы, инварианты                   |
-| Код                 | [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md)                                        | Слои, границы features, transactions, security  |
-| UI/UX               | [`DESIGN.md`](design/DESIGN.md)                                                          | Визуальный и interaction-контракт               |
-| UI-компоненты       | [`UI_FOUNDATION.md`](design/UI_FOUNDATION.md)                                            | Что переиспользовать и как компоновать страницы |
-| React/API           | [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md)                            | Текущая browser-архитектура и cutover           |
-| Формы               | [`FORM_DESIGN.md`](design/FORM_DESIGN.md)                                                | React form composition и accessibility          |
-| Решения             | [`decisions/README.md`](architecture/decisions/README.md)                                | Принятые ADR                                    |
-| Исполнение          | [`frontend/plan/README.md`](frontend/plan/README.md)                                     | Текущий migration stage                         |
-| Рефакторинг imports | [`refactoring/imports/README.md`](refactoring/imports/README.md)                         | Активный план границ, этапов и тестов           |
-| Рефакторинг ledger  | [`refactoring/ledger/TARGET_ARCHITECTURE.md`](refactoring/ledger/TARGET_ARCHITECTURE.md) | Transaction, DTO и module boundaries            |
-| Месячный XLSX       | [`features/reports/README.md`](features/reports/README.md)                               | Спека и план Reports export                     |
-| Долги               | [`features/debts/README.md`](features/debts/README.md)                                 | Модель долгов и пошаговая реализация             |
+| Область                 | Документ                                                                                 | Когда читать                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Продукт                 | [`PROJECT_VISION.md`](product/PROJECT_VISION.md)                                         | Scope, пользователи, продуктовые принципы       |
+| Приоритеты              | [`ROADMAP.md`](product/ROADMAP.md)                                                       | Что делать после текущей задачи                 |
+| Финансы                 | [`DOMAIN_MODEL.md`](domain/DOMAIN_MODEL.md)                                              | Сущности, статусы, инварианты                   |
+| Код                     | [`ARCHITECTURE.md`](architecture/ARCHITECTURE.md)                                        | Слои, границы features, transactions, security  |
+| UI/UX                   | [`DESIGN.md`](design/DESIGN.md)                                                          | Визуальный и interaction-контракт               |
+| UI-компоненты           | [`UI_FOUNDATION.md`](design/UI_FOUNDATION.md)                                            | Что переиспользовать и как компоновать страницы |
+| React/API               | [`REACT_FRONTEND_DESIGN.md`](design/REACT_FRONTEND_DESIGN.md)                            | Текущая browser-архитектура и cutover           |
+| Формы                   | [`FORM_DESIGN.md`](design/FORM_DESIGN.md)                                                | React form composition и accessibility          |
+| Решения                 | [`decisions/README.md`](architecture/decisions/README.md)                                | Принятые ADR                                    |
+| Исполнение              | [`frontend/plan/README.md`](frontend/plan/README.md)                                     | Текущий migration stage                         |
+| Рефакторинг imports     | [`refactoring/imports/README.md`](refactoring/imports/README.md)                         | Активный план границ, этапов и тестов           |
+| Рефакторинг ledger      | [`refactoring/ledger/TARGET_ARCHITECTURE.md`](refactoring/ledger/TARGET_ARCHITECTURE.md) | Transaction, DTO и module boundaries            |
+| Месячный XLSX           | [`features/reports/README.md`](features/reports/README.md)                               | Спека и план Reports export                     |
+| Долги                   | [`features/debts/README.md`](features/debts/README.md)                                   | Модель долгов и пошаговая реализация            |
+| Workspace collaboration | [`features/workspaces/README.md`](features/workspaces/README.md)                         | Invitations, roles, activity и hardening        |
 
 ## Операционные документы
 

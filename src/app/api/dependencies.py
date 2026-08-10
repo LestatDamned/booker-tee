@@ -17,7 +17,12 @@ from app.db.session import get_session
 from app.features.users.models import User, UserSession
 from app.features.users.passwords import PasswordService
 from app.features.users.service import AuthenticationService
-from app.features.workspaces.permissions import can_read_workspace, can_write_financial_data
+from app.features.workspaces.permissions import (
+    can_read_workspace,
+    can_view_member_directory,
+    can_view_raw_import_data,
+    can_write_financial_data,
+)
 from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.service import WorkspaceContext
 
@@ -143,6 +148,30 @@ def require_api_financial_write_context(
             status_code=status.HTTP_403_FORBIDDEN,
             code="financial_write_forbidden",
             message="Недостаточно прав для изменения финансовых данных.",
+        )
+    return context
+
+
+def require_api_raw_import_read_context(
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+) -> ApiRequestContext:
+    if not can_view_raw_import_data(context.workspace.membership):
+        raise ApiError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="raw_import_read_forbidden",
+            message="Недостаточно прав для просмотра исходных данных импорта.",
+        )
+    return context
+
+
+def require_api_member_directory_context(
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+) -> ApiRequestContext:
+    if not can_view_member_directory(context.workspace.membership):
+        raise ApiError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="member_directory_forbidden",
+            message="Недостаточно прав для просмотра участников workspace.",
         )
     return context
 

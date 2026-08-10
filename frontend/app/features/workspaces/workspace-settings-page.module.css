@@ -186,7 +186,6 @@
   gap: var(--space-3);
 }
 
-.invitationForm label,
 .invitationShareField {
   display: grid;
   min-width: 0;
@@ -196,6 +195,7 @@
   font-weight: 700;
 }
 
+.invitationForm input,
 .invitationForm select {
   min-width: 14rem;
   min-height: var(--control-height);
@@ -243,6 +243,48 @@
   margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+}
+
+.activityList {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activityItem {
+  display: grid;
+  grid-template-columns: 0.75rem minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.activityItem + .activityItem {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.activityMarker {
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.4rem;
+  border-radius: 50%;
+  background: var(--color-brand);
+}
+
+.activityItem p,
+.activityItem time {
+  margin: 0;
+}
+
+.activityItem time {
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+}
+
+.activityActions {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .facts,
@@ -324,6 +366,7 @@
     flex-direction: column;
   }
 
+  .invitationForm input,
   .invitationForm select {
     width: 100%;
     min-width: 0;

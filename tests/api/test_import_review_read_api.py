@@ -181,6 +181,18 @@ def test_import_review_exposes_readonly_capability_for_viewer() -> None:
     assert reader.can_write_values == [False]
 
 
+def test_import_review_hides_raw_data_from_analyst() -> None:
+    review = review_model()
+    app, reader, _ = import_review_app(review, role=WorkspaceRole.ANALYST)
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/import-review/{review.document.id}")
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "raw_import_read_forbidden"
+    assert reader.workspace_ids == []
+
+
 def test_import_review_exposes_transfer_account_references() -> None:
     review = review_model()
     assert review.document.source_account is not None

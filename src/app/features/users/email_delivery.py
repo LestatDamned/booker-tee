@@ -3,6 +3,7 @@ import smtplib
 import ssl
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from email.message import EmailMessage
 from urllib.parse import urlencode
 
@@ -97,6 +98,27 @@ def build_email_changed_message(*, recipient: str) -> IdentityEmail:
         text=(
             "Email вашего аккаунта Booker Tee был изменён. "
             "Если это были не вы, обратитесь к администратору сервиса."
+        ),
+    )
+
+
+def build_workspace_invitation_message(
+    *,
+    recipient: str,
+    workspace_name: str,
+    inviter_name: str,
+    role: str,
+    invitation_url: str,
+    expires_at: datetime,
+) -> IdentityEmail:
+    return IdentityEmail(
+        recipient=recipient,
+        subject=f"Приглашение в {workspace_name} — Booker Tee",
+        text=(
+            f"{inviter_name} приглашает вас в workspace «{workspace_name}» "
+            f"с ролью {role}.\n\n"
+            f"{invitation_url}\n\n"
+            f"Ссылка действует до {expires_at.isoformat()} и может быть использована один раз."
         ),
     )
 

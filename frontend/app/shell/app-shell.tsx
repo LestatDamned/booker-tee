@@ -15,6 +15,7 @@ type NavigationItem = {
   href: string;
   icon: IconName;
   label: string;
+  requiredCapability?: keyof SessionDto["capabilities"];
   reactRoute?: boolean;
 };
 
@@ -51,6 +52,7 @@ const navigationGroups: ReadonlyArray<NavigationGroup> = [
         icon: "imports",
         label: "Импорты",
         reactRoute: true,
+        requiredCapability: "canViewRawImportData",
       },
     ],
   },
@@ -201,7 +203,11 @@ function ShellContext({
         <small>Рабочие пространства</small>
       </NavLink>
 
-      <ShellNavigation currentPath={currentPath} onNavigate={onNavigate} />
+      <ShellNavigation
+        currentPath={currentPath}
+        onNavigate={onNavigate}
+        session={session}
+      />
 
       <div className={styles.userActions}>
         <NavLink
@@ -243,9 +249,11 @@ function ShellContext({
 function ShellNavigation({
   currentPath,
   onNavigate,
+  session,
 }: {
   currentPath: string;
   onNavigate?: (() => void) | undefined;
+  session: SessionDto;
 }) {
   return (
     <nav aria-label={onNavigate ? "Мобильная навигация" : "Главная навигация"}>
@@ -253,14 +261,20 @@ function ShellNavigation({
         <section className={styles.navGroup} key={group.label}>
           <p className={styles.navGroupLabel}>{group.label}</p>
           <div className={styles.navList}>
-            {group.items.map((item) => (
-              <ShellNavigationItem
-                currentPath={currentPath}
-                item={item}
-                key={item.href}
-                onNavigate={onNavigate}
-              />
-            ))}
+            {group.items
+              .filter(
+                (item) =>
+                  !item.requiredCapability ||
+                  session.capabilities[item.requiredCapability],
+              )
+              .map((item) => (
+                <ShellNavigationItem
+                  currentPath={currentPath}
+                  item={item}
+                  key={item.href}
+                  onNavigate={onNavigate}
+                />
+              ))}
           </div>
         </section>
       ))}

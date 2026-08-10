@@ -8,12 +8,14 @@ from pydantic_core import PydanticCustomError
 from app.api.schemas import ApiModel, ApiRequestModel
 from app.api.v1.session.responses import SessionApiResponse
 from app.features.workspaces.domain.types import (
+    WorkspaceAuditEventType,
     WorkspaceInvitationStatus,
     WorkspaceMemberStatus,
     WorkspaceRole,
     WorkspaceType,
 )
 from app.features.workspaces.schemas import (
+    WorkspaceActivitySummaryCode,
     WorkspaceBlockingReason,
     WorkspaceInvitationBlockingReason,
     WorkspaceMemberBlockingReason,
@@ -69,6 +71,8 @@ class WorkspaceDirectoryApiResponse(ApiModel):
 
 class WorkspaceSettingsCapabilitiesApiResponse(ApiModel):
     can_update: bool
+    can_view_member_directory: bool
+    can_view_workspace_activity: bool
     can_manage_members: bool
     can_invite: bool
     can_deactivate: bool
@@ -272,6 +276,7 @@ class WorkspaceInvitationCapabilitiesApiResponse(ApiModel):
 
 class WorkspaceInvitationItemApiResponse(ApiModel):
     id: UUID
+    invitee_email: str
     role: WorkspaceRole
     status: WorkspaceInvitationStatus
     expires_at: datetime
@@ -293,6 +298,7 @@ class WorkspaceInvitationsApiResponse(ApiModel):
 
 
 class CreateWorkspaceInvitationApiRequest(ApiRequestModel):
+    email: str = Field(min_length=3, max_length=320)
     role: WorkspaceRole
 
 
@@ -326,3 +332,46 @@ class WorkspaceLifecycleApiResponse(ApiModel):
     session: SessionApiResponse
     impact: WorkspaceLifecycleMutationImpactApiResponse
     navigation_outcome: WorkspaceNavigationOutcomeApiResponse
+
+
+class WorkspaceActivityActorApiResponse(ApiModel):
+    id: UUID
+    display_name: str
+
+
+class WorkspaceActivityDetailsApiResponse(ApiModel):
+    role: WorkspaceRole | None
+    invitee_email: str | None
+    old_role: WorkspaceRole | None
+    new_role: WorkspaceRole | None
+    old_status: WorkspaceMemberStatus | None
+    new_status: WorkspaceMemberStatus | None
+    old_name: str | None
+    new_name: str | None
+    old_type: WorkspaceType | None
+    new_type: WorkspaceType | None
+    old_default_currency: str | None
+    new_default_currency: str | None
+    moved_session_count: int | None
+    revoked_invitation_count: int | None
+
+
+class WorkspaceActivityItemApiResponse(ApiModel):
+    id: UUID
+    event_type: WorkspaceAuditEventType
+    actor: WorkspaceActivityActorApiResponse | None
+    target: WorkspaceActivityActorApiResponse | None
+    summary_code: WorkspaceActivitySummaryCode
+    details: WorkspaceActivityDetailsApiResponse
+    created_at: datetime
+
+
+class WorkspaceActivityCursorApiResponse(ApiModel):
+    before_created_at: datetime
+    before_id: UUID
+
+
+class WorkspaceActivityApiResponse(ApiModel):
+    workspace_id: UUID
+    items: list[WorkspaceActivityItemApiResponse]
+    next_cursor: WorkspaceActivityCursorApiResponse | None

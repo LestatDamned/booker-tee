@@ -110,6 +110,22 @@ def test_import_document_detail_viewer_keeps_data_but_loses_management() -> None
     assert capabilities["delete"]["blockingReasonCodes"] == ["import_management_forbidden"]
 
 
+def test_import_document_detail_hides_raw_data_from_analyst() -> None:
+    context = api_context(WorkspaceRole.ANALYST)
+    detail = document_snapshot()
+    reader = DetailReaderStub(detail)
+    app = create_app()
+    app.dependency_overrides[get_api_request_context] = lambda: context
+    app.dependency_overrides[get_import_document_detail_reader] = lambda: cast(Any, reader)
+
+    with TestClient(app) as client:
+        response = client.get(f"/api/v1/imports/documents/{detail.id}")
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "raw_import_read_forbidden"
+    assert reader.workspace_ids == []
+
+
 def test_document_mutation_is_forbidden_for_viewer_before_use_case() -> None:
     context = api_context(WorkspaceRole.VIEWER)
     app = create_app()

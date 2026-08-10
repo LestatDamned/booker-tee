@@ -19,7 +19,12 @@ from app.features.workspaces.models import (
     WorkspaceAuditEventType,
     WorkspaceMember,
 )
-from app.features.workspaces.permissions import can_invite_members, can_manage_members
+from app.features.workspaces.permissions import (
+    can_invite_members,
+    can_manage_members,
+    can_view_member_directory,
+    can_view_workspace_activity,
+)
 from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.schemas import (
     WorkspaceBlockingReason,
@@ -157,6 +162,8 @@ class WorkspaceSettingsService:
                 ),
                 capabilities=WorkspaceSettingsCapabilitiesDto(
                     can_update=can_update,
+                    can_view_member_directory=can_view_member_directory(membership),
+                    can_view_workspace_activity=can_view_workspace_activity(membership),
                     can_manage_members=workspace.is_active and can_manage_members(membership),
                     can_invite=workspace.is_active and can_invite_members(membership),
                     can_deactivate=workspace.is_active and is_owner and fallback is not None,

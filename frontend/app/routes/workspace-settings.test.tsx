@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   session,
+  workspaceActivity,
   workspaceInvitations,
   workspaceMembers,
   workspaceSettings,
@@ -36,6 +37,12 @@ describe("workspace settings route", () => {
       ) {
         return Promise.resolve(jsonResponse(workspaceInvitations));
       }
+      if (
+        String(input) ===
+        `/api/v1/workspaces/${workspaceSettings.workspace.id}/activity`
+      ) {
+        return Promise.resolve(jsonResponse(workspaceActivity));
+      }
       return Promise.resolve(new Response(null, { status: 404 }));
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -49,9 +56,47 @@ describe("workspace settings route", () => {
 
     expect(result.session.status).toBe("authenticated");
     expect(result.settings.status).toBe("success");
-    expect(result.members.status).toBe("success");
-    expect(result.invitations.status).toBe("success");
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(result.members?.status).toBe("success");
+    expect(result.invitations?.status).toBe("success");
+    expect(result.activity?.status).toBe("success");
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it("does not request the private team directory without capability", async () => {
+    const readonlySettings = {
+      ...workspaceSettings,
+      workspace: {
+        ...workspaceSettings.workspace,
+        capabilities: {
+          ...workspaceSettings.workspace.capabilities,
+          canViewMemberDirectory: false,
+          canViewWorkspaceActivity: false,
+        },
+      },
+    };
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input) === "/api/v1/session") {
+        return Promise.resolve(jsonResponse(session));
+      }
+      if (
+        String(input) === `/api/v1/workspaces/${workspaceSettings.workspace.id}`
+      ) {
+        return Promise.resolve(jsonResponse(readonlySettings));
+      }
+      return Promise.resolve(new Response(null, { status: 404 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await loadWorkspaceSettingsRoute(
+      new Request(
+        `http://localhost/app/workspaces/${workspaceSettings.workspace.id}/settings`,
+      ),
+      workspaceSettings.workspace.id,
+    );
+
+    expect(result.members).toBeNull();
+    expect(result.invitations).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("uses one masked not-found state", () => {
@@ -61,8 +106,9 @@ describe("workspace settings route", () => {
           loaderData={{
             session: { status: "authenticated", session },
             settings: { status: "not_found" },
-            members: { status: "not_found" },
-            invitations: { status: "not_found" },
+            members: null,
+            invitations: null,
+            activity: null,
           }}
         />
       </MemoryRouter>,

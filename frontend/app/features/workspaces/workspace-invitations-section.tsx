@@ -3,6 +3,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { Button } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
+import { Field } from "../../ui/field/field";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { StatusLabel } from "../../ui/status-label/status-label";
 import {
@@ -12,18 +13,25 @@ import {
   type WorkspaceInvitationDto,
   type WorkspaceInvitationsDto,
 } from "./api/workspace-invitations-api";
-import { workspaceRoleLabel } from "./workspace-labels";
+import {
+  workspaceRoleLabel,
+  workspaceRoleOptionLabel,
+} from "./workspace-labels";
 import styles from "./workspace-settings-page.module.css";
 
 export function WorkspaceInvitationsSection({
   csrfToken,
   initialInvitations,
+  onCommittedMutation,
 }: {
   csrfToken: string;
   initialInvitations: WorkspaceInvitationsDto;
+  onCommittedMutation?: () => void;
 }) {
   const idempotencyKey = useRef(crypto.randomUUID());
   const [invitations, setInvitations] = useState(initialInvitations);
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | undefined>();
   const [role, setRole] = useState(
     initialInvitations.capabilities.assignableRoles[0] ?? "viewer",
   );
@@ -41,8 +49,10 @@ export function WorkspaceInvitationsSection({
     if (pending || !invitations.capabilities.canCreate) return;
     setPending(true);
     setNotice(null);
+    setEmailError(undefined);
     const result = await createWorkspaceInvitation({
       csrfToken,
+      email,
       idempotencyKey: idempotencyKey.current,
       role,
       workspaceId: invitations.workspaceId,
@@ -51,10 +61,15 @@ export function WorkspaceInvitationsSection({
     if (result.status === "success") {
       setInvitations(result.invitations);
       setShareUrl(result.shareUrl);
+      setEmail("");
       idempotencyKey.current = crypto.randomUUID();
+      onCommittedMutation?.();
       return;
     }
     if (redirectIfUnauthenticated(result)) return;
+    if (result.status === "error" && result.fieldErrors.email?.[0]) {
+      setEmailError(result.fieldErrors.email[0]);
+    }
     setNotice({ message: result.message, tone: "danger" });
   }
 
@@ -71,6 +86,7 @@ export function WorkspaceInvitationsSection({
     setRevokeTarget(null);
     if (result.status === "success") {
       setInvitations(result.invitations);
+      onCommittedMutation?.();
       return;
     }
     if (redirectIfUnauthenticated(result)) return;
@@ -107,7 +123,7 @@ export function WorkspaceInvitationsSection({
       <div className={styles.sectionHeading}>
         <div>
           <h2 id="workspace-invitations-title">Приглашения</h2>
-          <p>Ссылка даёт выбранную роль и действует 72 часа.</p>
+          <p>Приглашение привязано к email и действует 72 часа.</p>
         </div>
         <span className={styles.memberCount}>{invitations.items.length}</span>
       </div>
@@ -127,10 +143,34 @@ export function WorkspaceInvitationsSection({
           className={styles.invitationForm}
           onSubmit={(event) => void create(event)}
         >
-          <label>
-            <span>Роль</span>
-            <select
+          <Field
+            error={emailError}
+            errorId="workspace-invitation-email-error"
+            htmlFor="workspace-invitation-email"
+            label="Email"
+            required
+          >
+            <input
+              id="workspace-invitation-email"
+              aria-describedby={
+                emailError ? "workspace-invitation-email-error" : undefined
+              }
+              aria-invalid={Boolean(emailError)}
+              autoComplete="email"
               disabled={pending}
+              maxLength={320}
+              name="email"
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              type="email"
+              value={email}
+            />
+          </Field>
+          <Field htmlFor="workspace-invitation-role" label="Роль">
+            <select
+              id="workspace-invitation-role"
+              disabled={pending}
+              name="role"
               onChange={(event) =>
                 setRole(event.target.value as WorkspaceInvitationDto["role"])
               }
@@ -138,13 +178,13 @@ export function WorkspaceInvitationsSection({
             >
               {invitations.capabilities.assignableRoles.map((option) => (
                 <option key={option} value={option}>
-                  {workspaceRoleLabel(option)}
+                  {workspaceRoleOptionLabel(option)}
                 </option>
               ))}
             </select>
-          </label>
+          </Field>
           <Button isLoading={pending} tone="primary" type="submit">
-            Создать ссылку
+            Пригласить
           </Button>
         </form>
       ) : (
@@ -190,9 +230,10 @@ export function WorkspaceInvitationsSection({
               role="listitem"
             >
               <div>
-                <strong>{workspaceRoleLabel(invitation.role)}</strong>
+                <strong>{invitation.inviteeEmail}</strong>
                 <span>
-                  Создано {formatDateTime(invitation.createdAt)} · до{" "}
+                  {workspaceRoleLabel(invitation.role)} · создано{" "}
+                  {formatDateTime(invitation.createdAt)} · до{" "}
                   {formatDateTime(invitation.expiresAt)}
                 </span>
               </div>
@@ -216,7 +257,7 @@ export function WorkspaceInvitationsSection({
       {revokeTarget ? (
         <ConfirmationDialog
           confirmLabel="Отозвать приглашение"
-          description={`Ссылка с ролью «${workspaceRoleLabel(revokeTarget.role)}» перестанет работать. Уже принятый доступ это не изменит.`}
+          description={`Приглашение для ${revokeTarget.inviteeEmail} с ролью «${workspaceRoleLabel(revokeTarget.role)}» перестанет работать. Уже принятый доступ это не изменит.`}
           onCancel={() => setRevokeTarget(null)}
           onConfirm={() => void revoke()}
           pending={pending}

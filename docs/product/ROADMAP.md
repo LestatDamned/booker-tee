@@ -52,7 +52,8 @@ dev-link используют один React SPA. При следующих из
 - улучшение account/report flows на основе реального использования;
 - измерение производительности больших imports и reports;
 - более ясная correction/audit UX для confirmed operations;
-- укрепление workspace membership и invitation flows.
+- [укрепление workspace collaboration](../features/workspaces/README.md):
+  membership, invitations, role capabilities и activity.
 
 ## Потом, при подтверждённой потребности
 

@@ -43,6 +43,8 @@ export const workspaceSettingsSchema: z.ZodType<WorkspaceSettingsDto> =
       }),
       capabilities: z.object({
         canUpdate: z.boolean(),
+        canViewMemberDirectory: z.boolean(),
+        canViewWorkspaceActivity: z.boolean(),
         canManageMembers: z.boolean(),
         canInvite: z.boolean(),
         canDeactivate: z.boolean(),

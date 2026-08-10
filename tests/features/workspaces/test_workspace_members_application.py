@@ -12,6 +12,7 @@ from app.features.workspaces.commands import TransitionWorkspaceMemberCommand
 from app.features.workspaces.domain.types import WorkspaceMemberStatus, WorkspaceRole
 from app.features.workspaces.errors import (
     WorkspaceMemberConflictError,
+    WorkspaceMemberDirectoryForbiddenError,
     WorkspaceNotFoundError,
 )
 from app.features.workspaces.models import WorkspaceMember
@@ -25,6 +26,25 @@ async def test_member_directory_masks_foreign_workspace(monkeypatch) -> None:
         await service.read(actor_user_id=uuid4(), workspace_id=uuid4())
 
     assert session.commit_count == 0
+    assert repositories.workspaces.list_calls == []
+
+
+async def test_member_directory_rejects_non_manager_before_loading_emails(monkeypatch) -> None:
+    actor_id = uuid4()
+    workspace_id = uuid4()
+    actor = member(workspace_id, actor_id, WorkspaceRole.EDITOR, name="Editor")
+    workspace = SimpleNamespace(id=workspace_id, is_active=True, owner_id=uuid4())
+    actor.workspace = workspace
+    _, service, repositories = service_with_members(
+        monkeypatch,
+        actor=actor,
+        workspace=workspace,
+        members=[actor],
+    )
+
+    with pytest.raises(WorkspaceMemberDirectoryForbiddenError):
+        await service.read(actor_user_id=actor_id, workspace_id=workspace_id)
+
     assert repositories.workspaces.list_calls == []
 
 
