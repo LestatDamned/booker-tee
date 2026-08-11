@@ -126,7 +126,7 @@ export function WorkspaceInvitationsSection({
 
       {notice ? (
         <InlineNotice
-          role="status"
+          role={notice.tone === "danger" ? "alert" : "status"}
           title="Приглашения не изменены"
           tone={notice.tone}
         >

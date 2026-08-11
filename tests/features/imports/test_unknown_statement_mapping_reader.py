@@ -84,6 +84,38 @@ async def test_mapping_repository_skips_template_query_without_bank_or_type() ->
 
 
 @pytest.mark.asyncio
+async def test_mapping_template_query_is_workspace_scoped() -> None:
+    workspace_id = uuid4()
+
+    class ResultStub:
+        def scalars(self):
+            return self
+
+        def all(self):
+            return []
+
+    class SessionStub:
+        statement = None
+
+        async def execute(self, statement):
+            self.statement = statement
+            return ResultStub()
+
+    session = SessionStub()
+
+    templates = await MappingRepository(cast(AsyncSession, session)).list_matching_templates(
+        workspace_id=workspace_id,
+        bank_name="Test bank",
+    )
+
+    assert templates == []
+    statement = session.statement
+    assert statement is not None
+    assert workspace_id in statement.compile().params.values()
+    assert "import_mapping_templates.workspace_id" in str(statement)
+
+
+@pytest.mark.asyncio
 async def test_mapping_read_model_is_bounded_and_uses_analyzer_defaults() -> None:
     workspace_id = uuid4()
     snapshot = mapping_document_snapshot()

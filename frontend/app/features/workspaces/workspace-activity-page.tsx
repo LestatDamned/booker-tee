@@ -219,6 +219,9 @@ function entityHref(item: WorkspaceActivityItemDto): string | null {
 
 function entityLabel(item: WorkspaceActivityItemDto): string | null {
   if (!item.entity) return null;
+  if (item.entity.type === "operation" && item.entity.isAvailable) {
+    return "Открыть операцию";
+  }
   if (item.entity.displayLabel) return item.entity.displayLabel;
   switch (item.entity.type) {
     case "workspace":

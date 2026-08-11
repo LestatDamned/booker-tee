@@ -1,8 +1,8 @@
 # Workspace collaboration implementation plan
 
-Статус: Stage 1–3 реализованы и прошли automated gates;
-authenticated browser/SMTP и multi-role browser smoke остаются rollout-проверками.
-Следующий implementation slice — Stage 4.
+Статус: Stage 1–5 реализованы; automated isolation/concurrency gates и локальный
+authenticated multi-role browser smoke пройдены. Перед production rollout остаются
+реальная SMTP-проверка и общий green quality gate репозитория.
 
 План доводит уже работающий workspace baseline до адресных
 invitations, осмысленных read roles, единой истории значимых действий и явных
@@ -329,6 +329,14 @@ external/legal requirement. Stage 4 завершён; следующий slice �
 
 ### 5.1 Explicit limits
 
+Статус: завершено 11 августа 2026. Лимиты применяются под существующим workspace
+row lock. Member seats считают только active и disabled membership; removed rows
+не занимают место и не попадают в текущий directory. Pending limit считает только
+неистёкшие pending invitations. API сохраняет отдельные stable reason codes, а
+React объявляет actionable limit error через alert. Application и PostgreSQL
+tests покрывают 99 → 100 и отказ 101-й записи. Следующий этап — 5.2 Isolation
+verification.
+
 1. Introduce `MAX_WORKSPACE_MEMBERS = 100` and `MAX_PENDING_INVITATIONS = 100`
    in the owning workspace application modules.
 2. Count seats/statuses according to the spec under workspace lock.
@@ -338,6 +346,13 @@ external/legal requirement. Stage 4 завершён; следующий slice �
 Gate: the 100/101 boundaries have application and PostgreSQL tests.
 
 ### 5.2 Isolation verification
+
+Статус: завершено 11 августа 2026. Все active feature families сопоставлены с
+workspace-scoped read/list и mutation/boundary evidence в hardening spec. Добавлены
+только отсутствовавшие проверки foreign account mutation, stale chat binding callback
+и mapping-template workspace filter. Общий targeted isolation suite: 231 passed,
+1 PostgreSQL-only test skipped без test database. Следующий этап — 5.3 Concurrency
+verification.
 
 1. Walk the repository inventory in the hardening spec.
 2. Reuse existing characterization tests; add a test only for an uncovered boundary.
@@ -349,6 +364,12 @@ Gate: every active feature family has foreign-workspace read and mutation eviden
 
 ### 5.3 Concurrency verification
 
+Статус: завершено 11 августа 2026. Исправлен ослабевший после email-binding
+accept/accept race test; добавлены PostgreSQL create/create invitation, stale member
+role, workspace deactivate/invite, operation version и confirmed-import dedupe races.
+Targeted migrated PostgreSQL suite дважды прошёл как `37 passed` без timeout/deadlock.
+Следующий этап — 5.4 Two-user browser smoke.
+
 1. Run all PostgreSQL workspace concurrency tests on a migrated disposable database.
 2. Add missing invitation-email, authority/lifecycle and financial stale-write races.
 3. Verify audit events and sessions after winning/losing transactions.
@@ -359,6 +380,12 @@ Gate: no race produces two owners, two invitation winners, stale overwrite, dupl
 money or a session pointing at inaccessible workspace.
 
 ### 5.4 Two-user browser smoke
+
+Статус: завершено 11 августа 2026. В двух изолированных Chromium contexts пройден
+полный flow из hardening spec: invitation/accept, общий счёт, sanitized import,
+совместная операция, stale conflict, editor → viewer, server-side `403`, disable с
+fallback workspace, cross-workspace `404` и actor-specific activity со ссылкой на
+операцию. На `390 × 844` horizontal overflow отсутствует; screenshots не сохранялись.
 
 Execute the ten-step smoke flow from the hardening spec with sanitized data. Capture only
 the result/checklist; do not retain screenshots containing private data.

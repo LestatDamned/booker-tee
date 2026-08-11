@@ -122,6 +122,8 @@ async def test_create_is_idempotent_and_returns_only_hashed_persistence() -> Non
     repository.get_invitation.side_effect = [None, created]
     repository.create_invitation.return_value = created
     repository.list_pending_invitations.return_value = [created]
+    repository.count_supported_members.return_value = 99
+    repository.count_pending_invitations.return_value = 99
     key = uuid4()
 
     first = await service.create(
@@ -360,6 +362,7 @@ async def test_accept_recovers_removed_membership() -> None:
     repository.lock_for_update.return_value = target.workspace
     repository.get_invitation_by_token_hash_for_update.return_value = target
     repository.get_any_membership_for_update.return_value = removed
+    repository.count_supported_members.return_value = 99
     users.get_active_session_by_token_hash_for_update.return_value = user_session
     users.get_for_update.return_value = SimpleNamespace(
         id=actor_id,
@@ -382,6 +385,43 @@ async def test_accept_recovers_removed_membership() -> None:
     session.commit.assert_awaited_once()
 
 
+async def test_accept_rejects_removed_membership_when_it_would_be_member_101() -> None:
+    service, session, repository, users = service_with_repo()
+    target = invitation(uuid4(), uuid4(), WorkspaceRole.EDITOR)
+    actor_id = uuid4()
+    removed = SimpleNamespace(
+        status=WorkspaceMemberStatus.REMOVED,
+        role=WorkspaceRole.VIEWER,
+        invited_by_user_id=None,
+        joined_at=None,
+    )
+    repository.get_invitation_by_token_hash.return_value = target
+    repository.lock_for_update.return_value = target.workspace
+    repository.get_invitation_by_token_hash_for_update.return_value = target
+    repository.get_any_membership_for_update.return_value = removed
+    repository.count_supported_members.return_value = 100
+    users.get_active_session_by_token_hash_for_update.return_value = SimpleNamespace()
+    users.get_for_update.return_value = SimpleNamespace(
+        id=actor_id,
+        email=target.invitee_email,
+        email_verified_at=utc_now(),
+        is_active=True,
+        deactivated_at=None,
+    )
+
+    with pytest.raises(WorkspaceInvitationTransitionError) as error:
+        await service.accept(
+            actor_user_id=actor_id,
+            invitation_token="usable-token",
+            session_token="session-token",
+        )
+
+    assert error.value.reason_codes == ["member_limit_reached"]
+    assert removed.status == WorkspaceMemberStatus.REMOVED
+    session.commit.assert_not_awaited()
+    session.rollback.assert_awaited_once()
+
+
 async def test_create_rejects_existing_pending_email() -> None:
     service, session, repository, _users = service_with_repo()
     workspace, actor = actor_context()
@@ -402,4 +442,38 @@ async def test_create_rejects_existing_pending_email() -> None:
 
     assert error.value.reason_codes == ["pending_invitation_exists"]
     repository.create_invitation.assert_not_awaited()
+    session.rollback.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    ("supported_members", "pending_invitations", "reason"),
+    [
+        (100, 0, "member_limit_reached"),
+        (99, 100, "pending_invitation_limit_reached"),
+    ],
+)
+async def test_create_rejects_invitation_101_with_stable_reason(
+    supported_members: int,
+    pending_invitations: int,
+    reason: str,
+) -> None:
+    service, session, repository, _users = service_with_repo()
+    workspace, actor = actor_context()
+    repository.lock_for_update.return_value = workspace
+    repository.get_membership_for_update.return_value = actor
+    repository.count_supported_members.return_value = supported_members
+    repository.count_pending_invitations.return_value = pending_invitations
+
+    with pytest.raises(WorkspaceInvitationTransitionError) as error:
+        await service.create(
+            actor_user_id=actor.user_id,
+            workspace_id=workspace.id,
+            email="limit@example.test",
+            role=WorkspaceRole.VIEWER,
+            idempotency_key=uuid4(),
+        )
+
+    assert error.value.reason_codes == [reason]
+    repository.create_invitation.assert_not_awaited()
+    session.commit.assert_not_awaited()
     session.rollback.assert_awaited_once()

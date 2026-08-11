@@ -314,7 +314,12 @@ class WorkspaceRepository:
         statement = (
             select(WorkspaceMember)
             .options(selectinload(WorkspaceMember.user))
-            .where(WorkspaceMember.workspace_id == workspace_id)
+            .where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.status.in_(
+                    [WorkspaceMemberStatus.ACTIVE, WorkspaceMemberStatus.DISABLED]
+                ),
+            )
             .order_by(
                 case((WorkspaceMember.role == WorkspaceRole.OWNER, 0), else_=1),
                 case((WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE, 0), else_=1),

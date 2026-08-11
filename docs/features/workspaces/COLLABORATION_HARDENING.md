@@ -1,7 +1,8 @@
 # Workspace collaboration hardening
 
-Статус: целевой verification contract; значительная часть механизмов
-уже реализована.
+Статус: isolation inventory, explicit small-team limits, PostgreSQL concurrency
+gate и two-user browser smoke проверены 11 августа 2026. Реальная SMTP-доставка
+invitation остаётся отдельным production rollout gate.
 
 ## Цель
 
@@ -219,6 +220,25 @@ RLS пересматривается, если появится хотя бы о
 - relationship child cannot escape through foreign parent;
 - chat callback re-resolves workspace membership.
 
+Проверено 11 августа 2026:
+
+| Feature family | Read/list evidence | Mutation/boundary evidence |
+| --- | --- | --- |
+| Accounts и balances | `test_account_detail_returns_workspace_scoped_not_found`, workspace-scoped directory/balance queries | `test_update_rejects_foreign_workspace_before_mutating_account` |
+| Operations и money entries | `test_get_masks_an_operation_missing_from_the_workspace` | manual create/update/lifecycle commands carry workspace identity; foreign account/category/property references are rejected before posting |
+| Debts и payments | `test_debt_repository_lookups_are_workspace_scoped`, `test_foreign_debt_uses_the_same_not_found_contract` | `test_lifecycle_hides_foreign_debt`, `test_undo_rejects_stale_version_and_foreign_workspace` |
+| Documents, parse attempts, raw rows и mapping templates | `test_document_projection_query_is_workspace_scoped_and_deterministic`, foreign document API masking, `test_mapping_template_query_is_workspace_scoped` | review actors load both raw row and locked document through workspace-scoped repositories; cross-workspace classification references are rejected |
+| Categories, properties и rules | cross-workspace category detail is hidden; property/rule directories are scoped | `test_property_update_rejects_foreign_or_missing_identity`, `test_create_rejects_foreign_or_missing_target` |
+| Reports, dashboard и export | report filters and SQL are workspace-scoped; export uses the same reporting reader | read-only family; no mutation surface exists |
+| Members, invitations и activity | foreign workspace directory/activity is masked | foreign member/invitation IDs share the missing-ID outcome and cannot mutate another workspace |
+| Chat integrations | active binding lookup is provider/user scoped | `test_workspace_chat_resolver_rechecks_membership_for_existing_binding` proves every callback rechecks active user, workspace and membership |
+
+Repository walk found no global child lookup used by an active workspace workflow.
+The parent-child paths for document → parse attempt/raw row, operation → money entry,
+debt → payment and activity → linked entity retain workspace scope in their owning
+query. The verification reuses feature repositories; no generic tenant repository or
+RLS layer was added.
+
 ### Concurrency
 
 PostgreSQL tests покрывают:
@@ -234,6 +254,26 @@ PostgreSQL tests покрывают:
 - confirmed operation stale edit/cancel/restore;
 - import review posting/deduplication races.
 
+Проверено 11 августа 2026 на мигрированной disposable PostgreSQL database:
+
+- invitation create/create на один email сохраняет одну pending invitation и один
+  audit event;
+- address-bound accept/accept запускается одним eligible actor и создаёт ровно одну
+  membership/session transition;
+- accept/revoke имеет одного победителя;
+- concurrent member role updates дают один commit, один stale conflict и один audit;
+- competing ownership transfers сохраняют одного authoritative owner;
+- deactivate против invitation create оставляет inactive workspace без pending access
+  и переводит session на fallback;
+- operation version guard допускает один concurrent commit;
+- confirmed raw-row partial unique guard допускает один dedupe hash;
+- mapping import idempotency и debt payment/undo сохраняют единственный финансовый
+  результат.
+
+Полный targeted PostgreSQL gate дважды подряд: `37 passed`; timeout/deadlock не
+зафиксирован. Row locks остались только в authority/multi-row transitions, новых
+глобальных lock или retry loops не добавлено.
+
 SQLite/fake repository test не заменяет PostgreSQL lock/constraint test.
 
 ### Browser/API
@@ -244,6 +284,20 @@ SQLite/fake repository test не заменяет PostgreSQL lock/constraint tes
 - role change/disable/workspace switch clears stale UI state;
 - two users can complete the core smoke flow in one workspace;
 - member/invitation limit errors are explicit and usable.
+
+Проверено 11 августа 2026 в headless Chromium на мигрированной disposable
+PostgreSQL database и двух изолированных browser contexts:
+
+- address-bound invitation принят подходящим verified user;
+- editor загрузил sanitized XLSX fixture и открыл review;
+- editor создал операцию, owner увидел ту же committed запись;
+- stale edit получил conflict, локальный draft не потерян;
+- после смены роли на viewer write control исчез, прямой API write вернул `403`;
+- после disable session переключилась на доступный personal workspace;
+- private-workspace account второго пользователя остался скрыт с `404`;
+- activity показала actor-specific team/finance events и ссылку на операцию;
+- viewport `390 × 844` не получил horizontal overflow;
+- неожиданных console/page errors не зафиксировано, screenshots не сохранялись.
 
 ## Two-user smoke flow
 

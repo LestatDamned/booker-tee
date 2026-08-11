@@ -1,6 +1,8 @@
 # Email-bound workspace invitations
 
-Статус: реализовано 10 августа 2026; остаётся ручной authenticated browser smoke.
+Статус: реализовано 10 августа 2026; authenticated browser smoke через transient
+share URL пройден 11 августа 2026. Реальная SMTP-доставка остаётся production
+rollout gate.
 
 ## Проблема
 
@@ -237,5 +239,6 @@ API/React:
 - keyboard/focus behavior and narrow viewport are covered.
 
 Автоматические backend, PostgreSQL concurrency, OpenAPI и frontend gates пройдены.
-Финальный эксплуатационный gate — authenticated browser smoke с реальной SMTP
+Локальный authenticated invite → accept smoke через transient share URL также
+пройден. Финальный эксплуатационный gate — повторить этот путь с реальной SMTP
 конфигурацией перед production rollout.

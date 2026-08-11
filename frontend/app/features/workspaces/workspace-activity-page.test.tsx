@@ -89,7 +89,9 @@ describe("WorkspaceActivityPage", () => {
     );
     expect(screen.getByText("statement.pdf · недоступно")).toBeVisible();
     expect(screen.queryByRole("link", { name: "statement.pdf" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Аренда" })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: "Открыть операцию" }),
+    ).toHaveAttribute(
       "href",
       "/operations?operation_id=761bcb13-4891-444e-b026-f3ed295c3680#operation-761bcb13-4891-444e-b026-f3ed295c3680",
     );

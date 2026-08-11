@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import pytest
 from workspaces_support import (
     workspace_invitations_app,
     workspace_members_app,
@@ -566,6 +567,32 @@ def test_workspace_invitation_maps_idempotency_and_role_reason() -> None:
     assert conflict.json()["error"]["code"] == "idempotency_conflict"
     assert blocked.status_code == 422
     assert blocked.json()["error"]["details"] == {"reasonCodes": ["invitation_role_forbidden"]}
+
+
+@pytest.mark.parametrize(
+    "reason",
+    ["member_limit_reached", "pending_invitation_limit_reached"],
+)
+def test_workspace_invitation_exposes_stable_limit_reason(reason: str) -> None:
+    app, service, _, workspace_id = workspace_invitations_app()
+    service.error = WorkspaceInvitationTransitionError(
+        "limit reached",
+        reason_codes=[reason],
+    )
+
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/v1/workspaces/{workspace_id}/invitations",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={"email": "invitee@example.test", "role": "viewer"},
+        )
+
+    assert response.status_code == 422
+    assert response.json()["error"] == {
+        "code": reason,
+        "message": "limit reached",
+        "details": {"reasonCodes": [reason]},
+    }
 
 
 def test_workspace_ownership_transfer_dispatches_both_stale_snapshots() -> None:

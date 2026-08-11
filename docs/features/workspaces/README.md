@@ -1,8 +1,10 @@
 # Workspace collaboration
 
-Статус: базовый multi-user workflow, адресные invitations, role capabilities и
-единый manager-only журнал administrative/financial activity реализованы; полные
-isolation gates запланированы.
+Статус: базовый multi-user workflow, адресные invitations, role capabilities,
+единый manager-only журнал administrative/financial activity, explicit limits,
+repository/API/chat isolation, PostgreSQL concurrency gate и локальный two-user
+browser smoke реализованы и проверены. Реальная SMTP-доставка остаётся production
+rollout gate.
 
 Workspace — строгая граница финансовых данных. Collaboration не
 создаёт второй ledger или отдельный team backend: несколько

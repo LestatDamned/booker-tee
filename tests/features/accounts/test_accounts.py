@@ -11,6 +11,7 @@ from app.features.accounts.repository import AccountRepository
 from app.features.accounts.service import (
     AccountCurrencyConflictError,
     AccountError,
+    AccountNotFoundError,
     AccountService,
     AccountUpdateConflictError,
     normalize_currency,
@@ -101,6 +102,25 @@ async def test_update_rejects_stale_write_before_mutating_account() -> None:
             currency=account.currency,
             initial_balance=account.initial_balance,
             expected_updated_at=account.updated_at - timedelta(minutes=1),
+        )
+
+    assert account.name == "Основной"
+
+
+@pytest.mark.asyncio
+async def test_update_rejects_foreign_workspace_before_mutating_account() -> None:
+    account = existing_account()
+    service = account_service(account, has_entries=False)
+
+    with pytest.raises(AccountNotFoundError):
+        await service.update(
+            workspace_id=uuid4(),
+            account_id=account.id,
+            name="Чужое изменение",
+            account_type=account.type,
+            currency=account.currency,
+            initial_balance=account.initial_balance,
+            expected_updated_at=account.updated_at,
         )
 
     assert account.name == "Основной"

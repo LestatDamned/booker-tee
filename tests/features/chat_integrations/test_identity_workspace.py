@@ -147,6 +147,59 @@ async def test_workspace_chat_resolver_rejects_unbound_chat_identity(
 
 
 @pytest.mark.asyncio
+async def test_workspace_chat_resolver_rechecks_membership_for_existing_binding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user_id = uuid4()
+    workspace_id = uuid4()
+    binding = SimpleNamespace(user_id=user_id, workspace_id=workspace_id)
+
+    class FakeChatIntegrationRepository:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def list_active_identity_bindings_for_external_user(self, **_kwargs):
+            return [binding]
+
+    class FakeUserRepository:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def get_active(self, requested_user_id):
+            assert requested_user_id == user_id
+            return SimpleNamespace(id=user_id, is_active=True)
+
+    class FakeWorkspaceRepository:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def lock_for_update(self, requested_workspace_id):
+            assert requested_workspace_id == workspace_id
+            return SimpleNamespace(id=workspace_id, is_active=True)
+
+        async def get_active_membership(self, **kwargs):
+            assert kwargs == {"user_id": user_id, "workspace_id": workspace_id}
+            return None
+
+    monkeypatch.setattr(chat_workspace, "ChatIntegrationRepository", FakeChatIntegrationRepository)
+    monkeypatch.setattr(chat_workspace, "UserRepository", FakeUserRepository)
+    monkeypatch.setattr(chat_workspace, "WorkspaceRepository", FakeWorkspaceRepository)
+
+    resolver = chat_workspace.WorkspaceChatResolver(cast(AsyncSession, object()))
+    event = InboundChatEvent(
+        provider=ChatProviderCode.TELEGRAM,
+        event_id="1",
+        event_type=InboundChatEventType.CALLBACK_QUERY,
+        conversation=None,
+        actor=ChatUser(provider=ChatProviderCode.TELEGRAM, external_user_id="42"),
+        callback_data="menu",
+    )
+
+    with pytest.raises(ChatWorkspaceResolutionError):
+        await resolver.require_bound_workspace(event)
+
+
+@pytest.mark.asyncio
 async def test_workspace_chat_resolver_returns_workspace_context_for_bound_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

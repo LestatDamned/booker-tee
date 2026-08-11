@@ -93,4 +93,28 @@ describe("WorkspaceInvitationsSection", () => {
     });
     expect(await screen.findByText("Ожидающих приглашений нет.")).toBeVisible();
   });
+
+  it("announces an actionable pending invitation limit", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createWorkspaceInvitation).mockResolvedValue({
+      status: "error",
+      code: "pending_invitation_limit_reached",
+      fieldErrors: {},
+      message:
+        "В workspace уже 100 ожидающих приглашений. Отзовите одно из них или дождитесь окончания срока действия.",
+    });
+    render(
+      <WorkspaceInvitationsSection
+        csrfToken="csrf"
+        initialInvitations={workspaceInvitations}
+      />,
+    );
+
+    await user.type(screen.getByLabelText(/Email/), "limit@example.test");
+    await user.click(screen.getByRole("button", { name: "Пригласить" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Отзовите одно из них или дождитесь окончания срока действия.",
+    );
+  });
 });

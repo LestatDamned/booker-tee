@@ -17,8 +17,10 @@ from app.features.workspaces.application.invitations import (
     AcceptedWorkspaceInvitation,
     WorkspaceInvitationService,
 )
+from app.features.workspaces.errors import WorkspaceInvitationTransitionError
 from app.features.workspaces.models import (
     Workspace,
+    WorkspaceAuditEvent,
     WorkspaceInvitation,
     WorkspaceInvitationStatus,
     WorkspaceMember,
@@ -42,7 +44,7 @@ async def test_postgres_concurrent_invitation_accept_has_exactly_one_winner() ->
     assert TEST_DATABASE_URL is not None
     engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
-    seed = await seed_invitation_race(sessions, invitee_count=2)
+    seed = await seed_invitation_race(sessions, invitee_count=1)
 
     async def accept_once(invitee: ActorIds) -> AcceptedWorkspaceInvitation:
         async with sessions() as session:
@@ -54,9 +56,14 @@ async def test_postgres_concurrent_invitation_accept_has_exactly_one_winner() ->
             )
 
     try:
-        results = await asyncio.gather(
-            *(accept_once(invitee) for invitee in seed.invitees),
-            return_exceptions=True,
+        invitee = seed.invitees[0]
+        results = await asyncio.wait_for(
+            asyncio.gather(
+                accept_once(invitee),
+                accept_once(invitee),
+                return_exceptions=True,
+            ),
+            timeout=10,
         )
         successful_accepts = sum(not isinstance(result, BaseException) for result in results)
 
@@ -80,6 +87,60 @@ async def test_postgres_concurrent_invitation_accept_has_exactly_one_winner() ->
             )
 
         assert (successful_accepts, accepted_members, switched_sessions) == (1, 1, 1)
+    finally:
+        await delete_invitation_race(sessions, seed)
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_postgres_concurrent_invitation_create_keeps_one_pending_row() -> None:
+    assert TEST_DATABASE_URL is not None
+    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    seed = await seed_invitation_race(sessions, invitee_count=1)
+    email = f"concurrent-invite-{uuid4()}@example.test"
+
+    async def create_once() -> object:
+        async with sessions() as session:
+            return await WorkspaceInvitationService(session, workspace_test_settings()).create(
+                actor_user_id=seed.owner.user_id,
+                workspace_id=seed.target_workspace_id,
+                email=email,
+                role=WorkspaceRole.EDITOR,
+                idempotency_key=uuid4(),
+            )
+
+    try:
+        results = await asyncio.wait_for(
+            asyncio.gather(create_once(), create_once(), return_exceptions=True),
+            timeout=10,
+        )
+        assert sum(not isinstance(result, BaseException) for result in results) == 1
+        assert (
+            sum(isinstance(result, WorkspaceInvitationTransitionError) for result in results) == 1
+        )
+
+        async with sessions() as session:
+            pending = await session.scalar(
+                select(func.count())
+                .select_from(WorkspaceInvitation)
+                .where(
+                    WorkspaceInvitation.workspace_id == seed.target_workspace_id,
+                    WorkspaceInvitation.invitee_email == email,
+                    WorkspaceInvitation.status == WorkspaceInvitationStatus.PENDING,
+                )
+            )
+            audit_events = await session.scalar(
+                select(func.count())
+                .select_from(WorkspaceAuditEvent)
+                .where(
+                    WorkspaceAuditEvent.workspace_id == seed.target_workspace_id,
+                    WorkspaceAuditEvent.event_type == "invitation_created",
+                    WorkspaceAuditEvent.details["invitee_email"].as_string() == email,
+                )
+            )
+
+        assert (pending, audit_events) == (1, 1)
     finally:
         await delete_invitation_race(sessions, seed)
         await engine.dispose()

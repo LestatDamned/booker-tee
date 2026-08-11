@@ -140,7 +140,8 @@ class WorkspaceInvitationService:
                     >= MAX_WORKSPACE_MEMBERS
                 ):
                     self._blocked(
-                        "В workspace достигнут лимит участников.",
+                        "В workspace уже 100 участников. Один из участников должен "
+                        "покинуть его перед новым приглашением.",
                         WorkspaceInvitationBlockingReason.MEMBER_LIMIT_REACHED,
                     )
                 await self._workspaces.create_member(
@@ -155,7 +156,8 @@ class WorkspaceInvitationService:
                     >= MAX_WORKSPACE_MEMBERS
                 ):
                     self._blocked(
-                        "В workspace достигнут лимит участников.",
+                        "В workspace уже 100 участников. Один из участников должен "
+                        "покинуть его перед восстановлением доступа.",
                         WorkspaceInvitationBlockingReason.MEMBER_LIMIT_REACHED,
                     )
                 membership.role = invitation.role
@@ -287,7 +289,8 @@ class WorkspaceInvitationService:
                 >= MAX_WORKSPACE_MEMBERS
             ):
                 self._blocked(
-                    "В workspace достигнут лимит участников.",
+                    "В workspace уже 100 участников. Один из участников должен "
+                    "покинуть его перед новым приглашением.",
                     WorkspaceInvitationBlockingReason.MEMBER_LIMIT_REACHED,
                 )
             if (
@@ -295,7 +298,8 @@ class WorkspaceInvitationService:
                 >= MAX_PENDING_INVITATIONS
             ):
                 self._blocked(
-                    "В workspace достигнут лимит ожидающих приглашений.",
+                    "В workspace уже 100 ожидающих приглашений. Отзовите одно "
+                    "из них или дождитесь окончания срока действия.",
                     WorkspaceInvitationBlockingReason.PENDING_LIMIT_REACHED,
                 )
             invitation = await self._workspaces.create_invitation(
