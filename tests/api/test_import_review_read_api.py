@@ -372,8 +372,10 @@ def test_transfer_match_returns_both_affected_document_reviews() -> None:
     item_id = primary.items[0].id
     paired_item_id = paired.items[0].id
     result = ImportReviewTransferResult(
+        operation_id=uuid4(),
         updated_item_ids=frozenset({item_id, paired_item_id}),
         affected_document_ids=frozenset({primary.document.id, paired.document.id}),
+        replayed=False,
     )
     service = TransferServiceStub(result=result)
     app = create_app()
@@ -556,7 +558,7 @@ def test_existing_operation_link_returns_authoritative_review() -> None:
     review = review_model()
     item = review.items[0]
     operation_id = uuid4()
-    service = LifecycleServiceStub(
+    service = PostingServiceStub(
         result=ImportReviewExistingOperationLinkResult(
             document_id=review.document.id,
             item_id=item.id,

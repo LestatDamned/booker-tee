@@ -183,11 +183,13 @@ async def test_payment_records_principal_and_interest_with_debt_direction(
         balance=balance,
     )
 
-    payment = await recorder.record(
+    outcome = await recorder.record(
         context=context,
         command=payment_command(debt_account.id, settlement.id, category.id),
     )
+    payment = outcome.payment
 
+    assert outcome.replayed is False
     assert len(debts.created) == 1
     expected_source = debt_account if principal_source == "debt" else settlement
     assert posting.transfers[0]["source_account"] is expected_source
@@ -207,7 +209,7 @@ async def test_payment_supports_principal_only_without_interest_category() -> No
         balance=Decimal("-100.00"),
     )
 
-    payment = await recorder.record(
+    outcome = await recorder.record(
         context=context,
         command=payment_command(
             debt_account.id,
@@ -216,7 +218,9 @@ async def test_payment_supports_principal_only_without_interest_category() -> No
             interest_amount=Decimal("0.00"),
         ),
     )
+    payment = outcome.payment
 
+    assert outcome.replayed is False
     assert payment.principal_operation_id is not None
     assert payment.interest_operation_id is None
     assert posting.interests == []
@@ -231,7 +235,7 @@ async def test_payment_supports_interest_only() -> None:
         balance=Decimal("-100.00"),
     )
 
-    payment = await recorder.record(
+    outcome = await recorder.record(
         context=context,
         command=payment_command(
             debt_account.id,
@@ -240,7 +244,9 @@ async def test_payment_supports_interest_only() -> None:
             principal_amount=Decimal("0.00"),
         ),
     )
+    payment = outcome.payment
 
+    assert outcome.replayed is False
     assert payment.principal_operation_id is None
     assert payment.interest_operation_id is not None
     assert posting.transfers == []
@@ -303,7 +309,9 @@ async def test_payment_retry_reuses_payment_and_changed_payload_conflicts() -> N
 
     replay = await recorder.record(context=context, command=command)
 
-    assert replay is created
+    assert replay.payment is created.payment
+    assert created.replayed is False
+    assert replay.replayed is True
     assert len(debts.created) == 1
     assert len(posting.transfers) == 1
     with pytest.raises(DebtIdempotencyConflictError):
@@ -326,11 +334,13 @@ async def test_undo_ignores_both_operations_and_replay_is_safe() -> None:
         expected_interest_operation_version=1,
     )
 
-    reversed_payment = await reverser.reverse(context=context, command=command)
+    reversed_outcome = await reverser.reverse(context=context, command=command)
     replay = await reverser.reverse(context=context, command=command)
 
-    assert reversed_payment.reversed_at is not None
-    assert replay is payment
+    assert reversed_outcome.payment.reversed_at is not None
+    assert reversed_outcome.replayed is False
+    assert replay.payment is payment
+    assert replay.replayed is True
     assert principal.status is OperationStatus.IGNORED
     assert interest.status is OperationStatus.IGNORED
     assert principal.updated_by_user_id == context.user.id

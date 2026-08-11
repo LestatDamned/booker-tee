@@ -15,6 +15,12 @@ from app.features.imports.documents.repository import DocumentRepository
 from app.features.imports.statements.validation_service import StatementValidationService
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.repository import LedgerRepository
+from app.features.workspaces.activity_repository import WorkspaceActivityRepository
+from app.features.workspaces.application.activity_details import (
+    ImportReviewOperationLinkedActivityDetails,
+)
+from app.features.workspaces.application.activity_writer import WorkspaceActivityWriter
+from app.features.workspaces.service import WorkspaceContext
 
 
 class ExistingOperationLinkService:
@@ -23,15 +29,25 @@ class ExistingOperationLinkService:
         self._documents = DocumentRepository(session)
         self._review = ImportReviewRepository(session)
         self._ledger = LedgerRepository(session)
+        self._activity = WorkspaceActivityWriter(WorkspaceActivityRepository(session))
 
     async def execute(
         self,
         *,
-        workspace_id: UUID,
+        context: WorkspaceContext,
         command: LinkImportReviewExistingOperationCommand,
     ) -> ImportReviewExistingOperationLinkResult:
         try:
-            result = await self._link(workspace_id=workspace_id, command=command)
+            result = await self._link(workspace_id=context.workspace.id, command=command)
+            if not result.replayed:
+                await self._activity.import_review_operation_linked(
+                    context=context,
+                    operation_id=result.operation_id,
+                    details=ImportReviewOperationLinkedActivityDetails(
+                        document_id=result.document_id,
+                        item_id=result.item_id,
+                    ),
+                )
             await self._session.commit()
             return result
         except Exception:

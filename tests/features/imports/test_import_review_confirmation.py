@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -169,6 +170,26 @@ async def test_confirmation_posts_once_with_server_checked_references() -> None:
     assert row.status is RawTransactionStatus.CONFIRMED
     assert row.linked_operation_id == operation_id
     assert session.commits == 1
+    cast(Any, service._activity).import_review_item_confirmed.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_confirmation_rolls_back_when_activity_append_fails() -> None:
+    row = confirmable_row()
+    session = SessionStub()
+    service = confirmation_service(session, row)
+    cast(Any, service._activity).import_review_item_confirmed.side_effect = RuntimeError(
+        "activity failed"
+    )
+
+    with pytest.raises(RuntimeError, match="activity failed"):
+        await service.execute(
+            context=workspace_context(),
+            command=confirmation_command(row),
+        )
+
+    assert session.commits == 0
+    assert session.rollbacks == 1
 
 
 @pytest.mark.asyncio
@@ -225,6 +246,7 @@ async def test_confirmation_replays_same_committed_idempotency_key() -> None:
 
     assert result.replayed is True
     assert cast(PostingStub, service._actor._posting).calls == []
+    cast(Any, service._activity).import_review_item_confirmed.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -350,7 +372,12 @@ def confirmation_service(
         operation_id=operation_id,
         duplicate=duplicate,
     )
-    return ImportReviewConfirmationService(cast(Any, session), actor)
+    service = ImportReviewConfirmationService(cast(Any, session), actor)
+    service._activity = cast(
+        Any,
+        SimpleNamespace(import_review_item_confirmed=AsyncMock()),
+    )
+    return service
 
 
 def confirmation_actor(

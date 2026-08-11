@@ -5170,9 +5170,28 @@ export interface components {
              * Format: uuid
              */
             beforeId: string;
+            scope: components["schemas"]["WorkspaceActivityScope"];
         };
         /** WorkspaceActivityDetailsApiResponse */
         WorkspaceActivityDetailsApiResponse: {
+            /** Payloadversion */
+            payloadVersion: number | null;
+            /** Displaylabel */
+            displayLabel: string | null;
+            operationType: components["schemas"]["OperationType"] | null;
+            /** Documentid */
+            documentId: string | null;
+            /** Itemid */
+            itemId: string | null;
+            /** Affecteditemcount */
+            affectedItemCount: number | null;
+            /** Affecteddocumentcount */
+            affectedDocumentCount: number | null;
+            debtKind: components["schemas"]["DebtKind"] | null;
+            /** Paymentid */
+            paymentId: string | null;
+            /** Displayfilename */
+            displayFilename: string | null;
             role: components["schemas"]["WorkspaceRole"] | null;
             /** Inviteeemail */
             inviteeEmail: string | null;
@@ -5195,6 +5214,24 @@ export interface components {
             /** Revokedinvitationcount */
             revokedInvitationCount: number | null;
         };
+        /** WorkspaceActivityEntityApiResponse */
+        WorkspaceActivityEntityApiResponse: {
+            type: components["schemas"]["WorkspaceActivityEntityType"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Displaylabel */
+            displayLabel: string | null;
+            /** Isavailable */
+            isAvailable: boolean;
+        };
+        /**
+         * WorkspaceActivityEntityType
+         * @enum {string}
+         */
+        WorkspaceActivityEntityType: "workspace" | "operation" | "debt" | "uploaded_document";
         /** WorkspaceActivityItemApiResponse */
         WorkspaceActivityItemApiResponse: {
             /**
@@ -5203,8 +5240,10 @@ export interface components {
              */
             id: string;
             eventType: components["schemas"]["WorkspaceAuditEventType"];
+            scope: components["schemas"]["WorkspaceActivityItemScope"];
             actor: components["schemas"]["WorkspaceActivityActorApiResponse"] | null;
             target: components["schemas"]["WorkspaceActivityActorApiResponse"] | null;
+            entity: components["schemas"]["WorkspaceActivityEntityApiResponse"] | null;
             summaryCode: components["schemas"]["WorkspaceActivitySummaryCode"];
             details: components["schemas"]["WorkspaceActivityDetailsApiResponse"];
             /**
@@ -5214,15 +5253,25 @@ export interface components {
             createdAt: string;
         };
         /**
+         * WorkspaceActivityItemScope
+         * @enum {string}
+         */
+        WorkspaceActivityItemScope: "finance" | "team";
+        /**
+         * WorkspaceActivityScope
+         * @enum {string}
+         */
+        WorkspaceActivityScope: "all" | "finance" | "team";
+        /**
          * WorkspaceActivitySummaryCode
          * @enum {string}
          */
-        WorkspaceActivitySummaryCode: "workspace_created" | "workspace_updated" | "workspace_deactivated" | "workspace_restored" | "invitation_created" | "invitation_accepted" | "invitation_revoked" | "member_role_changed" | "member_disabled" | "member_reactivated" | "member_left" | "ownership_transferred";
+        WorkspaceActivitySummaryCode: "workspace_created" | "workspace_updated" | "workspace_deactivated" | "workspace_restored" | "invitation_created" | "invitation_accepted" | "invitation_revoked" | "member_role_changed" | "member_disabled" | "member_reactivated" | "member_left" | "ownership_transferred" | "manual_operation_created" | "manual_operation_updated" | "manual_operation_cancelled" | "manual_operation_restored" | "manual_operation_deleted" | "import_review_item_confirmed" | "import_review_transfer_created" | "import_review_operation_linked" | "import_review_posting_undone" | "import_review_operation_unlinked" | "imported_operation_updated" | "debt_created" | "debt_payment_recorded" | "debt_payment_undone" | "debt_updated" | "debt_archived" | "debt_restored" | "debt_deleted" | "document_uploaded";
         /**
          * WorkspaceAuditEventType
          * @enum {string}
          */
-        WorkspaceAuditEventType: "workspace_created" | "workspace_updated" | "workspace_deactivated" | "workspace_restored" | "ownership_transferred" | "invitation_created" | "invitation_accepted" | "invitation_revoked" | "member_role_changed" | "member_disabled" | "member_reactivated" | "member_left";
+        WorkspaceAuditEventType: "workspace_created" | "workspace_updated" | "workspace_deactivated" | "workspace_restored" | "ownership_transferred" | "invitation_created" | "invitation_accepted" | "invitation_revoked" | "member_role_changed" | "member_disabled" | "member_reactivated" | "member_left" | "manual_operation_created" | "manual_operation_updated" | "manual_operation_cancelled" | "manual_operation_restored" | "manual_operation_deleted" | "import_review_item_confirmed" | "import_review_transfer_created" | "import_review_operation_linked" | "import_review_posting_undone" | "import_review_operation_unlinked" | "imported_operation_updated" | "debt_created" | "debt_payment_recorded" | "debt_payment_undone" | "debt_updated" | "debt_archived" | "debt_restored" | "debt_deleted" | "document_uploaded";
         /** WorkspaceAuthorityNavigationOutcomeApiResponse */
         WorkspaceAuthorityNavigationOutcomeApiResponse: {
             /**
@@ -11887,6 +11936,7 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                scope?: components["schemas"]["WorkspaceActivityScope"];
                 beforeCreatedAt?: string | null;
                 beforeId?: string | null;
             };

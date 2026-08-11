@@ -199,7 +199,56 @@ async def test_manual_create_replays_matching_idempotency_key(
         command=command,
     )
 
-    assert result is existing
+    assert result.operation is existing
+    assert result.replayed is True
+
+
+@pytest.mark.asyncio
+async def test_manual_create_marks_new_operation_as_not_replayed() -> None:
+    workspace_id = uuid4()
+    operation = SimpleNamespace(id=uuid4())
+    account = Account(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        name="Основной счёт",
+        currency="RUB",
+    )
+    writer = ManualOperationWriter(cast(Any, object()))
+    writer.ledger = cast(
+        Any,
+        SimpleNamespace(
+            create_operation=AsyncMock(return_value=operation),
+            create_money_entry=AsyncMock(),
+        ),
+    )
+    writer.references = cast(
+        Any,
+        SimpleNamespace(
+            get_income_expense_account=AsyncMock(
+                return_value=account,
+            ),
+            get_category_or_uncategorized=AsyncMock(
+                return_value=SimpleNamespace(id=uuid4()),
+            ),
+            get_property=AsyncMock(return_value=None),
+        ),
+    )
+
+    result = await writer.create_income_expense(
+        context=workspace_context_stub(workspace_id),
+        command=CreateManualIncomeExpenseCommand(
+            operation_type=OperationType.INCOME,
+            account_id=uuid4(),
+            amount=Decimal("10.00"),
+            operation_date=date(2026, 7, 20),
+            description="Новая операция",
+            category_id=None,
+            property_id=None,
+        ),
+    )
+
+    assert result.operation is operation
+    assert result.replayed is False
 
 
 @pytest.mark.asyncio
@@ -500,7 +549,9 @@ async def test_imported_operation_review_update_changes_only_review_fields(monke
         FakeReferences,
     )
 
-    updated = await ImportedOperationReviewUseCase(cast(Any, session)).update_review_fields(
+    use_case = ImportedOperationReviewUseCase(cast(Any, session))
+    use_case.activity = cast(Any, SimpleNamespace(imported_operation_updated=AsyncMock()))
+    updated = await use_case.update_review_fields(
         context=cast(
             Any,
             SimpleNamespace(
@@ -531,6 +582,7 @@ async def test_imported_operation_review_update_changes_only_review_fields(monke
     assert session.commits == 1
     assert session.flushes == 1
     assert session.rollbacks == 0
+    use_case.activity.imported_operation_updated.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -683,6 +735,8 @@ async def test_manual_cancel_and_restore_change_only_lifecycle_state(
         source=OperationSource.MANUAL,
         status=OperationStatus.CONFIRMED,
         version=3,
+        type=OperationType.EXPENSE,
+        description="Покупка",
         money_entries=money_entries,
         updated_by_user_id=None,
     )
@@ -788,6 +842,8 @@ async def test_manual_delete_requires_deletable_state_and_expected_version(
         source=OperationSource.MANUAL,
         status=OperationStatus.CONFIRMED,
         version=3,
+        type=OperationType.EXPENSE,
+        description="Покупка",
     )
     deleted: list[object] = []
     session = SimpleNamespace(flushes=0)
@@ -842,13 +898,16 @@ async def test_manual_delete_requires_deletable_state_and_expected_version(
         )
     assert deleted == []
 
-    await use_case.delete(
+    outcome = await use_case.delete(
         context=context,
         operation_id=operation.id,
         expected_version=4,
     )
     assert deleted == [operation]
     assert session.flushes == 1
+    assert outcome.operation_id == operation.id
+    assert outcome.operation_type is OperationType.EXPENSE
+    assert outcome.display_label == "Покупка"
 
 
 @pytest.mark.asyncio

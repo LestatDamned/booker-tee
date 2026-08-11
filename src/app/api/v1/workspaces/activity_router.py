@@ -13,6 +13,7 @@ from app.features.workspaces.errors import (
     WorkspaceActivityForbiddenError,
     WorkspaceNotFoundError,
 )
+from app.features.workspaces.schemas import WorkspaceActivityScope
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -36,6 +37,7 @@ async def get_workspace_activity(
         Depends(get_workspace_activity_service),
     ],
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    scope: WorkspaceActivityScope = WorkspaceActivityScope.ALL,
     before_created_at: Annotated[
         datetime | None,
         Query(alias="beforeCreatedAt"),
@@ -54,6 +56,7 @@ async def get_workspace_activity(
             actor_user_id=context.workspace.user.id,
             workspace_id=workspace_id,
             limit=limit,
+            scope=scope,
             before_created_at=before_created_at,
             before_id=before_id,
         )

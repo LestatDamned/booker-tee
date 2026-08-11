@@ -67,6 +67,12 @@ describe("WorkspaceSettingsPage", () => {
     expect(screen.getByText("Активные сессии")).toBeVisible();
     expect(screen.getAllByText("2", { selector: "dd" })).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Сохранить" })).toBeDisabled();
+    expect(
+      screen.getByRole("link", { name: "История действий" }),
+    ).toHaveAttribute(
+      "href",
+      `/workspaces/${workspaceSettings.workspace.id}/activity`,
+    );
   });
 
   it("validates, saves and replaces the committed snapshot", async () => {
@@ -478,7 +484,6 @@ function renderPage(
     >
       <WorkspaceSettingsPage
         boundaryNavigate={boundaryNavigate}
-        initialActivity={null}
         initialInvitations={workspaceInvitations}
         initialMembers={members}
         initialSettings={settings}

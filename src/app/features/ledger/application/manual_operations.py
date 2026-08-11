@@ -1,11 +1,15 @@
-from collections.abc import Awaitable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Protocol, TypeVar
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.features.accounts.models import AccountType
-from app.features.ledger.application.manual_mutations import ManualOperationWriter
+from app.features.ledger.application.manual_mutations import (
+    ManualOperationCreateOutcome,
+    ManualOperationWriter,
+    manual_operation_activity_label,
+)
 from app.features.ledger.domain.types import OperationSource, manual_operation_actions
 from app.features.ledger.errors import (
     ManualOperationNotEditableError,
@@ -29,6 +33,15 @@ from app.features.ledger.schemas.manual import (
     ManualOperationReadDto,
     UpdateManualOperationCommand,
 )
+from app.features.workspaces.activity_repository import WorkspaceActivityRepository
+from app.features.workspaces.application.activity_details import (
+    ManualOperationCancelledActivityDetails,
+    ManualOperationCreatedActivityDetails,
+    ManualOperationDeletedActivityDetails,
+    ManualOperationRestoredActivityDetails,
+    ManualOperationUpdatedActivityDetails,
+)
+from app.features.workspaces.application.activity_writer import WorkspaceActivityWriter
 from app.features.workspaces.service import WorkspaceContext
 
 WriteResult = TypeVar("WriteResult")
@@ -101,6 +114,7 @@ class ManualOperationService:
         self._session = session
         self._ledger = LedgerRepository(session)
         self._writer = ManualOperationWriter(session)
+        self._activity = WorkspaceActivityWriter(WorkspaceActivityRepository(session))
 
     async def list(
         self,
@@ -166,8 +180,11 @@ class ManualOperationService:
                 context=context,
                 command=command,
             )
-        operation = await self._commit(mutation)
-        return await self._read_changed(context.workspace.id, operation.id)
+        outcome = await self._commit(
+            mutation,
+            after=lambda result: self._record_created(context, result),
+        )
+        return await self._read_changed(context.workspace.id, outcome.operation.id)
 
     async def update(
         self,
@@ -175,7 +192,17 @@ class ManualOperationService:
         context: WorkspaceContext,
         command: UpdateManualOperationCommand,
     ) -> ManualOperationReadDto:
-        operation = await self._commit(self._writer.update(context=context, command=command))
+        operation = await self._commit(
+            self._writer.update(context=context, command=command),
+            after=lambda result: self._activity.manual_operation_updated(
+                context=context,
+                operation_id=result.id,
+                details=ManualOperationUpdatedActivityDetails(
+                    display_label=manual_operation_activity_label(result),
+                    operation_type=result.type,
+                ),
+            ),
+        )
         return await self._read_changed(context.workspace.id, operation.id)
 
     async def cancel(
@@ -190,7 +217,15 @@ class ManualOperationService:
                 context=context,
                 operation_id=operation_id,
                 expected_version=expected_version,
-            )
+            ),
+            after=lambda result: self._activity.manual_operation_cancelled(
+                context=context,
+                operation_id=result.id,
+                details=ManualOperationCancelledActivityDetails(
+                    display_label=manual_operation_activity_label(result),
+                    operation_type=result.type,
+                ),
+            ),
         )
         return await self._read_changed(context.workspace.id, operation.id)
 
@@ -206,7 +241,15 @@ class ManualOperationService:
                 context=context,
                 operation_id=operation_id,
                 expected_version=expected_version,
-            )
+            ),
+            after=lambda result: self._activity.manual_operation_restored(
+                context=context,
+                operation_id=result.id,
+                details=ManualOperationRestoredActivityDetails(
+                    display_label=manual_operation_activity_label(result),
+                    operation_type=result.type,
+                ),
+            ),
         )
         return await self._read_changed(context.workspace.id, operation.id)
 
@@ -222,17 +265,49 @@ class ManualOperationService:
                 context=context,
                 operation_id=operation_id,
                 expected_version=expected_version,
-            )
+            ),
+            after=lambda result: self._activity.manual_operation_deleted(
+                context=context,
+                operation_id=result.operation_id,
+                details=ManualOperationDeletedActivityDetails(
+                    display_label=result.display_label,
+                    operation_type=result.operation_type,
+                ),
+            ),
         )
 
-    async def _commit(self, mutation: Awaitable[WriteResult]) -> WriteResult:
+    async def _commit(
+        self,
+        mutation: Awaitable[WriteResult],
+        *,
+        after: Callable[[WriteResult], Awaitable[None]] | None = None,
+    ) -> WriteResult:
         try:
             result = await mutation
+            if after is not None:
+                await after(result)
             await self._session.commit()
             return result
         except Exception:
             await self._session.rollback()
             raise
+
+    async def _record_created(
+        self,
+        context: WorkspaceContext,
+        outcome: ManualOperationCreateOutcome,
+    ) -> None:
+        if outcome.replayed:
+            return
+        operation = outcome.operation
+        await self._activity.manual_operation_created(
+            context=context,
+            operation_id=operation.id,
+            details=ManualOperationCreatedActivityDetails(
+                display_label=manual_operation_activity_label(operation),
+                operation_type=operation.type,
+            ),
+        )
 
     async def _read_changed(
         self,

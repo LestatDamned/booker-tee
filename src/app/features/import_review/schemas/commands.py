@@ -90,8 +90,10 @@ type ImportReviewTransferCommand = (
 
 
 class ImportReviewTransferResult(ApplicationModel):
+    operation_id: UUID
     updated_item_ids: frozenset[UUID]
     affected_document_ids: frozenset[UUID]
+    replayed: bool
 
 
 class UndoImportReviewPostingCommand(ApplicationModel):

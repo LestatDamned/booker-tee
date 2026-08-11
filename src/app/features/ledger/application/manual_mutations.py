@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
@@ -40,6 +41,19 @@ from app.features.ledger.schemas.manual import (
 from app.features.workspaces.service import WorkspaceContext
 
 
+@dataclass(frozen=True)
+class ManualOperationCreateOutcome:
+    operation: Operation
+    replayed: bool
+
+
+@dataclass(frozen=True)
+class ManualOperationDeleteOutcome:
+    operation_id: UUID
+    operation_type: OperationType
+    display_label: str
+
+
 class ManualOperationWriter:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -51,7 +65,7 @@ class ManualOperationWriter:
         *,
         context: WorkspaceContext,
         command: CreateManualIncomeExpenseCommand,
-    ) -> Operation:
+    ) -> ManualOperationCreateOutcome:
         fingerprint = ManualOperationFingerprint.calculate_income_expense(command)
         replay = await self._find_idempotent_replay(
             workspace_id=context.workspace.id,
@@ -59,7 +73,7 @@ class ManualOperationWriter:
             fingerprint=fingerprint,
         )
         if replay is not None:
-            return replay
+            return ManualOperationCreateOutcome(operation=replay, replayed=True)
         if command.operation_type not in {OperationType.INCOME, OperationType.EXPENSE}:
             raise LedgerPostingError("Manual operation must be income or expense.")
         account = await self.references.get_income_expense_account(
@@ -104,16 +118,23 @@ class ManualOperationWriter:
             return operation
 
         if command.idempotency_key is None:
-            return await create_records()
+            return ManualOperationCreateOutcome(
+                operation=await create_records(),
+                replayed=False,
+            )
         try:
             async with self.session.begin_nested():
-                return await create_records()
+                operation = await create_records()
+            return ManualOperationCreateOutcome(operation=operation, replayed=False)
         except IntegrityError as error:
-            return await self._recover_idempotent_race(
-                workspace_id=context.workspace.id,
-                idempotency_key=command.idempotency_key,
-                fingerprint=fingerprint,
-                integrity_error=error,
+            return ManualOperationCreateOutcome(
+                operation=await self._recover_idempotent_race(
+                    workspace_id=context.workspace.id,
+                    idempotency_key=command.idempotency_key,
+                    fingerprint=fingerprint,
+                    integrity_error=error,
+                ),
+                replayed=True,
             )
 
     async def create_transfer(
@@ -121,7 +142,7 @@ class ManualOperationWriter:
         *,
         context: WorkspaceContext,
         command: CreateManualTransferCommand,
-    ) -> Operation:
+    ) -> ManualOperationCreateOutcome:
         fingerprint = ManualOperationFingerprint.calculate_transfer(command)
         replay = await self._find_idempotent_replay(
             workspace_id=context.workspace.id,
@@ -129,7 +150,7 @@ class ManualOperationWriter:
             fingerprint=fingerprint,
         )
         if replay is not None:
-            return replay
+            return ManualOperationCreateOutcome(operation=replay, replayed=True)
         source_account = await self.references.get_transfer_account(
             context.workspace.id,
             command.source_account_id,
@@ -178,16 +199,23 @@ class ManualOperationWriter:
             return operation
 
         if command.idempotency_key is None:
-            return await create_records()
+            return ManualOperationCreateOutcome(
+                operation=await create_records(),
+                replayed=False,
+            )
         try:
             async with self.session.begin_nested():
-                return await create_records()
+                operation = await create_records()
+            return ManualOperationCreateOutcome(operation=operation, replayed=False)
         except IntegrityError as error:
-            return await self._recover_idempotent_race(
-                workspace_id=context.workspace.id,
-                idempotency_key=command.idempotency_key,
-                fingerprint=fingerprint,
-                integrity_error=error,
+            return ManualOperationCreateOutcome(
+                operation=await self._recover_idempotent_race(
+                    workspace_id=context.workspace.id,
+                    idempotency_key=command.idempotency_key,
+                    fingerprint=fingerprint,
+                    integrity_error=error,
+                ),
+                replayed=True,
             )
 
     async def _find_idempotent_replay(
@@ -311,15 +339,21 @@ class ManualOperationWriter:
         context: WorkspaceContext,
         operation_id: UUID,
         expected_version: int | None = None,
-    ) -> None:
+    ) -> ManualOperationDeleteOutcome:
         operation = await self._get_manual_operation(context.workspace.id, operation_id)
         self._ensure_expected_version(operation, expected_version)
         if not manual_operation_actions(operation.status).can_delete:
             raise ManualOperationLifecycleConflictError(
                 "Cancel a manual operation before deleting it."
             )
+        outcome = ManualOperationDeleteOutcome(
+            operation_id=operation.id,
+            operation_type=operation.type,
+            display_label=manual_operation_activity_label(operation),
+        )
         await self.ledger.delete_operation(operation)
         await self._flush_versioned()
+        return outcome
 
     async def _update_as_transfer(
         self,
@@ -439,3 +473,7 @@ class ManualOperationWriter:
             await self.session.flush()
         except StaleDataError as error:
             raise OperationVersionConflictError() from error
+
+
+def manual_operation_activity_label(operation: Operation) -> str:
+    return (operation.description or operation.type.value)[:160]

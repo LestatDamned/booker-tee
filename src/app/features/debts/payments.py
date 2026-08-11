@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from uuid import UUID
@@ -32,6 +33,12 @@ from app.features.ledger.repository import LedgerRepository
 from app.features.workspaces.service import WorkspaceContext
 
 
+@dataclass(frozen=True)
+class DebtPaymentMutationOutcome:
+    payment: DebtPayment
+    replayed: bool
+
+
 class DebtPaymentRecorder:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -46,7 +53,7 @@ class DebtPaymentRecorder:
         *,
         context: WorkspaceContext,
         command: RecordDebtPaymentCommand,
-    ) -> DebtPayment:
+    ) -> DebtPaymentMutationOutcome:
         fingerprint = DebtCommandFingerprint.calculate("record_payment", command)
         replay = await self._find_replay(
             context.workspace.id,
@@ -54,7 +61,7 @@ class DebtPaymentRecorder:
             fingerprint,
         )
         if replay is not None:
-            return replay
+            return DebtPaymentMutationOutcome(payment=replay, replayed=True)
 
         debt = await self.debts.get_for_workspace_for_update(
             context.workspace.id,
@@ -68,7 +75,7 @@ class DebtPaymentRecorder:
             fingerprint,
         )
         if replay is not None:
-            return replay
+            return DebtPaymentMutationOutcome(payment=replay, replayed=True)
 
         debt_account = await self._get_active_debt_account(context.workspace.id, debt)
         settlement_account = await self._get_settlement_account(
@@ -114,7 +121,7 @@ class DebtPaymentRecorder:
                     description=command.description,
                     category=interest_category,
                 )
-                return await self.debts.create_payment(
+                payment = await self.debts.create_payment(
                     DebtPayment(
                         workspace_id=context.workspace.id,
                         debt_account_id=debt.account_id,
@@ -125,6 +132,7 @@ class DebtPaymentRecorder:
                         notes=_clean_optional_text(command.notes),
                     )
                 )
+                return DebtPaymentMutationOutcome(payment=payment, replayed=False)
         except IntegrityError as error:
             replay = await self._find_replay(
                 context.workspace.id,
@@ -133,7 +141,7 @@ class DebtPaymentRecorder:
             )
             if replay is None:
                 raise error
-            return replay
+            return DebtPaymentMutationOutcome(payment=replay, replayed=True)
 
     async def _post_principal(
         self,
@@ -260,7 +268,7 @@ class DebtPaymentReverser:
         *,
         context: WorkspaceContext,
         command: UndoDebtPaymentCommand,
-    ) -> DebtPayment:
+    ) -> DebtPaymentMutationOutcome:
         payment = await self.debts.get_payment_for_workspace_for_update(
             context.workspace.id,
             command.payment_id,
@@ -271,7 +279,7 @@ class DebtPaymentReverser:
         self._ensure_debt_operations(operations)
         if payment.reversed_at is not None:
             self._ensure_replayed_state(operations)
-            return payment
+            return DebtPaymentMutationOutcome(payment=payment, replayed=True)
 
         self._ensure_expected_versions(command, payment, operations)
         for operation in operations:
@@ -286,7 +294,7 @@ class DebtPaymentReverser:
             raise DebtPaymentConflictError(
                 "Debt payment was changed by another request."
             ) from error
-        return payment
+        return DebtPaymentMutationOutcome(payment=payment, replayed=False)
 
     async def _get_operations(
         self,

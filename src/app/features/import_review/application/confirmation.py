@@ -34,6 +34,11 @@ from app.features.ledger.domain.types import OperationStatus, OperationType
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.repository import LedgerRepository
 from app.features.transaction_rules.domain.suggestions import rule_suggestion_auto_applies
+from app.features.workspaces.activity_repository import WorkspaceActivityRepository
+from app.features.workspaces.application.activity_details import (
+    ImportReviewItemConfirmedActivityDetails,
+)
+from app.features.workspaces.application.activity_writer import WorkspaceActivityWriter
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -227,6 +232,7 @@ class ImportReviewConfirmationService:
     ) -> None:
         self._session = session
         self._actor = actor or ImportReviewConfirmationActor(session)
+        self._activity = WorkspaceActivityWriter(WorkspaceActivityRepository(session))
 
     async def execute(
         self,
@@ -236,6 +242,16 @@ class ImportReviewConfirmationService:
     ) -> ImportReviewConfirmationResult:
         try:
             result = await self._actor.apply(context=context, command=command)
+            if not result.replayed:
+                await self._activity.import_review_item_confirmed(
+                    context=context,
+                    operation_id=result.operation_id,
+                    details=ImportReviewItemConfirmedActivityDetails(
+                        document_id=result.document_id,
+                        item_id=result.item_id,
+                        affected_item_count=len(result.updated_item_ids),
+                    ),
+                )
             await self._session.commit()
             return result
         except IntegrityError as exc:

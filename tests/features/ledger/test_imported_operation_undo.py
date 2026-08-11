@@ -1,6 +1,7 @@
 from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -95,6 +96,10 @@ async def test_undo_imported_transfer_restores_all_raw_rows_and_documents(
     service._documents = cast(Any, imports)
     service._review_repository = cast(Any, imports)
     service._ledger = cast(Any, LedgerRepositoryStub(operation))
+    service._activity = cast(
+        Any,
+        SimpleNamespace(import_review_posting_undone=AsyncMock()),
+    )
     refreshed: list[UUID] = []
 
     async def refresh(_service: object, document: object) -> None:
@@ -132,6 +137,7 @@ async def test_undo_imported_transfer_restores_all_raw_rows_and_documents(
         second_document_id: UploadedDocumentStatus.REQUIRES_REVIEW,
     }
     assert session.commits == 1
+    service._activity.import_review_posting_undone.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -158,6 +164,10 @@ async def test_unlink_from_manual_transfer_preserves_manual_operation(
     service._documents = cast(Any, imports)
     service._review_repository = cast(Any, imports)
     service._ledger = cast(Any, LedgerRepositoryStub(operation))
+    service._activity = cast(
+        Any,
+        SimpleNamespace(import_review_operation_unlinked=AsyncMock()),
+    )
 
     async def refresh(_service: object, _document: object) -> None:
         return None
@@ -188,6 +198,7 @@ async def test_unlink_from_manual_transfer_preserves_manual_operation(
         document_id: UploadedDocumentStatus.REQUIRES_REVIEW,
     }
     assert session.commits == 1
+    service._activity.import_review_operation_unlinked.assert_awaited_once()
 
 
 @pytest.mark.asyncio

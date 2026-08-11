@@ -42,6 +42,7 @@ Jinja/HTMX/Alpine presentation stack удалён и не должен восс�
 - `/app/categories/:categoryId`;
 - `/app/rules`;
 - `/app/workspaces`;
+- `/app/workspaces/:workspaceId/activity`;
 - `/app/workspaces/invitations/:invitationToken`;
 - `/app/chat-integrations/telegram/dev-link` в local/test окружении;
 - `/app/profile` и `/app/profile/sessions`;

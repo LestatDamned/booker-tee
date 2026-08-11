@@ -7,6 +7,8 @@ from pydantic_core import PydanticCustomError
 
 from app.api.schemas import ApiModel, ApiRequestModel
 from app.api.v1.session.responses import SessionApiResponse
+from app.features.debts.domain import DebtKind
+from app.features.ledger.domain.types import OperationType
 from app.features.workspaces.domain.types import (
     WorkspaceAuditEventType,
     WorkspaceInvitationStatus,
@@ -15,6 +17,9 @@ from app.features.workspaces.domain.types import (
     WorkspaceType,
 )
 from app.features.workspaces.schemas import (
+    WorkspaceActivityEntityType,
+    WorkspaceActivityItemScope,
+    WorkspaceActivityScope,
     WorkspaceActivitySummaryCode,
     WorkspaceBlockingReason,
     WorkspaceInvitationBlockingReason,
@@ -339,7 +344,24 @@ class WorkspaceActivityActorApiResponse(ApiModel):
     display_name: str
 
 
+class WorkspaceActivityEntityApiResponse(ApiModel):
+    type: WorkspaceActivityEntityType
+    id: UUID
+    display_label: str | None
+    is_available: bool
+
+
 class WorkspaceActivityDetailsApiResponse(ApiModel):
+    payload_version: int | None
+    display_label: str | None
+    operation_type: OperationType | None
+    document_id: UUID | None
+    item_id: UUID | None
+    affected_item_count: int | None
+    affected_document_count: int | None
+    debt_kind: DebtKind | None
+    payment_id: UUID | None
+    display_filename: str | None
     role: WorkspaceRole | None
     invitee_email: str | None
     old_role: WorkspaceRole | None
@@ -359,8 +381,10 @@ class WorkspaceActivityDetailsApiResponse(ApiModel):
 class WorkspaceActivityItemApiResponse(ApiModel):
     id: UUID
     event_type: WorkspaceAuditEventType
+    scope: WorkspaceActivityItemScope
     actor: WorkspaceActivityActorApiResponse | None
     target: WorkspaceActivityActorApiResponse | None
+    entity: WorkspaceActivityEntityApiResponse | None
     summary_code: WorkspaceActivitySummaryCode
     details: WorkspaceActivityDetailsApiResponse
     created_at: datetime
@@ -369,6 +393,7 @@ class WorkspaceActivityItemApiResponse(ApiModel):
 class WorkspaceActivityCursorApiResponse(ApiModel):
     before_created_at: datetime
     before_id: UUID
+    scope: WorkspaceActivityScope
 
 
 class WorkspaceActivityApiResponse(ApiModel):

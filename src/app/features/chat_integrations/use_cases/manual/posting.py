@@ -3,7 +3,11 @@ from app.features.chat_integrations.use_cases.manual.dto import ChatManualOperat
 from app.features.chat_integrations.use_cases.manual.state_reader import (
     ChatManualOperationStateReader,
 )
-from app.features.ledger.application.manual_mutations import ManualOperationWriter
+from app.features.ledger.application.manual_mutations import (
+    ManualOperationCreateOutcome,
+    ManualOperationWriter,
+    manual_operation_activity_label,
+)
 from app.features.ledger.domain.types import OperationType
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.models import Operation
@@ -11,12 +15,21 @@ from app.features.ledger.schemas.manual import (
     CreateManualIncomeExpenseCommand,
     CreateManualTransferCommand,
 )
+from app.features.workspaces.application.activity_details import (
+    ManualOperationCreatedActivityDetails,
+)
+from app.features.workspaces.application.activity_writer import WorkspaceActivityWriter
 from app.features.workspaces.service import WorkspaceContext
 
 
 class ChatManualOperationPoster:
-    def __init__(self, manual_operations: ManualOperationWriter) -> None:
+    def __init__(
+        self,
+        manual_operations: ManualOperationWriter,
+        activity: WorkspaceActivityWriter,
+    ) -> None:
         self.manual_operations = manual_operations
+        self.activity = activity
 
     async def post(
         self,
@@ -48,7 +61,7 @@ class ChatManualOperationPoster:
         payload: dict[str, object],
         confirmation: ChatManualOperationConfirmation,
     ) -> Operation:
-        return await self.manual_operations.create_transfer(
+        outcome = await self.manual_operations.create_transfer(
             context=context,
             command=CreateManualTransferCommand(
                 source_account_id=ChatManualOperationStateReader.read_required_uuid(
@@ -64,6 +77,8 @@ class ChatManualOperationPoster:
                 description=confirmation.description,
             ),
         )
+        await self._record_created(context, outcome)
+        return outcome.operation
 
     async def _post_income_expense(
         self,
@@ -72,7 +87,7 @@ class ChatManualOperationPoster:
         payload: dict[str, object],
         confirmation: ChatManualOperationConfirmation,
     ) -> Operation:
-        return await self.manual_operations.create_income_expense(
+        outcome = await self.manual_operations.create_income_expense(
             context=context,
             command=CreateManualIncomeExpenseCommand(
                 operation_type=confirmation.operation_type,
@@ -88,5 +103,24 @@ class ChatManualOperationPoster:
                     "category_id",
                 ),
                 property_id=None,
+            ),
+        )
+        await self._record_created(context, outcome)
+        return outcome.operation
+
+    async def _record_created(
+        self,
+        context: WorkspaceContext,
+        outcome: ManualOperationCreateOutcome,
+    ) -> None:
+        if outcome.replayed:
+            return
+        operation = outcome.operation
+        await self.activity.manual_operation_created(
+            context=context,
+            operation_id=operation.id,
+            details=ManualOperationCreatedActivityDetails(
+                display_label=manual_operation_activity_label(operation),
+                operation_type=operation.type,
             ),
         )

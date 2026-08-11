@@ -34,4 +34,5 @@ export default [
     "routes/workspace-invitation.tsx",
   ),
   route("workspaces/:workspaceId/settings", "routes/workspace-settings.tsx"),
+  route("workspaces/:workspaceId/activity", "routes/workspace-activity.tsx"),
 ] satisfies RouteConfig;

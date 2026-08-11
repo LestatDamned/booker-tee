@@ -25,14 +25,12 @@ export function WorkspaceMembersSection({
   csrfToken,
   currentWorkspaceId,
   initialMembers,
-  onCommittedMutation,
   workspaceUpdatedAt,
 }: {
   boundaryNavigate: (href: string, message?: string) => void;
   csrfToken: string;
   currentWorkspaceId: string;
   initialMembers: WorkspaceMembersDto;
-  onCommittedMutation?: () => void;
   workspaceUpdatedAt: string;
 }) {
   const [members, setMembers] = useState(initialMembers);
@@ -141,7 +139,6 @@ export function WorkspaceMembersSection({
   ) {
     if (result.status === "success") {
       setMembers(result.members);
-      onCommittedMutation?.();
       return;
     }
     if (redirectIfUnauthenticated(result)) return;

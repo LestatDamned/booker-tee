@@ -19,6 +19,11 @@ from app.features.ledger.errors import (
 )
 from app.features.ledger.models import Operation
 from app.features.ledger.repository import LedgerRepository
+from app.features.workspaces.activity_repository import WorkspaceActivityRepository
+from app.features.workspaces.application.activity_details import (
+    ImportedOperationUpdatedActivityDetails,
+)
+from app.features.workspaces.application.activity_writer import WorkspaceActivityWriter
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -36,6 +41,7 @@ class ImportedOperationReviewUseCase:
         self.session = session
         self.ledger = LedgerRepository(session)
         self.references = LedgerReferenceResolver(session)
+        self.activity = WorkspaceActivityWriter(WorkspaceActivityRepository(session))
 
     async def update_review_fields(
         self,
@@ -65,6 +71,11 @@ class ImportedOperationReviewUseCase:
             operation.description = clean_description(command.description)
             operation.updated_by_user_id = context.user.id
             await self.session.flush()
+            await self.activity.imported_operation_updated(
+                context=context,
+                operation_id=operation.id,
+                details=ImportedOperationUpdatedActivityDetails(),
+            )
             await self.session.commit()
             return operation
         except StaleDataError as error:

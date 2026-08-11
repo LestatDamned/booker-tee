@@ -15,11 +15,12 @@ describe("loadWorkspaceActivity", () => {
     const result = await loadWorkspaceActivity(workspaceActivity.workspaceId, {
       beforeCreatedAt: "2026-08-03T08:30:00Z",
       beforeId: "d37da8b5-6a8e-4e51-bcea-e97822bf5212",
+      scope: "finance",
     });
 
     expect(result.status).toBe("success");
     expect(fetchMock).toHaveBeenCalledWith(
-      `/api/v1/workspaces/${workspaceActivity.workspaceId}/activity?beforeCreatedAt=2026-08-03T08%3A30%3A00Z&beforeId=d37da8b5-6a8e-4e51-bcea-e97822bf5212`,
+      `/api/v1/workspaces/${workspaceActivity.workspaceId}/activity?scope=finance&beforeCreatedAt=2026-08-03T08%3A30%3A00Z&beforeId=d37da8b5-6a8e-4e51-bcea-e97822bf5212`,
       expect.anything(),
     );
   });

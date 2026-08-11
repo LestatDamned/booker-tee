@@ -333,7 +333,7 @@ async def link_import_review_existing_operation(
 ) -> ImportReviewLifecycleMutationApiResponse:
     try:
         result = await linker.execute(
-            workspace_id=context.workspace.workspace.id,
+            context=context.workspace,
             command=LinkImportReviewExistingOperationCommand(
                 document_id=document_id,
                 item_id=item_id,

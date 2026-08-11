@@ -21,6 +21,12 @@ from app.features.ledger.application.imported_operations import ImportedOperatio
 from app.features.ledger.domain.types import OperationSource, OperationStatus
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.repository import LedgerRepository
+from app.features.workspaces.activity_repository import WorkspaceActivityRepository
+from app.features.workspaces.application.activity_details import (
+    ImportReviewOperationUnlinkedActivityDetails,
+    ImportReviewPostingUndoneActivityDetails,
+)
+from app.features.workspaces.application.activity_writer import WorkspaceActivityWriter
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -31,6 +37,7 @@ class ImportReviewUndoService:
         self._review_repository = ImportReviewRepository(session)
         self._ledger = LedgerRepository(session)
         self._correction = ImportedOperationCorrection(session)
+        self._activity = WorkspaceActivityWriter(WorkspaceActivityRepository(session))
 
     async def execute(
         self,
@@ -102,6 +109,28 @@ class ImportReviewUndoService:
                 updated_item_ids=frozenset(updated_item_ids),
                 replayed=False,
             )
+            if operation.source is OperationSource.BANK_PDF:
+                await self._activity.import_review_posting_undone(
+                    context=context,
+                    operation_id=result.operation_id,
+                    details=ImportReviewPostingUndoneActivityDetails(
+                        document_id=result.document_id,
+                        item_id=result.item_id,
+                        affected_item_count=len(result.updated_item_ids),
+                        affected_document_count=len(result.affected_document_ids),
+                    ),
+                )
+            else:
+                await self._activity.import_review_operation_unlinked(
+                    context=context,
+                    operation_id=result.operation_id,
+                    details=ImportReviewOperationUnlinkedActivityDetails(
+                        document_id=result.document_id,
+                        item_id=result.item_id,
+                        affected_item_count=len(result.updated_item_ids),
+                        affected_document_count=len(result.affected_document_ids),
+                    ),
+                )
             await self._session.commit()
             return result
         except Exception:

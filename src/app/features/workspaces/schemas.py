@@ -2,6 +2,8 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
+from app.features.debts.domain import DebtKind
+from app.features.ledger.domain.types import OperationType
 from app.features.workspaces.domain.types import (
     WorkspaceAuditEventType,
     WorkspaceInvitationStatus,
@@ -215,6 +217,43 @@ class WorkspaceActivitySummaryCode(StrEnum):
     MEMBER_REACTIVATED = "member_reactivated"
     MEMBER_LEFT = "member_left"
     OWNERSHIP_TRANSFERRED = "ownership_transferred"
+    MANUAL_OPERATION_CREATED = "manual_operation_created"
+    MANUAL_OPERATION_UPDATED = "manual_operation_updated"
+    MANUAL_OPERATION_CANCELLED = "manual_operation_cancelled"
+    MANUAL_OPERATION_RESTORED = "manual_operation_restored"
+    MANUAL_OPERATION_DELETED = "manual_operation_deleted"
+    IMPORT_REVIEW_ITEM_CONFIRMED = "import_review_item_confirmed"
+    IMPORT_REVIEW_TRANSFER_CREATED = "import_review_transfer_created"
+    IMPORT_REVIEW_OPERATION_LINKED = "import_review_operation_linked"
+    IMPORT_REVIEW_POSTING_UNDONE = "import_review_posting_undone"
+    IMPORT_REVIEW_OPERATION_UNLINKED = "import_review_operation_unlinked"
+    IMPORTED_OPERATION_UPDATED = "imported_operation_updated"
+    DEBT_CREATED = "debt_created"
+    DEBT_PAYMENT_RECORDED = "debt_payment_recorded"
+    DEBT_PAYMENT_UNDONE = "debt_payment_undone"
+    DEBT_UPDATED = "debt_updated"
+    DEBT_ARCHIVED = "debt_archived"
+    DEBT_RESTORED = "debt_restored"
+    DEBT_DELETED = "debt_deleted"
+    DOCUMENT_UPLOADED = "document_uploaded"
+
+
+class WorkspaceActivityScope(StrEnum):
+    ALL = "all"
+    FINANCE = "finance"
+    TEAM = "team"
+
+
+class WorkspaceActivityItemScope(StrEnum):
+    FINANCE = "finance"
+    TEAM = "team"
+
+
+class WorkspaceActivityEntityType(StrEnum):
+    WORKSPACE = "workspace"
+    OPERATION = "operation"
+    DEBT = "debt"
+    UPLOADED_DOCUMENT = "uploaded_document"
 
 
 class WorkspaceActivityActorDto(ApplicationModel):
@@ -222,7 +261,24 @@ class WorkspaceActivityActorDto(ApplicationModel):
     display_name: str
 
 
+class WorkspaceActivityEntityDto(ApplicationModel):
+    type: WorkspaceActivityEntityType
+    id: UUID
+    display_label: str | None
+    is_available: bool
+
+
 class WorkspaceActivityDetailsDto(ApplicationModel):
+    payload_version: int | None = None
+    display_label: str | None = None
+    operation_type: OperationType | None = None
+    document_id: UUID | None = None
+    item_id: UUID | None = None
+    affected_item_count: int | None = None
+    affected_document_count: int | None = None
+    debt_kind: DebtKind | None = None
+    payment_id: UUID | None = None
+    display_filename: str | None = None
     role: WorkspaceRole | None = None
     invitee_email: str | None = None
     old_role: WorkspaceRole | None = None
@@ -242,8 +298,10 @@ class WorkspaceActivityDetailsDto(ApplicationModel):
 class WorkspaceActivityItemDto(ApplicationModel):
     id: UUID
     event_type: WorkspaceAuditEventType
+    scope: WorkspaceActivityItemScope
     actor: WorkspaceActivityActorDto | None
     target: WorkspaceActivityActorDto | None
+    entity: WorkspaceActivityEntityDto | None
     summary_code: WorkspaceActivitySummaryCode
     details: WorkspaceActivityDetailsDto
     created_at: datetime
@@ -252,6 +310,7 @@ class WorkspaceActivityItemDto(ApplicationModel):
 class WorkspaceActivityCursorDto(ApplicationModel):
     before_created_at: datetime
     before_id: UUID
+    scope: WorkspaceActivityScope
 
 
 class WorkspaceActivityDto(ApplicationModel):

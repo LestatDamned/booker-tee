@@ -208,7 +208,8 @@ async def test_idempotency_race_rolls_back_only_savepoint() -> None:
         command=command,
     )
 
-    assert result is replay
+    assert result.operation is replay
+    assert result.replayed is True
     assert operation_lookups == 2
     assert savepoint.entered == 1
     assert savepoint.exited == 1

@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   session,
-  workspaceActivity,
   workspaceInvitations,
   workspaceMembers,
   workspaceSettings,
@@ -37,12 +36,6 @@ describe("workspace settings route", () => {
       ) {
         return Promise.resolve(jsonResponse(workspaceInvitations));
       }
-      if (
-        String(input) ===
-        `/api/v1/workspaces/${workspaceSettings.workspace.id}/activity`
-      ) {
-        return Promise.resolve(jsonResponse(workspaceActivity));
-      }
       return Promise.resolve(new Response(null, { status: 404 }));
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -58,8 +51,7 @@ describe("workspace settings route", () => {
     expect(result.settings.status).toBe("success");
     expect(result.members?.status).toBe("success");
     expect(result.invitations?.status).toBe("success");
-    expect(result.activity?.status).toBe("success");
-    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("does not request the private team directory without capability", async () => {
@@ -108,7 +100,6 @@ describe("workspace settings route", () => {
             settings: { status: "not_found" },
             members: null,
             invitations: null,
-            activity: null,
           }}
         />
       </MemoryRouter>,

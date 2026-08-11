@@ -5,6 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -195,6 +196,87 @@ async def test_statement_upload_rejects_changed_idempotent_payload(tmp_path: Pat
             account_id=account.id,
             idempotency_key=uuid4(),
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("activity_fails", [False, True])
+async def test_statement_upload_cleans_stored_file_when_first_transaction_fails(
+    tmp_path: Path,
+    activity_fails: bool,
+) -> None:
+    workspace_id = uuid4()
+    account = SimpleNamespace(id=uuid4(), currency="RUB")
+
+    class Session:
+        def __init__(self) -> None:
+            self.commits = 0
+            self.rollbacks = 0
+
+        async def commit(self) -> None:
+            self.commits += 1
+
+        async def rollback(self) -> None:
+            self.rollbacks += 1
+
+    class Accounts:
+        async def get_import_account(self, *_args: object) -> object:
+            return account
+
+    class Documents:
+        async def create_uploaded_document(self, document: object) -> object:
+            if not activity_fails:
+                raise RuntimeError("document write failed")
+            return document
+
+    class UploadStub:
+        filename = "../statement.pdf"
+        content_type = "application/pdf"
+
+        def __init__(self) -> None:
+            self.file = BytesIO(b"%PDF-1.4")
+
+        async def read(self, size: int = -1) -> bytes:
+            return self.file.read(size)
+
+        async def seek(self, offset: int) -> None:
+            self.file.seek(offset)
+
+    session = Session()
+    use_case = object.__new__(StatementUploadUseCase)
+    use_case.session = cast(Any, session)
+    use_case.settings = cast(
+        Any,
+        SimpleNamespace(
+            statement_upload_max_bytes=1024,
+            upload_storage_dir=tmp_path,
+        ),
+    )
+    use_case.accounts = cast(Any, Accounts())
+    use_case.documents = cast(Any, Documents())
+    use_case.storage = UploadStorage(tmp_path)
+    activity = AsyncMock(side_effect=RuntimeError("activity failed"))
+    use_case.activity = cast(Any, SimpleNamespace(document_uploaded=activity))
+
+    with pytest.raises(RuntimeError, match="activity failed|document write failed"):
+        await use_case.upload_statement(
+            context=cast(
+                Any,
+                SimpleNamespace(
+                    workspace=SimpleNamespace(id=workspace_id),
+                    user=SimpleNamespace(id=uuid4()),
+                ),
+            ),
+            upload_file=cast(UploadFile, UploadStub()),
+            account_id=account.id,
+        )
+
+    assert session.commits == 0
+    assert session.rollbacks == 1
+    assert activity.await_count == (1 if activity_fails else 0)
+    if activity_fails:
+        assert activity.await_args is not None
+        assert activity.await_args.kwargs["details"].display_filename == "statement.pdf"
+    assert list(tmp_path.rglob("statement.pdf")) == []  # noqa: ASYNC240
 
 
 def test_validate_statement_upload_accepts_pdf_and_xlsx() -> None:

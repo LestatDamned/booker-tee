@@ -22,11 +22,9 @@ import styles from "./workspace-settings-page.module.css";
 export function WorkspaceInvitationsSection({
   csrfToken,
   initialInvitations,
-  onCommittedMutation,
 }: {
   csrfToken: string;
   initialInvitations: WorkspaceInvitationsDto;
-  onCommittedMutation?: () => void;
 }) {
   const idempotencyKey = useRef(crypto.randomUUID());
   const [invitations, setInvitations] = useState(initialInvitations);
@@ -63,7 +61,6 @@ export function WorkspaceInvitationsSection({
       setShareUrl(result.shareUrl);
       setEmail("");
       idempotencyKey.current = crypto.randomUUID();
-      onCommittedMutation?.();
       return;
     }
     if (redirectIfUnauthenticated(result)) return;
@@ -86,7 +83,6 @@ export function WorkspaceInvitationsSection({
     setRevokeTarget(null);
     if (result.status === "success") {
       setInvitations(result.invitations);
-      onCommittedMutation?.();
       return;
     }
     if (redirectIfUnauthenticated(result)) return;

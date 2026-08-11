@@ -37,7 +37,7 @@ export function WorkspaceSettingsRouteView({
   loaderData: Awaited<ReturnType<typeof loadWorkspaceSettingsRoute>>;
   navigationPending?: boolean;
 }) {
-  const { activity, invitations, members, session, settings } = loaderData;
+  const { invitations, members, session, settings } = loaderData;
   if (
     session.status === "unauthenticated" ||
     settings.status === "unauthenticated" ||
@@ -69,7 +69,6 @@ export function WorkspaceSettingsRouteView({
   }
   return (
     <WorkspaceSettingsPage
-      initialActivity={activity}
       initialSettings={settings.settings}
       initialMembers={members?.status === "success" ? members.members : null}
       initialInvitations={

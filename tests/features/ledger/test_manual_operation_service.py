@@ -2,11 +2,13 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
 
 import app.features.ledger.application.manual_operations as service_module
+from app.features.ledger.application.manual_mutations import ManualOperationCreateOutcome
 from app.features.ledger.application.manual_operations import ManualOperationService
 from app.features.ledger.domain.types import OperationSource, OperationStatus, OperationType
 from app.features.ledger.schemas.manual import (
@@ -22,7 +24,12 @@ async def test_create_returns_reloaded_read_dto(
 ) -> None:
     workspace_id = uuid4()
     operation_id = uuid4()
-    persisted_operation = SimpleNamespace(id=operation_id, source=OperationSource.MANUAL)
+    persisted_operation = SimpleNamespace(
+        id=operation_id,
+        source=OperationSource.MANUAL,
+        type=OperationType.INCOME,
+        description="Доход",
+    )
     expected = manual_operation_dto(operation_id)
 
     class FakeRepository:
@@ -43,7 +50,10 @@ async def test_create_returns_reloaded_read_dto(
             pass
 
         async def create_income_expense(self, **_kwargs: object) -> object:
-            return persisted_operation
+            return ManualOperationCreateOutcome(
+                operation=cast(Any, persisted_operation),
+                replayed=False,
+            )
 
     monkeypatch.setattr(service_module, "LedgerRepository", FakeRepository)
     monkeypatch.setattr(service_module, "ManualOperationWriter", FakeUseCase)
@@ -63,12 +73,17 @@ async def test_create_returns_reloaded_read_dto(
     session.commit = commit
     session.rollback = rollback
     service = ManualOperationService(cast(Any, session))
+    service._activity = cast(Any, SimpleNamespace(manual_operation_created=AsyncMock()))
+    context = cast(
+        WorkspaceContext,
+        SimpleNamespace(
+            workspace=SimpleNamespace(id=workspace_id),
+            user=SimpleNamespace(id=uuid4()),
+        ),
+    )
 
     result = await service.create(
-        context=cast(
-            WorkspaceContext,
-            SimpleNamespace(workspace=SimpleNamespace(id=workspace_id)),
-        ),
+        context=context,
         command=CreateManualIncomeExpenseCommand(
             operation_type=OperationType.INCOME,
             account_id=uuid4(),
@@ -82,8 +97,86 @@ async def test_create_returns_reloaded_read_dto(
     )
 
     assert result is expected
+    service._activity.manual_operation_created.assert_awaited_once()
     assert session.commits == 1
     assert session.rollbacks == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("replayed", [True, False])
+async def test_create_activity_is_idempotent_and_transactional(
+    monkeypatch: pytest.MonkeyPatch,
+    replayed: bool,
+) -> None:
+    workspace_id = uuid4()
+    operation = SimpleNamespace(
+        id=uuid4(),
+        source=OperationSource.MANUAL,
+        type=OperationType.INCOME,
+        description="Доход",
+    )
+
+    class FakeRepository:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_operation_for_workspace(
+            self,
+            _workspace_id: UUID,
+            _operation_id: UUID,
+        ) -> object:
+            return operation
+
+    class FakeUseCase:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def create_income_expense(self, **_kwargs: object) -> object:
+            return ManualOperationCreateOutcome(
+                operation=cast(Any, operation),
+                replayed=replayed,
+            )
+
+    monkeypatch.setattr(service_module, "LedgerRepository", FakeRepository)
+    monkeypatch.setattr(service_module, "ManualOperationWriter", FakeUseCase)
+    monkeypatch.setattr(
+        service_module.ManualOperationReadMapper,
+        "from_operation",
+        staticmethod(lambda _operation: manual_operation_dto(operation.id)),
+    )
+    session = SimpleNamespace(commit=AsyncMock(), rollback=AsyncMock())
+    service = ManualOperationService(cast(Any, session))
+    activity = AsyncMock(side_effect=RuntimeError("activity failed"))
+    service._activity = cast(Any, SimpleNamespace(manual_operation_created=activity))
+    context = cast(
+        WorkspaceContext,
+        SimpleNamespace(
+            workspace=SimpleNamespace(id=workspace_id),
+            user=SimpleNamespace(id=uuid4()),
+        ),
+    )
+    command = CreateManualIncomeExpenseCommand(
+        operation_type=OperationType.INCOME,
+        account_id=uuid4(),
+        amount=Decimal("10.00"),
+        operation_date=date(2026, 7, 21),
+        description="Доход",
+        category_id=None,
+        property_id=None,
+        idempotency_key=uuid4(),
+    )
+
+    if replayed:
+        await service.create(context=context, command=command)
+        activity.assert_not_awaited()
+        session.commit.assert_awaited_once()
+        session.rollback.assert_not_awaited()
+    else:
+        with pytest.raises(RuntimeError, match="activity failed"):
+            await service.create(context=context, command=command)
+        activity.assert_awaited_once()
+        session.commit.assert_not_awaited()
+        session.rollback.assert_awaited_once()
 
 
 @pytest.mark.asyncio

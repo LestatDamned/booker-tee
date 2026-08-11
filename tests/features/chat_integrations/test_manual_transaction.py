@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -10,9 +11,11 @@ from app.features.chat_integrations.actions.manual import ChatManualConfirmation
 from app.features.chat_integrations.errors import ChatManualOperationError
 from app.features.chat_integrations.use_cases.manual import operations as manual_operations
 from app.features.chat_integrations.use_cases.manual.dto import ChatManualOperationConfirmation
+from app.features.chat_integrations.use_cases.manual.posting import ChatManualOperationPoster
 from app.features.chat_integrations.use_cases.manual.state_store import (
     ChatManualOperationStateStore,
 )
+from app.features.ledger.application.manual_mutations import ManualOperationCreateOutcome
 from app.features.ledger.domain.types import OperationType
 
 
@@ -46,6 +49,40 @@ class StateStoreStub:
 class OperationPosterStub:
     async def post(self, **_kwargs: object) -> object:
         return SimpleNamespace(id=uuid4())
+
+
+@pytest.mark.parametrize("replayed", [True, False])
+async def test_chat_manual_poster_records_only_new_operations(replayed: bool) -> None:
+    operation = SimpleNamespace(
+        id=uuid4(),
+        type=OperationType.INCOME,
+        description="Доход",
+    )
+    manual_writer = SimpleNamespace(
+        create_income_expense=AsyncMock(
+            return_value=ManualOperationCreateOutcome(
+                operation=cast(Any, operation),
+                replayed=replayed,
+            )
+        )
+    )
+    activity = SimpleNamespace(manual_operation_created=AsyncMock())
+    poster = ChatManualOperationPoster(cast(Any, manual_writer), cast(Any, activity))
+
+    result = await poster.post(
+        context=cast(
+            Any,
+            SimpleNamespace(
+                workspace=SimpleNamespace(id=uuid4()),
+                user=SimpleNamespace(id=uuid4()),
+            ),
+        ),
+        payload={"account_id": str(uuid4())},
+        confirmation=confirmation(),
+    )
+
+    assert result is operation
+    assert activity.manual_operation_created.await_count == (0 if replayed else 1)
 
 
 @pytest.mark.asyncio

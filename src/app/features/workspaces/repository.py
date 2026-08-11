@@ -2,13 +2,14 @@ from datetime import datetime
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import and_, case, func, or_, select, update
+from sqlalchemy import case, func, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.base import utc_now
 from app.features.users.models import User
+from app.features.workspaces.activity_repository import WorkspaceActivityRepository
 from app.features.workspaces.models import (
     Workspace,
     WorkspaceAuditEvent,
@@ -442,31 +443,12 @@ class WorkspaceRepository:
         before_created_at: datetime | None = None,
         before_id: UUID | None = None,
     ) -> list[WorkspaceAuditEvent]:
-        statement = (
-            select(WorkspaceAuditEvent)
-            .options(
-                selectinload(WorkspaceAuditEvent.actor),
-                selectinload(WorkspaceAuditEvent.target_user),
-            )
-            .where(WorkspaceAuditEvent.workspace_id == workspace_id)
-            .order_by(
-                WorkspaceAuditEvent.created_at.desc(),
-                WorkspaceAuditEvent.id.desc(),
-            )
-            .limit(limit)
+        return await WorkspaceActivityRepository(self.session).list_recent(
+            workspace_id,
+            limit=limit,
+            before_created_at=before_created_at,
+            before_id=before_id,
         )
-        if before_created_at is not None and before_id is not None:
-            statement = statement.where(
-                or_(
-                    WorkspaceAuditEvent.created_at < before_created_at,
-                    and_(
-                        WorkspaceAuditEvent.created_at == before_created_at,
-                        WorkspaceAuditEvent.id < before_id,
-                    ),
-                )
-            )
-        result = await self.session.execute(statement)
-        return list(result.scalars().all())
 
     async def get_pending_invitation(
         self,
@@ -795,7 +777,7 @@ class WorkspaceRepository:
         target_user_id: UUID | None = None,
         details: dict[str, str] | None = None,
     ) -> WorkspaceAuditEvent:
-        event = WorkspaceAuditEvent(
+        return await WorkspaceActivityRepository(self.session).append(
             workspace_id=workspace_id,
             event_type=event_type,
             actor_user_id=actor_user_id,
@@ -804,6 +786,3 @@ class WorkspaceRepository:
             entity_id=entity_id,
             details=details,
         )
-        self.session.add(event)
-        await self.session.flush()
-        return event

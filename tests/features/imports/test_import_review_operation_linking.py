@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -86,13 +87,25 @@ async def test_link_existing_operation_reuses_ledger_operation(
         operation_id=operation.id,
         expected_status=RawTransactionStatus.NORMALIZED,
     )
+    workspace_id = uuid4()
+    service._activity = cast(Any, SimpleNamespace(import_review_operation_linked=AsyncMock()))
 
-    result = await service.execute(workspace_id=uuid4(), command=command)
+    result = await service.execute(
+        context=cast(
+            Any,
+            SimpleNamespace(
+                workspace=SimpleNamespace(id=workspace_id),
+                user=SimpleNamespace(id=uuid4()),
+            ),
+        ),
+        command=command,
+    )
 
     assert result.operation_id == operation.id
     assert row.linked_operation_id == operation.id
     assert row.status is RawTransactionStatus.CONFIRMED
     assert review.created_operation_count == 0
+    service._activity.import_review_operation_linked.assert_awaited_once()
     assert session.commits == 1
 
 

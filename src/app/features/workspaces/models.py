@@ -193,7 +193,7 @@ class WorkspaceAuditEvent(Base):
     target_user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     entity_type: Mapped[str] = mapped_column(String(64))
     entity_id: Mapped[UUID | None] = mapped_column(Uuid)
-    details: Mapped[dict[str, str] | None] = mapped_column(JSON)
+    details: Mapped[dict[str, object] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     workspace: Mapped[Workspace] = relationship(back_populates="audit_events")

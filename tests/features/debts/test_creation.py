@@ -125,7 +125,7 @@ async def test_add_existing_debt_uses_signed_opening_balance_without_operation(
     context = workspace_context()
     creator, accounts, _, posting = debt_creator()
 
-    debt = await creator.add_existing_debt(
+    outcome = await creator.add_existing_debt(
         context=context,
         command=AddExistingDebtCommand(
             name="Ипотека",
@@ -139,7 +139,9 @@ async def test_add_existing_debt_uses_signed_opening_balance_without_operation(
             idempotency_key=uuid4(),
         ),
     )
+    debt = outcome.debt
 
+    assert outcome.replayed is False
     assert debt.account_id == accounts.created[0].id
     assert accounts.created[0].initial_balance == expected_balance
     assert posting.transfers == []
@@ -151,11 +153,13 @@ async def test_give_loan_creates_receivable_transfer() -> None:
     funding = regular_account(context.workspace.id, currency="RUB")
     creator, accounts, _, posting = debt_creator([funding])
 
-    debt = await creator.give_loan(
+    outcome = await creator.give_loan(
         context=context,
         command=give_loan_command(funding.id),
     )
+    debt = outcome.debt
 
+    assert outcome.replayed is False
     debt_account = accounts.created[0]
     assert debt.kind is DebtKind.LOAN_RECEIVABLE
     assert debt_account.initial_balance == Decimal("0.00")
@@ -171,7 +175,7 @@ async def test_take_loan_creates_payable_transfer(kind: DebtKind) -> None:
     receiving = regular_account(context.workspace.id, currency="RUB")
     creator, accounts, _, posting = debt_creator([receiving])
 
-    debt = await creator.take_loan(
+    outcome = await creator.take_loan(
         context=context,
         command=TakeLoanCommand(
             name="Кредит",
@@ -187,7 +191,9 @@ async def test_take_loan_creates_payable_transfer(kind: DebtKind) -> None:
             idempotency_key=uuid4(),
         ),
     )
+    debt = outcome.debt
 
+    assert outcome.replayed is False
     debt_account = accounts.created[0]
     assert debt.kind is kind
     assert debt_account.initial_balance == Decimal("0.00")
@@ -200,7 +206,7 @@ async def test_open_credit_card_uses_opening_balance_without_fake_operation() ->
     context = workspace_context()
     creator, accounts, _, posting = debt_creator()
 
-    debt = await creator.open_credit_card(
+    outcome = await creator.open_credit_card(
         context=context,
         command=OpenCreditCardCommand(
             name="Кредитка",
@@ -212,7 +218,9 @@ async def test_open_credit_card_uses_opening_balance_without_fake_operation() ->
             idempotency_key=uuid4(),
         ),
     )
+    debt = outcome.debt
 
+    assert outcome.replayed is False
     assert debt.kind is DebtKind.CREDIT_CARD
     assert debt.credit_limit == Decimal("1000.00")
     assert accounts.created[0].initial_balance == Decimal("-250.00")
@@ -229,7 +237,9 @@ async def test_same_creation_retry_replays_and_other_payload_conflicts() -> None
     created = await creator.give_loan(context=context, command=command)
     replay = await creator.give_loan(context=context, command=command)
 
-    assert replay is created
+    assert replay.debt is created.debt
+    assert created.replayed is False
+    assert replay.replayed is True
     assert len(accounts.created) == 1
     assert len(debts.created) == 1
     assert len(posting.transfers) == 1

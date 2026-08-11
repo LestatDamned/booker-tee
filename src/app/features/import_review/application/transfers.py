@@ -32,6 +32,12 @@ from app.features.ledger.application.ledger_reference_resolver import LedgerRefe
 from app.features.ledger.application.posting import LedgerPostingService
 from app.features.ledger.errors import LedgerPostingError
 from app.features.ledger.repository import LedgerRepository
+from app.features.workspaces.activity_repository import WorkspaceActivityRepository
+from app.features.workspaces.application.activity_details import (
+    ImportReviewOperationLinkedActivityDetails,
+    ImportReviewTransferCreatedActivityDetails,
+)
+from app.features.workspaces.application.activity_writer import WorkspaceActivityWriter
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -63,31 +69,30 @@ class ImportReviewTransferActor:
         affected_documents = {command.document_id}
         updated_items = {command.item_id}
         if isinstance(command, CreateImportReviewTransferCommand):
-            affected_documents.update(
-                await self._post_transfer(
-                    context=context,
-                    document_id=command.document_id,
-                    raw_transaction_id=command.item_id,
-                    counterparty_account_id=command.counterparty_account_id,
-                    matched_raw_transaction_id=None,
-                    idempotency_key=command.idempotency_key,
-                    idempotency_fingerprint=self.fingerprint(command),
-                )
+            operation_id, document_ids = await self._post_transfer(
+                context=context,
+                document_id=command.document_id,
+                raw_transaction_id=command.item_id,
+                counterparty_account_id=command.counterparty_account_id,
+                matched_raw_transaction_id=None,
+                idempotency_key=command.idempotency_key,
+                idempotency_fingerprint=self.fingerprint(command),
             )
+            affected_documents.update(document_ids)
         elif isinstance(command, MatchImportReviewRawRowCommand):
-            affected_documents.update(
-                await self._post_transfer(
-                    context=context,
-                    document_id=command.document_id,
-                    raw_transaction_id=command.item_id,
-                    counterparty_account_id=None,
-                    matched_raw_transaction_id=command.matched_item_id,
-                    idempotency_key=command.idempotency_key,
-                    idempotency_fingerprint=self.fingerprint(command),
-                )
+            operation_id, document_ids = await self._post_transfer(
+                context=context,
+                document_id=command.document_id,
+                raw_transaction_id=command.item_id,
+                counterparty_account_id=None,
+                matched_raw_transaction_id=command.matched_item_id,
+                idempotency_key=command.idempotency_key,
+                idempotency_fingerprint=self.fingerprint(command),
             )
+            affected_documents.update(document_ids)
             updated_items.add(command.matched_item_id)
         else:
+            operation_id = command.operation_id
             await self._link_existing_transfer(
                 context=context,
                 document_id=command.document_id,
@@ -95,8 +100,10 @@ class ImportReviewTransferActor:
                 operation_id=command.operation_id,
             )
         return ImportReviewTransferResult(
+            operation_id=operation_id,
             updated_item_ids=frozenset(updated_items),
             affected_document_ids=frozenset(affected_documents),
+            replayed=False,
         )
 
     async def find_replay(
@@ -113,8 +120,10 @@ class ImportReviewTransferActor:
             )
             if row is not None and row.linked_operation_id == command.operation_id:
                 return ImportReviewTransferResult(
+                    operation_id=command.operation_id,
                     updated_item_ids=frozenset({command.item_id}),
                     affected_document_ids=frozenset({command.document_id}),
+                    replayed=True,
                 )
             return None
 
@@ -136,8 +145,10 @@ class ImportReviewTransferActor:
         if isinstance(matched_item_id, str):
             item_ids.add(UUID(matched_item_id))
         return ImportReviewTransferResult(
+            operation_id=operation.id,
             updated_item_ids=frozenset(item_ids),
             affected_document_ids=frozenset(document_ids),
+            replayed=True,
         )
 
     async def _post_transfer(
@@ -150,7 +161,7 @@ class ImportReviewTransferActor:
         matched_raw_transaction_id: UUID | None,
         idempotency_key: UUID,
         idempotency_fingerprint: str,
-    ) -> set[UUID]:
+    ) -> tuple[UUID, set[UUID]]:
         raw_transaction, matched_raw_transaction = await self._load_transfer_rows(
             workspace_id=context.workspace.id,
             document_id=document_id,
@@ -223,7 +234,7 @@ class ImportReviewTransferActor:
             workspace_id=context.workspace.id,
             document_ids=affected_document_ids,
         )
-        return affected_document_ids
+        return operation.id, affected_document_ids
 
     async def _load_transfer_rows(
         self,
@@ -401,6 +412,7 @@ class ImportReviewTransferService:
     ) -> None:
         self._session = session
         self._actor = actor or ImportReviewTransferActor(session)
+        self._activity = WorkspaceActivityWriter(WorkspaceActivityRepository(session))
 
     async def execute(
         self,
@@ -410,6 +422,29 @@ class ImportReviewTransferService:
     ) -> ImportReviewTransferResult:
         try:
             result = await self._actor.apply(context=context, command=command)
+            if not result.replayed:
+                if isinstance(command, LinkImportReviewExistingTransferCommand):
+                    await self._activity.import_review_operation_linked(
+                        context=context,
+                        operation_id=result.operation_id,
+                        details=ImportReviewOperationLinkedActivityDetails(
+                            document_id=command.document_id,
+                            item_id=command.item_id,
+                            affected_item_count=len(result.updated_item_ids),
+                            affected_document_count=len(result.affected_document_ids),
+                        ),
+                    )
+                else:
+                    await self._activity.import_review_transfer_created(
+                        context=context,
+                        operation_id=result.operation_id,
+                        details=ImportReviewTransferCreatedActivityDetails(
+                            document_id=command.document_id,
+                            item_id=command.item_id,
+                            affected_item_count=len(result.updated_item_ids),
+                            affected_document_count=len(result.affected_document_ids),
+                        ),
+                    )
             await self._session.commit()
             return result
         except IntegrityError:

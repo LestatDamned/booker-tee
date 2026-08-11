@@ -1,0 +1,109 @@
+.workbench {
+  overflow: hidden;
+}
+
+.notice {
+  margin: var(--space-4);
+}
+
+.content {
+  display: grid;
+}
+
+.timeline {
+  display: grid;
+  margin: 0;
+  padding: var(--space-2) var(--space-5);
+  list-style: none;
+}
+
+.item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4) 0;
+}
+
+.item:not(:last-child)::after {
+  position: absolute;
+  top: 1.9rem;
+  bottom: -0.5rem;
+  left: 0.34rem;
+  width: 1px;
+  background: var(--color-border-default);
+  content: "";
+}
+
+.item + .item {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.marker {
+  z-index: 1;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-top: 0.35rem;
+  border: 2px solid var(--color-bg-elevated);
+  border-radius: 50%;
+  background: var(--color-brand);
+  box-shadow: 0 0 0 1px var(--color-border-strong);
+}
+
+.item[data-scope="team"] .marker {
+  background: var(--color-text-secondary);
+}
+
+.event {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.summary {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.meta time {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+}
+
+.meta a {
+  color: var(--color-link);
+  font-weight: 700;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  border-top: 1px solid var(--color-border-default);
+}
+
+@media (max-width: 35rem) {
+  .timeline {
+    padding-inline: var(--space-4);
+  }
+
+  .pagination {
+    padding-inline: var(--space-4);
+  }
+
+  .pagination > button {
+    width: 100%;
+  }
+}

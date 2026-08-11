@@ -47,6 +47,8 @@ from app.features.chat_integrations.use_cases.manual.state_store import (
 )
 from app.features.ledger.application.manual_mutations import ManualOperationWriter
 from app.features.ledger.domain.types import OperationType
+from app.features.workspaces.activity_repository import WorkspaceActivityRepository
+from app.features.workspaces.application.activity_writer import WorkspaceActivityWriter
 from app.features.workspaces.service import WorkspaceContext
 
 
@@ -69,7 +71,10 @@ class ChatManualOperationService:
             states=self.states,
             categories=self.categories,
         )
-        self.operation_poster = ChatManualOperationPoster(self.manual_operations)
+        self.operation_poster = ChatManualOperationPoster(
+            self.manual_operations,
+            WorkspaceActivityWriter(WorkspaceActivityRepository(session)),
+        )
 
     async def start_income_expense(
         self,

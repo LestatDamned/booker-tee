@@ -57,6 +57,12 @@ class DebtCreationPlan:
     opening_transfer: DebtOpeningTransfer | None = None
 
 
+@dataclass(frozen=True)
+class DebtCreateOutcome:
+    debt: Debt
+    replayed: bool
+
+
 class DebtCreator:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -70,11 +76,11 @@ class DebtCreator:
         *,
         context: WorkspaceContext,
         command: AddExistingDebtCommand,
-    ) -> Debt:
+    ) -> DebtCreateOutcome:
         fingerprint = DebtCommandFingerprint.calculate("add_existing_debt", command)
         replay = await self._find_replay(context.workspace.id, command.idempotency_key, fingerprint)
         if replay is not None:
-            return replay
+            return DebtCreateOutcome(debt=replay, replayed=True)
         if command.kind is DebtKind.CREDIT_CARD:
             raise DebtError("Use open_credit_card for credit card debt.")
         signed_balance = (
@@ -114,11 +120,11 @@ class DebtCreator:
         *,
         context: WorkspaceContext,
         command: GiveLoanCommand,
-    ) -> Debt:
+    ) -> DebtCreateOutcome:
         fingerprint = DebtCommandFingerprint.calculate("give_loan", command)
         replay = await self._find_replay(context.workspace.id, command.idempotency_key, fingerprint)
         if replay is not None:
-            return replay
+            return DebtCreateOutcome(debt=replay, replayed=True)
         DebtPolicy.validate_terms(
             kind=DebtKind.LOAN_RECEIVABLE,
             opening_balance=ZERO,
@@ -162,11 +168,11 @@ class DebtCreator:
         *,
         context: WorkspaceContext,
         command: TakeLoanCommand,
-    ) -> Debt:
+    ) -> DebtCreateOutcome:
         fingerprint = DebtCommandFingerprint.calculate("take_loan", command)
         replay = await self._find_replay(context.workspace.id, command.idempotency_key, fingerprint)
         if replay is not None:
-            return replay
+            return DebtCreateOutcome(debt=replay, replayed=True)
         if command.kind not in {DebtKind.LOAN_PAYABLE, DebtKind.MORTGAGE}:
             raise DebtError("take_loan supports payable loans and mortgages only.")
         DebtPolicy.validate_terms(
@@ -212,11 +218,11 @@ class DebtCreator:
         *,
         context: WorkspaceContext,
         command: OpenCreditCardCommand,
-    ) -> Debt:
+    ) -> DebtCreateOutcome:
         fingerprint = DebtCommandFingerprint.calculate("open_credit_card", command)
         replay = await self._find_replay(context.workspace.id, command.idempotency_key, fingerprint)
         if replay is not None:
-            return replay
+            return DebtCreateOutcome(debt=replay, replayed=True)
         signed_balance = -command.opening_debt
         DebtPolicy.validate_terms(
             kind=DebtKind.CREDIT_CARD,
@@ -244,7 +250,12 @@ class DebtCreator:
             ),
         )
 
-    async def _create(self, *, context: WorkspaceContext, plan: DebtCreationPlan) -> Debt:
+    async def _create(
+        self,
+        *,
+        context: WorkspaceContext,
+        plan: DebtCreationPlan,
+    ) -> DebtCreateOutcome:
         try:
             async with self.session.begin_nested():
                 account = await self.accounts.create(
@@ -288,7 +299,7 @@ class DebtCreator:
                         description=plan.opening_transfer.description,
                         transfer_category=transfer_category,
                     )
-                return debt
+                return DebtCreateOutcome(debt=debt, replayed=False)
         except IntegrityError as error:
             replay = await self._find_replay(
                 context.workspace.id,
@@ -297,7 +308,7 @@ class DebtCreator:
             )
             if replay is None:
                 raise error
-            return replay
+            return DebtCreateOutcome(debt=replay, replayed=True)
 
     async def _find_replay(
         self,

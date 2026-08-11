@@ -19,6 +19,8 @@ from app.features.workspaces.schemas import (
     WorkspaceActivityDetailsDto,
     WorkspaceActivityDto,
     WorkspaceActivityItemDto,
+    WorkspaceActivityItemScope,
+    WorkspaceActivityScope,
     WorkspaceActivitySummaryCode,
 )
 from app.main import create_app
@@ -37,11 +39,26 @@ def test_workspace_activity_returns_keyset_page_and_no_store() -> None:
         "actor_user_id": actor_id,
         "workspace_id": workspace_id,
         "limit": 1,
+        "scope": WorkspaceActivityScope.ALL,
         "before_created_at": None,
         "before_id": None,
     }
     assert response.json()["items"][0]["summaryCode"] == "member_role_changed"
+    assert response.json()["items"][0]["scope"] == "team"
     assert response.json()["nextCursor"]["beforeId"] == str(activity.next_cursor.before_id)
+    assert response.json()["nextCursor"]["scope"] == "all"
+
+
+def test_workspace_activity_passes_explicit_finance_scope() -> None:
+    app, service, _, workspace_id, _ = activity_app()
+
+    with TestClient(app) as client:
+        response = client.get(
+            f"/api/v1/workspaces/{workspace_id}/activity?scope=finance"
+        )
+
+    assert response.status_code == 200
+    assert service.read.await_args.kwargs["scope"] == WorkspaceActivityScope.FINANCE
 
 
 def test_workspace_activity_validates_cursor_pair() -> None:
@@ -80,11 +97,13 @@ def activity_app() -> tuple[FastAPI, AsyncMock, UUID, UUID, WorkspaceActivityDto
             WorkspaceActivityItemDto(
                 id=uuid4(),
                 event_type=WorkspaceAuditEventType.MEMBER_ROLE_CHANGED,
+                scope=WorkspaceActivityItemScope.TEAM,
                 actor=WorkspaceActivityActorDto(
                     id=context.workspace.user.id,
                     display_name="Max",
                 ),
                 target=WorkspaceActivityActorDto(id=uuid4(), display_name="Anna"),
+                entity=None,
                 summary_code=WorkspaceActivitySummaryCode.MEMBER_ROLE_CHANGED,
                 details=WorkspaceActivityDetailsDto(
                     old_role=WorkspaceRole.VIEWER,
@@ -96,6 +115,7 @@ def activity_app() -> tuple[FastAPI, AsyncMock, UUID, UUID, WorkspaceActivityDto
         next_cursor=WorkspaceActivityCursorDto(
             before_created_at=created_at,
             before_id=uuid4(),
+            scope=WorkspaceActivityScope.ALL,
         ),
     )
     service = AsyncMock()

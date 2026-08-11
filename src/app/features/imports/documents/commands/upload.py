@@ -17,7 +17,7 @@ from app.features.imports.documents.errors import (
     UploadValidationError,
 )
 from app.features.imports.documents.repository import DocumentRepository
-from app.features.imports.documents.storage import UploadStorage
+from app.features.imports.documents.storage import UploadStorage, sanitize_upload_filename
 from app.features.imports.documents.types import (
     UploadedDocumentSource,
     UploadedDocumentStatus,
@@ -36,6 +36,11 @@ from app.features.imports.statements.process import StatementParseCompletionServ
 from app.features.imports.statements.repository import StatementRepository
 from app.features.ledger.application.ledger_reference_resolver import LedgerReferenceResolver
 from app.features.ledger.errors import LedgerPostingError
+from app.features.workspaces.activity_repository import WorkspaceActivityRepository
+from app.features.workspaces.application.activity_details import (
+    DocumentUploadedActivityDetails,
+)
+from app.features.workspaces.application.activity_writer import WorkspaceActivityWriter
 from app.features.workspaces.repository import WorkspaceRepository
 from app.features.workspaces.service import WorkspaceContext
 from app.shared.schemas import ApplicationModel
@@ -66,6 +71,7 @@ class StatementUploadUseCase:
             parser_registry=StatementParserRegistry.with_default_parsers(),
         )
         self.workspaces = WorkspaceRepository(session)
+        self.activity = WorkspaceActivityWriter(WorkspaceActivityRepository(session))
 
     async def upload_statement(
         self,
@@ -126,6 +132,13 @@ class StatementUploadUseCase:
                 file_size_bytes=stored_upload.file_size_bytes,
                 account_id=account.id,
             )
+            await self.activity.document_uploaded(
+                context=context,
+                document_id=document.id,
+                details=DocumentUploadedActivityDetails(
+                    display_filename=sanitize_upload_filename(document.original_filename),
+                ),
+            )
             await self.session.commit()
         except IntegrityError as error:
             await self.session.rollback()
@@ -143,6 +156,10 @@ class StatementUploadUseCase:
             raise UploadIdempotencyConflictError(
                 "Этот ключ повторной отправки уже использован для другого файла."
             ) from error
+        except Exception:
+            await self.session.rollback()
+            await self.storage.delete_stored_upload(stored_upload)
+            raise
 
         attempt = await create_running_parse_attempt(
             self.documents,

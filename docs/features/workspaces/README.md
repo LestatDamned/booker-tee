@@ -1,7 +1,7 @@
 # Workspace collaboration
 
 Статус: базовый multi-user workflow, адресные invitations, role capabilities и
-manager-only administrative activity реализованы; unified financial activity и полные
+единый manager-only журнал administrative/financial activity реализованы; полные
 isolation gates запланированы.
 
 Workspace — строгая граница финансовых данных. Collaboration не
@@ -28,8 +28,9 @@ React workspace UI
 - optimistic concurrency, row locks и idempotency для опасных
   transitions;
 - workspace audit events для administrative mutations;
-- React экраны workspace directory, settings, members и invitations.
-- owner/admin activity timeline с safe typed projection и keyset pagination;
+- React экраны workspace directory, settings, members и invitations;
+- отдельный owner/admin activity timeline с URL-фильтрами, safe typed projection,
+  entity links и keyset pagination;
 - различимый доступ всех шести ролей: analyst не получает raw import data,
   viewer читает её без mutation, team directory доступен только owner/admin;
 - session capabilities управляют React navigation, но сервер повторно проверяет
@@ -79,3 +80,8 @@ React workspace UI
 а общие architecture и financial invariants — в
 [`docs/architecture/ARCHITECTURE.md`](../../architecture/ARCHITECTURE.md) и
 [`docs/domain/DOMAIN_MODEL.md`](../../domain/DOMAIN_MODEL.md).
+
+Stage 4 implementation обязана следовать принятым constraints из
+[`ACTIVITY_AND_AUTHORSHIP.md`](ACTIVITY_AND_AUTHORSHIP.md): transactional append,
+узкий activity writer/repository, explicit replay outcome, typed/versioned payload
+и отсутствие event bus/outbox без external consumer.

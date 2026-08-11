@@ -217,44 +217,111 @@ masked.
 Решение: финансовые действия не размазываются по карточкам и dense lists.
 Stage 4 переносит activity на отдельную страницу и расширяет существующий
 `WorkspaceAuditEvent`; actor fields entities продолжают корректно заполняться,
-но не заменяют append-only history.
+но не заменяют append-only history. Activity остаётся operational history, а не
+Event Sourcing или compliance audit.
 
 ### 4.1 Write-path audit
 
+Статус: завершено 10 августа 2026. Manual, import-review, debt/system и upload
+families проверены. Explicit replay outcomes добавлены там, где transaction owner
+раньше не отличал new mutation от replay; upload rollback очищает сохранённый файл.
+Следующий slice — 4.2 Activity write boundary.
+
 1. Trace manual create/edit/cancel/restore.
-2. Trace import posting and corrections.
-3. Trace debt/system operation creation.
-4. Trace upload, mapping and retry.
-5. Fill existing actor fields and append supported activity events only from
-   authenticated `WorkspaceContext`.
-6. Keep event append in the same transaction after conflict/idempotency checks.
-7. Add the smallest missing application tests per write family.
+2. Trace manual delete; preserve a safe label because entity disappears.
+3. Trace import item/transfer posting, undo and corrections.
+4. Trace debt/system operation creation.
+5. Trace upload, mapping and retry, including stored-file cleanup.
+6. Lock command-specific event names before enum migration; do not use a generic
+   `IMPORT_CONFIRMED` for different use cases.
+7. Add an explicit internal `replayed` outcome where the current writer returns an
+   existing entity indistinguishably from a new mutation.
+8. Add the smallest missing application tests per write family.
 
-Gate: every supported committed action has exactly one actor-specific event; rollback,
-conflict and replay have none.
+Gate: supported commands and replay behavior are inventoried from real application
+services; every event has one owning transaction boundary.
 
-### 4.2 Unified activity reader and API
+### 4.2 Activity write boundary
 
-1. Add `team | finance` scope to the typed safe projection.
-2. Add safe entity reference and link without exposing arbitrary audit JSON.
-3. Extend the existing endpoint with `scope=all|finance|team`.
-4. Keep scope stable across keyset pages and mask foreign entities.
-5. Regenerate API types and add filtering/pagination tests.
+Статус: завершено 10 августа 2026. Общая write boundary и manual-operation,
+import-review, debt/system, document-upload slices готовы. Следующий этап — 4.3
+Unified activity reader and API.
 
-### 4.3 Dedicated React page
+1. Extract `WorkspaceActivityRepository` append/list queries from the broad
+   `WorkspaceRepository`.
+2. Add `WorkspaceActivityWriter` with event-specific named methods and no commit.
+3. Define event-specific Pydantic details models with `payload_version`.
+4. Source actor fields and activity events only from authenticated
+   `WorkspaceContext`.
+5. Append after validation/conflict/idempotency checks and before the originating
+   application service commit.
+6. Ensure document/event failure rolls back DB state and cleans stored upload.
+7. Do not add Protocol, event bus, generic Unit of Work, activity dedupe key or
+   outbox.
+
+Gate: every supported committed action has exactly one actor-specific event;
+rollback, conflict and replay have none. Financial state never reads from activity
+events.
+
+### 4.3 Unified activity reader and API
+
+Статус: завершено 10 августа 2026. Единый endpoint читает `all | finance | team`,
+возвращает safe entity references и проверяет их доступность bounded batch queries.
+Scope сохраняется в cursor, OpenAPI/React contracts синхронизированы. Следующий
+этап — 4.4 Dedicated React page.
+
+1. Add `team | finance` scope through an explicit event-type mapping.
+2. Add safe entity reference without backend-generated React `href`.
+3. Batch-resolve entity availability per page; avoid N+1 reads.
+4. Extend the existing endpoint with `scope=all|finance|team`.
+5. Keep scope stable across keyset pages and mask foreign entities.
+6. Keep Stage 3 `eventType` only for v1 compatibility; React uses
+   `summaryCode` as the presentation discriminator.
+7. Add an exhaustiveness test for every visible event projector.
+8. Regenerate API types and add filtering/pagination tests.
+
+Gate: API returns only typed/versioned allowlisted payloads; ORM models, arbitrary
+JSON and client routes do not cross the boundary.
+
+### 4.4 Dedicated React page
+
+Статус: завершено 10 августа 2026. Добавлены canonical route, URL-owned filters,
+responsive timeline, safe entity links, empty/error/retry/load-more states и ссылка
+из settings. Embedded settings activity удалена после component/route parity tests.
+Следующий этап — 4.5 Operational gates.
 
 1. Add `/app/workspaces/:workspaceId/activity` for owner/admin.
 2. Add settings navigation link «История действий».
-3. Render `Все / Финансы / Команда`, timeline, entity links and load more.
-4. Cover empty/loading/error/retry and keyboard/responsive states.
-5. Remove the embedded settings activity section only after feature parity.
+3. Render `Все / Финансы / Команда`, timeline, supported entity links and load
+   more.
+4. Build known entity routes in React; unavailable/deleted entities render without
+   a link.
+5. Cover empty/loading/error/retry and keyboard/responsive states.
+6. Remove the embedded settings activity section only after feature parity.
+
+### 4.5 Operational gates
+
+Статус: завершено 10 августа 2026. `all` использует существующий
+`(workspace_id, created_at, id)` без лишнего event-type filter. Локальная выборка
+содержит максимум 10 events на workspace и не является representative volume,
+поэтому scope composite index не добавлен. Transaction boundary остаётся одной
+PostgreSQL transaction; outbox и compliance archive не добавлены без реального
+external/legal requirement. Stage 4 завершён; следующий slice — 5.1 Explicit limits.
+
+1. Keep the current keyset index for the first representative volume.
+2. Add a scope composite index only after PostgreSQL
+   `EXPLAIN (ANALYZE, BUFFERS)` proves it useful.
+3. Do not add outbox until an external consumer creates a real dual-write boundary.
+4. Treat legal retention, tamper evidence and immutable archival as a separate
+   compliance capability.
 
 ### Stage 4 exit gate
 
 - owner/admin can explain significant team and financial mutations from one page;
 - displayed history comes from committed persisted events, not current entity state;
 - other roles cannot retrieve the journal;
-- no realtime, second audit table or per-card authorship UI is required.
+- no realtime, second audit table, outbox or per-card authorship UI is required;
+- operational history is not presented as forensic/compliance audit.
 
 ## Stage 5. Isolation, concurrency and limit gate
 
