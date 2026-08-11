@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../../api/session";
@@ -8,6 +8,10 @@ import { Badge } from "../../../ui/badge/badge";
 import { Button, RouterButtonLink } from "../../../ui/button/button";
 import { PageFrame } from "../../../ui/page-frame/page-frame";
 import { PageHeader } from "../../../ui/page-header/page-header";
+import {
+  SelectionTabLink,
+  SelectionTabs,
+} from "../../../ui/selection-tabs/selection-tabs";
 import { WorkbenchEmptyState } from "../../../ui/workbench-empty-state/workbench-empty-state";
 import { WorkbenchPanel } from "../../../ui/workbench-panel/workbench-panel";
 import { WorkbenchPagination } from "../../../ui/workbench-pagination/workbench-pagination";
@@ -18,14 +22,15 @@ import { WorkbenchHeader } from "../../../ui/workbench-surface/workbench-header"
 import { WorkbenchSurface } from "../../../ui/workbench-surface/workbench-surface";
 import { WorkbenchToolbar } from "../../../ui/workbench-toolbar/workbench-toolbar";
 import { ToastViewport, useToastQueue } from "../../../ui/toast/toast";
+import type { ManualOperationDto } from "../api/manual-ledger-api";
 import type {
-  ManualLedgerDto,
-  ManualOperationDto,
-} from "../api/manual-ledger-api";
+  OperationDto,
+  OperationsDto,
+} from "../../operations/api/operations-api";
 import { ManualOperationCreate } from "../operation/manual-operation-create";
 import { ManualOperationRow } from "../operation/manual-operation-row";
 import {
-  manualOperationsTotalLabel,
+  operationsTotalLabel,
   toManualOperationRowModel,
 } from "../operation/manual-ledger-model";
 import {
@@ -48,13 +53,15 @@ import {
 import styles from "../manual-ledger.module.css";
 
 type ManualLedgerPageProps = {
-  ledger: ManualLedgerDto;
+  ledger: OperationsDto;
   navigationPending?: boolean;
   onOperationDeleted?: (operationId: string) => void;
   onRefresh?: () => void;
   onOperationUpdated?: (operation: ManualOperationDto) => void;
   session: SessionDto;
 };
+
+type LedgerOperationDto = ManualOperationDto | OperationDto;
 
 export function ManualLedgerPage({
   ledger,
@@ -67,7 +74,7 @@ export function ManualLedgerPage({
   const location = useLocation();
   const navigate = useNavigate();
   const [localChanges, setLocalChanges] = useState(
-    emptyManualLedgerLocalChanges,
+    emptyManualLedgerLocalChanges<LedgerOperationDto>,
   );
   const [workingOperationId, setWorkingOperationId] = useState<string | null>(
     null,
@@ -78,6 +85,9 @@ export function ManualLedgerPage({
   const [createOpen, setCreateOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const { dismissToast, showToast, toast } = useToastQueue();
+  const filterRegionId = "operations-filter-region";
+  const selectedOperationType = normalizedOperationType(location.search);
+  const selectedOperationId = ledger.targetOperationId;
 
   const filtersActive = manualLedgerFiltersAreActive(location.search);
   const [panelPending, setPanelPending] = useState(false);
@@ -85,11 +95,14 @@ export function ManualLedgerPage({
     location.search,
     ledger.filterOptions,
   );
-  const displayedItems =
+  const targetOutsideCurrentPage = Boolean(
     ledger.targetOperation &&
     !ledger.items.some(
       (operation) => operation.id === ledger.targetOperation?.id,
-    )
+    ),
+  );
+  const displayedItems =
+    ledger.targetOperation && targetOutsideCurrentPage
       ? [ledger.targetOperation, ...ledger.items]
       : ledger.items;
   const reconciledLocalChanges = reconcileManualLedgerLocalChanges(
@@ -108,9 +121,16 @@ export function ManualLedgerPage({
     (option) => visibleTotal > option,
   );
 
+  useEffect(() => {
+    if (!selectedOperationId) return;
+    const row = document.getElementById(`operation-${selectedOperationId}`);
+    row?.scrollIntoView?.({ block: "nearest" });
+    row?.focus({ preventScroll: true });
+  }, [selectedOperationId]);
+
   function operationUpdated(operation: ManualOperationDto) {
     setLocalChanges((current) =>
-      recordManualOperationUpdate(
+      recordManualOperationUpdate<LedgerOperationDto>(
         reconcileManualLedgerLocalChanges(current, ledger.items),
         operation,
       ),
@@ -169,10 +189,10 @@ export function ManualLedgerPage({
             <PageHeader
               description={
                 ledger.capabilities.readonlyReason ??
-                "Доходы, расходы и переводы, созданные вручную."
+                "Все денежные события рабочего пространства."
               }
-              eyebrow={manualOperationsTotalLabel(visibleTotal)}
-              title="Ручные операции"
+              eyebrow={operationsTotalLabel(visibleTotal)}
+              title="Операции"
             />
           </WorkbenchHeader>
 
@@ -183,7 +203,7 @@ export function ManualLedgerPage({
                 disabled={editingOperationId !== null || navigationPending}
               />
               <Button
-                aria-controls="manual-ledger-filter-region"
+                aria-controls={filterRegionId}
                 aria-expanded={filtersOpen}
                 disabled={editingOperationId !== null || navigationPending}
                 onClick={() => setFiltersOpen((current) => !current)}
@@ -206,6 +226,17 @@ export function ManualLedgerPage({
                 </Button>
               ) : null}
             </div>
+            <SelectionTabs as="nav" aria-label="Тип операции">
+              {operationTypeTabs.map((tab) => (
+                <SelectionTabLink
+                  key={tab.label}
+                  selected={selectedOperationType === tab.value}
+                  to={operationTypeUrl(location.search, tab.value)}
+                >
+                  {tab.label}
+                </SelectionTabLink>
+              ))}
+            </SelectionTabs>
             <AppliedFilterSummary
               filters={filtersOpen ? [] : appliedFilters}
               resetTo={location.pathname}
@@ -213,7 +244,7 @@ export function ManualLedgerPage({
           </WorkbenchToolbar>
 
           {filtersOpen ? (
-            <WorkbenchFilterRegion id="manual-ledger-filter-region">
+            <WorkbenchFilterRegion id={filterRegionId}>
               <ManualLedgerFilters
                 key={location.search}
                 navigationPending={navigationPending}
@@ -259,13 +290,14 @@ export function ManualLedgerPage({
               >
                 {filtersActive
                   ? "Измените условия поиска или сбросьте фильтры."
-                  : "Созданные вручную операции появятся здесь."}
+                  : "Ручные, импортированные, долговые и системные операции появятся здесь."}
               </WorkbenchEmptyState>
             ) : (
               <ol className={styles.list}>
                 {rows.map((operation) => (
                   <li key={operation.id}>
                     <ManualOperationRow
+                      categories={ledger.filterOptions.categories}
                       csrfToken={session.csrfToken}
                       isEditing={editingOperationId === operation.id}
                       isWorking={workingOperationId === operation.id}
@@ -277,6 +309,12 @@ export function ManualLedgerPage({
                       onWorkStarted={() => setWorkingOperationId(operation.id)}
                       onSuccess={(message) => showToast({ message })}
                       operation={operation}
+                      outsideCurrentSelection={
+                        targetOutsideCurrentPage &&
+                        selectedOperationId === operation.id
+                      }
+                      properties={ledger.filterOptions.properties}
+                      selected={selectedOperationId === operation.id}
                     />
                   </li>
                 ))}
@@ -342,4 +380,25 @@ export function ManualLedgerPage({
       ) : null}
     </AppShell>
   );
+}
+
+const operationTypeTabs = [
+  { label: "Все", value: null },
+  { label: "Доходы", value: "income" },
+  { label: "Расходы", value: "expense" },
+  { label: "Переводы", value: "transfer" },
+] as const;
+
+function operationTypeUrl(currentSearch: string, type: string | null): string {
+  const search = new URLSearchParams(currentSearch);
+  if (type) search.set("type", type);
+  else search.delete("type");
+  search.set("page", "1");
+  search.delete("operation_id");
+  return `?${search.toString()}`;
+}
+
+function normalizedOperationType(currentSearch: string): string | null {
+  const type = new URLSearchParams(currentSearch).get("type");
+  return operationTypeTabs.some((tab) => tab.value === type) ? type : null;
 }

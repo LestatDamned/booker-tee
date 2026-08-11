@@ -67,6 +67,19 @@ describe("WorkspaceActivityPage", () => {
             displayFilename: "statement.pdf",
           },
         },
+        {
+          ...workspaceActivity.items[0]!,
+          id: "ed1873b7-e248-474a-b8c7-4d57647b8582",
+          eventType: "manual_operation_updated",
+          summaryCode: "manual_operation_updated",
+          scope: "finance",
+          entity: {
+            type: "operation",
+            id: "761bcb13-4891-444e-b026-f3ed295c3680",
+            displayLabel: "Аренда",
+            isAvailable: true,
+          },
+        },
       ],
     });
 
@@ -76,6 +89,10 @@ describe("WorkspaceActivityPage", () => {
     );
     expect(screen.getByText("statement.pdf · недоступно")).toBeVisible();
     expect(screen.queryByRole("link", { name: "statement.pdf" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Аренда" })).toHaveAttribute(
+      "href",
+      "/operations?operation_id=761bcb13-4891-444e-b026-f3ed295c3680#operation-761bcb13-4891-444e-b026-f3ed295c3680",
+    );
   });
 
   it("appends the next keyset page", async () => {

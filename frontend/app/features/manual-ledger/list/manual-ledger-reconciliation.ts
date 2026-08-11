@@ -1,38 +1,44 @@
 import type { ManualOperationDto } from "../api/manual-ledger-api";
 
-export type ManualLedgerLocalChanges = {
-  updated: Record<string, ManualOperationDto>;
+type VersionedOperation = { id: string; version: number };
+
+export type ManualLedgerLocalChanges<
+  T extends VersionedOperation = ManualOperationDto,
+> = {
+  updated: Record<string, T>;
   deleted: Record<string, true>;
 };
 
-export function emptyManualLedgerLocalChanges(): ManualLedgerLocalChanges {
+export function emptyManualLedgerLocalChanges<
+  T extends VersionedOperation = ManualOperationDto,
+>(): ManualLedgerLocalChanges<T> {
   return { updated: {}, deleted: {} };
 }
 
-export function recordManualOperationUpdate(
-  current: ManualLedgerLocalChanges,
-  operation: ManualOperationDto,
-): ManualLedgerLocalChanges {
+export function recordManualOperationUpdate<T extends VersionedOperation>(
+  current: ManualLedgerLocalChanges<T>,
+  operation: T,
+): ManualLedgerLocalChanges<T> {
   return {
     ...current,
     updated: { ...current.updated, [operation.id]: operation },
   };
 }
 
-export function recordManualOperationDeletion(
-  current: ManualLedgerLocalChanges,
+export function recordManualOperationDeletion<T extends VersionedOperation>(
+  current: ManualLedgerLocalChanges<T>,
   operationId: string,
-): ManualLedgerLocalChanges {
+): ManualLedgerLocalChanges<T> {
   return {
     ...current,
     deleted: { ...current.deleted, [operationId]: true },
   };
 }
 
-export function reconcileManualLedgerLocalChanges(
-  current: ManualLedgerLocalChanges,
-  serverOperations: ManualOperationDto[],
-): ManualLedgerLocalChanges {
+export function reconcileManualLedgerLocalChanges<T extends VersionedOperation>(
+  current: ManualLedgerLocalChanges<T>,
+  serverOperations: T[],
+): ManualLedgerLocalChanges<T> {
   const serverById = new Map(
     serverOperations.map((operation) => [operation.id, operation]),
   );
@@ -59,10 +65,10 @@ export function reconcileManualLedgerLocalChanges(
   return { updated, deleted };
 }
 
-export function visibleManualOperations(
-  serverOperations: ManualOperationDto[],
-  localChanges: ManualLedgerLocalChanges,
-): ManualOperationDto[] {
+export function visibleManualOperations<T extends VersionedOperation>(
+  serverOperations: T[],
+  localChanges: ManualLedgerLocalChanges<T>,
+): T[] {
   return serverOperations
     .filter((operation) => !localChanges.deleted[operation.id])
     .map((operation) => {

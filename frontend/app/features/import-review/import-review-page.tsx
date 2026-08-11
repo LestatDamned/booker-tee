@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import type { SessionDto } from "../../api/session";
 import { revealHashTarget } from "../../shared/navigation/hash-target";
@@ -42,6 +42,7 @@ export function ImportReviewPage({ review, session }: ImportReviewPageProps) {
 
 function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [currentReview, setCurrentReview] = useState(review);
   const readonly = !currentReview.capabilities.canWrite;
   const [categories, setCategories] = useState(review.references.categories);
@@ -72,15 +73,27 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
           Math.ceil((targetIndex + 1) / VISIBLE_ROW_STEP) * VISIBLE_ROW_STEP,
         ),
       );
-      setSearchParams(nextSearchParams, { preventScrollReset: true });
+      void navigate(
+        {
+          pathname: location.pathname,
+          search: `?${nextSearchParams.toString()}`,
+          hash: location.hash,
+        },
+        { preventScrollReset: true, replace: true },
+      );
       return;
     }
-    const target = document.getElementById(`raw-${itemId}`);
-    if (target instanceof HTMLElement) revealHashTarget(target);
+    const animationFrame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(`raw-${itemId}`);
+      if (target instanceof HTMLElement) revealHashTarget(target);
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
   }, [
     currentReview,
     filter,
     location.hash,
+    location.pathname,
+    navigate,
     searchParams,
     setSearchParams,
     visibleRowCount,

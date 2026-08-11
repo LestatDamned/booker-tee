@@ -78,6 +78,11 @@ source: manual | bank_pdf | debt | system
 Operation имеет optimistic `version`, optional category/property, даты,
 idempotency metadata и один или несколько `MoneyEntry`.
 
+Ручные, подтверждённые импортированные, долговые и системные записи представлены
+в одном пользовательском потоке. `source` определяет provenance и допустимый
+correction workflow, но не создаёт отдельную финансовую сущность. UI/API contract
+зафиксирован в [`docs/features/operations/README.md`](../features/operations/README.md).
+
 ### MoneyEntry
 
 Подписанное движение по одному account:

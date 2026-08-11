@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import type { ManualLedgerDto } from "../api/manual-ledger-api";
+import type { OperationsDto } from "../../operations/api/operations-api";
 import {
   manualLedgerFilterDraft,
   manualLedgerFiltersAreActive,
@@ -16,7 +16,7 @@ describe("ManualLedgerFilters", () => {
     render(
       <MemoryRouter
         initialEntries={[
-          "/ledger/manual?type=expense&search=кофе&page=2&per_page=25",
+          "/operations?type=expense&search=кофе&page=2&per_page=25",
         ]}
       >
         <FilterHarness />
@@ -34,14 +34,17 @@ describe("ManualLedgerFilters", () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
 
-    await user.selectOptions(screen.getByLabelText("Статус"), "confirmed");
+    expect(screen.getByLabelText("Статус")).toHaveDisplayValue(
+      "Подтверждённые",
+    );
+    await user.selectOptions(screen.getByLabelText("Статус"), "all");
     expect(screen.getByTestId("location-search")).toHaveTextContent(
       "type=expense&search=кофе&page=2&per_page=25",
     );
 
     await user.click(apply);
     expect(screen.getByTestId("location-search")).toHaveTextContent(
-      "type=expense&status=confirmed&search=%D0%BA%D0%BE%D1%84%D0%B5&page=1&per_page=25",
+      "type=expense&status=all&search=%D0%BA%D0%BE%D1%84%D0%B5&page=1&per_page=25",
     );
   });
 
@@ -76,7 +79,7 @@ function FilterHarness() {
   );
 }
 
-const filterOptions: ManualLedgerDto["filterOptions"] = {
+const filterOptions: OperationsDto["filterOptions"] = {
   accounts: [
     {
       id: "123e4567-e89b-12d3-a456-426614174000",
@@ -89,5 +92,6 @@ const filterOptions: ManualLedgerDto["filterOptions"] = {
   ],
   categories: [],
   properties: [],
+  sources: ["manual", "bank_pdf", "debt", "system"],
   perPage: [25, 50, 100, 200],
 };

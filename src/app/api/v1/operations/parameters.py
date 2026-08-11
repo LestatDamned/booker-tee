@@ -6,24 +6,27 @@ from uuid import UUID
 from fastapi import Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.features.ledger.domain.types import OperationStatus, OperationType
+from app.features.ledger.domain.types import (
+    OperationSource,
+    OperationStatus,
+    OperationType,
+)
 from app.features.ledger.schemas.listing import (
     DEFAULT_PER_PAGE,
     LedgerPagination,
-    ManualOperationFilters,
+    OperationFilters,
     normalize_pagination,
 )
 
 
-class ManualLedgerListParameters(BaseModel):
-    """Tolerant normalized parameters of a manual-ledger list request."""
-
+class OperationsListParameters(BaseModel):
     model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
 
     date_from: date | None = None
     date_to: date | None = None
     operation_type: OperationType | None = Field(default=None, alias="type")
-    status: OperationStatus | None = None
+    source: OperationSource | None = None
+    status: OperationStatus | None = OperationStatus.CONFIRMED
     account_id: UUID | None = None
     category_id: UUID | None = None
     property_id: UUID | None = None
@@ -47,10 +50,17 @@ class ManualLedgerListParameters(BaseModel):
     def parse_operation_type(cls, value: Any) -> OperationType | None:
         return cls._parse_enum(value, OperationType)
 
+    @field_validator("source", mode="before")
+    @classmethod
+    def parse_source(cls, value: Any) -> OperationSource | None:
+        return cls._parse_enum(value, OperationSource)
+
     @field_validator("status", mode="before")
     @classmethod
     def parse_status(cls, value: Any) -> OperationStatus | None:
-        return cls._parse_enum(value, OperationStatus)
+        if value == "all":
+            return None
+        return cls._parse_enum(value, OperationStatus) or OperationStatus.CONFIRMED
 
     @field_validator("account_id", "category_id", "property_id", "operation_id", mode="before")
     @classmethod
@@ -81,10 +91,11 @@ class ManualLedgerListParameters(BaseModel):
         return cls._parse_int(value, default=DEFAULT_PER_PAGE)
 
     @property
-    def filters(self) -> ManualOperationFilters:
-        return ManualOperationFilters(
+    def filters(self) -> OperationFilters:
+        return OperationFilters(
             date_from=self.date_from,
             date_to=self.date_to,
+            source=self.source,
             operation_type=self.operation_type,
             status=self.status,
             account_id=self.account_id,
@@ -114,10 +125,11 @@ class ManualLedgerListParameters(BaseModel):
             return default
 
 
-def parse_manual_ledger_list_parameters(
+def parse_operations_list_parameters(
     date_from: Annotated[str | None, Query()] = None,
     date_to: Annotated[str | None, Query()] = None,
     operation_type: Annotated[str | None, Query(alias="type")] = None,
+    source: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
     account_id: Annotated[str | None, Query()] = None,
     category_id: Annotated[str | None, Query()] = None,
@@ -126,12 +138,13 @@ def parse_manual_ledger_list_parameters(
     operation_id: Annotated[str | None, Query()] = None,
     page: Annotated[str | None, Query()] = None,
     per_page: Annotated[str | None, Query()] = None,
-) -> ManualLedgerListParameters:
-    return ManualLedgerListParameters.model_validate(
+) -> OperationsListParameters:
+    return OperationsListParameters.model_validate(
         {
             "date_from": date_from,
             "date_to": date_to,
             "type": operation_type,
+            "source": source,
             "status": status,
             "account_id": account_id,
             "category_id": category_id,
@@ -139,6 +152,6 @@ def parse_manual_ledger_list_parameters(
             "search": search,
             "operation_id": operation_id,
             "page": page,
-            "per_page": per_page,
+            "per_page": per_page or DEFAULT_PER_PAGE,
         }
     )

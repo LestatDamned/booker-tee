@@ -59,6 +59,31 @@ describe("import review page", () => {
     );
   });
 
+  it("keeps the hash and focuses a bank row after revealing rows beyond 50", async () => {
+    const review = importReviewPayload();
+    const template = review.items[0]!;
+    const targetId = crypto.randomUUID();
+    review.items = Array.from({ length: 51 }, (_, index) => ({
+      ...template,
+      id: index === 50 ? targetId : crypto.randomUUID(),
+      rowIndex: index + 1,
+    }));
+    review.queue.total = 51;
+
+    renderPage(
+      review,
+      `/imports/documents/${review.document.id}/review#raw-${targetId}`,
+    );
+
+    await waitFor(() =>
+      expect(document.getElementById(`raw-${targetId}`)).toHaveFocus(),
+    );
+    expect(screen.getByTestId("current-search")).toHaveTextContent("rows=100");
+    expect(screen.getByTestId("current-hash")).toHaveTextContent(
+      `#raw-${targetId}`,
+    );
+  });
+
   it("opens all rows first and preserves filter counts and pressed state", async () => {
     const user = userEvent.setup();
     const review = importReviewPayload();
@@ -483,6 +508,12 @@ describe("import review page", () => {
     expect(outcome).toHaveTextContent("Расход → Продукты");
     expect(outcome).not.toHaveTextContent("1 250,50 RUB");
     expect(outcome).toHaveAttribute("data-state", "confirmed");
+    expect(
+      within(row).getByRole("link", { name: "Открыть операцию" }),
+    ).toHaveAttribute(
+      "href",
+      `/operations?operation_id=${item.posting.operationId}#operation-${item.posting.operationId}`,
+    );
   });
 
   it("shows an explicit incomplete transfer route", () => {
@@ -1987,7 +2018,12 @@ function renderPage(
 
 function LocationProbe() {
   const location = useLocation();
-  return <output data-testid="current-search">{location.search}</output>;
+  return (
+    <>
+      <output data-testid="current-search">{location.search}</output>
+      <output data-testid="current-hash">{location.hash}</output>
+    </>
+  );
 }
 
 async function chooseCategory(

@@ -203,7 +203,7 @@ describe("manual operation editing", () => {
 
     await waitFor(() =>
       expect(screen.getByTestId("location")).toHaveTextContent(
-        `/ledger/manual?type=expense&page=2&operation_id=${operationId}#operation-${operationId}`,
+        `/operations?type=expense&page=2&operation_id=${operationId}#operation-${operationId}`,
       ),
     );
     const updateOptions = fetchMock.mock.calls[1]?.[1] as RequestInit;
@@ -254,7 +254,7 @@ function renderEdit({ withLocation = false }: { withLocation?: boolean }) {
 
 function editTree({ withLocation = false }: { withLocation?: boolean }) {
   return (
-    <MemoryRouter initialEntries={["/ledger/manual?type=expense&page=2"]}>
+    <MemoryRouter initialEntries={["/operations?type=expense&page=2"]}>
       <ManualOperationEdit
         csrfToken="csrf-token"
         onClose={vi.fn()}

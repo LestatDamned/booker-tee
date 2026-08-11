@@ -883,24 +883,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/manual-ledger": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Manual Operations */
-        get: operations["list_manual_operations_api_v1_manual_ledger_get"];
-        put?: never;
-        /** Create Manual Operation */
-        post: operations["create_manual_operation_api_v1_manual_ledger_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/manual-ledger/{operation_id}/edit": {
         parameters: {
             query?: never;
@@ -912,6 +894,23 @@ export interface paths {
         get: operations["load_manual_operation_edit_api_v1_manual_ledger__operation_id__edit_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/manual-ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Manual Operation */
+        post: operations["create_manual_operation_api_v1_manual_ledger_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -964,6 +963,23 @@ export interface paths {
         put?: never;
         /** Restore Manual Operation */
         post: operations["restore_manual_operation_api_v1_manual_ledger__operation_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Operations */
+        get: operations["list_operations_api_v1_operations_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2364,6 +2380,16 @@ export interface components {
              */
             expectedUpdatedAt: string;
         };
+        /** DebtOperationProvenanceApiResponse */
+        DebtOperationProvenanceApiResponse: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "debt";
+            /** Debtaccountid */
+            debtAccountId: string | null;
+        };
         /**
          * DebtPaymentBlockedReason
          * @enum {string}
@@ -2893,6 +2919,18 @@ export interface components {
          * @enum {string}
          */
         ImportDocumentWorkflowStepState: "pending" | "current" | "done" | "skipped" | "blocked";
+        /** ImportOperationProvenanceApiResponse */
+        ImportOperationProvenanceApiResponse: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "import";
+            /** Uploadeddocumentid */
+            uploadedDocumentId: string | null;
+            /** Rawtransactionid */
+            rawTransactionId: string | null;
+        };
         /** ImportReviewAccountApiResponse */
         ImportReviewAccountApiResponse: {
             /**
@@ -3599,13 +3637,6 @@ export interface components {
             /** Cantransfer */
             canTransfer: boolean;
         };
-        /** ManualLedgerCapabilitiesApiResponse */
-        ManualLedgerCapabilitiesApiResponse: {
-            /** Cancreate */
-            canCreate: boolean;
-            /** Readonlyreason */
-            readonlyReason?: string | null;
-        };
         /** ManualLedgerFilterOptionsApiResponse */
         ManualLedgerFilterOptionsApiResponse: {
             /** Accounts */
@@ -3616,17 +3647,6 @@ export interface components {
             properties: components["schemas"]["ManualLedgerNamedReferenceApiResponse"][];
             /** Perpage */
             perPage: number[];
-        };
-        /** ManualLedgerListApiResponse */
-        ManualLedgerListApiResponse: {
-            /** Items */
-            items: components["schemas"]["ManualOperationApiResponse"][];
-            pagination: components["schemas"]["ManualLedgerPaginationApiResponse"];
-            filterOptions: components["schemas"]["ManualLedgerFilterOptionsApiResponse"];
-            capabilities: components["schemas"]["ManualLedgerCapabilitiesApiResponse"];
-            /** Targetoperationid */
-            targetOperationId?: string | null;
-            targetOperation?: components["schemas"]["ManualOperationApiResponse"] | null;
         };
         /** ManualLedgerMoneyApiResponse */
         ManualLedgerMoneyApiResponse: {
@@ -3644,21 +3664,6 @@ export interface components {
             id: string;
             /** Name */
             name: string;
-        };
-        /** ManualLedgerPaginationApiResponse */
-        ManualLedgerPaginationApiResponse: {
-            /** Page */
-            page: number;
-            /** Perpage */
-            perPage: number;
-            /** Total */
-            total: number;
-            /** Totalpages */
-            totalPages: number;
-            /** Hasprevious */
-            hasPrevious: boolean;
-            /** Hasnext */
-            hasNext: boolean;
         };
         /** ManualOperationApiResponse */
         ManualOperationApiResponse: {
@@ -4150,6 +4155,100 @@ export interface components {
              */
             openingDebt: string;
         };
+        /** OperationAccountReferenceApiResponse */
+        OperationAccountReferenceApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+        };
+        /** OperationApiResponse */
+        OperationApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Version */
+            version: number;
+            operationType: components["schemas"]["OperationType"];
+            source: components["schemas"]["OperationSource"];
+            status: components["schemas"]["OperationStatus"];
+            /**
+             * Operationdate
+             * Format: date
+             */
+            operationDate: string;
+            /** Description */
+            description: string;
+            money: components["schemas"]["OperationMoneyApiResponse"] | null;
+            account: components["schemas"]["OperationAccountReferenceApiResponse"] | null;
+            sourceAccount: components["schemas"]["OperationAccountReferenceApiResponse"] | null;
+            destinationAccount: components["schemas"]["OperationAccountReferenceApiResponse"] | null;
+            category: components["schemas"]["OperationNamedReferenceApiResponse"] | null;
+            property: components["schemas"]["OperationNamedReferenceApiResponse"] | null;
+            /** Provenance */
+            provenance: (components["schemas"]["ImportOperationProvenanceApiResponse"] | components["schemas"]["DebtOperationProvenanceApiResponse"] | components["schemas"]["SystemOperationProvenanceApiResponse"]) | null;
+            capabilities: components["schemas"]["OperationCapabilitiesApiResponse"];
+        };
+        /** OperationCapabilitiesApiResponse */
+        OperationCapabilitiesApiResponse: {
+            /** Canedit */
+            canEdit: boolean;
+            /**
+             * Editkind
+             * @enum {string}
+             */
+            editKind: "manual" | "imported" | "none";
+            /** Cancancel */
+            canCancel: boolean;
+            /** Canrestore */
+            canRestore: boolean;
+            /** Candelete */
+            canDelete: boolean;
+            /** Readonlyreason */
+            readonlyReason: ("financial_write_forbidden" | "operation_state_readonly" | "source_workflow_required" | "system_operation") | null;
+        };
+        /** OperationFilterAccountOptionApiResponse */
+        OperationFilterAccountOptionApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
+            /** Canrecordincome */
+            canRecordIncome: boolean;
+            /** Canrecordexpense */
+            canRecordExpense: boolean;
+            /** Cantransfer */
+            canTransfer: boolean;
+        };
+        /** OperationMoneyApiResponse */
+        OperationMoneyApiResponse: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+        };
+        /** OperationNamedReferenceApiResponse */
+        OperationNamedReferenceApiResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
         /**
          * OperationSource
          * @enum {string}
@@ -4165,6 +4264,52 @@ export interface components {
          * @enum {string}
          */
         OperationType: "income" | "expense" | "transfer" | "adjustment";
+        /** OperationsCapabilitiesApiResponse */
+        OperationsCapabilitiesApiResponse: {
+            /** Cancreate */
+            canCreate: boolean;
+            /** Readonlyreason */
+            readonlyReason?: string | null;
+        };
+        /** OperationsFilterOptionsApiResponse */
+        OperationsFilterOptionsApiResponse: {
+            /** Accounts */
+            accounts: components["schemas"]["OperationFilterAccountOptionApiResponse"][];
+            /** Categories */
+            categories: components["schemas"]["OperationNamedReferenceApiResponse"][];
+            /** Properties */
+            properties: components["schemas"]["OperationNamedReferenceApiResponse"][];
+            /** Sources */
+            sources: components["schemas"]["OperationSource"][];
+            /** Perpage */
+            perPage: number[];
+        };
+        /** OperationsListApiResponse */
+        OperationsListApiResponse: {
+            /** Items */
+            items: components["schemas"]["OperationApiResponse"][];
+            pagination: components["schemas"]["OperationsPaginationApiResponse"];
+            filterOptions: components["schemas"]["OperationsFilterOptionsApiResponse"];
+            capabilities: components["schemas"]["OperationsCapabilitiesApiResponse"];
+            /** Targetoperationid */
+            targetOperationId?: string | null;
+            targetOperation?: components["schemas"]["OperationApiResponse"] | null;
+        };
+        /** OperationsPaginationApiResponse */
+        OperationsPaginationApiResponse: {
+            /** Page */
+            page: number;
+            /** Perpage */
+            perPage: number;
+            /** Total */
+            total: number;
+            /** Totalpages */
+            totalPages: number;
+            /** Hasprevious */
+            hasPrevious: boolean;
+            /** Hasnext */
+            hasNext: boolean;
+        };
         OptionalMoneyString: string | null;
         /**
          * ParseAttemptStatus
@@ -4628,6 +4773,14 @@ export interface components {
          * @enum {string}
          */
         StatementValidationStatus: "valid" | "mismatch" | "unavailable" | "needs_review";
+        /** SystemOperationProvenanceApiResponse */
+        SystemOperationProvenanceApiResponse: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "system";
+        };
         /** TakeLoanApiRequest */
         TakeLoanApiRequest: {
             /** Name */
@@ -9406,23 +9559,13 @@ export interface operations {
             };
         };
     };
-    list_manual_operations_api_v1_manual_ledger_get: {
+    load_manual_operation_edit_api_v1_manual_ledger__operation_id__edit_get: {
         parameters: {
-            query?: {
-                date_from?: string | null;
-                date_to?: string | null;
-                type?: string | null;
-                status?: string | null;
-                account_id?: string | null;
-                category_id?: string | null;
-                property_id?: string | null;
-                search?: string | null;
-                operation_id?: string | null;
-                page?: string | null;
-                per_page?: string | null;
-            };
+            query?: never;
             header?: never;
-            path?: never;
+            path: {
+                operation_id: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -9433,16 +9576,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ManualLedgerListApiResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                    "application/json": components["schemas"]["ManualOperationEditApiResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -9456,6 +9590,24 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9509,73 +9661,6 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    load_manual_operation_edit_api_v1_manual_ledger__operation_id__edit_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                operation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ManualOperationEditApiResponse"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Not Found */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9867,6 +9952,75 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    list_operations_api_v1_operations_get: {
+        parameters: {
+            query?: {
+                date_from?: string | null;
+                date_to?: string | null;
+                type?: string | null;
+                source?: string | null;
+                status?: string | null;
+                account_id?: string | null;
+                category_id?: string | null;
+                property_id?: string | null;
+                search?: string | null;
+                operation_id?: string | null;
+                page?: string | null;
+                per_page?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationsListApiResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

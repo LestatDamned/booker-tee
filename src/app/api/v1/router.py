@@ -10,6 +10,7 @@ from app.api.v1.debts.router import router as debts_router
 from app.api.v1.import_review.router import router as import_review_router
 from app.api.v1.imports.router import router as imports_router
 from app.api.v1.manual_ledger.router import router as manual_ledger_router
+from app.api.v1.operations.router import router as operations_router
 from app.api.v1.properties.router import router as properties_router
 from app.api.v1.reports.router import router as reports_router
 from app.api.v1.session.router import router as session_router
@@ -28,6 +29,7 @@ router.include_router(debts_router)
 router.include_router(imports_router)
 router.include_router(import_review_router)
 router.include_router(manual_ledger_router)
+router.include_router(operations_router)
 router.include_router(properties_router)
 router.include_router(reports_router)
 router.include_router(session_router)

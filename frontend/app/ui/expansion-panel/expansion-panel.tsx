@@ -35,7 +35,7 @@ export function ExpansionPanel({
     >
       {showHeader ? (
         <header className={styles.header}>
-          <h3 className={styles.title} id={titleId}>
+          <h3 className={styles.title} id={titleId} tabIndex={-1}>
             {title}
           </h3>
           {onClose ? (

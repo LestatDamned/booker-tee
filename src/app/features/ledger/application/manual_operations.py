@@ -17,13 +17,6 @@ from app.features.ledger.errors import (
 )
 from app.features.ledger.mapping.manual_read import ManualOperationReadMapper
 from app.features.ledger.repository import LedgerRepository
-from app.features.ledger.schemas.listing import (
-    DEFAULT_PER_PAGE,
-    LedgerPage,
-    LedgerPagination,
-    ManualOperationFilters,
-    normalize_pagination,
-)
 from app.features.ledger.schemas.manual import (
     CreateManualOperationCommand,
     CreateManualTransferCommand,
@@ -115,33 +108,6 @@ class ManualOperationService:
         self._ledger = LedgerRepository(session)
         self._writer = ManualOperationWriter(session)
         self._activity = WorkspaceActivityWriter(WorkspaceActivityRepository(session))
-
-    async def list(
-        self,
-        *,
-        workspace_id: UUID,
-        filters: ManualOperationFilters | None = None,
-        pagination: LedgerPagination | None = None,
-    ) -> tuple[list[ManualOperationReadDto], LedgerPage]:
-        normalized_filters = filters or ManualOperationFilters()
-        normalized_pagination = pagination or normalize_pagination(1, DEFAULT_PER_PAGE)
-        operation_count = await self._ledger.count_manual_operations_for_workspace(
-            workspace_id=workspace_id,
-            filters=normalized_filters,
-        )
-        operations = await self._ledger.list_manual_operations_page_for_workspace(
-            workspace_id=workspace_id,
-            filters=normalized_filters,
-            pagination=normalized_pagination,
-        )
-        return (
-            [ManualOperationReadMapper.from_operation(operation) for operation in operations],
-            LedgerPage(
-                page=normalized_pagination.page,
-                per_page=normalized_pagination.per_page,
-                total=operation_count,
-            ),
-        )
 
     async def get(
         self,

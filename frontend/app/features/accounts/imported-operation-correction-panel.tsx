@@ -27,6 +27,10 @@ import panelStyles from "./account-settings-panel.module.css";
 import styles from "./imported-operation-correction-panel.module.css";
 
 type Movement = AccountDetailDto["items"][number];
+export type ImportedOperationCorrectionSubject = Pick<
+  Movement,
+  "category" | "description" | "operationId" | "property" | "version"
+>;
 type EditableField = "categoryId" | "description" | "propertyId";
 type FieldErrors = Partial<Record<EditableField, string>>;
 
@@ -34,7 +38,7 @@ type Props = {
   accountId: string;
   categories: AccountDetailDto["filterOptions"]["categories"];
   csrfToken: string;
-  movement: Movement;
+  operation: ImportedOperationCorrectionSubject;
   onClose: () => void;
   onCommitted: (movement: Movement) => void;
   properties: AccountDetailDto["filterOptions"]["properties"];
@@ -52,14 +56,14 @@ export const ImportedOperationCorrectionPanel = forwardRef<
     accountId,
     categories,
     csrfToken,
-    movement,
+    operation,
     onClose,
     onCommitted,
     properties,
   },
   ref,
 ) {
-  const initialDraft = useMemo(() => correctionDraft(movement), [movement]);
+  const initialDraft = useMemo(() => correctionDraft(operation), [operation]);
   const [draft, setDraft] = useState(initialDraft);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -70,8 +74,8 @@ export const ImportedOperationCorrectionPanel = forwardRef<
   const categoryRef = useRef<HTMLInputElement>(null);
   const propertyRef = useRef<HTMLSelectElement>(null);
   const dirty = !sameDraft(draft, initialDraft);
-  const categoryOptions = includeCurrentOption(categories, movement.category);
-  const propertyOptions = includeCurrentOption(properties, movement.property);
+  const categoryOptions = includeCurrentOption(categories, operation.category);
+  const propertyOptions = includeCurrentOption(properties, operation.property);
   const summaryErrors = formSummaryErrors(fieldErrors);
 
   function changeDraft<Key extends EditableField>(
@@ -114,7 +118,7 @@ export const ImportedOperationCorrectionPanel = forwardRef<
       accountId,
       csrfToken,
       draft,
-      operationId: movement.operationId,
+      operationId: operation.operationId,
     });
     setPending(false);
     if (result.status === "success") {
@@ -289,12 +293,14 @@ export const ImportedOperationCorrectionPanel = forwardRef<
   );
 });
 
-function correctionDraft(movement: Movement): ImportedOperationCorrectionDraft {
+function correctionDraft(
+  operation: ImportedOperationCorrectionSubject,
+): ImportedOperationCorrectionDraft {
   return {
-    categoryId: movement.category?.id ?? null,
-    description: movement.description,
-    expectedVersion: movement.version,
-    propertyId: movement.property?.id ?? null,
+    categoryId: operation.category?.id ?? null,
+    description: operation.description,
+    expectedVersion: operation.version,
+    propertyId: operation.property?.id ?? null,
   };
 }
 

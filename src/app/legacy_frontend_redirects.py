@@ -55,7 +55,7 @@ async def historical_dashboard_summary(request: Request) -> RedirectResponse:
 
 @router.get("/ledger/manual")
 async def historical_manual_ledger(request: Request) -> RedirectResponse:
-    return redirect_to_react(request, "/app/ledger/manual")
+    return redirect_to_react(request, "/app/operations")
 
 
 @router.get("/accounts")

@@ -35,6 +35,7 @@
 | Рефакторинг ledger      | [`refactoring/ledger/TARGET_ARCHITECTURE.md`](refactoring/ledger/TARGET_ARCHITECTURE.md) | Transaction, DTO и module boundaries            |
 | Месячный XLSX           | [`features/reports/README.md`](features/reports/README.md)                               | Спека и план Reports export                     |
 | Долги                   | [`features/debts/README.md`](features/debts/README.md)                                   | Модель долгов и пошаговая реализация            |
+| Операции                | [`features/operations/README.md`](features/operations/README.md)                         | Единый поток manual/import/debt/system операций |
 | Workspace collaboration | [`features/workspaces/README.md`](features/workspaces/README.md)                         | Invitations, roles, activity и hardening        |
 
 ## Операционные документы

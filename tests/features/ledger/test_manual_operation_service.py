@@ -19,6 +19,33 @@ from app.features.workspaces.service import WorkspaceContext
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "source",
+    [None, OperationSource.BANK_PDF, OperationSource.DEBT, OperationSource.SYSTEM],
+)
+async def test_get_hides_missing_and_non_manual_operations(
+    source: OperationSource | None,
+) -> None:
+    workspace_id = uuid4()
+    operation_id = uuid4()
+    operation = None if source is None else SimpleNamespace(id=operation_id, source=source)
+    lookup = AsyncMock(return_value=operation)
+    service = ManualOperationService(cast(Any, object()))
+    service._ledger = cast(
+        Any,
+        SimpleNamespace(get_operation_for_workspace=lookup),
+    )
+
+    result = await service.get(
+        workspace_id=workspace_id,
+        operation_id=operation_id,
+    )
+
+    assert result is None
+    lookup.assert_awaited_once_with(workspace_id, operation_id)
+
+
+@pytest.mark.asyncio
 async def test_create_returns_reloaded_read_dto(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

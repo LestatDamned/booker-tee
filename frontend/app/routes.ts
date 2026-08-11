@@ -21,6 +21,7 @@ export default [
   route("imports/documents/:documentId/mapping", "routes/import-mapping.tsx"),
   route("imports/documents/:documentId/review", "routes/import-review.tsx"),
   route("ledger/manual", "routes/manual-ledger.tsx"),
+  route("operations", "routes/operations.tsx"),
   route("properties", "routes/properties.tsx"),
   route("profile", "routes/profile.tsx"),
   route("profile/account", "routes/profile-account.tsx"),

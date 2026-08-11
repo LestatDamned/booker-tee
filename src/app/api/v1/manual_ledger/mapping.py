@@ -8,15 +8,11 @@ from app.api.v1.manual_ledger.schemas.requests import (
     ManualTransferUpdateApiRequest,
 )
 from app.api.v1.manual_ledger.schemas.responses import (
-    ManualLedgerCapabilitiesApiResponse,
     ManualLedgerFilterOptionsApiResponse,
-    ManualLedgerListApiResponse,
-    ManualLedgerPaginationApiResponse,
     ManualOperationApiResponse,
     ManualOperationCapabilitiesApiResponse,
 )
 from app.features.ledger.domain.types import manual_operation_actions
-from app.features.ledger.schemas.listing import LedgerPage
 from app.features.ledger.schemas.manual import (
     CreateManualIncomeExpenseCommand,
     CreateManualOperationCommand,
@@ -89,40 +85,6 @@ class ManualOperationRequestMapper:
 
 
 class ManualLedgerResponseMapper:
-    @staticmethod
-    def list_response(
-        *,
-        operations: list[ManualOperationReadDto],
-        page: LedgerPage,
-        references: ManualLedgerReferenceOptionsDto,
-        can_write: bool,
-        target_operation: ManualOperationReadDto | None,
-    ) -> ManualLedgerListApiResponse:
-        return ManualLedgerListApiResponse(
-            items=[
-                ManualLedgerResponseMapper.operation_response(
-                    operation,
-                    can_write=can_write,
-                )
-                for operation in operations
-            ],
-            pagination=ManualLedgerPaginationApiResponse.model_validate(page),
-            filter_options=ManualLedgerResponseMapper.filter_options(references),
-            capabilities=ManualLedgerCapabilitiesApiResponse(
-                can_create=can_write,
-                readonly_reason=None if can_write else READONLY_REASON,
-            ),
-            target_operation_id=target_operation.id if target_operation else None,
-            target_operation=(
-                ManualLedgerResponseMapper.operation_response(
-                    target_operation,
-                    can_write=can_write,
-                )
-                if target_operation
-                else None
-            ),
-        )
-
     @staticmethod
     def filter_options(
         references: ManualLedgerReferenceOptionsDto,

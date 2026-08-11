@@ -101,7 +101,7 @@ describe("manual operation creation", () => {
       propertyId,
     });
     expect(await screen.findByTestId("location")).toHaveTextContent(
-      `/ledger/manual?operation_id=${operationId}#operation-${operationId}`,
+      `/operations?operation_id=${operationId}#operation-${operationId}`,
     );
     expect(
       screen.queryByRole("button", { name: "Создать доход" }),
@@ -317,7 +317,7 @@ describe("manual operation creation", () => {
 
 function renderCreate({ canCreate = true }: { canCreate?: boolean } = {}) {
   return render(
-    <MemoryRouter initialEntries={["/ledger/manual"]}>
+    <MemoryRouter initialEntries={["/operations"]}>
       <CreateHarness
         canCreate={canCreate}
         csrfToken="csrf-token"

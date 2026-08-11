@@ -15,7 +15,7 @@ import { InlineNotice } from "../../../ui/inline-notice/inline-notice";
 import { RequestState } from "../../../ui/request-state/request-state";
 import {
   loadManualOperationEdit,
-  type ManualLedgerDto,
+  type ManualOperationFormOptions,
   type ManualOperationDto,
 } from "../api/manual-ledger-api";
 import { focusFirstInvalidField } from "../focus-invalid-field";
@@ -59,7 +59,7 @@ type EditState =
       status: "ready";
       snapshot: ManualOperationDto;
       draft: ManualOperationDraft;
-      options: ManualLedgerDto["filterOptions"];
+      options: ManualOperationFormOptions;
       submission: SubmissionState;
     };
 

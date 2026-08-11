@@ -457,7 +457,7 @@ describe("reports route", () => {
     expect(screen.getByText("12 операций без категории")).toBeVisible();
     expect(screen.getByRole("link", { name: "Разобрать" })).toHaveAttribute(
       "href",
-      `/ledger/manual?operation_id=${reportOverview.uncategorized.items[0]!.operationId}#operation-${reportOverview.uncategorized.items[0]!.operationId}`,
+      `/operations?operation_id=${reportOverview.uncategorized.items[0]!.operationId}#operation-${reportOverview.uncategorized.items[0]!.operationId}`,
     );
     expect(
       screen.queryByRole("table", { name: "Операции без категории" }),
@@ -498,7 +498,7 @@ describe("reports route", () => {
     expect(screen.queryByText(/без категории$/)).not.toBeInTheDocument();
   });
 
-  it("uses the existing account workflow for a correctable imported operation", () => {
+  it("uses the unified operation workflow for a correctable import", () => {
     const imported = reportOverview.uncategorized.items[1]!;
     renderReports({
       overview: {
@@ -520,7 +520,7 @@ describe("reports route", () => {
 
     expect(screen.getByRole("link", { name: "Разобрать" })).toHaveAttribute(
       "href",
-      `/app/accounts/${imported.accountId}`,
+      `/operations?operation_id=${imported.operationId}#operation-${imported.operationId}`,
     );
   });
 });

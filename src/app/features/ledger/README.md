@@ -22,10 +22,15 @@
 ## Основные потоки
 
 ```text
-manual ledger API / chat
+manual command API / chat
   -> ManualOperationService / ManualOperationWriter
   -> LedgerRepository
   -> Operation + MoneyEntry[]
+
+operations API
+  -> OperationsReader
+  -> LedgerRepository
+  -> unified workspace-scoped read model
 
 raw transaction review
   -> ImportReviewConfirmationActor / ImportReviewTransferActor
@@ -40,7 +45,8 @@ account legacy screen
   -> account ledger read model
 ```
 
-API schemas находятся в `app/api/v1/manual_ledger`. Ledger application layer
+Manual command schemas находятся в `app/api/v1/manual_ledger`, canonical list
+schemas — в `app/api/v1/operations`. Ledger application layer
 не импортирует FastAPI/Pydantic API models и возвращает собственные immutable
 Pydantic contracts.
 
@@ -54,11 +60,13 @@ ledger/
     ledger_reference_resolver.py
     manual_mutations.py        # manual write workflows
     manual_operations.py       # public manual service and reference reader
+    operations.py              # unified operation reader and source-aware projection
     posting.py                 # ledger writes from validated financial facts
 
   schemas/
     listing.py                 # pagination and query filters
     manual.py                  # manual commands, read DTOs and reference options
+    operations.py              # unified DTO, provenance and capabilities
 
   domain/
     manual_idempotency.py      # stable identity of manual write intentions

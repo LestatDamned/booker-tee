@@ -45,6 +45,18 @@ describe("DebtDetailPage", () => {
     expect(screen.getByText("Основной долг")).toBeVisible();
     expect(screen.getByText("Проценты")).toBeVisible();
     expect(screen.getByRole("button", { name: "Отменить" })).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Открыть основную операцию" }),
+    ).toHaveAttribute(
+      "href",
+      `/operations?operation_id=${detail.payments.items[0]!.principal!.operationId}#operation-${detail.payments.items[0]!.principal!.operationId}`,
+    );
+    expect(
+      screen.getByRole("link", { name: "Открыть операцию процентов" }),
+    ).toHaveAttribute(
+      "href",
+      `/operations?operation_id=${detail.payments.items[0]!.interest!.operationId}#operation-${detail.payments.items[0]!.interest!.operationId}`,
+    );
   });
 
   it("previews and records principal and interest together", async () => {

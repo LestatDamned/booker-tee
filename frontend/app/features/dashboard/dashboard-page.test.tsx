@@ -110,6 +110,29 @@ describe("DashboardPage", () => {
     );
   });
 
+  it("uses the canonical operations route for manual entry", () => {
+    renderPage({
+      ...dashboardPayload,
+      capabilities: {
+        ...dashboardPayload.capabilities,
+        primaryAction: "manual_operation",
+      },
+      onboarding: {
+        hasAccounts: true,
+        hasDocuments: true,
+        hasConfirmedActivity: false,
+        isComplete: false,
+      },
+      recentDocuments: [],
+    });
+
+    expect(
+      screen
+        .getAllByRole("link", { name: /Добавить операцию|Продолжить/ })
+        .every((link) => link.getAttribute("href") === "/operations"),
+    ).toBe(true);
+  });
+
   it("builds only canonical React document routes", () => {
     const document = dashboardPayload.attention.items[0]!;
     expect(documentHref(document)).toBe(

@@ -42,9 +42,9 @@ const navigationGroups: ReadonlyArray<NavigationGroup> = [
         reactRoute: true,
       },
       {
-        href: "/ledger/manual",
+        href: "/operations",
         icon: "operations",
-        label: "Ручные операции",
+        label: "Операции",
         reactRoute: true,
       },
       {

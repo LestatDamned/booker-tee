@@ -19,11 +19,6 @@ from app.features.ledger.errors import (
     ManualOperationNotEditableError,
     ManualOperationNotFoundError,
 )
-from app.features.ledger.schemas.listing import (
-    LedgerPage,
-    LedgerPagination,
-    ManualOperationFilters,
-)
 from app.features.ledger.schemas.manual import (
     AccountReferenceReadDto,
     CreateManualIncomeExpenseCommand,
@@ -51,8 +46,6 @@ class ManualOperationServiceStub:
     def __init__(self, operations: list[ManualOperationReadDto]) -> None:
         self.operations = operations
         self.workspace_ids: list[UUID] = []
-        self.filters: list[ManualOperationFilters] = []
-        self.paginations: list[LedgerPagination] = []
         self.income_commands: list[CreateManualIncomeExpenseCommand] = []
         self.transfer_commands: list[CreateManualTransferCommand] = []
         self.update_commands: list[UpdateManualOperationCommand] = []
@@ -60,22 +53,6 @@ class ManualOperationServiceStub:
         self.create_error: LedgerPostingError | None = None
         self.update_error: LedgerPostingError | None = None
         self.lifecycle_error: LedgerPostingError | None = None
-
-    async def list(
-        self,
-        *,
-        workspace_id: UUID,
-        filters: ManualOperationFilters,
-        pagination: LedgerPagination,
-    ) -> tuple[list[ManualOperationReadDto], LedgerPage]:
-        self.workspace_ids.append(workspace_id)
-        self.filters.append(filters)
-        self.paginations.append(pagination)
-        return self.operations, LedgerPage(
-            page=pagination.page,
-            per_page=pagination.per_page,
-            total=len(self.operations),
-        )
 
     async def create(
         self,

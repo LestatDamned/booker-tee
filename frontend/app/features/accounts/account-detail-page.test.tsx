@@ -52,7 +52,10 @@ describe("AccountDetailPage", () => {
     expect(screen.getByText("Не влияет на прибыль")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Открыть операцию" }),
-    ).toHaveAttribute("href", expect.stringContaining("/ledger/manual"));
+    ).toHaveAttribute(
+      "href",
+      `/operations?operation_id=${detail.items[0]!.operationId}#operation-${detail.items[0]!.operationId}`,
+    );
   });
 
   it("links debt movements back to the debt workflow", () => {

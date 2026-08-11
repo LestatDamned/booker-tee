@@ -25,6 +25,7 @@ import {
   type WorkspaceActivityItemDto,
   type WorkspaceActivityScope,
 } from "./api/workspace-activity-api";
+import { operationHref } from "../operations/operation-navigation";
 import { workspaceRoleLabel } from "./workspace-labels";
 import styles from "./workspace-activity-page.module.css";
 
@@ -212,7 +213,7 @@ function entityHref(item: WorkspaceActivityItemDto): string | null {
     case "uploaded_document":
       return `/imports/documents/${entity.id}`;
     case "operation":
-      return null;
+      return operationHref(entity.id);
   }
 }
 

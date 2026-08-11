@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import type { SessionDto } from "../../api/session";
+import { operationHref } from "../operations/operation-navigation";
 import { formatMoneyAmount } from "../../shared/money/format-money";
 import { AppShell } from "../../shell/app-shell";
 import { ActionStack } from "../../ui/action-stack/action-stack";
@@ -333,6 +334,7 @@ function AccountMovementRow({
     useRef<ImportedOperationCorrectionPanelHandle>(null);
   const view = movementView(movement);
   const sourceTarget = movementSourceTarget(movement);
+  const operationUrl = operationHref(movement.operationId);
   const problem =
     movement.status === "needs_review" || movement.status === "duplicate";
   const editPanelId = `account-operation-edit-panel-${movement.operationId}`;
@@ -350,46 +352,53 @@ function AccountMovementRow({
   return (
     <WorkbenchRow
       aside={
-        sourceTarget.url ? (
-          <ActionStack
-            primary={
-              movement.capabilities.canEditReviewFields ? (
-                <Button
-                  aria-controls={editPanelId}
-                  aria-expanded={isEditing}
-                  data-imported-operation-edit
-                  icon="edit"
-                  onClick={() =>
-                    isEditing
-                      ? correctionPanelRef.current?.requestClose()
-                      : onEdit(movement)
-                  }
-                  ref={editButtonRef}
-                  tone="secondary"
-                >
-                  {isEditing ? "Закрыть" : "Исправить"}
-                </Button>
-              ) : (
-                <RouterButtonLink to={sourceTarget.url} icon="source">
-                  {sourceTarget.label}
-                </RouterButtonLink>
-              )
-            }
-            secondary={
-              movement.capabilities.canEditReviewFields ? (
-                <RouterButtonLink
-                  to={sourceTarget.url}
-                  icon="source"
-                  tone="secondary"
-                >
-                  {sourceTarget.label}
-                </RouterButtonLink>
-              ) : undefined
-            }
-          />
-        ) : (
-          <StatusLabel tone="neutral">Системная операция</StatusLabel>
-        )
+        <ActionStack
+          primary={
+            movement.capabilities.canEditReviewFields ? (
+              <Button
+                aria-controls={editPanelId}
+                aria-expanded={isEditing}
+                data-imported-operation-edit
+                icon="edit"
+                onClick={() =>
+                  isEditing
+                    ? correctionPanelRef.current?.requestClose()
+                    : onEdit(movement)
+                }
+                ref={editButtonRef}
+                tone="secondary"
+              >
+                {isEditing ? "Закрыть" : "Исправить"}
+              </Button>
+            ) : sourceTarget.url ? (
+              <RouterButtonLink to={sourceTarget.url} icon="source">
+                {sourceTarget.label}
+              </RouterButtonLink>
+            ) : (
+              <RouterButtonLink to={operationUrl} icon="information">
+                Открыть операцию
+              </RouterButtonLink>
+            )
+          }
+          secondary={
+            movement.capabilities.canEditReviewFields && sourceTarget.url ? (
+              <RouterButtonLink
+                to={sourceTarget.url}
+                icon="source"
+                tone="secondary"
+              >
+                {sourceTarget.label}
+              </RouterButtonLink>
+            ) : undefined
+          }
+          overflow={
+            sourceTarget.url && sourceTarget.url !== operationUrl ? (
+              <RouterButtonLink to={operationUrl} icon="information">
+                Открыть операцию
+              </RouterButtonLink>
+            ) : undefined
+          }
+        />
       }
       date={movement.operationDate}
       description={view.description}
@@ -404,7 +413,7 @@ function AccountMovementRow({
               accountId={accountId}
               categories={categories}
               csrfToken={csrfToken}
-              movement={movement}
+              operation={movement}
               onClose={closeEdit}
               onCommitted={commitMovement}
               properties={properties}
@@ -461,7 +470,7 @@ function movementSourceTarget(movement: AccountDetailDto["items"][number]): {
   if (movement.sourceTarget.kind === "manual") {
     return {
       label: "Открыть операцию",
-      url: `/ledger/manual?operation_id=${movement.operationId}#operation-${movement.operationId}`,
+      url: operationHref(movement.operationId),
     };
   }
   if (

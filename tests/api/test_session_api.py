@@ -155,7 +155,7 @@ def test_openapi_describes_runtime_api_error_envelope() -> None:
     openapi = create_app().openapi()
 
     session_unauthorized = openapi["paths"]["/api/v1/session"]["get"]["responses"]["401"]
-    list_validation = openapi["paths"]["/api/v1/manual-ledger"]["get"]["responses"]["422"]
+    list_validation = openapi["paths"]["/api/v1/operations"]["get"]["responses"]["422"]
     create_validation = openapi["paths"]["/api/v1/manual-ledger"]["post"]["responses"]["422"]
 
     for response in (session_unauthorized, list_validation, create_validation):

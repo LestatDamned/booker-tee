@@ -1,6 +1,7 @@
 import { RouterButtonLink } from "../../ui/button/button";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import type { ReportOverviewDto } from "./api/reports-api";
+import { operationHref } from "../operations/operation-navigation";
 
 type Operation = ReportOverviewDto["uncategorized"]["items"][number];
 
@@ -43,13 +44,7 @@ export function reportUncategorizedCorrectionHref(
 
 function correctionHref(operation: Operation): string | null {
   if (!operation.capabilities.canCorrect) return null;
-  if (operation.source === "manual") {
-    return `/ledger/manual?operation_id=${operation.operationId}#operation-${operation.operationId}`;
-  }
-  if (operation.source === "bank_pdf" && operation.accountId) {
-    return `/app/accounts/${operation.accountId}`;
-  }
-  return null;
+  return operationHref(operation.operationId);
 }
 
 function operationCountLabel(value: number): string {

@@ -4,7 +4,7 @@ import { Field } from "../../../ui/field/field";
 import { Fieldset } from "../../../ui/field/fieldset";
 import type { FormErrorSummaryItem } from "../../../ui/field/form-error-summary";
 import { SearchableSelect } from "../../../ui/searchable-select/searchable-select";
-import type { ManualLedgerDto } from "../api/manual-ledger-api";
+import type { ManualOperationFormOptions } from "../api/manual-ledger-api";
 import styles from "../manual-ledger.module.css";
 import type {
   ManualOperationDraft,
@@ -17,7 +17,7 @@ type ManualOperationFieldsProps = {
   idPrefix: string;
   layout?: "panel" | "expanded";
   onChange: (draft: ManualOperationDraft) => void;
-  options: ManualLedgerDto["filterOptions"];
+  options: ManualOperationFormOptions;
 };
 
 export function ManualOperationFields({
@@ -219,7 +219,7 @@ export function ManualOperationFields({
 }
 
 function accountSupports(
-  account: ManualLedgerDto["filterOptions"]["accounts"][number],
+  account: ManualOperationFormOptions["accounts"][number],
   operationType: ManualOperationDraft["operationType"],
 ): boolean {
   if (operationType === "transfer") return account.canTransfer;

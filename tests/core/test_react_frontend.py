@@ -18,7 +18,7 @@ def test_react_frontend_serves_index_for_direct_navigation(tmp_path: Path) -> No
 
     with TestClient(app) as client:
         root_response = client.get("/app")
-        nested_response = client.get("/app/ledger/manual")
+        nested_response = client.get("/app/operations")
         asset_response = client.get("/assets/app.js")
 
     assert root_response.status_code == 200

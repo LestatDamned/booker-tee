@@ -11,7 +11,7 @@ describe("manual ledger search", () => {
     render(
       <MemoryRouter
         initialEntries={[
-          "/ledger/manual?type=expense&page=3&per_page=25&operation_id=target",
+          "/operations?type=expense&page=3&per_page=25&operation_id=target",
         ]}
       >
         <ManualLedgerSearch />

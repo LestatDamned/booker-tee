@@ -26,7 +26,7 @@ Jinja/HTMX/Alpine presentation stack удалён и не должен восс�
 Каноничны в React:
 
 - `/app` (Dashboard);
-- `/app/ledger/manual`;
+- `/app/operations` (`/app/ledger/manual` — compatibility redirect);
 - `/app/accounts`;
 - `/app/accounts/:accountId`;
 - `/app/debts`;

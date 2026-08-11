@@ -3,12 +3,12 @@ import { z } from "zod";
 import type { components } from "../../../api/generated/schema";
 import { requestJson } from "../../../api/transport";
 
-export type ManualLedgerDto =
-  components["schemas"]["ManualLedgerListApiResponse"];
 export type ManualOperationDto =
   components["schemas"]["ManualOperationApiResponse"];
 export type ManualOperationEditDto =
   components["schemas"]["ManualOperationEditApiResponse"];
+export type ManualOperationFormOptions =
+  ManualOperationEditDto["filterOptions"];
 
 const operationTypeSchema = z.enum([
   "income",
@@ -66,64 +66,10 @@ export const manualOperationSchema: z.ZodType<ManualOperationDto> = z.object({
   capabilities: operationCapabilitiesSchema,
 });
 
-export const manualLedgerSchema: z.ZodType<ManualLedgerDto> = z.object({
-  items: z.array(manualOperationSchema),
-  pagination: z.object({
-    page: z.number().int(),
-    perPage: z.number().int(),
-    total: z.number().int(),
-    totalPages: z.number().int(),
-    hasPrevious: z.boolean(),
-    hasNext: z.boolean(),
-  }),
-  filterOptions: filterOptionsSchema,
-  capabilities: z.object({
-    canCreate: z.boolean(),
-    readonlyReason: z.string().nullable(),
-  }),
-  targetOperationId: z.uuid().nullable(),
-  targetOperation: manualOperationSchema.nullable().optional().default(null),
-});
-
 const manualOperationEditSchema: z.ZodType<ManualOperationEditDto> = z.object({
   operation: manualOperationSchema,
   filterOptions: filterOptionsSchema,
 });
-
-export type ManualLedgerLoadResult =
-  | { status: "success"; ledger: ManualLedgerDto }
-  | { status: "unauthenticated" }
-  | { status: "error"; message: string };
-
-export async function loadManualLedger(
-  search: string,
-  signal?: AbortSignal,
-): Promise<ManualLedgerLoadResult> {
-  const response = await requestJson(`/api/v1/manual-ledger${search}`, {
-    ...(signal ? { signal } : {}),
-  });
-  if (response.status === "network_error") {
-    return { status: "error", message: "Backend недоступен." };
-  }
-  if (response.httpStatus === 401) {
-    return { status: "unauthenticated" };
-  }
-  if (!response.ok) {
-    return {
-      status: "error",
-      message: `API вернул статус ${response.httpStatus}.`,
-    };
-  }
-
-  const parsed = manualLedgerSchema.safeParse(response.body);
-  if (!parsed.success) {
-    return {
-      status: "error",
-      message: "API вернул данные manual ledger неожиданного формата.",
-    };
-  }
-  return { status: "success", ledger: parsed.data };
-}
 
 export type ManualOperationEditLoadResult =
   | { status: "success"; edit: ManualOperationEditDto }

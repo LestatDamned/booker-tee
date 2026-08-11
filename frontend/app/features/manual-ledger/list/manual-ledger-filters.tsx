@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router";
 import { Button, RouterButtonLink } from "../../../ui/button/button";
 import { Field } from "../../../ui/field/field";
 import { FormActions } from "../../../ui/field/form-layout";
-import type { ManualLedgerDto } from "../api/manual-ledger-api";
+import type { components } from "../../../api/generated/schema";
 import styles from "../manual-ledger.module.css";
 import {
   manualLedgerClassificationFiltersAreActive,
@@ -12,9 +12,14 @@ import {
   manualLedgerFilterSearch,
   manualOperationStatusFilters,
   manualOperationTypeFilters,
+  operationSourceFilters,
 } from "./manual-ledger-filter-query";
 
-type FilterOptions = ManualLedgerDto["filterOptions"];
+type OperationsFilterOptions =
+  components["schemas"]["OperationsFilterOptionsApiResponse"];
+type FilterOptions = Omit<OperationsFilterOptions, "sources"> & {
+  sources?: OperationsFilterOptions["sources"];
+};
 
 type ManualLedgerFiltersProps = {
   navigationPending?: boolean;
@@ -57,6 +62,7 @@ export function ManualLedgerFilters({
         <div>
           <FilterSelect
             id="manual-filter-status"
+            emptyLabel="Подтверждённые"
             label="Статус"
             name="status"
             onChange={(status) => setDraft({ ...draft, status })}
@@ -110,6 +116,18 @@ export function ManualLedgerFilters({
             options={manualOperationTypeFilters}
             value={draft.operationType}
           />
+          {options.sources ? (
+            <FilterSelect
+              id="manual-filter-source"
+              label="Источник"
+              name="source"
+              onChange={(source) => setDraft({ ...draft, source })}
+              options={operationSourceFilters.filter((option) =>
+                options.sources?.includes(option.value),
+              )}
+              value={draft.source}
+            />
+          ) : null}
           <FilterSelect
             id="manual-filter-account"
             label="Счёт"
@@ -158,6 +176,7 @@ export function ManualLedgerFilters({
 }
 
 type FilterSelectProps = {
+  emptyLabel?: string;
   id: string;
   label: string;
   name: string;
@@ -167,6 +186,7 @@ type FilterSelectProps = {
 };
 
 function FilterSelect({
+  emptyLabel = "Все",
   id,
   label,
   name,
@@ -182,7 +202,7 @@ function FilterSelect({
         onChange={(event) => onChange(event.currentTarget.value)}
         value={value}
       >
-        <option value="">Все</option>
+        <option value="">{emptyLabel}</option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

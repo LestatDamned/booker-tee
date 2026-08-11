@@ -3,12 +3,13 @@ import { useRef, useState } from "react";
 import { formatIsoDate } from "../../shared/date/format-date";
 import { formatMoneyAmount } from "../../shared/money/format-money";
 import { ActionStack } from "../../ui/action-stack/action-stack";
-import { Button } from "../../ui/button/button";
+import { Button, RouterButtonLink } from "../../ui/button/button";
 import { ExpansionPanel } from "../../ui/expansion-panel/expansion-panel";
 import { MoneyValue } from "../../ui/money-value/money-value";
 import { WorkbenchRow } from "../../ui/workbench-row/workbench-row";
 import type { ImportReviewDto } from "./api/import-review-api";
 import type { ImportReviewCategoryReferenceDto } from "./api/import-review-mutations";
+import { operationHref } from "../operations/operation-navigation";
 import { ClassificationPanel } from "./classification-panel";
 import { DuplicateComparison } from "./duplicate-comparison";
 import {
@@ -279,6 +280,15 @@ export function ReviewItem({
     outcome || actionStack ? (
       <div className={styles.outcomeRail}>
         {outcome ? <ReviewOutcome outcome={outcome} /> : null}
+        {item.posting.operationId ? (
+          <RouterButtonLink
+            icon="information"
+            to={operationHref(item.posting.operationId)}
+            tone="secondary"
+          >
+            Открыть операцию
+          </RouterButtonLink>
+        ) : null}
         {actionStack}
       </div>
     ) : undefined;

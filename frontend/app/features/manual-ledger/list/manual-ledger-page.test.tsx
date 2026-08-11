@@ -5,21 +5,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionDto } from "../../../api/session";
 import tagStyles from "../../../ui/tag/tag.module.css";
-import type { ManualLedgerDto } from "../api/manual-ledger-api";
+import type { OperationsDto } from "../../operations/api/operations-api";
 import { ManualLedgerPage } from "./manual-ledger-page";
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("ManualLedgerPage", () => {
+describe("OperationsPage", () => {
   it("renders date, money and the single backend description as primary data", () => {
     render(
-      <MemoryRouter initialEntries={["/app/ledger/manual"]}>
+      <MemoryRouter initialEntries={["/app/operations"]}>
         <ManualLedgerPage ledger={ledger()} session={session} />
       </MemoryRouter>,
     );
 
     expect(
-      screen.getByRole("heading", { name: "Ручные операции" }),
+      screen.getByRole("heading", { name: "Операции" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Аренда за июль" }),
@@ -36,7 +36,7 @@ describe("ManualLedgerPage", () => {
       category: { id: crypto.randomUUID(), name: "Аренда" },
     };
     render(
-      <MemoryRouter initialEntries={["/app/ledger/manual?type=expense"]}>
+      <MemoryRouter initialEntries={["/app/operations?type=expense"]}>
         <ManualLedgerPage ledger={page} session={session} />
       </MemoryRouter>,
     );
@@ -58,19 +58,26 @@ describe("ManualLedgerPage", () => {
       },
       account: null,
       category: null,
-      sourceAccount: { id: crypto.randomUUID(), name: "ВТБ вклад" },
+      sourceAccount: {
+        id: crypto.randomUUID(),
+        name: "ВТБ вклад",
+        currency: "RUB",
+      },
       destinationAccount: {
         id: crypto.randomUUID(),
         name: "Экспобанк карта",
+        currency: "RUB",
       },
     };
 
     render(
-      <MemoryRouter initialEntries={["/app/ledger/manual"]}>
+      <MemoryRouter initialEntries={["/app/operations"]}>
         <ManualLedgerPage ledger={page} session={session} />
       </MemoryRouter>,
     );
-    expect(screen.getByText("ВТБ вклад → Экспобанк карта")).toBeInTheDocument();
+    expect(
+      document.getElementById(`operation-${page.items[0]?.id}`),
+    ).toHaveTextContent("ВТБ вклад → Экспобанк карта · Вручную");
     expect(screen.queryByText("Не влияет на прибыль")).not.toBeInTheDocument();
   });
 
@@ -89,7 +96,7 @@ describe("ManualLedgerPage", () => {
 
     render(
       <MemoryRouter
-        initialEntries={["/app/ledger/manual?type=expense&search=аренда"]}
+        initialEntries={["/app/operations?type=expense&search=аренда"]}
       >
         <ManualLedgerPage ledger={page} session={session} />
       </MemoryRouter>,
@@ -104,7 +111,7 @@ describe("ManualLedgerPage", () => {
     ).toHaveTextContent("Поиск: аренда");
     expect(
       screen.getByRole("link", { name: "Сбросить фильтры" }),
-    ).toHaveAttribute("href", "/app/ledger/manual");
+    ).toHaveAttribute("href", "/app/operations");
   });
 
   it("preserves applied filters when building pagination URLs", () => {
@@ -119,7 +126,7 @@ describe("ManualLedgerPage", () => {
     };
     render(
       <MemoryRouter
-        initialEntries={["/app/ledger/manual?type=expense&page=1&per_page=25"]}
+        initialEntries={["/app/operations?type=expense&page=1&per_page=25"]}
       >
         <ManualLedgerPage ledger={page} session={session} />
       </MemoryRouter>,
@@ -127,7 +134,7 @@ describe("ManualLedgerPage", () => {
 
     expect(screen.getByRole("link", { name: "Дальше" })).toHaveAttribute(
       "href",
-      "/app/ledger/manual?type=expense&page=2&per_page=25",
+      "/app/operations?type=expense&page=2&per_page=25",
     );
   });
 
@@ -145,7 +152,7 @@ describe("ManualLedgerPage", () => {
 
     render(
       <MemoryRouter
-        initialEntries={["/app/ledger/manual?type=expense&page=3&per_page=50"]}
+        initialEntries={["/app/operations?type=expense&page=3&per_page=50"]}
       >
         <ManualLedgerPage ledger={page} session={session} />
         <LocationProbe />
@@ -161,15 +168,16 @@ describe("ManualLedgerPage", () => {
 
   it("renders the operation selected by a deep link without a permanent state", () => {
     const page = ledger();
+    page.targetOperationId = required(page.items[0], "fixture operation").id;
     render(
-      <MemoryRouter initialEntries={["/app/ledger/manual"]}>
+      <MemoryRouter initialEntries={["/app/operations"]}>
         <ManualLedgerPage ledger={page} session={session} />
       </MemoryRouter>,
     );
 
     expect(
       document.getElementById(`operation-${page.targetOperationId}`),
-    ).toHaveAttribute("data-state", "default");
+    ).toHaveAttribute("data-state", "target");
     expect(screen.queryByText("Текущая строка")).not.toBeInTheDocument();
   });
 
@@ -184,9 +192,7 @@ describe("ManualLedgerPage", () => {
     page.targetOperation = target;
 
     render(
-      <MemoryRouter
-        initialEntries={[`/app/ledger/manual#operation-${target.id}`]}
-      >
+      <MemoryRouter initialEntries={[`/app/operations#operation-${target.id}`]}>
         <ManualLedgerPage ledger={page} session={session} />
       </MemoryRouter>,
     );
@@ -194,8 +200,13 @@ describe("ManualLedgerPage", () => {
     expect(screen.getByText("Старая целевая операция")).toBeInTheDocument();
     expect(document.getElementById(`operation-${target.id}`)).toHaveAttribute(
       "data-state",
-      "default",
+      "target",
     );
+    expect(
+      screen.getByText(
+        "Операция открыта по прямой ссылке и не входит в текущую выборку.",
+      ),
+    ).toBeVisible();
   });
 
   it("moves the working state to the row whose action the user chooses", async () => {
@@ -212,7 +223,7 @@ describe("ManualLedgerPage", () => {
     page.pagination.total = 2;
 
     render(
-      <MemoryRouter initialEntries={["/app/ledger/manual"]}>
+      <MemoryRouter initialEntries={["/app/operations"]}>
         <ManualLedgerPage ledger={page} session={session} />
       </MemoryRouter>,
     );
@@ -251,7 +262,7 @@ describe("ManualLedgerPage", () => {
     const fetchMock = vi.fn().mockReturnValue(pendingResponse);
     vi.stubGlobal("fetch", fetchMock);
     render(
-      <MemoryRouter initialEntries={["/app/ledger/manual"]}>
+      <MemoryRouter initialEntries={["/app/operations"]}>
         <ManualLedgerPage ledger={page} session={session} />
       </MemoryRouter>,
     );
@@ -273,6 +284,7 @@ describe("ManualLedgerPage", () => {
       status: "ignored" as const,
       capabilities: {
         canEdit: false,
+        editKind: "none" as const,
         canCancel: false,
         canRestore: true,
         canDelete: true,
@@ -310,7 +322,7 @@ const session: SessionDto = {
   csrfToken: "csrf-token",
 };
 
-function ledger(): ManualLedgerDto {
+function ledger(): OperationsDto {
   const operationId = crypto.randomUUID();
   return {
     items: [
@@ -318,6 +330,7 @@ function ledger(): ManualLedgerDto {
         id: operationId,
         version: 3,
         operationType: "expense",
+        source: "manual",
         operationDate: "2026-07-20",
         description: "Аренда за июль",
         status: "confirmed",
@@ -325,13 +338,19 @@ function ledger(): ManualLedgerDto {
           amount: "65000.00",
           currency: "RUB",
         },
-        account: { id: crypto.randomUUID(), name: "Основной счёт" },
+        account: {
+          id: crypto.randomUUID(),
+          name: "Основной счёт",
+          currency: "RUB",
+        },
         sourceAccount: null,
         destinationAccount: null,
         category: null,
         property: null,
+        provenance: null,
         capabilities: {
           canEdit: true,
+          editKind: "manual",
           canCancel: true,
           canRestore: false,
           canDelete: false,
@@ -360,21 +379,23 @@ function ledger(): ManualLedgerDto {
       ],
       categories: [],
       properties: [],
+      sources: ["manual", "bank_pdf", "debt", "system"],
       perPage: [25, 50, 100, 200],
     },
     capabilities: { canCreate: true, readonlyReason: null },
-    targetOperationId: operationId,
+    targetOperationId: null,
   };
 }
 
 function deletableOperation(
-  operation: ManualLedgerDto["items"][number],
-): ManualLedgerDto["items"][number] {
+  operation: OperationsDto["items"][number],
+): OperationsDto["items"][number] {
   return {
     ...operation,
     status: "ignored",
     capabilities: {
       canEdit: false,
+      editKind: "none",
       canCancel: false,
       canRestore: false,
       canDelete: true,

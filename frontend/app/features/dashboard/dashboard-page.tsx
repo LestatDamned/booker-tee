@@ -97,7 +97,7 @@ function PrimaryAction({
   }
   if (action === "manual_operation") {
     return (
-      <RouterButtonLink icon="plus" to="/ledger/manual" tone="primary">
+      <RouterButtonLink icon="plus" to="/operations" tone="primary">
         Добавить операцию
       </RouterButtonLink>
     );
@@ -414,7 +414,7 @@ function nextStep(
     const document = dashboard.recentDocuments[0];
     return {
       action: "Продолжить",
-      href: document ? documentHref(document) : "/ledger/manual",
+      href: document ? documentHref(document) : "/operations",
       icon: document ? "imports" : "plus",
       title: "Подтвердите первые операции",
     };

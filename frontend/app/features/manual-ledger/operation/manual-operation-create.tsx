@@ -2,10 +2,11 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 
 import { redirectIfUnauthenticated } from "../../../session/unauthenticated";
+import { operationHref } from "../../operations/operation-navigation";
 import { Button } from "../../../ui/button/button";
 import { FormErrorSummary } from "../../../ui/field/form-error-summary";
 import { FormActions } from "../../../ui/field/form-layout";
-import type { ManualLedgerDto } from "../api/manual-ledger-api";
+import type { ManualOperationFormOptions } from "../api/manual-ledger-api";
 import { focusFirstInvalidField } from "../focus-invalid-field";
 import { createManualOperation } from "../api/manual-ledger-mutations";
 import {
@@ -25,7 +26,7 @@ type ManualOperationCreateProps = {
   onClose: () => void;
   onCreated?: () => void;
   onPendingChange?: (pending: boolean) => void;
-  options: ManualLedgerDto["filterOptions"];
+  options: ManualOperationFormOptions;
 };
 
 type SubmitState =
@@ -82,11 +83,7 @@ export function ManualOperationCreate({
       setDraft(emptyManualOperationDraft());
       setIdempotencyKey(newIdempotencyKey());
       setSubmitState({ status: "idle" });
-      void navigate({
-        pathname: "/ledger/manual",
-        search: `?operation_id=${result.operation.id}`,
-        hash: `#operation-${result.operation.id}`,
-      });
+      void navigate(operationHref(result.operation.id));
       return;
     }
     if (redirectIfUnauthenticated(result)) return;

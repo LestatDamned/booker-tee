@@ -56,26 +56,3 @@ class ManualOperationApiResponse(ApiModel):
 class ManualOperationEditApiResponse(ApiModel):
     operation: ManualOperationApiResponse
     filter_options: ManualLedgerFilterOptionsApiResponse
-
-
-class ManualLedgerPaginationApiResponse(ApiModel):
-    page: int
-    per_page: int
-    total: int
-    total_pages: int
-    has_previous: bool
-    has_next: bool
-
-
-class ManualLedgerCapabilitiesApiResponse(ApiModel):
-    can_create: bool
-    readonly_reason: str | None = None
-
-
-class ManualLedgerListApiResponse(ApiModel):
-    items: list[ManualOperationApiResponse]
-    pagination: ManualLedgerPaginationApiResponse
-    filter_options: ManualLedgerFilterOptionsApiResponse
-    capabilities: ManualLedgerCapabilitiesApiResponse
-    target_operation_id: UUID | None = None
-    target_operation: ManualOperationApiResponse | None = None

@@ -1,6 +1,11 @@
-import type { ManualLedgerDto } from "../api/manual-ledger-api";
+import type { components } from "../../../api/generated/schema";
 
-type FilterOptions = ManualLedgerDto["filterOptions"];
+type FilterOptions = {
+  accounts: components["schemas"]["OperationsFilterOptionsApiResponse"]["accounts"];
+  categories: components["schemas"]["OperationsFilterOptionsApiResponse"]["categories"];
+  properties: components["schemas"]["OperationsFilterOptionsApiResponse"]["properties"];
+  sources?: components["schemas"]["OperationsFilterOptionsApiResponse"]["sources"];
+};
 
 export type ManualLedgerFilterDraft = {
   accountId: string;
@@ -10,6 +15,7 @@ export type ManualLedgerFilterDraft = {
   operationType: string;
   propertyId: string;
   search: string;
+  source: string;
   status: string;
 };
 
@@ -21,9 +27,9 @@ export const manualOperationTypeFilters = [
 ];
 
 export const manualOperationStatusFilters = [
+  { value: "all", label: "все статусы" },
   { value: "draft", label: "черновик" },
   { value: "needs_review", label: "нужна проверка" },
-  { value: "confirmed", label: "подтверждено" },
   { value: "ignored", label: "отменено" },
   { value: "duplicate", label: "дубликат" },
 ];
@@ -37,7 +43,18 @@ const filterNames = [
   "category_id",
   "property_id",
   "search",
+  "source",
 ] as const;
+
+export const operationSourceFilters = [
+  { value: "manual", label: "вручную" },
+  { value: "bank_pdf", label: "импорт" },
+  { value: "debt", label: "долг" },
+  { value: "system", label: "система" },
+] satisfies ReadonlyArray<{
+  value: components["schemas"]["OperationSource"];
+  label: string;
+}>;
 
 export function manualLedgerFilterDraft(
   currentSearch: string,
@@ -52,6 +69,10 @@ export function manualLedgerFilterDraft(
     operationType: validOption(search.get("type"), manualOperationTypeFilters),
     propertyId: validOption(search.get("property_id"), options.properties),
     search: search.get("search") ?? "",
+    source: validOption(
+      search.get("source"),
+      options.sources?.map((value) => ({ value })) ?? [],
+    ),
     status: validOption(search.get("status"), manualOperationStatusFilters),
   };
 }
@@ -69,6 +90,7 @@ export function manualLedgerFilterSearch(
   append(search, "category_id", draft.categoryId);
   append(search, "property_id", draft.propertyId);
   append(search, "search", draft.search.trim().replace(/\s+/g, " "));
+  append(search, "source", draft.source);
   search.set("page", "1");
   search.set("per_page", String(perPage));
   return `?${search.toString()}`;
@@ -86,6 +108,9 @@ export function manualLedgerFiltersAreActive(currentSearch: string): boolean {
     }
     if (name === "status") {
       return Boolean(validOption(value, manualOperationStatusFilters));
+    }
+    if (name === "source") {
+      return Boolean(validOption(value, operationSourceFilters));
     }
     if (name.endsWith("_id")) {
       return Boolean(value && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value));
@@ -128,6 +153,11 @@ export function manualLedgerAppliedFilters(
     optionLabel(draft.propertyId, options.properties),
   );
   addAppliedFilter(filters, "Поиск", draft.search.trim());
+  addAppliedFilter(
+    filters,
+    "Источник",
+    optionLabel(draft.source, operationSourceFilters),
+  );
   return filters;
 }
 
@@ -138,7 +168,8 @@ export function manualLedgerClassificationFiltersAreActive(
     draft.operationType ||
     draft.accountId ||
     draft.categoryId ||
-    draft.propertyId,
+    draft.propertyId ||
+    draft.source,
   );
 }
 

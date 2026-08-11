@@ -1,12 +1,16 @@
 import { useRef, useState } from "react";
 
 import { ActionStack } from "../../../ui/action-stack/action-stack";
-import { Button } from "../../../ui/button/button";
+import { Button, RouterButtonLink } from "../../../ui/button/button";
 import { ExpansionPanel } from "../../../ui/expansion-panel/expansion-panel";
 import { MoneyValue } from "../../../ui/money-value/money-value";
 import { StatusLabel } from "../../../ui/status-label/status-label";
 import { Tag } from "../../../ui/tag/tag";
 import { WorkbenchRow } from "../../../ui/workbench-row/workbench-row";
+import {
+  ImportedOperationCorrectionPanel,
+  type ImportedOperationCorrectionPanelHandle,
+} from "../../accounts/imported-operation-correction-panel";
 import type { ManualOperationDto } from "../api/manual-ledger-api";
 import type { ManualOperationRowModel } from "./manual-ledger-model";
 import { ManualOperationDelete } from "./manual-operation-delete";
@@ -17,6 +21,10 @@ type ManualOperationRowProps = {
   csrfToken: string;
   isEditing: boolean;
   isWorking: boolean;
+  categories?: Array<{ id: string; name: string }>;
+  properties?: Array<{ id: string; name: string }>;
+  outsideCurrentSelection?: boolean;
+  selected?: boolean;
   onDeleted?: (operationId: string) => void;
   onEdit: (operationId: string) => void;
   onEditClosed: () => void;
@@ -29,6 +37,7 @@ type ManualOperationRowProps = {
 
 export function ManualOperationRow({
   csrfToken,
+  categories = [],
   isEditing,
   isWorking,
   onDeleted,
@@ -39,23 +48,48 @@ export function ManualOperationRow({
   onSuccess,
   onWorkStarted,
   operation,
+  outsideCurrentSelection = false,
+  properties = [],
+  selected = false,
 }: ManualOperationRowProps) {
   const [mutationPending, setMutationPending] = useState(false);
   const editButtonRef = useRef<HTMLButtonElement>(null);
-  const editPanelId = `manual-operation-edit-panel-${operation.id}`;
+  const importedPanelRef = useRef<ImportedOperationCorrectionPanelHandle>(null);
+  const editPanelId = `operation-edit-panel-${operation.id}`;
+  const importedEditable =
+    operation.canEdit &&
+    operation.editKind === "imported" &&
+    operation.accountId !== null;
+  const editable =
+    (operation.canEdit && operation.editKind === "manual") || importedEditable;
+  const sourceAction = operation.sourceTarget ? (
+    <RouterButtonLink icon="source" to={operation.sourceTarget.url}>
+      {operation.sourceTarget.label}
+    </RouterButtonLink>
+  ) : undefined;
 
   function closeEdit() {
     onEditClosed();
     queueMicrotask(() => editButtonRef.current?.focus());
   }
 
+  function toggleEdit() {
+    if (isEditing && operation.editKind === "imported") {
+      importedPanelRef.current?.requestClose();
+      return;
+    }
+    if (isEditing) closeEdit();
+    else onEdit(operation.id);
+  }
+
   return (
     <WorkbenchRow
       aside={
-        operation.canEdit ||
+        editable ||
         operation.canCancel ||
         operation.canRestore ||
-        operation.canDelete ? (
+        operation.canDelete ||
+        sourceAction ? (
           <ActionStack
             danger={
               !isEditing && (operation.canCancel || operation.canDelete) ? (
@@ -92,15 +126,14 @@ export function ManualOperationRow({
                 </>
               ) : undefined
             }
+            overflow={editable ? sourceAction : undefined}
             primary={
-              operation.canEdit ? (
+              editable ? (
                 <Button
                   aria-controls={editPanelId}
                   aria-expanded={isEditing}
                   disabled={mutationPending}
-                  onClick={() =>
-                    isEditing ? closeEdit() : onEdit(operation.id)
-                  }
+                  onClick={toggleEdit}
                   ref={editButtonRef}
                   tone="secondary"
                   icon="edit"
@@ -121,38 +154,83 @@ export function ManualOperationRow({
                   operationId={operation.id}
                   version={operation.version}
                 />
-              ) : undefined
+              ) : (
+                sourceAction
+              )
             }
           />
         ) : undefined
       }
       date={operation.date}
       description={operation.description}
+      details={<OperationContext operation={operation} />}
       id={operation.anchorId}
       expansion={
-        operation.canEdit && isEditing ? (
+        editable && isEditing ? (
           <ExpansionPanel
             id={editPanelId}
             title="Исправить операцию"
             titleId={`${editPanelId}-title`}
           >
-            <ManualOperationEdit
-              csrfToken={csrfToken}
-              disabled={mutationPending}
-              onClose={closeEdit}
-              onPendingChange={setMutationPending}
-              onUpdated={(updated) => {
-                onOperationUpdated?.(updated);
-                onSuccess?.("Изменения операции сохранены.");
-              }}
-              operationId={operation.id}
-            />
+            {operation.editKind === "imported" && operation.accountId ? (
+              <ImportedOperationCorrectionPanel
+                accountId={operation.accountId}
+                categories={categories}
+                csrfToken={csrfToken}
+                onClose={closeEdit}
+                onCommitted={() => {
+                  closeEdit();
+                  onRefresh?.();
+                  onSuccess?.(
+                    "Исправления импортированной операции сохранены.",
+                  );
+                }}
+                operation={{
+                  category: operation.category,
+                  description: operation.description,
+                  operationId: operation.id,
+                  property: operation.property,
+                  version: operation.version,
+                }}
+                properties={properties}
+                ref={importedPanelRef}
+              />
+            ) : (
+              <ManualOperationEdit
+                csrfToken={csrfToken}
+                disabled={mutationPending}
+                onClose={closeEdit}
+                onPendingChange={setMutationPending}
+                onUpdated={(updated) => {
+                  onOperationUpdated?.(updated);
+                  onSuccess?.("Изменения операции сохранены.");
+                }}
+                operationId={operation.id}
+              />
+            )}
           </ExpansionPanel>
         ) : undefined
       }
       meta={<OperationMeta operation={operation} />}
       onAction={onWorkStarted}
-      state={isWorking ? "working" : "default"}
+      signals={
+        outsideCurrentSelection || operation.readonlyReasonLabel ? (
+          <>
+            {outsideCurrentSelection ? (
+              <StatusLabel tone="neutral">
+                Операция открыта по прямой ссылке и не входит в текущую выборку.
+              </StatusLabel>
+            ) : null}
+            {operation.readonlyReasonLabel ? (
+              <StatusLabel tone="neutral">
+                {operation.readonlyReasonLabel}
+              </StatusLabel>
+            ) : null}
+          </>
+        ) : undefined
+      }
+      state={isWorking ? "working" : selected ? "target" : "default"}
+      {...(selected ? { tabIndex: -1 } : {})}
       value={
         operation.money ? (
           <MoneyValue
@@ -166,15 +244,27 @@ export function ManualOperationRow({
   );
 }
 
+function OperationContext({
+  operation,
+}: {
+  operation: ManualOperationRowModel;
+}) {
+  const account =
+    operation.transferRouteLabel ?? operation.accountLabel ?? "Счёт не указан";
+  return (
+    <>
+      {account} · {operation.sourceLabel ?? "Вручную"}
+    </>
+  );
+}
+
 function OperationMeta({ operation }: { operation: ManualOperationRowModel }) {
   const problemStatus =
     operation.statusTone === "warning" || operation.statusTone === "danger";
   return (
     <>
       <Tag tone={operation.operationTone}>{operation.operationLabel}</Tag>
-      {operation.transferRouteLabel ? (
-        <Tag tone="transfer">{operation.transferRouteLabel}</Tag>
-      ) : (
+      {operation.transferRouteLabel ? null : (
         <>
           {operation.categoryLabel ? (
             <Tag tone="category">{operation.categoryLabel}</Tag>
@@ -184,17 +274,16 @@ function OperationMeta({ operation }: { operation: ManualOperationRowModel }) {
           {operation.propertyLabel ? (
             <span>Объект: {operation.propertyLabel}</span>
           ) : null}
-          {operation.accountLabel ? (
-            <span>Счёт: {operation.accountLabel}</span>
-          ) : null}
         </>
       )}
-      <StatusLabel
-        tone={operation.statusTone}
-        variant={problemStatus ? "soft" : "plain"}
-      >
-        {operation.statusLabel}
-      </StatusLabel>
+      {operation.status !== "confirmed" ? (
+        <StatusLabel
+          tone={operation.statusTone}
+          variant={problemStatus ? "soft" : "plain"}
+        >
+          {operation.statusLabel}
+        </StatusLabel>
+      ) : null}
     </>
   );
 }

@@ -55,9 +55,10 @@ class AccountEntryFilters(ApplicationModel):
     search: str | None = None
 
 
-class ManualOperationFilters(ApplicationModel):
+class OperationFilters(ApplicationModel):
     date_from: date | None = None
     date_to: date | None = None
+    source: OperationSource | None = None
     operation_type: OperationType | None = None
     status: OperationStatus | None = None
     account_id: UUID | None = None
@@ -71,6 +72,7 @@ class ManualOperationFilters(ApplicationModel):
             (
                 self.date_from,
                 self.date_to,
+                self.source,
                 self.operation_type,
                 self.status,
                 self.account_id,

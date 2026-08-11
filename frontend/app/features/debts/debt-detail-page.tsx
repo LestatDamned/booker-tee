@@ -8,7 +8,7 @@ import { redirectIfUnauthenticated } from "../../session/unauthenticated";
 import { AppShell } from "../../shell/app-shell";
 import { ActionStack } from "../../ui/action-stack/action-stack";
 import { BackLink } from "../../ui/back-link/back-link";
-import { Button } from "../../ui/button/button";
+import { Button, RouterButtonLink } from "../../ui/button/button";
 import { ConfirmationDialog } from "../../ui/confirmation-dialog/confirmation-dialog";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import { MoneyValue } from "../../ui/money-value/money-value";
@@ -25,6 +25,7 @@ import { WorkbenchSurface } from "../../ui/workbench-surface/workbench-surface";
 import { WorkbenchPagination } from "../../ui/workbench-pagination/workbench-pagination";
 import type { AccountSummaryDto } from "../accounts/api/accounts-api";
 import type { CategorySummaryDto } from "../categories/api/categories-api";
+import { operationHref } from "../operations/operation-navigation";
 import {
   changeDebtLifecycle,
   deleteDebt,
@@ -503,26 +504,46 @@ function PaymentParts({
   return (
     <div className={styles.paymentParts}>
       {payment.principal ? (
-        <span>
-          Основной долг{" "}
-          <MoneyValue
-            amount={formatMoneyAmount(payment.principal.amount, null)}
-            currency={currency}
-            tone="transfer"
-          />
-        </span>
+        <div className={styles.paymentPart}>
+          <span>
+            Основной долг{" "}
+            <MoneyValue
+              amount={formatMoneyAmount(payment.principal.amount, null)}
+              currency={currency}
+              tone="transfer"
+            />
+          </span>
+          <RouterButtonLink
+            icon="information"
+            to={operationHref(payment.principal.operationId)}
+            tone="ghost"
+          >
+            Открыть основную операцию
+          </RouterButtonLink>
+        </div>
       ) : null}
       {payment.interest ? (
-        <span>
-          Проценты{" "}
-          <MoneyValue
-            amount={formatMoneyAmount(payment.interest.amount, null)}
-            currency={currency}
-            tone={
-              payment.interest.operationType === "income" ? "income" : "expense"
-            }
-          />
-        </span>
+        <div className={styles.paymentPart}>
+          <span>
+            Проценты{" "}
+            <MoneyValue
+              amount={formatMoneyAmount(payment.interest.amount, null)}
+              currency={currency}
+              tone={
+                payment.interest.operationType === "income"
+                  ? "income"
+                  : "expense"
+              }
+            />
+          </span>
+          <RouterButtonLink
+            icon="information"
+            to={operationHref(payment.interest.operationId)}
+            tone="ghost"
+          >
+            Открыть операцию процентов
+          </RouterButtonLink>
+        </div>
       ) : null}
       {payment.notes ? <span>{payment.notes}</span> : null}
     </div>

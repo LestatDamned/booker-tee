@@ -3,12 +3,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Response, status
 
-from app.api.dependencies import (
-    ApiRequestContext,
-    get_api_request_context,
-    require_api_financial_write_context,
-)
-from app.api.errors import ApiError, api_error_responses
+from app.api.dependencies import ApiRequestContext, require_api_financial_write_context
+from app.api.errors import api_error_responses
 from app.api.v1.manual_ledger.dependencies import (
     get_manual_ledger_reference_reader,
     get_manual_operation_service,
@@ -18,17 +14,12 @@ from app.api.v1.manual_ledger.mapping import (
     ManualLedgerResponseMapper,
     ManualOperationRequestMapper,
 )
-from app.api.v1.manual_ledger.schemas.list_parameters import (
-    ManualLedgerListParameters,
-    parse_manual_ledger_list_parameters,
-)
 from app.api.v1.manual_ledger.schemas.requests import (
     ManualOperationCreateApiRequest,
     ManualOperationLifecycleApiRequest,
     ManualOperationUpdateApiRequest,
 )
 from app.api.v1.manual_ledger.schemas.responses import (
-    ManualLedgerListApiResponse,
     ManualOperationApiResponse,
     ManualOperationEditApiResponse,
 )
@@ -37,65 +28,8 @@ from app.features.ledger.application.manual_operations import (
     ManualOperationService,
 )
 from app.features.ledger.errors import LedgerPostingError
-from app.features.workspaces.permissions import permission_flags_for
 
 router = APIRouter(prefix="/manual-ledger", tags=["manual-ledger"])
-
-
-@router.get(
-    "",
-    response_model=ManualLedgerListApiResponse,
-    responses=api_error_responses(
-        status.HTTP_400_BAD_REQUEST,
-        status.HTTP_401_UNAUTHORIZED,
-        status.HTTP_403_FORBIDDEN,
-        status.HTTP_422_UNPROCESSABLE_CONTENT,
-    ),
-)
-async def list_manual_operations(
-    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
-    parameters: Annotated[
-        ManualLedgerListParameters,
-        Depends(parse_manual_ledger_list_parameters),
-    ],
-    manual_operations: Annotated[
-        ManualOperationService,
-        Depends(get_manual_operation_service),
-    ],
-    reference_reader: Annotated[
-        ManualLedgerReferenceReader,
-        Depends(get_manual_ledger_reference_reader),
-    ],
-) -> ManualLedgerListApiResponse:
-    if parameters.date_from and parameters.date_to and parameters.date_from > parameters.date_to:
-        raise ApiError(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            code="invalid_date_range",
-            message="Начало периода не может быть позже конца периода.",
-        )
-
-    operations, page = await manual_operations.list(
-        workspace_id=context.workspace.workspace.id,
-        filters=parameters.filters,
-        pagination=parameters.pagination,
-    )
-    target_operation = (
-        await manual_operations.get(
-            workspace_id=context.workspace.workspace.id,
-            operation_id=parameters.operation_id,
-        )
-        if parameters.operation_id
-        else None
-    )
-    references = await reference_reader.read(context.workspace.workspace.id)
-    can_write = permission_flags_for(context.workspace.membership).can_write_financial_data
-    return ManualLedgerResponseMapper.list_response(
-        operations=operations,
-        page=page,
-        references=references,
-        can_write=can_write,
-        target_operation=target_operation,
-    )
 
 
 @router.get(

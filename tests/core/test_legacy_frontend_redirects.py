@@ -29,7 +29,7 @@ CATEGORY_ID = "33333333-3333-3333-3333-333333333333"
         ("/dashboard/summary", "/app"),
         (
             "/ledger/manual?type=expense&page=2",
-            "/app/ledger/manual?type=expense&page=2",
+            "/app/operations?type=expense&page=2",
         ),
         ("/accounts?source=dashboard", "/app/accounts?source=dashboard"),
         (

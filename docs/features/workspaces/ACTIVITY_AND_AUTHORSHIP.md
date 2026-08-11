@@ -421,6 +421,9 @@ Backend возвращает stable `summary_code` и typed details; React фо�
 русскую строку. ORM model и произвольный JSON наружу не выдаются. Application/API
 DTO не содержит React `href`: frontend строит canonical route по известному
 `entity.type`, а target endpoint повторно проверяет workspace authorization.
+Для `operation` целевой deep link определён в
+[`../operations/README.md`](../operations/README.md):
+`/app/operations?operation_id=<uuid>`.
 
 Stage 3 `eventType` сохраняется в v1 response только для backward compatibility,
 но React использует один presentation discriminator — `summaryCode`. Новые

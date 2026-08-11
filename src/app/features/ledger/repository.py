@@ -10,13 +10,12 @@ from app.features.ledger.domain.types import OperationType
 from app.features.ledger.models import (
     MoneyEntry,
     Operation,
-    OperationSource,
     OperationStatus,
 )
 from app.features.ledger.schemas.listing import (
     AccountEntryFilters,
     LedgerPagination,
-    ManualOperationFilters,
+    OperationFilters,
 )
 
 
@@ -91,11 +90,11 @@ class LedgerRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_manual_operations_page_for_workspace(
+    async def list_operations_page_for_workspace(
         self,
         *,
         workspace_id: UUID,
-        filters: ManualOperationFilters,
+        filters: OperationFilters,
         pagination: LedgerPagination,
     ) -> list[Operation]:
         query = (
@@ -103,14 +102,14 @@ class LedgerRepository:
             .options(
                 selectinload(Operation.category),
                 selectinload(Operation.property),
+                selectinload(Operation.raw_transactions),
                 selectinload(Operation.money_entries).selectinload(MoneyEntry.account),
             )
             .where(
                 Operation.workspace_id == workspace_id,
-                Operation.source == OperationSource.MANUAL,
             )
         )
-        query = self._apply_manual_operation_filters(query, filters)
+        query = self._apply_operation_filters(query, filters)
         query = query.order_by(
             Operation.operation_date.desc(),
             Operation.created_at.desc(),
@@ -121,17 +120,16 @@ class LedgerRepository:
         )
         return list(result.unique().scalars().all())
 
-    async def count_manual_operations_for_workspace(
+    async def count_operations_for_workspace(
         self,
         *,
         workspace_id: UUID,
-        filters: ManualOperationFilters,
+        filters: OperationFilters,
     ) -> int:
         query = select(func.count(func.distinct(Operation.id))).where(
             Operation.workspace_id == workspace_id,
-            Operation.source == OperationSource.MANUAL,
         )
-        query = self._apply_manual_operation_filters(query, filters)
+        query = self._apply_operation_filters(query, filters)
         result = await self.session.execute(query)
         return result.scalar_one()
 
@@ -373,11 +371,13 @@ class LedgerRepository:
             query = query.where(Operation.description.ilike(f"%{filters.search}%"))
         return query
 
-    def _apply_manual_operation_filters(
+    def _apply_operation_filters(
         self,
         query: Select[tuple[Operation]] | Select[tuple[int]],
-        filters: ManualOperationFilters,
+        filters: OperationFilters,
     ) -> Select[tuple[Operation]] | Select[tuple[int]]:
+        if filters.source is not None:
+            query = query.where(Operation.source == filters.source)
         if filters.status is not None:
             query = query.where(Operation.status == filters.status)
         if filters.operation_type is not None:
