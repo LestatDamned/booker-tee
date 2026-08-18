@@ -3,10 +3,12 @@ from decimal import Decimal
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
+from threading import get_ident
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 from fastapi import UploadFile
@@ -14,8 +16,10 @@ from openpyxl import Workbook
 
 from app.features.import_review.domain.queue import REVIEW_QUEUE_STATUSES
 from app.features.import_review.repository import ImportReviewRepository
+from app.features.imports.documents.attempts import record_failed_parse_attempt
 from app.features.imports.documents.commands.upload import (
     StatementUploadUseCase,
+    extract_statement,
     validate_statement_upload,
 )
 from app.features.imports.documents.errors import (
@@ -29,14 +33,22 @@ from app.features.imports.documents.storage import (
 )
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.imports.models import ParseAttempt, RawTransaction, UploadedDocument
+from app.features.imports.parsers.extractors import pdf as pdf_extractor_module
 from app.features.imports.parsers.extractors.dto import (
     ExtractedStatement,
     ExtractedStatementPageTables,
 )
+from app.features.imports.parsers.extractors.limits import (
+    StatementExtractionLimits,
+    StatementResourceLimitError,
+)
 from app.features.imports.parsers.extractors.pdf import (
     PdfPlumberStatementExtractor,
 )
-from app.features.imports.parsers.extractors.resolver import StatementExtractorResolver
+from app.features.imports.parsers.extractors.resolver import (
+    StatementExtractor,
+    StatementExtractorResolver,
+)
 from app.features.imports.parsers.extractors.xlsx import (
     OpenPyxlStatementExtractor,
 )
@@ -292,6 +304,32 @@ def test_validate_statement_upload_rejects_unknown_extension() -> None:
 
 
 @pytest.mark.asyncio
+async def test_statement_extraction_runs_outside_event_loop() -> None:
+    event_loop_thread = get_ident()
+    extraction_thread: int | None = None
+    extracted = ExtractedStatement(
+        text_by_page=[],
+        tables_by_page=[],
+        metadata={},
+    )
+
+    class Extractor:
+        def extract(self, _file_path: Path) -> ExtractedStatement:
+            nonlocal extraction_thread
+            extraction_thread = get_ident()
+            return extracted
+
+    result = await extract_statement(
+        cast(StatementExtractor, Extractor()),
+        Path("statement.pdf"),
+    )
+
+    assert result is extracted
+    assert extraction_thread is not None
+    assert extraction_thread != event_loop_thread
+
+
+@pytest.mark.asyncio
 async def test_inactive_workspace_preserves_extracted_import_without_mapping_rows() -> None:
     document = SimpleNamespace(status=UploadedDocumentStatus.PARSING)
     attempt = SimpleNamespace(finished_at=None)
@@ -358,6 +396,27 @@ def test_pdfplumber_extractor_preserves_raw_pages() -> None:
     assert all(page.page_number >= 1 for page in extracted.tables_by_page)
 
 
+def test_pdf_extractor_rejects_document_over_page_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class PdfStub:
+        metadata: dict[str, object] = {}
+        pages = [object(), object()]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    monkeypatch.setattr(pdf_extractor_module.pdfplumber, "open", lambda _path: PdfStub())
+
+    with pytest.raises(StatementResourceLimitError, match="1-page"):
+        PdfPlumberStatementExtractor(StatementExtractionLimits(pdf_max_pages=1)).extract(
+            Path("oversized.pdf")
+        )
+
+
 def test_openpyxl_extractor_preserves_sheet_tables(tmp_path: Path) -> None:
     workbook_path = tmp_path / "statement.xlsx"
     workbook = Workbook()
@@ -380,6 +439,95 @@ def test_openpyxl_extractor_preserves_sheet_tables(tmp_path: Path) -> None:
             ["2026-06-01", "Coffee", "-10.5"],
         ]
     ]
+
+
+def test_xlsx_extractor_rejects_large_uncompressed_archive(tmp_path: Path) -> None:
+    workbook_path = tmp_path / "oversized.xlsx"
+    with ZipFile(workbook_path, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("xl/worksheets/sheet1.xml", "x" * 101)
+
+    with pytest.raises(StatementResourceLimitError, match="uncompressed size"):
+        OpenPyxlStatementExtractor(
+            StatementExtractionLimits(xlsx_max_uncompressed_bytes=100)
+        ).extract(workbook_path)
+
+
+@pytest.mark.parametrize(
+    ("limits", "cell", "message"),
+    [
+        (StatementExtractionLimits(xlsx_max_rows_per_sheet=1), "A2", "row"),
+        (StatementExtractionLimits(xlsx_max_columns_per_sheet=1), "B1", "column"),
+        (StatementExtractionLimits(xlsx_max_cells=3), "B2", "total cell"),
+    ],
+)
+def test_xlsx_extractor_enforces_sheet_dimensions(
+    tmp_path: Path,
+    limits: StatementExtractionLimits,
+    cell: str,
+    message: str,
+) -> None:
+    workbook_path = tmp_path / "oversized.xlsx"
+    workbook = Workbook()
+    workbook.active[cell] = "value"
+    workbook.save(workbook_path)
+
+    with pytest.raises(StatementResourceLimitError, match=message):
+        OpenPyxlStatementExtractor(limits).extract(workbook_path)
+
+
+def test_xlsx_extractor_enforces_sheet_count(tmp_path: Path) -> None:
+    workbook_path = tmp_path / "oversized.xlsx"
+    workbook = Workbook()
+    workbook.create_sheet("Second")
+    workbook.save(workbook_path)
+
+    with pytest.raises(StatementResourceLimitError, match="1-sheet"):
+        OpenPyxlStatementExtractor(StatementExtractionLimits(xlsx_max_sheets=1)).extract(
+            workbook_path
+        )
+
+
+@pytest.mark.asyncio
+async def test_resource_limit_failure_preserves_document_and_failed_attempt() -> None:
+    document = SimpleNamespace(status=UploadedDocumentStatus.PARSING)
+    attempt = SimpleNamespace(finished_at=None)
+
+    class Documents:
+        def __init__(self) -> None:
+            self.error_code: str | None = None
+            self.error_message: str | None = None
+
+        async def mark_attempt_failed(
+            self,
+            _attempt: object,
+            *,
+            error_code: str,
+            error_message: str,
+        ) -> None:
+            self.error_code = error_code
+            self.error_message = error_message
+
+        async def mark_document_status(
+            self,
+            target: Any,
+            status: UploadedDocumentStatus,
+        ) -> None:
+            target.status = status
+
+    documents = Documents()
+    await record_failed_parse_attempt(
+        cast(Any, documents),
+        cast(UploadedDocument, document),
+        cast(ParseAttempt, attempt),
+        StatementResourceLimitError("XLSX exceeds configured limits."),
+    )
+
+    assert attempt.finished_at is not None
+    assert documents.error_code == "StatementResourceLimitError"
+    assert documents.error_message == (
+        "StatementResourceLimitError: XLSX exceeds configured limits."
+    )
+    assert document.status is UploadedDocumentStatus.FAILED_TO_PARSE
 
 
 def test_statement_extractor_resolver_selects_extractor_by_extension(tmp_path: Path) -> None:

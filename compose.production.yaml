@@ -31,6 +31,9 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    cpus: ${BOOKER_TEE_APP_CPUS:-1.0}
+    mem_limit: ${BOOKER_TEE_APP_MEMORY_LIMIT:-1g}
+    pids_limit: ${BOOKER_TEE_APP_PIDS_LIMIT:-256}
     depends_on:
       postgres:
         condition: service_healthy

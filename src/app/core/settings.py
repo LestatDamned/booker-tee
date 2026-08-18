@@ -131,6 +131,36 @@ class Settings(BaseSettings):
         ge=1,
         validation_alias="BOOKER_TEE_STATEMENT_UPLOAD_MAX_BYTES",
     )
+    statement_pdf_max_pages: int = Field(
+        default=200,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_PDF_MAX_PAGES",
+    )
+    statement_xlsx_max_sheets: int = Field(
+        default=20,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_XLSX_MAX_SHEETS",
+    )
+    statement_xlsx_max_rows_per_sheet: int = Field(
+        default=50_000,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_XLSX_MAX_ROWS_PER_SHEET",
+    )
+    statement_xlsx_max_columns_per_sheet: int = Field(
+        default=100,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_XLSX_MAX_COLUMNS_PER_SHEET",
+    )
+    statement_xlsx_max_cells: int = Field(
+        default=1_000_000,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_XLSX_MAX_CELLS",
+    )
+    statement_xlsx_max_uncompressed_bytes: int = Field(
+        default=100 * 1024 * 1024,
+        ge=1,
+        validation_alias="BOOKER_TEE_STATEMENT_XLSX_MAX_UNCOMPRESSED_BYTES",
+    )
     database_url: str = Field(
         default="postgresql+asyncpg://booker_tee:booker_tee@localhost:5432/booker_tee",
         validation_alias="DATABASE_URL",

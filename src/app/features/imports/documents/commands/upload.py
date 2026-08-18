@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from uuid import UUID, uuid4, uuid5
 
@@ -27,8 +28,11 @@ from app.features.imports.mapping.repository import MappingRepository
 from app.features.imports.models import (
     UploadedDocument,
 )
+from app.features.imports.parsers.extractors.dto import ExtractedStatement
+from app.features.imports.parsers.extractors.limits import StatementExtractionLimits
 from app.features.imports.parsers.extractors.resolver import (
     SUPPORTED_STATEMENT_EXTENSIONS,
+    StatementExtractor,
     StatementExtractorResolver,
 )
 from app.features.imports.parsers.registry import StatementParserRegistry
@@ -62,7 +66,16 @@ class StatementUploadUseCase:
         self.mappings = MappingRepository(session)
         self.statements = StatementRepository(session)
         self.storage = UploadStorage(settings.upload_storage_dir)
-        self.extractor = StatementExtractorResolver()
+        self.extractor = StatementExtractorResolver(
+            limits=StatementExtractionLimits(
+                pdf_max_pages=settings.statement_pdf_max_pages,
+                xlsx_max_sheets=settings.statement_xlsx_max_sheets,
+                xlsx_max_rows_per_sheet=settings.statement_xlsx_max_rows_per_sheet,
+                xlsx_max_columns_per_sheet=settings.statement_xlsx_max_columns_per_sheet,
+                xlsx_max_cells=settings.statement_xlsx_max_cells,
+                xlsx_max_uncompressed_bytes=(settings.statement_xlsx_max_uncompressed_bytes),
+            )
+        )
         self.parse_completion = StatementParseCompletionService(
             session=session,
             documents=self.documents,
@@ -169,7 +182,7 @@ class StatementUploadUseCase:
         await self.session.commit()
 
         try:
-            extracted = self.extractor.extract(stored_upload.path)
+            extracted = await extract_statement(self.extractor, stored_upload.path)
         except PARSER_EXCEPTIONS as exc:
             await record_failed_parse_attempt(self.documents, document, attempt, exc)
         else:
@@ -238,3 +251,10 @@ def validate_statement_upload(upload_file: UploadFile) -> None:
     if Path(filename).suffix.casefold() not in SUPPORTED_STATEMENT_EXTENSIONS:
         allowed = ", ".join(sorted(SUPPORTED_STATEMENT_EXTENSIONS))
         raise UploadValidationError(f"Only {allowed} statement files can be uploaded.")
+
+
+async def extract_statement(
+    extractor: StatementExtractor,
+    file_path: Path,
+) -> ExtractedStatement:
+    return await asyncio.to_thread(extractor.extract, file_path)

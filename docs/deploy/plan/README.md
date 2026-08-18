@@ -438,6 +438,28 @@ Exit gate:
 - превышение лимита не подтверждает операции и не теряет исходный документ;
 - web upload и Telegram используют одинаковые ограничения.
 
+Статус на 18 августа 2026 года: выполнено.
+
+Реализовано:
+
+- общий для web upload и Telegram набор configurable limits: PDF pages, XLSX
+  sheets, rows, columns, total cells и uncompressed archive size;
+- синхронный PDF/XLSX extraction вынесен из async event loop в worker thread;
+- превышение лимита проходит через существующий failed parse flow: исходный файл
+  и документ сохраняются, parse attempt завершается ошибкой, ledger posting не
+  запускается;
+- application container ограничен по CPU, memory и PIDs; значения вынесены в
+  production env с безопасными defaults;
+- лимиты и параметры контейнера документированы в `.env.example`.
+
+Проверки:
+
+- resource-limit, web upload и Telegram upload tests: `35 passed`;
+- полный backend suite: `1032 passed`, `36 skipped` без test PostgreSQL;
+- Ruff, ty и production Compose config: passed.
+
+Exit gate этапа 6.2 закрыт.
+
 ### 6.3. Добавить bootstrap первого owner
 
 При `invite_only` первый пользователь не может получить приглашение от ещё не

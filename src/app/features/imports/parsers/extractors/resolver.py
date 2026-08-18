@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Protocol
 
 from app.features.imports.parsers.extractors.dto import ExtractedStatement
+from app.features.imports.parsers.extractors.limits import StatementExtractionLimits
 from app.features.imports.parsers.extractors.pdf import PdfPlumberStatementExtractor
 from app.features.imports.parsers.extractors.xlsx import OpenPyxlStatementExtractor
 
@@ -16,11 +17,13 @@ class StatementExtractorResolver:
     def __init__(
         self,
         *,
+        limits: StatementExtractionLimits | None = None,
         pdf_extractor: StatementExtractor | None = None,
         xlsx_extractor: StatementExtractor | None = None,
     ) -> None:
-        self.pdf_extractor = pdf_extractor or PdfPlumberStatementExtractor()
-        self.xlsx_extractor = xlsx_extractor or OpenPyxlStatementExtractor()
+        extraction_limits = limits or StatementExtractionLimits()
+        self.pdf_extractor = pdf_extractor or PdfPlumberStatementExtractor(extraction_limits)
+        self.xlsx_extractor = xlsx_extractor or OpenPyxlStatementExtractor(extraction_limits)
 
     def extractor_for_path(self, file_path: Path) -> StatementExtractor:
         extension = file_path.suffix.casefold()
