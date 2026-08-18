@@ -58,7 +58,7 @@ describe("password recovery routes", () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter
-        initialEntries={["/auth/reset-password?token=opaque-token"]}
+        initialEntries={["/auth/reset-password#token=opaque-token"]}
       >
         <TestResetPasswordRoute
           loaderData={{

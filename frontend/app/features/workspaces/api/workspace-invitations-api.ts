@@ -123,10 +123,13 @@ export async function loadPublicWorkspaceInvitation(
   invitationToken: string,
   signal?: AbortSignal,
 ): Promise<PublicWorkspaceInvitationLoadResult> {
-  const response = await requestJson(
-    `/api/v1/workspaces/invitations/${encodeURIComponent(invitationToken)}`,
-    signal ? { signal } : undefined,
-  );
+  const response = await requestJson("/api/v1/workspaces/invitations/preview", {
+    auth: false,
+    body: JSON.stringify({ invitationToken }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+    ...(signal ? { signal } : {}),
+  });
   if (response.status === "network_error") return apiLoadNetworkError();
   if (response.httpStatus === 404) return { status: "not_found" };
   if (!response.ok) return apiUnexpectedStatusError(response.httpStatus);
@@ -143,13 +146,14 @@ export async function acceptPublicWorkspaceInvitation({
   csrfToken: string;
   invitationToken: string;
 }): Promise<AcceptPublicWorkspaceInvitationResult> {
-  const response = await requestJson(
-    `/api/v1/workspaces/invitations/${encodeURIComponent(invitationToken)}/accept`,
-    {
-      headers: { "X-CSRF-Token": csrfToken },
-      method: "POST",
+  const response = await requestJson("/api/v1/workspaces/invitations/accept", {
+    body: JSON.stringify({ invitationToken }),
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
     },
-  );
+    method: "POST",
+  });
   if (response.status === "network_error") return apiMutationNetworkError();
   if (response.httpStatus === 401) return apiUnauthenticatedFailure();
   const error = parseApiError(response.body);

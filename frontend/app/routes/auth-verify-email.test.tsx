@@ -33,7 +33,7 @@ describe("VerifyEmailRoute", () => {
     render(
       <MemoryRouter
         initialEntries={[
-          "/auth/verify-email?token=secret-token&next=/app/profile",
+          "/auth/verify-email#token=secret-token&next=%2Fapp%2Fprofile",
         ]}
       >
         <VerifyEmailRoute />
@@ -42,9 +42,7 @@ describe("VerifyEmailRoute", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByTestId("location-search")).toHaveTextContent(
-        "?next=%2Fapp%2Fprofile",
-      ),
+      expect(screen.getByTestId("location-hash")).toBeEmptyDOMElement(),
     );
     expect(verifyMock).not.toHaveBeenCalled();
 
@@ -61,5 +59,5 @@ describe("VerifyEmailRoute", () => {
 
 function LocationProbe() {
   const location = useLocation();
-  return <output data-testid="location-search">{location.search}</output>;
+  return <output data-testid="location-hash">{location.hash}</output>;
 }

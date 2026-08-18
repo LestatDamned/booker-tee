@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from "react";
 
 import type { SessionDto } from "../../api/session";
-import { loginHref } from "../../session/unauthenticated";
 import { Button, ButtonLink } from "../../ui/button/button";
 import { InlineNotice } from "../../ui/inline-notice/inline-notice";
 import {
@@ -22,7 +21,11 @@ export function WorkspaceInvitationPage({
   navigate?: (href: string) => void;
   session: SessionDto | null;
 }) {
-  const returnTo = `/app/workspaces/invitations/${encodeURIComponent(invitationToken)}`;
+  const returnTo = `/app/workspaces/invitation#${new URLSearchParams({ token: invitationToken })}`;
+  const authFragment = new URLSearchParams({
+    invitation: invitationToken,
+    next: returnTo,
+  });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
@@ -42,7 +45,7 @@ export function WorkspaceInvitationPage({
       return;
     }
     if (result.status === "unauthenticated") {
-      navigate(loginHref(returnTo));
+      navigate(`/app/auth/login#${authFragment}`);
       return;
     }
     if (result.status === "not_found" || result.status === "wrong_account") {
@@ -114,11 +117,11 @@ export function WorkspaceInvitationPage({
               Сначала войдите или создайте аккаунт. После этого вы вернётесь к
               приглашению.
             </InlineNotice>
-            <ButtonLink href={loginHref(returnTo)} tone="primary">
+            <ButtonLink href={`/app/auth/login#${authFragment}`} tone="primary">
               Войти
             </ButtonLink>
             <ButtonLink
-              href={`/app/auth/signup?invitation=${encodeURIComponent(invitationToken)}&next=${encodeURIComponent(returnTo)}`}
+              href={`/app/auth/signup#${authFragment}`}
               tone="secondary"
             >
               Создать аккаунт

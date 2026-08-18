@@ -9,15 +9,15 @@ Chat or integrations are never authority by themselves.
 
 - Canonical UI: `/app/workspaces` and
   `/app/workspaces/:workspaceId/settings` in `frontend/app/features/workspaces/`;
-  public invitation UI: `/app/workspaces/invitations/:invitationToken`.
+  public invitation UI: `/app/workspaces/invitation#token=...`.
 - Authenticated API: `/api/v1/workspaces*` in
   `src/app/api/v1/workspaces/router.py`.
 - Historical `GET /workspaces`: query-preserving redirect to React in
   `src/app/legacy_frontend_redirects.py`. Removed legacy POST routes are not
   redirected.
 - Public invitation API: preview and accept in
-  `src/app/api/v1/workspaces/router.py`; the historical public GET redirects to
-  the canonical React route.
+  `src/app/api/v1/workspaces/router.py`; the bearer token is accepted only in
+  JSON request bodies and is never part of an HTTP path or query.
 
 ## Ownership and authority
 

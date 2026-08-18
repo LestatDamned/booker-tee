@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import { loadSession } from "../api/session";
@@ -12,6 +12,7 @@ import {
 } from "../features/users/api/account-api";
 import styles from "../features/users/profile/profile-page.module.css";
 import { AppShell } from "../shell/app-shell";
+import { useSecretFragment } from "../shared/secret-fragment";
 import { AuthenticatedRouteStatePage } from "../session/authenticated-route-state-page";
 import { Button } from "../ui/button/button";
 import { ConfirmationDialog } from "../ui/confirmation-dialog/confirmation-dialog";
@@ -87,7 +88,8 @@ export function AccountPage({
   impact: DeactivationImpactDto;
 }) {
   const [searchParams] = useSearchParams();
-  const [confirmationToken] = useState(() => searchParams.get("token"));
+  const fragment = useSecretFragment();
+  const [confirmationToken] = useState(() => fragment.get("token"));
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const [targetEmail, setTargetEmail] = useState("");
@@ -101,11 +103,6 @@ export function AccountPage({
   const [deactivationErrors, setDeactivationErrors] = useState<
     Record<string, string>
   >({});
-
-  useEffect(() => {
-    if (confirmationToken)
-      window.history.replaceState(null, "", "/app/profile/account");
-  }, [confirmationToken]);
 
   async function submitEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

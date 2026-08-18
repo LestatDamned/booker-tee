@@ -359,17 +359,218 @@ docker compose --env-file "$BOOKER_TEE_ENV_FILE" -f compose.production.yaml \
 Внешний exit gate остаётся открытым только для валидного Let's Encrypt
 сертификата и успешного renewal dry-run на реальном домене.
 
-## 6. Настроить production environment и VPS
+## 6. Закрыть pre-VPS блокеры
+
+Этап выполняется локально до покупки или подготовки VPS.
+
+### 6.1. Защитить bearer tokens и access logs
+
+Email verification, password reset, email change и workspace invitation tokens
+не должны попадать в URL, `Referer`, Nginx/Uvicorn access logs или error logs.
+
+Работы:
+
+1. Передавать email tokens через URL fragment и очищать fragment сразу после
+   чтения React-приложением.
+2. Убрать invitation token из path/query и передавать его API в request body.
+3. Использовать безопасный Nginx log format без query string и `Referer`.
+4. Отключить дублирующий Uvicorn access log в production.
+5. Не логировать raw token даже при validation, proxy и parser errors.
+
+Exit gate:
+
+- уникальный marker-token не появляется в Nginx, Uvicorn и application logs;
+- verification, reset, email change, invitation preview и accept работают;
+- token удаляется из browser address bar до дальнейших запросов;
+- token остаётся одноразовым и ограниченным по времени.
+
+Справка:
+
+- [OWASP Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html);
+- [OWASP Forgot Password Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html).
+
+Статус: выполнено 18 августа 2026 года.
+
+Реализовано:
+
+- verification, password reset и email change links передают token через URL
+  fragment; React читает его один раз и сразу очищает browser address bar;
+- workspace invitation использует `/app/workspaces/invitation#token=...`, а
+  preview и accept принимают token только в JSON body стабильных POST endpoints;
+- invitation сохраняется во fragment при переходах через login/signup и не
+  попадает во вложенный `next` query;
+- Nginx server blocks переопределяют стандартный `combined` log безопасным
+  форматом с методом и `$uri`, но без query, Referer, request body и secret
+  headers;
+- production Uvicorn запускается с `--no-access-log`;
+- OpenAPI contract, generated TypeScript и runtime-документация обновлены.
+
+Проверки этапа:
+
+- реальный Nginx marker-запрос: в access/error output есть только
+  `GET /auth/verify`, marker-token отсутствует;
+- production Compose config, Nginx image build и `nginx -t`: passed;
+- backend: Ruff и ty passed, `1024 passed`, `36 skipped` без test PostgreSQL;
+- frontend: format, lint, styles, API contract, typecheck, `572 passed` и
+  production build — passed.
+
+Exit gate этапа 6.1 закрыт.
+
+### 6.2. Ограничить ресурсы PDF/XLSX parser
+
+Upload byte limit недостаточен: небольшой PDF или сжатый XLSX может содержать
+слишком много страниц, sheets, rows или cells.
+
+Работы:
+
+1. Добавить документированные configurable limits для PDF pages и XLSX
+   sheets/rows/columns/cells.
+2. Отклонять подозрительно большой распакованный XLSX до полной обработки.
+3. Выполнять синхронный extraction вне async event loop.
+4. Ограничить memory, CPU и PIDs application container.
+5. При limit/error сохранять uploaded document, raw metadata и failed parse
+   attempt без частичного ledger posting.
+
+Exit gate:
+
+- oversized PDF/XLSX завершается контролируемой review/error state;
+- `/health` остаётся отзывчивым во время допустимого parse;
+- превышение лимита не подтверждает операции и не теряет исходный документ;
+- web upload и Telegram используют одинаковые ограничения.
+
+### 6.3. Добавить bootstrap первого owner
+
+При `invite_only` первый пользователь не может получить приглашение от ещё не
+существующего owner.
+
+Нужна одноразовая CLI-команда без публичного HTTP endpoint:
+
+1. Получить email/name и пароль через скрытый interactive input.
+2. Атомарно создать verified user, personal workspace и owner membership.
+3. Отказаться перезаписывать существующего пользователя или повторно создавать
+   bootstrap owner.
+4. Не выводить пароль, token или password hash в stdout/logs.
+
+Exit gate:
+
+- команда работает через one-off application container;
+- повторный запуск безопасно отклоняется;
+- bootstrap owner входит в приложение и создаёт первое приглашение;
+- публичная регистрация всё время остаётся `invite_only`.
+
+### 6.4. Добавить production preflight
+
+Deployment-specific preflight должен завершаться до migration/start и не
+выводить значения секретов.
+
+Он проверяет:
+
+- `DEBUG=false`, security headers включены, registration mode равен
+  `invite_only`;
+- cookie secure, canonical domain, allowed hosts и HTTPS public URL согласованы;
+- identity email и SMTP STARTTLS включены, обязательные SMTP поля заполнены;
+- Telegram работает в webhook mode с bot token и сильным webhook secret;
+- auth, PostgreSQL, Telegram и SMTP secrets не используют defaults и не
+  совпадают друг с другом;
+- `DATABASE_URL` использует Compose host `postgres`;
+- production env отсутствует в Git и имеет права `600` на сервере.
+
+Exit gate: одна preflight-команда принимает корректный sanitized test env и
+отклоняет каждую небезопасную конфигурацию отдельным понятным сообщением.
+
+## 7. Добавить strict Content Security Policy
+
+React SPA build содержит inline bootstrap scripts, поэтому `script-src 'self'`
+без подготовки сломает приложение.
+
+Работы:
+
+1. Генерировать SHA-256 hashes inline scripts из того же immutable build,
+   который попадает в application image.
+2. Сначала проверить политику через `Content-Security-Policy-Report-Only`.
+3. После browser tests включить enforced CSP без `unsafe-inline` и
+   `unsafe-eval`.
+4. Ограничить как минимум `default-src`, `script-src`, `style-src`, `img-src`,
+   `connect-src`, `object-src`, `base-uri` и `frame-ancestors`.
+
+Exit gate:
+
+- login, invitation, upload, review и reports работают с enforced CSP;
+- browser console не содержит CSP violations;
+- неизвестный inline/external script блокируется;
+- CSP hashes обновляются только вместе с соответствующим frontend build.
+
+Справка: [MDN Content Security
+Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP).
+
+## 8. Реализовать и проверить backup/restore локально
+
+Один backup set должен включать:
+
+- PostgreSQL custom-format dump;
+- upload storage archive;
+- manifest с временем, application image, Alembic revision и checksums.
+
+Минимальная безопасная процедура:
+
+1. Остановить application mutations на время согласованного backup set.
+2. Выполнить `pg_dump -Fc` из совместимой PostgreSQL image.
+3. Архивировать upload storage.
+4. Сформировать manifest и SHA-256 checksums.
+5. Восстановить dump и uploads в чистые volumes.
+6. Выполнить login, открытие документа и проверку ledger balance.
+
+Retention baseline после появления VPS:
+
+- 7 ежедневных копий;
+- 4 еженедельные копии;
+- ежемесячный restore-test;
+- целевые RPO 24 часа и RTO 2 часа.
+
+Exit gate: repeatable backup/restore commands полностью восстанавливают
+sanitized production-like dataset на чистом Compose project.
+
+Справка: [PostgreSQL Backup and
+Restore](https://www.postgresql.org/docs/16/backup.html).
+
+## 9. Автоматизировать release gate и clean-room rehearsal
+
+Release gate должен выполняться локально и в выбранной CI-системе:
+
+1. Backend Ruff, ty и полный pytest с PostgreSQL.
+2. Frontend format, lint, styles, typecheck, tests и production build.
+3. Python/npm production dependency audits.
+4. Production Compose config, app/Nginx image build и migration на чистой БД.
+5. Container vulnerability scan без blocker/high findings.
+6. SBOM и provenance для публикуемых immutable images.
+7. Clean-room flow: bootstrap owner -> invite -> login -> PDF/XLSX import ->
+   Telegram replay -> restart -> backup -> clean restore -> smoke test.
+8. Проверить rollback к предыдущему application image без Alembic downgrade.
+
+Exit gate: проверки повторяемы одной release-инструкцией; ручной release не
+может обойти migration, audit, backup и smoke-test gates незаметно.
+
+Справка: [Docker build
+attestations](https://docs.docker.com/build/metadata/attestations/).
+
+## 10. Настроить production environment и VPS
 
 Обязательный baseline:
 
 ```env
 BOOKER_TEE_ENVIRONMENT=production
 BOOKER_TEE_DEBUG=false
+BOOKER_TEE_DOMAIN=finance.example.com
+BOOKER_TEE_CERTBOT_EMAIL=admin@example.com
+BOOKER_TEE_REGISTRATION_MODE=invite_only
+BOOKER_TEE_IDENTITY_EMAIL_ENABLED=true
+BOOKER_TEE_SMTP_STARTTLS=true
 BOOKER_TEE_SESSION_COOKIE_SECURE=true
 BOOKER_TEE_ALLOWED_HOSTS=finance.example.com
 BOOKER_TEE_PUBLIC_BASE_URL=https://finance.example.com
 BOOKER_TEE_SECURITY_HEADERS_ENABLED=true
+BOOKER_TEE_CHAT_INTEGRATIONS_ENABLED=true
+BOOKER_TEE_TELEGRAM_MODE=webhook
 ```
 
 Секреты:
@@ -387,59 +588,24 @@ VPS:
 - разрешить снаружи только `80/443`, а `22` по возможности ограничить trusted IP;
 - не открывать `5432`, `8000` и `5173`;
 - включить автоматические security updates;
+- включить синхронизацию системного времени;
 - настроить ротацию логов и alert по заполнению диска.
 
-После проверки React добавить Content Security Policy без `unsafe-inline`, если
-текущий production build её допускает.
+Дополнительно на VPS:
 
-## 7. Настроить backup и restore
+- зашифровать backup и копировать его вне VPS;
+- установить расписание backup, certificate renewal и restore-test;
+- настроить domain A/AAAA и необходимые SMTP SPF/DKIM/DMARC records;
+- настроить alert по availability, `5xx`, certificate expiry и заполнению диска.
 
-Один backup set должен включать:
+Exit gate:
 
-- PostgreSQL dump;
-- upload storage;
-- manifest с временем, версиями приложения и миграции.
+- SSH и firewall baseline проверены с отдельной активной сессией;
+- production preflight проходит с реальным env;
+- настоящий Let's Encrypt certificate и renewal dry-run проходят;
+- SMTP, Telegram webhook и encrypted offsite backup проверены с VPS.
 
-Минимальная безопасная процедура первого релиза:
-
-1. Включить maintenance/остановить application container.
-2. Выполнить `pg_dump` в custom format.
-3. Архивировать upload storage.
-4. Зашифровать и скопировать backup вне VPS.
-5. Запустить приложение и проверить health.
-
-Retention baseline:
-
-- 7 ежедневных копий;
-- 4 еженедельные копии;
-- ежемесячный restore-test;
-- целевые RPO 24 часа и RTO 2 часа.
-
-Exit gate: PostgreSQL и документы успешно восстанавливаются на чистом окружении,
-после чего проходят login, открытие документа и проверка ledger balance.
-
-Справка: [PostgreSQL Backup and
-Restore](https://www.postgresql.org/docs/16/backup.html).
-
-## 8. Провести production-like репетицию
-
-На тестовом домене выполнить:
-
-1. HTTPS и HTTP redirect.
-2. Invite-only signup, email verification и password recovery.
-3. Login/logout, CSRF, session refresh и session revocation.
-4. Workspace isolation для read и mutation endpoints.
-5. PDF/XLSX upload, review и confirmation.
-6. Повторный import без двойного учёта.
-7. Telegram binding, webhook и document upload.
-8. Перезапуск контейнеров без потери данных.
-9. Полный backup -> clean restore -> smoke test.
-10. Dependency audit и container image scan.
-
-Exit gate: все проверки задокументированы и повторяемы одной release
-инструкцией; blocker/high findings отсутствуют.
-
-## 9. Выполнить первый production release
+## 11. Выполнить первый production release
 
 Порядок:
 
@@ -450,6 +616,7 @@ backup
   -> alembic upgrade head
   -> start FastAPI
   -> internal health check
+  -> bootstrap first owner
   -> enable Nginx and TLS
   -> set Telegram webhook with secret_token
   -> production smoke test
@@ -463,7 +630,7 @@ Rollback:
 - не выполнять автоматический Alembic downgrade;
 - при несовместимой миграции использовать заранее проверенный backup/restore.
 
-## 10. Поддерживать после запуска
+## 12. Поддерживать после запуска
 
 - ежедневно проверять успешность backup;
 - мониторить availability, ошибки `5xx`, rate-limit rejects, disk и certificate
@@ -480,12 +647,15 @@ Rollback:
 2. Invite-only registration
 3. Telegram webhook hardening
 4. Production image and Compose
-5. Nginx and TLS
-6. VPS and secrets
-7. Backup and restore test
-8. Production-like rehearsal
-9. First release
-10. Ongoing operations
+5. Containerized Nginx and TLS repository setup
+6. Pre-VPS token/log/parser/bootstrap/preflight hardening
+7. Strict CSP
+8. Local backup and clean restore test
+9. Automated release gate and clean-room rehearsal
+10. VPS, secrets, real TLS and external integrations
+11. First release
+12. Ongoing operations
 ```
 
-Публичный доступ не открывается до завершения этапов 1–8.
+Публичный доступ не открывается до завершения этапов 1–10 и начала
+контролируемого первого release.

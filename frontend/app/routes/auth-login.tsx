@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router";
 
 import { login } from "../features/users/api/auth-api";
 import styles from "../features/users/auth/auth-page.module.css";
+import { useSecretFragment } from "../shared/secret-fragment";
 import { Button } from "../ui/button/button";
 import { Field } from "../ui/field/field";
 import {
@@ -18,6 +19,11 @@ export function meta() {
 
 export default function LoginRoute() {
   const [searchParams] = useSearchParams();
+  const fragment = useSecretFragment();
+  const [nextPath] = useState(
+    () => fragment.get("next") ?? searchParams.get("next"),
+  );
+  const [invitationToken] = useState(() => fragment.get("invitation"));
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
@@ -40,7 +46,7 @@ export default function LoginRoute() {
     const result = await login({
       email,
       password,
-      nextPath: searchParams.get("next"),
+      nextPath,
     });
     setPending(false);
     if (result.status === "success") {
@@ -143,11 +149,26 @@ export default function LoginRoute() {
           <Link to="/auth/forgot-password">Забыли пароль?</Link>
         </p>
         <p className={styles.footer}>
-          Нет аккаунта? <Link to={`/auth/signup?${searchParams}`}>Создать</Link>
+          Нет аккаунта?{" "}
+          <Link to={signupHref(searchParams, invitationToken, nextPath)}>
+            Создать
+          </Link>
         </p>
       </section>
     </main>
   );
+}
+
+function signupHref(
+  searchParams: URLSearchParams,
+  invitationToken: string | null,
+  nextPath: string | null,
+): string {
+  if (!invitationToken) return `/auth/signup?${searchParams}`;
+  return `/auth/signup#${new URLSearchParams({
+    invitation: invitationToken,
+    ...(nextPath ? { next: nextPath } : {}),
+  })}`;
 }
 
 function validateLogin(email: string, password: string) {

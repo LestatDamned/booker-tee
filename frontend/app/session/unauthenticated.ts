@@ -6,6 +6,9 @@ type BrowserLocation = Pick<
 type StatusResult = { status: string };
 
 export function loginHref(next: string): string {
+  if (next.includes("#")) {
+    return `/app/auth/login#${new URLSearchParams({ next })}`;
+  }
   return `/app/auth/login?next=${encodeURIComponent(next)}`;
 }
 

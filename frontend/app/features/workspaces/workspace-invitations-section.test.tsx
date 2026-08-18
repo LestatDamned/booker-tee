@@ -34,7 +34,7 @@ describe("WorkspaceInvitationsSection", () => {
       status: "success",
       invitation: workspaceInvitations.items[0]!,
       invitations: workspaceInvitations,
-      shareUrl: "https://example.test/app/workspaces/invitations/secret",
+      shareUrl: "https://example.test/app/workspaces/invitation#token=secret",
       replayed: false,
     });
     render(
@@ -56,7 +56,7 @@ describe("WorkspaceInvitationsSection", () => {
       workspaceId: workspaceInvitations.workspaceId,
     });
     expect(screen.getByLabelText("Ссылка приглашения")).toHaveValue(
-      "https://example.test/app/workspaces/invitations/secret",
+      "https://example.test/app/workspaces/invitation#token=secret",
     );
     expect(screen.getByLabelText(/Email/)).toHaveValue("");
 

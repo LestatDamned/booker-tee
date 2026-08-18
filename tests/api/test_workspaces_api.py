@@ -499,7 +499,9 @@ def test_workspace_invitation_create_returns_transient_share_url() -> None:
         )
     ]
     payload = response.json()
-    assert payload["shareUrl"].endswith("/app/workspaces/invitations/one-time-invitation-token")
+    assert payload["shareUrl"].endswith(
+        "/app/workspaces/invitation#token=one-time-invitation-token"
+    )
     assert payload["invitation"]["inviteeEmail"] == "invitee@example.test"
     assert "shareUrl" not in payload["invitations"]
     assert len(sent) == 1

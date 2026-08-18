@@ -1,4 +1,5 @@
 from typing import Annotated, Literal
+from urllib.parse import urlencode
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, Request, Response, status
@@ -46,6 +47,7 @@ from app.api.v1.workspaces.schemas import (
     WorkspaceDirectoryItemApiResponse,
     WorkspaceInvitationItemApiResponse,
     WorkspaceInvitationsApiResponse,
+    WorkspaceInvitationTokenApiRequest,
     WorkspaceLifecycleApiResponse,
     WorkspaceLifecycleMutationImpactApiResponse,
     WorkspaceMembersApiResponse,
@@ -100,13 +102,13 @@ from app.features.workspaces.service import WorkspaceContext
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
 
-@router.get(
-    "/invitations/{invitation_token}",
+@router.post(
+    "/invitations/preview",
     response_model=PublicWorkspaceInvitationApiResponse,
     responses=api_error_responses(status.HTTP_404_NOT_FOUND),
 )
 async def preview_workspace_invitation(
-    invitation_token: str,
+    request: WorkspaceInvitationTokenApiRequest,
     response: Response,
     service: Annotated[
         WorkspaceInvitationService,
@@ -116,7 +118,7 @@ async def preview_workspace_invitation(
     response.headers["Cache-Control"] = "no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
     try:
-        invitation = await service.preview(invitation_token=invitation_token)
+        invitation = await service.preview(invitation_token=request.invitation_token)
     except WorkspaceInvitationNotFoundError as error:
         raise ApiError(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -131,7 +133,7 @@ async def preview_workspace_invitation(
 
 
 @router.post(
-    "/invitations/{invitation_token}/accept",
+    "/invitations/accept",
     response_model=AcceptWorkspaceInvitationApiResponse,
     responses=api_error_responses(
         status.HTTP_401_UNAUTHORIZED,
@@ -140,7 +142,7 @@ async def preview_workspace_invitation(
     ),
 )
 async def accept_workspace_invitation(
-    invitation_token: str,
+    request: WorkspaceInvitationTokenApiRequest,
     response: Response,
     context: Annotated[
         AuthenticatedSessionContext,
@@ -155,7 +157,7 @@ async def accept_workspace_invitation(
     try:
         await service.accept(
             actor_user_id=context.user.id,
-            invitation_token=invitation_token,
+            invitation_token=request.invitation_token,
             session_token=context.session_id,
         )
     except WorkspaceInvitationNotFoundError as error:
@@ -821,11 +823,12 @@ async def create_workspace_invitation(
         ) from error
     except WorkspaceInvitationTransitionError as error:
         raise _invitation_transition_error(error) from error
-    share_url = str(
+    share_url = "{}#{}".format(
         http_request.url_for(
             "react_spa_path",
-            client_path=f"workspaces/invitations/{result.token}",
-        )
+            client_path="workspaces/invitation",
+        ),
+        urlencode({"token": result.token}),
     )
     background_tasks.add_task(
         email_sender,

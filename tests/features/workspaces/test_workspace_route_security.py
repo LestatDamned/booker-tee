@@ -54,7 +54,8 @@ def test_public_invitation_accept_requires_bearer_access_token() -> None:
 
     with TestClient(app) as client:
         response = client.post(
-            "/api/v1/workspaces/invitations/invitation-token/accept",
+            "/api/v1/workspaces/invitations/accept",
+            json={"invitationToken": "marker-invitation-token"},
         )
 
     assert response.status_code == 401
@@ -71,11 +72,15 @@ def test_public_invitation_preview_is_private_and_masked(available: bool) -> Non
     app.dependency_overrides[get_workspace_invitation_service] = lambda: service
 
     with TestClient(app) as client:
-        response = client.get("/api/v1/workspaces/invitations/private-token")
+        response = client.post(
+            "/api/v1/workspaces/invitations/preview",
+            json={"invitationToken": "marker-invitation-token"},
+        )
 
     assert response.status_code == (200 if available else 404)
     assert response.headers["Cache-Control"] == "no-store"
     assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert "marker-invitation-token" not in str(response.request.url)
     if available:
         assert response.json()["workspaceName"] == "Семейный бюджет"
         assert "token" not in response.text.lower()
@@ -103,7 +108,8 @@ def test_invitation_accept_uses_actor_and_returns_safe_navigation(available: boo
 
     with TestClient(app) as client:
         response = client.post(
-            "/api/v1/workspaces/invitations/private-token/accept",
+            "/api/v1/workspaces/invitations/accept",
+            json={"invitationToken": "private-token"},
         )
 
     assert service.accepted == {
@@ -144,7 +150,8 @@ def test_invitation_accept_rejects_wrong_account_without_leaking_email() -> None
 
     with TestClient(app) as client:
         response = client.post(
-            "/api/v1/workspaces/invitations/private-token/accept",
+            "/api/v1/workspaces/invitations/accept",
+            json={"invitationToken": "private-token"},
         )
 
     assert response.status_code == 403

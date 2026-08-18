@@ -14,7 +14,9 @@ from app.core.security import (
 from app.core.settings import Settings
 from app.features.users.email_delivery import (
     IdentityEmail,
+    build_email_change_messages,
     build_email_verification_message,
+    build_password_reset_message,
     send_identity_email,
 )
 from app.features.users.email_verification import EmailVerificationService
@@ -52,9 +54,28 @@ def test_verification_email_preserves_only_validated_site_relative_continuation(
     )
 
     assert (
-        "https://booker.example/app/auth/verify-email?"
+        "https://booker.example/app/auth/verify-email#"
         "token=secret-token&next=%2Fworkspaces%2Finvitations%2Fexample"
     ) in message.text
+
+
+def test_identity_bearer_tokens_use_url_fragments() -> None:
+    marker = "marker-token-not-for-access-logs"
+    reset = build_password_reset_message(
+        recipient="max@example.test",
+        token=marker,
+        base_url="https://booker.example",
+    )
+    _, email_change = build_email_change_messages(
+        current_email="old@example.test",
+        target_email="new@example.test",
+        token=marker,
+        base_url="https://booker.example",
+    )
+
+    assert f"/app/auth/reset-password#token={marker}" in reset.text
+    assert f"/app/profile/account#token={marker}" in email_change.text
+    assert f"?token={marker}" not in reset.text + email_change.text
 
 
 def test_production_signups_require_identity_delivery_to_be_enabled() -> None:
@@ -126,7 +147,7 @@ async def test_smtp_delivery_uses_starttls_and_hides_sensitive_repr(monkeypatch)
     message = IdentityEmail(
         recipient="max@example.test",
         subject="Подтвердите email",
-        text="https://booker.example/app/auth/verify-email?token=secret-token",
+        text="https://booker.example/app/auth/verify-email#token=secret-token",
     )
 
     await send_identity_email(

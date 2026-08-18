@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useRef, useState, type FormEvent } from "react";
+import { Link } from "react-router";
 
 import { loadAuthConfig, resetPassword } from "../features/users/api/auth-api";
 import styles from "../features/users/auth/auth-page.module.css";
+import { useSecretFragment } from "../shared/secret-fragment";
 import { Button } from "../ui/button/button";
 import { Field } from "../ui/field/field";
 import { FormErrorSummary } from "../ui/field/form-error-summary";
@@ -21,9 +22,8 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 export default function ResetPasswordRoute({
   loaderData,
 }: Route.ComponentProps) {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [token] = useState(() => searchParams.get("token"));
+  const fragment = useSecretFragment();
+  const [token] = useState(() => fragment.get("token"));
   const minimum =
     loaderData.status === "success" ? loaderData.passwordMinLength : 8;
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -33,10 +33,6 @@ export default function ResetPasswordRoute({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    if (token) navigate({ search: "" }, { replace: true });
-  }, [navigate, token]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

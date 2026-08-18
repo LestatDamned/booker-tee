@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link } from "react-router";
 
 import {
   resendEmailVerification,
   verifyEmail,
 } from "../features/users/api/auth-api";
 import styles from "../features/users/auth/auth-page.module.css";
+import { loginHref } from "../session/unauthenticated";
+import { useSecretFragment } from "../shared/secret-fragment";
 import { Button } from "../ui/button/button";
 import { Field } from "../ui/field/field";
 import { InlineNotice } from "../ui/inline-notice/inline-notice";
@@ -17,10 +19,9 @@ export function meta() {
 type VerificationState = "ready" | "invalid";
 
 export default function VerifyEmailRoute() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [token] = useState(() => searchParams.get("token"));
-  const nextPath = searchParams.get("next");
+  const fragment = useSecretFragment();
+  const [token] = useState(() => fragment.get("token"));
+  const [nextPath] = useState(() => fragment.get("next"));
   const emailRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<VerificationState>(
     token ? "ready" : "invalid",
@@ -29,15 +30,6 @@ export default function VerifyEmailRoute() {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
-
-  useEffect(() => {
-    const cleanSearch = new URLSearchParams();
-    if (nextPath) cleanSearch.set("next", nextPath);
-    navigate(
-      { search: cleanSearch.size > 0 ? `?${cleanSearch}` : "" },
-      { replace: true },
-    );
-  }, [navigate, nextPath]);
 
   useEffect(() => {
     if (state === "invalid") emailRef.current?.focus();
@@ -146,9 +138,7 @@ export default function VerifyEmailRoute() {
           {state === "invalid" ? message : null}
         </p>
         <p className={styles.footer}>
-          <Link
-            to={`/auth/login${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`}
-          >
+          <Link to={nextPath ? loginHref(nextPath) : "/auth/login"}>
             Вернуться ко входу
           </Link>
         </p>

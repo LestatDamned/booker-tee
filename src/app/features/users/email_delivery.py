@@ -30,7 +30,7 @@ def build_email_verification_message(
     query = {"token": token}
     if next_path is not None:
         query["next"] = next_path
-    verification_url = f"{base_url.rstrip('/')}/app/auth/verify-email?{urlencode(query)}"
+    verification_url = f"{base_url.rstrip('/')}/app/auth/verify-email#{urlencode(query)}"
     return IdentityEmail(
         recipient=recipient,
         subject="Подтвердите email — Booker Tee",
@@ -48,7 +48,7 @@ def build_password_reset_message(
     token: str,
     base_url: str,
 ) -> IdentityEmail:
-    reset_url = f"{base_url.rstrip('/')}/app/auth/reset-password?{urlencode({'token': token})}"
+    reset_url = f"{base_url.rstrip('/')}/app/auth/reset-password#{urlencode({'token': token})}"
     return IdentityEmail(
         recipient=recipient,
         subject="Восстановление пароля — Booker Tee",
@@ -68,7 +68,7 @@ def build_email_change_messages(
     token: str,
     base_url: str,
 ) -> tuple[IdentityEmail, IdentityEmail]:
-    confirmation_url = f"{base_url.rstrip('/')}/app/profile/account?{urlencode({'token': token})}"
+    confirmation_url = f"{base_url.rstrip('/')}/app/profile/account#{urlencode({'token': token})}"
     return (
         IdentityEmail(
             recipient=current_email,

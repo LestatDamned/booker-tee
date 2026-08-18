@@ -21,7 +21,7 @@ describe("unauthenticated session navigation", () => {
         hash: "#rule-7",
       }),
     ).toBe(
-      "/app/auth/login?next=%2Fapp%2Frules%3Fpage%3D2%26status%3Dactive%23rule-7",
+      "/app/auth/login#next=%2Fapp%2Frules%3Fpage%3D2%26status%3Dactive%23rule-7",
     );
   });
 
@@ -43,7 +43,7 @@ describe("unauthenticated session navigation", () => {
       redirectIfUnauthenticated({ status: "unauthenticated" }, location),
     ).toBe(true);
     expect(assign).toHaveBeenCalledWith(
-      "/app/auth/login?next=%2Fapp%2Fledger%2Fmanual%3Ftype%3Dexpense%26page%3D2%23operation-3",
+      "/app/auth/login#next=%2Fapp%2Fledger%2Fmanual%3Ftype%3Dexpense%26page%3D2%23operation-3",
     );
   });
 });

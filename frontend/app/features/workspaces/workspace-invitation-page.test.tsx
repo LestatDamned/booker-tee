@@ -27,13 +27,13 @@ describe("Workspace invitation page", () => {
     expect(screen.getByText("Семейный бюджет")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Войти" })).toHaveAttribute(
       "href",
-      "/app/auth/login?next=%2Fapp%2Fworkspaces%2Finvitations%2Fprivate-token",
+      "/app/auth/login#invitation=private-token&next=%2Fapp%2Fworkspaces%2Finvitation%23token%3Dprivate-token",
     );
     expect(
       screen.getByRole("link", { name: "Создать аккаунт" }),
     ).toHaveAttribute(
       "href",
-      "/app/auth/signup?invitation=private-token&next=%2Fapp%2Fworkspaces%2Finvitations%2Fprivate-token",
+      "/app/auth/signup#invitation=private-token&next=%2Fapp%2Fworkspaces%2Finvitation%23token%3Dprivate-token",
     );
   });
 

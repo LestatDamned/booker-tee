@@ -32,7 +32,7 @@ describe("workspace invitations API", () => {
     const payload = {
       invitation: workspaceInvitations.items[0],
       invitations: workspaceInvitations,
-      shareUrl: "https://example.test/app/workspaces/invitations/secret",
+      shareUrl: "https://example.test/app/workspaces/invitation#token=secret",
       replayed: false,
     };
     const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(payload, 201)));
@@ -119,9 +119,19 @@ describe("workspace invitations API", () => {
       }),
     ).resolves.toEqual({ status: "success", href: "/app/workspaces" });
     expect(fetchMock).toHaveBeenLastCalledWith(
-      "/api/v1/workspaces/invitations/private%2Ftoken/accept",
+      "/api/v1/workspaces/invitations/accept",
       expect.objectContaining({
+        body: JSON.stringify({ invitationToken: "private/token" }),
         headers: expect.objectContaining({ "X-CSRF-Token": "csrf" }),
+        method: "POST",
+      }),
+    );
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/api/v1/workspaces/invitations/preview",
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({ invitationToken: "private/token" }),
         method: "POST",
       }),
     );

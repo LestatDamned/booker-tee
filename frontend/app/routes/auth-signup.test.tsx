@@ -39,7 +39,7 @@ describe("SignupRoute", () => {
     render(
       <MemoryRouter
         initialEntries={[
-          "/auth/signup?invitation=private-token&next=/app/profile",
+          "/auth/signup#invitation=private-token&next=%2Fapp%2Fprofile",
         ]}
       >
         <TestSignupRoute

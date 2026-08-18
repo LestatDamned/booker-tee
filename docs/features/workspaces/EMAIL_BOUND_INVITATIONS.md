@@ -141,7 +141,7 @@ Response сохраняет текущую shape и добавляет email в 
     "expiresAt": "..."
   },
   "invitations": {},
-  "shareUrl": "https://example.test/app/workspaces/invitations/<token>",
+  "shareUrl": "https://example.test/app/workspaces/invitation#token=<token>",
   "replayed": false
 }
 ```
@@ -163,6 +163,9 @@ directory response.
 | `404 invitation_not_found`      | invalid, expired, revoked или replayed token              |
 
 Public preview по-прежнему отдаёт только workspace name, role и expiry.
+Preview и accept используют стабильные `POST /api/v1/workspaces/invitations/preview`
+и `POST /api/v1/workspaces/invitations/accept`; token передаётся только полем
+`invitationToken` JSON body.
 `invitee_email`, member existence и delivery state не публикуются.
 
 ## Email delivery

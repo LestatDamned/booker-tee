@@ -7,6 +7,7 @@ import {
   signup,
 } from "../features/users/api/auth-api";
 import styles from "../features/users/auth/auth-page.module.css";
+import { useSecretFragment } from "../shared/secret-fragment";
 import { Button } from "../ui/button/button";
 import { Field } from "../ui/field/field";
 import { FormErrorSummary } from "../ui/field/form-error-summary";
@@ -24,6 +25,11 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
 
 export default function SignupRoute({ loaderData }: Route.ComponentProps) {
   const [searchParams] = useSearchParams();
+  const fragment = useSecretFragment();
+  const [invitationToken] = useState(() => fragment.get("invitation"));
+  const [nextPath] = useState(
+    () => fragment.get("next") ?? searchParams.get("next"),
+  );
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
@@ -67,8 +73,8 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
       email,
       name: name || null,
       password,
-      nextPath: searchParams.get("next"),
-      invitationToken: searchParams.get("invitation"),
+      nextPath,
+      invitationToken,
     });
     setPending(false);
     if (result.status === "success") {
@@ -88,7 +94,7 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
     setResendStatus(null);
     const result = await resendEmailVerification({
       email,
-      nextPath: searchParams.get("next"),
+      nextPath,
     });
     setPending(false);
     if (result.status === "success") {
@@ -100,7 +106,7 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
     if (result.retryAfterSeconds) setCooldown(result.retryAfterSeconds);
   }
 
-  const invitationToken = searchParams.get("invitation");
+  const loginHref = authLoginHref({ invitationToken, nextPath, searchParams });
   const registrationClosed =
     loaderData.status === "success" &&
     (loaderData.registrationMode === "closed" ||
@@ -143,7 +149,7 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
                   ? `Отправить повторно через ${cooldown} сек.`
                   : "Отправить письмо повторно"}
               </Button>
-              <Link to={`/auth/login?${searchParams}`}>Перейти ко входу</Link>
+              <Link to={loginHref}>Перейти ко входу</Link>
             </div>
             <p aria-live="polite" className={styles.status}>
               {resendStatus}
@@ -247,11 +253,26 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
         )}
         {!acceptedMessage ? (
           <p className={styles.footer}>
-            Уже есть аккаунт?{" "}
-            <Link to={`/auth/login?${searchParams}`}>Войти</Link>
+            Уже есть аккаунт? <Link to={loginHref}>Войти</Link>
           </p>
         ) : null}
       </section>
     </main>
   );
+}
+
+function authLoginHref({
+  invitationToken,
+  nextPath,
+  searchParams,
+}: {
+  invitationToken: string | null;
+  nextPath: string | null;
+  searchParams: URLSearchParams;
+}): string {
+  if (!invitationToken) return `/auth/login?${searchParams}`;
+  return `/auth/login#${new URLSearchParams({
+    invitation: invitationToken,
+    ...(nextPath ? { next: nextPath } : {}),
+  })}`;
 }

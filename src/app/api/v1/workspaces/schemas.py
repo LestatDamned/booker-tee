@@ -189,6 +189,10 @@ class PublicWorkspaceInvitationApiResponse(ApiModel):
     expires_at: datetime
 
 
+class WorkspaceInvitationTokenApiRequest(ApiRequestModel):
+    invitation_token: str = Field(min_length=1, max_length=1024)
+
+
 class AcceptWorkspaceInvitationApiResponse(ApiModel):
     navigation_outcome: WorkspaceNavigationOutcomeApiResponse
 

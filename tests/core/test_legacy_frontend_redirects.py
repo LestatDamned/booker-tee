@@ -81,10 +81,6 @@ CATEGORY_ID = "33333333-3333-3333-3333-333333333333"
             "/app/workspaces?source=profile&view=inactive",
         ),
         (
-            "/workspaces/invitations/invite-token",
-            "/app/workspaces/invitations/invite-token",
-        ),
-        (
             "/chat-integrations/telegram/dev-link?external_user_id=42",
             "/app/chat-integrations/telegram/dev-link?external_user_id=42",
         ),

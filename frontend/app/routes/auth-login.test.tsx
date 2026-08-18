@@ -29,4 +29,21 @@ describe("LoginRoute", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Введите email");
     expect(email).toHaveFocus();
   });
+
+  it("keeps invitation credentials in fragments between auth pages", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/auth/login#invitation=marker-token&next=%2Fapp%2Fworkspaces%2Finvitation%23token%3Dmarker-token",
+        ]}
+      >
+        <LoginRoute />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "Создать" })).toHaveAttribute(
+      "href",
+      "/auth/signup#invitation=marker-token&next=%2Fapp%2Fworkspaces%2Finvitation%23token%3Dmarker-token",
+    );
+  });
 });

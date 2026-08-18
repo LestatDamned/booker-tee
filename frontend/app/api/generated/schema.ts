@@ -1261,24 +1261,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/workspaces/invitations/{invitation_token}": {
+    "/api/v1/workspaces/invitations/preview": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Preview Workspace Invitation */
-        get: operations["preview_workspace_invitation_api_v1_workspaces_invitations__invitation_token__get"];
+        get?: never;
         put?: never;
-        post?: never;
+        /** Preview Workspace Invitation */
+        post: operations["preview_workspace_invitation_api_v1_workspaces_invitations_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/workspaces/invitations/{invitation_token}/accept": {
+    "/api/v1/workspaces/invitations/accept": {
         parameters: {
             query?: never;
             header?: never;
@@ -1288,7 +1288,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Accept Workspace Invitation */
-        post: operations["accept_workspace_invitation_api_v1_workspaces_invitations__invitation_token__accept_post"];
+        post: operations["accept_workspace_invitation_api_v1_workspaces_invitations_accept_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5634,6 +5634,11 @@ export interface components {
          * @enum {string}
          */
         WorkspaceInvitationStatus: "pending" | "accepted" | "revoked" | "expired";
+        /** WorkspaceInvitationTokenApiRequest */
+        WorkspaceInvitationTokenApiRequest: {
+            /** Invitationtoken */
+            invitationToken: string;
+        };
         /** WorkspaceInvitationsApiResponse */
         WorkspaceInvitationsApiResponse: {
             /**
@@ -11223,16 +11228,18 @@ export interface operations {
             };
         };
     };
-    preview_workspace_invitation_api_v1_workspaces_invitations__invitation_token__get: {
+    preview_workspace_invitation_api_v1_workspaces_invitations_preview_post: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                invitation_token: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceInvitationTokenApiRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -11263,16 +11270,18 @@ export interface operations {
             };
         };
     };
-    accept_workspace_invitation_api_v1_workspaces_invitations__invitation_token__accept_post: {
+    accept_workspace_invitation_api_v1_workspaces_invitations_accept_post: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                invitation_token: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceInvitationTokenApiRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
