@@ -14,7 +14,10 @@ class Settings(BaseSettings):
         validation_alias="BOOKER_TEE_ENVIRONMENT",
     )
     debug: bool = Field(default=False, validation_alias="BOOKER_TEE_DEBUG")
-    allow_signups: bool = Field(default=True, validation_alias="BOOKER_TEE_ALLOW_SIGNUPS")
+    registration_mode: Literal["open", "invite_only", "closed"] = Field(
+        default="open",
+        validation_alias="BOOKER_TEE_REGISTRATION_MODE",
+    )
     password_min_length: int = Field(
         default=8,
         ge=8,
@@ -189,7 +192,7 @@ class Settings(BaseSettings):
             errors.append("BOOKER_TEE_SESSION_COOKIE_SECURE must be true in production.")
         if not self.allowed_hosts or "*" in self.allowed_hosts:
             errors.append("BOOKER_TEE_ALLOWED_HOSTS must list explicit production hosts.")
-        if self.allow_signups and not self.identity_email_enabled:
+        if self.registration_mode != "closed" and not self.identity_email_enabled:
             errors.append(
                 "BOOKER_TEE_IDENTITY_EMAIL_ENABLED must be true when production signups run."
             )

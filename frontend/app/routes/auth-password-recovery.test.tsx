@@ -63,7 +63,7 @@ describe("password recovery routes", () => {
         <TestResetPasswordRoute
           loaderData={{
             status: "success",
-            allowSignups: true,
+            registrationMode: "open",
             passwordMinLength: 12,
           }}
         />

@@ -91,6 +91,17 @@ class WorkspaceInvitationService:
             expires_at=invitation.expires_at,
         )
 
+    async def permits_signup(self, *, invitation_token: str, email: str) -> bool:
+        try:
+            invitation = self._require_public_invitation(
+                await self._workspaces.get_invitation_by_token_hash(
+                    hash_invitation_token(invitation_token)
+                )
+            )
+        except WorkspaceInvitationNotFoundError:
+            return False
+        return invitation.workspace.is_active and invitation.invitee_email == email
+
     async def accept(
         self,
         *,

@@ -118,7 +118,7 @@ export function WorkspaceInvitationPage({
               Войти
             </ButtonLink>
             <ButtonLink
-              href={`/app/auth/signup?next=${encodeURIComponent(returnTo)}`}
+              href={`/app/auth/signup?invitation=${encodeURIComponent(invitationToken)}&next=${encodeURIComponent(returnTo)}`}
               tone="secondary"
             >
               Создать аккаунт

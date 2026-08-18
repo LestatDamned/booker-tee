@@ -219,6 +219,27 @@ async def test_public_preview_has_one_safe_unavailable_outcome() -> None:
     assert str(error.value) == PUBLIC_INVITATION_UNAVAILABLE
 
 
+async def test_invitation_permits_signup_only_for_matching_email() -> None:
+    service, _session, repository, _users = service_with_repo()
+    target = invitation(uuid4(), uuid4())
+    repository.get_invitation_by_token_hash.return_value = target
+
+    assert await service.permits_signup(
+        invitation_token="usable-token",
+        email="invitee@example.test",
+    )
+    assert not await service.permits_signup(
+        invitation_token="usable-token",
+        email="other@example.test",
+    )
+
+    target.status = WorkspaceInvitationStatus.REVOKED
+    assert not await service.permits_signup(
+        invitation_token="usable-token",
+        email="invitee@example.test",
+    )
+
+
 @pytest.mark.parametrize(
     ("status", "expires_in", "workspace_active", "role"),
     [

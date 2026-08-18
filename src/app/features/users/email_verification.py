@@ -35,6 +35,7 @@ from app.features.users.service import (
     safe_next_path,
     validate_password,
 )
+from app.features.workspaces.application.invitations import WorkspaceInvitationService
 
 VERIFICATION_TOKEN_LIFETIME = timedelta(hours=24)
 RESEND_COOLDOWN = timedelta(seconds=60)
@@ -65,9 +66,10 @@ class EmailVerificationService:
         name: str | None,
         base_url: str,
         next_path: str | None = None,
+        invitation_token: str | None = None,
         network_key: str = "unknown",
     ) -> VerificationRequest:
-        if not self.settings.allow_signups:
+        if self.settings.registration_mode == "closed":
             raise SignupsClosedError("Регистрация временно закрыта.")
 
         normalized_email = normalize_email(email)
@@ -76,6 +78,15 @@ class EmailVerificationService:
             minimum_length=self.settings.password_min_length,
         )
         await self._enforce_signup_limit(normalized_email, network_key)
+        if self.settings.registration_mode == "invite_only" and (
+            invitation_token is None
+            or not await WorkspaceInvitationService(self.session, self.settings).permits_signup(
+                invitation_token=invitation_token,
+                email=normalized_email,
+            )
+        ):
+            await self.session.commit()
+            raise SignupsClosedError("Регистрация доступна только по приглашению.")
         if await self.users.get_by_email(normalized_email) is not None:
             await self.session.commit()
             return VerificationRequest(email=None)
@@ -106,6 +117,7 @@ class EmailVerificationService:
         email: str,
         base_url: str,
         network_key: str,
+        next_path: str | None = None,
     ) -> VerificationRequest:
         normalized_email = normalize_email(email)
         await self._enforce_resend_limit(
@@ -120,7 +132,11 @@ class EmailVerificationService:
             and user.deactivated_at is None
             and user.email_verified_at is None
         ):
-            message = await self._replace_token_email(user=user, base_url=base_url)
+            message = await self._replace_token_email(
+                user=user,
+                base_url=base_url,
+                next_path=safe_next_path(next_path) if next_path else None,
+            )
         await self.session.commit()
         return VerificationRequest(email=message)
 

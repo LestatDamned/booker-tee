@@ -68,7 +68,7 @@ async def read_auth_config(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> AuthConfigApiResponse:
     return AuthConfigApiResponse(
-        allow_signups=settings.allow_signups,
+        registration_mode=settings.registration_mode,
         password_min_length=settings.password_min_length,
     )
 
@@ -102,6 +102,7 @@ async def signup(
             name=request.name,
             base_url=_public_base_url(http_request, settings),
             next_path=request.next_path,
+            invitation_token=request.invitation_token,
             network_key=http_request.client.host if http_request.client else "unknown",
         )
     except SignupsClosedError as error:
@@ -167,6 +168,7 @@ async def request_email_verification(
         result = await verification.request_resend(
             email=request.email,
             base_url=_public_base_url(http_request, settings),
+            next_path=request.next_path,
             network_key=http_request.client.host if http_request.client else "unknown",
         )
     except InvalidEmailError:

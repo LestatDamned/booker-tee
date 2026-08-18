@@ -17,14 +17,17 @@ describe("auth API", () => {
       "fetch",
       vi.fn(() =>
         Promise.resolve(
-          jsonResponse({ allowSignups: false, passwordMinLength: 12 }),
+          jsonResponse({
+            registrationMode: "invite_only",
+            passwordMinLength: 12,
+          }),
         ),
       ),
     );
 
     await expect(loadAuthConfig()).resolves.toEqual({
       status: "success",
-      allowSignups: false,
+      registrationMode: "invite_only",
       passwordMinLength: 12,
     });
   });

@@ -77,8 +77,10 @@ class EmailVerificationStub:
     error: Exception | None = None
     email: IdentityEmail | None = None
     session_token: str = "verified-session-token"
+    signup_values: dict[str, object] = field(default_factory=dict)
 
     async def request_signup(self, **_values: object) -> VerificationRequest:
+        self.signup_values = _values
         if self.error:
             raise self.error
         return VerificationRequest(email=self.email)
@@ -206,11 +208,11 @@ class AccountDeactivationStub:
         self.deactivated_password = current_password
 
 
-def test_auth_config_exposes_signup_availability() -> None:
+def test_auth_config_exposes_registration_mode() -> None:
     app = create_app()
     app.dependency_overrides[get_settings] = lambda: Settings(
         environment="test",
-        allow_signups=False,
+        registration_mode="invite_only",
         password_min_length=12,
     )
 
@@ -219,7 +221,7 @@ def test_auth_config_exposes_signup_availability() -> None:
 
     assert response.status_code == 200
     assert response.json() == {
-        "allowSignups": False,
+        "registrationMode": "invite_only",
         "passwordMinLength": 12,
     }
 
@@ -298,9 +300,8 @@ def test_signup_returns_generic_accepted_response_without_session_cookie() -> No
         subject="Подтвердите email",
         text="verification link",
     )
-    app.dependency_overrides[get_email_verification_service] = lambda: EmailVerificationStub(
-        email=message
-    )
+    verification = EmailVerificationStub(email=message)
+    app.dependency_overrides[get_email_verification_service] = lambda: verification
 
     async def capture_email(email: IdentityEmail) -> None:
         sent.append(email)
@@ -311,7 +312,11 @@ def test_signup_returns_generic_accepted_response_without_session_cookie() -> No
         response = client.post(
             "/api/v1/auth/signup",
             headers=SAME_ORIGIN_HEADERS,
-            json={"email": "max@example.test", "password": "long-enough"},
+            json={
+                "email": "max@example.test",
+                "password": "long-enough",
+                "invitationToken": "private-token",
+            },
         )
 
     assert response.status_code == 202
@@ -321,6 +326,7 @@ def test_signup_returns_generic_accepted_response_without_session_cookie() -> No
     }
     assert "booker_session" not in response.headers.get("set-cookie", "")
     assert sent == [message]
+    assert verification.signup_values["invitation_token"] == "private-token"
 
 
 def test_email_verification_sets_session_cookie_and_safe_continuation() -> None:

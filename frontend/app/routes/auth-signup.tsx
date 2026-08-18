@@ -68,6 +68,7 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
       name: name || null,
       password,
       nextPath: searchParams.get("next"),
+      invitationToken: searchParams.get("invitation"),
     });
     setPending(false);
     if (result.status === "success") {
@@ -85,7 +86,10 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
     if (pending || cooldown > 0) return;
     setPending(true);
     setResendStatus(null);
-    const result = await resendEmailVerification({ email });
+    const result = await resendEmailVerification({
+      email,
+      nextPath: searchParams.get("next"),
+    });
     setPending(false);
     if (result.status === "success") {
       setResendStatus("Письмо запрошено повторно. Проверьте входящие и спам.");
@@ -96,8 +100,13 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
     if (result.retryAfterSeconds) setCooldown(result.retryAfterSeconds);
   }
 
+  const invitationToken = searchParams.get("invitation");
   const registrationClosed =
-    loaderData.status === "success" && !loaderData.allowSignups;
+    loaderData.status === "success" &&
+    (loaderData.registrationMode === "closed" ||
+      (loaderData.registrationMode === "invite_only" && !invitationToken));
+  const fullyClosed =
+    loaderData.status === "success" && loaderData.registrationMode === "closed";
   return (
     <main className={styles.page}>
       <section aria-labelledby="signup-title" className={styles.card}>
@@ -141,9 +150,16 @@ export default function SignupRoute({ loaderData }: Route.ComponentProps) {
             </p>
           </div>
         ) : registrationClosed ? (
-          <InlineNotice title="Регистрация закрыта" tone="information">
-            Новые аккаунты временно не создаются. Если аккаунт уже есть,
-            войдите.
+          <InlineNotice
+            title={
+              fullyClosed ? "Регистрация закрыта" : "Регистрация по приглашению"
+            }
+            tone="information"
+          >
+            {fullyClosed
+              ? "Новые аккаунты временно не создаются."
+              : "Новые аккаунты создаются только по действующей ссылке-приглашению."}{" "}
+            Если аккаунт уже есть, войдите.
           </InlineNotice>
         ) : (
           <form className={styles.form} noValidate onSubmit={submit}>

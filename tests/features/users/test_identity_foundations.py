@@ -1,6 +1,10 @@
 from email.message import EmailMessage
+from types import SimpleNamespace
+from typing import cast
+from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import (
     auth_rate_limit_bucket_hash,
@@ -13,6 +17,8 @@ from app.features.users.email_delivery import (
     build_email_verification_message,
     send_identity_email,
 )
+from app.features.users.email_verification import EmailVerificationService
+from app.features.users.errors import SignupsClosedError
 
 
 def test_user_tokens_and_rate_limit_keys_do_not_expose_secrets() -> None:
@@ -57,12 +63,33 @@ def test_production_signups_require_identity_delivery_to_be_enabled() -> None:
         auth_secret_key="production-secret-value-with-enough-entropy",
         session_cookie_secure=True,
         allowed_hosts=["booker.example"],
-        allow_signups=True,
+        registration_mode="open",
         identity_email_enabled=False,
     )
 
     with pytest.raises(RuntimeError, match="BOOKER_TEE_IDENTITY_EMAIL_ENABLED"):
         settings.validate_for_runtime()
+
+
+@pytest.mark.asyncio
+async def test_invite_only_signup_rejects_missing_invitation(monkeypatch) -> None:
+    commit = AsyncMock()
+    session = cast(AsyncSession, SimpleNamespace(commit=commit))
+    service = EmailVerificationService(
+        session,
+        Settings(registration_mode="invite_only"),
+    )
+    monkeypatch.setattr(service, "_enforce_signup_limit", AsyncMock())
+
+    with pytest.raises(SignupsClosedError, match="только по приглашению"):
+        await service.request_signup(
+            email="invitee@example.test",
+            password="correct horse battery staple",
+            name=None,
+            base_url="https://booker.example",
+        )
+
+    commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio

@@ -1865,8 +1865,11 @@ export interface components {
         };
         /** AuthConfigApiResponse */
         AuthConfigApiResponse: {
-            /** Allowsignups */
-            allowSignups: boolean;
+            /**
+             * Registrationmode
+             * @enum {string}
+             */
+            registrationMode: "open" | "invite_only" | "closed";
             /** Passwordminlength */
             passwordMinLength: number;
         };
@@ -2628,6 +2631,8 @@ export interface components {
         EmailVerificationRequestApiRequest: {
             /** Email */
             email: string;
+            /** Nextpath */
+            nextPath?: string | null;
         };
         /** GiveLoanApiRequest */
         GiveLoanApiRequest: {
@@ -4854,6 +4859,8 @@ export interface components {
             nextPath?: string | null;
             /** Name */
             name?: string | null;
+            /** Invitationtoken */
+            invitationToken?: string | null;
         };
         /**
          * StatementValidationStatus

@@ -33,7 +33,7 @@ describe("Workspace invitation page", () => {
       screen.getByRole("link", { name: "Создать аккаунт" }),
     ).toHaveAttribute(
       "href",
-      "/app/auth/signup?next=%2Fapp%2Fworkspaces%2Finvitations%2Fprivate-token",
+      "/app/auth/signup?invitation=private-token&next=%2Fapp%2Fworkspaces%2Finvitations%2Fprivate-token",
     );
   });
 

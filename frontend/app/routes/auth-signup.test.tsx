@@ -37,11 +37,15 @@ describe("SignupRoute", () => {
     const user = userEvent.setup();
 
     render(
-      <MemoryRouter initialEntries={["/auth/signup?next=/app/profile"]}>
+      <MemoryRouter
+        initialEntries={[
+          "/auth/signup?invitation=private-token&next=/app/profile",
+        ]}
+      >
         <TestSignupRoute
           loaderData={{
             status: "success",
-            allowSignups: true,
+            registrationMode: "invite_only",
             passwordMinLength: 12,
           }}
         />
@@ -63,11 +67,31 @@ describe("SignupRoute", () => {
       name: null,
       password: "correct horse battery staple",
       nextPath: "/app/profile",
+      invitationToken: "private-token",
     });
     expect(screen.getByText("Проверьте почту")).toBeInTheDocument();
     expect(screen.getByText("max@example.test")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Отправить повторно через 60/ }),
     ).toBeDisabled();
+  });
+
+  it("blocks invite-only registration without an invitation", () => {
+    render(
+      <MemoryRouter initialEntries={["/auth/signup"]}>
+        <TestSignupRoute
+          loaderData={{
+            status: "success",
+            registrationMode: "invite_only",
+            passwordMinLength: 8,
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Регистрация по приглашению")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Создать аккаунт" }),
+    ).not.toBeInTheDocument();
   });
 });

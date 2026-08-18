@@ -25,7 +25,7 @@ export type AuthMutationResult =
 export type AuthConfigResult =
   | {
       status: "success";
-      allowSignups: boolean;
+      registrationMode: "open" | "invite_only" | "closed";
       passwordMinLength: number;
     }
   | { status: "error"; message: string };
@@ -50,7 +50,7 @@ export type PasswordResetResult =
 
 const authenticatedSchema = z.object({ nextPath: z.string() });
 const configSchema = z.object({
-  allowSignups: z.boolean(),
+  registrationMode: z.enum(["open", "invite_only", "closed"]),
   passwordMinLength: z.number().int().min(8),
 });
 const verificationRequestedSchema = z.object({

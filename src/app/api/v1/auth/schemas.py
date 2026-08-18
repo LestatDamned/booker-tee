@@ -1,10 +1,12 @@
+from typing import Literal
+
 from pydantic import Field
 
 from app.api.schemas import ApiModel, ApiRequestModel
 
 
 class AuthConfigApiResponse(ApiModel):
-    allow_signups: bool
+    registration_mode: Literal["open", "invite_only", "closed"]
     password_min_length: int
 
 
@@ -16,6 +18,7 @@ class LoginApiRequest(ApiRequestModel):
 
 class SignupApiRequest(LoginApiRequest):
     name: str | None = Field(default=None, max_length=255)
+    invitation_token: str | None = Field(default=None, min_length=1, max_length=1024)
 
 
 class AuthenticatedApiResponse(ApiModel):
@@ -38,6 +41,7 @@ class VerificationRequestedApiResponse(ApiModel):
 
 class EmailVerificationRequestApiRequest(ApiRequestModel):
     email: str = Field(max_length=320)
+    next_path: str | None = Field(default=None, max_length=2048)
 
 
 class EmailVerificationApiRequest(ApiRequestModel):

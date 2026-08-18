@@ -48,7 +48,35 @@ npm run build
 
 Production-аудиты не содержат известных уязвимостей, все проверки проходят.
 
+### Результат 2026-08-18
+
+Dependency fixes выполнены:
+
+- React Router family: `8.2.0` -> `8.3.0`;
+- `cryptography`: `49.0.0` -> `50.0.0`;
+- `Pillow`: `12.2.0` -> `12.3.0`;
+- `pydantic-settings`: `2.14.1` -> `2.14.2`;
+- уязвимые transitive frontend build/test dependencies обновлены в lock-файле.
+
+Проверки:
+
+- полный `npm audit`: 0 vulnerabilities;
+- production `pip-audit`: no known vulnerabilities;
+- `npm ci`: passed;
+- frontend format, lint, styles, API contract и typecheck: passed;
+- frontend tests: 569 passed;
+- frontend production build: passed;
+- backend tests: 1008 passed, 34 PostgreSQL tests skipped без
+  `BOOKER_TEE_TEST_DATABASE_URL`.
+
+Exit gate этапа закрыт. Неиспользуемый и устаревший
+`src/app/features/debts/mappers.py` удалён: его runtime consumers отсутствовали,
+а актуальный mapping уже принадлежит `DebtReader`. После удаления `ruff`, `ty`,
+backend tests и оба dependency audit прошли.
+
 ## 2. Включить регистрацию только по приглашениям
+
+Статус: завершено 18 августа 2026 года.
 
 Добавить явный режим регистрации:
 
@@ -80,6 +108,31 @@ Exit gate:
 - email signup должен совпадать с email приглашения;
 - полный signup -> verification -> invitation acceptance проходит;
 - конкурентное или повторное принятие не создаёт дубли.
+
+Реализовано без новой таблицы и без отдельной системы registration codes:
+
+- `open`, `invite_only` и `closed` доступны через
+  `BOOKER_TEE_REGISTRATION_MODE`;
+- signup получает отдельный invitation token и не доверяет маршруту `next`;
+- backend проверяет pending-статус, срок, активность workspace и точное
+  совпадение нормализованного email;
+- приглашение остаётся pending до существующего authenticated accept-flow;
+- повторное verification-письмо сохраняет безопасный маршрут возврата;
+- публичный отказ не раскрывает email или состояние приглашения.
+
+Проверки этапа:
+
+- backend security/API/application tests: 47 passed;
+- PostgreSQL identity flow, включая реальный invite-only signup: 6 passed;
+- полный backend suite: 1010 passed, 35 PostgreSQL tests skipped без
+  общей test database;
+- frontend invite/auth tests: 12 passed;
+- полный frontend suite: 570 passed;
+- Ruff, ty, ESLint, TypeScript и OpenAPI contract: passed;
+- frontend production build: passed.
+
+Exit gate этапа закрыт. Временная PostgreSQL test database после проверки
+удалена.
 
 ## 3. Подготовить Telegram webhook
 

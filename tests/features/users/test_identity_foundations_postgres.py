@@ -39,7 +39,18 @@ from app.features.users.models import (
 from app.features.users.passwords import PasswordService
 from app.features.users.service import AuthenticationService
 from app.features.users.sessions import UserSessionService
-from app.features.workspaces.models import Workspace, WorkspaceAuditEvent, WorkspaceMember
+from app.features.workspaces.domain.types import (
+    WorkspaceInvitationStatus,
+    WorkspaceMemberStatus,
+    WorkspaceRole,
+)
+from app.features.workspaces.models import (
+    Workspace,
+    WorkspaceAuditEvent,
+    WorkspaceInvitation,
+    WorkspaceMember,
+)
+from app.features.workspaces.tokens import hash_invitation_token
 
 TEST_DATABASE_URL = os.getenv("BOOKER_TEE_TEST_DATABASE_URL")
 
@@ -351,6 +362,94 @@ async def test_verification_first_signup_creates_identity_then_workspace_once() 
                 await session.execute(delete(Workspace).where(Workspace.id == workspace_id))
             if user_id is not None:
                 await session.execute(delete(User).where(User.id == user_id))
+            await session.commit()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_invite_only_signup_uses_pending_workspace_invitation() -> None:
+    assert TEST_DATABASE_URL is not None
+    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    owner_id = uuid4()
+    workspace_id = uuid4()
+    invitation_id = uuid4()
+    token = f"signup-invitation-{invitation_id}"
+    email = f"invited-{invitation_id}@example.test"
+    settings = Settings(
+        auth_secret_key="invite-only-signup-test-secret",
+        registration_mode="invite_only",
+    )
+
+    try:
+        async with sessions() as session:
+            session.add(
+                User(
+                    id=owner_id,
+                    email=f"owner-{owner_id}@example.test",
+                    password_hash="hash",
+                    name="Owner",
+                    email_verified_at=utc_now(),
+                )
+            )
+            session.add(
+                Workspace(
+                    id=workspace_id,
+                    owner_id=owner_id,
+                    name="Invited workspace",
+                )
+            )
+            session.add(
+                WorkspaceMember(
+                    workspace_id=workspace_id,
+                    user_id=owner_id,
+                    role=WorkspaceRole.OWNER,
+                    status=WorkspaceMemberStatus.ACTIVE,
+                )
+            )
+            session.add(
+                WorkspaceInvitation(
+                    id=invitation_id,
+                    workspace_id=workspace_id,
+                    invitee_email=email,
+                    role=WorkspaceRole.VIEWER,
+                    status=WorkspaceInvitationStatus.PENDING,
+                    token_hash=hash_invitation_token(token),
+                    invited_by_user_id=owner_id,
+                    expires_at=utc_now() + timedelta(hours=1),
+                )
+            )
+            await session.commit()
+
+        async with sessions() as session:
+            result = await EmailVerificationService(session, settings).request_signup(
+                email=email,
+                password="correct horse battery staple",
+                name="Invitee",
+                base_url="https://booker.example",
+                invitation_token=token,
+            )
+            assert result.email is not None
+            assert await session.scalar(select(User.id).where(User.email == email)) is not None
+            invitation = await session.get(WorkspaceInvitation, invitation_id)
+            assert invitation is not None
+            assert invitation.status == WorkspaceInvitationStatus.PENDING
+    finally:
+        async with sessions() as session:
+            rate_limit_hashes = [
+                auth_rate_limit_bucket_hash(scope=scope, key=key, settings=settings)
+                for scope, key in (
+                    ("signup-account", email),
+                    ("signup-network", "unknown"),
+                )
+            ]
+            await session.execute(
+                delete(AuthRateLimit).where(AuthRateLimit.bucket_hash.in_(rate_limit_hashes))
+            )
+            await session.execute(delete(Workspace).where(Workspace.id == workspace_id))
+            await session.execute(
+                delete(User).where(User.email.in_([email, f"owner-{owner_id}@example.test"]))
+            )
             await session.commit()
         await engine.dispose()
 
