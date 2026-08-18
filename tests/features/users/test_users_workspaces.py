@@ -159,7 +159,7 @@ def test_access_and_refresh_jwts_are_typed_signed_and_expiring() -> None:
 
 
 async def test_refresh_rotates_and_reuse_revokes_session(monkeypatch) -> None:
-    current_time = [datetime(2026, 8, 4, 12, tzinfo=UTC)]
+    current_time = [datetime.now(UTC)]
 
     class FakeSession:
         commit_count = 0

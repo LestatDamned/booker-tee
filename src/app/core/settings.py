@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -219,6 +220,15 @@ class Settings(BaseSettings):
             if self.telegram_webhook_secret is None:
                 errors.append(
                     "BOOKER_TEE_TELEGRAM_WEBHOOK_SECRET must be set for Telegram webhook mode."
+                )
+            elif (
+                len(self.telegram_webhook_secret) < 32
+                or len(self.telegram_webhook_secret) > 256
+                or re.fullmatch(r"[A-Za-z0-9_-]+", self.telegram_webhook_secret) is None
+            ):
+                errors.append(
+                    "BOOKER_TEE_TELEGRAM_WEBHOOK_SECRET must contain 32-256 characters "
+                    "using only A-Z, a-z, 0-9, underscore, or hyphen."
                 )
 
         if errors:

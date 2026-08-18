@@ -100,3 +100,25 @@ def test_production_settings_reject_wildcard_hosts() -> None:
         assert "BOOKER_TEE_ALLOWED_HOSTS" in str(exc)
     else:
         raise AssertionError("production settings accepted wildcard hosts")
+
+
+def test_production_settings_reject_weak_telegram_webhook_secret() -> None:
+    settings = Settings(
+        environment="production",
+        registration_mode="closed",
+        auth_secret_key="production-secret-value-with-enough-entropy",
+        session_cookie_secure=True,
+        allowed_hosts=["booker.example"],
+        chat_integrations_enabled=True,
+        telegram_mode="webhook",
+        telegram_bot_token="bot-token",
+        telegram_webhook_secret="too-short",
+        public_base_url="https://booker.example",
+    )
+
+    try:
+        settings.validate_for_runtime()
+    except RuntimeError as exc:
+        assert "BOOKER_TEE_TELEGRAM_WEBHOOK_SECRET" in str(exc)
+    else:
+        raise AssertionError("production settings accepted a weak Telegram webhook secret")

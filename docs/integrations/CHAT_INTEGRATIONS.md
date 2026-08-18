@@ -58,6 +58,23 @@ uv run python -m app.features.chat_integrations.polling
 Production webhook требует explicit public base URL, bot token, webhook secret
 и secure application settings.
 
+Совместимый случайный secret можно сгенерировать локально:
+
+```bash
+python -c 'import secrets; print(secrets.token_urlsafe(32))'
+```
+
+После применения migrations и запуска production application webhook
+регистрируется существующим runtime-клиентом:
+
+```bash
+uv run python -m app.features.chat_integrations.webhook
+```
+
+Команда не выводит bot token или webhook secret. Telegram update IDs хранятся
+без provider payload в `telegram_webhook_updates`: completed updates не
+обрабатываются повторно, а failed updates допускают повторную доставку.
+
 ## Boundaries
 
 Chat code может:

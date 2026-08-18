@@ -59,6 +59,12 @@ Local polling worker:
 uv run python -m app.features.chat_integrations.polling
 ```
 
+Production webhook registration after migrations and application startup:
+
+```bash
+uv run python -m app.features.chat_integrations.webhook
+```
+
 Required local settings:
 
 ```text
@@ -337,13 +343,15 @@ Current foundation:
 - `polling.py` - local Telegram polling worker with per-update service/session wiring.
 - `router.py` - local/test Telegram dev-link page and production Telegram webhook endpoint.
 - `models.py` - integration connections, chat identity bindings, conversation bindings,
-  conversation state, delivery logs.
+  conversation state, delivery logs, and the Telegram webhook inbox.
 - `repository.py` - workspace-scoped chat binding persistence.
+- `webhook_repository.py` - persistent Telegram `update_id` claim and completion state.
 - `application.py` - remaining shared application helpers and compatibility-free
   use-case wiring that has not yet moved to focused modules.
 - `notifications/formatter.py` - privacy-safe shared chat notification text.
 - `notifications/dispatcher.py` - shared feed delivery with provider registry and delivery log.
-- `webhook.py` - Telegram webhook policy, URL builder, registrar, and update receiver.
+- `webhook.py` - Telegram webhook policy, URL builder, registrar, deduplicating receiver,
+  and release command.
 - `errors.py` - module-specific application errors.
 
 Target additions:

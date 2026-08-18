@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -25,6 +26,89 @@ from app.features.chat_integrations.use_cases import workspace as chat_workspace
 from app.features.imports.documents.commands.upload import StatementUploadResult
 from app.features.imports.documents.types import UploadedDocumentStatus
 from app.features.workspaces.service import WorkspaceContext
+
+
+def test_telegram_document_uses_configured_upload_limit() -> None:
+    document = ChatDocument(
+        file_id="file-id",
+        file_name="statement.pdf",
+        file_size=1025,
+    )
+
+    with pytest.raises(chat_application.ChatDocumentUploadError, match="size limit"):
+        chat_application.ChatDocumentUploadPolicy.ensure_supported_statement(
+            document,
+            max_bytes=1024,
+        )
+
+
+@pytest.mark.asyncio
+async def test_telegram_upload_uses_conversation_state_as_idempotency_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    user_id = uuid4()
+    account_id = uuid4()
+    state_id = uuid4()
+    state = SimpleNamespace(
+        id=state_id,
+        state_payload={
+            "file_id": "file-id",
+            "file_name": "statement.pdf",
+            "account_ids": [str(account_id)],
+        },
+    )
+    upload_result = StatementUploadResult(
+        document_id=uuid4(),
+        document_status=UploadedDocumentStatus.REQUIRES_REVIEW,
+        filename="statement.pdf",
+        replayed=False,
+    )
+    seen_idempotency_keys: list[object] = []
+
+    class FakeUploads:
+        def __init__(self, *_args: object) -> None:
+            pass
+
+        async def upload_statement(self, **kwargs: object) -> StatementUploadResult:
+            seen_idempotency_keys.append(kwargs["idempotency_key"])
+            return upload_result
+
+    chat_repository = SimpleNamespace(
+        get_active_conversation_state=AsyncMock(return_value=state),
+        consume_conversation_state=AsyncMock(),
+    )
+    session = SimpleNamespace(commit=AsyncMock())
+    downloader = SimpleNamespace(
+        download_document=AsyncMock(
+            return_value=SimpleNamespace(
+                filename="statement.pdf",
+                content_type="application/pdf",
+                file_bytes=b"pdf",
+            )
+        )
+    )
+    monkeypatch.setattr(chat_application, "StatementUploadUseCase", FakeUploads)
+    service = chat_application.ChatDocumentUploadService(
+        cast(AsyncSession, session),
+        Settings(),
+        cast(Any, downloader),
+    )
+    service.chat_integrations = cast(Any, chat_repository)
+
+    result = await service.complete_document_upload(
+        context=WorkspaceContext(
+            user=cast(Any, SimpleNamespace(id=user_id)),
+            workspace=cast(Any, SimpleNamespace(id=workspace_id)),
+            membership=cast(Any, SimpleNamespace()),
+        ),
+        action_token="upload-token",
+        account_index=0,
+    )
+
+    assert result == upload_result
+    assert seen_idempotency_keys == [state_id]
+    chat_repository.consume_conversation_state.assert_awaited_once()
 
 
 @pytest.mark.asyncio

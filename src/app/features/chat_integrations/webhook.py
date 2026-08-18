@@ -1,8 +1,14 @@
+import asyncio
+import secrets
+from datetime import timedelta
+
 import httpx
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.settings import Settings
+from app.db.base import utc_now
 from app.features.chat_integrations.providers.telegram import TelegramUpdateNormalizer
 from app.features.chat_integrations.providers.telegram_client import (
     TelegramBotClient,
@@ -10,9 +16,14 @@ from app.features.chat_integrations.providers.telegram_client import (
 )
 from app.features.chat_integrations.schemas import InboundChatEvent, OutboundChatMessage
 from app.features.chat_integrations.service import ChatEventService
+from app.features.chat_integrations.webhook_repository import (
+    TelegramWebhookClaimResult,
+    TelegramWebhookUpdateRepository,
+)
 
 TELEGRAM_WEBHOOK_SECRET_HEADER = "X-Telegram-Bot-Api-Secret-Token"
 TELEGRAM_WEBHOOK_PATH = "/chat-integrations/telegram/webhook"
+TELEGRAM_WEBHOOK_PROCESSING_LEASE = timedelta(minutes=5)
 
 
 class TelegramWebhookRuntimePolicy:
@@ -30,7 +41,8 @@ class TelegramWebhookSecretPolicy:
     @staticmethod
     def require_valid_secret(*, settings: Settings, received_secret: str | None) -> None:
         TelegramWebhookRuntimePolicy.require_webhook_mode(settings)
-        if received_secret != settings.telegram_webhook_secret:
+        expected_secret = settings.telegram_webhook_secret or ""
+        if not secrets.compare_digest(received_secret or "", expected_secret):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
 
@@ -73,20 +85,54 @@ class TelegramWebhookUpdateReceiver:
         self.session = session
         self.settings = settings
         self.http_client = http_client
+        self.updates = TelegramWebhookUpdateRepository(session)
 
-    async def receive_update(self, update: dict[str, object]) -> None:
+    async def receive_update(self, update: dict[str, object]) -> bool:
+        update_id = TelegramWebhookUpdateIdReader.require(update)
+        now = utc_now()
+        claim = await self.updates.claim(
+            update_id=update_id,
+            now=now,
+            stale_before=now - TELEGRAM_WEBHOOK_PROCESSING_LEASE,
+        )
+        if claim == TelegramWebhookClaimResult.COMPLETED:
+            return False
+        if claim == TelegramWebhookClaimResult.IN_PROGRESS:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Telegram update is already being processed.",
+            )
+
         client = TelegramBotClient(
             bot_token=TelegramWebhookSettingsReader.require_bot_token(self.settings),
             http_client=self.http_client,
         )
-        event = TelegramWebhookUpdateNormalizer.normalize_update(update)
-        response = await ChatEventService(
-            self.session,
-            self.settings,
-            client,
-            client,
-        ).receive_inbound_event(event)
-        await TelegramWebhookResponseSender.send_response(client, event, response)
+        try:
+            event = TelegramWebhookUpdateNormalizer.normalize_update(update)
+            response = await ChatEventService(
+                self.session,
+                self.settings,
+                client,
+                client,
+            ).receive_inbound_event(event)
+            await TelegramWebhookResponseSender.send_response(client, event, response)
+        except Exception:
+            await self.updates.mark_failed(update_id=update_id)
+            raise
+        await self.updates.mark_completed(update_id=update_id, completed_at=utc_now())
+        return True
+
+
+class TelegramWebhookUpdateIdReader:
+    @staticmethod
+    def require(update: dict[str, object]) -> int:
+        update_id = update.get("update_id")
+        if not isinstance(update_id, int) or isinstance(update_id, bool) or update_id < 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Telegram update_id is required.",
+            )
+        return update_id
 
 
 class TelegramWebhookUpdateNormalizer:
@@ -121,3 +167,22 @@ class TelegramWebhookSettingsReader:
         if settings.telegram_webhook_secret is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
         return settings.telegram_webhook_secret
+
+
+async def register_telegram_webhook_from_settings() -> str:
+    settings = get_settings()
+    settings.validate_for_runtime()
+    async with httpx.AsyncClient(timeout=settings.telegram_polling_timeout_seconds + 10) as client:
+        return await TelegramWebhookRegistrar(
+            settings=settings,
+            http_client=client,
+        ).register_webhook()
+
+
+def main() -> None:
+    webhook_url = asyncio.run(register_telegram_webhook_from_settings())
+    print(f"Telegram webhook registered: {webhook_url}")
+
+
+if __name__ == "__main__":
+    main()

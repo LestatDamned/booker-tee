@@ -136,6 +136,8 @@ Exit gate этапа закрыт. Временная PostgreSQL test database �
 
 ## 3. Подготовить Telegram webhook
 
+Статус: завершено 18 августа 2026 года.
+
 Production использует:
 
 ```env
@@ -162,6 +164,35 @@ Exit gate:
 
 Telegram передаёт настроенный `secret_token` в заголовке webhook: [Bot API
 setWebhook](https://core.telegram.org/bots/api#setwebhook).
+
+Реализовано:
+
+- secret header сравнивается через `secrets.compare_digest` до обработки update;
+- production runtime требует Telegram-compatible secret длиной 32-256 символов;
+- migration `20260818_0031` добавляет ID-only inbox
+  `telegram_webhook_updates`, без raw provider payload;
+- concurrent update получает единственного processing owner, completed update
+  не обрабатывается повторно, failed update можно повторить;
+- отсутствие или неверный secret и некорректный `update_id` отклоняются;
+- предварительная проверка Telegram-файла использует общий
+  `BOOKER_TEE_STATEMENT_UPLOAD_MAX_BYTES`;
+- Telegram upload передаёт стабильный conversation-state ID в существующий
+  idempotent statement upload flow;
+- Compose передаёт Telegram, public URL и upload-limit settings приложению;
+- webhook регистрируется командой
+  `uv run python -m app.features.chat_integrations.webhook` без вывода секретов.
+
+Проверки этапа:
+
+- webhook/identity/upload/application tests: passed;
+- реальный PostgreSQL concurrent claim, completed replay и failed retry: passed;
+- migration upgrade, downgrade и повторный upgrade на чистой PostgreSQL: passed;
+- полный backend suite: 1023 passed, 36 PostgreSQL tests skipped без общей
+  test database;
+- Ruff, ty, migration formatting и `docker compose config -q`: passed.
+
+Exit gate этапа закрыт. Изолированная PostgreSQL test database после проверки
+удалена.
 
 ## 4. Создать production image и Compose
 

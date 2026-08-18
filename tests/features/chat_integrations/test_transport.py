@@ -1,11 +1,13 @@
 import json
-from typing import cast
+from typing import Any, cast
 
 import httpx
 import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api_client import ApiTestClient as TestClient
+from app.core.config import get_settings
 from app.core.settings import Settings
 from app.features.chat_integrations.polling import TelegramPollingWorker
 from app.features.chat_integrations.providers.telegram_client import TelegramBotClient
@@ -18,9 +20,31 @@ from app.features.chat_integrations.schemas import (
 from app.features.chat_integrations.webhook import (
     TelegramWebhookRegistrar,
     TelegramWebhookSecretPolicy,
+    TelegramWebhookUpdateIdReader,
     TelegramWebhookUpdateReceiver,
     TelegramWebhookUrlBuilder,
 )
+from app.features.chat_integrations.webhook_repository import TelegramWebhookClaimResult
+from app.main import create_app
+
+
+class FakeTelegramWebhookUpdates:
+    def __init__(
+        self,
+        claim_result: TelegramWebhookClaimResult = TelegramWebhookClaimResult.CLAIMED,
+    ) -> None:
+        self.claim_result = claim_result
+        self.completed: list[int] = []
+        self.failed: list[int] = []
+
+    async def claim(self, **_values: object) -> TelegramWebhookClaimResult:
+        return self.claim_result
+
+    async def mark_completed(self, *, update_id: int, **_values: object) -> None:
+        self.completed.append(update_id)
+
+    async def mark_failed(self, *, update_id: int) -> None:
+        self.failed.append(update_id)
 
 
 def test_chat_integration_dev_mode_rejects_production_settings() -> None:
@@ -29,7 +53,10 @@ def test_chat_integration_dev_mode_rejects_production_settings() -> None:
     assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_telegram_webhook_secret_policy_rejects_wrong_secret() -> None:
+@pytest.mark.parametrize("received_secret", [None, "wrong-secret"])
+def test_telegram_webhook_secret_policy_rejects_missing_or_wrong_secret(
+    received_secret: str | None,
+) -> None:
     settings = Settings(
         chat_integrations_enabled=True,
         telegram_mode="webhook",
@@ -40,10 +67,32 @@ def test_telegram_webhook_secret_policy_rejects_wrong_secret() -> None:
     with pytest.raises(HTTPException) as exc_info:
         TelegramWebhookSecretPolicy.require_valid_secret(
             settings=settings,
-            received_secret="wrong-secret",
+            received_secret=received_secret,
         )
 
     assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.parametrize("headers", [{}, {"X-Telegram-Bot-Api-Secret-Token": "wrong"}])
+def test_telegram_webhook_route_rejects_missing_or_wrong_secret(
+    headers: dict[str, str],
+) -> None:
+    app = create_app()
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        chat_integrations_enabled=True,
+        telegram_mode="webhook",
+        telegram_bot_token="test-token",
+        telegram_webhook_secret="correct-secret",
+    )
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat-integrations/telegram/webhook",
+            headers=headers,
+            json={"update_id": 100},
+        )
+
+    assert response.status_code == 403
 
 
 def test_telegram_webhook_url_builder_uses_public_base_url() -> None:
@@ -112,15 +161,81 @@ async def test_telegram_webhook_receiver_sends_service_response() -> None:
     }
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
-        await TelegramWebhookUpdateReceiver(
+        receiver = TelegramWebhookUpdateReceiver(
             session=cast(AsyncSession, object()),
             settings=settings,
             http_client=http_client,
-        ).receive_update(update)
+        )
+        updates = FakeTelegramWebhookUpdates()
+        receiver.updates = cast(Any, updates)
+        assert await receiver.receive_update(update)
 
     assert requests[0][0] == "/bottest-token/sendMessage"
     assert requests[0][1]["chat_id"] == 42
     assert "Booker Tee" in str(requests[0][1]["text"])
+    assert updates.completed == [100]
+
+
+@pytest.mark.asyncio
+async def test_telegram_webhook_receiver_skips_completed_update() -> None:
+    settings = Settings(
+        chat_integrations_enabled=True,
+        telegram_mode="webhook",
+        telegram_bot_token="test-token",
+        telegram_webhook_secret="secret",
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _request: httpx.Response(500))
+    ) as client:
+        receiver = TelegramWebhookUpdateReceiver(
+            session=cast(AsyncSession, object()),
+            settings=settings,
+            http_client=client,
+        )
+        receiver.updates = cast(
+            Any,
+            FakeTelegramWebhookUpdates(TelegramWebhookClaimResult.COMPLETED),
+        )
+
+        assert not await receiver.receive_update({"update_id": 100})
+
+
+@pytest.mark.parametrize("update_id", [None, True, -1, "100"])
+def test_telegram_webhook_rejects_invalid_update_id(update_id: object) -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        TelegramWebhookUpdateIdReader.require({"update_id": update_id})
+
+    assert exc_info.value.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+@pytest.mark.asyncio
+async def test_telegram_webhook_marks_failed_update_for_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FailingChatEventService:
+        def __init__(self, *_args: object) -> None:
+            pass
+
+        async def receive_inbound_event(self, _event: InboundChatEvent) -> None:
+            raise RuntimeError("processing failed")
+
+    monkeypatch.setattr(
+        "app.features.chat_integrations.webhook.ChatEventService",
+        FailingChatEventService,
+    )
+    async with httpx.AsyncClient() as client:
+        receiver = TelegramWebhookUpdateReceiver(
+            session=cast(AsyncSession, object()),
+            settings=Settings(telegram_bot_token="test-token"),
+            http_client=client,
+        )
+        updates = FakeTelegramWebhookUpdates()
+        receiver.updates = cast(Any, updates)
+
+        with pytest.raises(RuntimeError, match="processing failed"):
+            await receiver.receive_update({"update_id": 101})
+
+    assert updates.failed == [101]
 
 
 @pytest.mark.asyncio

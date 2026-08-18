@@ -32,7 +32,6 @@ from app.features.imports.documents.errors import UploadValidationError
 from app.features.imports.parsers.extractors.resolver import SUPPORTED_STATEMENT_EXTENSIONS
 from app.features.workspaces.service import WorkspaceContext
 
-TELEGRAM_DOCUMENT_DOWNLOAD_LIMIT_BYTES = 20 * 1024 * 1024
 CHAT_DOCUMENT_UPLOAD_TTL = timedelta(minutes=30)
 CHAT_DOCUMENT_UPLOAD_MAX_ACCOUNT_CHOICES = 8
 
@@ -101,7 +100,10 @@ class ChatDocumentUploadService:
         if document is None:
             raise ChatDocumentUploadError("Document event does not include a file.")
 
-        ChatDocumentUploadPolicy.ensure_supported_statement(document)
+        ChatDocumentUploadPolicy.ensure_supported_statement(
+            document,
+            max_bytes=self.settings.statement_upload_max_bytes,
+        )
         accounts = await self.accounts.list_active_accounts(context.workspace.id)
         if not accounts:
             raise ChatDocumentUploadError("Create an account before uploading statements.")
@@ -166,6 +168,7 @@ class ChatDocumentUploadService:
                 context=context,
                 upload_file=upload_file,
                 account_id=account_id,
+                idempotency_key=state.id,
             )
         except UploadValidationError as exc:
             raise ChatDocumentUploadError(str(exc)) from exc
@@ -176,12 +179,9 @@ class ChatDocumentUploadService:
 
 class ChatDocumentUploadPolicy:
     @staticmethod
-    def ensure_supported_statement(document: ChatDocument) -> None:
-        if (
-            document.file_size is not None
-            and document.file_size > TELEGRAM_DOCUMENT_DOWNLOAD_LIMIT_BYTES
-        ):
-            raise ChatDocumentUploadError("Telegram statement files must be 20 MB or smaller.")
+    def ensure_supported_statement(document: ChatDocument, *, max_bytes: int) -> None:
+        if document.file_size is not None and document.file_size > max_bytes:
+            raise ChatDocumentUploadError("Telegram statement file exceeds the upload size limit.")
 
         filename = document.file_name or ""
         extension = Path(filename).suffix.casefold()

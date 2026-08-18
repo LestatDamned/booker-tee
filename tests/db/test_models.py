@@ -1,5 +1,6 @@
 from sqlalchemy.orm import configure_mappers
 
+from app.features.chat_integrations.models import TelegramWebhookUpdate
 from app.features.imports.models import ParseAttempt, UploadedDocument
 from app.features.users.models import AuthRateLimit, User, UserSession, UserToken
 
@@ -26,3 +27,8 @@ def test_user_identity_foundation_schema_is_registered() -> None:
     assert "user_agent_summary" in UserSession.__table__.columns
     assert UserToken.__tablename__ == "user_tokens"
     assert AuthRateLimit.__tablename__ == "auth_rate_limits"
+
+
+def test_telegram_webhook_inbox_schema_is_registered() -> None:
+    assert TelegramWebhookUpdate.__tablename__ == "telegram_webhook_updates"
+    assert {column.name for column in TelegramWebhookUpdate.__table__.primary_key} == {"update_id"}
