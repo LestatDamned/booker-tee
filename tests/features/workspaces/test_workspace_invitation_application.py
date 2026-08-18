@@ -105,7 +105,7 @@ def service_with_repo():
         create_member=AsyncMock(),
     )
     users = SimpleNamespace(
-        get_active_session_by_token_hash_for_update=AsyncMock(),
+        get_active_session_for_update=AsyncMock(),
         get_for_update=AsyncMock(),
     )
     service._workspaces = cast(Any, repository)
@@ -265,7 +265,7 @@ async def test_accept_consumes_invitation_and_switches_session_atomically() -> N
     repository.get_invitation_by_token_hash_for_update.return_value = target
     repository.get_any_membership_for_update.return_value = None
     repository.create_member.return_value = SimpleNamespace(id=uuid4())
-    users.get_active_session_by_token_hash_for_update.return_value = user_session
+    users.get_active_session_for_update.return_value = user_session
     users.get_for_update.return_value = actor
 
     result = await service.accept(
@@ -301,7 +301,7 @@ async def test_accept_does_not_consume_invitation_for_existing_membership() -> N
     repository.get_any_membership_for_update.return_value = SimpleNamespace(
         status=WorkspaceMemberStatus.DISABLED
     )
-    users.get_active_session_by_token_hash_for_update.return_value = user_session
+    users.get_active_session_for_update.return_value = user_session
     users.get_for_update.return_value = actor
 
     with pytest.raises(WorkspaceInvitationTransitionError) as error:
@@ -326,7 +326,7 @@ async def test_accept_rejects_a_different_verified_email() -> None:
     repository.get_invitation_by_token_hash.return_value = target
     repository.lock_for_update.return_value = target.workspace
     repository.get_invitation_by_token_hash_for_update.return_value = target
-    users.get_active_session_by_token_hash_for_update.return_value = SimpleNamespace()
+    users.get_active_session_for_update.return_value = SimpleNamespace()
     users.get_for_update.return_value = SimpleNamespace(
         id=actor_id,
         email="other@example.test",
@@ -363,7 +363,7 @@ async def test_accept_recovers_removed_membership() -> None:
     repository.get_invitation_by_token_hash_for_update.return_value = target
     repository.get_any_membership_for_update.return_value = removed
     repository.count_supported_members.return_value = 99
-    users.get_active_session_by_token_hash_for_update.return_value = user_session
+    users.get_active_session_for_update.return_value = user_session
     users.get_for_update.return_value = SimpleNamespace(
         id=actor_id,
         email=target.invitee_email,
@@ -400,7 +400,7 @@ async def test_accept_rejects_removed_membership_when_it_would_be_member_101() -
     repository.get_invitation_by_token_hash_for_update.return_value = target
     repository.get_any_membership_for_update.return_value = removed
     repository.count_supported_members.return_value = 100
-    users.get_active_session_by_token_hash_for_update.return_value = SimpleNamespace()
+    users.get_active_session_for_update.return_value = SimpleNamespace()
     users.get_for_update.return_value = SimpleNamespace(
         id=actor_id,
         email=target.invitee_email,

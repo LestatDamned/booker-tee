@@ -196,7 +196,7 @@ def lifecycle_harness(
         def __init__(self, _session) -> None:
             self.moves = []
 
-        async def get_active_session_by_token_hash_for_update(self, *_args, **_kwargs):
+        async def get_active_session_for_update(self, *_args, **_kwargs):
             return actor_session
 
         async def list_active_sessions_for_workspace_for_update(self, workspace_id):

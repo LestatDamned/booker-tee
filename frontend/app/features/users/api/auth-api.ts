@@ -62,6 +62,7 @@ export async function loadAuthConfig(
   signal?: AbortSignal,
 ): Promise<AuthConfigResult> {
   const response = await requestJson("/api/v1/auth/config", {
+    auth: false,
     ...(signal ? { signal } : {}),
   });
   if (response.status === "network_error") {
@@ -98,6 +99,7 @@ export async function resetPassword(
   draft: PasswordResetDraft,
 ): Promise<PasswordResetResult> {
   const response = await requestJson("/api/v1/auth/password-resets", {
+    auth: false,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(draft),
@@ -137,6 +139,7 @@ async function authenticate(
   draft: LoginDraft | EmailVerificationDraft,
 ): Promise<AuthMutationResult> {
   const response = await requestJson(path, {
+    auth: false,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(draft),
@@ -168,6 +171,7 @@ async function requestVerification(
   draft: SignupDraft | EmailVerificationRequestDraft,
 ): Promise<VerificationRequestResult> {
   const response = await requestJson(path, {
+    auth: false,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(draft),

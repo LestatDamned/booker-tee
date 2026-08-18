@@ -160,7 +160,7 @@ class FakeUserRepository:
         self.user_session: Any = None
         self.moves: list[tuple[UUID, UUID, UUID]] = []
 
-    async def get_active_session_by_token_hash_for_update(self, *args, **kwargs):
+    async def get_active_session_for_update(self, *args, **kwargs):
         return self.user_session
 
     async def move_active_workspace_sessions(

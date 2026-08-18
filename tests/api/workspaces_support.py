@@ -285,7 +285,7 @@ def workspaces_app() -> tuple[
     context = context.__class__(
         workspace=context.workspace,
         csrf_token=context.csrf_token,
-        session_token="workspace-session-token",
+        session_id=uuid4(),
     )
     updated_at = datetime(2026, 8, 3, 8, 30, tzinfo=UTC)
     current = workspace_item(
@@ -402,7 +402,7 @@ def workspace_settings_app() -> tuple[
     context = context.__class__(
         workspace=context.workspace,
         csrf_token=context.csrf_token,
-        session_token="workspace-session-token",
+        session_id=uuid4(),
     )
     workspace_id = uuid4()
     updated_at = datetime(2026, 8, 3, 9, 30, tzinfo=UTC)
@@ -554,7 +554,7 @@ def workspace_ownership_app() -> tuple[FastAPI, WorkspaceOwnershipServiceStub, U
     context = context.__class__(
         workspace=context.workspace,
         csrf_token=context.csrf_token,
-        session_token="workspace-session-token",
+        session_id=uuid4(),
     )
     workspace = context.workspace.workspace
     owner_membership = context.workspace.membership

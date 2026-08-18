@@ -2,19 +2,24 @@ from datetime import UTC, datetime, timedelta
 from typing import cast
 from uuid import uuid4
 
+import pytest
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import (
     csrf_token_for_session,
+    decode_access_token,
+    decode_refresh_token,
+    generate_token_pair,
     hash_password,
     hash_session_token,
+    hash_token,
     verify_csrf_token,
     verify_password,
 )
 from app.core.settings import Settings
 from app.features.users import service as users_service
-from app.features.users.errors import UserError
+from app.features.users.errors import InvalidRefreshTokenError, RefreshRaceError, UserError
 from app.features.users.models import User, UserSession
 from app.features.users.service import clean_user_name, normalize_email, validate_password
 from app.features.users.sessions import summarize_user_agent
@@ -132,6 +137,91 @@ def test_session_token_hash_and_csrf_are_deterministic() -> None:
     )
 
 
+def test_access_and_refresh_jwts_are_typed_signed_and_expiring() -> None:
+    settings = Settings(auth_secret_key="test-secret-that-is-at-least-32-bytes")
+    user_id = uuid4()
+    session_id = uuid4()
+    tokens = generate_token_pair(
+        user_id=user_id,
+        session_id=session_id,
+        settings=settings,
+        refresh_expires_at=datetime(2027, 8, 4, 12, tzinfo=UTC),
+    )
+    encoded, signature = tokens.access_token.rsplit(".", 1)
+    tampered_signature = ("A" if signature[0] != "A" else "B") + signature[1:]
+
+    access_claims = decode_access_token(tokens.access_token, settings)
+    refresh_claims = decode_refresh_token(tokens.refresh_token, settings)
+    assert access_claims is not None and access_claims.user_id == user_id
+    assert refresh_claims is not None and refresh_claims.session_id == session_id
+    assert decode_refresh_token(tokens.access_token, settings) is None
+    assert decode_access_token(f"{encoded}.{tampered_signature}", settings) is None
+
+
+async def test_refresh_rotates_and_reuse_revokes_session(monkeypatch) -> None:
+    current_time = [datetime(2026, 8, 4, 12, tzinfo=UTC)]
+
+    class FakeSession:
+        commit_count = 0
+
+        async def commit(self) -> None:
+            self.commit_count += 1
+
+    class FakeUsers:
+        async def get_session_for_refresh(self, _session_id):
+            return user_session
+
+        async def revoke_session(self, target: UserSession) -> None:
+            target.revoked_at = current_time[0]
+
+    class FakeRateLimits:
+        async def increment(self, **_values) -> int:
+            return 1
+
+    monkeypatch.setattr(users_service, "utc_now", lambda: current_time[0])
+    settings = Settings(auth_secret_key="test-secret-that-is-at-least-32-bytes")
+    user = User(
+        id=uuid4(),
+        email="refresh@example.test",
+        password_hash="hash",
+        is_active=True,
+    )
+    user_session = UserSession(
+        id=uuid4(),
+        user_id=user.id,
+        user=user,
+        refresh_token_hash="pending",
+        last_seen_at=current_time[0],
+        expires_at=current_time[0] + timedelta(days=14),
+    )
+    original = generate_token_pair(
+        user_id=user.id,
+        session_id=user_session.id,
+        refresh_expires_at=user_session.expires_at,
+        settings=settings,
+    )
+    user_session.refresh_token_hash = hash_token(original.refresh_token)
+    authentication = users_service.AuthenticationService(
+        cast(AsyncSession, FakeSession()), settings
+    )
+    authentication.users = cast(users_service.UserRepository, FakeUsers())
+    authentication.rate_limits = cast(users_service.AuthRateLimitRepository, FakeRateLimits())
+
+    rotated = await authentication.refresh(original.refresh_token)
+
+    assert rotated.refresh_token != original.refresh_token
+    assert user_session.refresh_token_hash == hash_token(rotated.refresh_token)
+    assert user_session.previous_refresh_token_hash == hash_token(original.refresh_token)
+    with pytest.raises(RefreshRaceError):
+        await authentication.refresh(original.refresh_token)
+    assert user_session.revoked_at is None
+
+    current_time[0] += timedelta(seconds=settings.refresh_reuse_grace_seconds + 1)
+    with pytest.raises(InvalidRefreshTokenError):
+        await authentication.refresh(original.refresh_token)
+    assert user_session.revoked_at == current_time[0]
+
+
 async def test_authenticated_session_touch_is_bounded(monkeypatch) -> None:
     now = datetime(2026, 8, 4, 12, tzinfo=UTC)
 
@@ -145,7 +235,7 @@ async def test_authenticated_session_touch_is_bounded(monkeypatch) -> None:
         def __init__(self, _session: FakeSession) -> None:
             pass
 
-        async def get_unrevoked_session_by_token_hash(self, _token_hash: str):
+        async def get_active_session(self, **_values):
             return user_session
 
         async def revoke_session(self, _user_session: UserSession) -> None:
@@ -163,21 +253,27 @@ async def test_authenticated_session_touch_is_bounded(monkeypatch) -> None:
         id=uuid4(),
         user_id=user.id,
         user=user,
-        session_token_hash="hash",
+        refresh_token_hash="hash",
         last_seen_at=now - timedelta(minutes=2),
         expires_at=now + timedelta(days=1),
     )
     session = FakeSession()
     authentication = users_service.AuthenticationService(
         cast(AsyncSession, session),
-        Settings(auth_secret_key="test-secret"),
+        Settings(auth_secret_key="test-secret-that-is-at-least-32-bytes"),
+    )
+    tokens = generate_token_pair(
+        user_id=user.id,
+        session_id=user_session.id,
+        refresh_expires_at=datetime(2027, 8, 4, 12, tzinfo=UTC),
+        settings=authentication.settings,
     )
 
-    assert await authentication.resolve_authenticated_session("active-token") is not None
+    assert await authentication.resolve_authenticated_session(tokens.access_token) is not None
     assert session.commit_count == 0
 
     user_session.last_seen_at = now - timedelta(minutes=6)
-    assert await authentication.resolve_authenticated_session("active-token") is not None
+    assert await authentication.resolve_authenticated_session(tokens.access_token) is not None
     assert user_session.last_seen_at == now
     assert session.commit_count == 1
 
@@ -195,7 +291,7 @@ async def test_idle_authenticated_session_is_revoked(monkeypatch) -> None:
         def __init__(self, _session: FakeSession) -> None:
             pass
 
-        async def get_unrevoked_session_by_token_hash(self, _token_hash: str):
+        async def get_active_session(self, **_values):
             return user_session
 
         async def revoke_session(self, target: UserSession) -> None:
@@ -213,24 +309,30 @@ async def test_idle_authenticated_session_is_revoked(monkeypatch) -> None:
         id=uuid4(),
         user_id=user.id,
         user=user,
-        session_token_hash="hash",
+        refresh_token_hash="hash",
         last_seen_at=now - timedelta(hours=1, seconds=1),
         expires_at=now + timedelta(days=1),
     )
     session = FakeSession()
     authentication = users_service.AuthenticationService(
         cast(AsyncSession, session),
-        Settings(auth_secret_key="test-secret"),
+        Settings(auth_secret_key="test-secret-that-is-at-least-32-bytes"),
+    )
+    tokens = generate_token_pair(
+        user_id=user.id,
+        session_id=user_session.id,
+        refresh_expires_at=datetime(2027, 8, 4, 12, tzinfo=UTC),
+        settings=authentication.settings,
     )
 
-    assert await authentication.resolve_authenticated_session("idle-token") is None
+    assert await authentication.resolve_authenticated_session(tokens.access_token) is None
     assert user_session.revoked_at == now
     assert session.commit_count == 1
 
     user_session.revoked_at = None
     user_session.last_seen_at = now
     user_session.expires_at = now
-    assert await authentication.resolve_authenticated_session("expired-token") is None
+    assert await authentication.resolve_authenticated_session(tokens.access_token) is None
     assert user_session.revoked_at == now
     assert session.commit_count == 2
 

@@ -1,4 +1,3 @@
-from collections.abc import AsyncIterator
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Any
@@ -9,8 +8,6 @@ import pytest
 from api_client import ApiTestClient as TestClient
 from app.api.dependencies import get_authenticated_session_context
 from app.api.v1.workspaces.dependencies import get_workspace_invitation_service
-from app.core.config import get_settings
-from app.db.session import get_session
 from app.features.users.models import User
 from app.features.workspaces.application.invitations import (
     AcceptedWorkspaceInvitation,
@@ -52,25 +49,18 @@ class InvitationServiceStub:
         return AcceptedWorkspaceInvitation(workspace_id=uuid4())
 
 
-def test_public_invitation_accept_rejects_missing_csrf() -> None:
+def test_public_invitation_accept_requires_bearer_access_token() -> None:
     app = create_app()
-    settings = get_settings()
-
-    async def session_override() -> AsyncIterator[Any]:
-        yield object()
-
-    app.dependency_overrides[get_session] = session_override
 
     with TestClient(app) as client:
-        client.cookies.set(settings.session_cookie_name, "workspace-security-session")
         response = client.post(
             "/api/v1/workspaces/invitations/invitation-token/accept",
         )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
     assert response.json()["error"] == {
-        "code": "invalid_csrf",
-        "message": "Недействительный CSRF токен.",
+        "code": "unauthorized",
+        "message": "Требуется вход.",
     }
 
 
@@ -98,6 +88,7 @@ def test_invitation_accept_uses_actor_and_returns_safe_navigation(available: boo
     app = create_app()
     service = InvitationServiceStub(available=available)
     user_id = uuid4()
+    session_id = uuid4()
     user = User(
         id=user_id,
         email="member@example.test",
@@ -107,7 +98,7 @@ def test_invitation_accept_uses_actor_and_returns_safe_navigation(available: boo
     app.dependency_overrides[get_workspace_invitation_service] = lambda: service
     app.dependency_overrides[get_authenticated_session_context] = lambda: SimpleNamespace(
         user=user,
-        session_token="session-token",
+        session_id=session_id,
     )
 
     with TestClient(app) as client:
@@ -118,7 +109,7 @@ def test_invitation_accept_uses_actor_and_returns_safe_navigation(available: boo
     assert service.accepted == {
         "actor_user_id": user_id,
         "invitation_token": "private-token",
-        "session_token": "session-token",
+        "session_token": session_id,
     }
     assert response.status_code == (200 if available else 404)
     assert response.headers["Cache-Control"] == "no-store"
@@ -148,7 +139,7 @@ def test_invitation_accept_rejects_wrong_account_without_leaking_email() -> None
     app.dependency_overrides[get_workspace_invitation_service] = lambda: service
     app.dependency_overrides[get_authenticated_session_context] = lambda: SimpleNamespace(
         user=user,
-        session_token="session-token",
+        session_id=uuid4(),
     )
 
     with TestClient(app) as client:

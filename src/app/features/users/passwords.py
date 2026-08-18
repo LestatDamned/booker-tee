@@ -1,15 +1,17 @@
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import NoReturn, TypeGuard
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import (
+    TokenPair,
     auth_rate_limit_bucket_hash,
-    generate_session_token,
+    generate_token_pair,
     generate_user_token,
     hash_password,
-    hash_session_token,
+    hash_token,
     hash_user_token,
     verify_password,
 )
@@ -116,10 +118,10 @@ class PasswordService:
         self,
         *,
         user: User,
-        session_token: str,
+        session_token: UUID,
         current_password: str,
         new_password: str,
-    ) -> str:
+    ) -> TokenPair:
         validated_password = validate_password(
             new_password,
             minimum_length=self.settings.password_min_length,
@@ -130,30 +132,34 @@ class PasswordService:
         if verify_password(validated_password, locked_user.password_hash):
             raise InvalidPasswordError("Новый пароль должен отличаться от текущего.")
 
-        current_session = await self.users.get_active_session_by_token_hash_for_update(
-            hash_session_token(session_token),
+        current_session = await self.users.get_active_session_for_update(
+            session_id=session_token,
             user_id=user.id,
         )
         if current_session is None:
             raise CurrentPasswordIncorrectError("Текущая сессия больше не активна.")
 
-        new_session_token = generate_session_token()
+        tokens = generate_token_pair(
+            user_id=user.id,
+            session_id=current_session.id,
+            refresh_expires_at=current_session.expires_at,
+            settings=self.settings,
+        )
         locked_user.password_hash = hash_password(validated_password)
         await self.users.revoke_other_sessions(
             user_id=user.id,
             current_session_id=current_session.id,
         )
-        current_session.session_token_hash = hash_session_token(new_session_token)
+        current_session.previous_refresh_token_hash = current_session.refresh_token_hash
+        current_session.refresh_token_hash = hash_token(tokens.refresh_token)
+        current_session.refresh_rotated_at = utc_now()
         current_session.last_seen_at = utc_now()
-        current_session.expires_at = utc_now() + timedelta(
-            seconds=self.settings.session_max_age_seconds
-        )
         await self.tokens.consume_active_for_user(
             user_id=user.id,
             purpose=UserTokenPurpose.RESET_PASSWORD,
         )
         await self.session.commit()
-        return new_session_token
+        return tokens
 
     async def _enforce_reset_request_limit(
         self,

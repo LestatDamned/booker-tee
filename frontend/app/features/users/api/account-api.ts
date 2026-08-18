@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 import type { components } from "../../../api/generated/schema";
-import { parseApiError, requestJson } from "../../../api/transport";
+import {
+  parseApiError,
+  requestJson,
+  setAccessToken,
+} from "../../../api/transport";
 
 export type AccountDto = components["schemas"]["AccountApiResponse"];
 
@@ -108,9 +112,10 @@ export async function logout(csrfToken: string): Promise<{
   status: "success" | "unauthenticated" | "error";
   message?: string;
 }> {
-  const response = await requestJson("/api/v1/auth/session", {
-    method: "DELETE",
-    headers: { "X-CSRF-Token": csrfToken },
+  void csrfToken;
+  const response = await requestJson("/api/v1/auth/logout", {
+    auth: false,
+    method: "POST",
   });
   if (response.status === "network_error") {
     return { status: "error", message: "Backend недоступен." };
@@ -124,6 +129,7 @@ export async function logout(csrfToken: string): Promise<{
         `API вернул статус ${response.httpStatus}.`,
     };
   }
+  setAccessToken(null);
   return { status: "success" };
 }
 

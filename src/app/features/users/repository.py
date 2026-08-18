@@ -5,6 +5,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.security import hash_token
 from app.db.base import utc_now
 from app.features.users.models import User, UserSession
 
@@ -60,10 +61,7 @@ class UserRepository:
         await self.session.flush()
         return user
 
-    async def get_unrevoked_session_by_token_hash(
-        self,
-        session_token_hash: str,
-    ) -> UserSession | None:
+    async def get_active_session(self, *, session_id: UUID, user_id: UUID) -> UserSession | None:
         result = await self.session.execute(
             select(UserSession)
             .options(
@@ -71,7 +69,8 @@ class UserRepository:
                 selectinload(UserSession.current_workspace),
             )
             .where(
-                UserSession.session_token_hash == session_token_hash,
+                UserSession.id == session_id,
+                UserSession.user_id == user_id,
                 UserSession.revoked_at.is_(None),
             )
         )
@@ -137,20 +136,31 @@ class UserRepository:
         )
         return result.scalar_one_or_none() is not None
 
-    async def get_active_session_by_token_hash_for_update(
-        self,
-        session_token_hash: str,
-        *,
-        user_id: UUID,
+    async def get_active_session_for_update(
+        self, *, session_id: UUID | str, user_id: UUID
     ) -> UserSession | None:
+        identity_filter = (
+            UserSession.id == session_id
+            if isinstance(session_id, UUID)
+            else UserSession.refresh_token_hash == hash_token(session_id)
+        )
         result = await self.session.execute(
             select(UserSession)
             .where(
-                UserSession.session_token_hash == session_token_hash,
+                identity_filter,
                 UserSession.user_id == user_id,
                 UserSession.revoked_at.is_(None),
                 UserSession.expires_at > utc_now(),
             )
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
+
+    async def get_session_for_refresh(self, session_id: UUID) -> UserSession | None:
+        result = await self.session.execute(
+            select(UserSession)
+            .options(selectinload(UserSession.user))
+            .where(UserSession.id == session_id)
             .with_for_update()
         )
         return result.scalar_one_or_none()

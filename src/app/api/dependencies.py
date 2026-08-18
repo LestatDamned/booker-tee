@@ -1,15 +1,16 @@
 from dataclasses import dataclass
 from typing import Annotated, NoReturn
 from urllib.parse import urlsplit
+from uuid import UUID
 
 from fastapi import Depends, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.errors import ApiError
 from app.core.config import get_settings
 from app.core.security import (
     csrf_token_for_session,
-    session_token_from_request,
     verify_csrf_token,
 )
 from app.core.settings import Settings
@@ -28,6 +29,7 @@ from app.features.workspaces.service import WorkspaceContext
 
 API_CSRF_HEADER = "X-CSRF-Token"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_password_service(
@@ -41,7 +43,7 @@ def get_password_service(
 class ApiRequestContext:
     workspace: WorkspaceContext
     csrf_token: str
-    session_token: str | None = None
+    session_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -49,7 +51,7 @@ class AuthenticatedSessionContext:
     user: User
     session: UserSession
     csrf_token: str
-    session_token: str
+    session_id: UUID
 
 
 def require_same_origin_public_mutation(
@@ -70,43 +72,40 @@ def require_same_origin_public_mutation(
 
 async def get_authenticated_session_context(
     request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> AuthenticatedSessionContext:
-    session_token = session_token_from_request(request, settings)
-    if session_token is None:
+    if credentials is None or credentials.scheme.lower() != "bearer":
         raise_api_unauthorized()
-    if request.method not in SAFE_METHODS:
-        verify_api_csrf(request, session_token=session_token, settings=settings)
+    access_token = credentials.credentials
 
     authenticated = await AuthenticationService(
         session,
         settings,
-    ).resolve_authenticated_session(session_token)
+    ).resolve_authenticated_session(access_token)
     if authenticated is None:
         raise_api_unauthorized()
     return AuthenticatedSessionContext(
         user=authenticated.user,
         session=authenticated.session,
-        csrf_token=csrf_token_for_session(session_token, settings),
-        session_token=session_token,
+        csrf_token=csrf_token_for_session(authenticated.session.id, settings),
+        session_id=authenticated.session.id,
     )
 
 
 async def get_api_request_context(
     request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     session: Annotated[AsyncSession, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ApiRequestContext:
-    session_token = session_token_from_request(request, settings)
-    if session_token is None:
+    if credentials is None or credentials.scheme.lower() != "bearer":
         raise_api_unauthorized()
-
-    if request.method not in SAFE_METHODS:
-        verify_api_csrf(request, session_token=session_token, settings=settings)
+    access_token = credentials.credentials
 
     login_session = await AuthenticationService(session, settings).resolve_login_session(
-        session_token
+        access_token
     )
     if login_session is None:
         raise_api_unauthorized()
@@ -132,11 +131,11 @@ async def get_api_request_context(
             message="Недостаточно прав для просмотра workspace.",
         )
 
-    csrf_token = csrf_token_for_session(session_token, settings)
+    csrf_token = csrf_token_for_session(login_session.session.id, settings)
     return ApiRequestContext(
         workspace=workspace_context,
         csrf_token=csrf_token,
-        session_token=session_token,
+        session_id=login_session.session.id,
     )
 
 
@@ -179,12 +178,14 @@ def require_api_member_directory_context(
 def verify_api_csrf(
     request: Request,
     *,
-    session_token: str,
     settings: Settings,
+    session_id: UUID | str | None = None,
+    session_token: str | None = None,
 ) -> None:
     provided_token = request.headers.get(API_CSRF_HEADER)
     if not verify_csrf_token(
         provided_token=provided_token,
+        session_id=session_id,
         session_token=session_token,
         settings=settings,
     ):

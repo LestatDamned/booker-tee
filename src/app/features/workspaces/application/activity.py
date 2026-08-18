@@ -145,9 +145,7 @@ class WorkspaceActivityService:
 
 def activity_item(
     event: WorkspaceAuditEvent,
-    available_entities: frozenset[
-        tuple[WorkspaceActivityEntityType, UUID]
-    ] = frozenset(),
+    available_entities: frozenset[tuple[WorkspaceActivityEntityType, UUID]] = frozenset(),
 ) -> WorkspaceActivityItemDto:
     details = event.details or {}
     return WorkspaceActivityItemDto(

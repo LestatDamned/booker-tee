@@ -2,6 +2,11 @@
 
 Статус: completed 2026-08-04. Slice 1 и increments 2.0–2.5 завершены.
 
+Post-completion update 2026-08-12: opaque session cookie заменена парой токенов:
+короткий access JWT хранится только в памяти React, ротируемый refresh JWT — в
+scoped `HttpOnly` cookie. PostgreSQL `UserSession`, server-side expiry, idle
+timeout, обнаружение повторного использования и немедленный отзыв сохранены.
+
 Этот child stage переносит оставшийся authenticated профиль и public auth flow
 из Jinja в React и доводит текущую email/password-аутентификацию до полного
 пользовательского цикла:

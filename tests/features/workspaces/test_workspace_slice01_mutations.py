@@ -183,10 +183,10 @@ def switch_harness(monkeypatch, *, current_id: UUID, target_id: UUID):
         def __init__(self, session) -> None:
             self.lock_calls = []
 
-        async def get_active_session_by_token_hash_for_update(
+        async def get_active_session_for_update(
             self,
-            token_hash,
             *,
+            session_id,
             user_id,
         ):
             self.lock_calls.append((user_id, "session-token"))
@@ -227,10 +227,10 @@ def creation_harness(monkeypatch):
         def __init__(self, session) -> None:
             self.user_session = user_session
 
-        async def get_active_session_by_token_hash_for_update(
+        async def get_active_session_for_update(
             self,
-            token_hash,
             *,
+            session_id,
             user_id,
         ):
             return self.user_session

@@ -23,6 +23,9 @@ class ChangePasswordApiRequest(ApiRequestModel):
 
 class ChangePasswordApiResponse(ApiModel):
     message: str
+    access_token: str
+    token_type: str = "Bearer"
+    expires_in: int
 
 
 class UserSessionApiResponse(ApiModel):
@@ -54,6 +57,9 @@ class ConfirmEmailChangeApiRequest(ApiRequestModel):
 class EmailChangeApiResponse(ApiModel):
     message: str
     email: str | None = None
+    access_token: str | None = None
+    token_type: str | None = None
+    expires_in: int | None = None
 
 
 class DeactivationBlockerApiResponse(ApiModel):

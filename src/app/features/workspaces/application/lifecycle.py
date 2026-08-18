@@ -4,7 +4,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import hash_session_token
 from app.db.base import utc_now
 from app.features.chat_integrations.repository import ChatIntegrationRepository
 from app.features.users.models import User, UserSession
@@ -49,7 +48,7 @@ class WorkspaceLifecycleService:
         self,
         *,
         actor: User,
-        session_token: str,
+        session_token: UUID | str,
         workspace_id: UUID,
         command: TransitionWorkspaceLifecycleCommand,
     ) -> WorkspaceLifecycleResult:
@@ -134,7 +133,7 @@ class WorkspaceLifecycleService:
         self,
         *,
         actor: User,
-        session_token: str,
+        session_token: UUID | str,
         workspace_id: UUID,
         command: TransitionWorkspaceLifecycleCommand,
     ) -> WorkspaceLifecycleResult:
@@ -187,7 +186,7 @@ class WorkspaceLifecycleService:
         self,
         *,
         actor: User,
-        session_token: str,
+        session_token: UUID | str,
         workspace_id: UUID,
         command: TransitionWorkspaceLifecycleCommand,
     ) -> tuple[Workspace, UserSession]:
@@ -209,8 +208,8 @@ class WorkspaceLifecycleService:
                 "Управление состоянием доступно только владельцу.",
                 WorkspaceLifecycleBlockingReason.FORBIDDEN,
             )
-        actor_session = await self._users.get_active_session_by_token_hash_for_update(
-            hash_session_token(session_token),
+        actor_session = await self._users.get_active_session_for_update(
+            session_id=session_token,
             user_id=actor.id,
         )
         if actor_session is None:

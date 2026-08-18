@@ -23,11 +23,16 @@ from app.api.v1.auth.schemas import (
     PasswordResetApiRequest,
     PasswordResetApiResponse,
     PasswordResetRequestApiRequest,
+    RefreshApiResponse,
     SignupApiRequest,
     VerificationRequestedApiResponse,
 )
 from app.core.config import get_settings
-from app.core.security import forget_session, remember_session
+from app.core.security import (
+    forget_refresh_token,
+    refresh_token_from_request,
+    remember_refresh_token,
+)
 from app.core.settings import Settings
 from app.features.users.email_delivery import IdentityEmailSender
 from app.features.users.email_verification import EmailVerificationService
@@ -37,6 +42,8 @@ from app.features.users.errors import (
     InvalidEmailVerificationTokenError,
     InvalidPasswordError,
     InvalidPasswordResetTokenError,
+    InvalidRefreshTokenError,
+    RefreshRaceError,
     SignupsClosedError,
     UserError,
 )
@@ -216,12 +223,18 @@ async def verify_email(
             message=str(error),
         ) from error
 
-    remember_session(
+    if login_session.tokens is None:
+        raise RuntimeError("Email verification did not issue authentication tokens.")
+    remember_refresh_token(
         response,
         settings=settings,
-        session_token=login_session.session_token,
+        refresh_token=login_session.tokens.refresh_token,
     )
-    return AuthenticatedApiResponse(next_path=safe_next_path(request.next_path))
+    return AuthenticatedApiResponse(
+        next_path=safe_next_path(request.next_path),
+        access_token=login_session.tokens.access_token,
+        expires_in=login_session.tokens.access_expires_in,
+    )
 
 
 @router.post(
@@ -267,12 +280,75 @@ async def login(
             message="Неверный email или пароль.",
         ) from error
 
-    remember_session(
+    if login_session.tokens is None:
+        raise RuntimeError("Login did not issue authentication tokens.")
+    remember_refresh_token(
         response,
         settings=settings,
-        session_token=login_session.session_token,
+        refresh_token=login_session.tokens.refresh_token,
     )
-    return AuthenticatedApiResponse(next_path=safe_next_path(request.next_path))
+    return AuthenticatedApiResponse(
+        next_path=safe_next_path(request.next_path),
+        access_token=login_session.tokens.access_token,
+        expires_in=login_session.tokens.access_expires_in,
+    )
+
+
+@router.post(
+    "/refresh",
+    response_model=RefreshApiResponse,
+    dependencies=[Depends(require_same_origin_public_mutation)],
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_409_CONFLICT,
+        status.HTTP_429_TOO_MANY_REQUESTS,
+    ),
+)
+async def refresh(
+    request: Request,
+    response: Response,
+    settings: Annotated[Settings, Depends(get_settings)],
+    authentication: Annotated[AuthenticationService, Depends(get_authentication_service)],
+) -> RefreshApiResponse:
+    refresh_token = refresh_token_from_request(request, settings)
+    if refresh_token is None:
+        raise ApiError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="unauthorized",
+            message="Требуется вход.",
+        )
+    try:
+        tokens = await authentication.refresh(
+            refresh_token,
+            network_key=request.client.host if request.client else "unknown",
+        )
+    except RefreshRaceError as error:
+        raise ApiError(
+            status_code=status.HTTP_409_CONFLICT,
+            code="refresh_race",
+            message=str(error),
+        ) from error
+    except InvalidRefreshTokenError as error:
+        forget_refresh_token(response, settings=settings)
+        raise ApiError(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_refresh_token",
+            message="Сессия недействительна. Войдите снова.",
+        ) from error
+    except AuthRateLimitedError as error:
+        raise ApiError(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            code="auth_rate_limited",
+            message=str(error),
+            details={"retryAfterSeconds": error.retry_after_seconds},
+            headers={"Retry-After": str(error.retry_after_seconds)},
+        ) from error
+    remember_refresh_token(response, settings=settings, refresh_token=tokens.refresh_token)
+    return RefreshApiResponse(
+        access_token=tokens.access_token,
+        expires_in=tokens.access_expires_in,
+    )
 
 
 @router.post(
@@ -368,29 +444,53 @@ async def reset_password(
             headers={"Retry-After": str(error.retry_after_seconds)},
         ) from error
 
-    forget_session(response, settings=settings)
+    forget_refresh_token(response, settings=settings)
     return PasswordResetApiResponse(message="Пароль изменён. Войдите снова с новым паролем.")
 
 
-@router.delete(
-    "/session",
+@router.post(
+    "/logout",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=api_error_responses(
-        status.HTTP_401_UNAUTHORIZED,
-        status.HTTP_403_FORBIDDEN,
-    ),
+    dependencies=[Depends(require_same_origin_public_mutation)],
+    responses=api_error_responses(status.HTTP_403_FORBIDDEN),
 )
 async def logout(
+    request: Request,
     response: Response,
-    context: Annotated[
-        AuthenticatedSessionContext,
-        Depends(get_authenticated_session_context),
-    ],
     settings: Annotated[Settings, Depends(get_settings)],
     authentication: Annotated[
         AuthenticationService,
         Depends(get_authentication_service),
     ],
 ) -> None:
-    await authentication.logout(context.session_token)
-    forget_session(response, settings=settings)
+    await authentication.logout(refresh_token_from_request(request, settings))
+    forget_refresh_token(response, settings=settings)
+
+
+@router.post(
+    "/logout-all",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=api_error_responses(status.HTTP_401_UNAUTHORIZED),
+)
+async def logout_all(
+    response: Response,
+    context: Annotated[
+        AuthenticatedSessionContext,
+        Depends(get_authenticated_session_context),
+    ],
+    settings: Annotated[Settings, Depends(get_settings)],
+    authentication: Annotated[AuthenticationService, Depends(get_authentication_service)],
+) -> None:
+    await authentication.logout_all(context.user.id)
+    forget_refresh_token(response, settings=settings)
+
+
+@router.delete("/session", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
+async def legacy_logout(
+    request: Request,
+    response: Response,
+    settings: Annotated[Settings, Depends(get_settings)],
+    authentication: Annotated[AuthenticationService, Depends(get_authentication_service)],
+) -> None:
+    await authentication.logout(refresh_token_from_request(request, settings))
+    forget_refresh_token(response, settings=settings)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import type { SessionDto } from "../../api/session";
@@ -55,6 +55,7 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
   const [navigationAnchorId, setNavigationAnchorId] = useState<string | null>(
     null,
   );
+  const navigatorRef = useRef<HTMLElement>(null);
   const { dismissToast, showToast, toast } = useToastQueue();
   const visibleItemKey = visibleItems.map((item) => item.id).join("|");
 
@@ -104,7 +105,7 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
     const visibleItemIds = visibleItemKey ? visibleItemKey.split("|") : [];
 
     function updateAnchorFromViewport() {
-      const viewportMarker = 64;
+      const viewportMarker = stickyBottom(navigatorRef.current);
       const visibleRows = visibleItemIds
         .map((id) => ({
           id,
@@ -171,7 +172,13 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
     window.setTimeout(() => {
       const target = document.getElementById(`raw-${itemId}`);
       target?.focus({ preventScroll: true });
-      target?.scrollIntoView({ block: "nearest" });
+      if (target) {
+        window.scrollBy({
+          top:
+            target.getBoundingClientRect().top -
+            stickyBottom(navigatorRef.current),
+        });
+      }
     });
   }
 
@@ -249,6 +256,7 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
           <ReviewNavigator
             anchorItemId={navigationAnchorId}
             filter={filter}
+            navigatorRef={navigatorRef}
             onNavigate={navigateToReviewItem}
             review={currentReview}
           />
@@ -343,11 +351,13 @@ function ImportReviewPageState({ review, session }: ImportReviewPageProps) {
 function ReviewNavigator({
   anchorItemId,
   filter,
+  navigatorRef,
   onNavigate,
   review,
 }: {
   anchorItemId: string | null;
   filter: ReviewFilter;
+  navigatorRef: RefObject<HTMLElement | null>;
   onNavigate: (itemId: string) => void;
   review: ImportReviewDto;
 }) {
@@ -378,6 +388,7 @@ function ReviewNavigator({
     <section
       aria-labelledby="import-review-queue-title"
       className={styles.queue}
+      ref={navigatorRef}
     >
       <div className={styles.queueProgressSummary}>
         <div className={styles.queueMetric}>
@@ -430,6 +441,12 @@ function ReviewNavigator({
       </div>
     </section>
   );
+}
+
+function stickyBottom(element: HTMLElement | null): number {
+  if (!element) return 0;
+  const top = Number.parseFloat(window.getComputedStyle(element).top);
+  return (Number.isFinite(top) ? top : 0) + element.offsetHeight;
 }
 
 type ReviewFilter = "all" | "pending" | "suggestions" | "problems" | "complete";

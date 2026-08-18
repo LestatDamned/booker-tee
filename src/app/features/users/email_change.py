@@ -1,13 +1,15 @@
 from dataclasses import dataclass
 from datetime import timedelta
+from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import (
-    generate_session_token,
+    TokenPair,
+    generate_token_pair,
     generate_user_token,
-    hash_session_token,
+    hash_token,
     hash_user_token,
     verify_password,
 )
@@ -39,7 +41,7 @@ class EmailChangeRequest:
 @dataclass(frozen=True)
 class EmailChangeResult:
     email: str
-    session_token: str
+    tokens: TokenPair
     notification: IdentityEmail
 
 
@@ -86,7 +88,7 @@ class EmailChangeService:
         self,
         *,
         user: User,
-        session_token: str,
+        session_token: UUID,
         token: str,
     ) -> EmailChangeResult:
         stored_token = await self.tokens.consume_for_user(
@@ -98,8 +100,8 @@ class EmailChangeService:
             raise InvalidEmailChangeTokenError("Ссылка недействительна или срок её действия истёк.")
 
         locked_user = await self.users.get_for_update(user.id)
-        current_session = await self.users.get_active_session_by_token_hash_for_update(
-            hash_session_token(session_token),
+        current_session = await self.users.get_active_session_for_update(
+            session_id=session_token,
             user_id=user.id,
         )
         if locked_user is None or current_session is None:
@@ -111,18 +113,22 @@ class EmailChangeService:
             raise EmailAlreadyRegisteredError("Этот email уже используется.")
 
         previous_email = locked_user.email
-        rotated_token = generate_session_token()
+        tokens = generate_token_pair(
+            user_id=user.id,
+            session_id=current_session.id,
+            refresh_expires_at=current_session.expires_at,
+            settings=self.settings,
+        )
         locked_user.email = target_email
         locked_user.email_verified_at = utc_now()
         await self.users.revoke_other_sessions(
             user_id=user.id,
             current_session_id=current_session.id,
         )
-        current_session.session_token_hash = hash_session_token(rotated_token)
+        current_session.previous_refresh_token_hash = current_session.refresh_token_hash
+        current_session.refresh_token_hash = hash_token(tokens.refresh_token)
+        current_session.refresh_rotated_at = utc_now()
         current_session.last_seen_at = utc_now()
-        current_session.expires_at = utc_now() + timedelta(
-            seconds=self.settings.session_max_age_seconds
-        )
         await self.tokens.consume_active_for_user(
             user_id=user.id,
             purpose=UserTokenPurpose.CHANGE_EMAIL,
@@ -135,6 +141,6 @@ class EmailChangeService:
             raise EmailAlreadyRegisteredError("Этот email уже используется.") from error
         return EmailChangeResult(
             email=target_email,
-            session_token=rotated_token,
+            tokens=tokens,
             notification=build_email_changed_message(recipient=previous_email),
         )

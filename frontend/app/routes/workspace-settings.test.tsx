@@ -51,7 +51,7 @@ describe("workspace settings route", () => {
     expect(result.settings.status).toBe("success");
     expect(result.members?.status).toBe("success");
     expect(result.invitations?.status).toBe("success");
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 
   it("does not request the private team directory without capability", async () => {
@@ -88,7 +88,7 @@ describe("workspace settings route", () => {
 
     expect(result.members).toBeNull();
     expect(result.invitations).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("uses one masked not-found state", () => {

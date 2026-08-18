@@ -14,7 +14,10 @@ import {
 } from "./test-support";
 
 describe("import review page", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
   it("renders queue progress and unresolved-row navigation", () => {
     renderPage(importReviewPayload());
 
@@ -45,6 +48,33 @@ describe("import review page", () => {
     expect(
       screen.getByRole("link", { name: "Открыть правила" }),
     ).toHaveAttribute("href", "/rules");
+  });
+
+  it("aligns queue navigation below the actual sticky stack", async () => {
+    const user = userEvent.setup();
+    renderPage(importReviewPayload());
+    const navigator = screen.getByRole("region", {
+      name: "1 из 2 разобрано",
+    });
+    const target = document.getElementById(`raw-${remainingItemId}`);
+    if (!target) throw new Error("remaining row is required");
+    const next = screen.getByRole("button", {
+      name: "Следующая нерешённая строка",
+    });
+    Object.defineProperty(navigator, "offsetHeight", { value: 96 });
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({
+      top: "68px",
+    } as CSSStyleDeclaration);
+    vi.spyOn(target, "getBoundingClientRect").mockReturnValue({
+      top: 260,
+    } as DOMRect);
+    const scrollBy = vi.fn();
+    vi.stubGlobal("scrollBy", scrollBy);
+
+    await user.click(next);
+
+    await waitFor(() => expect(scrollBy).toHaveBeenCalledWith({ top: 96 }));
+    expect(target).toHaveFocus();
   });
 
   it("focuses a bank row named by the URL hash after rendering", async () => {

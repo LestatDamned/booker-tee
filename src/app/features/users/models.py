@@ -56,7 +56,7 @@ class User(Base):
 class UserSession(Base):
     __tablename__ = "user_sessions"
     __table_args__ = (
-        Index("ix_user_sessions_token_hash", "session_token_hash", unique=True),
+        Index("ix_user_sessions_refresh_hash", "refresh_token_hash", unique=True),
         Index("ix_user_sessions_user_active", "user_id", "revoked_at", "expires_at"),
     )
 
@@ -66,7 +66,9 @@ class UserSession(Base):
         ForeignKey("workspaces.id", ondelete="SET NULL"),
         index=True,
     )
-    session_token_hash: Mapped[str] = mapped_column(String(64))
+    refresh_token_hash: Mapped[str] = mapped_column(String(64))
+    previous_refresh_token_hash: Mapped[str | None] = mapped_column(String(64))
+    refresh_rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
@@ -75,6 +77,15 @@ class UserSession(Base):
 
     user: Mapped[User] = relationship(back_populates="sessions")
     current_workspace: Mapped[Workspace | None] = relationship()
+
+    @property
+    def session_token_hash(self) -> str:
+        """Compatibility name for data created before refresh-token rotation."""
+        return self.refresh_token_hash
+
+    @session_token_hash.setter
+    def session_token_hash(self, value: str) -> None:
+        self.refresh_token_hash = value
 
 
 class UserToken(Base):

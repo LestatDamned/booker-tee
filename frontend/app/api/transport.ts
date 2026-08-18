@@ -26,25 +26,61 @@ export type ApiTransportResult =
   | { status: "network_error" };
 
 type ApiRequestOptions = Omit<RequestInit, "headers"> & {
+  auth?: boolean;
   headers?: Record<string, string>;
 };
+
+let accessToken: string | null = null;
+let refreshPromise: Promise<string | null> | null = null;
+
+export function setAccessToken(token: string | null): void {
+  accessToken = token;
+}
+
+export async function restoreAccessToken(): Promise<boolean> {
+  return Boolean(await refreshAccessToken());
+}
 
 export async function requestJson(
   input: RequestInfo | URL,
   options: ApiRequestOptions = {},
 ): Promise<ApiTransportResult> {
+  const { auth = true, ...requestOptions } = options;
   try {
-    const response = await fetch(input, {
+    if (auth && !accessToken && refreshPromise) {
+      await refreshPromise;
+    }
+    const sentAccessToken = accessToken;
+    let response = await fetch(input, {
       credentials: "same-origin",
-      ...options,
+      ...requestOptions,
       headers: {
         Accept: "application/json",
+        ...(auth && accessToken
+          ? { Authorization: `Bearer ${accessToken}` }
+          : {}),
         ...options.headers,
       },
     });
+    if (auth && sentAccessToken && response.status === 401) {
+      accessToken = null;
+      if (await refreshAccessToken()) {
+        response = await fetch(input, {
+          credentials: "same-origin",
+          ...requestOptions,
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${accessToken}`,
+            ...options.headers,
+          },
+        });
+      }
+    }
+    const body = await readJsonBody(response);
+    rememberAccessToken(body);
     return {
       status: "response",
-      body: await readJsonBody(response),
+      body,
       httpStatus: response.status,
       ok: response.ok,
     };
@@ -53,6 +89,43 @@ export async function requestJson(
       throw error;
     }
     return { status: "network_error" };
+  }
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  refreshPromise ??= performRefresh().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
+async function performRefresh(retryRace = true): Promise<string | null> {
+  const response = await fetch("/api/v1/auth/refresh", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  if (response.status === 409 && retryRace) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    return performRefresh(false);
+  }
+  if (!response.ok) {
+    accessToken = null;
+    return null;
+  }
+  const body = await readJsonBody(response);
+  rememberAccessToken(body);
+  return accessToken;
+}
+
+function rememberAccessToken(body: unknown): void {
+  if (
+    typeof body === "object" &&
+    body !== null &&
+    "accessToken" in body &&
+    typeof body.accessToken === "string"
+  ) {
+    accessToken = body.accessToken;
   }
 }
 

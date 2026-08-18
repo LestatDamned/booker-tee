@@ -30,7 +30,7 @@ describe("categories route", () => {
 
     expect(result.session.status).toBe("authenticated");
     expect(result.categories.status).toBe("success");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("renders login when either request is unauthenticated", () => {

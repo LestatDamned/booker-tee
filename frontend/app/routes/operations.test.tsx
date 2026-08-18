@@ -37,7 +37,7 @@ describe("operations route", () => {
 
     expect(result.session.status).toBe("authenticated");
     expect(result.operations.status).toBe("success");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("renders all sources and exposes only source-aware edit actions", () => {

@@ -156,7 +156,7 @@ async def accept_workspace_invitation(
         await service.accept(
             actor_user_id=context.user.id,
             invitation_token=invitation_token,
-            session_token=context.session_token,
+            session_token=context.session_id,
         )
     except WorkspaceInvitationNotFoundError as error:
         raise ApiError(
@@ -532,14 +532,14 @@ async def _transition_workspace_lifecycle(
     )
 
 
-def _session_token(context: ApiRequestContext) -> str:
-    if context.session_token is None:
+def _session_token(context: ApiRequestContext) -> UUID:
+    if context.session_id is None:
         raise ApiError(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="unauthorized",
             message="Требуется вход.",
         )
-    return context.session_token
+    return context.session_id
 
 
 def _workspace_not_found(error: WorkspaceNotFoundError) -> ApiError:

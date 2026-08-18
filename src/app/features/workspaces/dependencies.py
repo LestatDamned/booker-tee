@@ -160,7 +160,7 @@ async def verify_request_csrf(
     csrf_token = form.get("csrf_token")
     if not isinstance(csrf_token, str) or not verify_csrf_token(
         provided_token=csrf_token,
-        session_token=session_token,
+        session_id=session_token,
         settings=settings,
     ):
         raise HTTPException(

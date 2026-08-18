@@ -25,9 +25,13 @@ class Settings(BaseSettings):
         default=LOCAL_AUTH_SECRET,
         validation_alias="BOOKER_TEE_AUTH_SECRET_KEY",
     )
-    session_cookie_name: str = Field(
-        default="booker_session",
-        validation_alias="BOOKER_TEE_SESSION_COOKIE_NAME",
+    auth_previous_secret_keys: Annotated[list[str], NoDecode] = Field(
+        default_factory=list,
+        validation_alias="BOOKER_TEE_AUTH_PREVIOUS_SECRET_KEYS",
+    )
+    refresh_cookie_name: str = Field(
+        default="booker_refresh",
+        validation_alias="BOOKER_TEE_REFRESH_COOKIE_NAME",
     )
     session_cookie_secure: bool = Field(
         default=False,
@@ -37,6 +41,18 @@ class Settings(BaseSettings):
         default=60 * 60 * 24 * 14,
         ge=60,
         validation_alias="BOOKER_TEE_SESSION_MAX_AGE_SECONDS",
+    )
+    access_token_max_age_seconds: int = Field(
+        default=15 * 60,
+        ge=60,
+        le=60 * 60,
+        validation_alias="BOOKER_TEE_ACCESS_TOKEN_MAX_AGE_SECONDS",
+    )
+    refresh_reuse_grace_seconds: int = Field(
+        default=10,
+        ge=0,
+        le=60,
+        validation_alias="BOOKER_TEE_REFRESH_REUSE_GRACE_SECONDS",
     )
     session_idle_timeout_seconds: int = Field(
         default=60 * 60,
@@ -130,6 +146,13 @@ class Settings(BaseSettings):
             return [host.strip() for host in value.split(",") if host.strip()]
         return value
 
+    @field_validator("auth_previous_secret_keys", mode="before")
+    @classmethod
+    def parse_previous_auth_secrets(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [secret.strip() for secret in value.split(",") if secret.strip()]
+        return value
+
     @field_validator(
         "telegram_bot_token",
         "telegram_webhook_secret",
@@ -149,6 +172,11 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def session_cookie_name(self) -> str:
+        """Compatibility for callers migrating to the scoped refresh cookie."""
+        return self.refresh_cookie_name
 
     def validate_for_runtime(self) -> None:
         if not self.is_production:

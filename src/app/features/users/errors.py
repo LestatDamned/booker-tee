@@ -52,6 +52,14 @@ class UserSessionNotFoundError(UserError):
     pass
 
 
+class InvalidRefreshTokenError(UserError):
+    pass
+
+
+class RefreshRaceError(UserError):
+    pass
+
+
 class AuthRateLimitedError(UserError):
     def __init__(self, retry_after_seconds: int) -> None:
         super().__init__("Слишком много запросов. Повторите позже.")

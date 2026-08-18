@@ -20,6 +20,15 @@ class SignupApiRequest(LoginApiRequest):
 
 class AuthenticatedApiResponse(ApiModel):
     next_path: str
+    access_token: str
+    token_type: str = "Bearer"
+    expires_in: int
+
+
+class RefreshApiResponse(ApiModel):
+    access_token: str
+    token_type: str = "Bearer"
+    expires_in: int
 
 
 class VerificationRequestedApiResponse(ApiModel):

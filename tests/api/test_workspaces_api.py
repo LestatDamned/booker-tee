@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from workspaces_support import (
@@ -85,8 +85,8 @@ def test_workspace_create_normalizes_and_dispatches_idempotent_command() -> None
         )
 
     assert response.status_code == 201
-    assert creator.calls[0][1:] == (
-        "workspace-session-token",
+    assert isinstance(creator.calls[0][1], UUID)
+    assert creator.calls[0][2:] == (
         CreateWorkspaceCommand(
             name="Семейный бюджет",
             workspace_type=WorkspaceType.FAMILY,
@@ -153,8 +153,8 @@ def test_workspace_select_dispatches_expected_current_and_returns_session() -> N
         )
 
     assert response.status_code == 200
-    assert switcher.calls[0][1:] == (
-        "workspace-session-token",
+    assert isinstance(switcher.calls[0][1], UUID)
+    assert switcher.calls[0][2:] == (
         target_id,
         reader.directory.current_workspace_id,
     )
@@ -294,18 +294,15 @@ def test_workspace_deactivate_dispatches_snapshot_and_returns_boundary_impact() 
         )
 
     assert response.status_code == 200
-    assert lifecycle_service.calls == [
-        (
-            "deactivate",
-            actor_id,
-            "workspace-session-token",
-            workspace_id,
-            TransitionWorkspaceLifecycleCommand(
-                expected_workspace_updated_at=expected_updated_at,
-                expected_current_workspace_id=expected_current_id,
-            ),
-        )
-    ]
+    assert isinstance(lifecycle_service.calls[0][2], UUID)
+    assert lifecycle_service.calls[0][:2] == ("deactivate", actor_id)
+    assert lifecycle_service.calls[0][3:] == (
+        workspace_id,
+        TransitionWorkspaceLifecycleCommand(
+            expected_workspace_updated_at=expected_updated_at,
+            expected_current_workspace_id=expected_current_id,
+        ),
+    )
     assert response.json()["impact"] == {
         "movedSessionCount": 2,
         "revokedInvitationCount": 1,
@@ -610,18 +607,16 @@ def test_workspace_ownership_transfer_dispatches_both_stale_snapshots() -> None:
         )
 
     assert response.status_code == 200
-    assert service.transfer_calls == [
-        (
-            actor_id,
-            "workspace-session-token",
-            workspace_id,
-            TransferWorkspaceOwnershipCommand(
-                recipient_member_id=recipient_id,
-                expected_workspace_updated_at=updated_at,
-                expected_recipient_updated_at=updated_at,
-            ),
-        )
-    ]
+    assert isinstance(service.transfer_calls[0][1], UUID)
+    assert service.transfer_calls[0][0] == actor_id
+    assert service.transfer_calls[0][2:] == (
+        workspace_id,
+        TransferWorkspaceOwnershipCommand(
+            recipient_member_id=recipient_id,
+            expected_workspace_updated_at=updated_at,
+            expected_recipient_updated_at=updated_at,
+        ),
+    )
     assert response.json()["navigationOutcome"] == {
         "kind": "workspace_authority_changed",
         "href": f"/app/workspaces/{workspace_id}/settings",
@@ -643,16 +638,14 @@ def test_workspace_leave_dispatches_session_snapshot_and_returns_fallback() -> N
         )
 
     assert response.status_code == 200
-    assert service.leave_calls == [
-        (
-            actor_id,
-            "workspace-session-token",
-            workspace_id,
-            LeaveWorkspaceCommand(
-                expected_member_updated_at=updated_at,
-                expected_current_workspace_id=workspace_id,
-            ),
-        )
-    ]
+    assert isinstance(service.leave_calls[0][1], UUID)
+    assert service.leave_calls[0][0] == actor_id
+    assert service.leave_calls[0][2:] == (
+        workspace_id,
+        LeaveWorkspaceCommand(
+            expected_member_updated_at=updated_at,
+            expected_current_workspace_id=workspace_id,
+        ),
+    )
     assert response.json()["session"]["workspace"]["id"] == str(service.leave_result.workspace.id)
     assert response.json()["navigationOutcome"]["boundary"] == "hard_reload"

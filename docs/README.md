@@ -40,6 +40,8 @@
 
 ## Операционные документы
 
+- [`Production deployment plan`](deploy/plan/README.md) — подготовка приложения,
+  Nginx, Telegram, backup/restore и первый production release.
 - [`ALPHA_TESTING.md`](guides/ALPHA_TESTING.md) — локальный запуск и smoke flow.
 - [`USER_GUIDE.md`](guides/USER_GUIDE.md) — короткая карта пользовательских
   сценариев и терминов.

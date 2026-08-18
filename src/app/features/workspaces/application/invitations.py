@@ -5,7 +5,6 @@ from uuid import UUID, uuid5
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import hash_session_token
 from app.core.settings import Settings
 from app.db.base import utc_now
 from app.features.users.repository import UserRepository
@@ -97,7 +96,7 @@ class WorkspaceInvitationService:
         *,
         actor_user_id: UUID,
         invitation_token: str,
-        session_token: str,
+        session_token: UUID | str,
     ) -> AcceptedWorkspaceInvitation:
         try:
             token_hash = hash_invitation_token(invitation_token)
@@ -110,8 +109,8 @@ class WorkspaceInvitationService:
             invitation = self._require_public_invitation(
                 await self._workspaces.get_invitation_by_token_hash_for_update(token_hash)
             )
-            user_session = await self._users.get_active_session_by_token_hash_for_update(
-                hash_session_token(session_token),
+            user_session = await self._users.get_active_session_for_update(
+                session_id=session_token,
                 user_id=actor_user_id,
             )
             if user_session is None:

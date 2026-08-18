@@ -67,7 +67,9 @@ React SPA; локальная chat integration page остаётся development
   browser routes на канонические React routes;
 - React dev server proxy обращается к FastAPI.
 - Production build раздаётся FastAPI в same-origin deployment.
-- Cookie session остаётся backend-owned.
+- Короткий access JWT хранится только в памяти React и передаётся как Bearer.
+- Ротируемый refresh JWT хранится в scoped `HttpOnly` cookie; server-side
+  `UserSession` сохраняет немедленный отзыв и управление устройствами.
 - Security middleware проверяет host/origin/session.
 - CORS не открывается широко.
 

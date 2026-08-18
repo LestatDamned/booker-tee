@@ -4,7 +4,6 @@ from uuid import UUID, uuid5
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import hash_session_token
 from app.db.base import utc_now
 from app.features.users.models import User
 from app.features.users.repository import UserRepository
@@ -40,7 +39,7 @@ class WorkspaceCreator:
         self,
         *,
         actor: User,
-        session_token: str,
+        session_token: UUID | str,
         command: CreateWorkspaceCommand,
         idempotency_key: UUID,
     ) -> WorkspaceCreationResult:
@@ -112,7 +111,7 @@ class WorkspaceCreator:
         self,
         *,
         actor: User,
-        session_token: str,
+        session_token: UUID | str,
         workspace: Workspace,
         replayed: bool,
     ) -> WorkspaceCreationResult:
@@ -137,9 +136,9 @@ class WorkspaceCreator:
             await self._session.rollback()
             raise
 
-    async def _lock_session(self, *, actor: User, session_token: str):
-        user_session = await self._users.get_active_session_by_token_hash_for_update(
-            hash_session_token(session_token),
+    async def _lock_session(self, *, actor: User, session_token: UUID | str):
+        user_session = await self._users.get_active_session_for_update(
+            session_id=session_token,
             user_id=actor.id,
         )
         if user_session is None:

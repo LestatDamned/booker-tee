@@ -31,7 +31,7 @@ describe("import review route", () => {
 
     expect(result.session.status).toBe("authenticated");
     expect(result.review.status).toBe("success");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("renders not found without leaking workspace details", () => {

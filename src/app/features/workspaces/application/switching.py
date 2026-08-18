@@ -3,7 +3,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import hash_session_token
 from app.db.base import utc_now
 from app.features.users.models import User
 from app.features.users.repository import UserRepository
@@ -33,13 +32,13 @@ class WorkspaceSessionSwitcher:
         self,
         *,
         actor: User,
-        session_token: str,
+        session_token: UUID | str,
         target_workspace_id: UUID,
         expected_current_workspace_id: UUID,
     ) -> WorkspaceSessionSwitchResult:
         try:
-            user_session = await self._users.get_active_session_by_token_hash_for_update(
-                hash_session_token(session_token),
+            user_session = await self._users.get_active_session_for_update(
+                session_id=session_token,
                 user_id=actor.id,
             )
             if user_session is None:

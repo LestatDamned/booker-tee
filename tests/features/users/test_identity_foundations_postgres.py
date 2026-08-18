@@ -410,7 +410,7 @@ async def test_password_change_rotates_current_session_and_reset_revokes_every_s
     email = f"password-{unique}@example.test"
     current_token = f"current-{unique}"
     settings = Settings(
-        auth_secret_key="password-lifecycle-test-secret",
+        auth_secret_key="password-lifecycle-test-secret-32-bytes",
         public_base_url="https://booker.example",
     )
     user_id = uuid4()
@@ -450,18 +450,18 @@ async def test_password_change_rotates_current_session_and_reset_revokes_every_s
             assert user is not None
             rotated_token = await PasswordService(session, settings).change_password(
                 user=user,
-                session_token=current_token,
+                session_token=session_ids[0],
                 current_password="old secure phrase",
                 new_password="new secure phrase",
             )
-            assert rotated_token != current_token
+            assert rotated_token.refresh_token != current_token
 
         async with sessions() as session:
             current = await session.get(UserSession, session_ids[0])
             other = await session.get(UserSession, session_ids[1])
             user = await session.get(User, user_id)
             assert current is not None and current.revoked_at is None
-            assert current.session_token_hash == hash_session_token(rotated_token)
+            assert current.session_token_hash == hash_session_token(rotated_token.refresh_token)
             assert other is not None and other.revoked_at is not None
             assert user is not None and verify_password("new secure phrase", user.password_hash)
 

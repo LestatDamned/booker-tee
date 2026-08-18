@@ -48,7 +48,7 @@ async def test_email_change_is_confirmed_once_rotates_session_and_rechecks_colli
     new_email = f"new-{unique}@example.test"
     collision_email = f"collision-{unique}@example.test"
     collision_user_id = uuid4()
-    settings = Settings(auth_secret_key="email-change-test-secret")
+    settings = Settings(auth_secret_key="email-change-test-secret-at-least-32-bytes")
 
     async with sessions() as session:
         session.add(
@@ -97,10 +97,10 @@ async def test_email_change_is_confirmed_once_rotates_session_and_rechecks_colli
             assert user is not None and user.email == old_email
             result = await EmailChangeService(session, settings).confirm_change(
                 user=user,
-                session_token=current_token,
+                session_token=session_ids[0],
                 token=token,
             )
-            rotated_token = result.session_token
+            rotated_token = result.tokens.refresh_token
             assert result.notification.recipient == old_email
 
         async with sessions() as session:
@@ -139,7 +139,7 @@ async def test_email_change_is_confirmed_once_rotates_session_and_rechecks_colli
             with pytest.raises(EmailAlreadyRegisteredError):
                 await EmailChangeService(session, settings).confirm_change(
                     user=user,
-                    session_token=rotated_token,
+                    session_token=session_ids[0],
                     token=collision_token,
                 )
 

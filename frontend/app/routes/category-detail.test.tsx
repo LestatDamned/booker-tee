@@ -30,7 +30,7 @@ describe("category detail route", () => {
 
     expect(result.session.status).toBe("authenticated");
     expect(result.detail.status).toBe("success");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain(
       `/api/v1/categories/${detail.category.id}?currency=RUB`,
     );

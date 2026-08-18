@@ -22,3 +22,17 @@ async def read_session(
     context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
 ) -> SessionApiResponse:
     return SessionApiResponseMapper.from_context(context)
+
+
+@router.get(
+    "/auth/me",
+    response_model=SessionApiResponse,
+    responses=api_error_responses(
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+    ),
+)
+async def read_current_user(
+    context: Annotated[ApiRequestContext, Depends(get_api_request_context)],
+) -> SessionApiResponse:
+    return SessionApiResponseMapper.from_context(context)

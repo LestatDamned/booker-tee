@@ -1,6 +1,6 @@
 import type { components } from "./generated/schema";
 import { sessionSchema } from "./session-schema";
-import { requestJson } from "./transport";
+import { requestJson, restoreAccessToken } from "./transport";
 
 export type SessionDto = components["schemas"]["SessionApiResponse"];
 
@@ -13,6 +13,7 @@ export type SessionLoadResult =
 export async function loadSession(
   signal?: AbortSignal,
 ): Promise<SessionLoadResult> {
+  await restoreAccessToken();
   const response = await requestJson("/api/v1/session", {
     ...(signal ? { signal } : {}),
   });

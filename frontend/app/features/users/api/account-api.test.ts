@@ -59,10 +59,9 @@ describe("account API", () => {
 
     await expect(logout("csrf-token")).resolves.toEqual({ status: "success" });
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/auth/session",
+      "/api/v1/auth/logout",
       expect.objectContaining({
-        method: "DELETE",
-        headers: expect.objectContaining({ "X-CSRF-Token": "csrf-token" }),
+        method: "POST",
       }),
     );
   });

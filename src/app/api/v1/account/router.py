@@ -33,7 +33,7 @@ from app.api.v1.account.schemas import (
 )
 from app.api.v1.auth.dependencies import get_identity_email_sender
 from app.core.config import get_settings
-from app.core.security import forget_session, remember_session
+from app.core.security import forget_refresh_token, remember_refresh_token
 from app.core.settings import Settings
 from app.features.users.account_deactivation import (
     AccountDeactivationImpact,
@@ -126,9 +126,9 @@ async def change_password(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ChangePasswordApiResponse:
     try:
-        session_token = await passwords.change_password(
+        tokens = await passwords.change_password(
             user=context.user,
-            session_token=context.session_token,
+            session_token=context.session_id,
             current_password=request.current_password,
             new_password=request.new_password,
         )
@@ -147,8 +147,12 @@ async def change_password(
             field_errors={"newPassword": [str(error)]},
         ) from error
 
-    remember_session(response, settings=settings, session_token=session_token)
-    return ChangePasswordApiResponse(message="Пароль изменён. Остальные сессии завершены.")
+    remember_refresh_token(response, settings=settings, refresh_token=tokens.refresh_token)
+    return ChangePasswordApiResponse(
+        message="Пароль изменён. Остальные сессии завершены.",
+        access_token=tokens.access_token,
+        expires_in=tokens.access_expires_in,
+    )
 
 
 @router.post(
@@ -226,7 +230,7 @@ async def confirm_email_change(
     try:
         result = await email_changes.confirm_change(
             user=context.user,
-            session_token=context.session_token,
+            session_token=context.session_id,
             token=request.token,
         )
     except InvalidEmailChangeTokenError as error:
@@ -241,11 +245,18 @@ async def confirm_email_change(
             code="email_change_conflict",
             message=str(error),
         ) from error
-    remember_session(response, settings=settings, session_token=result.session_token)
+    remember_refresh_token(
+        response,
+        settings=settings,
+        refresh_token=result.tokens.refresh_token,
+    )
     background_tasks.add_task(email_sender, result.notification)
     return EmailChangeApiResponse(
         message="Email изменён. Остальные сессии завершены.",
         email=result.email,
+        access_token=result.tokens.access_token,
+        token_type="Bearer",
+        expires_in=result.tokens.access_expires_in,
     )
 
 
@@ -323,7 +334,7 @@ async def deactivate_account(
             message=str(error),
             details={"blockers": blockers},
         ) from error
-    forget_session(response, settings=settings)
+    forget_refresh_token(response, settings=settings)
     return DeactivateAccountApiResponse(
         message="Аккаунт деактивирован. Для восстановления обратитесь к администратору."
     )

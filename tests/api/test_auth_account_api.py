@@ -20,6 +20,7 @@ from app.api.v1.auth.dependencies import (
     get_identity_email_sender,
 )
 from app.core.config import get_settings
+from app.core.security import TokenPair
 from app.core.settings import Settings
 from app.features.users.account_deactivation import (
     AccountDeactivationImpact,
@@ -47,19 +48,28 @@ class AuthenticationStub:
     error: Exception | None = None
     session_token: str = "opaque-session-token"
     logged_out_token: str | None = None
+    logout_all_user_id: UUID | None = None
 
     async def login(self, **_values: object) -> object:
         if self.error:
             raise self.error
-        return _LoginResult(self.session_token)
+        return _LoginResult(_tokens(self.session_token))
 
-    async def logout(self, session_token: str) -> None:
-        self.logged_out_token = session_token
+    async def logout(self, refresh_token: str | None) -> None:
+        self.logged_out_token = refresh_token
+
+    async def refresh(self, _refresh_token: str, **_values: object) -> TokenPair:
+        if self.error:
+            raise self.error
+        return _tokens("rotated")
+
+    async def logout_all(self, user_id: UUID) -> None:
+        self.logout_all_user_id = user_id
 
 
 @dataclass
 class _LoginResult:
-    session_token: str
+    tokens: TokenPair
 
 
 @dataclass
@@ -81,7 +91,7 @@ class EmailVerificationStub:
     async def verify(self, **_values: object) -> object:
         if self.error:
             raise self.error
-        return _LoginResult(self.session_token)
+        return _LoginResult(_tokens(self.session_token))
 
 
 @dataclass
@@ -105,11 +115,11 @@ class PasswordStub:
         current_password: str,
         new_password: str,
         **_values: object,
-    ) -> str:
+    ) -> TokenPair:
         if self.error:
             raise self.error
         self.changed = (current_password, new_password)
-        return "rotated-session-token"
+        return _tokens("rotated-session-token")
 
 
 class UserServiceStub:
@@ -179,7 +189,7 @@ class EmailChangeStub:
         self.confirmed_token = token
         return EmailChangeResult(
             email="new@example.test",
-            session_token="rotated-email-session",
+            tokens=_tokens("rotated-email-session"),
             notification=self.messages[0],
         )
 
@@ -231,9 +241,10 @@ def test_login_sets_http_only_cookie_and_preserves_safe_next() -> None:
         )
 
     assert response.status_code == 200
-    assert response.json() == {"nextPath": "/workspaces/invitations/example"}
+    assert response.json()["nextPath"] == "/workspaces/invitations/example"
+    assert response.json()["accessToken"] == "opaque-session-token-access"
     cookie = response.headers["set-cookie"]
-    assert "booker_session=opaque-session-token" in cookie
+    assert "booker_refresh=opaque-session-token-refresh" in cookie
     assert "HttpOnly" in cookie
     assert "SameSite=lax" in cookie
 
@@ -324,8 +335,8 @@ def test_email_verification_sets_session_cookie_and_safe_continuation() -> None:
         )
 
     assert response.status_code == 200
-    assert response.json() == {"nextPath": "/app/workspaces"}
-    assert "booker_session=verified-session-token" in response.headers["set-cookie"]
+    assert response.json()["nextPath"] == "/app/workspaces"
+    assert "booker_refresh=verified-session-token-refresh" in response.headers["set-cookie"]
 
 
 def test_password_reset_request_is_generic_and_sends_email_in_background() -> None:
@@ -384,7 +395,7 @@ def test_successful_login_rejects_external_next() -> None:
             },
         )
 
-    assert response.json() == {"nextPath": "/app/workspaces"}
+    assert response.json()["nextPath"] == "/app/workspaces"
 
 
 def test_public_auth_mutations_reject_missing_and_cross_site_origin() -> None:
@@ -459,7 +470,7 @@ def test_change_password_rotates_current_session_cookie() -> None:
 
     assert response.status_code == 200
     assert passwords.changed == ("old secure phrase", "new secure phrase")
-    assert "booker_session=rotated-session-token" in response.headers["set-cookie"]
+    assert "booker_refresh=rotated-session-token-refresh" in response.headers["set-cookie"]
 
 
 def test_account_lists_sessions_without_secrets() -> None:
@@ -554,7 +565,7 @@ def test_email_change_request_notifies_both_addresses_and_confirmation_rotates_c
     assert changes.requested == ("new@example.test", "current password")
     assert changes.confirmed_token == "single-use-token"
     assert sent == [old_notice, new_confirmation, old_notice]
-    assert "booker_session=rotated-email-session" in confirmed.headers["set-cookie"]
+    assert "booker_refresh=rotated-email-session-refresh" in confirmed.headers["set-cookie"]
 
 
 def test_account_deactivation_exposes_safe_blockers_and_requires_exact_confirmation() -> None:
@@ -602,9 +613,43 @@ def test_logout_revokes_server_session_and_clears_cookie() -> None:
         response = client.delete("/api/v1/auth/session")
 
     assert response.status_code == 204
-    assert authentication.logged_out_token == "opaque-session-token"
-    assert "booker_session=" in response.headers["set-cookie"]
+    assert authentication.logged_out_token is None
+    assert "booker_refresh=" in response.headers["set-cookie"]
     assert "Max-Age=0" in response.headers["set-cookie"]
+
+
+def test_refresh_rotates_cookie_and_returns_access_token() -> None:
+    app = create_app()
+    authentication = AuthenticationStub()
+    app.dependency_overrides[get_authentication_service] = lambda: authentication
+
+    with TestClient(app) as client:
+        client.cookies.set("booker_refresh", "old-refresh", path="/api/v1/auth")
+        response = client.post("/api/v1/auth/refresh", headers=SAME_ORIGIN_HEADERS)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "accessToken": "rotated-access",
+        "tokenType": "Bearer",
+        "expiresIn": 900,
+    }
+    assert "booker_refresh=rotated-refresh" in response.headers["set-cookie"]
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_logout_all_revokes_every_session() -> None:
+    app = create_app()
+    authentication = AuthenticationStub()
+    context = _account_context()
+    app.dependency_overrides[get_authenticated_session_context] = lambda: context
+    app.dependency_overrides[get_authentication_service] = lambda: authentication
+
+    with TestClient(app) as client:
+        response = client.post("/api/v1/auth/logout-all")
+
+    assert response.status_code == 204
+    assert authentication.logout_all_user_id == context.user.id
+    assert "booker_refresh=" in response.headers["set-cookie"]
 
 
 def _account_context() -> AuthenticatedSessionContext:
@@ -617,12 +662,20 @@ def _account_context() -> AuthenticatedSessionContext:
     user_session = UserSession(
         id=uuid4(),
         user_id=user.id,
-        session_token_hash="hash",
-        expires_at=user.created_at,
+        refresh_token_hash="hash",
+        expires_at=datetime.now(UTC) + timedelta(days=1),
     )
     return AuthenticatedSessionContext(
         user=user,
         session=user_session,
         csrf_token="csrf-token",
-        session_token="opaque-session-token",
+        session_id=user_session.id,
+    )
+
+
+def _tokens(prefix: str) -> TokenPair:
+    return TokenPair(
+        access_token=f"{prefix}-access",
+        refresh_token=f"{prefix}-refresh",
+        access_expires_in=900,
     )

@@ -330,6 +330,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh */
+        post: operations["refresh_api_v1_auth_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/password-reset-requests": {
         parameters: {
             query?: never;
@@ -364,7 +381,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/session": {
+    "/api/v1/auth/logout": {
         parameters: {
             query?: never;
             header?: never;
@@ -373,9 +390,26 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
         /** Logout */
-        delete: operations["logout_api_v1_auth_session_delete"];
+        post: operations["logout_api_v1_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout All */
+        post: operations["logout_all_api_v1_auth_logout_all_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1106,6 +1140,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Current User */
+        get: operations["read_current_user_api_v1_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transaction-rules": {
         parameters: {
             query?: never;
@@ -1823,6 +1874,15 @@ export interface components {
         AuthenticatedApiResponse: {
             /** Nextpath */
             nextPath: string;
+            /** Accesstoken */
+            accessToken: string;
+            /**
+             * Tokentype
+             * @default Bearer
+             */
+            tokenType: string;
+            /** Expiresin */
+            expiresIn: number;
         };
         /** BindTelegramDevLinkApiRequest */
         BindTelegramDevLinkApiRequest: {
@@ -2113,6 +2173,15 @@ export interface components {
         ChangePasswordApiResponse: {
             /** Message */
             message: string;
+            /** Accesstoken */
+            accessToken: string;
+            /**
+             * Tokentype
+             * @default Bearer
+             */
+            tokenType: string;
+            /** Expiresin */
+            expiresIn: number;
         };
         /** ConfirmEmailChangeApiRequest */
         ConfirmEmailChangeApiRequest: {
@@ -2541,6 +2610,12 @@ export interface components {
             message: string;
             /** Email */
             email?: string | null;
+            /** Accesstoken */
+            accessToken?: string | null;
+            /** Tokentype */
+            tokenType?: string | null;
+            /** Expiresin */
+            expiresIn?: number | null;
         };
         /** EmailVerificationApiRequest */
         EmailVerificationApiRequest: {
@@ -4454,6 +4529,18 @@ export interface components {
             description?: string | null;
             /** Notes */
             notes?: string | null;
+        };
+        /** RefreshApiResponse */
+        RefreshApiResponse: {
+            /** Accesstoken */
+            accessToken: string;
+            /**
+             * Tokentype
+             * @default Bearer
+             */
+            tokenType: string;
+            /** Expiresin */
+            expiresIn: number;
         };
         /** ReportAccountBalanceApiResponse */
         ReportAccountBalanceApiResponse: {
@@ -6969,6 +7056,62 @@ export interface operations {
             };
         };
     };
+    refresh_api_v1_auth_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefreshApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     request_password_reset_api_v1_auth_password_reset_requests_post: {
         parameters: {
             query?: never;
@@ -7080,7 +7223,34 @@ export interface operations {
             };
         };
     };
-    logout_api_v1_auth_session_delete: {
+    logout_api_v1_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    logout_all_api_v1_auth_logout_all_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -7098,15 +7268,6 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10466,6 +10627,44 @@ export interface operations {
         };
     };
     read_session_api_v1_session_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionApiResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    read_current_user_api_v1_auth_me_get: {
         parameters: {
             query?: never;
             header?: never;
